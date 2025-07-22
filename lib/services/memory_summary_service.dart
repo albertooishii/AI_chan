@@ -21,13 +21,13 @@ class MemorySummaryService {
   }
 
   final String model;
-  final AiChanProfile biography;
+  final AiChanProfile profile;
   static int? get _maxHistory {
     final value = int.tryParse(dotenv.env['SUMMARY_BLOCK_SIZE'] ?? '');
     return (value != null && value > 0) ? value : null;
   }
 
-  MemorySummaryService({required this.model, required this.biography});
+  MemorySummaryService({required this.model, required this.profile});
 
   Future<List<TimelineEntry>> generateBlockSummaries(
     List<chat_model.Message> messages,
@@ -67,8 +67,8 @@ class MemorySummaryService {
   ) async {
     final blockDate = block.first.dateTime.toIso8601String();
     // Extraer nombres (ya no pueden ser null)
-    String userName = biography.userName.trim();
-    String aiName = biography.aiName.trim();
+    String userName = profile.userName.trim();
+    String aiName = profile.aiName.trim();
 
     final summaryPrompt = [
       {

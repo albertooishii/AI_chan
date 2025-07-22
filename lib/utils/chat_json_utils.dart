@@ -32,30 +32,31 @@ class ChatJsonUtils {
     }
   }
 
-  /// Importa biografía y mensajes desde un JSON robusto y devuelve un ImportedChat
+  /// Importa perfil y mensajes desde un JSON plano y devuelve un ImportedChat
   static ImportedChat? importAllFromJson(
     String jsonStr, {
     void Function(String error)? onError,
   }) {
     try {
       final decoded = jsonDecode(jsonStr);
-      // Si es solo biografía plana, adaptamos a formato completo
-      Map<String, dynamic> data;
-      if (decoded is Map<String, dynamic> && decoded.containsKey('biography')) {
-        data = Map<String, dynamic>.from(decoded);
-      } else if (decoded is Map<String, dynamic>) {
-        data = {'biography': decoded, 'messages': []};
-      } else {
-        data = {
-          'biography': Map<String, dynamic>.from(decoded),
-          'messages': [],
-        };
+      if (decoded is! Map<String, dynamic> ||
+          !decoded.containsKey('userName') ||
+          !decoded.containsKey('aiName') ||
+          !decoded.containsKey('personality') ||
+          !decoded.containsKey('biography') ||
+          !decoded.containsKey('appearance') ||
+          !decoded.containsKey('timeline') ||
+          !decoded.containsKey('messages')) {
+        onError?.call(
+          'Estructura de JSON inválida. Debe tener todos los campos del perfil y mensajes al mismo nivel.',
+        );
+        return null;
       }
-      final imported = ImportedChat.fromJson(data);
-      if (imported.biography.userName.isEmpty) {
+      final imported = ImportedChat.fromJson(decoded);
+      if (imported.profile.userName.isEmpty) {
         onError?.call('userName');
         return null;
-      } else if (imported.biography.aiName.isEmpty) {
+      } else if (imported.profile.aiName.isEmpty) {
         onError?.call('aiName');
         return null;
       }

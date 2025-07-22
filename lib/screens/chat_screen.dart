@@ -12,7 +12,6 @@ import '../models/ai_chan_profile.dart';
 import '../models/imported_chat.dart';
 import '../models/message.dart';
 import '../utils/chat_json_utils.dart' as chat_json_utils;
-import 'dart:convert';
 
 class ChatScreen extends StatefulWidget {
   final AiChanProfile bio;
@@ -544,9 +543,21 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 itemCount: chatProvider.messages.length,
                 itemBuilder: (context, index) {
-                  final message = chatProvider.messages.reversed
-                      .toList()[index];
-                  return ChatBubble(message: message);
+                  final reversedMessages = chatProvider.messages.reversed
+                      .toList();
+                  final message = reversedMessages[index];
+                  // Solo el último mensaje del usuario (más reciente) debe tener isLastUserMessage = true
+                  bool isLastUserMessage = false;
+                  if (message.sender == MessageSender.user) {
+                    // Busca el primer mensaje user en la lista invertida (el más reciente)
+                    isLastUserMessage = !reversedMessages
+                        .skip(index + 1)
+                        .any((m) => m.sender == MessageSender.user);
+                  }
+                  return ChatBubble(
+                    message: message,
+                    isLastUserMessage: isLastUserMessage,
+                  );
                 },
               ),
             ),
@@ -657,14 +668,11 @@ class _ChatScreenState extends State<ChatScreen> {
                 }
               },
               onSendImage: (file) async {
-                final bytes = await file.readAsBytes();
-                final base64img = base64Encode(bytes);
                 final msg = Message(
                   text: '',
                   sender: MessageSender.user,
                   dateTime: DateTime.now(),
                   isImage: true,
-                  imageBase64: base64img,
                   imagePath: file.path,
                 );
                 chatProvider.addUserImageMessage(msg);

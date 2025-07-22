@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
-import '../models/message.dart' as chat_model;
+import '../models/message.dart';
 import '../utils/chat_json_utils.dart' as chat_json_utils;
 import '../models/timeline_entry.dart';
 import '../models/ai_chan_profile.dart';
@@ -16,27 +16,39 @@ import '../services/ia_appearance_generator.dart';
 import '../services/ai_service.dart';
 
 class ChatProvider extends ChangeNotifier {
-  /// Envía un mensaje con texto y/o imagen adjunta (multimodal)
+  // Utilidad para actualizar el estado del último mensaje user
+  void _setLastUserMessageStatus(MessageStatus status) {
+    for (var i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].sender == MessageSender.user) {
+        messages[i].status = status;
+        break;
+      }
+    }
+  }
+
+  /// Envía un mensaje con texto y/o imagen adjunta (multimodal) de forma DRY y robusta
   Future<void> sendMessageWithImage({
     required String text,
-    required String imageBase64,
+    String? imageBase64, // restaurado solo para la IA
     String? imageMimeType,
     String? imagePath,
     String? model,
     void Function(String)? onError,
   }) async {
     final now = DateTime.now();
-    messages.add(
-      chat_model.Message(
-        text: text,
-        sender: chat_model.MessageSender.user,
-        dateTime: now,
-        isImage: true,
-        imageBase64: imageBase64,
-        imagePath: imagePath,
-      ),
+    // Crear el mensaje user con status 'sending' y añadirlo solo una vez
+    final msg = Message(
+      text: text,
+      sender: MessageSender.user,
+      dateTime: now,
+      isImage: true,
+      imagePath: imagePath,
+      status: MessageStatus.sending,
     );
+    messages.add(msg);
     notifyListeners();
+
+    // No cambiar a 'sent', solo dejar 'sending' hasta que la IA responda
 
     // Construir el prompt para la IA usando los últimos mensajes y la biografía (idéntico a sendMessage)
     final recentMessages = messages.length > 32
@@ -91,13 +103,13 @@ class ChatProvider extends ChangeNotifier {
     });
 
     final Map<String, dynamic> systemPromptJson = {
-      "biography": onboardingData.toJson(),
+      "profile": onboardingData.toJson(),
       "date": formattedDate,
       "time": formattedTime,
       "recent_messages": recentMessages
           .map(
             (m) => {
-              "role": m.sender == chat_model.MessageSender.user ? "user" : "ia",
+              "role": m.sender == MessageSender.user ? "user" : "ia",
               "content": m.text,
               "datetime": m.dateTime.toIso8601String(),
             },
@@ -135,7 +147,7 @@ class ChatProvider extends ChangeNotifier {
       iaResponse = AIResponse(text: '[NO_REPLY]');
     }
 
-    // Si la respuesta es un error, no añadir mensaje al chat, solo mostrar en consola y llamar a onError
+    // Si la respuesta es un error, mantener el estado 'sent' y salir
     final isError =
         iaResponse.text == '[NO_REPLY]' ||
         iaResponse.text.toLowerCase().contains('error al conectar con la ia') ||
@@ -143,27 +155,29 @@ class ChatProvider extends ChangeNotifier {
     if (isError) {
       debugPrint('[Error IA]: ${iaResponse.text}');
       if (onError != null) onError(iaResponse.text);
+      notifyListeners();
       return;
     }
 
-    // Añadir el mensaje de la IA solo si no es error
+    // Al recibir respuesta IA, marcar el último mensaje user como 'read' (dos checks azules)
+    _setLastUserMessageStatus(MessageStatus.read);
     messages.add(
-      chat_model.Message(
+      Message(
         text: iaResponse.text,
-        sender: chat_model.MessageSender.ia,
+        sender: MessageSender.ia,
         dateTime: DateTime.now(),
-        isImage: iaResponse.imageBase64.isNotEmpty,
-        imageBase64: null,
+        isImage: false,
         imagePath: null,
         imageId: iaResponse.imageId,
         revisedPrompt: iaResponse.revisedPrompt,
+        status: MessageStatus.delivered,
       ),
     );
     notifyListeners();
   }
 
   /// Añade un mensaje de imagen enviado por el usuario
-  void addUserImageMessage(chat_model.Message msg) {
+  void addUserImageMessage(Message msg) {
     messages.add(msg);
     saveAll();
     notifyListeners();
@@ -235,11 +249,11 @@ class ChatProvider extends ChangeNotifier {
   bool isSummarizing = false;
   bool isTyping = false;
   bool isSendingImage = false;
-  List<chat_model.Message> messages = [];
+  List<Message> messages = [];
   late AiChanProfile onboardingData;
 
   Future<String> exportAllToJson() async {
-    final export = ChatExport(biography: onboardingData, messages: messages);
+    final export = ChatExport(profile: onboardingData, messages: messages);
     final encoder = JsonEncoder.withIndent('  ');
     return encoder.convert(export.toJson());
   }
@@ -252,8 +266,8 @@ class ChatProvider extends ChangeNotifier {
       },
     );
     if (imported == null) return null;
-    onboardingData = imported.biography;
-    messages = imported.messages.cast<chat_model.Message>();
+    onboardingData = imported.profile;
+    messages = imported.messages.cast<Message>();
     saveAll();
     notifyListeners();
     return imported;
@@ -277,7 +291,7 @@ class ChatProvider extends ChangeNotifier {
     if (service != null) {
       final memoryService = MemorySummaryService(
         model: selected,
-        biography: onboardingData,
+        profile: onboardingData,
       );
       // Pasar los mensajes y la biografía completa
       timeline = await memoryService.generateBlockSummaries(
@@ -362,17 +376,22 @@ class ChatProvider extends ChangeNotifier {
     void Function(String)? onError,
   }) async {
     final now = DateTime.now();
-    messages.add(
-      chat_model.Message(
-        text: text,
-        sender: chat_model.MessageSender.user,
-        dateTime: now,
-      ),
+    final msg = Message(
+      text: text,
+      sender: MessageSender.user,
+      dateTime: now,
+      status: MessageStatus.sending,
     );
+    messages.add(msg);
     notifyListeners();
 
+    // Cambiar a delivered (doble check gris) cuando la IA empieza a escribir
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _setLastUserMessageStatus(MessageStatus.delivered);
+      notifyListeners();
+    });
+
     // Construir el prompt para la IA usando los últimos mensajes y la biografía
-    // No es necesario comprobar ni generar apariencia, ya siempre está presente
     final recentMessages = messages.length > 32
         ? messages.sublist(messages.length - 32)
         : messages;
@@ -431,7 +450,7 @@ class ChatProvider extends ChangeNotifier {
       "recent_messages": recentMessages
           .map(
             (m) => {
-              "role": m.sender == chat_model.MessageSender.user ? "user" : "ia",
+              "role": m.sender == MessageSender.user ? "user" : "ia",
               "content": m.text,
               "datetime": m.dateTime.toIso8601String(),
             },
@@ -514,11 +533,15 @@ class ChatProvider extends ChangeNotifier {
     if (iaResponse.text == '[NO_REPLY]' ||
         iaResponse.text.toLowerCase().contains('error al conectar con la ia') ||
         iaResponse.text.toLowerCase().contains('"error"')) {
+      _setLastUserMessageStatus(MessageStatus.sent);
       notifyListeners();
       debugPrint('[Error IA]: ${iaResponse.text}');
       if (onError != null) onError(iaResponse.text);
       return;
     }
+
+    // Al recibir respuesta IA, marcar el último mensaje user como 'read' (dos checks amarillos)
+    _setLastUserMessageStatus(MessageStatus.read);
 
     isTyping = false;
     isSendingImage = false; // SIEMPRE ocultar el indicador al recibir respuesta
@@ -606,15 +629,15 @@ class ChatProvider extends ChangeNotifier {
     }
 
     messages.add(
-      chat_model.Message(
+      Message(
         text: textResponse,
-        sender: chat_model.MessageSender.ia,
+        sender: MessageSender.ia,
         dateTime: DateTime.now(),
         isImage: isImage,
-        imageBase64: null,
         imagePath: imagePath,
         imageId: imageId,
         revisedPrompt: revisedPrompt,
+        status: MessageStatus.delivered,
       ),
     );
 
@@ -637,10 +660,7 @@ class ChatProvider extends ChangeNotifier {
   }
 
   Future<void> saveAll() async {
-    final imported = ImportedChat(
-      biography: onboardingData,
-      messages: messages,
-    );
+    final imported = ImportedChat(profile: onboardingData, messages: messages);
     await StorageUtils.saveImportedChatToPrefs(imported);
     // Eliminado guardado de _conversationSummary
   }
@@ -656,30 +676,22 @@ class ChatProvider extends ChangeNotifier {
     final jsonString = prefs.getString('chat_history');
     if (jsonString != null) {
       final List<dynamic> jsonList = jsonDecode(jsonString);
-      final List<chat_model.Message> loadedMessages = [];
+      final List<Message> loadedMessages = [];
       for (var e in jsonList) {
-        var msg = chat_model.Message.fromJson(e);
+        var msg = Message.fromJson(e);
         // Si tiene imagen en base64, migrar a archivo y actualizar imagePath
-        if (msg.isImage &&
-            (msg.imageBase64 != null && msg.imageBase64!.isNotEmpty)) {
-          try {
-            final bytes = base64Decode(msg.imageBase64!);
-            final dir = Directory('${Directory.systemTemp.path}/chat_images');
-            if (!dir.existsSync()) dir.createSync(recursive: true);
-            final fileName = 'img_${msg.dateTime.millisecondsSinceEpoch}.png';
-            final file = File('${dir.path}/$fileName');
-            file.writeAsBytesSync(bytes);
-            msg = chat_model.Message(
-              text: msg.text,
-              sender: msg.sender,
-              dateTime: msg.dateTime,
-              isImage: msg.isImage,
-              imageBase64: null,
-              imagePath: file.path,
-            );
-          } catch (_) {
-            // Si falla, dejar el mensaje original
-          }
+        // Si el mensaje es del usuario, marcarlo como 'read'
+        if (msg.sender == MessageSender.user) {
+          msg = Message(
+            text: msg.text,
+            sender: msg.sender,
+            dateTime: msg.dateTime,
+            isImage: msg.isImage,
+            imagePath: msg.imagePath,
+            imageId: msg.imageId,
+            revisedPrompt: msg.revisedPrompt,
+            status: MessageStatus.read,
+          );
         }
         loadedMessages.add(msg);
       }

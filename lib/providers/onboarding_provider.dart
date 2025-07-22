@@ -2,6 +2,7 @@ import 'package:ai_chan/utils/storage_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:ai_chan/models/ai_chan_profile.dart';
 import 'package:ai_chan/services/ia_appearance_generator.dart';
+import 'package:ai_chan/main.dart' show navigatorKey;
 import 'package:ai_chan/utils/onboarding_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -11,6 +12,8 @@ import '../utils/chat_json_utils.dart' as chat_json_utils;
 import '../models/imported_chat.dart';
 
 class OnboardingProvider extends ChangeNotifier {
+  bool loading = true;
+
   /// Importa y guarda biografía y mensajes desde un JSON robusto (ImportedChat), actualizando estado y notificando listeners
   Future<ImportedChat?> importAllFromJson(String jsonStr) async {
     final imported = chat_json_utils.ChatJsonUtils.importAllFromJson(
@@ -22,7 +25,7 @@ class OnboardingProvider extends ChangeNotifier {
     );
     if (imported == null) return null;
     await StorageUtils.saveImportedChatToPrefs(imported);
-    _generatedBiography = imported.biography;
+    _generatedBiography = imported.profile;
     _biographySaved = true;
     notifyListeners();
     return imported;
@@ -44,19 +47,43 @@ class OnboardingProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final jsonStr = prefs.getString('onboarding_data');
     if (jsonStr != null && jsonStr.trim().isNotEmpty) {
-      final imported = chat_json_utils.ChatJsonUtils.importAllFromJson(
-        jsonStr,
-        onError: (err) {
-          importError = err;
-          notifyListeners();
-        },
-      );
-      if (imported != null) {
-        _generatedBiography = imported.biography;
-        _biographySaved = true;
-        notifyListeners();
+      try {
+        final Map<String, dynamic> json = jsonDecode(jsonStr);
+        final profile = await AiChanProfile.tryFromJson(json);
+        if (profile != null) {
+          _generatedBiography = profile;
+          _biographySaved = true;
+        } else {
+          _generatedBiography = null;
+          _biographySaved = false;
+        }
+      } catch (e) {
+        _generatedBiography = null;
+        _biographySaved = false;
+        await prefs.remove('onboarding_data');
+        await prefs.remove('chat_history');
+        if (navigatorKey.currentContext != null) {
+          await showDialog(
+            context: navigatorKey.currentContext!,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Error al cargar biografía'),
+              content: Text(e.toString()),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        }
       }
+    } else {
+      _generatedBiography = null;
+      _biographySaved = false;
     }
+    loading = false;
+    notifyListeners();
   }
 
   AiChanProfile? _generatedBiography;
@@ -84,7 +111,8 @@ class OnboardingProvider extends ChangeNotifier {
       );
       if (!context.mounted) return;
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('onboarding_data', jsonEncode(biography.toJson()));
+      final jsonBio = jsonEncode(biography.toJson());
+      await prefs.setString('onboarding_data', jsonBio);
       _generatedBiography = biography;
       _biographySaved = true;
     } catch (e) {

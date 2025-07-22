@@ -106,12 +106,21 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     if (!_initialized) {
+      // Mostrar pantalla de carga hasta que todo esté listo
       return const Scaffold(
         backgroundColor: Colors.black,
         body: Center(child: CircularProgressIndicator()),
       );
     }
+    // Esperar a que OnboardingProvider termine de cargar
     final onboardingProvider = Provider.of<OnboardingProvider>(context);
+    if (onboardingProvider.loading) {
+      // Si el provider está cargando, mostrar loading
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     // Si no hay biografía, muestra onboarding
     if (!onboardingProvider.biographySaved) {
       return OnboardingScreen(

@@ -61,34 +61,44 @@ class GeminiService implements AIService {
     List<Map<String, dynamic>> contents = [];
     if (systemPrompt.isNotEmpty) {
       contents.add({
-        "role": "system",
+        "role": "user",
         "parts": [
           {"text": systemPrompt},
         ],
       });
     }
     for (int i = 0; i < history.length; i++) {
-      final role = history[i]['role'] ?? 'user';
+      String role = history[i]['role'] ?? 'user';
+      // Gemini solo acepta 'user' y 'model' como roles
+      if (role != 'user') role = 'model';
       final contentStr = history[i]['content'] ?? '';
       List<Map<String, dynamic>> parts = [];
       if (role == 'user') {
-        if (contentStr.isNotEmpty) {
-          parts.add({"text": contentStr});
-        }
-        // Solo añadir imagen al último mensaje user
+        // Si es el último mensaje y hay imagen, combinar texto e imagen en el mismo bloque
         if (i == history.length - 1 &&
             imageBase64 != null &&
             imageBase64.isNotEmpty) {
+          if (contentStr.isNotEmpty) {
+            parts.add({"text": contentStr});
+          }
           parts.add({
             "inline_data": {
               "mime_type": imageMimeType ?? 'image/png',
               "data": imageBase64,
             },
           });
-        }
-        // Si el mensaje user está vacío y no hay imagen, forzar texto para evitar NO_REPLY
-        if (parts.isEmpty) {
-          parts.add({"text": "Hola"});
+          // Si no hay texto, pero sí imagen, forzar texto mínimo
+          if (contentStr.isEmpty) {
+            parts.insert(0, {"text": "Imagen adjunta"});
+          }
+        } else {
+          if (contentStr.isNotEmpty) {
+            parts.add({"text": contentStr});
+          }
+          // Si el mensaje user está vacío y no hay imagen, forzar texto para evitar NO_REPLY
+          if (parts.isEmpty) {
+            parts.add({"text": "Hola"});
+          }
         }
       } else {
         if (contentStr.isNotEmpty) {

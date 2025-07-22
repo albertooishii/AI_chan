@@ -1,41 +1,29 @@
 import 'timeline_entry.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AiChanProfile {
-  final Map<String, dynamic> personality;
-  final Map<String, dynamic> biography;
-  final List<TimelineEntry> timeline;
+  // Todos los campos al mismo nivel (estructura plana)
   final String userName;
   final String aiName;
   final DateTime? userBirthday;
   final DateTime? aiBirthday;
+  final Map<String, dynamic> personality;
+  final Map<String, dynamic> biography;
   final Map<String, dynamic> appearance;
+  final List<TimelineEntry> timeline;
 
   AiChanProfile({
-    required this.personality,
-    required this.biography,
-    required this.timeline,
     required this.userName,
     required this.aiName,
     required this.userBirthday,
     required this.aiBirthday,
+    required this.personality,
+    required this.biography,
     required this.appearance,
+    required this.timeline,
   });
 
   factory AiChanProfile.fromJson(Map<String, dynamic> json) {
-    if (json['userName'] == null ||
-        json['userName'] is! String ||
-        (json['userName'] as String).isEmpty) {
-      throw Exception(
-        'El campo userName es obligatorio y debe ser un String no vacío.',
-      );
-    }
-    if (json['aiName'] == null ||
-        json['aiName'] is! String ||
-        (json['aiName'] as String).isEmpty) {
-      throw Exception(
-        'El campo aiName es obligatorio y debe ser un String no vacío.',
-      );
-    }
     DateTime? birth;
     if (json['userBirthday'] is String &&
         (json['userBirthday'] as String).isNotEmpty) {
@@ -46,42 +34,79 @@ class AiChanProfile {
         (json['aiBirthday'] as String).isNotEmpty) {
       aiBirth = DateTime.tryParse(json['aiBirthday']);
     }
-    final appearanceMap = (json['appearance'] is Map<String, dynamic>)
-        ? (json['appearance'] as Map<String, dynamic>)
-        : <String, dynamic>{};
-    final biographyMap = (json['biography'] is Map<String, dynamic>)
-        ? (json['biography'] as Map<String, dynamic>)
-        : <String, dynamic>{};
-    final personalityMap = (json['personality'] is Map<String, dynamic>)
-        ? (json['personality'] as Map<String, dynamic>)
-        : <String, dynamic>{};
     return AiChanProfile(
-      personality: personalityMap,
-      biography: biographyMap,
+      userName: json['userName'] ?? '',
+      aiName: json['aiName'] ?? '',
+      userBirthday: birth,
+      aiBirthday: aiBirth,
+      personality: json['personality'] is Map<String, dynamic>
+          ? json['personality'] as Map<String, dynamic>
+          : <String, dynamic>{},
+      biography: json['biography'] is Map<String, dynamic>
+          ? json['biography'] as Map<String, dynamic>
+          : <String, dynamic>{},
+      appearance: json['appearance'] is Map<String, dynamic>
+          ? json['appearance'] as Map<String, dynamic>
+          : <String, dynamic>{},
       timeline: (json['timeline'] as List<dynamic>? ?? [])
           .map((e) => TimelineEntry.fromJson(e as Map<String, dynamic>))
           .toList(),
-      userName: json['userName'],
-      aiName: json['aiName'],
-      userBirthday: birth,
-      aiBirthday: aiBirth,
-      appearance: appearanceMap,
     );
   }
 
+  /// Versión segura: devuelve null y borra datos corruptos si el perfil no es válido (estructura plana)
+  static Future<AiChanProfile?> tryFromJson(Map<String, dynamic> json) async {
+    // Estructura esperada: todos los campos al mismo nivel
+    final expectedKeys = [
+      'userName',
+      'aiName',
+      'personality',
+      'biography',
+      'appearance',
+      'timeline',
+    ];
+    bool valid = true;
+    for (final key in expectedKeys) {
+      if (!json.containsKey(key)) {
+        valid = false;
+        break;
+      }
+    }
+    // Tipos esperados
+    if (valid) {
+      valid =
+          json['userName'] is String &&
+          (json['userName'] as String).isNotEmpty &&
+          json['aiName'] is String &&
+          (json['aiName'] as String).isNotEmpty &&
+          json['personality'] is Map<String, dynamic> &&
+          json['biography'] is Map<String, dynamic> &&
+          json['appearance'] is Map<String, dynamic> &&
+          json['timeline'] is List;
+    }
+    if (!valid) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('onboarding_data');
+        await prefs.remove('chat_history');
+      } catch (_) {}
+      return null;
+    }
+    return AiChanProfile.fromJson(json);
+  }
+
   Map<String, dynamic> toJson() => {
-    'personality': personality,
-    'biography': biography,
-    'timeline': timeline.map((e) => e.toJson()).toList(),
     'userName': userName,
     'aiName': aiName,
+    'personality': personality,
+    'biography': biography,
+    'appearance': appearance,
+    'timeline': timeline.map((e) => e.toJson()).toList(),
     if (userBirthday != null)
       'userBirthday':
           "${userBirthday!.year.toString().padLeft(4, '0')}-${userBirthday!.month.toString().padLeft(2, '0')}-${userBirthday!.day.toString().padLeft(2, '0')}",
     if (aiBirthday != null)
       'aiBirthday':
           "${aiBirthday!.year.toString().padLeft(4, '0')}-${aiBirthday!.month.toString().padLeft(2, '0')}-${aiBirthday!.day.toString().padLeft(2, '0')}",
-    'appearance': appearance,
-    // meetStory ya está en timeline, no se exporta duplicado
   };
 }

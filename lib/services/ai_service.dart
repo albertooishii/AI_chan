@@ -4,7 +4,10 @@ import 'openai_service.dart';
 import '../models/ai_response.dart';
 
 abstract class AIService {
-  /// No se debe llamar directamente a este método, usa el método estático [sendMessage].
+  /// Implementación base para enviar mensajes a la IA.
+  ///
+  /// Si se adjunta imagen, debe combinarse en el mismo bloque/parte que el texto del último mensaje 'user',
+  /// siguiendo el patrón multimodal de OpenAI y Gemini (texto + imagen juntos, no por separado).
   Future<AIResponse> sendMessageImpl(
     List<Map<String, String>> history,
     String systemPrompt, {

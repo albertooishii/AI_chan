@@ -128,7 +128,7 @@ class OpenAIService implements AIService {
             'Error: Falta la API key de OpenAI. Por favor, configúrala en la app.',
       );
     }
-    // Endpoint y headers
+    // Endpoint y headers para OpenAI Assistants v2
     final url = Uri.parse('https://api.openai.com/v1/responses');
     final headers = {
       'Authorization': 'Bearer $apiKey',
@@ -145,28 +145,38 @@ class OpenAIService implements AIService {
         ],
       });
     }
-    // Recorrer historial en orden y convertir cada mensaje
     for (int i = 0; i < history.length; i++) {
       final role = history[i]['role'] ?? 'user';
       final contentStr = history[i]['content'] ?? '';
       List<Map<String, dynamic>> contentArr = [];
       if (role == 'user') {
-        if (contentStr.isNotEmpty) {
-          contentArr.add({"type": "input_text", "text": contentStr});
-        }
-        // Solo añadir imagen al último mensaje user
+        // Si es el último mensaje y hay imagen, combinar texto e imagen en el mismo bloque
         if (i == history.length - 1 &&
             imageBase64 != null &&
             imageBase64.isNotEmpty) {
+          if (contentStr.isNotEmpty) {
+            contentArr.add({"type": "input_text", "text": contentStr});
+          }
           contentArr.add({
             "type": "input_image",
             "image_url":
                 "data:${imageMimeType ?? 'image/png'};base64,$imageBase64",
           });
-        }
-        // Si el mensaje user está vacío y no hay imagen, forzar texto para evitar NO_REPLY
-        if (contentArr.isEmpty) {
-          contentArr.add({"type": "input_text", "text": "Hola"});
+          // Si no hay texto, pero sí imagen, forzar texto mínimo
+          if (contentStr.isEmpty) {
+            contentArr.insert(0, {
+              "type": "input_text",
+              "text": "Imagen adjunta",
+            });
+          }
+        } else {
+          if (contentStr.isNotEmpty) {
+            contentArr.add({"type": "input_text", "text": contentStr});
+          }
+          // Si el mensaje user está vacío y no hay imagen, forzar texto para evitar NO_REPLY
+          if (contentArr.isEmpty) {
+            contentArr.add({"type": "input_text", "text": "Hola"});
+          }
         }
       } else {
         // Mensajes assistant/system
@@ -193,40 +203,22 @@ class OpenAIService implements AIService {
     final response = await http.post(url, headers: headers, body: body);
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      // Estructura estándar OpenAI v1/chat/completions:
-      // {
-      //   id, object, created, model, choices: [ { message: { role, content }, ... } ], ...
-      // }
+      // Nuevo formato: 'output' es un array de mensajes
       String? text;
-      String? imageBase64;
-      String? imageId;
-      String? revisedPrompt;
-      final choices = data['choices'] as List?;
-      if (choices != null && choices.isNotEmpty) {
-        final message = choices[0]['message'];
-        if (message != null) {
-          final content = message['content'];
-          if (content is String) {
-            text = content;
-          } else if (content is List) {
-            // Multimodal: buscar partes
-            for (final part in content) {
-              if (part is Map &&
-                  part['type'] == 'text' &&
-                  part['text'] != null) {
-                text = part['text'];
-              } else if (part is Map &&
-                  part['type'] == 'image_url' &&
-                  part['image_url'] != null) {
-                final url = part['image_url']['url'] as String?;
-                if (url != null && url.startsWith('data:')) {
-                  // Extraer base64 de la url
-                  final base64Match = RegExp(r'base64,(.*)').firstMatch(url);
-                  if (base64Match != null) {
-                    imageBase64 = base64Match.group(1);
-                  }
-                }
-              }
+      String? imageUrl;
+      final output = data['output'] as List?;
+      if (output != null && output.isNotEmpty) {
+        final message = output[0];
+        if (message != null && message['content'] is List) {
+          for (final part in message['content']) {
+            if (part is Map &&
+                part['type'] == 'output_text' &&
+                part['text'] != null) {
+              text = part['text'];
+            } else if (part is Map &&
+                part['type'] == 'image_url' &&
+                part['image_url'] != null) {
+              imageUrl = part['image_url'] as String?;
             }
           }
         }
@@ -234,12 +226,10 @@ class OpenAIService implements AIService {
       final aiResponse = AIResponse(
         text: (text != null && text.trim().isNotEmpty)
             ? text
-            : (imageBase64 != null && imageBase64.isNotEmpty)
+            : (imageUrl != null && imageUrl.isNotEmpty)
             ? '[Imagen generada]'
             : '[NO_REPLY]',
-        imageBase64: imageBase64 ?? '',
-        imageId: imageId ?? '',
-        revisedPrompt: revisedPrompt ?? '',
+        imageBase64: imageUrl ?? '',
       );
       return aiResponse;
     } else {

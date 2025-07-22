@@ -2,22 +2,23 @@ import 'ai_chan_profile.dart';
 import 'message.dart';
 
 class ChatExport {
-  final AiChanProfile biography;
+  final AiChanProfile profile;
   final List<Message> messages;
 
-  ChatExport({required this.biography, required this.messages});
+  ChatExport({required this.profile, required this.messages});
 
   Map<String, dynamic> toJson() {
-    return {
-      'biography': biography.toJson(),
-      'messages': messages.map((e) => e.toJson()).toList(),
-    };
+    final map = profile.toJson();
+    map['messages'] = messages.map((e) => e.toJson()).toList();
+    return map;
   }
 
   factory ChatExport.fromJson(Map<String, dynamic> json) {
-    final bioJson = json['biography'] ?? {};
+    // El perfil está al mismo nivel que los mensajes (estructura plana)
+    final Map<String, dynamic> profileMap = Map.from(json);
+    profileMap.remove('messages');
     return ChatExport(
-      biography: AiChanProfile.fromJson(bioJson),
+      profile: AiChanProfile.fromJson(profileMap),
       messages: (json['messages'] as List<dynamic>)
           .map((e) => Message.fromJson(e))
           .toList(),
