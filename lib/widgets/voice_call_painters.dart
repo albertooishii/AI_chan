@@ -4,33 +4,20 @@ class CyberpunkGlowPainter extends CustomPainter {
   final Color baseColor;
   final Color accentColor;
 
-  const CyberpunkGlowPainter({
-    required this.baseColor,
-    required this.accentColor,
-  });
+  const CyberpunkGlowPainter({required this.baseColor, required this.accentColor});
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..shader =
-          RadialGradient(
-            colors: [
-              accentColor.withAlpha((0.08 * 255).round()),
-              baseColor.withAlpha((0.04 * 255).round()),
-              Colors.transparent,
-            ],
-            stops: const [0.2, 0.6, 1.0],
-          ).createShader(
-            Rect.fromCircle(
-              center: Offset(size.width / 2, size.height / 2),
-              radius: size.width * 0.7,
-            ),
-          );
-    canvas.drawCircle(
-      Offset(size.width / 2, size.height / 2),
-      size.width * 0.7,
-      paint,
-    );
+      ..shader = RadialGradient(
+        colors: [
+          accentColor.withAlpha((0.08 * 255).round()),
+          baseColor.withAlpha((0.04 * 255).round()),
+          Colors.transparent,
+        ],
+        stops: const [0.2, 0.6, 1.0],
+      ).createShader(Rect.fromCircle(center: Offset(size.width / 2, size.height / 2), radius: size.width * 0.7));
+    canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width * 0.7, paint);
   }
 
   @override
@@ -79,8 +66,7 @@ class WavePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) {
     if (oldDelegate is WavePainter) {
-      return animation != oldDelegate.animation ||
-          soundLevel != oldDelegate.soundLevel;
+      return animation != oldDelegate.animation || soundLevel != oldDelegate.soundLevel;
     }
     return false;
   }

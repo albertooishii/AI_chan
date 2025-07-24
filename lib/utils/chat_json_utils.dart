@@ -10,9 +10,7 @@ import '../constants/app_colors.dart';
 
 class ChatJsonUtils {
   /// Guarda un string JSON en un archivo seleccionado por el usuario y retorna éxito o error
-  static Future<(bool success, String? error)> saveJsonFile(
-    String jsonStr,
-  ) async {
+  static Future<(bool success, String? error)> saveJsonFile(String jsonStr) async {
     try {
       final unixDate = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final defaultName = 'ai_chan_$unixDate.json';
@@ -33,10 +31,7 @@ class ChatJsonUtils {
   }
 
   /// Importa perfil y mensajes desde un JSON plano y devuelve un ImportedChat
-  static ImportedChat? importAllFromJson(
-    String jsonStr, {
-    void Function(String error)? onError,
-  }) {
+  static ImportedChat? importAllFromJson(String jsonStr, {void Function(String error)? onError}) {
     try {
       final decoded = jsonDecode(jsonStr);
       if (decoded is! Map<String, dynamic> ||
@@ -47,9 +42,7 @@ class ChatJsonUtils {
           !decoded.containsKey('appearance') ||
           !decoded.containsKey('timeline') ||
           !decoded.containsKey('messages')) {
-        onError?.call(
-          'Estructura de JSON inválida. Debe tener todos los campos del perfil y mensajes al mismo nivel.',
-        );
+        onError?.call('Estructura de JSON inválida. Debe tener todos los campos del perfil y mensajes al mismo nivel.');
         return null;
       }
       final imported = ImportedChat.fromJson(decoded);
@@ -74,10 +67,7 @@ class ChatJsonUtils {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
-        title: const Text(
-          'Pega el JSON exportado',
-          style: TextStyle(color: Colors.pinkAccent),
-        ),
+        title: const Text('Pega el JSON exportado', style: TextStyle(color: Colors.pinkAccent)),
         content: TextField(
           controller: controller,
           maxLines: 8,
@@ -90,17 +80,11 @@ class ChatJsonUtils {
         ),
         actions: [
           TextButton(
-            child: const Text(
-              'Cancelar',
-              style: TextStyle(color: AppColors.primary),
-            ),
+            child: const Text('Cancelar', style: TextStyle(color: AppColors.primary)),
             onPressed: () => Navigator.of(ctx).pop(),
           ),
           TextButton(
-            child: const Text(
-              'Importar',
-              style: TextStyle(color: AppColors.secondary),
-            ),
+            child: const Text('Importar', style: TextStyle(color: AppColors.secondary)),
             onPressed: () => Navigator.of(ctx).pop(controller.text),
           ),
         ],
@@ -110,10 +94,7 @@ class ChatJsonUtils {
 
   static Future<(String? json, String? error)> pickJsonFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['json'],
-      );
+      final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['json']);
       if (result != null && result.files.single.path != null) {
         final file = File(result.files.single.path!);
         return (await file.readAsString(), null);

@@ -28,8 +28,10 @@ abstract class AIService {
     final m = model ?? 'gemini-2.5-flash';
     AIService? aiService = AIService.select(m);
     if (aiService == null) {
-      throw Exception('No se pudo encontrar el servicio IA para el modelo: $m');
+      debugPrint('[AIService.sendMessage] No se pudo encontrar el servicio IA para el modelo: $m');
+      return AIResponse(text: '[NO_REPLY]');
     }
+    debugPrint('[AIService.sendMessage] Enviando mensaje a IA con modelo: $m');
     AIResponse response = await aiService.sendMessageImpl(
       history,
       systemPrompt,
@@ -37,6 +39,7 @@ abstract class AIService {
       imageBase64: imageBase64,
       imageMimeType: imageMimeType,
     );
+    debugPrint('[AIService.sendMessage] Respuesta IA: ${response.toJson()}');
     bool hasQuotaError(String text) {
       return text.contains('RESOURCE_EXHAUSTED') ||
           text.contains('quota') ||
@@ -46,14 +49,11 @@ abstract class AIService {
     }
 
     if (hasQuotaError(response.text) && m != fallbackModel) {
-      debugPrint(
-        '[AIService.sendMessage] Modelo $m falló por cuota, reintentando con $fallbackModel...',
-      );
+      debugPrint('[AIService.sendMessage] Modelo $m falló por cuota, reintentando con $fallbackModel...');
       aiService = AIService.select(fallbackModel);
       if (aiService == null) {
-        throw Exception(
-          'No se pudo encontrar el servicio IA para el modelo: $fallbackModel',
-        );
+        debugPrint('[AIService.sendMessage] No se pudo encontrar el servicio IA para el modelo: $fallbackModel');
+        return AIResponse(text: '[NO_REPLY]');
       }
       response = await aiService.sendMessageImpl(
         history,
@@ -73,13 +73,15 @@ abstract class AIService {
     // Log para depuración
     debugPrint('[AIService.select] Modelo recibido: "$modelId"');
     if (modelId.trim().isEmpty) {
-      throw Exception('AIService.select: El modelo recibido está vacío.');
+      debugPrint('[AIService.select] El modelo recibido está vacío.');
+      return null;
     }
     final normalized = modelId.trim().toLowerCase();
     if (normalized.startsWith('gpt-')) return OpenAIService();
     if (normalized.startsWith('gemini-')) return GeminiService();
     if (normalized.startsWith('imagen-')) return GeminiService();
-    throw Exception('AIService.select: Modelo "$modelId" no reconocido.');
+    debugPrint('[AIService.select] Modelo "$modelId" no reconocido.');
+    return null;
   }
 }
 

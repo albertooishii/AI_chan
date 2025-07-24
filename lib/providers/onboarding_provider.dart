@@ -68,12 +68,7 @@ class OnboardingProvider extends ChangeNotifier {
             builder: (ctx) => AlertDialog(
               title: const Text('Error al cargar biografía'),
               content: Text(e.toString()),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('OK'),
-                ),
-              ],
+              actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
             ),
           );
         }
@@ -123,12 +118,7 @@ class OnboardingProvider extends ChangeNotifier {
         builder: (ctx) => AlertDialog(
           title: const Text('Error al crear biografía'),
           content: Text(e.toString()),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('OK'),
-            ),
-          ],
+          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
         ),
       );
     }
@@ -383,10 +373,7 @@ class OnboardingProvider extends ChangeNotifier {
     if (textEditingValue.text == '') {
       return const Iterable<String>.empty();
     }
-    return aiNameSuggestions.where(
-      (option) =>
-          option.toLowerCase().contains(textEditingValue.text.toLowerCase()),
-    );
+    return aiNameSuggestions.where((option) => option.toLowerCase().contains(textEditingValue.text.toLowerCase()));
   }
 
   void setAiNameController(TextEditingController controller) {
@@ -455,8 +442,7 @@ class OnboardingProvider extends ChangeNotifier {
   }
 
   Future<void> suggestStory(BuildContext context) async {
-    if (userNameController.text.isNotEmpty &&
-        aiNameController?.text.isNotEmpty == true) {
+    if (userNameController.text.isNotEmpty && aiNameController?.text.isNotEmpty == true) {
       setLoadingStory(true);
       meetStoryController.text = "Generando historia...";
       final prompt =
@@ -497,42 +483,26 @@ class OnboardingProvider extends ChangeNotifier {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
-        title: const Text(
-          'Importar chat',
-          style: TextStyle(color: Colors.pinkAccent),
-        ),
+        title: const Text('Importar chat', style: TextStyle(color: Colors.pinkAccent)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.pinkAccent,
-              ),
-              child: const Text(
-                'Pegar JSON',
-                style: TextStyle(color: Colors.black87),
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.pinkAccent),
+              child: const Text('Pegar JSON', style: TextStyle(color: Colors.black87)),
               onPressed: () => Navigator.of(ctx).pop('paste'),
             ),
             const SizedBox(height: 12),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.pinkAccent,
-              ),
-              child: const Text(
-                'Seleccionar archivo',
-                style: TextStyle(color: Colors.black87),
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.pinkAccent),
+              child: const Text('Seleccionar archivo', style: TextStyle(color: Colors.black87)),
               onPressed: () => Navigator.of(ctx).pop('file'),
             ),
           ],
         ),
         actions: [
           TextButton(
-            child: const Text(
-              'Cancelar',
-              style: TextStyle(color: Colors.pinkAccent),
-            ),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.pinkAccent)),
             onPressed: () => Navigator.of(ctx).pop(),
           ),
         ],
@@ -555,12 +525,7 @@ class OnboardingProvider extends ChangeNotifier {
         builder: (ctx) => AlertDialog(
           title: const Text('Error al leer archivo'),
           content: Text(error!),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('OK'),
-            ),
-          ],
+          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
         ),
       );
       return;
@@ -580,12 +545,7 @@ class OnboardingProvider extends ChangeNotifier {
           builder: (ctx) => AlertDialog(
             title: const Text('Error al importar'),
             content: Text(importError ?? 'Error desconocido al importar JSON'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('OK'),
-              ),
-            ],
+            actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
           ),
         );
         return;

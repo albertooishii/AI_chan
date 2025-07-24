@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+
 import 'ai_service.dart';
 import '../models/ai_response.dart';
 import 'dart:io';
@@ -11,9 +13,7 @@ class OpenAIService implements AIService {
   /// Transcribe un archivo de audio usando OpenAI Whisper
   Future<String?> transcribeAudio(String filePath) async {
     if (apiKey.trim().isEmpty) {
-      throw Exception(
-        'Falta la API key de OpenAI. Por favor, configúrala en la app.',
-      );
+      throw Exception('Falta la API key de OpenAI. Por favor, configúrala en la app.');
     }
     final url = Uri.parse('https://api.openai.com/v1/audio/transcriptions');
     final request = http.MultipartRequest('POST', url)
@@ -38,30 +38,18 @@ class OpenAIService implements AIService {
     String? outputDir,
   }) async {
     if (apiKey.trim().isEmpty) {
-      throw Exception(
-        'Falta la API key de OpenAI. Por favor, configúrala en la app.',
-      );
+      throw Exception('Falta la API key de OpenAI. Por favor, configúrala en la app.');
     }
     if (text.trim().isEmpty) return null;
     final url = Uri.parse('https://api.openai.com/v1/audio/speech');
     final response = await http.post(
       url,
-      headers: {
-        'Authorization': 'Bearer $apiKey',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'model': model,
-        'input': text,
-        'voice': voice,
-        'response_format': 'mp3',
-      }),
+      headers: {'Authorization': 'Bearer $apiKey', 'Content-Type': 'application/json'},
+      body: jsonEncode({'model': model, 'input': text, 'voice': voice, 'response_format': 'mp3'}),
     );
     if (response.statusCode == 200) {
       final dir = outputDir ?? Directory.systemTemp.path;
-      final file = File(
-        '$dir/ai_tts_${DateTime.now().millisecondsSinceEpoch}.mp3',
-      );
+      final file = File('$dir/ai_tts_${DateTime.now().millisecondsSinceEpoch}.mp3');
       await file.writeAsBytes(response.bodyBytes);
       return file;
     } else {
@@ -82,31 +70,20 @@ class OpenAIService implements AIService {
   @override
   Future<List<String>> getAvailableModels() async {
     if (apiKey.trim().isEmpty) {
-      throw Exception(
-        'Falta la API key de OpenAI. Por favor, configúrala en la app.',
-      );
+      throw Exception('Falta la API key de OpenAI. Por favor, configúrala en la app.');
     }
     const endpoint = 'https://api.openai.com/v1/models';
     final response = await http.get(
       Uri.parse(endpoint),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $apiKey',
-      },
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $apiKey'},
     );
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       final List models = data['data'] ?? [];
       // Filtrar solo modelos gpt-*
-      final gptModels = models
-          .where(
-            (m) => m['id'] != null && m['id'].toString().startsWith('gpt-'),
-          )
-          .toList();
+      final gptModels = models.where((m) => m['id'] != null && m['id'].toString().startsWith('gpt-')).toList();
       // Ordenar por fecha de creación (más nuevo primero)
-      gptModels.sort(
-        (a, b) => (b['created'] as int).compareTo(a['created'] as int),
-      );
+      gptModels.sort((a, b) => (b['created'] as int).compareTo(a['created'] as int));
       // Retornar solo los id
       return gptModels.map<String>((m) => m['id'].toString()).toList();
     } else {
@@ -123,10 +100,7 @@ class OpenAIService implements AIService {
     String? imageMimeType,
   }) async {
     if (apiKey.trim().isEmpty) {
-      return AIResponse(
-        text:
-            'Error: Falta la API key de OpenAI. Por favor, configúrala en la app.',
-      );
+      return AIResponse(text: 'Error: Falta la API key de OpenAI. Por favor, configúrala en la app.');
     }
     // Endpoint y headers para OpenAI Assistants v2
     final url = Uri.parse('https://api.openai.com/v1/responses');
@@ -137,54 +111,50 @@ class OpenAIService implements AIService {
     };
     // Construir input multimodal en orden cronológico
     List<Map<String, dynamic>> input = [];
-    if (systemPrompt.isNotEmpty) {
+    bool hasImage =
+        history.isNotEmpty && history.last['role'] == 'user' && imageBase64 != null && imageBase64.isNotEmpty;
+    if (hasImage) {
+      // Unificar systemPrompt + historial en un solo bloque de texto
+      StringBuffer allText = StringBuffer();
+      if (systemPrompt.isNotEmpty) {
+        allText.write('[system]: $systemPrompt');
+      }
+      for (int i = 0; i < history.length; i++) {
+        final role = history[i]['role'] ?? 'user';
+        final contentStr = history[i]['content'] ?? '';
+        if (allText.isNotEmpty) allText.write('\n\n');
+        allText.write('[$role]: $contentStr');
+      }
       input.add({
-        "role": "system",
+        "role": "user",
         "content": [
-          {"type": "input_text", "text": systemPrompt},
+          {"type": "input_text", "text": allText.toString()},
+          {"type": "input_image", "image_url": "data:${imageMimeType ?? 'image/png'};base64,$imageBase64"},
         ],
       });
-    }
-    for (int i = 0; i < history.length; i++) {
-      final role = history[i]['role'] ?? 'user';
-      final contentStr = history[i]['content'] ?? '';
-      List<Map<String, dynamic>> contentArr = [];
-      if (role == 'user') {
-        // Si es el último mensaje y hay imagen, combinar texto e imagen en el mismo bloque
-        if (i == history.length - 1 &&
-            imageBase64 != null &&
-            imageBase64.isNotEmpty) {
-          if (contentStr.isNotEmpty) {
-            contentArr.add({"type": "input_text", "text": contentStr});
-          }
-          contentArr.add({
-            "type": "input_image",
-            "image_url":
-                "data:${imageMimeType ?? 'image/png'};base64,$imageBase64",
-          });
-          // Si no hay texto, pero sí imagen, forzar texto mínimo
-          if (contentStr.isEmpty) {
-            contentArr.insert(0, {
-              "type": "input_text",
-              "text": "Imagen adjunta",
-            });
-          }
-        } else {
-          if (contentStr.isNotEmpty) {
-            contentArr.add({"type": "input_text", "text": contentStr});
-          }
-          // Si el mensaje user está vacío y no hay imagen, forzar texto para evitar NO_REPLY
-          if (contentArr.isEmpty) {
-            contentArr.add({"type": "input_text", "text": "Hola"});
-          }
-        }
-      } else {
-        // Mensajes assistant/system
-        if (contentStr.isNotEmpty) {
-          contentArr.add({"type": "input_text", "text": contentStr});
-        }
+    } else {
+      if (systemPrompt.isNotEmpty) {
+        input.add({
+          "role": "system",
+          "content": [
+            {"type": "input_text", "text": systemPrompt},
+          ],
+        });
       }
-      input.add({"role": role, "content": contentArr});
+      // Unir todos los mensajes en un solo bloque de texto (como JSON o texto plano)
+      StringBuffer allText = StringBuffer();
+      for (int i = 0; i < history.length; i++) {
+        final role = history[i]['role'] ?? 'user';
+        final contentStr = history[i]['content'] ?? '';
+        if (allText.isNotEmpty) allText.write('\n\n');
+        allText.write('[$role]: $contentStr');
+      }
+      input.add({
+        "role": "user",
+        "content": [
+          {"type": "input_text", "text": allText.toString()},
+        ],
+      });
     }
     int tokens = estimateTokens(history, systemPrompt);
     if (tokens > 128000) {
@@ -200,40 +170,65 @@ class OpenAIService implements AIService {
         {"type": "image_generation"},
       ],
     });
+    // Guardar el JSON del payload enviado para inspección
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final sentFile = File('openai_sent_payload_$timestamp.json');
+    await sentFile.writeAsString(const JsonEncoder.withIndent('  ').convert(jsonDecode(body)));
     final response = await http.post(url, headers: headers, body: body);
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      // Nuevo formato: 'output' es un array de mensajes
-      String? text;
-      String? imageUrl;
-      final output = data['output'] as List?;
-      if (output != null && output.isNotEmpty) {
-        final message = output[0];
-        if (message != null && message['content'] is List) {
-          for (final part in message['content']) {
-            if (part is Map &&
-                part['type'] == 'output_text' &&
-                part['text'] != null) {
-              text = part['text'];
-            } else if (part is Map &&
-                part['type'] == 'image_url' &&
-                part['image_url'] != null) {
-              imageUrl = part['image_url'] as String?;
+
+      // Guardar el JSON completo en la carpeta del proyecto para inspección
+      /*final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final file = File('openai_response_$timestamp.json');
+      await file.writeAsString(const JsonEncoder.withIndent('  ').convert(data));*/
+
+      String text = '';
+      String imageBase64 = '';
+      String imageId = '';
+      String revisedPrompt = '';
+      final output = data['output'] ?? data['data'];
+      if (output is List && output.isNotEmpty) {
+        // Recorrer todos los bloques y extraer según type con if/else if para mayor legibilidad
+        for (final item in output) {
+          final type = item['type'];
+          if (type == 'image_generation_call') {
+            if (item['result'] != null && imageBase64.isEmpty) imageBase64 = item['result'];
+            if (item['image_id'] != null && imageId.isEmpty) imageId = item['image_id'];
+            if (item['revised_prompt'] != null && revisedPrompt.isEmpty) revisedPrompt = item['revised_prompt'];
+            if (text.trim().isEmpty && item['text'] != null) text = item['text'];
+          } else if (type == 'message') {
+            if (item['content'] != null && item['content'] is List) {
+              final contentList = item['content'] as List;
+              final firstTextBlock = contentList.firstWhere(
+                (c) => c['type'] == 'output_text' && c['text'] != null,
+                orElse: () => null,
+              );
+              if (firstTextBlock != null && text.trim().isEmpty) {
+                text = firstTextBlock['text'];
+              }
             }
           }
         }
       }
       final aiResponse = AIResponse(
-        text: (text != null && text.trim().isNotEmpty)
-            ? text
-            : (imageUrl != null && imageUrl.isNotEmpty)
-            ? '[Imagen generada]'
-            : '[NO_REPLY]',
-        imageBase64: imageUrl ?? '',
+        text: (text.trim().isNotEmpty) ? text : '[NO_REPLY]',
+        imageBase64: imageBase64,
+        imageId: imageId,
+        revisedPrompt: revisedPrompt,
+      );
+      print(
+        'AI Response: ${aiResponse.text}, Image ID: ${aiResponse.imageId}, Revised Prompt: ${aiResponse.revisedPrompt}',
       );
       return aiResponse;
     } else {
-      return AIResponse(text: 'Error al conectar con la IA: ${response.body}');
+      // Guardar el JSON completo en la carpeta del proyecto para inspección
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final file = File('openai_error_response_$timestamp.json');
+      await file.writeAsString(const JsonEncoder.withIndent('  ').convert(response.body));
+
+      debugPrint('[OpenAIService] ERROR: statusCode=${response.statusCode}, body=${response.body}');
+      return AIResponse(text: 'Error al conectar con la IA: Status ${response.statusCode} ${response.body}');
     }
   }
 }

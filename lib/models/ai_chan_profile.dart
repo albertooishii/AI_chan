@@ -25,13 +25,11 @@ class AiChanProfile {
 
   factory AiChanProfile.fromJson(Map<String, dynamic> json) {
     DateTime? birth;
-    if (json['userBirthday'] is String &&
-        (json['userBirthday'] as String).isNotEmpty) {
+    if (json['userBirthday'] is String && (json['userBirthday'] as String).isNotEmpty) {
       birth = DateTime.tryParse(json['userBirthday']);
     }
     DateTime? aiBirth;
-    if (json['aiBirthday'] is String &&
-        (json['aiBirthday'] as String).isNotEmpty) {
+    if (json['aiBirthday'] is String && (json['aiBirthday'] as String).isNotEmpty) {
       aiBirth = DateTime.tryParse(json['aiBirthday']);
     }
     return AiChanProfile(
@@ -57,14 +55,7 @@ class AiChanProfile {
   /// Versión segura: devuelve null y borra datos corruptos si el perfil no es válido (estructura plana)
   static Future<AiChanProfile?> tryFromJson(Map<String, dynamic> json) async {
     // Estructura esperada: todos los campos al mismo nivel
-    final expectedKeys = [
-      'userName',
-      'aiName',
-      'personality',
-      'biography',
-      'appearance',
-      'timeline',
-    ];
+    final expectedKeys = ['userName', 'aiName', 'personality', 'biography', 'appearance', 'timeline'];
     bool valid = true;
     for (final key in expectedKeys) {
       if (!json.containsKey(key)) {
@@ -98,15 +89,15 @@ class AiChanProfile {
   Map<String, dynamic> toJson() => {
     'userName': userName,
     'aiName': aiName,
+    'userBirthday': userBirthday != null
+        ? "${userBirthday!.year.toString().padLeft(4, '0')}-${userBirthday!.month.toString().padLeft(2, '0')}-${userBirthday!.day.toString().padLeft(2, '0')}"
+        : null,
+    'aiBirthday': aiBirthday != null
+        ? "${aiBirthday!.year.toString().padLeft(4, '0')}-${aiBirthday!.month.toString().padLeft(2, '0')}-${aiBirthday!.day.toString().padLeft(2, '0')}"
+        : null,
     'personality': personality,
     'biography': biography,
     'appearance': appearance,
     'timeline': timeline.map((e) => e.toJson()).toList(),
-    if (userBirthday != null)
-      'userBirthday':
-          "${userBirthday!.year.toString().padLeft(4, '0')}-${userBirthday!.month.toString().padLeft(2, '0')}-${userBirthday!.day.toString().padLeft(2, '0')}",
-    if (aiBirthday != null)
-      'aiBirthday':
-          "${aiBirthday!.year.toString().padLeft(4, '0')}-${aiBirthday!.month.toString().padLeft(2, '0')}-${aiBirthday!.day.toString().padLeft(2, '0')}",
-  };
+  }..removeWhere((k, v) => v == null);
 }

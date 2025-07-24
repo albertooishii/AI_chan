@@ -40,9 +40,7 @@ class Message {
     dateTime: json['dateTime'] != null && json['dateTime'] is String
         ? DateTime.tryParse(json['dateTime']) ?? DateTime.now()
         : DateTime.now(),
-    isImage: json['isImage'] is bool
-        ? json['isImage'] as bool
-        : (json['isImage'] == true),
+    isImage: json['isImage'] is bool ? json['isImage'] as bool : (json['isImage'] == true),
     imagePath: json['imagePath'],
     imageId: json['imageId'],
     revisedPrompt: json['revisedPrompt'],

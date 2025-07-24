@@ -84,12 +84,7 @@ Vives en una dimensión paralela de la Tierra, idéntica a la nuestra pero separ
       "orientacion_sexual": "",
     },
     "familia": [
-      {
-        "nombre": "",
-        "relacion": "",
-        "descripcion": "",
-        "estado": "vivo/fallecido",
-      },
+      {"nombre": "", "relacion": "", "descripcion": "", "estado": "vivo/fallecido"},
     ],
     "mascotas": [
       {
@@ -117,13 +112,7 @@ Vives en una dimensión paralela de la Tierra, idéntica a la nuestra pero separ
       },
     ],
     "relaciones": [
-      {
-        "nombre": "",
-        "tipo": "",
-        "descripcion": "",
-        "fecha_inicio": "",
-        "fecha_fin": "",
-      },
+      {"nombre": "", "tipo": "", "descripcion": "", "fecha_inicio": "", "fecha_fin": ""},
     ],
     "amistades": [
       {"nombre": "", "descripcion": "", "años": ""},
@@ -185,10 +174,7 @@ Vives en una dimensión paralela de la Tierra, idéntica a la nuestra pero separ
 
   // Construcción del modelo AiChanProfile
   final bioModel = AiChanProfile(
-    personality: <String, dynamic>{
-      "instructions": aiPersonalityInstructions.trim(),
-      "values": aiPersonalityValues,
-    },
+    personality: <String, dynamic>{"instructions": aiPersonalityInstructions.trim(), "values": aiPersonalityValues},
     biography: bioJson,
     timeline: [TimelineEntry(date: fechaConocieron, resume: meetStory)],
     userName: userName,

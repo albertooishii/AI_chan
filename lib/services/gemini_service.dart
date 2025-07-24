@@ -12,9 +12,7 @@ class GeminiService implements AIService {
   @override
   Future<List<String>> getAvailableModels() async {
     // Obtiene la lista real de modelos desde el endpoint de Gemini
-    final url = Uri.parse(
-      'https://generativelanguage.googleapis.com/v1beta/models?key=$_apiKey',
-    );
+    final url = Uri.parse('https://generativelanguage.googleapis.com/v1beta/models?key=$_apiKey');
     final response = await http.get(url);
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -46,66 +44,56 @@ class GeminiService implements AIService {
     String? imageMimeType,
   }) async {
     if (_apiKey.trim().isEmpty) {
-      return AIResponse(
-        text:
-            'Error: Falta la API key de Gemini. Por favor, configúrala en el servicio.',
-      );
+      return AIResponse(text: 'Error: Falta la API key de Gemini. Por favor, configúrala en el servicio.');
     }
-    final selectedModel = (model ?? 'gemini-2.5-pro').trim();
+    final selectedModel = (model ?? 'gemini-2.5-flash').trim();
     final headers = {'Content-Type': 'application/json'};
-    final endpointBase =
-        'https://generativelanguage.googleapis.com/v1beta/models/';
+    final endpointBase = 'https://generativelanguage.googleapis.com/v1beta/models/';
     final endpoint = '$endpointBase$selectedModel:generateContent?key=$_apiKey';
     final url = Uri.parse(endpoint);
-    // Construir contents multimodal en orden cronológico
+    // Unificar todo el historial en un solo bloque de texto para el content
     List<Map<String, dynamic>> contents = [];
-    if (systemPrompt.isNotEmpty) {
+    bool hasImage =
+        history.isNotEmpty && history.last['role'] == 'user' && imageBase64 != null && imageBase64.isNotEmpty;
+    if (hasImage) {
+      // Si hay imagen, enviar el historial completo y el systemPrompt como texto, y la imagen como segundo part
+      StringBuffer allText = StringBuffer();
+      if (systemPrompt.isNotEmpty) {
+        allText.write('[system]: $systemPrompt');
+      }
+      for (int i = 0; i < history.length; i++) {
+        final role = history[i]['role'] ?? 'user';
+        final contentStr = history[i]['content'] ?? '';
+        if (allText.isNotEmpty) allText.write('\n\n');
+        allText.write('[$role]: $contentStr');
+      }
       contents.add({
         "role": "user",
         "parts": [
-          {"text": systemPrompt},
+          {"text": allText.toString()},
+          {
+            "inline_data": {"mime_type": imageMimeType ?? 'image/png', "data": imageBase64},
+          },
         ],
       });
-    }
-    for (int i = 0; i < history.length; i++) {
-      String role = history[i]['role'] ?? 'user';
-      // Gemini solo acepta 'user' y 'model' como roles
-      if (role != 'user') role = 'model';
-      final contentStr = history[i]['content'] ?? '';
-      List<Map<String, dynamic>> parts = [];
-      if (role == 'user') {
-        // Si es el último mensaje y hay imagen, combinar texto e imagen en el mismo bloque
-        if (i == history.length - 1 &&
-            imageBase64 != null &&
-            imageBase64.isNotEmpty) {
-          if (contentStr.isNotEmpty) {
-            parts.add({"text": contentStr});
-          }
-          parts.add({
-            "inline_data": {
-              "mime_type": imageMimeType ?? 'image/png',
-              "data": imageBase64,
-            },
-          });
-          // Si no hay texto, pero sí imagen, forzar texto mínimo
-          if (contentStr.isEmpty) {
-            parts.insert(0, {"text": "Imagen adjunta"});
-          }
-        } else {
-          if (contentStr.isNotEmpty) {
-            parts.add({"text": contentStr});
-          }
-          // Si el mensaje user está vacío y no hay imagen, forzar texto para evitar NO_REPLY
-          if (parts.isEmpty) {
-            parts.add({"text": "Hola"});
-          }
-        }
-      } else {
-        if (contentStr.isNotEmpty) {
-          parts.add({"text": contentStr});
-        }
+    } else {
+      // Unir todos los mensajes en un solo bloque de texto (como JSON o texto plano)
+      StringBuffer allText = StringBuffer();
+      if (systemPrompt.isNotEmpty) {
+        allText.write('[system]: $systemPrompt');
       }
-      contents.add({"role": role, "parts": parts});
+      for (int i = 0; i < history.length; i++) {
+        final role = history[i]['role'] ?? 'user';
+        final contentStr = history[i]['content'] ?? '';
+        if (allText.isNotEmpty) allText.write('\n\n');
+        allText.write('[$role]: $contentStr');
+      }
+      contents.add({
+        "role": "user",
+        "parts": [
+          {"text": allText.toString()},
+        ],
+      });
     }
     int tokens = estimateTokens(history, systemPrompt);
     if (tokens > 128000) {
@@ -127,14 +115,10 @@ class GeminiService implements AIService {
           text = parts[0]['text'];
         }
       }
-      final aiResponse = AIResponse(
-        text: (text != null && text.trim().isNotEmpty) ? text : '[NO_REPLY]',
-      );
+      final aiResponse = AIResponse(text: (text != null && text.trim().isNotEmpty) ? text : '[NO_REPLY]');
       return aiResponse;
     } else {
-      return AIResponse(
-        text: 'Error al conectar con Gemini: \\n${response.body}',
-      );
+      return AIResponse(text: 'Error al conectar con Gemini: \\n${response.body}');
     }
     // Por seguridad, nunca retorna null
     // throw Exception('Error inesperado en GeminiService');

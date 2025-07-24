@@ -14,9 +14,7 @@ class ImportedChat {
     profileMap.remove('messages');
     return ImportedChat(
       profile: AiChanProfile.fromJson(profileMap),
-      messages: (json['messages'] as List<dynamic>? ?? [])
-          .map((e) => Message.fromJson(e))
-          .toList(),
+      messages: (json['messages'] as List<dynamic>? ?? []).map((e) => Message.fromJson(e)).toList(),
     );
   }
 

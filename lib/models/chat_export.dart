@@ -9,19 +9,16 @@ class ChatExport {
 
   Map<String, dynamic> toJson() {
     final map = profile.toJson();
-    map['messages'] = messages.map((e) => e.toJson()).toList();
-    return map;
+    // Añade los mensajes al final
+    return {...map, 'messages': messages.map((e) => e.toJson()).toList()};
   }
 
   factory ChatExport.fromJson(Map<String, dynamic> json) {
     // El perfil está al mismo nivel que los mensajes (estructura plana)
     final Map<String, dynamic> profileMap = Map.from(json);
-    profileMap.remove('messages');
     return ChatExport(
       profile: AiChanProfile.fromJson(profileMap),
-      messages: (json['messages'] as List<dynamic>)
-          .map((e) => Message.fromJson(e))
-          .toList(),
+      messages: (json['messages'] as List<dynamic>).map((e) => Message.fromJson(e)).toList(),
     );
   }
 }

@@ -6,7 +6,6 @@ import '../widgets/message_input.dart';
 import '../widgets/voice_call_chat.dart';
 import '../widgets/typing_animation.dart';
 import '../constants/app_colors.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../utils/dialog_utils.dart';
 import '../models/ai_chan_profile.dart';
 import '../models/imported_chat.dart';
@@ -19,13 +18,7 @@ class ChatScreen extends StatefulWidget {
   final Future<void> Function()? onClearAllDebug;
   final Future<void> Function(ImportedChat importedChat)? onImportJson;
 
-  const ChatScreen({
-    super.key,
-    required this.bio,
-    required this.aiName,
-    this.onClearAllDebug,
-    this.onImportJson,
-  });
+  const ChatScreen({super.key, required this.bio, required this.aiName, this.onClearAllDebug, this.onImportJson});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -38,26 +31,17 @@ class _ChatScreenState extends State<ChatScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
-        title: const Text(
-          'Importar chat',
-          style: TextStyle(color: Colors.pinkAccent),
-        ),
+        title: const Text('Importar chat', style: TextStyle(color: Colors.pinkAccent)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-              ),
-              child: const Text(
-                'Pegar JSON',
-                style: TextStyle(color: Colors.black87),
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              child: const Text('Pegar JSON', style: TextStyle(color: Colors.black87)),
               onPressed: () async {
                 Navigator.of(ctx).pop();
                 if (!mounted) return;
-                final jsonStr = await chat_json_utils
-                    .ChatJsonUtils.pasteJsonDialog(context);
+                final jsonStr = await chat_json_utils.ChatJsonUtils.pasteJsonDialog(context);
                 if (!mounted) return;
                 if (jsonStr != null && jsonStr.trim().isNotEmpty) {
                   try {
@@ -77,18 +61,12 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             const SizedBox(height: 12),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-              ),
-              child: const Text(
-                'Seleccionar archivo',
-                style: TextStyle(color: Colors.black87),
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              child: const Text('Seleccionar archivo', style: TextStyle(color: Colors.black87)),
               onPressed: () async {
                 Navigator.of(ctx).pop();
                 if (!mounted) return;
-                final (jsonStr, error) =
-                    await chat_json_utils.ChatJsonUtils.pickJsonFile();
+                final (jsonStr, error) = await chat_json_utils.ChatJsonUtils.pickJsonFile();
                 if (!mounted) return;
                 if (error != null) {
                   _showErrorDialog(error);
@@ -114,10 +92,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         actions: [
           TextButton(
-            child: const Text(
-              'Cancelar',
-              style: TextStyle(color: AppColors.primary),
-            ),
+            child: const Text('Cancelar', style: TextStyle(color: AppColors.primary)),
             onPressed: () => Navigator.of(ctx).pop(),
           ),
         ],
@@ -125,24 +100,15 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Future<String?> _showModelSelectionDialog(
-    List<String> models,
-    String? initialModel,
-  ) async {
+  Future<String?> _showModelSelectionDialog(List<String> models, String? initialModel) async {
     if (!mounted) return null;
     return await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
-        title: const Text(
-          'Seleccionar modelo',
-          style: TextStyle(color: AppColors.primary),
-        ),
+        title: const Text('Seleccionar modelo', style: TextStyle(color: AppColors.primary)),
         content: models.isEmpty
-            ? const Text(
-                'No se encontraron modelos disponibles.',
-                style: TextStyle(color: AppColors.primary),
-              )
+            ? const Text('No se encontraron modelos disponibles.', style: TextStyle(color: AppColors.primary))
             : SizedBox(
                 width: 350,
                 child: ListView(
@@ -153,46 +119,27 @@ class _ChatScreenState extends State<ChatScreen> {
                       padding: EdgeInsets.symmetric(vertical: 8.0),
                       child: Text(
                         'Gemini',
-                        style: TextStyle(
-                          color: AppColors.secondary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                        style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                     ),
                     ...models
-                        .where(
-                          (m) =>
-                              m.toLowerCase().contains('gemini') ||
-                              m.toLowerCase().contains('imagen-'),
-                        )
+                        .where((m) => m.toLowerCase().contains('gemini') || m.toLowerCase().contains('imagen-'))
                         .map(
                           (m) => RadioListTile<String>(
                             value: m,
                             groupValue: initialModel,
                             onChanged: (val) => Navigator.of(ctx).pop(val),
-                            title: Text(
-                              m,
-                              style: const TextStyle(color: AppColors.primary),
-                            ),
+                            title: Text(m, style: const TextStyle(color: AppColors.primary)),
                             activeColor: AppColors.secondary,
                           ),
                         ),
-                    const Divider(
-                      color: AppColors.secondary,
-                      thickness: 1,
-                      height: 24,
-                    ),
+                    const Divider(color: AppColors.secondary, thickness: 1, height: 24),
                     // Grupo OpenAI
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 8.0),
                       child: Text(
                         'OpenAI',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                        style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                     ),
                     ...models
@@ -202,10 +149,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             value: m,
                             groupValue: initialModel,
                             onChanged: (val) => Navigator.of(ctx).pop(val),
-                            title: Text(
-                              m,
-                              style: const TextStyle(color: AppColors.primary),
-                            ),
+                            title: Text(m, style: const TextStyle(color: AppColors.primary)),
                             activeColor: AppColors.secondary,
                           ),
                         ),
@@ -214,10 +158,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
         actions: [
           TextButton(
-            child: const Text(
-              'Cancelar',
-              style: TextStyle(color: AppColors.primary),
-            ),
+            child: const Text('Cancelar', style: TextStyle(color: AppColors.primary)),
             onPressed: () => Navigator.of(ctx).pop(),
           ),
         ],
@@ -225,11 +166,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  void _setSelectedModel(
-    String? selected,
-    String? current,
-    ChatProvider chatProvider,
-  ) {
+  void _setSelectedModel(String? selected, String? current, ChatProvider chatProvider) {
     if (!mounted) return;
     if (selected != null && selected != current) {
       chatProvider.selectedModel = selected;
@@ -241,10 +178,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text(
-          'Chat importado correctamente.',
-          style: TextStyle(color: AppColors.primary),
-        ),
+        content: const Text('Chat importado correctamente.', style: TextStyle(color: AppColors.primary)),
         backgroundColor: AppColors.cyberpunkYellow,
       ),
     );
@@ -256,29 +190,19 @@ class _ChatScreenState extends State<ChatScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
-        title: const Text(
-          'Exportar chat (.json)',
-          style: TextStyle(color: AppColors.secondary),
-        ),
+        title: const Text('Exportar chat (.json)', style: TextStyle(color: AppColors.secondary)),
         content: SizedBox(
           width: 400,
           child: SingleChildScrollView(
-            child: SelectableText(
-              jsonStr,
-              style: const TextStyle(color: AppColors.primary, fontSize: 13),
-            ),
+            child: SelectableText(jsonStr, style: const TextStyle(color: AppColors.primary, fontSize: 13)),
           ),
         ),
         actions: [
           TextButton(
-            child: const Text(
-              'Guardar como...',
-              style: TextStyle(color: AppColors.secondary),
-            ),
+            child: const Text('Guardar como...', style: TextStyle(color: AppColors.secondary)),
             onPressed: () async {
               Navigator.of(ctx).pop();
-              final (success, error) =
-                  await chat_json_utils.ChatJsonUtils.saveJsonFile(jsonStr);
+              final (success, error) = await chat_json_utils.ChatJsonUtils.saveJsonFile(jsonStr);
               if (!mounted) return;
               if (error != null) {
                 _showErrorDialog(error);
@@ -301,25 +225,8 @@ class _ChatScreenState extends State<ChatScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text(
-          'Apariencia IA regenerada y reemplazada.',
-          style: TextStyle(color: Colors.black87),
-        ),
+        content: const Text('Apariencia IA regenerada y reemplazada.', style: TextStyle(color: Colors.black87)),
         backgroundColor: AppColors.cyberpunkYellow,
-      ),
-    );
-  }
-
-  void _showSummaryErrorSnackBar(String? blockDate) {
-    if (!mounted) return;
-    final msg = blockDate == null
-        ? 'No se pudo generar un resumen.'
-        : 'No se pudo generar un resumen para el bloque $blockDate.';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: Colors.redAccent,
-        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -349,9 +256,7 @@ class _ChatScreenState extends State<ChatScreen> {
             icon: const Icon(Icons.call, color: AppColors.secondary),
             tooltip: 'Llamada de voz',
             onPressed: () {
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => VoiceCallChat()));
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => VoiceCallChat()));
             },
           ),
           PopupMenuButton<String>(
@@ -359,31 +264,19 @@ class _ChatScreenState extends State<ChatScreen> {
             itemBuilder: (context) => [
               const PopupMenuItem<String>(
                 value: 'export_json',
-                child: Text(
-                  'Exportar chat (JSON)',
-                  style: TextStyle(color: AppColors.primary),
-                ),
+                child: Text('Exportar chat (JSON)', style: TextStyle(color: AppColors.primary)),
               ),
               const PopupMenuItem<String>(
                 value: 'import_json',
-                child: Text(
-                  'Importar chat (JSON)',
-                  style: TextStyle(color: AppColors.primary),
-                ),
+                child: Text('Importar chat (JSON)', style: TextStyle(color: AppColors.primary)),
               ),
               const PopupMenuItem<String>(
                 value: 'regenAppearance',
-                child: Text(
-                  'Regenerar apariencia IA (debug)',
-                  style: TextStyle(color: Colors.redAccent),
-                ),
+                child: Text('Regenerar apariencia IA (debug)', style: TextStyle(color: Colors.redAccent)),
               ),
               const PopupMenuItem<String>(
                 value: 'clear_debug',
-                child: Text(
-                  'Borrar todo (debug)',
-                  style: TextStyle(color: Colors.redAccent),
-                ),
+                child: Text('Borrar todo (debug)', style: TextStyle(color: Colors.redAccent)),
               ),
               const PopupMenuDivider(),
               PopupMenuItem<String>(
@@ -391,31 +284,21 @@ class _ChatScreenState extends State<ChatScreen> {
                 value: 'select_model',
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.memory,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
+                    const Icon(Icons.memory, color: AppColors.primary, size: 20),
                     const SizedBox(width: 8),
                     Text(
-                      _loadingModels
-                          ? 'Cargando modelos...'
-                          : 'Seleccionar modelo',
+                      _loadingModels ? 'Cargando modelos...' : 'Seleccionar modelo',
                       style: const TextStyle(color: AppColors.primary),
                     ),
                     Builder(
                       builder: (context) {
                         final defaultModel = 'gpt-4.1-mini';
-                        final selected =
-                            chatProvider.selectedModel ?? defaultModel;
+                        final selected = chatProvider.selectedModel ?? defaultModel;
                         return Padding(
                           padding: const EdgeInsets.only(left: 8.0),
                           child: Text(
                             selected,
-                            style: const TextStyle(
-                              color: AppColors.secondary,
-                              fontSize: 11,
-                            ),
+                            style: const TextStyle(color: AppColors.secondary, fontSize: 11),
                             overflow: TextOverflow.ellipsis,
                           ),
                         );
@@ -432,9 +315,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   if (!mounted) return;
                   _showExportDialog(jsonStr);
                 } catch (e) {
-                  debugPrint(
-                    '[AI-chan] Error al exportar biografía: $e, valor=${chatProvider.onboardingData}',
-                  );
+                  debugPrint('[AI-chan] Error al exportar biografía: $e, valor=${chatProvider.onboardingData}');
                   if (!mounted) return;
                   _showErrorDialog(e.toString());
                 }
@@ -443,8 +324,7 @@ class _ChatScreenState extends State<ChatScreen> {
               } else if (value == 'regenAppearance') {
                 final bio = chatProvider.onboardingData;
                 try {
-                  final newAppearance = await chatProvider.iaAppearanceGenerator
-                      .generateAppearancePrompt(bio);
+                  final newAppearance = await chatProvider.iaAppearanceGenerator.generateAppearancePrompt(bio);
                   if (!mounted) return;
                   bio.appearance
                     ..clear()
@@ -461,27 +341,18 @@ class _ChatScreenState extends State<ChatScreen> {
                   context: context,
                   builder: (ctx) => AlertDialog(
                     backgroundColor: Colors.black,
-                    title: const Text(
-                      'Borrar todo (debug)',
-                      style: TextStyle(color: Colors.redAccent),
-                    ),
+                    title: const Text('Borrar todo (debug)', style: TextStyle(color: Colors.redAccent)),
                     content: const Text(
                       '¿Seguro que quieres borrar absolutamente todos los datos de la app? Esta acción no se puede deshacer.',
                       style: TextStyle(color: AppColors.primary),
                     ),
                     actions: [
                       TextButton(
-                        child: const Text(
-                          'Cancelar',
-                          style: TextStyle(color: AppColors.primary),
-                        ),
+                        child: const Text('Cancelar', style: TextStyle(color: AppColors.primary)),
                         onPressed: () => Navigator.of(ctx).pop(false),
                       ),
                       TextButton(
-                        child: const Text(
-                          'Borrar todo (debug)',
-                          style: TextStyle(color: Colors.redAccent),
-                        ),
+                        child: const Text('Borrar todo (debug)', style: TextStyle(color: Colors.redAccent)),
                         onPressed: () => Navigator.of(ctx).pop(true),
                       ),
                     ],
@@ -517,13 +388,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 final defaultModel = 'gpt-4.1-mini';
                 final initialModel =
                     current ??
-                    (models.contains(defaultModel)
-                        ? defaultModel
-                        : (models.isNotEmpty ? models.first : null));
-                final selected = await _showModelSelectionDialog(
-                  models,
-                  initialModel,
-                );
+                    (models.contains(defaultModel) ? defaultModel : (models.isNotEmpty ? models.first : null));
+                final selected = await _showModelSelectionDialog(models, initialModel);
                 _setSelectedModel(selected, current, chatProvider);
               }
             },
@@ -537,27 +403,18 @@ class _ChatScreenState extends State<ChatScreen> {
             Expanded(
               child: ListView.builder(
                 reverse: true,
-                padding: const EdgeInsets.symmetric(
-                  vertical: 16,
-                  horizontal: 8,
-                ),
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
                 itemCount: chatProvider.messages.length,
                 itemBuilder: (context, index) {
-                  final reversedMessages = chatProvider.messages.reversed
-                      .toList();
+                  final reversedMessages = chatProvider.messages.reversed.toList();
                   final message = reversedMessages[index];
                   // Solo el último mensaje del usuario (más reciente) debe tener isLastUserMessage = true
                   bool isLastUserMessage = false;
                   if (message.sender == MessageSender.user) {
                     // Busca el primer mensaje user en la lista invertida (el más reciente)
-                    isLastUserMessage = !reversedMessages
-                        .skip(index + 1)
-                        .any((m) => m.sender == MessageSender.user);
+                    isLastUserMessage = !reversedMessages.skip(index + 1).any((m) => m.sender == MessageSender.user);
                   }
-                  return ChatBubble(
-                    message: message,
-                    isLastUserMessage: isLastUserMessage,
-                  );
+                  return ChatBubble(message: message, isLastUserMessage: isLastUserMessage);
                 },
               ),
             ),
@@ -568,20 +425,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 6,
-                        horizontal: 14,
-                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 14),
                       decoration: BoxDecoration(
-                        color: AppColors.secondary.withAlpha(
-                          (0.18 * 255).round(),
-                        ),
+                        color: AppColors.secondary.withAlpha((0.18 * 255).round()),
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.secondary.withAlpha(
-                              (0.12 * 255).round(),
-                            ),
+                            color: AppColors.secondary.withAlpha((0.12 * 255).round()),
                             blurRadius: 8.0,
                             offset: Offset(0, 2),
                           ),
@@ -589,19 +439,11 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.photo_camera,
-                            color: AppColors.secondary,
-                            size: 22,
-                          ),
+                          const Icon(Icons.photo_camera, color: AppColors.secondary, size: 22),
                           const SizedBox(width: 10),
                           Text(
                             'Enviando imagen...',
-                            style: TextStyle(
-                              color: AppColors.secondary,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 15,
-                            ),
+                            style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w500, fontSize: 15),
                           ),
                         ],
                       ),
@@ -616,20 +458,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 6,
-                        horizontal: 14,
-                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 14),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withAlpha(
-                          (0.18 * 255).round(),
-                        ),
+                        color: AppColors.primary.withAlpha((0.18 * 255).round()),
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withAlpha(
-                              (0.12 * 255).round(),
-                            ),
+                            color: AppColors.primary.withAlpha((0.12 * 255).round()),
                             blurRadius: 8.0,
                             offset: Offset(0, 2),
                           ),
@@ -637,11 +472,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.keyboard_alt,
-                            color: AppColors.primary,
-                            size: 22,
-                          ),
+                          const Icon(Icons.keyboard_alt, color: AppColors.primary, size: 22),
                           const SizedBox(width: 10),
                           const TypingAnimation(),
                         ],
@@ -652,20 +483,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             MessageInput(
               onSend: (text) {
-                chatProvider.sendMessage(
-                  text,
-                  onError: (error) => _showErrorDialog(error),
-                );
-                final blockSize = int.tryParse(
-                  dotenv.env['SUMMARY_BLOCK_SIZE'] ?? '',
-                );
-                if (blockSize != null &&
-                    blockSize > 0 &&
-                    (chatProvider.messages.length) % blockSize == 0) {
-                  chatProvider.updateConversationSummary(
-                    onSummaryError: _showSummaryErrorSnackBar,
-                  );
-                }
+                chatProvider.sendMessage(text, onError: (error) => _showErrorDialog(error));
               },
               onSendImage: (file) async {
                 final msg = Message(

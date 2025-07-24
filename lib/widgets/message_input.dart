@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, TargetPlatform, kIsWeb;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kIsWeb;
 import 'dart:io';
 import 'dart:convert';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
@@ -25,12 +24,11 @@ class _MessageInputState extends State<MessageInput> {
   String? _attachedImageMime;
   final TextEditingController _controller = TextEditingController();
   bool _showEmojiPicker = false;
+  final FocusNode _textFieldFocusNode = FocusNode();
 
   Future<void> _pickImage() async {
     final isMobile =
-        kIsWeb ||
-        defaultTargetPlatform == TargetPlatform.android ||
-        defaultTargetPlatform == TargetPlatform.iOS;
+        kIsWeb || defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS;
     if (isMobile) {
       final picker = ImagePicker();
       final context = this.context;
@@ -44,10 +42,7 @@ class _MessageInputState extends State<MessageInput> {
                 title: const Text('Tomar foto'),
                 onTap: () async {
                   Navigator.of(ctx).pop();
-                  final pickedFile = await picker.pickImage(
-                    source: ImageSource.camera,
-                    imageQuality: 85,
-                  );
+                  final pickedFile = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
                   if (pickedFile != null) {
                     final file = File(pickedFile.path);
                     final bytes = await file.readAsBytes();
@@ -69,10 +64,7 @@ class _MessageInputState extends State<MessageInput> {
                 title: const Text('Elegir de la galería'),
                 onTap: () async {
                   Navigator.of(ctx).pop();
-                  final pickedFile = await picker.pickImage(
-                    source: ImageSource.gallery,
-                    imageQuality: 85,
-                  );
+                  final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
                   if (pickedFile != null) {
                     final file = File(pickedFile.path);
                     final bytes = await file.readAsBytes();
@@ -105,9 +97,7 @@ class _MessageInputState extends State<MessageInput> {
                 title: const Text('Elegir de la galería'),
                 onTap: () async {
                   Navigator.of(ctx).pop();
-                  final result = await FilePicker.platform.pickFiles(
-                    type: FileType.image,
-                  );
+                  final result = await FilePicker.platform.pickFiles(type: FileType.image);
                   if (result != null && result.files.single.path != null) {
                     final file = File(result.files.single.path!);
                     final bytes = await file.readAsBytes();
@@ -141,8 +131,7 @@ class _MessageInputState extends State<MessageInput> {
 
   Future<void> _send() async {
     final text = _controller.text.trim();
-    final hasImage =
-        _attachedImageBase64 != null && _attachedImageBase64!.isNotEmpty;
+    final hasImage = _attachedImageBase64 != null && _attachedImageBase64!.isNotEmpty;
     if (text.isEmpty && !hasImage) return;
 
     // Si hay imagen, enviar ambos (texto + imagen) usando el provider
@@ -198,21 +187,13 @@ class _MessageInputState extends State<MessageInput> {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          _attachedImage!,
-                          width: 56,
-                          height: 56,
-                          fit: BoxFit.cover,
-                        ),
+                        child: Image.file(_attachedImage!, width: 56, height: 56, fit: BoxFit.cover),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           'Imagen adjunta',
-                          style: TextStyle(
-                            color: AppColors.secondary,
-                            fontSize: 14,
-                          ),
+                          style: TextStyle(color: AppColors.secondary, fontSize: 14),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -228,11 +209,9 @@ class _MessageInputState extends State<MessageInput> {
                 children: [
                   Expanded(
                     child: TextField(
+                      focusNode: _textFieldFocusNode,
                       controller: _controller,
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontFamily: 'FiraMono',
-                      ),
+                      style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
                       decoration: InputDecoration(
                         hintText:
                             'Escribe tu mensaje...'
@@ -243,64 +222,53 @@ class _MessageInputState extends State<MessageInput> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(
-                            color: AppColors.primary,
-                            width: 2,
-                          ),
+                          borderSide: BorderSide(color: AppColors.primary, width: 2),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         filled: true,
                         fillColor: Colors.black,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         prefixIcon: IconButton(
-                          icon: const Icon(
-                            Icons.camera_alt,
-                            color: AppColors.secondary,
-                          ),
-                          onPressed: _pickImage,
-                          tooltip: 'Foto o galería',
+                          icon: _showEmojiPicker
+                              ? const Icon(Icons.close, color: AppColors.secondary)
+                              : const Icon(Icons.emoji_emotions_outlined, color: AppColors.secondary),
+                          onPressed: () {
+                            if (_showEmojiPicker) {
+                              // Cerrar emojis: volver a enfocar el TextField y mostrar teclado
+                              FocusScope.of(context).requestFocus(_textFieldFocusNode);
+                            } else {
+                              // Abrir emojis: ocultar teclado
+                              FocusScope.of(context).unfocus();
+                            }
+                            setState(() {
+                              _showEmojiPicker = !_showEmojiPicker;
+                            });
+                          },
+                          tooltip: _showEmojiPicker ? 'Cerrar emojis' : 'Emojis',
                         ),
                         suffixIcon: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            IconButton(
-                              icon: const Icon(
-                                Icons.emoji_emotions_outlined,
-                                color: AppColors.secondary,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _showEmojiPicker = !_showEmojiPicker;
-                                });
-                              },
-                              tooltip: 'Emojis',
-                            ),
                             if (_showEmojiPicker)
                               IconButton(
-                                icon: const Icon(
-                                  Icons.backspace_outlined,
-                                  color: AppColors.secondary,
-                                ),
+                                icon: const Icon(Icons.backspace_outlined, color: AppColors.secondary),
                                 onPressed: () {
                                   final text = _controller.text;
                                   if (text.isNotEmpty) {
                                     final chars = text.characters;
-                                    _controller.text = chars
-                                        .skipLast(1)
-                                        .toString();
-                                    _controller.selection =
-                                        TextSelection.fromPosition(
-                                          TextPosition(
-                                            offset: _controller.text.length,
-                                          ),
-                                        );
+                                    _controller.text = chars.skipLast(1).toString();
+                                    _controller.selection = TextSelection.fromPosition(
+                                      TextPosition(offset: _controller.text.length),
+                                    );
                                   }
                                 },
                                 tooltip: 'Borrar último carácter',
                               ),
+                            IconButton(
+                              icon: const Icon(Icons.camera_alt, color: AppColors.secondary),
+                              onPressed: _pickImage,
+                              tooltip: 'Foto o galería',
+                            ),
                           ],
                         ),
                       ),
@@ -323,24 +291,16 @@ class _MessageInputState extends State<MessageInput> {
             child: EmojiPicker(
               onEmojiSelected: (category, emoji) {
                 _controller.text += emoji.emoji;
-                _controller.selection = TextSelection.fromPosition(
-                  TextPosition(offset: _controller.text.length),
-                );
+                _controller.selection = TextSelection.fromPosition(TextPosition(offset: _controller.text.length));
               },
               config: Config(
                 height: 280,
                 checkPlatformCompatibility: true,
-                viewOrderConfig: ViewOrderConfig(
-                  top: EmojiPickerItem.categoryBar,
-                  middle: EmojiPickerItem.emojiView,
-                ),
+                viewOrderConfig: ViewOrderConfig(top: EmojiPickerItem.categoryBar, middle: EmojiPickerItem.emojiView),
                 emojiViewConfig: EmojiViewConfig(
                   emojiSizeMax: 28,
                   backgroundColor: Colors.black, // negro app
-                  gridPadding: const EdgeInsets.symmetric(
-                    horizontal: 2,
-                    vertical: 2,
-                  ),
+                  gridPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
                   recentsLimit: 24,
                 ),
                 categoryViewConfig: CategoryViewConfig(

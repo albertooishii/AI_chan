@@ -38,10 +38,7 @@ class RootApp extends StatelessWidget {
         title: 'ＡＩチャン',
         theme: ThemeData(
           brightness: Brightness.dark,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.pinkAccent,
-            brightness: Brightness.dark,
-          ),
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.pinkAccent, brightness: Brightness.dark),
           scaffoldBackgroundColor: Colors.black,
           useMaterial3: true,
         ),
@@ -73,10 +70,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     await clearAppData();
     debugPrint('[AI-chan] resetApp completado');
     if (mounted) {
-      final onboardingProvider = Provider.of<OnboardingProvider>(
-        context,
-        listen: false,
-      );
+      final onboardingProvider = Provider.of<OnboardingProvider>(context, listen: false);
       onboardingProvider.reset();
       setState(() {}); // El build ya muestra onboarding limpio
     }
@@ -180,10 +174,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
           aiName: onboardingProvider.generatedBiography!.aiName,
           onClearAllDebug: resetApp,
           onImportJson: (importedChat) async {
-            final onboardingProvider = Provider.of<OnboardingProvider>(
-              context,
-              listen: false,
-            );
+            final onboardingProvider = Provider.of<OnboardingProvider>(context, listen: false);
             final jsonStr = jsonEncode(importedChat.toJson());
             await onboardingProvider.importAllFromJson(jsonStr);
           },

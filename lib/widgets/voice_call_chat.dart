@@ -19,8 +19,7 @@ class VoiceCallChat extends StatefulWidget {
   State<VoiceCallChat> createState() => _VoiceCallChatState();
 }
 
-class _VoiceCallChatState extends State<VoiceCallChat>
-    with SingleTickerProviderStateMixin {
+class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProviderStateMixin {
   // --- STT basado en archivo (Whisper) ---
   bool _isRecording = false;
   String? _audioFilePath;
@@ -35,9 +34,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
   String _userSubtitle = '';
   Timer? _subtitleTimer;
   final OpenAIService openai = OpenAIService();
-  final MethodChannel _bluetoothScoChannel = const MethodChannel(
-    'bluetooth_sco',
-  );
+  final MethodChannel _bluetoothScoChannel = const MethodChannel('bluetooth_sco');
   final AudioRecorder _recorder = AudioRecorder();
 
   Future<void> _startRecordingSTT() async {
@@ -46,10 +43,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
     debugPrint('[STT] hasPermission: $hasPerm');
     if (!hasPerm) {
       if (mounted) {
-        await showErrorDialog(
-          context,
-          'No se ha concedido permiso para acceder al micrófono.',
-        );
+        await showErrorDialog(context, 'No se ha concedido permiso para acceder al micrófono.');
       }
       return;
     }
@@ -58,13 +52,10 @@ class _VoiceCallChatState extends State<VoiceCallChat>
       _userSubtitle = 'Escuchando...';
     });
     final dir = Directory.systemTemp;
-    final filePath =
-        '${dir.path}/ai_stt_${DateTime.now().millisecondsSinceEpoch}.wav';
+    final filePath = '${dir.path}/ai_stt_${DateTime.now().millisecondsSinceEpoch}.wav';
     _audioFilePath = filePath;
     await _recorder.start(
-      RecordConfig(
-        encoder: Platform.isLinux ? AudioEncoder.wav : AudioEncoder.aacLc,
-      ),
+      RecordConfig(encoder: Platform.isLinux ? AudioEncoder.wav : AudioEncoder.aacLc),
       path: filePath,
     );
   }
@@ -120,13 +111,9 @@ class _VoiceCallChatState extends State<VoiceCallChat>
           .toLowerCase()
           .replaceAll(RegExp(r'[^a-záéíóúüñ0-9 ]', caseSensitive: false), '')
           .trim();
-      final bool esBloqueado = frasesBloqueo.any(
-        (f) => textoNorm == f || textoNorm.contains(f),
-      );
+      final bool esBloqueado = frasesBloqueo.any((f) => textoNorm == f || textoNorm.contains(f));
       if (texto == null || texto.trim().length < 3 || esBloqueado) {
-        debugPrint(
-          '[STT] Ignorado por ser ruido, demasiado corto o frase bloqueada: $texto',
-        );
+        debugPrint('[STT] Ignorado por ser ruido, demasiado corto o frase bloqueada: $texto');
         return;
       }
       debugPrint('[STT] Enviando a AI: $texto');
@@ -169,10 +156,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
     super.initState();
     _activateBluetoothSco();
     _initAudioSession();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
     if (_autoListen) {
       Future.microtask(() => _autoListenLoop());
     }
@@ -204,11 +188,9 @@ class _VoiceCallChatState extends State<VoiceCallChat>
     final session = await audio_session.AudioSession.instance;
     await session.configure(
       audio_session.AudioSessionConfiguration(
-        avAudioSessionCategory:
-            audio_session.AVAudioSessionCategory.playAndRecord,
+        avAudioSessionCategory: audio_session.AVAudioSessionCategory.playAndRecord,
         avAudioSessionMode: audio_session.AVAudioSessionMode.voiceChat,
-        avAudioSessionCategoryOptions:
-            audio_session.AVAudioSessionCategoryOptions.allowBluetooth,
+        avAudioSessionCategoryOptions: audio_session.AVAudioSessionCategoryOptions.allowBluetooth,
         androidAudioAttributes: const audio_session.AndroidAudioAttributes(
           contentType: audio_session.AndroidAudioContentType.speech,
           usage: audio_session.AndroidAudioUsage.voiceCommunication,
@@ -250,13 +232,8 @@ class _VoiceCallChatState extends State<VoiceCallChat>
       _showSubtitle('_ia');
     }
     try {
-      debugPrint(
-        '[TTS] Solicitando síntesis de: ${lastResponse.text} con voz $_selectedVoice',
-      );
-      final file = await openai.textToSpeech(
-        text: lastResponse.text,
-        voice: _selectedVoice,
-      );
+      debugPrint('[TTS] Solicitando síntesis de: ${lastResponse.text} con voz $_selectedVoice');
+      final file = await openai.textToSpeech(text: lastResponse.text, voice: _selectedVoice);
       if (file != null) {
         debugPrint('[TTS] Archivo generado: ${file.path}');
         final fileSize = await file.length();
@@ -282,10 +259,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
           context: context,
           builder: (ctx) => AlertDialog(
             backgroundColor: Colors.black,
-            title: const Text(
-              'Error TTS',
-              style: TextStyle(color: Colors.pinkAccent),
-            ),
+            title: const Text('Error TTS', style: TextStyle(color: Colors.pinkAccent)),
             content: Text(
               e.toString().contains('Falta la API key')
                   ? 'Falta la API key de OpenAI. Ve a configuración para añadirla.'
@@ -294,10 +268,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
             ),
             actions: [
               TextButton(
-                child: const Text(
-                  'Cerrar',
-                  style: TextStyle(color: Colors.cyanAccent),
-                ),
+                child: const Text('Cerrar', style: TextStyle(color: Colors.cyanAccent)),
                 onPressed: () => Navigator.of(ctx).pop(),
               ),
             ],
@@ -331,16 +302,8 @@ class _VoiceCallChatState extends State<VoiceCallChat>
     final baseColor = Colors.cyanAccent;
     final accentColor = Colors.pinkAccent;
     final neonShadow = [
-      BoxShadow(
-        color: baseColor.withAlpha((0.7 * 255).round()),
-        blurRadius: 16,
-        spreadRadius: 2,
-      ),
-      BoxShadow(
-        color: accentColor.withAlpha((0.4 * 255).round()),
-        blurRadius: 32,
-        spreadRadius: 8,
-      ),
+      BoxShadow(color: baseColor.withAlpha((0.7 * 255).round()), blurRadius: 16, spreadRadius: 2),
+      BoxShadow(color: accentColor.withAlpha((0.4 * 255).round()), blurRadius: 32, spreadRadius: 8),
     ];
     return PopScope(
       canPop: true,
@@ -365,12 +328,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
                   fontWeight: FontWeight.bold,
                   fontSize: 22,
                   letterSpacing: 1.2,
-                  shadows: [
-                    Shadow(
-                      color: accentColor.withAlpha((0.5 * 255).round()),
-                      blurRadius: 8,
-                    ),
-                  ],
+                  shadows: [Shadow(color: accentColor.withAlpha((0.5 * 255).round()), blurRadius: 8)],
                 ),
               ),
             ],
@@ -378,11 +336,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
           actions: [
             Row(
               children: [
-                Icon(
-                  _autoListen ? Icons.hearing : Icons.hearing_disabled,
-                  color: Colors.cyanAccent,
-                  size: 22,
-                ),
+                Icon(_autoListen ? Icons.hearing : Icons.hearing_disabled, color: Colors.cyanAccent, size: 22),
                 const SizedBox(width: 2),
                 Switch(
                   value: _autoListen,
@@ -403,19 +357,14 @@ class _VoiceCallChatState extends State<VoiceCallChat>
                   dropdownColor: Colors.black,
                   value: _selectedVoice,
                   icon: Icon(Icons.arrow_drop_down, color: accentColor),
-                  style: TextStyle(
-                    color: baseColor,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(color: baseColor, fontWeight: FontWeight.bold),
                   items: _availableVoices.map((voice) {
                     return DropdownMenuItem<String>(
                       value: voice,
                       child: Text(
                         voice,
                         style: TextStyle(
-                          color: voice == _selectedVoice
-                              ? accentColor
-                              : baseColor,
+                          color: voice == _selectedVoice ? accentColor : baseColor,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -435,18 +384,13 @@ class _VoiceCallChatState extends State<VoiceCallChat>
               Positioned.fill(
                 child: Container(
                   color: Colors.black.withAlpha((0.7 * 255).round()),
-                  child: const Center(
-                    child: CircularProgressIndicator(color: Colors.cyanAccent),
-                  ),
+                  child: const Center(child: CircularProgressIndicator(color: Colors.cyanAccent)),
                 ),
               ),
             Positioned.fill(
               child: IgnorePointer(
                 child: CustomPaint(
-                  painter: CyberpunkGlowPainter(
-                    baseColor: baseColor,
-                    accentColor: accentColor,
-                  ),
+                  painter: CyberpunkGlowPainter(baseColor: baseColor, accentColor: accentColor),
                 ),
               ),
             ),
@@ -493,12 +437,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
                           _isListening ? Icons.mic : Icons.mic_none,
                           color: accentColor,
                           size: 64,
-                          shadows: [
-                            Shadow(
-                              color: baseColor.withAlpha((0.7 * 255).round()),
-                              blurRadius: 16,
-                            ),
-                          ],
+                          shadows: [Shadow(color: baseColor.withAlpha((0.7 * 255).round()), blurRadius: 16)],
                         ),
                       ),
                     ],
@@ -553,10 +492,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
                     }
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 18,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(32),
                       gradient: LinearGradient(
@@ -571,10 +507,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          _isRecording ? Icons.stop : Icons.mic,
-                          color: Colors.black87,
-                        ),
+                        Icon(_isRecording ? Icons.stop : Icons.mic, color: Colors.black87),
                         const SizedBox(width: 10),
                         Text(
                           _isRecording ? 'Detener' : 'Hablar',
@@ -605,34 +538,21 @@ class _VoiceCallChatState extends State<VoiceCallChat>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: LinearGradient(
-                        colors: [
-                          Colors.redAccent.shade700,
-                          accentColor.withAlpha((0.7 * 255).round()),
-                        ],
+                        colors: [Colors.redAccent.shade700, accentColor.withAlpha((0.7 * 255).round())],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.redAccent.withAlpha(
-                            (0.7 * 255).round(),
-                          ),
+                          color: Colors.redAccent.withAlpha((0.7 * 255).round()),
                           blurRadius: 24,
                           spreadRadius: 2,
                         ),
-                        BoxShadow(
-                          color: accentColor.withAlpha((0.2 * 255).round()),
-                          blurRadius: 32,
-                          spreadRadius: 8,
-                        ),
+                        BoxShadow(color: accentColor.withAlpha((0.2 * 255).round()), blurRadius: 32, spreadRadius: 8),
                       ],
                       border: Border.all(color: accentColor, width: 2.5),
                     ),
-                    child: const Icon(
-                      Icons.call_end,
-                      color: Colors.white,
-                      size: 38,
-                    ),
+                    child: const Icon(Icons.call_end, color: Colors.white, size: 38),
                   ),
                 ),
               ),

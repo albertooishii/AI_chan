@@ -4,12 +4,7 @@ class AIResponse {
   final String imageId;
   final String revisedPrompt;
 
-  AIResponse({
-    required this.text,
-    this.imageBase64 = '',
-    this.imageId = '',
-    this.revisedPrompt = '',
-  });
+  AIResponse({required this.text, this.imageBase64 = '', this.imageId = '', this.revisedPrompt = ''});
 
   factory AIResponse.fromJson(Map<String, dynamic> json) {
     return AIResponse(

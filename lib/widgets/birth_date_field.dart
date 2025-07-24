@@ -16,12 +16,8 @@ class BirthDateField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: "Fecha de nacimiento",
         labelStyle: const TextStyle(color: AppColors.secondary),
-        enabledBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: AppColors.secondary),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: AppColors.primary, width: 2),
-        ),
+        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
+        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
         prefixIcon: const Icon(Icons.cake, color: AppColors.secondary),
         fillColor: Colors.black,
         filled: true,

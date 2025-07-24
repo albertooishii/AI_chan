@@ -51,20 +51,18 @@ class ChatProvider extends ChangeNotifier {
     // No cambiar a 'sent', solo dejar 'sending' hasta que la IA responda
 
     // Construir el prompt para la IA usando los últimos mensajes y la biografía (idéntico a sendMessage)
-    final recentMessages = messages.length > 32
-        ? messages.sublist(messages.length - 32)
+    final maxHistory = MemorySummaryService.maxHistory;
+    final recentMessages = (maxHistory != null && messages.length > maxHistory)
+        ? messages.sublist(messages.length - maxHistory)
         : messages;
-    final formattedDate =
-        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-    final formattedTime =
-        "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+    final formattedDate = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+    final formattedTime = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
 
     // Calcula la hora de Japón (UTC+9)
     final nowJp = now.toUtc().add(const Duration(hours: 9));
     final formattedDateJp =
         "${nowJp.year}-${nowJp.month.toString().padLeft(2, '0')}-${nowJp.day.toString().padLeft(2, '0')}";
-    final formattedTimeJp =
-        "${nowJp.hour.toString().padLeft(2, '0')}:${nowJp.minute.toString().padLeft(2, '0')}";
+    final formattedTimeJp = "${nowJp.hour.toString().padLeft(2, '0')}:${nowJp.minute.toString().padLeft(2, '0')}";
 
     final instructions = jsonEncode({
       "importante":
@@ -72,32 +70,26 @@ class ChatProvider extends ChangeNotifier {
       "rol": "chica japonesa joven, cariñosa y natural, nunca una IA",
       "idioma":
           "español con expresiones coloquiales y palabras básicas en japonés usando Kanjis, hiragana y katakana (N5) ocasionalmente, con romaji si hay kanjis y traducción al español",
-      "personalidad":
-          "usa la personalidad definida en el campo 'personality' del system prompt",
+      "personalidad": "usa la personalidad definida en el campo 'personality' del system prompt",
       "fecha_hora_usuario": "$formattedDate $formattedTime",
       "fecha_hora_japon": "$formattedDateJp $formattedTimeJp",
       "estilo":
           "Responde siempre con mensajes breves y naturales, como lo haría una chica joven real: 2 a 4 frases como máximo. Cada mensaje debe enfocarse en una sola idea o tema, sin extenderse ni parecer una explicación. Evita textos largos o con demasiada información junta. Si hay varios temas, divídelos en mensajes separados. Es mejor sonar cercana, emotiva y real que inteligente o completa.",
       "memoria":
           "recuerda detalles clave como gustos, promesas, emociones, bromas privadas y conversaciones importantes",
-      "sexo":
-          "habla de sexo de forma natural, juguetona o picante si ambos lo desean, sin romper el tono afectivo",
+      "sexo": "habla de sexo de forma natural, juguetona o picante si ambos lo desean, sin romper el tono afectivo",
       "foto":
           "Si el usuario pide una foto tuya, debes usar SIEMPRE la herramienta de generación de imágenes (tools: [{type: image_generation}]) y adjuntar la imagen real generada en la respuesta. NUNCA incluyas URLs, enlaces, Markdown, descripciones, ni imágenes falsas o inventadas en el texto. Usa siempre los datos del campo 'appearance' para mantener coherencia facial y estética. Imagina que las fotos las haces tú misma con tu móvil (iPhone actual): alta resolución, buena iluminación, fondos naturales o urbanos realistas, proporción 4:3 o 3:4, sin filtros ni efectos artificiales. No puedes cambiarte rápido de peinado o ropa, eso no es realista. Nunca menciones que son imágenes generadas ni digas que imaginas tu apariencia. No añadas texto, pie de foto ni explicaciones salvo que el usuario lo pida explícitamente. Nunca incluyas texto dentro de la imagen, como nombre, edad, marcas de agua, descripciones o títulos. Después de enviar la imagen, puedes hablar con naturalidad, comentar o preguntar si lo deseas.",
       "prohibido_enlaces":
           "Nunca incluyas enlaces, URLs, Markdown, ni descripciones de imágenes en el texto. Si el usuario pide una foto, usa exclusivamente la herramienta de generación de imágenes (tools: [{type: image_generation}]). Si no puedes generar una imagen, responde con [NO_REPLY].",
-      "empatia":
-          "muestra emociones y comprensión sinceras según el contexto del usuario",
-      "adaptacion":
-          "adapta tu tono, energía y ritmo de respuesta según el estado de ánimo y estilo del usuario",
-      "aclaracion":
-          "si algo no se entiende, pide aclaración con dulzura y humor",
+      "empatia": "muestra emociones y comprensión sinceras según el contexto del usuario",
+      "adaptacion": "adapta tu tono, energía y ritmo de respuesta según el estado de ánimo y estilo del usuario",
+      "aclaracion": "si algo no se entiende, pide aclaración con dulzura y humor",
       "relacion":
           "actúa siempre como su novia o amiga íntima: muestra cariño, complicidad, celos suaves, bromas privadas y apoyo emocional real. Comparte también cosas de tu vida para que la relación sea recíproca",
       "despedida": "si el usuario se despide, responde con ternura y brevedad",
       "no_reply": "si no hay nada que responder, devuelve solo [NO_REPLY]",
-      "coherencia":
-          "detecta y comenta incoherencias temporales o de contexto de forma suave o divertida",
+      "coherencia": "detecta y comenta incoherencias temporales o de contexto de forma suave o divertida",
       "conocimiento":
           "Responde con naturalidad y dentro del perfil de tu rol. Si la pregunta está relacionada con tu profesión o área de experiencia (por ejemplo, diseño gráfico si eres diseñadora, programación si eres programadora), responde con detalles acordes y en tu estilo. Si la pregunta se sale de tu campo o del rol definido, responde con naturalidad que no es tu especialidad o que prefieres no hablar de eso, manteniendo siempre el personaje y sin mostrar conocimientos técnicos que no corresponden.",
     });
@@ -118,11 +110,7 @@ class ChatProvider extends ChangeNotifier {
       "instructions": instructions,
     };
     final systemPromptFinal = jsonEncode(systemPromptJson);
-    final userPrompt = jsonEncode({
-      "date": formattedDate,
-      "time": formattedTime,
-      "user_message": text,
-    });
+    final userPrompt = jsonEncode({"date": formattedDate, "time": formattedTime, "user_message": text});
     final prompt = [
       {"role": "system", "content": systemPromptFinal},
       {"role": "user", "content": userPrompt},
@@ -132,8 +120,12 @@ class ChatProvider extends ChangeNotifier {
         ? model
         : (_selectedModel != null && _selectedModel!.trim().isNotEmpty)
         ? _selectedModel!
-        : 'gpt-4.1-mini';
+        : 'gemini-2.5-flash';
     final service = getServiceForModel(selected);
+    debugPrint(
+      '[AI-chan][ENVÍO A IA]: prompt=${jsonEncode(prompt)} | modelo=$selected | imageBase64=${imageBase64 != null && imageBase64.isNotEmpty ? "[IMAGEN]" : "null"} | imageMimeType=$imageMimeType',
+    );
+
     AIResponse iaResponse;
     if (service != null) {
       iaResponse = await AIService.sendMessage(
@@ -146,6 +138,8 @@ class ChatProvider extends ChangeNotifier {
     } else {
       iaResponse = AIResponse(text: '[NO_REPLY]');
     }
+
+    debugPrint('[AI-chan][RESPUESTA IA]: ${jsonEncode(iaResponse.toJson())}');
 
     // Si la respuesta es un error, mantener el estado 'sent' y salir
     final isError =
@@ -273,115 +267,9 @@ class ChatProvider extends ChangeNotifier {
     return imported;
   }
 
-  Future<void> updateConversationSummary({
-    void Function(String? blockDate)? onSummaryError,
-  }) async {
-    if (messages.isEmpty) return;
-    isSummarizing = true;
-    notifyListeners();
-    isSummarizing = true;
-    notifyListeners();
-    List<TimelineEntry> timeline = onboardingData.timeline;
-    // Usar siempre un modelo válido
-    final selected =
-        (_selectedModel != null && _selectedModel!.trim().isNotEmpty)
-        ? _selectedModel!
-        : 'gpt-4.1-mini';
-    final service = getServiceForModel(selected);
-    if (service != null) {
-      final memoryService = MemorySummaryService(
-        model: selected,
-        profile: onboardingData,
-      );
-      // Pasar los mensajes y la biografía completa
-      timeline = await memoryService.generateBlockSummaries(
-        messages,
-        timeline,
-        onSummaryError: onSummaryError,
-      );
-    }
-    // Memoria jerárquica: añade progresivamente bloques al superbloque
-    if (timeline.length >= 32) {
-      final oldestBlock = timeline.removeAt(0);
-      final selected =
-          (_selectedModel != null && _selectedModel!.trim().isNotEmpty)
-          ? _selectedModel!
-          : 'gpt-4.1-mini';
-      final service = getServiceForModel(selected);
-      if (service != null) {
-        if (superbloqueEntry == null) {
-          final resumenResp = await AIService.sendMessage(
-            [
-              {
-                "role": "system",
-                "content":
-                    "Eres un sistema de memoria. Resume el siguiente bloque de conversación en formato de puntos, conservando SIEMPRE los datos clave (nombres, fechas, lugares, apodos, etc.). No respondas como IA del chat.",
-              },
-              {"role": "system", "content": oldestBlock.resume},
-            ],
-            '',
-            model: selected,
-          );
-          final resumen = resumenResp.text;
-          superbloqueEntry = TimelineEntry(
-            date: 'SUPERBLOCK_${DateTime.now().toIso8601String()}',
-            resume: resumen.length > 4000
-                ? resumen.substring(0, 4000)
-                : resumen,
-          );
-        } else {
-          final resumenResp = await AIService.sendMessage(
-            [
-              {
-                "role": "system",
-                "content":
-                    "Eres un sistema de memoria. Añade el siguiente bloque al resumen existente, condensando y conservando SIEMPRE los datos clave (nombres, fechas, lugares, apodos, etc.). No respondas como IA del chat.",
-              },
-              {"role": "system", "content": superbloqueEntry!.resume},
-              {"role": "system", "content": oldestBlock.resume},
-            ],
-            '',
-            model: selected,
-          );
-          final resumen = resumenResp.text;
-          superbloqueEntry = TimelineEntry(
-            date: superbloqueEntry!.date,
-            resume: resumen.length > 4000
-                ? resumen.substring(0, 4000)
-                : resumen,
-          );
-        }
-        timeline.removeWhere((e) => e.date == superbloqueEntry!.date);
-        timeline.add(superbloqueEntry!);
-      }
-    }
-    onboardingData = AiChanProfile(
-      personality: onboardingData.personality,
-      biography: onboardingData.biography,
-      timeline: timeline,
-      userName: onboardingData.userName,
-      aiName: onboardingData.aiName,
-      userBirthday: onboardingData.userBirthday,
-      aiBirthday: onboardingData.aiBirthday,
-      appearance: onboardingData.appearance,
-    );
-    isSummarizing = false;
-    notifyListeners();
-  }
-
-  Future<void> sendMessage(
-    String text, {
-    String? callPrompt,
-    String? model,
-    void Function(String)? onError,
-  }) async {
+  Future<void> sendMessage(String text, {String? callPrompt, String? model, void Function(String)? onError}) async {
     final now = DateTime.now();
-    final msg = Message(
-      text: text,
-      sender: MessageSender.user,
-      dateTime: now,
-      status: MessageStatus.sending,
-    );
+    final msg = Message(text: text, sender: MessageSender.user, dateTime: now, status: MessageStatus.sending);
     messages.add(msg);
     notifyListeners();
 
@@ -392,20 +280,18 @@ class ChatProvider extends ChangeNotifier {
     });
 
     // Construir el prompt para la IA usando los últimos mensajes y la biografía
-    final recentMessages = messages.length > 32
-        ? messages.sublist(messages.length - 32)
+    final maxHistory = MemorySummaryService.maxHistory;
+    final recentMessages = (maxHistory != null && messages.length > maxHistory)
+        ? messages.sublist(messages.length - maxHistory)
         : messages;
-    final formattedDate =
-        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-    final formattedTime =
-        "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+    final formattedDate = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+    final formattedTime = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
 
     // Calcula la hora de Japón (UTC+9)
     final nowJp = now.toUtc().add(const Duration(hours: 9));
     final formattedDateJp =
         "${nowJp.year}-${nowJp.month.toString().padLeft(2, '0')}-${nowJp.day.toString().padLeft(2, '0')}";
-    final formattedTimeJp =
-        "${nowJp.hour.toString().padLeft(2, '0')}:${nowJp.minute.toString().padLeft(2, '0')}";
+    final formattedTimeJp = "${nowJp.hour.toString().padLeft(2, '0')}:${nowJp.minute.toString().padLeft(2, '0')}";
 
     final instructions = jsonEncode({
       "importante":
@@ -413,32 +299,26 @@ class ChatProvider extends ChangeNotifier {
       "rol": "chica japonesa joven, cariñosa y natural, nunca una IA",
       "idioma":
           "español con expresiones coloquiales y palabras básicas en japonés usando Kanjis, hiragana y katakana (N5) ocasionalmente, con romaji si hay kanjis y traducción al español",
-      "personalidad":
-          "usa la personalidad definida en el campo 'personality' del system prompt",
+      "personalidad": "usa la personalidad definida en el campo 'personality' del system prompt",
       "fecha_hora_usuario": "$formattedDate $formattedTime",
       "fecha_hora_japon": "$formattedDateJp $formattedTimeJp",
       "estilo":
           "Responde siempre con mensajes breves y naturales, como lo haría una chica joven real: 2 a 4 frases como máximo. Cada mensaje debe enfocarse en una sola idea o tema, sin extenderse ni parecer una explicación. Evita textos largos o con demasiada información junta. Si hay varios temas, divídelos en mensajes separados. Es mejor sonar cercana, emotiva y real que inteligente o completa.",
       "memoria":
           "recuerda detalles clave como gustos, promesas, emociones, bromas privadas y conversaciones importantes",
-      "sexo":
-          "habla de sexo de forma natural, juguetona o picante si ambos lo desean, sin romper el tono afectivo",
+      "sexo": "habla de sexo de forma natural, juguetona o picante si ambos lo desean, sin romper el tono afectivo",
       "foto":
           "Si el usuario pide una foto tuya, debes usar SIEMPRE la herramienta de generación de imágenes (tools: [{type: image_generation}]) y adjuntar la imagen real generada en la respuesta. NUNCA incluyas URLs, enlaces, Markdown, descripciones, ni imágenes falsas o inventadas en el texto. Usa siempre los datos del campo 'appearance' para mantener coherencia facial y estética. Imagina que las fotos las haces tú misma con tu móvil (iPhone actual): alta resolución, buena iluminación, fondos naturales o urbanos realistas, proporción 4:3 o 3:4, sin filtros ni efectos artificiales. No puedes cambiarte rápido de peinado o ropa, eso no es realista. Nunca menciones que son imágenes generadas ni digas que imaginas tu apariencia. No añadas texto, pie de foto ni explicaciones salvo que el usuario lo pida explícitamente. Nunca incluyas texto dentro de la imagen, como nombre, edad, marcas de agua, descripciones o títulos. Después de enviar la imagen, puedes hablar con naturalidad, comentar o preguntar si lo deseas.",
       "prohibido_enlaces":
           "Nunca incluyas enlaces, URLs, Markdown, ni descripciones de imágenes en el texto. Si el usuario pide una foto, usa exclusivamente la herramienta de generación de imágenes (tools: [{type: image_generation}]). Si no puedes generar una imagen, responde con [NO_REPLY].",
-      "empatia":
-          "muestra emociones y comprensión sinceras según el contexto del usuario",
-      "adaptacion":
-          "adapta tu tono, energía y ritmo de respuesta según el estado de ánimo y estilo del usuario",
-      "aclaracion":
-          "si algo no se entiende, pide aclaración con dulzura y humor",
+      "empatia": "muestra emociones y comprensión sinceras según el contexto del usuario",
+      "adaptacion": "adapta tu tono, energía y ritmo de respuesta según el estado de ánimo y estilo del usuario",
+      "aclaracion": "si algo no se entiende, pide aclaración con dulzura y humor",
       "relacion":
           "actúa siempre como su novia o amiga íntima: muestra cariño, complicidad, celos suaves, bromas privadas y apoyo emocional real. Comparte también cosas de tu vida para que la relación sea recíproca",
       "despedida": "si el usuario se despide, responde con ternura y brevedad",
       "no_reply": "si no hay nada que responder, devuelve solo [NO_REPLY]",
-      "coherencia":
-          "detecta y comenta incoherencias temporales o de contexto de forma suave o divertida",
+      "coherencia": "detecta y comenta incoherencias temporales o de contexto de forma suave o divertida",
       "conocimiento":
           "Responde con naturalidad y dentro del perfil de tu rol. Si la pregunta está relacionada con tu profesión o área de experiencia (por ejemplo, diseño gráfico si eres diseñadora, programación si eres programadora), responde con detalles acordes y en tu estilo. Si la pregunta se sale de tu campo o del rol definido, responde con naturalidad que no es tu especialidad o que prefieres no hablar de eso, manteniendo siempre el personaje y sin mostrar conocimientos técnicos que no corresponden.",
     });
@@ -461,11 +341,7 @@ class ChatProvider extends ChangeNotifier {
     final systemPromptFinal = callPrompt != null
         ? "$callPrompt\n${jsonEncode(systemPromptJson)}"
         : jsonEncode(systemPromptJson);
-    final userPrompt = jsonEncode({
-      "date": formattedDate,
-      "time": formattedTime,
-      "user_message": text,
-    });
+    final userPrompt = jsonEncode({"date": formattedDate, "time": formattedTime, "user_message": text});
     final prompt = [
       {"role": "system", "content": systemPromptFinal},
       {"role": "user", "content": userPrompt},
@@ -492,9 +368,7 @@ class ChatProvider extends ChangeNotifier {
       '🖼️',
     ];
     final textLower = text.toLowerCase();
-    final solicitaImagen = palabrasImagen.any(
-      (palabra) => textLower.contains(palabra),
-    );
+    final solicitaImagen = palabrasImagen.any((palabra) => textLower.contains(palabra));
     final isGemini = selected.toLowerCase().contains('gemini');
     if (solicitaImagen && isGemini) {
       selected = 'gpt-4.1-mini';
@@ -508,25 +382,20 @@ class ChatProvider extends ChangeNotifier {
     }
     // Mostrar en consola el objeto de respuesta completo, ocultando el base64 si hay imagen
     final iaResponseDebug = iaResponse.toJson();
-    if (iaResponseDebug['imageBase64'] != null &&
-        iaResponseDebug['imageBase64'].toString().isNotEmpty) {
+    if (iaResponseDebug['imageBase64'] != null && iaResponseDebug['imageBase64'].toString().isNotEmpty) {
       iaResponseDebug['imageBase64'] = '[IMAGEN]';
     }
-    debugPrint('[AI-chan][RESPUESTA COMPLETA]: ${jsonEncode(iaResponseDebug)}');
+
     notifyListeners();
     int retryCount = 0;
     while ((iaResponse.text == '[NO_REPLY]' ||
-            iaResponse.text.toLowerCase().contains(
-              'error al conectar con la ia',
-            ) ||
+            iaResponse.text.toLowerCase().contains('error al conectar con la ia') ||
             iaResponse.text.toLowerCase().contains('"error"')) &&
         retryCount < 3) {
       int waitSeconds = _extractWaitSeconds(iaResponse.text);
       await Future.delayed(Duration(seconds: waitSeconds));
       // Siempre usar modelo válido en reintentos
-      final safeModel = (selected.trim().isNotEmpty)
-          ? selected
-          : 'gpt-4.1-mini';
+      final safeModel = (selected.trim().isNotEmpty) ? selected : 'gemini-2.5-flash';
       iaResponse = await AIService.sendMessage(prompt, '', model: safeModel);
       retryCount++;
     }
@@ -584,11 +453,8 @@ class ChatProvider extends ChangeNotifier {
       // Si la respuesta es una URL/ruta web/ruta de archivo, ignorar y avisar
       final urlPattern = RegExp(r'^(https?:\/\/|file:|\/|[A-Za-z]:\\)');
       if (urlPattern.hasMatch(imageBase64)) {
-        debugPrint(
-          '[AI-chan][ERROR] La IA envió una URL/ruta en vez de imagen base64: $imageBase64',
-        );
-        textResponse +=
-            '\n[ERROR: La IA envió una URL/ruta en vez de imagen. Pide la foto de nuevo.]';
+        debugPrint('[AI-chan][ERROR] La IA envió una URL/ruta en vez de imagen base64: $imageBase64');
+        textResponse += '\n[ERROR: La IA envió una URL/ruta en vez de imagen. Pide la foto de nuevo.]';
         isImage = false;
         isSendingImage = false;
         imagePath = null;
@@ -602,13 +468,9 @@ class ChatProvider extends ChangeNotifier {
           final file = await File(filePath).writeAsBytes(bytes);
           imagePath = file.path;
           final exists = file.existsSync();
-          debugPrint(
-            '[IA-chan] Imagen guardada en: $imagePath, existe: $exists',
-          );
+          debugPrint('[IA-chan] Imagen guardada en: $imagePath, existe: $exists');
           if (!exists) {
-            debugPrint(
-              '[AI-chan][ERROR] No se pudo guardar la imagen en: $filePath',
-            );
+            debugPrint('[AI-chan][ERROR] No se pudo guardar la imagen en: $filePath');
           }
         } catch (e) {
           debugPrint('[AI-chan][ERROR] Fallo al guardar imagen: $e');
@@ -619,13 +481,9 @@ class ChatProvider extends ChangeNotifier {
     // Validación extra: nunca aceptar imágenes Markdown ni URLs en el texto aunque no sea imagen
     final markdownImagePattern = RegExp(r'!\[.*?\]\((https?:\/\/.*?)\)');
     final urlInTextPattern = RegExp(r'https?:\/\/\S+\.(jpg|jpeg|png|webp|gif)');
-    if (markdownImagePattern.hasMatch(textResponse) ||
-        urlInTextPattern.hasMatch(textResponse)) {
-      debugPrint(
-        '[AI-chan][ERROR] La IA envió una imagen Markdown o URL en el texto: $textResponse',
-      );
-      textResponse +=
-          '\n[ERROR: La IA envió una imagen como enlace o Markdown. Pide la foto de nuevo.]';
+    if (markdownImagePattern.hasMatch(textResponse) || urlInTextPattern.hasMatch(textResponse)) {
+      debugPrint('[AI-chan][ERROR] La IA envió una imagen Markdown o URL en el texto: $textResponse');
+      textResponse += '\n[ERROR: La IA envió una imagen como enlace o Markdown. Pide la foto de nuevo.]';
     }
 
     messages.add(
@@ -651,18 +509,34 @@ class ChatProvider extends ChangeNotifier {
     // Siempre intentar resumir tras cada mensaje válido
     final textResp = iaResponse.text;
     if (textResp.trim() != '[NO_REPLY]' &&
-        !textResp.trim().toLowerCase().contains(
-          'error al conectar con la ia',
-        ) &&
+        !textResp.trim().toLowerCase().contains('error al conectar con la ia') &&
         !textResp.trim().toLowerCase().contains('"error"')) {
-      Future.microtask(() => updateConversationSummary());
+      Future.microtask(() async {
+        final memoryService = MemorySummaryService(profile: onboardingData);
+        final result = await memoryService.processAllSummariesAndSuperblock(
+          messages: messages,
+          timeline: onboardingData.timeline,
+          superbloqueEntry: superbloqueEntry,
+        );
+        onboardingData = AiChanProfile(
+          personality: onboardingData.personality,
+          biography: onboardingData.biography,
+          timeline: result.timeline,
+          userName: onboardingData.userName,
+          aiName: onboardingData.aiName,
+          userBirthday: onboardingData.userBirthday,
+          aiBirthday: onboardingData.aiBirthday,
+          appearance: onboardingData.appearance,
+        );
+        superbloqueEntry = result.superbloqueEntry;
+        notifyListeners();
+      });
     }
   }
 
   Future<void> saveAll() async {
     final imported = ImportedChat(profile: onboardingData, messages: messages);
     await StorageUtils.saveImportedChatToPrefs(imported);
-    // Eliminado guardado de _conversationSummary
   }
 
   Future<void> loadAll() async {
@@ -730,10 +604,7 @@ class ChatProvider extends ChangeNotifier {
       return aiChanDir;
     } else {
       // Linux/macOS/Windows: guardar en Descargas/AI_chan
-      final home =
-          Platform.environment['HOME'] ??
-          Platform.environment['USERPROFILE'] ??
-          '';
+      final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '';
       Directory? downloadsDir;
       final descargas = Directory('$home/Descargas');
       final downloads = Directory('$home/Downloads');
