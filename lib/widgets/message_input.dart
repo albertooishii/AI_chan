@@ -133,9 +133,10 @@ class _MessageInputState extends State<MessageInput> {
     final hasImage = _attachedImageBase64 != null && _attachedImageBase64!.isNotEmpty;
     if (text.isEmpty && !hasImage) return;
 
-    if (text.isEmpty && !hasImage) return;
     final chatProvider = context.read<ChatProvider>();
     String? imagePath;
+    String? imageBase64ToSend = _attachedImageBase64;
+    String? imageMimeTypeToSend = _attachedImageMime;
     if (hasImage) {
       final bytes = base64Decode(_attachedImageBase64!);
       final dir = await chatProvider.getLocalImageDir();
@@ -149,17 +150,19 @@ class _MessageInputState extends State<MessageInput> {
       final file = await File(filePath).writeAsBytes(bytes);
       imagePath = file.path;
     }
-    setState(() {
-      _controller.clear();
-      _attachedImage = null;
-      _attachedImageBase64 = null;
-      _attachedImageMime = null;
-    });
+    if (mounted) {
+      setState(() {
+        _controller.clear();
+        _attachedImage = null;
+        _attachedImageBase64 = null;
+        _attachedImageMime = null;
+      });
+    }
     await chatProvider.sendMessage(
       text,
-      imageMimeType: _attachedImageMime,
+      imageMimeType: imageMimeTypeToSend,
       imagePath: imagePath,
-      imageBase64: _attachedImageBase64,
+      imageBase64: imageBase64ToSend,
     );
   }
 

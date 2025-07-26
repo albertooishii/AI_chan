@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'gemini_service.dart';
 import 'openai_service.dart';
@@ -37,29 +40,31 @@ abstract class AIService {
     final profileKeys = systemPrompt.profile.toJson().keys.join(', ');
     debugPrint('[AIService.sendMessage] Claves SystemPrompt.profile: $profileKeys');
     debugPrint('[AIService.sendMessage] Enviando mensaje a IA con modelo: $m');
-    // Log del JSON completo enviado a la IA (truncado si es muy largo)
-    /*try {
-      final jsonData = {
-        'history': history,
-        'systemPrompt': systemPrompt.toJson(),
-        'model': m,
-        if (imageBase64 != null) 'imageBase64': imageBase64,
-        if (imageMimeType != null) 'imageMimeType': imageMimeType,
-      };
-      final jsonStr = const JsonEncoder().convert(jsonData);
-      // Guardar el JSON en un archivo temporal dentro del proyecto
-      final directory = Directory('debug_json_logs');
-      if (!directory.existsSync()) {
-        directory.createSync(recursive: true);
+    // Guardar logs JSON solo en escritorio (Windows, macOS, Linux)
+    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      try {
+        final jsonData = {
+          'history': history,
+          'systemPrompt': systemPrompt.toJson(),
+          'model': m,
+          if (imageBase64 != null) 'imageBase64': imageBase64,
+          if (imageMimeType != null) 'imageMimeType': imageMimeType,
+        };
+        final jsonStr = const JsonEncoder().convert(jsonData);
+        // Guardar el JSON en un archivo temporal dentro del proyecto
+        final directory = Directory('debug_json_logs');
+        if (!directory.existsSync()) {
+          directory.createSync(recursive: true);
+        }
+        final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+        final filePath = '${directory.path}/ai_service_send_${timestamp}.json';
+        final file = File(filePath);
+        file.writeAsStringSync(jsonStr);
+        debugPrint('[AIService.sendMessage] JSON enviado guardado en: $filePath');
+      } catch (e) {
+        debugPrint('[AIService.sendMessage] Error al serializar JSON para log: $e');
       }
-      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-      final filePath = '${directory.path}/ai_service_send_${timestamp}.json';
-      final file = File(filePath);
-      file.writeAsStringSync(jsonStr);
-      debugPrint('[AIService.sendMessage] JSON enviado guardado en: $filePath');
-    } catch (e) {
-      debugPrint('[AIService.sendMessage] Error al serializar JSON para log: $e');
-    }*/
+    }
     AIResponse response = await aiService.sendMessageImpl(
       history,
       systemPrompt,
@@ -67,21 +72,23 @@ abstract class AIService {
       imageBase64: imageBase64,
       imageMimeType: imageMimeType,
     );
-    // Guardar la respuesta de la IA en un archivo JSON de log
-    /*try {
-      final respJson = {'response': response.toJson(), 'model': m, 'timestamp': DateTime.now().toIso8601String()};
-      final directory = Directory('debug_json_logs');
-      if (!directory.existsSync()) {
-        directory.createSync(recursive: true);
+    // Guardar la respuesta de la IA en un archivo JSON de log solo en escritorio
+    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      try {
+        final respJson = {'response': response.toJson(), 'model': m, 'timestamp': DateTime.now().toIso8601String()};
+        final directory = Directory('debug_json_logs');
+        if (!directory.existsSync()) {
+          directory.createSync(recursive: true);
+        }
+        final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+        final filePath = '${directory.path}/ai_service_response_${timestamp}.json';
+        final file = File(filePath);
+        file.writeAsStringSync(const JsonEncoder().convert(respJson));
+        debugPrint('[AIService.sendMessage] JSON respuesta guardado en: $filePath');
+      } catch (e) {
+        debugPrint('[AIService.sendMessage] Error al guardar JSON de respuesta: $e');
       }
-      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-      final filePath = '${directory.path}/ai_service_response_${timestamp}.json';
-      final file = File(filePath);
-      file.writeAsStringSync(const JsonEncoder().convert(respJson));
-      debugPrint('[AIService.sendMessage] JSON respuesta guardado en: $filePath');
-    } catch (e) {
-      debugPrint('[AIService.sendMessage] Error al guardar JSON de respuesta: $e');
-    }*/
+    }
     bool hasQuotaError(String text) {
       return text.contains('RESOURCE_EXHAUSTED') ||
           text.contains('quota') ||

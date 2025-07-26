@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 
 import '../models/imported_chat.dart';
 import '../constants/app_colors.dart';
-import '../utils/image_utils.dart';
 import '../models/ai_chan_profile.dart';
 
 /// Muestra un diálogo para pegar JSON manualmente
@@ -15,7 +14,6 @@ class ChatJsonUtils {
   static Future<(bool success, String? error)> saveJsonFile(ImportedChat chat) async {
     try {
       final map = chat.toJson();
-      // Eliminar solo imageUrl, mantener imageBase64 e imageId
       if (map.containsKey('imageUrl')) {
         map.remove('imageUrl');
       }
@@ -59,28 +57,6 @@ class ChatJsonUtils {
       final imported = ImportedChat.fromJson(decoded);
       final profile = imported.profile;
       AiChanProfile updatedProfile = profile;
-      // Siempre regenerar imageUrl si hay imageBase64 e imageId
-      if (profile.imageBase64 != null && profile.imageBase64!.isNotEmpty && profile.imageId != null) {
-        try {
-          final url = await saveBase64ImageToFile(profile.imageBase64!, prefix: profile.imageId!);
-          updatedProfile = AiChanProfile(
-            userName: profile.userName,
-            aiName: profile.aiName,
-            userBirthday: profile.userBirthday,
-            aiBirthday: profile.aiBirthday,
-            personality: profile.personality,
-            biography: profile.biography,
-            appearance: profile.appearance,
-            timeline: profile.timeline,
-            imageId: profile.imageId,
-            imageBase64: profile.imageBase64,
-            imageUrl: url,
-            revisedPrompt: profile.revisedPrompt,
-          );
-        } catch (e) {
-          debugPrint('[AI-chan][ERROR] No se pudo generar imageUrl al importar: $e');
-        }
-      }
       final result = ImportedChat(profile: updatedProfile, messages: imported.messages);
       if (result.profile.userName.isEmpty) {
         onError?.call('userName');

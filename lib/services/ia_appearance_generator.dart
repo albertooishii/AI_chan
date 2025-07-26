@@ -99,22 +99,9 @@ class IAAppearanceGenerator {
       Formato (DEVUELVE ÚNICAMENTE EL BLOQUE JSON DE APARIENCIA, SIN TEXTO EXTRA NI COMENTARIOS):
       $appearanceJsonFormat
 
-      En el campo "cabello.peinado" pon SIEMPRE un array con varios peinados distintos, cada uno con máximo detalle (ejemplo: ["coleta alta con mechones sueltos y textura sedosa", "trenza lateral con volumen y puntas onduladas", "melena suelta con raya al medio y ondas naturales"]).
+      En el campo "cabello.peinado" pon SIEMPRE un array con varios peinados distintos, cada uno con máximo detalle y variedad, evitando repetir estilos y asegurando coherencia con la biografía y apariencia general.
 
-      En el campo "ropa" pon SIEMPRE un array con varios conjuntos diferentes, cada uno como un objeto con todos los detalles de cada prenda, colores, materiales, texturas, accesorios incluidos, y estilo general. Ejemplo:
-      "ropa": [
-        {
-          "nombre": "Conjunto casual elegante",
-          "prendas": [
-            {"tipo": "blusa", "color": "blanco perla", "material": "seda", "detalle": "mangas abullonadas, cuello en V"},
-            {"tipo": "falda", "color": "azul marino", "material": "algodón", "detalle": "corte recto, largo hasta la rodilla"}
-          ],
-          "accesorios": ["pendientes de plata", "reloj dorado"],
-          "calzado": {"tipo": "zapatos de tacón", "color": "beige", "material": "cuero"},
-          "estilo": "sofisticado, juvenil"
-        },
-        ...
-      ]
+      En el campo "ropa" pon SIEMPRE un array con varios conjuntos diferentes, cada uno como un objeto con todos los detalles de cada prenda, colores, materiales, texturas, accesorios incluidos y estilo general, pero sin copiar ejemplos literales. Describe cada conjunto de forma original y coherente con el personaje, evitando repetir ejemplos previos.
 
       En cada campo, describe con máximo detalle y precisión todos los rasgos físicos y visuales, sin omitir ninguno. Sé especialmente minucioso en:
       No repitas la biografía textual. Sé milimétrico y obsesivo en cada campo, como si el personaje fuera a ser modelado en 3D para un juego hiperrealista. No omitas ningún campo ni detalle relevante para la generación de imágenes hiperrealistas.
@@ -173,7 +160,7 @@ class IAAppearanceGenerator {
     return {
       'appearance': appearance,
       'imageId': imageResponse.imageId,
-      'imageBase64': imageResponse.imageBase64,
+      // 'imageBase64': imageResponse.imageBase64, // Solo resultado temporal, no guardar en perfil
       'imageUrl': imageUrl,
       'revisedPrompt': imageResponse.revisedPrompt,
     };

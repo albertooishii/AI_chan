@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'dart:io';
 import 'package:provider/provider.dart';
 import '../providers/chat_provider.dart';
@@ -187,6 +188,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _showExportDialog(String jsonStr) {
     if (!mounted) return;
+    String previewJson = jsonStr;
+    try {
+      final decoded = json.decode(jsonStr);
+      previewJson = const JsonEncoder.withIndent('  ').convert(decoded);
+    } catch (_) {}
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -195,7 +201,7 @@ class _ChatScreenState extends State<ChatScreen> {
         content: SizedBox(
           width: 400,
           child: SingleChildScrollView(
-            child: SelectableText(jsonStr, style: const TextStyle(color: AppColors.primary, fontSize: 13)),
+            child: SelectableText(previewJson, style: const TextStyle(color: AppColors.primary, fontSize: 13)),
           ),
         ),
         actions: [
@@ -245,7 +251,6 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final chatProvider = context.watch<ChatProvider>();
     final aiName = widget.aiName;
-    // final imageBase64 = chatProvider.onboardingData.imageBase64; // Ya no se usa
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -374,7 +379,6 @@ class _ChatScreenState extends State<ChatScreen> {
                     aiBirthday: bio.aiBirthday,
                     appearance: result['appearance'] as Map<String, dynamic>? ?? <String, dynamic>{},
                     imageId: result['imageId'] as String?,
-                    imageBase64: result['imageBase64'] as String?,
                     imageUrl: result['imageUrl'] as String?,
                     revisedPrompt: result['revisedPrompt'] as String?,
                     timeline: bio.timeline, // timeline SIEMPRE al final

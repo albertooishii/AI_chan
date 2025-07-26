@@ -113,7 +113,6 @@ class ChatProvider extends ChangeNotifier {
       appearance: onboardingData.appearance,
       timeline: onboardingData.timeline,
       imageId: onboardingData.imageId,
-      imageBase64: null,
       imageUrl: onboardingData.imageUrl,
       revisedPrompt: onboardingData.revisedPrompt,
     );

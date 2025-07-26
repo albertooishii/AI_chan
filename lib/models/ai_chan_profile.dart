@@ -12,7 +12,6 @@ class AiChanProfile {
   final Map<String, dynamic> appearance;
   final List<TimelineEntry> timeline;
   final String? imageId;
-  final String? imageBase64;
   final String? imageUrl; // New field added
   final String? revisedPrompt;
 
@@ -26,7 +25,6 @@ class AiChanProfile {
     required this.appearance,
     required this.timeline,
     this.imageId,
-    this.imageBase64,
     this.imageUrl, // New field added to constructor
     this.revisedPrompt,
   });
@@ -58,7 +56,6 @@ class AiChanProfile {
           .map((e) => TimelineEntry.fromJson(e as Map<String, dynamic>))
           .toList(),
       imageId: json['imageId'] as String?,
-      imageBase64: json['imageBase64'] as String?,
       imageUrl: json['imageUrl'] as String?,
       revisedPrompt: json['revisedPrompt'] as String?,
     );
@@ -111,7 +108,6 @@ class AiChanProfile {
     'biography': biography,
     'appearance': appearance,
     'imageId': imageId,
-    if (imageBase64?.isNotEmpty == true) 'imageBase64': imageBase64,
     'imageUrl': imageUrl, // New field added to JSON output
     'revisedPrompt': revisedPrompt,
     // timeline SIEMPRE debe ir al final para mantener el orden y evitar problemas de import/export
@@ -128,7 +124,6 @@ class AiChanProfile {
     Map<String, dynamic>? appearance,
     List<TimelineEntry>? timeline,
     String? imageId,
-    String? imageBase64,
     String? imageUrl,
     String? revisedPrompt,
   }) {
@@ -142,7 +137,6 @@ class AiChanProfile {
       appearance: appearance ?? this.appearance,
       timeline: timeline ?? this.timeline,
       imageId: imageId ?? this.imageId,
-      imageBase64: imageBase64 ?? this.imageBase64,
       imageUrl: imageUrl ?? this.imageUrl,
       revisedPrompt: revisedPrompt ?? this.revisedPrompt,
     );

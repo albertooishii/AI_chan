@@ -31,7 +31,6 @@ Future<AiChanProfile> generateFullBiographyFlexible({
     aiBirthday: bio.aiBirthday,
     appearance: appearanceResult['appearance'] as Map<String, dynamic>? ?? <String, dynamic>{},
     imageId: appearanceResult['imageId'] as String?,
-    imageBase64: appearanceResult['imageBase64'] as String?,
     imageUrl: appearanceResult['imageUrl'] as String?,
     revisedPrompt: appearanceResult['revisedPrompt'] as String?,
     timeline: bio.timeline, // timeline SIEMPRE al final
