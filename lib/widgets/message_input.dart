@@ -11,8 +11,7 @@ import '../providers/chat_provider.dart';
 
 class MessageInput extends StatefulWidget {
   final void Function(String text)? onSend;
-  final void Function(File imageFile)? onSendImage;
-  const MessageInput({super.key, this.onSend, this.onSendImage});
+  const MessageInput({super.key, this.onSend});
 
   @override
   State<MessageInput> createState() => _MessageInputState();
@@ -134,9 +133,10 @@ class _MessageInputState extends State<MessageInput> {
     final hasImage = _attachedImageBase64 != null && _attachedImageBase64!.isNotEmpty;
     if (text.isEmpty && !hasImage) return;
 
-    // Si hay imagen, enviar ambos (texto + imagen) usando el provider
+    if (text.isEmpty && !hasImage) return;
+    final chatProvider = context.read<ChatProvider>();
+    String? imagePath;
     if (hasImage) {
-      final chatProvider = context.read<ChatProvider>();
       final bytes = base64Decode(_attachedImageBase64!);
       final dir = await chatProvider.getLocalImageDir();
       final ext = _attachedImageMime == 'image/jpeg'
@@ -147,26 +147,20 @@ class _MessageInputState extends State<MessageInput> {
       final fileName = 'img_user_${DateTime.now().millisecondsSinceEpoch}.$ext';
       final filePath = '${dir.path}/$fileName';
       final file = await File(filePath).writeAsBytes(bytes);
-      chatProvider.sendMessageWithImage(
-        text: text,
-        imageMimeType: _attachedImageMime,
-        imagePath: file.path,
-        imageBase64: _attachedImageBase64, // <-- restaurado para la IA
-      );
-      _removeImage();
-      _controller.clear();
-      return;
+      imagePath = file.path;
     }
-
-    // Solo texto
-    if (text.isNotEmpty) {
-      if (widget.onSend != null) {
-        widget.onSend!(text);
-      } else {
-        context.read<ChatProvider>().sendMessage(text);
-      }
+    setState(() {
       _controller.clear();
-    }
+      _attachedImage = null;
+      _attachedImageBase64 = null;
+      _attachedImageMime = null;
+    });
+    await chatProvider.sendMessage(
+      text,
+      imageMimeType: _attachedImageMime,
+      imagePath: imagePath,
+      imageBase64: _attachedImageBase64,
+    );
   }
 
   @override

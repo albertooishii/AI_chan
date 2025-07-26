@@ -2,6 +2,7 @@ import 'dart:math';
 import '../services/ai_service.dart';
 import '../models/ai_chan_profile.dart';
 import '../models/timeline_entry.dart';
+import '../models/system_prompt.dart';
 import '../utils/json_utils.dart';
 
 Future<AiChanProfile> generateAIBiographyWithAI({
@@ -161,14 +162,26 @@ Vives en una dimensión paralela de la Tierra, idéntica a la nuestra pero separ
         Identidad: $aiIdentityInstructions
         ''';
 
-  // Selección del servicio IA centralizada en AIService
-  final responseObj = await AIService.sendMessage(
-    [
-      {"role": "user", "content": bioPrompt},
+  // Construir SystemPrompt para biografía
+  final systemPromptObj = SystemPrompt(
+    profile: AiChanProfile(
+      personality: <String, dynamic>{"instructions": aiPersonalityInstructions.trim(), "values": aiPersonalityValues},
+      biography: {},
+      timeline: [],
+      userName: userName,
+      aiName: aiName,
+      userBirthday: userBirthday,
+      aiBirthday: aiBirthdayDate,
+      appearance: <String, dynamic>{},
+    ),
+    dateTime: DateTime.now(),
+    timeline: [],
+    recentMessages: [
+      {"role": "user", "content": bioPrompt, "datetime": DateTime.now().toIso8601String()},
     ],
-    systemPrompt,
-    model: 'gemini-2.5-flash',
+    instructions: systemPrompt,
   );
+  final responseObj = await AIService.sendMessage([], systemPromptObj, model: 'gemini-2.5-flash');
 
   // Extrae solo el bloque JSON del resultado
   // Extracción robusta del bloque JSON usando util

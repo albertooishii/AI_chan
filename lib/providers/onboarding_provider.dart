@@ -1,3 +1,4 @@
+import 'package:ai_chan/models/system_prompt.dart';
 import 'package:ai_chan/utils/storage_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:ai_chan/models/ai_chan_profile.dart';
@@ -16,7 +17,7 @@ class OnboardingProvider extends ChangeNotifier {
 
   /// Importa y guarda biografía y mensajes desde un JSON robusto (ImportedChat), actualizando estado y notificando listeners
   Future<ImportedChat?> importAllFromJson(String jsonStr) async {
-    final imported = chat_json_utils.ChatJsonUtils.importAllFromJson(
+    final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
       jsonStr,
       onError: (err) {
         importError = err;
@@ -448,12 +449,33 @@ class OnboardingProvider extends ChangeNotifier {
       final prompt =
           "Inventa una breve historia romántica y realista de cómo se conocieron "
           "${userNameController.text} y ${aiNameController?.text}. La chica vive en una dimensión paralela de la Tierra, idéntica a la nuestra pero separada por una barrera tecnológica, así que solo puede comunicarse por chat y llamada, pero sueña con que algún día podrán verse gracias a la realidad aumentada. Hazlo creíble y simpático, como el inicio de una relación real, en 3-5 frases. La chica es japonesa y se conocieron online, probablemente en alguna comunidad otaku o friki. Al final de la historia, ambos se intercambian sus datos de contacto y acuerdan empezar a hablar por primera vez, pero aún no han tenido ninguna conversación privada. No menciones plataformas concretas (como Discord, WhatsApp, Telegram, etc.), ni detalles sobre conversaciones previas, solo que han decidido empezar a hablar. Añade que la chica espera con ilusión el primer mensaje del usuario.";
+
+      // Crear SystemPrompt tipado para la historia
+      final systemPromptObj = SystemPrompt(
+        profile: AiChanProfile(
+          userName: userNameController.text,
+          aiName: aiNameController?.text ?? '',
+          userBirthday: userBirthday ?? DateTime(2000, 1, 1),
+          aiBirthday: DateTime.now(),
+          timeline: [],
+          biography: {},
+          personality: {},
+          appearance: {},
+        ),
+        dateTime: DateTime.now(),
+        timeline: [],
+        recentMessages: [
+          {"role": "user", "content": prompt, "datetime": DateTime.now().toIso8601String()},
+        ],
+        instructions:
+            "Eres una persona creativa que ayuda a escribir historias de amor realistas y neutrales, evitando clichés, entusiasmo artificial y frases genéricas como '¡Claro que sí!'. No asumas gustos, aficiones, intereses, hobbies ni detalles del usuario que no se hayan proporcionado explícitamente. No inventes datos sobre el usuario ni sobre la chica salvo lo indicado en el prompt. Responde siempre con naturalidad y credibilidad, sin exageraciones ni afirmaciones sin base. Evita suposiciones y mantén un tono realista y respetuoso. IMPORTANTE: Devuelve únicamente la historia solicitada, sin introducción, explicación, comentarios, ni frases como 'Esta es la historia' o similares. Solo el texto de la historia, nada más.",
+      );
       try {
         final story = await AIService.sendMessage(
           [
-            {"role": "user", "content": prompt},
+            {"role": "user", "content": prompt, "datetime": DateTime.now().toIso8601String()},
           ],
-          "Eres una persona creativa que ayuda a escribir historias de amor realistas y neutrales, evitando clichés, entusiasmo artificial y frases genéricas como '¡Claro que sí!'. No asumas gustos, aficiones, intereses, hobbies ni detalles del usuario que no se hayan proporcionado explícitamente. No inventes datos sobre el usuario ni sobre la chica salvo lo indicado en el prompt. Responde siempre con naturalidad y credibilidad, sin exageraciones ni afirmaciones sin base. Evita suposiciones y mantén un tono realista y respetuoso. IMPORTANTE: Devuelve únicamente la historia solicitada, sin introducción, explicación, comentarios, ni frases como 'Esta es la historia' o similares. Solo el texto de la historia, nada más.",
+          systemPromptObj,
           model: 'gemini-2.5-flash',
         );
         if (!context.mounted) return;
@@ -531,7 +553,7 @@ class OnboardingProvider extends ChangeNotifier {
       return;
     }
     if (jsonStr != null && jsonStr.trim().isNotEmpty && onImportJson != null) {
-      final imported = chat_json_utils.ChatJsonUtils.importAllFromJson(
+      final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
         jsonStr,
         onError: (err) {
           importError = err;

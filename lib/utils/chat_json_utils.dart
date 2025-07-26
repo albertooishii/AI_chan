@@ -5,13 +5,24 @@ import 'package:flutter/material.dart';
 
 import '../models/imported_chat.dart';
 import '../constants/app_colors.dart';
+import '../utils/image_utils.dart';
+import '../models/ai_chan_profile.dart';
 
 /// Muestra un diálogo para pegar JSON manualmente
 
 class ChatJsonUtils {
-  /// Guarda un string JSON en un archivo seleccionado por el usuario y retorna éxito o error
-  static Future<(bool success, String? error)> saveJsonFile(String jsonStr) async {
+  /// Guarda un ImportedChat en un archivo seleccionado por el usuario y retorna éxito o error
+  static Future<(bool success, String? error)> saveJsonFile(ImportedChat chat) async {
     try {
+      final map = chat.toJson();
+      // Eliminar solo imageUrl, mantener imageBase64 e imageId
+      if (map.containsKey('imageUrl')) {
+        map.remove('imageUrl');
+      }
+      if (map.containsKey('profile') && map['profile'] is Map<String, dynamic>) {
+        map['profile'].remove('imageUrl');
+      }
+      final exportStr = jsonEncode(map);
       final unixDate = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final defaultName = 'ai_chan_$unixDate.json';
       final result = await FilePicker.platform.saveFile(
@@ -19,7 +30,7 @@ class ChatJsonUtils {
         fileName: defaultName,
         type: FileType.custom,
         allowedExtensions: ['json'],
-        bytes: utf8.encode(jsonStr),
+        bytes: utf8.encode(exportStr),
       );
       if (result != null) {
         return (true, null);
@@ -30,8 +41,8 @@ class ChatJsonUtils {
     }
   }
 
-  /// Importa perfil y mensajes desde un JSON plano y devuelve un ImportedChat
-  static ImportedChat? importAllFromJson(String jsonStr, {void Function(String error)? onError}) {
+  /// Importa perfil y mensajes desde un JSON plano y devuelve un ImportedChat (async)
+  static Future<ImportedChat?> importAllFromJson(String jsonStr, {void Function(String error)? onError}) async {
     try {
       final decoded = jsonDecode(jsonStr);
       if (decoded is! Map<String, dynamic> ||
@@ -46,14 +57,39 @@ class ChatJsonUtils {
         return null;
       }
       final imported = ImportedChat.fromJson(decoded);
-      if (imported.profile.userName.isEmpty) {
+      final profile = imported.profile;
+      AiChanProfile updatedProfile = profile;
+      // Siempre regenerar imageUrl si hay imageBase64 e imageId
+      if (profile.imageBase64 != null && profile.imageBase64!.isNotEmpty && profile.imageId != null) {
+        try {
+          final url = await saveBase64ImageToFile(profile.imageBase64!, prefix: profile.imageId!);
+          updatedProfile = AiChanProfile(
+            userName: profile.userName,
+            aiName: profile.aiName,
+            userBirthday: profile.userBirthday,
+            aiBirthday: profile.aiBirthday,
+            personality: profile.personality,
+            biography: profile.biography,
+            appearance: profile.appearance,
+            timeline: profile.timeline,
+            imageId: profile.imageId,
+            imageBase64: profile.imageBase64,
+            imageUrl: url,
+            revisedPrompt: profile.revisedPrompt,
+          );
+        } catch (e) {
+          debugPrint('[AI-chan][ERROR] No se pudo generar imageUrl al importar: $e');
+        }
+      }
+      final result = ImportedChat(profile: updatedProfile, messages: imported.messages);
+      if (result.profile.userName.isEmpty) {
         onError?.call('userName');
         return null;
-      } else if (imported.profile.aiName.isEmpty) {
+      } else if (result.profile.aiName.isEmpty) {
         onError?.call('aiName');
         return null;
       }
-      return imported;
+      return result;
     } catch (e) {
       onError?.call(e.toString());
       return null;

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import 'ai_service.dart';
 import '../models/ai_response.dart';
+import '../models/system_prompt.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -58,8 +59,8 @@ class OpenAIService implements AIService {
   }
 
   // Estimación rápida de tokens (1 token ≈ 4 caracteres)
-  int estimateTokens(List<Map<String, String>> history, String systemPrompt) {
-    int charCount = systemPrompt.length;
+  int estimateTokens(List<Map<String, String>> history, SystemPrompt systemPrompt) {
+    int charCount = jsonEncode(systemPrompt.toJson()).length;
     for (var msg in history) {
       charCount += msg['content']?.length ?? 0;
     }
@@ -94,7 +95,7 @@ class OpenAIService implements AIService {
   @override
   Future<AIResponse> sendMessageImpl(
     List<Map<String, String>> history,
-    String systemPrompt, {
+    SystemPrompt systemPrompt, {
     String? model,
     String? imageBase64,
     String? imageMimeType,
@@ -102,60 +103,39 @@ class OpenAIService implements AIService {
     if (apiKey.trim().isEmpty) {
       return AIResponse(text: 'Error: Falta la API key de OpenAI. Por favor, configúrala en la app.');
     }
-    // Endpoint y headers para OpenAI Assistants v2
     final url = Uri.parse('https://api.openai.com/v1/responses');
     final headers = {
       'Authorization': 'Bearer $apiKey',
       'Content-Type': 'application/json',
       'OpenAI-Beta': 'assistants=v2',
     };
-    // Construir input multimodal en orden cronológico
     List<Map<String, dynamic>> input = [];
-    bool hasImage =
-        history.isNotEmpty && history.last['role'] == 'user' && imageBase64 != null && imageBase64.isNotEmpty;
-    if (hasImage) {
-      // Unificar systemPrompt + historial en un solo bloque de texto
-      StringBuffer allText = StringBuffer();
-      if (systemPrompt.isNotEmpty) {
-        allText.write('[system]: $systemPrompt');
-      }
-      for (int i = 0; i < history.length; i++) {
-        final role = history[i]['role'] ?? 'user';
-        final contentStr = history[i]['content'] ?? '';
-        if (allText.isNotEmpty) allText.write('\n\n');
-        allText.write('[$role]: $contentStr');
-      }
-      input.add({
-        "role": "user",
-        "content": [
-          {"type": "input_text", "text": allText.toString()},
-          {"type": "input_image", "image_url": "data:${imageMimeType ?? 'image/png'};base64,$imageBase64"},
-        ],
-      });
-    } else {
-      if (systemPrompt.isNotEmpty) {
-        input.add({
-          "role": "system",
-          "content": [
-            {"type": "input_text", "text": systemPrompt},
-          ],
-        });
-      }
-      // Unir todos los mensajes en un solo bloque de texto (como JSON o texto plano)
-      StringBuffer allText = StringBuffer();
-      for (int i = 0; i < history.length; i++) {
-        final role = history[i]['role'] ?? 'user';
-        final contentStr = history[i]['content'] ?? '';
-        if (allText.isNotEmpty) allText.write('\n\n');
-        allText.write('[$role]: $contentStr');
-      }
-      input.add({
-        "role": "user",
-        "content": [
-          {"type": "input_text", "text": allText.toString()},
-        ],
-      });
+    StringBuffer allText = StringBuffer();
+    final systemPromptStr = jsonEncode(systemPrompt.toJson());
+    input.add({
+      "role": "system",
+      "content": [
+        {"type": "input_text", "text": systemPromptStr},
+      ],
+    });
+    for (int i = 0; i < history.length; i++) {
+      final role = history[i]['role'] ?? 'user';
+      final contentStr = history[i]['content'] ?? '';
+      if (allText.isNotEmpty) allText.write('\n\n');
+      allText.write('[$role]: $contentStr');
     }
+    List<dynamic> userContent = [
+      {"type": "input_text", "text": allText.toString()},
+    ];
+    if (imageBase64 != null && imageBase64.isNotEmpty) {
+      userContent.add({"type": "input_image", "image_url": "data:${imageMimeType ?? 'image/png'};base64,$imageBase64"});
+    }
+    /*final imageId = systemPrompt.profile.imageId;
+    if (imageId != null && imageId.isNotEmpty) {
+      input.add({"type": "image_generation_call", "id": imageId});
+      debugPrint('[OpenAIService.sendMessage] Usando imageId: $imageId');
+    }*/
+    input.add({"role": "user", "content": userContent});
     int tokens = estimateTokens(history, systemPrompt);
     if (tokens > 128000) {
       return AIResponse(
@@ -170,18 +150,10 @@ class OpenAIService implements AIService {
         {"type": "image_generation"},
       ],
     });
-    // Guardar el JSON del payload enviado para inspección
-    /*final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final sentFile = File('openai_sent_payload_$timestamp.json');
-    await sentFile.writeAsString(const JsonEncoder.withIndent('  ').convert(jsonDecode(body)));*/
+
     final response = await http.post(url, headers: headers, body: body);
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-
-      // Guardar el JSON completo en la carpeta del proyecto para inspección
-      /*final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final file = File('openai_response_$timestamp.json');
-      await file.writeAsString(const JsonEncoder.withIndent('  ').convert(data));*/
 
       String text = '';
       String imageBase64 = '';
@@ -194,7 +166,7 @@ class OpenAIService implements AIService {
           final type = item['type'];
           if (type == 'image_generation_call') {
             if (item['result'] != null && imageBase64.isEmpty) imageBase64 = item['result'];
-            if (item['image_id'] != null && imageId.isEmpty) imageId = item['image_id'];
+            if (item['id'] != null && imageId.isEmpty) imageId = item['id'];
             if (item['revised_prompt'] != null && revisedPrompt.isEmpty) revisedPrompt = item['revised_prompt'];
             if (text.trim().isEmpty && item['text'] != null) text = item['text'];
           } else if (type == 'message') {
@@ -217,16 +189,15 @@ class OpenAIService implements AIService {
         imageId: imageId,
         revisedPrompt: revisedPrompt,
       );
-      print(
-        'AI Response: ${aiResponse.text}, Image ID: ${aiResponse.imageId}, Revised Prompt: ${aiResponse.revisedPrompt}',
-      );
+      // Log seguro: no imprimir base64 completo
+      final logMap = aiResponse.toJson();
+      if (logMap['imageBase64'] != null && logMap['imageBase64'].toString().isNotEmpty) {
+        final base64 = logMap['imageBase64'] as String;
+        logMap['imageBase64'] = '[${base64.length} chars] ${base64.substring(0, 40)}...';
+      }
+      debugPrint('Respuesta OPEN AI: $logMap');
       return aiResponse;
     } else {
-      // Guardar el JSON completo en la carpeta del proyecto para inspección
-      /*final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final file = File('openai_error_response_$timestamp.json');
-      await file.writeAsString(const JsonEncoder.withIndent('  ').convert(response.body));*/
-
       debugPrint('[OpenAIService] ERROR: statusCode=${response.statusCode}, body=${response.body}');
       return AIResponse(text: 'Error al conectar con la IA: Status ${response.statusCode} ${response.body}');
     }

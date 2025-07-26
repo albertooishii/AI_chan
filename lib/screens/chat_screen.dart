@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:provider/provider.dart';
 import '../providers/chat_provider.dart';
 import '../widgets/chat_bubble.dart';
@@ -45,7 +46,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 if (!mounted) return;
                 if (jsonStr != null && jsonStr.trim().isNotEmpty) {
                   try {
-                    final imported = chatProvider.importAllFromJson(jsonStr);
+                    final imported = await chatProvider.importAllFromJsonAsync(jsonStr);
                     if (widget.onImportJson != null && imported != null) {
                       await widget.onImportJson!.call(imported);
                     } else {
@@ -74,7 +75,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 }
                 if (jsonStr != null && jsonStr.trim().isNotEmpty) {
                   try {
-                    final imported = chatProvider.importAllFromJson(jsonStr);
+                    final imported = await chatProvider.importAllFromJsonAsync(jsonStr);
                     if (widget.onImportJson != null && imported != null) {
                       await widget.onImportJson!.call(imported);
                     } else {
@@ -202,7 +203,9 @@ class _ChatScreenState extends State<ChatScreen> {
             child: const Text('Guardar como...', style: TextStyle(color: AppColors.secondary)),
             onPressed: () async {
               Navigator.of(ctx).pop();
-              final (success, error) = await chat_json_utils.ChatJsonUtils.saveJsonFile(jsonStr);
+              final chatProvider = context.read<ChatProvider>();
+              final importedChat = ImportedChat(profile: chatProvider.onboardingData, messages: chatProvider.messages);
+              final (success, error) = await chat_json_utils.ChatJsonUtils.saveJsonFile(importedChat);
               if (!mounted) return;
               if (error != null) {
                 _showErrorDialog(error);
@@ -242,15 +245,51 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final chatProvider = context.watch<ChatProvider>();
     final aiName = widget.aiName;
+    // final imageBase64 = chatProvider.onboardingData.imageBase64; // Ya no se usa
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: Text(aiName),
         backgroundColor: Colors.black,
         foregroundColor: AppColors.primary,
         elevation: 0,
         shadowColor: Colors.transparent,
         surfaceTintColor: Colors.black,
+        title: Row(
+          children: [
+            if (chatProvider.onboardingData.imageUrl != null && chatProvider.onboardingData.imageUrl!.isNotEmpty)
+              GestureDetector(
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => Dialog(
+                      backgroundColor: Colors.transparent,
+                      child: GestureDetector(
+                        onTap: () => Navigator.of(ctx).pop(),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(16)),
+                          child: Image.file(File(chatProvider.onboardingData.imageUrl!), fit: BoxFit.contain),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+                child: CircleAvatar(
+                  radius: 16, // Tamaño reducido
+                  backgroundColor: AppColors.secondary,
+                  backgroundImage: FileImage(File(chatProvider.onboardingData.imageUrl!)),
+                ),
+              ),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(
+                aiName,
+                style: const TextStyle(color: AppColors.primary, fontSize: 20, fontWeight: FontWeight.w500),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.call, color: AppColors.secondary),
@@ -324,11 +363,23 @@ class _ChatScreenState extends State<ChatScreen> {
               } else if (value == 'regenAppearance') {
                 final bio = chatProvider.onboardingData;
                 try {
-                  final newAppearance = await chatProvider.iaAppearanceGenerator.generateAppearancePrompt(bio);
+                  final result = await chatProvider.iaAppearanceGenerator.generateAppearancePromptWithImage(bio);
                   if (!mounted) return;
-                  bio.appearance
-                    ..clear()
-                    ..addAll(newAppearance);
+                  final newBio = AiChanProfile(
+                    personality: bio.personality,
+                    biography: bio.biography,
+                    userName: bio.userName,
+                    aiName: bio.aiName,
+                    userBirthday: bio.userBirthday,
+                    aiBirthday: bio.aiBirthday,
+                    appearance: result['appearance'] as Map<String, dynamic>? ?? <String, dynamic>{},
+                    imageId: result['imageId'] as String?,
+                    imageBase64: result['imageBase64'] as String?,
+                    imageUrl: result['imageUrl'] as String?,
+                    revisedPrompt: result['revisedPrompt'] as String?,
+                    timeline: bio.timeline, // timeline SIEMPRE al final
+                  );
+                  chatProvider.onboardingData = newBio;
                   chatProvider.saveAll();
                   setState(() {});
                   _showAppearanceRegeneratedSnackBar();
@@ -484,16 +535,6 @@ class _ChatScreenState extends State<ChatScreen> {
             MessageInput(
               onSend: (text) {
                 chatProvider.sendMessage(text, onError: (error) => _showErrorDialog(error));
-              },
-              onSendImage: (file) async {
-                final msg = Message(
-                  text: '',
-                  sender: MessageSender.user,
-                  dateTime: DateTime.now(),
-                  isImage: true,
-                  imagePath: file.path,
-                );
-                chatProvider.addUserImageMessage(msg);
               },
             ),
           ],

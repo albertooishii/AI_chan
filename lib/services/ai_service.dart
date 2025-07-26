@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'gemini_service.dart';
 import 'openai_service.dart';
 import '../models/ai_response.dart';
+import '../models/system_prompt.dart';
 
 abstract class AIService {
   /// Implementación base para enviar mensajes a la IA.
@@ -10,7 +11,7 @@ abstract class AIService {
   /// siguiendo el patrón multimodal de OpenAI y Gemini (texto + imagen juntos, no por separado).
   Future<AIResponse> sendMessageImpl(
     List<Map<String, String>> history,
-    String systemPrompt, {
+    SystemPrompt systemPrompt, {
     String? model,
     String? imageBase64,
     String? imageMimeType,
@@ -19,7 +20,7 @@ abstract class AIService {
   /// Punto único de entrada para enviar mensajes a la IA con fallback automático.
   static Future<AIResponse> sendMessage(
     List<Map<String, String>> history,
-    String systemPrompt, {
+    SystemPrompt systemPrompt, {
     String? model,
     String? imageBase64,
     String? imageMimeType,
@@ -31,7 +32,34 @@ abstract class AIService {
       debugPrint('[AIService.sendMessage] No se pudo encontrar el servicio IA para el modelo: $m');
       return AIResponse(text: '[NO_REPLY]');
     }
+    final keys = systemPrompt.toJson().keys.join(', ');
+    debugPrint('[AIService.sendMessage] Claves SystemPrompt: $keys');
+    final profileKeys = systemPrompt.profile.toJson().keys.join(', ');
+    debugPrint('[AIService.sendMessage] Claves SystemPrompt.profile: $profileKeys');
     debugPrint('[AIService.sendMessage] Enviando mensaje a IA con modelo: $m');
+    // Log del JSON completo enviado a la IA (truncado si es muy largo)
+    /*try {
+      final jsonData = {
+        'history': history,
+        'systemPrompt': systemPrompt.toJson(),
+        'model': m,
+        if (imageBase64 != null) 'imageBase64': imageBase64,
+        if (imageMimeType != null) 'imageMimeType': imageMimeType,
+      };
+      final jsonStr = const JsonEncoder().convert(jsonData);
+      // Guardar el JSON en un archivo temporal dentro del proyecto
+      final directory = Directory('debug_json_logs');
+      if (!directory.existsSync()) {
+        directory.createSync(recursive: true);
+      }
+      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+      final filePath = '${directory.path}/ai_service_send_${timestamp}.json';
+      final file = File(filePath);
+      file.writeAsStringSync(jsonStr);
+      debugPrint('[AIService.sendMessage] JSON enviado guardado en: $filePath');
+    } catch (e) {
+      debugPrint('[AIService.sendMessage] Error al serializar JSON para log: $e');
+    }*/
     AIResponse response = await aiService.sendMessageImpl(
       history,
       systemPrompt,
@@ -39,7 +67,21 @@ abstract class AIService {
       imageBase64: imageBase64,
       imageMimeType: imageMimeType,
     );
-    debugPrint('[AIService.sendMessage] Respuesta IA: ${response.toJson()}');
+    // Guardar la respuesta de la IA en un archivo JSON de log
+    /*try {
+      final respJson = {'response': response.toJson(), 'model': m, 'timestamp': DateTime.now().toIso8601String()};
+      final directory = Directory('debug_json_logs');
+      if (!directory.existsSync()) {
+        directory.createSync(recursive: true);
+      }
+      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+      final filePath = '${directory.path}/ai_service_response_${timestamp}.json';
+      final file = File(filePath);
+      file.writeAsStringSync(const JsonEncoder().convert(respJson));
+      debugPrint('[AIService.sendMessage] JSON respuesta guardado en: $filePath');
+    } catch (e) {
+      debugPrint('[AIService.sendMessage] Error al guardar JSON de respuesta: $e');
+    }*/
     bool hasQuotaError(String text) {
       return text.contains('RESOURCE_EXHAUSTED') ||
           text.contains('quota') ||

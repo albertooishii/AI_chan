@@ -16,16 +16,25 @@ Future<AiChanProfile> generateFullBiographyFlexible({
     userBirthday: userBirthday,
     meetStory: meetStory,
   );
-  final appearance = await appearanceGenerator.generateAppearancePrompt(bio);
+  final appearanceResult = await appearanceGenerator.generateAppearancePromptWithImage(
+    bio,
+    aiService: null,
+    model: 'gemini-2.5-flash',
+    imageModel: 'gpt-4.1-mini',
+  );
   final biography = AiChanProfile(
     personality: bio.personality,
     biography: bio.biography,
-    timeline: bio.timeline,
     userName: bio.userName,
     aiName: bio.aiName,
     userBirthday: bio.userBirthday,
     aiBirthday: bio.aiBirthday,
-    appearance: appearance,
+    appearance: appearanceResult['appearance'] as Map<String, dynamic>? ?? <String, dynamic>{},
+    imageId: appearanceResult['imageId'] as String?,
+    imageBase64: appearanceResult['imageBase64'] as String?,
+    imageUrl: appearanceResult['imageUrl'] as String?,
+    revisedPrompt: appearanceResult['revisedPrompt'] as String?,
+    timeline: bio.timeline, // timeline SIEMPRE al final
   );
   return biography;
 }

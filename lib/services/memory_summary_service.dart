@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:ai_chan/models/ai_chan_profile.dart';
 import 'package:ai_chan/services/ai_service.dart';
+import '../models/system_prompt.dart';
 import '../models/message.dart' as chat_model;
 import '../models/timeline_entry.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -51,18 +52,15 @@ class MemorySummaryService {
       final superbloqueStart = blocksToSummarize.first.startDate ?? '';
       final superbloqueEnd = blocksToSummarize.last.endDate ?? '';
       final resumenTexto = blocksToSummarize.map((b) => b.resume).join('\n');
-      final resumenResp = await AIService.sendMessage(
-        [
-          {
-            "role": "system",
-            "content":
-                "Eres un sistema de memoria. Resume los siguientes bloques de conversación en formato de puntos, conservando SIEMPRE los datos clave (nombres, fechas, lugares, apodos, etc.). No respondas como IA del chat.",
-          },
-          {"role": "system", "content": resumenTexto},
-        ],
-        '',
-        model: superblockModel,
+      final systemPrompt = SystemPrompt(
+        profile: profile,
+        dateTime: DateTime.now(),
+        timeline: profile.timeline,
+        recentMessages: [],
+        instructions:
+            "Eres un sistema de memoria. Resume los siguientes bloques de conversación en formato de puntos, conservando SIEMPRE los datos clave (nombres, fechas, lugares, apodos, etc.). No respondas como IA del chat.\n$resumenTexto",
       );
+      final resumenResp = await AIService.sendMessage([], systemPrompt, model: superblockModel);
       final resumen = resumenResp.text;
       final superbloque = TimelineEntry(
         resume: resumen.length > 4000 ? resumen.substring(0, 4000) : resumen,
@@ -127,40 +125,26 @@ class MemorySummaryService {
     String userName = profile.userName.trim();
     String aiName = profile.aiName.trim();
 
-    List<Map<String, dynamic>> buildPrompt() {
-      // Enviar los mensajes del bloque como mensajes normales, sin campo 'type'
-      return [
-        {
-          "role": "system",
-          "content":
-              "Eres un sistema de memoria, NO eres la IA del chat. Tu única tarea es generar un resumen estructurado y realista en español, SOLO de los mensajes de este bloque (no acumules ni expandas resúmenes previos). Ignora cualquier contexto conversacional, nunca respondas como si fueras la IA del chat, ni interactúes con los participantes. Organiza la información en varios puntos claros: 1) Hechos importantes y datos personales, 2) Emociones y estados de ánimo detectados, 3) Promesas, planes y bromas internas, 4) Cambios en la relación o temas recurrentes. Nunca respondas con frases como 'NO_REPLY', 'Lo siento', disculpas, negaciones, ni mensajes de error. Solo responde con el resumen estructurado solicitado. Evita saludos, introducciones o encabezados innecesarios. Tu respuesta debe ser únicamente el resumen estructurado en español, útil para recordar la conversación en el futuro. Si respondes de forma conversacional, tu respuesta será descartada y no se guardará en la memoria. IMPORTANTE: Usa SIEMPRE los nombres reales de los participantes en el resumen. El usuario se llama: $userName. La IA se llama: $aiName. En los mensajes, 'user' corresponde a $userName y 'assistant' corresponde a $aiName. No uses 'el hombre', 'la mujer', 'él', 'ella', ni pronombres genéricos. Reemplaza por los nombres reales en cada punto del resumen.",
-        },
-        {
-          "role": "system",
-          "content":
-              "A continuación se presentan los mensajes del bloque. Recuerda: NO estás participando en la conversación, solo debes resumir en formato de puntos. En los mensajes, 'user' es $userName y 'assistant' es $aiName.",
-        },
-        ...block.map(
-          (m) => {"role": m.sender == chat_model.MessageSender.user ? "user" : "assistant", "content": m.text},
-        ),
-        {
-          "role": "system",
-          "content":
-              "Repite: Eres un sistema de memoria, NO eres la IA del chat. Tu única tarea es generar el resumen estructurado de la conversación en español, solo en formato de puntos. Si respondes de forma conversacional o con error, tu respuesta será descartada. Recuerda conservar y repetir los datos clave en cada nivel de resumen. Usa SIEMPRE los nombres reales: usuario = $userName, IA = $aiName.",
-        },
-      ];
-    }
-
     int retryCount = 0;
     String summary = '';
     do {
-      final summaryPrompt = buildPrompt();
-      final promptText = summaryPrompt.where((e) => e['role'] == 'system').map((e) => e['content']).join('\n');
-      final payload = block
-          .map((m) => {"role": m.sender == chat_model.MessageSender.user ? "user" : "assistant", "content": m.text})
-          .toList();
-
-      final response = await AIService.sendMessage(payload, promptText, model: superblockModel);
+      final systemPrompt = SystemPrompt(
+        profile: profile,
+        dateTime: DateTime.now(),
+        timeline: profile.timeline,
+        recentMessages: block
+            .map(
+              (m) => {
+                "role": m.sender == chat_model.MessageSender.user ? "user" : "assistant",
+                "content": m.text,
+                "datetime": m.dateTime.toIso8601String(),
+              },
+            )
+            .toList(),
+        instructions:
+            "Eres un sistema de memoria, NO eres la IA del chat. Tu única tarea es generar un resumen estructurado y realista en español, SOLO de los mensajes de este bloque (no acumules ni expandas resúmenes previos). Ignora cualquier contexto conversacional, nunca respondas como si fueras la IA del chat, ni interactúes con los participantes. Organiza la información en varios puntos claros: 1) Hechos importantes y datos personales, 2) Emociones y estados de ánimo detectados, 3) Promesas, planes y bromas internas, 4) Cambios en la relación o temas recurrentes. Nunca respondas con frases como 'NO_REPLY', 'Lo siento', disculpas, negaciones, ni mensajes de error. Solo responde con el resumen estructurado solicitado. Evita saludos, introducciones o encabezados innecesarios. Tu respuesta debe ser únicamente el resumen estructurado en español, útil para recordar la conversación en el futuro. Si respondes de forma conversacional, tu respuesta será descartada y no se guardará en la memoria. IMPORTANTE: Usa SIEMPRE los nombres reales de los participantes en el resumen. El usuario se llama: $userName. La IA se llama: $aiName. En los mensajes, 'user' corresponde a $userName y 'assistant' corresponde a $aiName. No uses 'el hombre', 'la mujer', 'él', 'ella', ni pronombres genéricos. Reemplaza por los nombres reales en cada punto del resumen.\nA continuación se presentan los mensajes del bloque. Recuerda: NO estás participando en la conversación, solo debes resumir en formato de puntos. En los mensajes, 'user' es $userName y 'assistant' es $aiName.\nRepite: Eres un sistema de memoria, NO eres la IA del chat. Tu única tarea es generar el resumen estructurado de la conversación en español, solo en formato de puntos. Si respondes de forma conversacional o con error, tu respuesta será descartada. Recuerda conservar y repetir los datos clave en cada nivel de resumen. Usa SIEMPRE los nombres reales: usuario = $userName, IA = $aiName.",
+      );
+      final response = await AIService.sendMessage([], systemPrompt, model: superblockModel);
       summary = response.text;
       final lowerSummary = summary.trim().toLowerCase();
 

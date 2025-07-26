@@ -1,14 +1,18 @@
 import 'dart:convert';
+import 'package:ai_chan/utils/image_utils.dart';
+import 'package:flutter/foundation.dart';
 import '../models/ai_chan_profile.dart';
 import '../utils/json_utils.dart';
 import '../models/ai_response.dart';
 import 'ai_service.dart';
+import '../models/system_prompt.dart';
 
 class IAAppearanceGenerator {
-  Future<Map<String, dynamic>> generateAppearancePrompt(
+  Future<Map<String, dynamic>> generateAppearancePromptWithImage(
     AiChanProfile bio, {
     AIService? aiService,
     String model = 'gemini-2.5-flash',
+    String imageModel = 'gpt-4.1-mini',
   }) async {
     // Bloque de formato JSON para la apariencia física
     final appearanceJsonFormat = jsonEncode({
@@ -116,18 +120,62 @@ class IAAppearanceGenerator {
       No repitas la biografía textual. Sé milimétrico y obsesivo en cada campo, como si el personaje fuera a ser modelado en 3D para un juego hiperrealista. No omitas ningún campo ni detalle relevante para la generación de imágenes hiperrealistas.
 
       Biografía:
-      ${bio.toJson()}
+      ${bio.biography}
       ''';
 
-    final AIResponse response = await AIService.sendMessage(
-      [
-        {"role": "user", "content": prompt},
+    final systemPromptAppearance = SystemPrompt(
+      profile: bio,
+      dateTime: DateTime.now(),
+      timeline: bio.timeline,
+      recentMessages: [
+        {"role": "user", "content": prompt, "datetime": DateTime.now().toIso8601String()},
       ],
-      '',
-      model: model,
+      instructions: prompt,
     );
+    final AIResponse response = await AIService.sendMessage([], systemPromptAppearance, model: model);
     final appearance = extractJsonBlock(response.text);
 
-    return appearance;
+    // Generar imagen de perfil con AIService
+    String imagePrompt =
+        "Genera una imagen hiperrealista de medio cuerpo de la chica descrita en la siguiente apariencia JSON, con el máximo nivel de detalle y coherencia visual. La cara debe ser siempre la misma en todas las imágenes futuras. La imagen debe ser una foto de perfil CASUAL, como la que se usaría en Instagram o WhatsApp: actitud relajada, expresión natural y amigable, ligera sonrisa, fondo realista (por ejemplo, habitación luminosa, cafetería, parque, calle urbana, etc.), ropa casual y juvenil (nunca formal ni de oficina), buena iluminación, sin filtros ni efectos artificiales. Evita poses rígidas, ropa formal, fondos neutros o vacíos. La pose y la expresión deben ser naturales, espontáneas y variadas, evitando la rigidez y la simetría perfecta. La mirada puede ser directa a la cámara o variar de forma natural. Las manos y brazos deben estar en posiciones relajadas y cotidianas, transmitiendo cercanía y autenticidad, como una foto casual tomada con el móvil.\n\nApariencia generada (JSON):\n$appearance";
+
+    final systemPromptImage = SystemPrompt(
+      profile: bio,
+      dateTime: DateTime.now(),
+      timeline: bio.timeline,
+      recentMessages: [
+        {"role": "user", "content": imagePrompt, "datetime": DateTime.now().toIso8601String()},
+      ],
+      instructions: imagePrompt,
+    );
+    final imageResponse = await AIService.sendMessage([], systemPromptImage, model: imageModel);
+
+    // Log seguro: no imprimir base64 completo
+    final logMap = imageResponse.toJson();
+    if (logMap['imageBase64'] != null && logMap['imageBase64'].toString().isNotEmpty) {
+      final base64 = logMap['imageBase64'] as String;
+      logMap['imageBase64'] = '[${base64.length} chars] ${base64.substring(0, 40)}...';
+    }
+    debugPrint('Imagen generada: $logMap');
+
+    // Guardar imagen en local y obtener la ruta
+    String? imageUrl;
+    if (imageResponse.imageBase64.isNotEmpty) {
+      try {
+        imageUrl = await saveBase64ImageToFile(imageResponse.imageBase64, prefix: 'ai_avatar');
+      } catch (e) {
+        imageUrl = null;
+      }
+    }
+
+    debugPrint('Imagen guardada en: $imageUrl');
+
+    return {
+      'appearance': appearance,
+      'imageId': imageResponse.imageId,
+      'imageBase64': imageResponse.imageBase64,
+      'imageUrl': imageUrl,
+      'revisedPrompt': imageResponse.revisedPrompt,
+    };
   }
 }

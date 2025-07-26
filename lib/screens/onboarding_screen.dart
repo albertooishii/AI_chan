@@ -104,8 +104,12 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
     }
     if (jsonStr != null && jsonStr.trim().isNotEmpty && widget.onImportJson != null) {
       String? importError;
-      final imported = chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr, onError: (err) => importError = err);
+      final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
+        jsonStr,
+        onError: (err) => importError = err,
+      );
       if (importError != null || imported == null) {
+        if (!mounted) return;
         await showDialog(
           context: context,
           builder: (ctx) => AlertDialog(

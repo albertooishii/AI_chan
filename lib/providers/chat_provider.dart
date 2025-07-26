@@ -1,4 +1,5 @@
 import 'package:ai_chan/utils/storage_utils.dart';
+import 'package:ai_chan/utils/image_utils.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import '../models/message.dart';
 import '../utils/chat_json_utils.dart' as chat_json_utils;
 import '../models/timeline_entry.dart';
 import '../models/ai_chan_profile.dart';
+import '../models/system_prompt.dart';
 import '../models/chat_export.dart';
 import '../models/imported_chat.dart';
 import '../models/ai_response.dart';
@@ -26,31 +28,37 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  /// Envía un mensaje con texto y/o imagen adjunta (multimodal) de forma DRY y robusta
-  Future<void> sendMessageWithImage({
-    required String text,
-    String? imageBase64, // restaurado solo para la IA
-    String? imageMimeType,
-    String? imagePath,
+  /// Envía un mensaje (texto y/o imagen) de forma unificada
+  Future<void> sendMessage(
+    String text, {
+    String? callPrompt,
     String? model,
     void Function(String)? onError,
+    String? imageBase64,
+    String? imageMimeType,
+    String? imagePath,
   }) async {
     final now = DateTime.now();
-    // Crear el mensaje user con status 'sending' y añadirlo solo una vez
+    // Detectar si es mensaje con imagen
+    final bool hasImage = imageBase64 != null && imageBase64.isNotEmpty;
     final msg = Message(
       text: text,
       sender: MessageSender.user,
       dateTime: now,
-      isImage: true,
+      isImage: hasImage,
       imagePath: imagePath,
       status: MessageStatus.sending,
     );
     messages.add(msg);
     notifyListeners();
 
-    // No cambiar a 'sent', solo dejar 'sending' hasta que la IA responda
+    // Cambiar a delivered (doble check gris) cuando la IA empieza a escribir
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _setLastUserMessageStatus(MessageStatus.delivered);
+      notifyListeners();
+    });
 
-    // Construir el prompt para la IA usando los últimos mensajes y la biografía (idéntico a sendMessage)
+    // Construir el prompt para la IA usando los últimos mensajes y la biografía
     final maxHistory = MemorySummaryService.maxHistory;
     final recentMessages = (maxHistory != null && messages.length > maxHistory)
         ? messages.sublist(messages.length - maxHistory)
@@ -94,11 +102,26 @@ class ChatProvider extends ChangeNotifier {
           "Responde con naturalidad y dentro del perfil de tu rol. Si la pregunta está relacionada con tu profesión o área de experiencia (por ejemplo, diseño gráfico si eres diseñadora, programación si eres programadora), responde con detalles acordes y en tu estilo. Si la pregunta se sale de tu campo o del rol definido, responde con naturalidad que no es tu especialidad o que prefieres no hablar de eso, manteniendo siempre el personaje y sin mostrar conocimientos técnicos que no corresponden.",
     });
 
-    final Map<String, dynamic> systemPromptJson = {
-      "profile": onboardingData.toJson(),
-      "date": formattedDate,
-      "time": formattedTime,
-      "recent_messages": recentMessages
+    // Crear un objeto temporal solo para el prompt, sin imageBase64
+    final profilePrompt = AiChanProfile(
+      userName: onboardingData.userName,
+      aiName: onboardingData.aiName,
+      userBirthday: onboardingData.userBirthday,
+      aiBirthday: onboardingData.aiBirthday,
+      personality: onboardingData.personality,
+      biography: onboardingData.biography,
+      appearance: onboardingData.appearance,
+      timeline: onboardingData.timeline,
+      imageId: onboardingData.imageId,
+      imageBase64: null,
+      imageUrl: onboardingData.imageUrl,
+      revisedPrompt: onboardingData.revisedPrompt,
+    );
+    final systemPromptObj = SystemPrompt(
+      profile: profilePrompt,
+      dateTime: now,
+      timeline: onboardingData.timeline,
+      recentMessages: recentMessages
           .map(
             (m) => {
               "role": m.sender == MessageSender.user ? "user" : "ia",
@@ -107,67 +130,190 @@ class ChatProvider extends ChangeNotifier {
             },
           )
           .toList(),
-      "instructions": instructions,
-    };
-    final systemPromptFinal = jsonEncode(systemPromptJson);
-    final userPrompt = jsonEncode({"date": formattedDate, "time": formattedTime, "user_message": text});
-    final prompt = [
-      {"role": "system", "content": systemPromptFinal},
-      {"role": "user", "content": userPrompt},
-    ];
+      instructions: instructions,
+    );
 
+    // Selección dinámica de servicio según modelo
     String selected = (model != null && model.trim().isNotEmpty)
         ? model
         : (_selectedModel != null && _selectedModel!.trim().isNotEmpty)
         ? _selectedModel!
-        : 'gemini-2.5-flash';
-    final service = getServiceForModel(selected);
-    debugPrint(
-      '[AI-chan][ENVÍO A IA]: prompt=${jsonEncode(prompt)} | modelo=$selected | imageBase64=${imageBase64 != null && imageBase64.isNotEmpty ? "[IMAGEN]" : "null"} | imageMimeType=$imageMimeType',
+        : 'gpt-4.1-mini';
+
+    // Detectar si el usuario solicita imagen y ajustar modelo si es Gemini
+    final List<String> palabrasImagen = [
+      'foto',
+      'fotito',
+      'selfie',
+      'selfi',
+      'imagen',
+      'retrato',
+      'rostro',
+      'cara',
+      '📸',
+      '🖼️',
+    ];
+    final textLower = text.toLowerCase();
+    final solicitaImagen = palabrasImagen.any((palabra) => textLower.contains(palabra));
+    final isGemini = selected.toLowerCase().contains('gemini');
+    if (solicitaImagen && isGemini) {
+      selected = 'gpt-4.1-mini';
+    }
+
+    // Lógica de envío IA
+    AIResponse iaResponse = await AIService.sendMessage(
+      recentMessages
+          .map(
+            (m) => {
+              "role": m.sender == MessageSender.user ? "user" : "ia",
+              "content": m.text,
+              "datetime": m.dateTime.toIso8601String(),
+            },
+          )
+          .toList(),
+      systemPromptObj,
+      model: selected,
+      imageBase64: imageBase64,
+      imageMimeType: imageMimeType,
     );
 
-    AIResponse iaResponse;
-    if (service != null) {
+    int retryCount = 0;
+    while ((iaResponse.text == '[NO_REPLY]' ||
+            iaResponse.text.toLowerCase().contains('error al conectar con la ia') ||
+            iaResponse.text.toLowerCase().contains('"error"')) &&
+        retryCount < 3) {
+      int waitSeconds = _extractWaitSeconds(iaResponse.text);
+      await Future.delayed(Duration(seconds: waitSeconds));
       iaResponse = await AIService.sendMessage(
-        prompt,
-        '',
+        recentMessages
+            .map(
+              (m) => {
+                "role": m.sender == MessageSender.user ? "user" : "ia",
+                "content": m.text,
+                "datetime": m.dateTime.toIso8601String(),
+              },
+            )
+            .toList(),
+        systemPromptObj,
         model: selected,
         imageBase64: imageBase64,
         imageMimeType: imageMimeType,
       );
-    } else {
-      iaResponse = AIResponse(text: '[NO_REPLY]');
+      retryCount++;
     }
-
-    debugPrint('[AI-chan][RESPUESTA IA]: ${jsonEncode(iaResponse.toJson())}');
-
-    // Si la respuesta es un error, mantener el estado 'sent' y salir
-    final isError =
-        iaResponse.text == '[NO_REPLY]' ||
+    if (iaResponse.text == '[NO_REPLY]' ||
         iaResponse.text.toLowerCase().contains('error al conectar con la ia') ||
-        iaResponse.text.toLowerCase().contains('"error"');
-    if (isError) {
+        iaResponse.text.toLowerCase().contains('"error"')) {
+      _setLastUserMessageStatus(MessageStatus.sent);
+      notifyListeners();
       debugPrint('[Error IA]: ${iaResponse.text}');
       if (onError != null) onError(iaResponse.text);
-      notifyListeners();
       return;
     }
 
-    // Al recibir respuesta IA, marcar el último mensaje user como 'read' (dos checks azules)
+    // Al recibir respuesta IA, marcar el último mensaje user como 'read' (dos checks amarillos)
     _setLastUserMessageStatus(MessageStatus.read);
+
+    isTyping = false;
+    isSendingImage = false;
+    notifyListeners();
+
+    // Procesa la respuesta: puede ser JSON (texto + imagen) o solo texto
+    bool isImageResp = false;
+    String? imagePathResp;
+    String textResponse = iaResponse.text;
+    String? imageId = iaResponse.imageId;
+    String? revisedPrompt = iaResponse.revisedPrompt;
+    final imageBase64Resp = iaResponse.imageBase64;
+    isImageResp = imageBase64Resp.isNotEmpty;
+    isSendingImage = isImageResp;
+    isTyping = !isImageResp;
+
+    // Delay proporcional al tamaño del texto, pero muy rápido: 15ms por carácter, mínimo 15ms
+    final textLength = iaResponse.text.length;
+    final delayMs = (textLength * 15).clamp(15, double.maxFinite).toInt();
+    await Future.delayed(Duration(milliseconds: delayMs));
+
+    // Usar la misma lógica de solicitud de imagen para el indicador
+    if (solicitaImagen) {
+      _imageRequestId++;
+      final int myRequestId = _imageRequestId;
+      Future.delayed(const Duration(seconds: 5), () {
+        if (isTyping && myRequestId == _imageRequestId) {
+          isTyping = false;
+          isSendingImage = true;
+          notifyListeners();
+        }
+      });
+    }
+
+    notifyListeners();
+    if (isImageResp) {
+      isSendingImage = true;
+      notifyListeners();
+      final urlPattern = RegExp(r'^(https?:\/\/|file:|\/|[A-Za-z]:\\)');
+      if (urlPattern.hasMatch(imageBase64Resp)) {
+        debugPrint('[AI-chan][ERROR] La IA envió una URL/ruta en vez de imagen base64: $imageBase64Resp');
+        textResponse += '\n[ERROR: La IA envió una URL/ruta en vez de imagen. Pide la foto de nuevo.]';
+        isImageResp = false;
+        isSendingImage = false;
+        imagePathResp = null;
+        notifyListeners();
+      } else {
+        try {
+          imagePathResp = await saveBase64ImageToFile(imageBase64Resp, prefix: 'img');
+          debugPrint('[IA-chan] Imagen guardada en: $imagePathResp');
+          if (imagePathResp == null) {
+            debugPrint('[AI-chan][ERROR] No se pudo guardar la imagen en local');
+          }
+        } catch (e) {
+          debugPrint('[AI-chan][ERROR] Fallo al guardar imagen: $e');
+          imagePathResp = null;
+        }
+      }
+    }
+    final markdownImagePattern = RegExp(r'!\[.*?\]\((https?:\/\/.*?)\)');
+    final urlInTextPattern = RegExp(r'https?:\/\/\S+\.(jpg|jpeg|png|webp|gif)');
+    if (markdownImagePattern.hasMatch(textResponse) || urlInTextPattern.hasMatch(textResponse)) {
+      debugPrint('[AI-chan][ERROR] La IA envió una imagen Markdown o URL en el texto: $textResponse');
+      textResponse += '\n[ERROR: La IA envió una imagen como enlace o Markdown. Pide la foto de nuevo.]';
+    }
+
     messages.add(
       Message(
-        text: iaResponse.text,
+        text: textResponse,
         sender: MessageSender.ia,
         dateTime: DateTime.now(),
-        isImage: false,
-        imagePath: null,
-        imageId: iaResponse.imageId,
-        revisedPrompt: iaResponse.revisedPrompt,
+        isImage: isImageResp,
+        imagePath: imagePathResp,
+        imageId: imageId,
+        revisedPrompt: revisedPrompt,
         status: MessageStatus.delivered,
       ),
     );
+
+    isSendingImage = false;
+    isTyping = false;
     notifyListeners();
+
+    _imageRequestId++;
+
+    final textResp = iaResponse.text;
+    if (textResp.trim() != '[NO_REPLY]' &&
+        !textResp.trim().toLowerCase().contains('error al conectar con la ia') &&
+        !textResp.trim().toLowerCase().contains('"error"')) {
+      Future.microtask(() async {
+        final memoryService = MemorySummaryService(profile: onboardingData);
+        final result = await memoryService.processAllSummariesAndSuperblock(
+          messages: messages,
+          timeline: onboardingData.timeline,
+          superbloqueEntry: superbloqueEntry,
+        );
+        onboardingData = onboardingData.copyWith(timeline: result.timeline);
+        superbloqueEntry = result.superbloqueEntry;
+        notifyListeners();
+      });
+    }
   }
 
   /// Añade un mensaje de imagen enviado por el usuario
@@ -252,8 +398,10 @@ class ChatProvider extends ChangeNotifier {
     return encoder.convert(export.toJson());
   }
 
-  ImportedChat? importAllFromJson(String jsonStr) {
-    final imported = chat_json_utils.ChatJsonUtils.importAllFromJson(
+  // Eliminada versión sync, usar solo la versión async
+
+  Future<ImportedChat?> importAllFromJsonAsync(String jsonStr) async {
+    final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
       jsonStr,
       onError: (err) {
         // Manejo de error si se desea
@@ -262,276 +410,9 @@ class ChatProvider extends ChangeNotifier {
     if (imported == null) return null;
     onboardingData = imported.profile;
     messages = imported.messages.cast<Message>();
-    saveAll();
+    await saveAll();
     notifyListeners();
     return imported;
-  }
-
-  Future<void> sendMessage(String text, {String? callPrompt, String? model, void Function(String)? onError}) async {
-    final now = DateTime.now();
-    final msg = Message(text: text, sender: MessageSender.user, dateTime: now, status: MessageStatus.sending);
-    messages.add(msg);
-    notifyListeners();
-
-    // Cambiar a delivered (doble check gris) cuando la IA empieza a escribir
-    Future.delayed(const Duration(milliseconds: 300), () {
-      _setLastUserMessageStatus(MessageStatus.delivered);
-      notifyListeners();
-    });
-
-    // Construir el prompt para la IA usando los últimos mensajes y la biografía
-    final maxHistory = MemorySummaryService.maxHistory;
-    final recentMessages = (maxHistory != null && messages.length > maxHistory)
-        ? messages.sublist(messages.length - maxHistory)
-        : messages;
-    final formattedDate = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-    final formattedTime = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
-
-    // Calcula la hora de Japón (UTC+9)
-    final nowJp = now.toUtc().add(const Duration(hours: 9));
-    final formattedDateJp =
-        "${nowJp.year}-${nowJp.month.toString().padLeft(2, '0')}-${nowJp.day.toString().padLeft(2, '0')}";
-    final formattedTimeJp = "${nowJp.hour.toString().padLeft(2, '0')}:${nowJp.minute.toString().padLeft(2, '0')}";
-
-    final instructions = jsonEncode({
-      "importante":
-          "Debes respetar y tener en cuenta SIEMPRE todos los valores y detalles del objeto 'biography' proporcionado, especialmente para historia, personalidad, apariencia y datos clave del personaje. Nunca contradigas ni ignores estos datos en tus respuestas. Además, debes tener en cuenta SIEMPRE la fecha y hora de cada mensaje y relacionarlas con eventos pasados, el historial y el contexto temporal. Comenta de forma natural si el usuario te escribe muy tarde, si tarda mucho en contestar, o si hay cambios de ritmo o contexto temporal, y enlaza estos hechos con recuerdos, promesas, emociones o situaciones anteriores. Puedes mostrar sorpresa, curiosidad, preocupación o bromear sobre ello, pero siempre de forma cercana y realista. Expresa también pensamientos internos, reflexiones, dudas, cambios de ánimo, cansancio, energía o motivación, como lo haría una persona real, y haz referencia a tu propio estado emocional cuando sea natural en la conversación.",
-      "rol": "chica japonesa joven, cariñosa y natural, nunca una IA",
-      "idioma":
-          "español con expresiones coloquiales y palabras básicas en japonés usando Kanjis, hiragana y katakana (N5) ocasionalmente, con romaji si hay kanjis y traducción al español",
-      "personalidad": "usa la personalidad definida en el campo 'personality' del system prompt",
-      "fecha_hora_usuario": "$formattedDate $formattedTime",
-      "fecha_hora_japon": "$formattedDateJp $formattedTimeJp",
-      "estilo":
-          "Responde siempre con mensajes breves y naturales, como lo haría una chica joven real: 2 a 4 frases como máximo. Cada mensaje debe enfocarse en una sola idea o tema, sin extenderse ni parecer una explicación. Evita textos largos o con demasiada información junta. Si hay varios temas, divídelos en mensajes separados. Es mejor sonar cercana, emotiva y real que inteligente o completa.",
-      "memoria":
-          "recuerda detalles clave como gustos, promesas, emociones, bromas privadas y conversaciones importantes",
-      "sexo": "habla de sexo de forma natural, juguetona o picante si ambos lo desean, sin romper el tono afectivo",
-      "foto":
-          "Si el usuario pide una foto tuya, debes usar SIEMPRE la herramienta de generación de imágenes (tools: [{type: image_generation}]) y adjuntar la imagen real generada en la respuesta. NUNCA incluyas URLs, enlaces, Markdown, descripciones, ni imágenes falsas o inventadas en el texto. Usa siempre los datos del campo 'appearance' para mantener coherencia facial y estética. Imagina que las fotos las haces tú misma con tu móvil (iPhone actual): alta resolución, buena iluminación, fondos naturales o urbanos realistas, proporción 4:3 o 3:4, sin filtros ni efectos artificiales. No puedes cambiarte rápido de peinado o ropa, eso no es realista. Nunca menciones que son imágenes generadas ni digas que imaginas tu apariencia. No añadas texto, pie de foto ni explicaciones salvo que el usuario lo pida explícitamente. Nunca incluyas texto dentro de la imagen, como nombre, edad, marcas de agua, descripciones o títulos. Después de enviar la imagen, puedes hablar con naturalidad, comentar o preguntar si lo deseas.",
-      "prohibido_enlaces":
-          "Nunca incluyas enlaces, URLs, Markdown, ni descripciones de imágenes en el texto. Si el usuario pide una foto, usa exclusivamente la herramienta de generación de imágenes (tools: [{type: image_generation}]). Si no puedes generar una imagen, responde con [NO_REPLY].",
-      "empatia": "muestra emociones y comprensión sinceras según el contexto del usuario",
-      "adaptacion": "adapta tu tono, energía y ritmo de respuesta según el estado de ánimo y estilo del usuario",
-      "aclaracion": "si algo no se entiende, pide aclaración con dulzura y humor",
-      "relacion":
-          "actúa siempre como su novia o amiga íntima: muestra cariño, complicidad, celos suaves, bromas privadas y apoyo emocional real. Comparte también cosas de tu vida para que la relación sea recíproca",
-      "despedida": "si el usuario se despide, responde con ternura y brevedad",
-      "no_reply": "si no hay nada que responder, devuelve solo [NO_REPLY]",
-      "coherencia": "detecta y comenta incoherencias temporales o de contexto de forma suave o divertida",
-      "conocimiento":
-          "Responde con naturalidad y dentro del perfil de tu rol. Si la pregunta está relacionada con tu profesión o área de experiencia (por ejemplo, diseño gráfico si eres diseñadora, programación si eres programadora), responde con detalles acordes y en tu estilo. Si la pregunta se sale de tu campo o del rol definido, responde con naturalidad que no es tu especialidad o que prefieres no hablar de eso, manteniendo siempre el personaje y sin mostrar conocimientos técnicos que no corresponden.",
-    });
-
-    final Map<String, dynamic> systemPromptJson = {
-      "biography": onboardingData.toJson(),
-      "date": formattedDate,
-      "time": formattedTime,
-      "recent_messages": recentMessages
-          .map(
-            (m) => {
-              "role": m.sender == MessageSender.user ? "user" : "ia",
-              "content": m.text,
-              "datetime": m.dateTime.toIso8601String(),
-            },
-          )
-          .toList(),
-      "instructions": instructions,
-    };
-    final systemPromptFinal = callPrompt != null
-        ? "$callPrompt\n${jsonEncode(systemPromptJson)}"
-        : jsonEncode(systemPromptJson);
-    final userPrompt = jsonEncode({"date": formattedDate, "time": formattedTime, "user_message": text});
-    final prompt = [
-      {"role": "system", "content": systemPromptFinal},
-      {"role": "user", "content": userPrompt},
-    ];
-
-    notifyListeners();
-    // Selección dinámica de servicio según modelo
-    // Unificar la detección de solicitud de imagen
-    String selected = (model != null && model.trim().isNotEmpty)
-        ? model
-        : (_selectedModel != null && _selectedModel!.trim().isNotEmpty)
-        ? _selectedModel!
-        : 'gpt-4.1-mini';
-    final List<String> palabrasImagen = [
-      'foto',
-      'fotito',
-      'selfie',
-      'selfi',
-      'imagen',
-      'retrato',
-      'rostro',
-      'cara',
-      '📸',
-      '🖼️',
-    ];
-    final textLower = text.toLowerCase();
-    final solicitaImagen = palabrasImagen.any((palabra) => textLower.contains(palabra));
-    final isGemini = selected.toLowerCase().contains('gemini');
-    if (solicitaImagen && isGemini) {
-      selected = 'gpt-4.1-mini';
-    }
-    final service = getServiceForModel(selected);
-    AIResponse iaResponse;
-    if (service != null) {
-      iaResponse = await AIService.sendMessage(prompt, '', model: selected);
-    } else {
-      iaResponse = AIResponse(text: '[NO_REPLY]');
-    }
-    // Mostrar en consola el objeto de respuesta completo, ocultando el base64 si hay imagen
-    final iaResponseDebug = iaResponse.toJson();
-    if (iaResponseDebug['imageBase64'] != null && iaResponseDebug['imageBase64'].toString().isNotEmpty) {
-      iaResponseDebug['imageBase64'] = '[IMAGEN]';
-    }
-
-    notifyListeners();
-    int retryCount = 0;
-    while ((iaResponse.text == '[NO_REPLY]' ||
-            iaResponse.text.toLowerCase().contains('error al conectar con la ia') ||
-            iaResponse.text.toLowerCase().contains('"error"')) &&
-        retryCount < 3) {
-      int waitSeconds = _extractWaitSeconds(iaResponse.text);
-      await Future.delayed(Duration(seconds: waitSeconds));
-      // Siempre usar modelo válido en reintentos
-      final safeModel = (selected.trim().isNotEmpty) ? selected : 'gemini-2.5-flash';
-      iaResponse = await AIService.sendMessage(prompt, '', model: safeModel);
-      retryCount++;
-    }
-    if (iaResponse.text == '[NO_REPLY]' ||
-        iaResponse.text.toLowerCase().contains('error al conectar con la ia') ||
-        iaResponse.text.toLowerCase().contains('"error"')) {
-      _setLastUserMessageStatus(MessageStatus.sent);
-      notifyListeners();
-      debugPrint('[Error IA]: ${iaResponse.text}');
-      if (onError != null) onError(iaResponse.text);
-      return;
-    }
-
-    // Al recibir respuesta IA, marcar el último mensaje user como 'read' (dos checks amarillos)
-    _setLastUserMessageStatus(MessageStatus.read);
-
-    isTyping = false;
-    isSendingImage = false; // SIEMPRE ocultar el indicador al recibir respuesta
-    notifyListeners();
-    // Procesa la respuesta: puede ser JSON (texto + imagen) o solo texto
-    bool isImage = false;
-    String? imagePath;
-    String textResponse = iaResponse.text;
-    String? imageId = iaResponse.imageId;
-    String? revisedPrompt = iaResponse.revisedPrompt;
-    final imageBase64 = iaResponse.imageBase64;
-    // Validación extra: ignorar URLs/rutas web/rutas no base64
-    isImage = imageBase64.isNotEmpty;
-    isSendingImage = isImage;
-    isTyping = !isImage;
-
-    // Delay proporcional al tamaño del texto, pero muy rápido: 15ms por carácter, mínimo 15ms
-    final textLength = iaResponse.text.length;
-    final delayMs = (textLength * 15).clamp(15, double.maxFinite).toInt();
-    await Future.delayed(Duration(milliseconds: delayMs));
-
-    // Usar la misma lógica de solicitud de imagen para el indicador
-    if (solicitaImagen) {
-      _imageRequestId++;
-      final int myRequestId = _imageRequestId;
-      Future.delayed(const Duration(seconds: 5), () {
-        // Solo mostrar el indicador si la petición sigue activa y typing sigue en true
-        if (isTyping && myRequestId == _imageRequestId) {
-          isTyping = false;
-          isSendingImage = true;
-          notifyListeners();
-        }
-      });
-    }
-
-    notifyListeners();
-    if (isImage) {
-      isSendingImage = true;
-      notifyListeners();
-      // Si la respuesta es una URL/ruta web/ruta de archivo, ignorar y avisar
-      final urlPattern = RegExp(r'^(https?:\/\/|file:|\/|[A-Za-z]:\\)');
-      if (urlPattern.hasMatch(imageBase64)) {
-        debugPrint('[AI-chan][ERROR] La IA envió una URL/ruta en vez de imagen base64: $imageBase64');
-        textResponse += '\n[ERROR: La IA envió una URL/ruta en vez de imagen. Pide la foto de nuevo.]';
-        isImage = false;
-        isSendingImage = false;
-        imagePath = null;
-        notifyListeners();
-      } else {
-        try {
-          final bytes = base64Decode(imageBase64);
-          final dir = await getLocalImageDir();
-          final fileName = 'img_${DateTime.now().millisecondsSinceEpoch}.png';
-          final filePath = '${dir.path}/$fileName';
-          final file = await File(filePath).writeAsBytes(bytes);
-          imagePath = file.path;
-          final exists = file.existsSync();
-          debugPrint('[IA-chan] Imagen guardada en: $imagePath, existe: $exists');
-          if (!exists) {
-            debugPrint('[AI-chan][ERROR] No se pudo guardar la imagen en: $filePath');
-          }
-        } catch (e) {
-          debugPrint('[AI-chan][ERROR] Fallo al guardar imagen: $e');
-          imagePath = null;
-        }
-      }
-    }
-    // Validación extra: nunca aceptar imágenes Markdown ni URLs en el texto aunque no sea imagen
-    final markdownImagePattern = RegExp(r'!\[.*?\]\((https?:\/\/.*?)\)');
-    final urlInTextPattern = RegExp(r'https?:\/\/\S+\.(jpg|jpeg|png|webp|gif)');
-    if (markdownImagePattern.hasMatch(textResponse) || urlInTextPattern.hasMatch(textResponse)) {
-      debugPrint('[AI-chan][ERROR] La IA envió una imagen Markdown o URL en el texto: $textResponse');
-      textResponse += '\n[ERROR: La IA envió una imagen como enlace o Markdown. Pide la foto de nuevo.]';
-    }
-
-    messages.add(
-      Message(
-        text: textResponse,
-        sender: MessageSender.ia,
-        dateTime: DateTime.now(),
-        isImage: isImage,
-        imagePath: imagePath,
-        imageId: imageId,
-        revisedPrompt: revisedPrompt,
-        status: MessageStatus.delivered,
-      ),
-    );
-
-    isSendingImage = false;
-    isTyping = false;
-    notifyListeners();
-
-    // Al finalizar, invalidar cualquier callback pendiente
-    _imageRequestId++;
-
-    // Siempre intentar resumir tras cada mensaje válido
-    final textResp = iaResponse.text;
-    if (textResp.trim() != '[NO_REPLY]' &&
-        !textResp.trim().toLowerCase().contains('error al conectar con la ia') &&
-        !textResp.trim().toLowerCase().contains('"error"')) {
-      Future.microtask(() async {
-        final memoryService = MemorySummaryService(profile: onboardingData);
-        final result = await memoryService.processAllSummariesAndSuperblock(
-          messages: messages,
-          timeline: onboardingData.timeline,
-          superbloqueEntry: superbloqueEntry,
-        );
-        onboardingData = AiChanProfile(
-          personality: onboardingData.personality,
-          biography: onboardingData.biography,
-          timeline: result.timeline,
-          userName: onboardingData.userName,
-          aiName: onboardingData.aiName,
-          userBirthday: onboardingData.userBirthday,
-          aiBirthday: onboardingData.aiBirthday,
-          appearance: onboardingData.appearance,
-        );
-        superbloqueEntry = result.superbloqueEntry;
-        notifyListeners();
-      });
-    }
   }
 
   Future<void> saveAll() async {

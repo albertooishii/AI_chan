@@ -2,6 +2,7 @@ import 'dart:convert';
 // import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'ai_service.dart';
+import '../models/system_prompt.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/ai_response.dart';
 
@@ -38,7 +39,7 @@ class GeminiService implements AIService {
   @override
   Future<AIResponse> sendMessageImpl(
     List<Map<String, String>> history,
-    String systemPrompt, {
+    SystemPrompt systemPrompt, {
     String? model,
     String? imageBase64,
     String? imageMimeType,
@@ -58,9 +59,7 @@ class GeminiService implements AIService {
     if (hasImage) {
       // Si hay imagen, enviar el historial completo y el systemPrompt como texto, y la imagen como segundo part
       StringBuffer allText = StringBuffer();
-      if (systemPrompt.isNotEmpty) {
-        allText.write('[system]: $systemPrompt');
-      }
+      allText.write('[system]: ${jsonEncode(systemPrompt.toJson())}');
       for (int i = 0; i < history.length; i++) {
         final role = history[i]['role'] ?? 'user';
         final contentStr = history[i]['content'] ?? '';
@@ -79,9 +78,7 @@ class GeminiService implements AIService {
     } else {
       // Unir todos los mensajes en un solo bloque de texto (como JSON o texto plano)
       StringBuffer allText = StringBuffer();
-      if (systemPrompt.isNotEmpty) {
-        allText.write('[system]: $systemPrompt');
-      }
+      allText.write('[system]: ${jsonEncode(systemPrompt.toJson())}');
       for (int i = 0; i < history.length; i++) {
         final role = history[i]['role'] ?? 'user';
         final contentStr = history[i]['content'] ?? '';
@@ -125,8 +122,8 @@ class GeminiService implements AIService {
   }
 
   // Estimación rápida de tokens (igual que OpenAI)
-  int estimateTokens(List<Map<String, String>> history, String systemPrompt) {
-    int charCount = systemPrompt.length;
+  int estimateTokens(List<Map<String, String>> history, SystemPrompt systemPrompt) {
+    int charCount = jsonEncode(systemPrompt.toJson()).length;
     for (var msg in history) {
       charCount += msg['content']?.length ?? 0;
     }
