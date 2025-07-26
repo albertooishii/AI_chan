@@ -1,12 +1,17 @@
 class TimelineEntry {
-  final String date;
   final String resume;
+  final String? startDate;
+  final String? endDate;
 
-  TimelineEntry({required this.date, required this.resume});
+  TimelineEntry({required this.resume, this.startDate, this.endDate});
 
   factory TimelineEntry.fromJson(Map<String, dynamic> json) {
-    return TimelineEntry(date: json['date'] ?? '', resume: json['resume'] ?? '');
+    return TimelineEntry(resume: json['resume'] ?? '', startDate: json['startDate'], endDate: json['endDate']);
   }
 
-  Map<String, dynamic> toJson() => {'date': date, 'resume': resume};
+  Map<String, dynamic> toJson() => {
+    'resume': resume,
+    if (startDate != null) 'startDate': startDate,
+    if (endDate != null) 'endDate': endDate,
+  };
 }

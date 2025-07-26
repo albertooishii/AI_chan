@@ -46,48 +46,41 @@ class MemorySummaryService {
     final List<TimelineEntry> updatedTimeline = List.from(timeline);
     TimelineEntry? updatedSuperbloque = superbloqueEntry;
     final maxHistory = _maxHistory ?? 32;
-    if (updatedTimeline.length >= maxHistory) {
-      final oldestBlock = updatedTimeline.removeAt(0);
-      if (updatedSuperbloque == null) {
-        final resumenResp = await AIService.sendMessage(
-          [
-            {
-              "role": "system",
-              "content":
-                  "Eres un sistema de memoria. Resume el siguiente bloque de conversación en formato de puntos, conservando SIEMPRE los datos clave (nombres, fechas, lugares, apodos, etc.). No respondas como IA del chat.",
-            },
-            {"role": "system", "content": oldestBlock.resume},
-          ],
-          '',
-          model: superblockModel,
-        );
-        final resumen = resumenResp.text;
-        updatedSuperbloque = TimelineEntry(
-          date: 'SUPERBLOCK_${DateTime.now().toIso8601String()}',
-          resume: resumen.length > 4000 ? resumen.substring(0, 4000) : resumen,
-        );
+    if (updatedTimeline.length >= maxHistory * 2) {
+      final blocksToSummarize = updatedTimeline.take(maxHistory).toList();
+      final superbloqueStart = blocksToSummarize.first.startDate ?? '';
+      final superbloqueEnd = blocksToSummarize.last.endDate ?? '';
+      final resumenTexto = blocksToSummarize.map((b) => b.resume).join('\n');
+      final resumenResp = await AIService.sendMessage(
+        [
+          {
+            "role": "system",
+            "content":
+                "Eres un sistema de memoria. Resume los siguientes bloques de conversación en formato de puntos, conservando SIEMPRE los datos clave (nombres, fechas, lugares, apodos, etc.). No respondas como IA del chat.",
+          },
+          {"role": "system", "content": resumenTexto},
+        ],
+        '',
+        model: superblockModel,
+      );
+      final resumen = resumenResp.text;
+      final superbloque = TimelineEntry(
+        resume: resumen.length > 4000 ? resumen.substring(0, 4000) : resumen,
+        startDate: superbloqueStart,
+        endDate: superbloqueEnd,
+      );
+      updatedTimeline.removeRange(0, maxHistory);
+      updatedTimeline.removeWhere((e) => e.startDate == superbloque.startDate && e.endDate == superbloque.endDate);
+      int insertIndex = updatedTimeline.indexWhere(
+        (e) =>
+            e.startDate != null && superbloque.startDate != null && e.startDate!.compareTo(superbloque.startDate!) > 0,
+      );
+      if (insertIndex == -1) {
+        updatedTimeline.add(superbloque);
       } else {
-        final resumenResp = await AIService.sendMessage(
-          [
-            {
-              "role": "system",
-              "content":
-                  "Eres un sistema de memoria. Añade el siguiente bloque al resumen existente, condensando y conservando SIEMPRE los datos clave (nombres, fechas, lugares, apodos, etc.). No respondas como IA del chat.",
-            },
-            {"role": "system", "content": updatedSuperbloque.resume},
-            {"role": "system", "content": oldestBlock.resume},
-          ],
-          '',
-          model: superblockModel,
-        );
-        final resumen = resumenResp.text;
-        updatedSuperbloque = TimelineEntry(
-          date: updatedSuperbloque.date,
-          resume: resumen.length > 4000 ? resumen.substring(0, 4000) : resumen,
-        );
+        updatedTimeline.insert(insertIndex, superbloque);
       }
-      updatedTimeline.removeWhere((e) => e.date == updatedSuperbloque!.date);
-      updatedTimeline.add(updatedSuperbloque);
+      updatedSuperbloque = superbloque;
     }
     return MemorySuperblockResult(timeline: updatedTimeline, superbloqueEntry: updatedSuperbloque);
   }
@@ -114,7 +107,7 @@ class MemorySummaryService {
       final block = messages.sublist(i, i + maxHistory);
       if (block.isEmpty) continue;
       final blockDate = block.first.dateTime.toIso8601String();
-      if (timeline.any((t) => t.date == blockDate)) continue;
+      if (timeline.any((t) => t.startDate == blockDate)) continue;
       bloquesPendientes.add(i);
     }
     for (final i in bloquesPendientes) {
@@ -129,7 +122,8 @@ class MemorySummaryService {
     List<TimelineEntry> timeline,
     void Function(String? blockDate)? onSummaryError,
   ) async {
-    final blockDate = block.first.dateTime.toIso8601String();
+    final blockStartDate = block.first.dateTime.toIso8601String();
+    final blockEndDate = block.last.dateTime.toIso8601String();
     String userName = profile.userName.trim();
     String aiName = profile.aiName.trim();
 
@@ -192,20 +186,21 @@ class MemorySummaryService {
     if (trimmedSummary.isNotEmpty && trimmedSummary != '[NO_REPLY]') {
       timeline.add(
         TimelineEntry(
-          date: blockDate,
           resume: trimmedSummary.length > 4000 ? trimmedSummary.substring(0, 4000) : trimmedSummary,
+          startDate: blockStartDate,
+          endDate: blockEndDate,
         ),
       );
     } else {
       if (onSummaryError != null) {
         try {
-          onSummaryError(blockDate);
+          onSummaryError(blockStartDate);
         } catch (e, stack) {
           debugPrint('[MemorySummaryService] Error en onSummaryError callback: $e\n$stack');
         }
       }
       debugPrint(
-        '[MemorySummaryService] No se pudo generar resumen para el bloque $blockDate tras $retryCount intentos.',
+        '[MemorySummaryService] No se pudo generar resumen para el bloque $blockStartDate tras $retryCount intentos.',
       );
     }
   }

@@ -171,9 +171,9 @@ class OpenAIService implements AIService {
       ],
     });
     // Guardar el JSON del payload enviado para inspección
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    /*final timestamp = DateTime.now().millisecondsSinceEpoch;
     final sentFile = File('openai_sent_payload_$timestamp.json');
-    await sentFile.writeAsString(const JsonEncoder.withIndent('  ').convert(jsonDecode(body)));
+    await sentFile.writeAsString(const JsonEncoder.withIndent('  ').convert(jsonDecode(body)));*/
     final response = await http.post(url, headers: headers, body: body);
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -223,9 +223,9 @@ class OpenAIService implements AIService {
       return aiResponse;
     } else {
       // Guardar el JSON completo en la carpeta del proyecto para inspección
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      /*final timestamp = DateTime.now().millisecondsSinceEpoch;
       final file = File('openai_error_response_$timestamp.json');
-      await file.writeAsString(const JsonEncoder.withIndent('  ').convert(response.body));
+      await file.writeAsString(const JsonEncoder.withIndent('  ').convert(response.body));*/
 
       debugPrint('[OpenAIService] ERROR: statusCode=${response.statusCode}, body=${response.body}');
       return AIResponse(text: 'Error al conectar con la IA: Status ${response.statusCode} ${response.body}');

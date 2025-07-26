@@ -21,6 +21,8 @@ Future<AiChanProfile> generateAIBiographyWithAI({
 
   // Cálculo robusto de "hace un mes" (evita fechas inválidas como 31/02)
   final now = DateTime.now();
+  final fechaActual =
+      "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
   int prevMonth = now.month - 1;
   int prevYear = now.year;
   if (prevMonth == 0) {
@@ -176,7 +178,7 @@ Vives en una dimensión paralela de la Tierra, idéntica a la nuestra pero separ
   final bioModel = AiChanProfile(
     personality: <String, dynamic>{"instructions": aiPersonalityInstructions.trim(), "values": aiPersonalityValues},
     biography: bioJson,
-    timeline: [TimelineEntry(date: fechaConocieron, resume: meetStory)],
+    timeline: [TimelineEntry(resume: meetStory, startDate: fechaConocieron, endDate: fechaActual)],
     userName: userName,
     aiName: aiName,
     userBirthday: userBirthday,
