@@ -20,7 +20,8 @@ class ChatJsonUtils {
       if (map.containsKey('profile') && map['profile'] is Map<String, dynamic>) {
         map['profile'].remove('imageUrl');
       }
-      final exportStr = jsonEncode(map);
+      final encoder = JsonEncoder.withIndent('  ');
+      final exportStr = encoder.convert(map);
       final unixDate = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final defaultName = 'ai_chan_$unixDate.json';
       final result = await FilePicker.platform.saveFile(
@@ -73,38 +74,30 @@ class ChatJsonUtils {
   }
 
   // ...puedes dejar aquí utilidades de UI como pasteJsonDialog y pickJsonFile si las usas en la app...
-  static Future<String?> pasteJsonDialog(BuildContext context) async {
-    final controller = TextEditingController();
-    return await showDialog<String>(
+  static Future<void> showExportedJsonDialog(BuildContext context, String json) async {
+    return await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
-        title: const Text('Pega el JSON exportado', style: TextStyle(color: Colors.pinkAccent)),
+        title: const Text('Vista previa JSON exportado', style: TextStyle(color: Colors.pinkAccent)),
         content: TextField(
-          controller: controller,
-          maxLines: 8,
+          controller: TextEditingController(text: json),
+          maxLines: 20,
+          readOnly: true,
           style: const TextStyle(color: Colors.cyanAccent, fontSize: 12),
-          decoration: const InputDecoration(
-            hintText: 'Pega aquí el JSON',
-            hintStyle: TextStyle(color: AppColors.primary),
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(border: OutlineInputBorder()),
         ),
         actions: [
           TextButton(
-            child: const Text('Cancelar', style: TextStyle(color: AppColors.primary)),
+            child: const Text('Cerrar', style: TextStyle(color: AppColors.primary)),
             onPressed: () => Navigator.of(ctx).pop(),
-          ),
-          TextButton(
-            child: const Text('Importar', style: TextStyle(color: AppColors.secondary)),
-            onPressed: () => Navigator.of(ctx).pop(controller.text),
           ),
         ],
       ),
     );
   }
 
-  static Future<(String? json, String? error)> pickJsonFile() async {
+  static Future<(String? json, String? error)> importJsonFile() async {
     try {
       final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['json']);
       if (result != null && result.files.single.path != null) {

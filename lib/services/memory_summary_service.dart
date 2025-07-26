@@ -62,23 +62,28 @@ class MemorySummaryService {
       );
       final resumenResp = await AIService.sendMessage([], systemPrompt, model: superblockModel);
       final resumen = resumenResp.text;
-      final superbloque = TimelineEntry(
-        resume: resumen.length > 4000 ? resumen.substring(0, 4000) : resumen,
-        startDate: superbloqueStart,
-        endDate: superbloqueEnd,
-      );
-      updatedTimeline.removeRange(0, maxHistory);
-      updatedTimeline.removeWhere((e) => e.startDate == superbloque.startDate && e.endDate == superbloque.endDate);
-      int insertIndex = updatedTimeline.indexWhere(
-        (e) =>
-            e.startDate != null && superbloque.startDate != null && e.startDate!.compareTo(superbloque.startDate!) > 0,
-      );
-      if (insertIndex == -1) {
-        updatedTimeline.add(superbloque);
-      } else {
-        updatedTimeline.insert(insertIndex, superbloque);
+      if (resumen.trim().isNotEmpty && !resumen.trim().toLowerCase().startsWith('error:')) {
+        final superbloque = TimelineEntry(
+          resume: resumen.length > 4000 ? resumen.substring(0, 4000) : resumen,
+          startDate: superbloqueStart,
+          endDate: superbloqueEnd,
+        );
+        updatedTimeline.removeRange(0, maxHistory);
+        updatedTimeline.removeWhere((e) => e.startDate == superbloque.startDate && e.endDate == superbloque.endDate);
+        int insertIndex = updatedTimeline.indexWhere(
+          (e) =>
+              e.startDate != null &&
+              superbloque.startDate != null &&
+              e.startDate!.compareTo(superbloque.startDate!) > 0,
+        );
+        if (insertIndex == -1) {
+          updatedTimeline.add(superbloque);
+        } else {
+          updatedTimeline.insert(insertIndex, superbloque);
+        }
+        updatedSuperbloque = superbloque;
       }
-      updatedSuperbloque = superbloque;
+      // Si falla, no se elimina nada y el timeline queda intacto
     }
     return MemorySuperblockResult(timeline: updatedTimeline, superbloqueEntry: updatedSuperbloque);
   }
@@ -158,8 +163,8 @@ class MemorySummaryService {
           lowerSummary.contains('no puedo ayudarte con eso') ||
           lowerSummary.contains('no puedo responder a esa solicitud') ||
           lowerSummary.contains('no puedo procesar esa petición') ||
-          summary.contains('Error al conectar con la IA') ||
-          summary.contains('"error":')) {
+          lowerSummary.contains('error al conectar con la IA') ||
+          lowerSummary.startsWith('error:')) {
         await Future.delayed(const Duration(seconds: 8));
       } else {
         break;

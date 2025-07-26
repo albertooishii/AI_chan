@@ -160,7 +160,6 @@ class IAAppearanceGenerator {
     return {
       'appearance': appearance,
       'imageId': imageResponse.imageId,
-      // 'imageBase64': imageResponse.imageBase64, // Solo resultado temporal, no guardar en perfil
       'imageUrl': imageUrl,
       'revisedPrompt': imageResponse.revisedPrompt,
     };

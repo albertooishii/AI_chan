@@ -29,77 +29,26 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   Future<void> _showImportDialog(ChatProvider chatProvider) async {
     if (!mounted) return;
-    await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.black,
-        title: const Text('Importar chat', style: TextStyle(color: Colors.pinkAccent)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              child: const Text('Pegar JSON', style: TextStyle(color: Colors.black87)),
-              onPressed: () async {
-                Navigator.of(ctx).pop();
-                if (!mounted) return;
-                final jsonStr = await chat_json_utils.ChatJsonUtils.pasteJsonDialog(context);
-                if (!mounted) return;
-                if (jsonStr != null && jsonStr.trim().isNotEmpty) {
-                  try {
-                    final imported = await chatProvider.importAllFromJsonAsync(jsonStr);
-                    if (widget.onImportJson != null && imported != null) {
-                      await widget.onImportJson!.call(imported);
-                    } else {
-                      if (mounted) setState(() {});
-                      _showImportSuccessSnackBar();
-                    }
-                  } catch (e) {
-                    if (!mounted) return;
-                    _showErrorDialog('Error al importar:\n$e');
-                  }
-                }
-              },
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              child: const Text('Seleccionar archivo', style: TextStyle(color: Colors.black87)),
-              onPressed: () async {
-                Navigator.of(ctx).pop();
-                if (!mounted) return;
-                final (jsonStr, error) = await chat_json_utils.ChatJsonUtils.pickJsonFile();
-                if (!mounted) return;
-                if (error != null) {
-                  _showErrorDialog(error);
-                  return;
-                }
-                if (jsonStr != null && jsonStr.trim().isNotEmpty) {
-                  try {
-                    final imported = await chatProvider.importAllFromJsonAsync(jsonStr);
-                    if (widget.onImportJson != null && imported != null) {
-                      await widget.onImportJson!.call(imported);
-                    } else {
-                      if (mounted) setState(() {});
-                      _showImportSuccessSnackBar();
-                    }
-                  } catch (e) {
-                    if (!mounted) return;
-                    _showErrorDialog('Error al importar:\n$e');
-                  }
-                }
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            child: const Text('Cancelar', style: TextStyle(color: AppColors.primary)),
-            onPressed: () => Navigator.of(ctx).pop(),
-          ),
-        ],
-      ),
-    );
+    final (jsonStr, error) = await chat_json_utils.ChatJsonUtils.importJsonFile();
+    if (!mounted) return;
+    if (error != null) {
+      _showErrorDialog(error);
+      return;
+    }
+    if (jsonStr != null && jsonStr.trim().isNotEmpty) {
+      try {
+        final imported = await chatProvider.importAllFromJsonAsync(jsonStr);
+        if (widget.onImportJson != null && imported != null) {
+          await widget.onImportJson!.call(imported);
+        } else {
+          if (mounted) setState(() {});
+          _showImportSuccessSnackBar();
+        }
+      } catch (e) {
+        if (!mounted) return;
+        _showErrorDialog('Error al importar:\n$e');
+      }
+    }
   }
 
   Future<String?> _showModelSelectionDialog(List<String> models, String? initialModel) async {
@@ -201,7 +150,15 @@ class _ChatScreenState extends State<ChatScreen> {
         content: SizedBox(
           width: 400,
           child: SingleChildScrollView(
-            child: SelectableText(previewJson, style: const TextStyle(color: AppColors.primary, fontSize: 13)),
+            child: FocusScope(
+              canRequestFocus: false,
+              child: SelectableText(
+                previewJson,
+                style: const TextStyle(color: AppColors.primary, fontSize: 13),
+                textAlign: TextAlign.left,
+                focusNode: FocusNode(canRequestFocus: false),
+              ),
+            ),
           ),
         ),
         actions: [

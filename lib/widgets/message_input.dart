@@ -24,6 +24,23 @@ class _MessageInputState extends State<MessageInput> {
   final TextEditingController _controller = TextEditingController();
   bool _showEmojiPicker = false;
   final FocusNode _textFieldFocusNode = FocusNode();
+  @override
+  void initState() {
+    super.initState();
+    _textFieldFocusNode.addListener(() {
+      if (_textFieldFocusNode.hasFocus && _showEmojiPicker) {
+        setState(() {
+          _showEmojiPicker = false;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _textFieldFocusNode.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickImage() async {
     final isMobile =

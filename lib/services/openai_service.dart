@@ -130,11 +130,11 @@ class OpenAIService implements AIService {
     if (imageBase64 != null && imageBase64.isNotEmpty) {
       userContent.add({"type": "input_image", "image_url": "data:${imageMimeType ?? 'image/png'};base64,$imageBase64"});
     }
-    /*final imageId = systemPrompt.profile.imageId;
+    final imageId = systemPrompt.profile.imageId;
     if (imageId != null && imageId.isNotEmpty) {
       input.add({"type": "image_generation_call", "id": imageId});
       debugPrint('[OpenAIService.sendMessage] Usando imageId: $imageId');
-    }*/
+    }
     input.add({"role": "user", "content": userContent});
     int tokens = estimateTokens(history, systemPrompt);
     if (tokens > 128000) {

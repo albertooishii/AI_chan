@@ -51,52 +51,17 @@ class _OnboardingScreenContent extends StatefulWidget {
 
 class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
   Future<void> _handleImportJson(OnboardingProvider provider) async {
-    final option = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.black,
-        title: const Text('Importar chat', style: TextStyle(color: Colors.pinkAccent)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              child: const Text('Pegar JSON', style: TextStyle(color: Colors.black87)),
-              onPressed: () => Navigator.of(ctx).pop('paste'),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              child: const Text('Seleccionar archivo', style: TextStyle(color: Colors.black87)),
-              onPressed: () => Navigator.of(ctx).pop('file'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            child: const Text('Cancelar', style: TextStyle(color: AppColors.primary)),
-            onPressed: () => Navigator.of(ctx).pop(),
-          ),
-        ],
-      ),
-    );
+    final result = await chat_json_utils.ChatJsonUtils.importJsonFile();
     if (!mounted) return;
-    String? jsonStr;
-    String? error;
-    if (option == 'paste') {
-      jsonStr = await chat_json_utils.ChatJsonUtils.pasteJsonDialog(context);
-    } else if (option == 'file') {
-      final result = await chat_json_utils.ChatJsonUtils.pickJsonFile();
-      jsonStr = result.$1;
-      error = result.$2;
-    }
+    String? jsonStr = result.$1;
+    String? error = result.$2;
     if (!mounted) return;
     if (error != null) {
       await showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Error al leer archivo'),
-          content: Text(error!),
+          content: Text(error),
           actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
         ),
       );
