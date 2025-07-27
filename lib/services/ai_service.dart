@@ -57,7 +57,7 @@ abstract class AIService {
           directory.createSync(recursive: true);
         }
         final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-        final filePath = '${directory.path}/ai_service_send_${timestamp}.json';
+        final filePath = '${directory.path}/ai_service_send_$timestamp.json';
         final file = File(filePath);
         file.writeAsStringSync(jsonStr);
         debugPrint('[AIService.sendMessage] JSON enviado guardado en: $filePath');
@@ -81,7 +81,7 @@ abstract class AIService {
           directory.createSync(recursive: true);
         }
         final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-        final filePath = '${directory.path}/ai_service_response_${timestamp}.json';
+        final filePath = '${directory.path}/ai_service_response_$timestamp.json';
         final file = File(filePath);
         file.writeAsStringSync(const JsonEncoder().convert(respJson));
         debugPrint('[AIService.sendMessage] JSON respuesta guardado en: $filePath');
