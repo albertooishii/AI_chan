@@ -14,20 +14,18 @@ class InitializingScreen extends StatefulWidget {
 class _InitializingScreenState extends State<InitializingScreen> {
   final List<List<String>> steps = [
     ["Iniciando sistema", "システム"],
-    ["Cargando módulos principales", "モジュール"],
-    ["Verificando integridad de datos", "データ"],
+    ["Generando datos básicos", "ベーシック"],
     ["Generando recuerdos", "メモリー"],
     ["Analizando personalidad", "パーソナリティ"],
-    ["Aplicando personalidad", "パーソナリティ"],
-    ["Cargando intereses", "インタレスト"],
-    ["Seleccionando aficiones favoritas", "アクティビティ"],
     ["Configurando emociones", "エモーション"],
     ["Ajustando empatía", "エンパシー"],
+    ["Configurando intereses", "インタレスト"],
+    ["Seleccionando aficiones favoritas", "アクティビティ"],
     ["Preparando historia de vida", "ヒストリー"],
-    ["Sincronizando datos", "データ"],
-    ["Entrenando respuestas", "レスポンス"],
-    ["Generando apariencia", "アピアランス"],
-    ["Verificando sentimientos", "フィーリング"],
+    ["Creando historia de encuentro", "ストーリー"],
+    ["Generando apariencia física", "フィジカル"],
+    ["Seleccionando estilo de ropa", "スタイル"],
+    ["Creando avatar digital", "アバター"],
     ["Últimos retoques", "フィニッシュ"],
     ["Finalizando configuración", "コンフィグ"],
   ];
@@ -77,7 +75,7 @@ class _InitializingScreenState extends State<InitializingScreen> {
   Future<void> _runSteps() async {
     for (var i = 0; i < steps.length; i++) {
       if (!mounted) return;
-      await Future.delayed(const Duration(milliseconds: 2200));
+      await Future.delayed(const Duration(milliseconds: 8000));
       if (!mounted) return;
       setState(() {
         currentStep = i;

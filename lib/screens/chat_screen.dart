@@ -10,9 +10,13 @@ import '../widgets/typing_animation.dart';
 import '../constants/app_colors.dart';
 import '../utils/dialog_utils.dart';
 import '../models/ai_chan_profile.dart';
+import '../widgets/expandable_image_dialog.dart';
 import '../models/imported_chat.dart';
 import '../models/message.dart';
+import '../models/image.dart' as ai_image;
 import '../utils/chat_json_utils.dart' as chat_json_utils;
+import 'gallery_screen.dart';
+import '../utils/image_utils.dart';
 
 class ChatScreen extends StatefulWidget {
   final AiChanProfile bio;
@@ -167,7 +171,11 @@ class _ChatScreenState extends State<ChatScreen> {
             onPressed: () async {
               Navigator.of(ctx).pop();
               final chatProvider = context.read<ChatProvider>();
-              final importedChat = ImportedChat(profile: chatProvider.onboardingData, messages: chatProvider.messages);
+              final importedChat = ImportedChat(
+                profile: chatProvider.onboardingData,
+                messages: chatProvider.messages,
+                events: chatProvider.events,
+              );
               final (success, error) = await chat_json_utils.ChatJsonUtils.saveJsonFile(importedChat);
               if (!mounted) return;
               if (error != null) {
@@ -218,29 +226,47 @@ class _ChatScreenState extends State<ChatScreen> {
         surfaceTintColor: Colors.black,
         title: Row(
           children: [
-            if (chatProvider.onboardingData.imageUrl != null && chatProvider.onboardingData.imageUrl!.isNotEmpty)
-              GestureDetector(
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => Dialog(
-                      backgroundColor: Colors.transparent,
-                      child: GestureDetector(
-                        onTap: () => Navigator.of(ctx).pop(),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(16)),
-                          child: Image.file(File(chatProvider.onboardingData.imageUrl!), fit: BoxFit.contain),
-                        ),
+            if (chatProvider.onboardingData.avatar != null &&
+                chatProvider.onboardingData.avatar!.url != null &&
+                chatProvider.onboardingData.avatar!.url!.isNotEmpty)
+              FutureBuilder<Directory>(
+                future: getLocalImageDir(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+                    // Siempre usar solo el nombre de archivo, sin ruta
+                    final avatarFilename = chatProvider.onboardingData.avatar!.url!.split('/').last;
+                    final absPath = '${snapshot.data!.path}/$avatarFilename';
+                    return GestureDetector(
+                      onTap: () {
+                        // Solo mostrar el avatar en el visor, sin navegar a otras imágenes
+                        final avatarFilename = chatProvider.onboardingData.avatar!.url!.split('/').last;
+                        final avatarMessage = Message(
+                          image: ai_image.Image(
+                            url: avatarFilename,
+                            base64: chatProvider.onboardingData.avatar?.base64,
+                            seed: chatProvider.onboardingData.avatar?.seed,
+                            prompt: chatProvider.onboardingData.avatar?.prompt,
+                          ),
+                          text: '',
+                          sender: MessageSender.ia,
+                          isImage: true,
+                          dateTime: DateTime.now(),
+                        );
+                        ExpandableImageDialog.show(context, [avatarMessage], 0);
+                      },
+                      child: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: AppColors.secondary,
+                        backgroundImage: FileImage(File(absPath)),
                       ),
-                    ),
+                    );
+                  }
+                  return const CircleAvatar(
+                    radius: 16,
+                    backgroundColor: AppColors.secondary,
+                    child: Icon(Icons.person, color: AppColors.primary),
                   );
                 },
-                child: CircleAvatar(
-                  radius: 16, // Tamaño reducido
-                  backgroundColor: AppColors.secondary,
-                  backgroundImage: FileImage(File(chatProvider.onboardingData.imageUrl!)),
-                ),
               ),
             const SizedBox(width: 12),
             Flexible(
@@ -263,23 +289,18 @@ class _ChatScreenState extends State<ChatScreen> {
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: AppColors.primary),
             itemBuilder: (context) => [
-              const PopupMenuItem<String>(
-                value: 'export_json',
-                child: Text('Exportar chat (JSON)', style: TextStyle(color: AppColors.primary)),
+              // Galería primero
+              PopupMenuItem<String>(
+                value: 'gallery',
+                child: Row(
+                  children: const [
+                    Icon(Icons.photo_library, color: AppColors.primary, size: 20),
+                    SizedBox(width: 8),
+                    Text('Ver galería de fotos', style: TextStyle(color: AppColors.primary)),
+                  ],
+                ),
               ),
-              const PopupMenuItem<String>(
-                value: 'import_json',
-                child: Text('Importar chat (JSON)', style: TextStyle(color: AppColors.primary)),
-              ),
-              const PopupMenuItem<String>(
-                value: 'regenAppearance',
-                child: Text('Regenerar apariencia IA (debug)', style: TextStyle(color: Colors.redAccent)),
-              ),
-              const PopupMenuItem<String>(
-                value: 'clear_debug',
-                child: Text('Borrar todo (debug)', style: TextStyle(color: Colors.redAccent)),
-              ),
-              const PopupMenuDivider(),
+              // Seleccionar modelo
               PopupMenuItem<String>(
                 enabled: !_loadingModels,
                 value: 'select_model',
@@ -308,9 +329,61 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                 ),
               ),
+              const PopupMenuDivider(),
+              // Exportar chat
+              PopupMenuItem<String>(
+                value: 'export_json',
+                child: Row(
+                  children: const [
+                    Icon(Icons.save_alt, color: AppColors.primary, size: 20),
+                    SizedBox(width: 8),
+                    Text('Exportar chat (JSON)', style: TextStyle(color: AppColors.primary)),
+                  ],
+                ),
+              ),
+              // Importar chat
+              PopupMenuItem<String>(
+                value: 'import_json',
+                child: Row(
+                  children: const [
+                    Icon(Icons.file_open, color: AppColors.primary, size: 20),
+                    SizedBox(width: 8),
+                    Text('Importar chat (JSON)', style: TextStyle(color: AppColors.primary)),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              // Debug: regenerar apariencia
+              PopupMenuItem<String>(
+                value: 'regenAppearance',
+                child: Row(
+                  children: const [
+                    Icon(Icons.refresh, color: Colors.redAccent, size: 20),
+                    SizedBox(width: 8),
+                    Text('Regenerar apariencia IA (debug)', style: TextStyle(color: Colors.redAccent)),
+                  ],
+                ),
+              ),
+              // Debug: borrar todo
+              PopupMenuItem<String>(
+                value: 'clear_debug',
+                child: Row(
+                  children: const [
+                    Icon(Icons.delete_forever, color: Colors.redAccent, size: 20),
+                    SizedBox(width: 8),
+                    Text('Borrar todo (debug)', style: TextStyle(color: Colors.redAccent)),
+                  ],
+                ),
+              ),
             ],
             onSelected: (value) async {
-              if (value == 'export_json') {
+              if (value == 'gallery') {
+                final images = chatProvider.messages
+                    .where((m) => m.isImage && m.image != null && m.image!.url != null && m.image!.url!.isNotEmpty)
+                    .toList();
+                if (!mounted) return;
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => GalleryScreen(images: images)));
+              } else if (value == 'export_json') {
                 try {
                   final jsonStr = await chatProvider.exportAllToJson();
                   if (!mounted) return;
@@ -335,9 +408,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     userBirthday: bio.userBirthday,
                     aiBirthday: bio.aiBirthday,
                     appearance: result['appearance'] as Map<String, dynamic>? ?? <String, dynamic>{},
-                    imageId: result['imageId'] as String?,
-                    imageUrl: result['imageUrl'] as String?,
-                    revisedPrompt: result['revisedPrompt'] as String?,
+                    avatar: result['avatar'],
                     timeline: bio.timeline, // timeline SIEMPRE al final
                   );
                   chatProvider.onboardingData = newBio;
@@ -418,7 +489,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
                 itemCount: chatProvider.messages.length,
                 itemBuilder: (context, index) {
-                  final reversedMessages = chatProvider.messages.reversed.toList();
+                  final filteredMessages = chatProvider.messages
+                      .where((m) => m.sender != MessageSender.system)
+                      .toList();
+                  final reversedMessages = filteredMessages.reversed.toList();
                   final message = reversedMessages[index];
                   // Solo el último mensaje del usuario (más reciente) debe tener isLastUserMessage = true
                   bool isLastUserMessage = false;

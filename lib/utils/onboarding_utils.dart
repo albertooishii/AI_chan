@@ -1,6 +1,7 @@
 import '../models/ai_chan_profile.dart';
 import '../services/ia_bio_generator.dart';
 import '../services/ia_appearance_generator.dart';
+import '../models/image.dart';
 
 /// Utilidad flexible para crear la biografía completa (con apariencia), permitiendo elegir el generador
 Future<AiChanProfile> generateFullBiographyFlexible({
@@ -30,9 +31,11 @@ Future<AiChanProfile> generateFullBiographyFlexible({
     userBirthday: bio.userBirthday,
     aiBirthday: bio.aiBirthday,
     appearance: appearanceResult['appearance'] as Map<String, dynamic>? ?? <String, dynamic>{},
-    imageId: appearanceResult['imageId'] as String?,
-    imageUrl: appearanceResult['imageUrl'] as String?,
-    revisedPrompt: appearanceResult['revisedPrompt'] as String?,
+    avatar: Image(
+      seed: appearanceResult['imageId'] as String?,
+      url: appearanceResult['imageUrl'] as String?,
+      prompt: appearanceResult['revisedPrompt'] as String?,
+    ),
     timeline: bio.timeline, // timeline SIEMPRE al final
   );
   return biography;

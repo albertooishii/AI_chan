@@ -1,7 +1,10 @@
 import 'timeline_entry.dart';
+import 'event_entry.dart';
+import 'image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AiChanProfile {
+  final List<EventEntry>? events;
   // Todos los campos al mismo nivel (estructura plana)
   final String userName;
   final String aiName;
@@ -11,11 +14,15 @@ class AiChanProfile {
   final Map<String, dynamic> biography;
   final Map<String, dynamic> appearance;
   final List<TimelineEntry> timeline;
-  final String? imageId;
-  final String? imageUrl; // New field added
-  final String? revisedPrompt;
+
+  /// Datos de avatar: seed, url, prompt, etc.
+  final Image? avatar;
+
+  /// Horarios unificados: cada elemento puede tener tipo ('sleep', 'work', 'busy'), from, to, days, etc.
+  final List<Map<String, String>>? schedules;
 
   AiChanProfile({
+    this.events,
     required this.userName,
     required this.aiName,
     required this.userBirthday,
@@ -24,12 +31,14 @@ class AiChanProfile {
     required this.biography,
     required this.appearance,
     required this.timeline,
-    this.imageId,
-    this.imageUrl, // New field added to constructor
-    this.revisedPrompt,
+    this.avatar,
+    this.schedules,
   });
 
   factory AiChanProfile.fromJson(Map<String, dynamic> json) {
+    final events = (json['events'] as List<dynamic>? ?? [])
+        .map((e) => EventEntry.fromJson(e as Map<String, dynamic>))
+        .toList();
     DateTime? birth;
     if (json['userBirthday'] is String && (json['userBirthday'] as String).isNotEmpty) {
       birth = DateTime.tryParse(json['userBirthday']);
@@ -52,12 +61,14 @@ class AiChanProfile {
       appearance: json['appearance'] is Map<String, dynamic>
           ? json['appearance'] as Map<String, dynamic>
           : <String, dynamic>{},
+      events: events.isNotEmpty ? events : null,
       timeline: (json['timeline'] as List<dynamic>? ?? [])
           .map((e) => TimelineEntry.fromJson(e as Map<String, dynamic>))
           .toList(),
-      imageId: json['imageId'] as String?,
-      imageUrl: json['imageUrl'] as String?,
-      revisedPrompt: json['revisedPrompt'] as String?,
+      avatar: json['avatar'] != null ? Image.fromJson(json['avatar'] as Map<String, dynamic>) : null,
+      schedules: json['schedules'] != null
+          ? (json['schedules'] as List).map((e) => Map<String, String>.from(e)).toList()
+          : null,
     );
   }
 
@@ -107,14 +118,15 @@ class AiChanProfile {
     'personality': personality,
     'biography': biography,
     'appearance': appearance,
-    'imageId': imageId,
-    'imageUrl': imageUrl, // New field added to JSON output
-    'revisedPrompt': revisedPrompt,
+    if (avatar != null) 'avatar': avatar!.toJson(),
+    if (schedules != null) 'schedules': schedules,
+    if (events != null) 'events': events!.map((e) => e.toJson()).toList(),
     // timeline SIEMPRE debe ir al final para mantener el orden y evitar problemas de import/export
     'timeline': timeline.map((e) => e.toJson()).toList(),
   }..removeWhere((k, v) => v == null);
 
   AiChanProfile copyWith({
+    List<EventEntry>? events,
     String? userName,
     String? aiName,
     DateTime? userBirthday,
@@ -123,11 +135,11 @@ class AiChanProfile {
     Map<String, dynamic>? biography,
     Map<String, dynamic>? appearance,
     List<TimelineEntry>? timeline,
-    String? imageId,
-    String? imageUrl,
-    String? revisedPrompt,
+    Image? avatar,
+    List<Map<String, String>>? schedules,
   }) {
     return AiChanProfile(
+      events: events ?? this.events,
       userName: userName ?? this.userName,
       aiName: aiName ?? this.aiName,
       userBirthday: userBirthday ?? this.userBirthday,
@@ -136,9 +148,8 @@ class AiChanProfile {
       biography: biography ?? this.biography,
       appearance: appearance ?? this.appearance,
       timeline: timeline ?? this.timeline,
-      imageId: imageId ?? this.imageId,
-      imageUrl: imageUrl ?? this.imageUrl,
-      revisedPrompt: revisedPrompt ?? this.revisedPrompt,
+      avatar: avatar ?? this.avatar,
+      schedules: schedules ?? this.schedules,
     );
   }
 }

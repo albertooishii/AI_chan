@@ -1,6 +1,3 @@
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'gemini_service.dart';
 import 'openai_service.dart';
@@ -27,7 +24,7 @@ abstract class AIService {
     String? model,
     String? imageBase64,
     String? imageMimeType,
-    String fallbackModel = 'gpt-4.1-mini',
+    String fallbackModel = 'gpt-5-mini',
   }) async {
     final m = model ?? 'gemini-2.5-flash';
     AIService? aiService = AIService.select(m);
@@ -35,13 +32,9 @@ abstract class AIService {
       debugPrint('[AIService.sendMessage] No se pudo encontrar el servicio IA para el modelo: $m');
       return AIResponse(text: '[NO_REPLY]');
     }
-    final keys = systemPrompt.toJson().keys.join(', ');
-    debugPrint('[AIService.sendMessage] Claves SystemPrompt: $keys');
-    final profileKeys = systemPrompt.profile.toJson().keys.join(', ');
-    debugPrint('[AIService.sendMessage] Claves SystemPrompt.profile: $profileKeys');
-    debugPrint('[AIService.sendMessage] Enviando mensaje a IA con modelo: $m');
+
     // Guardar logs JSON solo en escritorio (Windows, macOS, Linux)
-    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+    /*if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
       try {
         final jsonData = {
           'history': history,
@@ -64,7 +57,7 @@ abstract class AIService {
       } catch (e) {
         debugPrint('[AIService.sendMessage] Error al serializar JSON para log: $e');
       }
-    }
+    }*/
     AIResponse response = await aiService.sendMessageImpl(
       history,
       systemPrompt,
@@ -73,7 +66,7 @@ abstract class AIService {
       imageMimeType: imageMimeType,
     );
     // Guardar la respuesta de la IA en un archivo JSON de log solo en escritorio
-    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+    /*if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
       try {
         final respJson = {'response': response.toJson(), 'model': m, 'timestamp': DateTime.now().toIso8601String()};
         final directory = Directory('debug_json_logs');
@@ -88,7 +81,7 @@ abstract class AIService {
       } catch (e) {
         debugPrint('[AIService.sendMessage] Error al guardar JSON de respuesta: $e');
       }
-    }
+    }*/
     bool hasQuotaError(String text) {
       return text.contains('RESOURCE_EXHAUSTED') ||
           text.contains('quota') ||

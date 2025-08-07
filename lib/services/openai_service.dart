@@ -154,31 +154,54 @@ class OpenAIService implements AIService {
     if (imageBase64 != null && imageBase64.isNotEmpty) {
       userContent.add({"type": "input_image", "image_url": "data:${imageMimeType ?? 'image/png'};base64,$imageBase64"});
     }
-    final imageId = systemPrompt.profile.imageId;
-    if (imageId != null && imageId.isNotEmpty) {
-      input.add({"type": "image_generation_call", "id": imageId});
-      debugPrint('[OpenAIService.sendMessage] Usando imageId: $imageId');
+    final avatar = systemPrompt.profile.avatar;
+    if (avatar != null && avatar.seed != null && avatar.seed!.isNotEmpty) {
+      input.add({"type": "image_generation_call", "id": avatar.seed});
+      debugPrint('[OpenAIService.sendMessage] Usando imageId: ${avatar.seed}');
     }
     input.add({"role": "user", "content": userContent});
     int tokens = estimateTokens(history, systemPrompt);
     if (tokens > 128000) {
       return AIResponse(
         text:
-            'Error: El mensaje supera el límite de 128,000 tokens permitido por GPT-4.1 y GPT-4o. Reduce la cantidad de mensajes o bloques.',
+            'Error: El mensaje supera el límite de 128,000 tokens permitido por GPT-5 y GPT-4o. Reduce la cantidad de mensajes o bloques.',
       );
     }
     final body = jsonEncode({
-      "model": model ?? "gpt-4.1-mini",
+      "model": model ?? "gpt-5-mini",
       "input": input,
       "tools": [
         {"type": "image_generation"},
+        /*{"type": "web_search_preview"},*/
       ],
+      /*"text": {"verbosity": "low"},*/
     });
 
     final response = await http.post(url, headers: headers, body: body);
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
 
+      // Guardar la respuesta REAL de la API en un archivo JSON de log solo en escritorio
+      if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+        try {
+          final respJson = {
+            'api_response': data,
+            'model': model ?? "gpt-5-mini",
+            'timestamp': DateTime.now().toIso8601String(),
+          };
+          final directory = Directory('debug_json_logs');
+          if (!directory.existsSync()) {
+            directory.createSync(recursive: true);
+          }
+          final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+          final filePath = '${directory.path}/openai_service_response_$timestamp.json';
+          final file = File(filePath);
+          file.writeAsStringSync(const JsonEncoder().convert(respJson));
+          debugPrint('[OpenAIService.sendMessageImpl] JSON respuesta REAL guardado en: $filePath');
+        } catch (e) {
+          debugPrint('[OpenAIService.sendMessageImpl] Error al guardar JSON de respuesta: $e');
+        }
+      }
       String text = '';
       String imageBase64 = '';
       String imageId = '';
@@ -209,17 +232,10 @@ class OpenAIService implements AIService {
       }
       final aiResponse = AIResponse(
         text: (text.trim().isNotEmpty) ? text : '[NO_REPLY]',
-        imageBase64: imageBase64,
-        imageId: imageId,
-        revisedPrompt: revisedPrompt,
+        base64: imageBase64,
+        seed: imageId,
+        prompt: revisedPrompt,
       );
-      // Log seguro: no imprimir base64 completo
-      final logMap = aiResponse.toJson();
-      if (logMap['imageBase64'] != null && logMap['imageBase64'].toString().isNotEmpty) {
-        final base64 = logMap['imageBase64'] as String;
-        logMap['imageBase64'] = '[${base64.length} chars] ${base64.substring(0, 40)}...';
-      }
-      debugPrint('Respuesta OPEN AI: $logMap');
       return aiResponse;
     } else {
       debugPrint('[OpenAIService] ERROR: statusCode=${response.statusCode}, body=${response.body}');

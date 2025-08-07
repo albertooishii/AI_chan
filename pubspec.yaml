@@ -52,6 +52,7 @@ dependencies:
   image_picker: ^1.1.2
   characters: ^1.4.0
   emoji_picker_flutter: ^4.3.0
+  markdown_widget: ^2.3.2+8
 
 dev_dependencies:
   flutter_test:

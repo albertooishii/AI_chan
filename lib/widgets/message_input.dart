@@ -8,6 +8,8 @@ import 'dart:convert';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import '../constants/app_colors.dart';
 import '../providers/chat_provider.dart';
+import '../models/image.dart' as ai_image;
+import '../utils/image_utils.dart';
 
 class MessageInput extends StatefulWidget {
   final void Function(String text)? onSend;
@@ -151,12 +153,10 @@ class _MessageInputState extends State<MessageInput> {
     if (text.isEmpty && !hasImage) return;
 
     final chatProvider = context.read<ChatProvider>();
-    String? imagePath;
-    String? imageBase64ToSend = _attachedImageBase64;
-    String? imageMimeTypeToSend = _attachedImageMime;
+    ai_image.Image? imageToSend;
     if (hasImage) {
       final bytes = base64Decode(_attachedImageBase64!);
-      final dir = await chatProvider.getLocalImageDir();
+      final dir = await getLocalImageDir();
       final ext = _attachedImageMime == 'image/jpeg'
           ? 'jpg'
           : _attachedImageMime == 'image/webp'
@@ -165,7 +165,7 @@ class _MessageInputState extends State<MessageInput> {
       final fileName = 'img_user_${DateTime.now().millisecondsSinceEpoch}.$ext';
       final filePath = '${dir.path}/$fileName';
       final file = await File(filePath).writeAsBytes(bytes);
-      imagePath = file.path;
+      imageToSend = ai_image.Image(url: file.path, base64: _attachedImageBase64!);
     }
     if (mounted) {
       setState(() {
@@ -175,12 +175,7 @@ class _MessageInputState extends State<MessageInput> {
         _attachedImageMime = null;
       });
     }
-    await chatProvider.sendMessage(
-      text,
-      imageMimeType: imageMimeTypeToSend,
-      imagePath: imagePath,
-      imageBase64: imageBase64ToSend,
-    );
+    await chatProvider.sendMessage(text, image: imageToSend, imageMimeType: _attachedImageMime);
   }
 
   @override

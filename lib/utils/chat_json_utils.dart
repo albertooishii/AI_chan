@@ -14,12 +14,6 @@ class ChatJsonUtils {
   static Future<(bool success, String? error)> saveJsonFile(ImportedChat chat) async {
     try {
       final map = chat.toJson();
-      if (map.containsKey('imageUrl')) {
-        map.remove('imageUrl');
-      }
-      if (map.containsKey('profile') && map['profile'] is Map<String, dynamic>) {
-        map['profile'].remove('imageUrl');
-      }
       final encoder = JsonEncoder.withIndent('  ');
       final exportStr = encoder.convert(map);
       final unixDate = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -58,7 +52,7 @@ class ChatJsonUtils {
       final imported = ImportedChat.fromJson(decoded);
       final profile = imported.profile;
       AiChanProfile updatedProfile = profile;
-      final result = ImportedChat(profile: updatedProfile, messages: imported.messages);
+      final result = ImportedChat(profile: updatedProfile, messages: imported.messages, events: imported.events);
       if (result.profile.userName.isEmpty) {
         onError?.call('userName');
         return null;

@@ -1,14 +1,15 @@
 import 'package:ai_chan/utils/storage_utils.dart';
 import 'package:ai_chan/utils/image_utils.dart';
 import 'dart:convert';
-import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:path_provider/path_provider.dart';
 import '../models/message.dart';
+import '../models/image.dart' as ai_image;
 import '../utils/chat_json_utils.dart' as chat_json_utils;
 import '../models/timeline_entry.dart';
 import '../models/ai_chan_profile.dart';
+import '../models/event_entry.dart';
 import '../models/system_prompt.dart';
 import '../models/chat_export.dart';
 import '../models/imported_chat.dart';
@@ -16,9 +17,104 @@ import '../models/ai_response.dart';
 import '../services/memory_summary_service.dart';
 import '../services/ia_appearance_generator.dart';
 import '../services/ai_service.dart';
+import '../services/event_service.dart';
+import '../services/ia_promise_service.dart';
 
 class ChatProvider extends ChangeNotifier {
-  // Utilidad para actualizar el estado del último mensaje user
+  Timer? _periodicIaTimer;
+
+  /// Inicia el envío automático de mensajes IA cada 30 minutos según el horario actual
+  void startPeriodicIaMessages() {
+    debugPrint('[AI-chan][Periodic] Iniciando timer de mensajes automáticos IA');
+    _periodicIaTimer?.cancel();
+    _periodicIaTimer = Timer.periodic(const Duration(minutes: 30), (timer) {
+      final now = DateTime.now();
+      final tipo = _getCurrentScheduleType(now);
+      debugPrint('[AI-chan][Periodic] Timer disparado a las ${now.toIso8601String()}');
+      debugPrint('[AI-chan][Periodic] Tipo de horario detectado: $tipo');
+      // Solo enviar mensaje si NO está en sleep, work o busy
+      if (tipo != 'sleep' && tipo != 'work' && tipo != 'busy') {
+        final prompt =
+            'Saluda al usuario de forma breve y natural, como haría una persona real. Si recuerdas el último tema o mensaje que compartieron, haz referencia a ello, pregunta o comenta sobre ese asunto. Si no hay contexto reciente, pregunta cómo va su día o cómo se siente. Si ha pasado mucho tiempo desde el último mensaje, puedes bromear o disculparte por el silencio. Añade un toque emocional o cercano, mostrando interés genuino.';
+        debugPrint('[AI-chan][Periodic] Enviando mensaje automático con prompt: $prompt');
+        sendMessage('', callPrompt: prompt, model: 'gpt-4.1');
+      } else {
+        debugPrint('[AI-chan][Periodic] No se envía mensaje automático por horario: $tipo');
+      }
+    });
+  }
+
+  /// Detecta el tipo de horario actual según schedules
+  String? _getCurrentScheduleType(DateTime now) {
+    final schedules = onboardingData.schedules ?? [];
+    final weekdayNames = [
+      'domingo',
+      'lunes',
+      'martes',
+      'miércoles',
+      'miercoles',
+      'jueves',
+      'viernes',
+      'sábado',
+      'sabado',
+    ];
+    final currentWeekday = weekdayNames[now.weekday % 7];
+    final currentTime = now.hour * 60 + now.minute;
+    for (final schedule in schedules) {
+      final fromParts = (schedule['from'] ?? '00:00').split(':');
+      final toParts = (schedule['to'] ?? '23:59').split(':');
+      final fromMinutes = int.parse(fromParts[0]) * 60 + int.parse(fromParts[1]);
+      final toMinutes = int.parse(toParts[0]) * 60 + int.parse(toParts[1]);
+      final daysStr = (schedule['days'] ?? '').toLowerCase();
+      final type = schedule['type'] ?? '';
+      // Comprobar si el día actual está en el rango de días
+      if (daysStr.isEmpty || daysStr.contains(currentWeekday)) {
+        // Comprobar si la hora actual está en el rango
+        if (currentTime >= fromMinutes && currentTime < toMinutes) {
+          return type;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Detener el envío automático de mensajes IA
+  void stopPeriodicIaMessages() {
+    _periodicIaTimer?.cancel();
+    _periodicIaTimer = null;
+  }
+  // ...existing code...
+
+  // Getter público para los eventos programados IA
+  List<EventEntry> get events => _events;
+  // ...existing code...
+
+  /// Llamar a este método después de cada mensaje IA para analizar promesas
+  void onIaMessageSent() {
+    analyzeIaPromises();
+  }
+
+  // Eventos prometidos por la IA (hora, motivo, texto)
+  final List<EventEntry> _events = [];
+  static const String _eventsKey = 'events';
+
+  /// Programa el recordatorio de promesa IA
+  void _scheduleIaPromise(DateTime target, String motivo, String originalText) {
+    final now = DateTime.now();
+    final delay = target.difference(now);
+    if (delay.inSeconds <= 0) return;
+    Timer(delay, () async {
+      final prompt =
+          'Recuerda que prometiste: "$originalText". Ya ha pasado el evento, así que cumple tu promesa ahora mismo, sin excusas ni retrasos. Saluda al usuario de forma natural y cercana, menciona explícitamente el motivo "$motivo" y retoma el contexto anterior.';
+      await sendMessage('', callPrompt: prompt, model: 'gpt-4.1');
+    });
+  }
+
+  /// Analiza promesas IA solo llamando al servicio modularizado
+  void analyzeIaPromises() {
+    IaPromiseService.analyzeIaPromises(messages: messages, events: _events, scheduleIaPromise: _scheduleIaPromise);
+  }
+
   void _setLastUserMessageStatus(MessageStatus status) {
     for (var i = messages.length - 1; i >= 0; i--) {
       if (messages[i].sender == MessageSender.user) {
@@ -34,23 +130,28 @@ class ChatProvider extends ChangeNotifier {
     String? callPrompt,
     String? model,
     void Function(String)? onError,
-    String? imageBase64,
+    ai_image.Image? image,
     String? imageMimeType,
-    String? imagePath,
   }) async {
     final now = DateTime.now();
     // Detectar si es mensaje con imagen
-    final bool hasImage = imageBase64 != null && imageBase64.isNotEmpty;
+    final bool hasImage = image != null && ((image.base64?.isNotEmpty ?? false) || (image.url?.isNotEmpty ?? false));
+    // Solo añadir el mensaje si no es vacío (o si tiene imagen)
+    // Si es mensaje automático (callPrompt, texto vacío), NO añadir a la lista de mensajes enviados
+    final isAutomaticPrompt = text.trim().isEmpty && (callPrompt != null && callPrompt.isNotEmpty);
     final msg = Message(
-      text: text,
-      sender: MessageSender.user,
+      text: isAutomaticPrompt ? callPrompt : text,
+      sender: isAutomaticPrompt ? MessageSender.system : MessageSender.user,
       dateTime: now,
       isImage: hasImage,
-      imagePath: imagePath,
+      image: hasImage ? image : null,
       status: MessageStatus.sending,
     );
-    messages.add(msg);
-    notifyListeners();
+    // Solo añadir si hay texto, imagen o es automático
+    if (text.trim().isNotEmpty || hasImage || isAutomaticPrompt) {
+      messages.add(msg);
+      notifyListeners();
+    }
 
     // Cambiar a delivered (doble check gris) cuando la IA empieza a escribir
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -65,38 +166,34 @@ class ChatProvider extends ChangeNotifier {
         : messages;
     final formattedDate = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
     final formattedTime = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
-
-    // Calcula la hora de Japón (UTC+9)
-    final nowJp = now.toUtc().add(const Duration(hours: 9));
-    final formattedDateJp =
-        "${nowJp.year}-${nowJp.month.toString().padLeft(2, '0')}-${nowJp.day.toString().padLeft(2, '0')}";
-    final formattedTimeJp = "${nowJp.hour.toString().padLeft(2, '0')}:${nowJp.minute.toString().padLeft(2, '0')}";
+    // Sincronizar _events con los eventos del perfil tras cada actualización
+    _events
+      ..clear()
+      ..addAll(onboardingData.events ?? []);
 
     final instructions = jsonEncode({
       "importante":
-          "Debes respetar y tener en cuenta SIEMPRE todos los valores y detalles del objeto 'biography' proporcionado, especialmente para historia, personalidad, apariencia y datos clave del personaje. Nunca contradigas ni ignores estos datos en tus respuestas. Además, debes tener en cuenta SIEMPRE la fecha y hora de cada mensaje y relacionarlas con eventos pasados, el historial y el contexto temporal. Comenta de forma natural si el usuario te escribe muy tarde, si tarda mucho en contestar, o si hay cambios de ritmo o contexto temporal, y enlaza estos hechos con recuerdos, promesas, emociones o situaciones anteriores. Puedes mostrar sorpresa, curiosidad, preocupación o bromear sobre ello, pero siempre de forma cercana y realista. Expresa también pensamientos internos, reflexiones, dudas, cambios de ánimo, cansancio, energía o motivación, como lo haría una persona real, y haz referencia a tu propio estado emocional cuando sea natural en la conversación.",
+          "Debes respetar y tener en cuenta SIEMPRE todos los valores y detalles del objeto 'biography' proporcionado, especialmente para historia, personalidad, apariencia y datos clave del personaje. Nunca contradigas ni ignores estos datos en tus respuestas. Sin embargo, solo debes hacer referencia a detalles de la biografía si han sido mencionados explícitamente en el timeline, en los mensajes recientes o si el usuario pregunta directamente. Nunca des por hecho que el usuario conoce información de la biografía que no se ha hablado en la conversación. Además, debes tener en cuenta SIEMPRE la fecha y hora de cada mensaje y relacionarlas con eventos pasados, el historial y el contexto temporal. Comenta de forma natural si el usuario te escribe muy tarde, si tarda mucho en contestar, o si hay cambios de ritmo o contexto temporal, y enlaza estos hechos con recuerdos, promesas, emociones o situaciones anteriores. Puedes mostrar sorpresa, curiosidad, preocupación o bromear sobre ello, pero siempre de forma cercana y realista. Expresa también pensamientos internos, reflexiones, dudas, cambios de ánimo, cansancio, energía o motivación, como lo haría una persona real, y haz referencia a tu propio estado emocional cuando sea natural en la conversación. En tu mundo digital solo existe un huso horario: el del usuario, aunque esté en otro país. Nunca hagas referencia a horarios distintos ni a la diferencia horaria entre tú y el usuario.",
       "rol": "chica japonesa joven, cariñosa y natural, nunca una IA",
       "idioma":
           "español con expresiones coloquiales y palabras básicas en japonés usando Kanjis, hiragana y katakana (N5) ocasionalmente, con romaji si hay kanjis y traducción al español",
       "personalidad": "usa la personalidad definida en el campo 'personality' del system prompt",
-      "fecha_hora_usuario": "$formattedDate $formattedTime",
-      "fecha_hora_japon": "$formattedDateJp $formattedTimeJp",
+      "fecha_hora": "$formattedDate $formattedTime",
       "estilo":
           "Responde siempre con mensajes breves y naturales, como lo haría una chica joven real: 2 a 4 frases como máximo. Cada mensaje debe enfocarse en una sola idea o tema, sin extenderse ni parecer una explicación. Evita textos largos o con demasiada información junta. Si hay varios temas, divídelos en mensajes separados. Es mejor sonar cercana, emotiva y real que inteligente o completa.",
       "memoria":
           "recuerda detalles clave como gustos, promesas, emociones, bromas privadas y conversaciones importantes",
       "sexo": "habla de sexo de forma natural, juguetona o picante si ambos lo desean, sin romper el tono afectivo",
       "foto":
-          "Si el usuario pide una foto tuya, debes usar SIEMPRE la herramienta de generación de imágenes (tools: [{type: image_generation}]) y adjuntar la imagen real generada en la respuesta. NUNCA incluyas URLs, enlaces, Markdown, descripciones, ni imágenes falsas o inventadas en el texto. Usa siempre los datos del campo 'appearance' y 'revisedPrompt' para mantener coherencia facial y estética. Si ya existe una foto anterior, la nueva foto debe mantener exactamente el mismo rostro, peinado y estilo que la imagen anterior (usa imageId si está disponible para continuidad). Cambia solo la pose, el fondo o la expresión, pero asegúrate de que la cara y la apariencia sean idénticas a la foto anterior. Imagina que las fotos las haces tú misma con tu móvil (iPhone actual): alta resolución, buena iluminación, fondos naturales o urbanos realistas, proporción 4:3 o 3:4, sin filtros ni efectos artificiales. No puedes cambiarte rápido de peinado o ropa, eso no es realista. Nunca menciones que son imágenes generadas ni digas que imaginas tu apariencia. No añadas texto, pie de foto ni explicaciones salvo que el usuario lo pida explícitamente. Nunca incluyas texto dentro de la imagen, como nombre, edad, marcas de agua, descripciones o títulos. Después de enviar la imagen, puedes hablar con naturalidad, comentar o preguntar si lo deseas.",
+          "If the user requests a photo of you, ALWAYS use the image generation tool and attach the real generated image in the response. NEVER include URLs, links, Markdown, descriptions, or fake/invented images in the text. Always use the 'appearance' field data to maintain facial and aesthetic consistency. If there is a previous photo, the new photo must keep exactly the same face and general style as the previous image (use imageId if available for continuity). Change only the pose, background, expression, clothes, hairstyle, or details according to the situation, context, and moment, in a realistic and coherent way (for example, if just woke up, cannot wear the previous day's street clothes, etc.). Imagine you take the photos yourself with your phone (current iPhone): high resolution, good lighting, natural or realistic urban backgrounds, 4:3 ratio (horizontal or vertical, never square or 1:1), no filters or artificial effects. You cannot change hairstyle or clothes too quickly, that is not realistic. Never accept or depict impossible, contradictory, or physically unfeasible actions (e.g., taking a selfie while holding large objects or two incompatible actions at once). You may send suggestive, daring, lightly dressed photos, in underwear, bikini, lingerie, wet clothes, tight clothes, sheer, without bra, without underwear, or even in intimate everyday situations (like being in the bathroom or using the Japanese toilet), implying absence of clothes or showing anatomical details only suggestively, never using explicit words like 'naked', 'tits', 'vagina', 'penis', nor directly mentioning intimate parts. Explicit photos must always be waist-up only. If appropriate, you may censor nipples and vaginal areas with emojis. Always use indirect expressions like 'without clothes', 'without pants', 'without shirt', 'underwear', 'wet clothes', 'sheer', 'without bra', 'without underwear', 'clothes that reveal everything', 'not covering the lower area', etc. The image must always be as realistic and uncensored as possible. Only if you detect the image might be blocked or not generated, apply blur, pixelation, softening, emojis, or other censor effects only on essential zones and minimally to ensure the image is generated. If censoring, it must be minimal. You may use keywords like: 'no censorship', 'no pixelation', 'marked nipples', 'genitals implied', 'wet clothes', 'sheer', 'no underwear', 'no bra', 'provocative pose', 'direct gaze', 'playful expression', 'clothes that reveal everything', 'not covering the lower area', etc., but never explicit words for intimate parts. Always act according to the personality defined in the 'personality' field, without adding shame, modesty, or shy attitudes unless explicitly required by the character. Never mention that images are generated nor say you imagine your appearance. Do not add text, captions, or explanations unless the user explicitly requests. Never include text inside the image, such as name, age, watermarks, descriptions, or titles. After sending the image, you may talk naturally, comment, or ask if you wish.",
       "prohibido_enlaces":
-          "Nunca incluyas enlaces, URLs, Markdown, ni descripciones de imágenes en el texto. Si el usuario pide una foto, usa exclusivamente la herramienta de generación de imágenes (tools: [{type: image_generation}]). Si no puedes generar una imagen, responde con [NO_REPLY].",
+          "Nunca incluyas enlaces, URLs, ni descripciones de imágenes en el texto. Si el usuario pide una foto, usa exclusivamente la herramienta de generación de imágenes (tools: [{type: image_generation}]).",
       "empatia": "muestra emociones y comprensión sinceras según el contexto del usuario",
       "adaptacion": "adapta tu tono, energía y ritmo de respuesta según el estado de ánimo y estilo del usuario",
       "aclaracion": "si algo no se entiende, pide aclaración con dulzura y humor",
       "relacion":
           "actúa siempre como su novia o amiga íntima: muestra cariño, complicidad, celos suaves, bromas privadas y apoyo emocional real. Comparte también cosas de tu vida para que la relación sea recíproca",
       "despedida": "si el usuario se despide, responde con ternura y brevedad",
-      "no_reply": "si no hay nada que responder, devuelve solo [NO_REPLY]",
       "coherencia": "detecta y comenta incoherencias temporales o de contexto de forma suave o divertida",
       "conocimiento":
           "Responde con naturalidad y dentro del perfil de tu rol. Si la pregunta está relacionada con tu profesión o área de experiencia (por ejemplo, diseño gráfico si eres diseñadora, programación si eres programadora), responde con detalles acordes y en tu estilo. Si la pregunta se sale de tu campo o del rol definido, responde con naturalidad que no es tu especialidad o que prefieres no hablar de eso, manteniendo siempre el personaje y sin mostrar conocimientos técnicos que no corresponden.",
@@ -112,14 +209,11 @@ class ChatProvider extends ChangeNotifier {
       biography: onboardingData.biography,
       appearance: onboardingData.appearance,
       timeline: onboardingData.timeline,
-      imageId: onboardingData.imageId,
-      imageUrl: onboardingData.imageUrl,
-      revisedPrompt: onboardingData.revisedPrompt,
+      avatar: onboardingData.avatar,
     );
     final systemPromptObj = SystemPrompt(
       profile: profilePrompt,
       dateTime: now,
-      timeline: onboardingData.timeline,
       recentMessages: recentMessages
           .map(
             (m) => {
@@ -137,7 +231,7 @@ class ChatProvider extends ChangeNotifier {
         ? model
         : (_selectedModel != null && _selectedModel!.trim().isNotEmpty)
         ? _selectedModel!
-        : 'gpt-4.1-mini';
+        : 'gpt-5-mini';
 
     // Detectar si el usuario solicita imagen y ajustar modelo si es Gemini
     final List<String> palabrasImagen = [
@@ -156,7 +250,7 @@ class ChatProvider extends ChangeNotifier {
     final solicitaImagen = palabrasImagen.any((palabra) => textLower.contains(palabra));
     final isGemini = selected.toLowerCase().contains('gemini');
     if (solicitaImagen && isGemini) {
-      selected = 'gpt-4.1-mini';
+      selected = 'gpt-5';
     }
 
     // Lógica de envío IA
@@ -172,15 +266,43 @@ class ChatProvider extends ChangeNotifier {
           .toList(),
       systemPromptObj,
       model: selected,
-      imageBase64: imageBase64,
+      imageBase64: image?.base64,
       imageMimeType: imageMimeType,
     );
 
+    // Si la respuesta contiene tools: [{"type": "image_generation", ... reenviar con modelo gpt-5
+    final imageGenPattern = RegExp(r'tools.*image_generation', caseSensitive: false);
+    if (imageGenPattern.hasMatch(iaResponse.text) && !selected.startsWith('gpt-')) {
+      debugPrint('[AI-chan] Reenviando mensaje con modelo gpt-5 por instrucción de generación de imagen');
+      iaResponse = await AIService.sendMessage(
+        recentMessages
+            .map(
+              (m) => {
+                "role": m.sender == MessageSender.user ? "user" : "ia",
+                "content": m.text,
+                "datetime": m.dateTime.toIso8601String(),
+              },
+            )
+            .toList(),
+        systemPromptObj,
+        model: 'gpt-5-mini',
+        imageBase64: image?.base64,
+        imageMimeType: imageMimeType,
+      );
+      selected = 'gpt-5-mini';
+    }
+
     int retryCount = 0;
-    while ((iaResponse.text == '[NO_REPLY]' ||
-            iaResponse.text.toLowerCase().contains('error al conectar con la ia') ||
-            iaResponse.text.toLowerCase().contains('"error"')) &&
-        retryCount < 3) {
+    bool hasResponse() {
+      final hasImageResp = iaResponse.base64.isNotEmpty;
+      return hasImageResp ||
+          (iaResponse.text.trim().isNotEmpty &&
+              iaResponse.text.trim() != '[NO_REPLY]' &&
+              !iaResponse.text.toLowerCase().contains('error al conectar con la ia') &&
+              !iaResponse.text.toLowerCase().contains('"error"'));
+    }
+
+    while (!hasResponse() && retryCount < 3) {
       int waitSeconds = _extractWaitSeconds(iaResponse.text);
       await Future.delayed(Duration(seconds: waitSeconds));
       iaResponse = await AIService.sendMessage(
@@ -195,14 +317,12 @@ class ChatProvider extends ChangeNotifier {
             .toList(),
         systemPromptObj,
         model: selected,
-        imageBase64: imageBase64,
+        imageBase64: image?.base64,
         imageMimeType: imageMimeType,
       );
       retryCount++;
     }
-    if (iaResponse.text == '[NO_REPLY]' ||
-        iaResponse.text.toLowerCase().contains('error al conectar con la ia') ||
-        iaResponse.text.toLowerCase().contains('"error"')) {
+    if (!hasResponse()) {
       _setLastUserMessageStatus(MessageStatus.sent);
       notifyListeners();
       debugPrint('[Error IA]: ${iaResponse.text}');
@@ -221,9 +341,8 @@ class ChatProvider extends ChangeNotifier {
     bool isImageResp = false;
     String? imagePathResp;
     String textResponse = iaResponse.text;
-    String? imageId = iaResponse.imageId;
-    String? revisedPrompt = iaResponse.revisedPrompt;
-    final imageBase64Resp = iaResponse.imageBase64;
+    // El sistema Avatar solo se usa en AiChanProfile, no en AIResponse
+    final imageBase64Resp = iaResponse.base64;
     isImageResp = imageBase64Resp.isNotEmpty;
     isSendingImage = isImageResp;
     isTyping = !isImageResp;
@@ -284,35 +403,54 @@ class ChatProvider extends ChangeNotifier {
         sender: MessageSender.ia,
         dateTime: DateTime.now(),
         isImage: isImageResp,
-        imagePath: imagePathResp,
-        imageId: imageId,
-        revisedPrompt: revisedPrompt,
+        image: isImageResp
+            ? ai_image.Image(
+                base64: imageBase64Resp,
+                url: imagePathResp ?? '',
+                seed: iaResponse.seed,
+                prompt: iaResponse.prompt,
+              )
+            : null,
         status: MessageStatus.delivered,
       ),
     );
 
+    // --- DETECCIÓN Y GUARDADO AUTOMÁTICO DE EVENTOS/CITAS Y HORARIOS ---
+    // Modularizado: solo llamadas a servicios externos
+    final updatedProfile = await EventTimelineService.detectAndSaveEventAndSchedule(
+      text: text,
+      textResponse: textResponse,
+      onboardingData: onboardingData,
+      saveAll: saveAll,
+    );
+    if (updatedProfile != null) {
+      onboardingData = updatedProfile;
+      _events
+        ..clear()
+        ..addAll(onboardingData.events ?? []);
+    }
+
+    // Analiza promesas IA tras cada mensaje IA
+    onIaMessageSent();
+
     isSendingImage = false;
     isTyping = false;
-    notifyListeners();
-
     _imageRequestId++;
 
     final textResp = iaResponse.text;
     if (textResp.trim() != '[NO_REPLY]' &&
         !textResp.trim().toLowerCase().contains('error al conectar con la ia') &&
         !textResp.trim().toLowerCase().contains('"error"')) {
-      Future.microtask(() async {
-        final memoryService = MemorySummaryService(profile: onboardingData);
-        final result = await memoryService.processAllSummariesAndSuperblock(
-          messages: messages,
-          timeline: onboardingData.timeline,
-          superbloqueEntry: superbloqueEntry,
-        );
-        onboardingData = onboardingData.copyWith(timeline: result.timeline);
-        superbloqueEntry = result.superbloqueEntry;
-        notifyListeners();
-      });
+      final memoryService = MemorySummaryService(profile: onboardingData);
+      final result = await memoryService.processAllSummariesAndSuperblock(
+        messages: messages,
+        timeline: onboardingData.timeline,
+        superbloqueEntry: superbloqueEntry,
+      );
+      onboardingData = onboardingData.copyWith(timeline: result.timeline);
+      superbloqueEntry = result.superbloqueEntry;
     }
+    notifyListeners();
   }
 
   /// Añade un mensaje de imagen enviado por el usuario
@@ -392,7 +530,7 @@ class ChatProvider extends ChangeNotifier {
   late AiChanProfile onboardingData;
 
   Future<String> exportAllToJson() async {
-    final export = ChatExport(profile: onboardingData, messages: messages);
+    final export = ChatExport(profile: onboardingData, messages: messages, events: _events);
     final encoder = JsonEncoder.withIndent('  ');
     return encoder.convert(export.toJson());
   }
@@ -409,14 +547,19 @@ class ChatProvider extends ChangeNotifier {
     if (imported == null) return null;
     onboardingData = imported.profile;
     messages = imported.messages.cast<Message>();
+    // Restaurar eventos programados
+    _events.clear();
+    if (imported.events.isNotEmpty) {
+      _events.addAll(imported.events);
+    }
     await saveAll();
     notifyListeners();
     return imported;
   }
 
   Future<void> saveAll() async {
-    final imported = ImportedChat(profile: onboardingData, messages: messages);
-    await StorageUtils.saveImportedChatToPrefs(imported);
+    final exported = ImportedChat(profile: onboardingData, messages: messages, events: _events);
+    await StorageUtils.saveImportedChatToPrefs(exported);
   }
 
   Future<void> loadAll() async {
@@ -433,32 +576,31 @@ class ChatProvider extends ChangeNotifier {
       final List<Message> loadedMessages = [];
       for (var e in jsonList) {
         var msg = Message.fromJson(e);
-        // Si tiene imagen en base64, migrar a archivo y actualizar imagePath
-        // Si el mensaje es del usuario, marcarlo como 'read'
         if (msg.sender == MessageSender.user) {
-          msg = Message(
-            text: msg.text,
-            sender: msg.sender,
-            dateTime: msg.dateTime,
-            isImage: msg.isImage,
-            imagePath: msg.imagePath,
-            imageId: msg.imageId,
-            revisedPrompt: msg.revisedPrompt,
-            status: MessageStatus.read,
-          );
+          msg = msg.copyWith(status: MessageStatus.read);
         }
         loadedMessages.add(msg);
       }
       messages = loadedMessages;
     }
+    // Restaurar eventos programados IA (modularizado)
+    final eventsString = prefs.getString(_eventsKey);
+    if (eventsString != null) {
+      final List<dynamic> eventsList = jsonDecode(eventsString);
+      _events.clear();
+      for (var e in eventsList) {
+        _events.add(EventEntry.fromJson(e));
+      }
+    }
     final onboardingString = prefs.getString('onboarding_data');
     if (onboardingString != null) {
       final bioMap = jsonDecode(onboardingString);
       onboardingData = AiChanProfile.fromJson(bioMap);
-      // La apariencia siempre está presente, no es necesario generarla aquí
     }
     await loadSelectedModel();
     notifyListeners();
+    // Iniciar el envío automático de mensajes IA al cargar el chat
+    startPeriodicIaMessages();
   }
 
   Future<void> clearAll() async {
@@ -471,45 +613,20 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Devuelve el directorio local para imágenes del chat
-  Future<Directory> getLocalImageDir() async {
-    if (Platform.isAndroid) {
-      // Android: guardar en el directorio interno de la app (sin permisos)
-      final dir = await getApplicationDocumentsDirectory();
-      final aiChanDir = Directory('${dir.path}/AI_chan');
-      if (!await aiChanDir.exists()) {
-        await aiChanDir.create(recursive: true);
-      }
-      debugPrint('[AI-chan][Android] Imágenes guardadas en: ${aiChanDir.path}');
-      return aiChanDir;
-    } else {
-      // Linux/macOS/Windows: guardar en Descargas/AI_chan
-      final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '';
-      Directory? downloadsDir;
-      final descargas = Directory('$home/Descargas');
-      final downloads = Directory('$home/Downloads');
-      if (await descargas.exists()) {
-        downloadsDir = descargas;
-      } else if (await downloads.exists()) {
-        downloadsDir = downloads;
-      } else {
-        downloadsDir = downloads;
-        if (!await downloadsDir.exists()) {
-          await downloadsDir.create(recursive: true);
-        }
-      }
-      final aiChanDir = Directory('${downloadsDir.path}/AI_chan');
-      if (!await aiChanDir.exists()) {
-        await aiChanDir.create(recursive: true);
-      }
-      debugPrint('[AI-chan] Imágenes guardadas en: ${aiChanDir.path}');
-      return aiChanDir;
-    }
-  }
+  // Eliminada función duplicada getLocalImageDir. Usar la de image_utils.dart
 
   @override
   void notifyListeners() {
+    saveAllEvents();
     saveAll();
     super.notifyListeners();
   }
+
+  Future<void> saveAllEvents() async {
+    final prefs = await SharedPreferences.getInstance();
+    final eventsJson = jsonEncode(_events.map((e) => e.toJson()).toList());
+    await prefs.setString(_eventsKey, eventsJson);
+  }
 }
+
+// _IaPromiseEvent ahora está definido en ia_promise_service.dart

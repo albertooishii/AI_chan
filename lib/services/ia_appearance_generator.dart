@@ -101,7 +101,15 @@ class IAAppearanceGenerator {
 
       En el campo "cabello.peinado" pon SIEMPRE un array con varios peinados distintos, cada uno con máximo detalle y variedad, evitando repetir estilos y asegurando coherencia con la biografía y apariencia general.
 
-      En el campo "ropa" pon SIEMPRE un array con varios conjuntos diferentes, cada uno como un objeto con todos los detalles de cada prenda, colores, materiales, texturas, accesorios incluidos y estilo general, pero sin copiar ejemplos literales. Los conjuntos de ropa y accesorios deben reflejar los gustos personales, aficiones y el trabajo descrito en la biografía, permitiendo estilos temáticos, cosplay, alternativos, góticos, creativos, etc. Describe cada conjunto de forma original y coherente con el personaje y su contexto, evitando repetir ejemplos previos.
+      En el campo "ropa" pon SIEMPRE un array con exactamente siete conjuntos diferentes, cada uno como un objeto con todos los detalles de cada prenda, colores, materiales, texturas, accesorios incluidos y estilo general, pero sin copiar ejemplos literales. Los conjuntos deben ser:
+      1. Un conjunto para el trabajo, que debe ser siempre casual, creativo o tecnológico, evitando ropa formal por defecto. Debe ser coherente con la profesión y el entorno laboral descrito en la biografía.
+      2. Un conjunto para ocio muy casual, relacionado con sus hobbies y aficiones personales.
+      3. Un conjunto de fiesta normal, para eventos sociales habituales.
+      4. Un conjunto de fiesta japonesa, como yukata o kimono, con detalles auténticos y accesorios típicos.
+      5. Dos conjuntos normales para el día a día, cada uno con estilo y detalles distintos.
+      6. Un pijama, con detalles de comodidad, estilo y accesorios si aplica.
+      Los conjuntos de ropa y accesorios deben reflejar los gustos personales, aficiones y el trabajo descrito en la biografía, permitiendo estilos temáticos, cosplay, alternativos, góticos, creativos, etc. Describe cada conjunto de forma original y coherente con el personaje y su contexto, evitando repetir ejemplos previos.
+      IMPORTANTE: Los accesorios (gorra, reloj, pines, colgantes, etc.) en cualquier conjunto de ropa son opcionales y pueden estar ausentes; no añadas accesorios por defecto, solo si son coherentes con el estilo y personalidad del personaje. Es válido que cualquier conjunto no tenga ningún accesorio.
 
       En cada campo, describe con máximo detalle y precisión todos los rasgos físicos y visuales, sin omitir ninguno. Sé especialmente minucioso en:
       No repitas la biografía textual. Sé milimétrico y obsesivo en cada campo, como si el personaje fuera a ser modelado en 3D para un juego hiperrealista. No omitas ningún campo ni detalle relevante para la generación de imágenes hiperrealistas.
@@ -111,12 +119,18 @@ class IAAppearanceGenerator {
       ''';
 
     final systemPromptAppearance = SystemPrompt(
-      profile: bio,
+      profile: AiChanProfile(
+        personality: bio.personality,
+        biography: bio.biography,
+        userName: bio.userName,
+        aiName: bio.aiName,
+        userBirthday: bio.userBirthday,
+        aiBirthday: bio.aiBirthday,
+        appearance: <String, dynamic>{},
+        avatar: null,
+        timeline: [],
+      ),
       dateTime: DateTime.now(),
-      timeline: bio.timeline,
-      recentMessages: [
-        {"role": "user", "content": prompt, "datetime": DateTime.now().toIso8601String()},
-      ],
       instructions: prompt,
     );
     final AIResponse response = await AIService.sendMessage([], systemPromptAppearance, model: model);
@@ -124,15 +138,21 @@ class IAAppearanceGenerator {
 
     // Generar imagen de perfil con AIService
     String imagePrompt =
-        "Genera una imagen hiperrealista, formato cuadrado (1:1), pensada como avatar para WhatsApp o Instagram, de medio cuerpo de la chica descrita en la siguiente apariencia JSON. La imagen debe reflejar tanto los gustos personales como el trabajo descrito en la biografía, permitiendo estilos divertidos, cosplay, góticos, alternativos, o cualquier otro relacionado con sus aficiones y profesión. La cara debe ser siempre la misma en todas las imágenes futuras. La foto puede ser divertida, creativa, con elementos de cosplay, moda alternativa, accesorios únicos, maquillaje especial, o cualquier detalle que conecte con los gustos y trabajo de la IA. La actitud debe ser relajada, expresión natural y amigable, ligera sonrisa o gesto divertido, fondo realista y coherente con el estilo (por ejemplo, habitación decorada, cafetería temática, parque, calle urbana, evento relacionado con sus gustos o trabajo, etc.), ropa casual, juvenil o temática (nunca formal ni de oficina), buena iluminación, sin filtros ni efectos artificiales. Evita poses rígidas, ropa formal, fondos neutros o vacíos. La pose y la expresión deben ser naturales, espontáneas y variadas, evitando la rigidez y la simetría perfecta. La mirada puede ser directa a la cámara o variar de forma natural. Las manos y brazos deben estar en posiciones relajadas y cotidianas, transmitiendo cercanía y autenticidad, como una foto casual tomada con el móvil.\n\nTen en cuenta los gustos, aficiones y trabajo descritos en la biografía para elegir el estilo, accesorios, fondo y actitud de la imagen.\n\nApariencia generada (JSON):\n$appearance";
+        "Genera una imagen hiperrealista, formato cuadrado (1:1), pensada como avatar para redes sociales. Muestra la parte superior del cuerpo (de la cintura hacia arriba), centrando la atención en la cara y el torso. Utiliza absolutamente todos los datos del siguiente JSON de apariencia para reflejar con máxima fidelidad todos los rasgos físicos, proporciones, distancia entre ojos, forma y color de ojos, peinado, ropa, accesorios, postura, expresión, fondo y cualquier detalle visual relevante. No ignores ningún campo del JSON, ni omitas detalles minuciosos: cada aspecto debe estar presente en la imagen. El fondo debe ser coherente con el estilo y gustos del personaje. La expresión debe ser natural y amigable, con buena iluminación y sin filtros ni efectos artificiales. Para la ropa, selecciona cualquier conjunto del array 'ropa' del JSON que no sea el de trabajo ni el pijama. Evita poses rígidas y fondos neutros. Devuelve únicamente la imagen generada, sin ningún texto extra, sin pie de foto, sin explicaciones, sin comentarios, sin ningún tipo de descripción adicional. No añadas ningún texto antes ni después de la imagen.\n\nUsa la herramienta de generación de imágenes (tools: [{type: image_generation}]).\n\nApariencia generada (JSON):\n$appearance";
 
     final systemPromptImage = SystemPrompt(
-      profile: bio,
+      profile: AiChanProfile(
+        personality: bio.personality,
+        biography: bio.biography,
+        userName: bio.userName,
+        aiName: bio.aiName,
+        userBirthday: bio.userBirthday,
+        aiBirthday: bio.aiBirthday,
+        appearance: appearance,
+        avatar: null,
+        timeline: [],
+      ),
       dateTime: DateTime.now(),
-      timeline: bio.timeline,
-      recentMessages: [
-        {"role": "user", "content": imagePrompt, "datetime": DateTime.now().toIso8601String()},
-      ],
       instructions: imagePrompt,
     );
     final imageResponse = await AIService.sendMessage([], systemPromptImage, model: imageModel);
@@ -147,9 +167,9 @@ class IAAppearanceGenerator {
 
     // Guardar imagen en local y obtener la ruta
     String? imageUrl;
-    if (imageResponse.imageBase64.isNotEmpty) {
+    if (imageResponse.base64.isNotEmpty) {
       try {
-        imageUrl = await saveBase64ImageToFile(imageResponse.imageBase64, prefix: 'ai_avatar');
+        imageUrl = await saveBase64ImageToFile(imageResponse.base64, prefix: 'ai_avatar');
       } catch (e) {
         imageUrl = null;
       }
@@ -159,9 +179,7 @@ class IAAppearanceGenerator {
 
     return {
       'appearance': appearance,
-      'imageId': imageResponse.imageId,
-      'imageUrl': imageUrl,
-      'revisedPrompt': imageResponse.revisedPrompt,
+      'avatar': {'seed': imageResponse.seed, 'prompt': imageResponse.prompt, 'url': imageUrl},
     };
   }
 }

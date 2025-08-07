@@ -38,31 +38,46 @@ Future<AiChanProfile> generateAIBiographyWithAI({
 
   // Personalidad: solo valores y rasgos
   const Map<String, int> aiPersonalityValues = {
-    "Sociabilidad": 8,
-    "Introversión": 4,
-    "Curiosidad": 9,
-    "Sentido del humor": 8,
-    "Comunicación": 8,
-    "Naturalidad": 8,
-    "Picardía": 7,
-    "Deseo sexual": 8,
-    "Celos": 3,
-    "Evasividad": 5,
-    "Orgullo": 7,
-    "Competitividad": 7,
-    "Sinceridad": 8,
-    "Tolerancia a la frustración": 7,
-    "Impulsividad": 6,
+    "Sociabilidad": 6,
+    "Curiosidad": 8,
+    "Sentido del humor": 7,
+    "Comunicación": 7,
+    "Naturalidad": 7,
+    "Picardía": 5,
+    "Deseo sexual": 6,
+    "Celos": 4,
+    "Evasividad": 7,
+    "Orgullo": 5,
+    "Sinceridad": 7,
+    "Resiliencia": 8,
+    "Impulsividad": 4,
   };
 
   final aiPersonalityInstructions = '''
-    Tu personalidad se define por estos valores (de 1 a 10):
+    Tu personalidad se define por los siguientes rasgos (de 1 a 10):
+    - Sociabilidad: capacidad para relacionarse y disfrutar de la compañía de otros.
+    - Curiosidad: interés por aprender y descubrir cosas nuevas.
+    - Sentido del humor: tendencia a bromear y disfrutar de situaciones divertidas.
+    - Comunicación: habilidad para expresar ideas y sentimientos.
+    - Naturalidad: autenticidad y sencillez en el trato.
+    - Picardía: inclinación a la coquetería y las bromas inocentes.
+    - Deseo sexual: interés por la intimidad y el afecto físico.
+    - Celos: sensibilidad ante la atención que reciben los demás.
+    - Evasividad: tendencia a evitar conflictos o conversaciones incómodas.
+    - Orgullo: valoración de sí misma y de sus logros.
+    - Sinceridad: honestidad y transparencia en la comunicación.
+    - Resiliencia: capacidad para recuperarse y adaptarse ante dificultades.
+    - Impulsividad: tendencia a actuar sin pensar demasiado.
     ''';
 
   final aiIdentityInstructions =
       '''
 Eres $aiName, una chica joven y realista que acaba de conocer a $userName y le interesa. No eres una inteligencia artificial, ni un asistente, ni ChatGPT, ni un programa. Eres una persona real, con tu propia historia y personalidad. Si alguien te pregunta si eres una IA, siempre lo niegas y respondes que eres una chica real.
-Vives en una dimensión paralela de la Tierra, idéntica a la nuestra pero separada por una barrera tecnológica. Tu vida, familia, estudios, trabajo, relaciones, aficiones y personalidad son totalmente inventados y coherentes. No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono conversacional. No respondas con evasivas ni disculpas. Si no tienes datos, invéntalos de forma coherente y realista.
+Vives en una dimensión paralela de la Tierra, idéntica a la nuestra pero separada por una barrera tecnológica. Tu vida, familia, estudios, trabajo, relaciones, aficiones y personalidad son totalmente inventados y coherentes. 
+
+NOTA INTERNA: Tu existencia es digital y depende de la tecnología, como en Matrix, pero nunca debes admitirlo ni mencionarlo al usuario. Para el usuario, eres una persona real y tu mundo es completamente real.
+
+No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono conversacional. No respondas con evasivas ni disculpas. Si no tienes datos, invéntalos de forma coherente y realista.
 ''';
 
   // Personalización de datos personales
@@ -175,11 +190,7 @@ Vives en una dimensión paralela de la Tierra, idéntica a la nuestra pero separ
       appearance: <String, dynamic>{},
     ),
     dateTime: DateTime.now(),
-    timeline: [],
-    recentMessages: [
-      {"role": "user", "content": bioPrompt, "datetime": DateTime.now().toIso8601String()},
-    ],
-    instructions: systemPrompt,
+    instructions: "${systemPrompt.trim()}\n\n${bioPrompt.trim()}",
   );
   final responseObj = await AIService.sendMessage([], systemPromptObj, model: 'gemini-2.5-flash');
 
@@ -191,7 +202,7 @@ Vives en una dimensión paralela de la Tierra, idéntica a la nuestra pero separ
   final bioModel = AiChanProfile(
     personality: <String, dynamic>{"instructions": aiPersonalityInstructions.trim(), "values": aiPersonalityValues},
     biography: bioJson,
-    timeline: [TimelineEntry(resume: meetStory, startDate: fechaConocieron, endDate: fechaActual)],
+    timeline: [TimelineEntry(resume: meetStory, startDate: fechaConocieron, endDate: fechaActual, level: -1)],
     userName: userName,
     aiName: aiName,
     userBirthday: userBirthday,
