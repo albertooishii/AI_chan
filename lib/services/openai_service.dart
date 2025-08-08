@@ -172,9 +172,9 @@ class OpenAIService implements AIService {
       "input": input,
       "tools": [
         {"type": "image_generation"},
-        /*{"type": "web_search_preview"},*/
+        {"type": "web_search_preview"},
       ],
-      /*"text": {"verbosity": "low"},*/
+      "text": {"verbosity": "low"},
     });
 
     final response = await http.post(url, headers: headers, body: body);
@@ -182,7 +182,7 @@ class OpenAIService implements AIService {
       final data = jsonDecode(response.body);
 
       // Guardar la respuesta REAL de la API en un archivo JSON de log solo en escritorio
-      if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      /*if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
         try {
           final respJson = {
             'api_response': data,
@@ -201,7 +201,7 @@ class OpenAIService implements AIService {
         } catch (e) {
           debugPrint('[OpenAIService.sendMessageImpl] Error al guardar JSON de respuesta: $e');
         }
-      }
+      }*/
       String text = '';
       String imageBase64 = '';
       String imageId = '';
