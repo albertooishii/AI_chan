@@ -11,6 +11,7 @@ import 'providers/onboarding_provider.dart';
 import 'providers/chat_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 // Clave global para navegación
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -83,6 +84,16 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     Future.microtask(() async {
+      // Solicitar permisos de almacenamiento externo en Android
+      // Solo si la plataforma es Android
+      try {
+        if (Theme.of(context).platform == TargetPlatform.android) {
+          await Future.delayed(Duration(milliseconds: 500)); // Espera a que el contexto esté listo
+          await Permission.storage.request();
+        }
+      } catch (e) {
+        debugPrint('[AI-chan] Error solicitando permisos de almacenamiento: $e');
+      }
       setState(() {
         _initialized = true;
       });

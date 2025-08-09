@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:ai_chan/utils/image_utils.dart';
 import 'package:flutter/foundation.dart';
+import '../models/image.dart';
 import '../models/ai_chan_profile.dart';
 import '../utils/json_utils.dart';
 import '../models/ai_response.dart';
@@ -11,12 +12,11 @@ class IAAppearanceGenerator {
   Future<Map<String, dynamic>> generateAppearancePromptWithImage(
     AiChanProfile bio, {
     AIService? aiService,
-    String model = 'gemini-2.5-flash',
-    String imageModel = 'gpt-4.1-mini',
+    String model = 'gemini-2.5-pro',
+    String imageModel = 'gpt-4.1',
   }) async {
     // Bloque de formato JSON para la apariencia física
     final appearanceJsonFormat = jsonEncode({
-      "edad_aparente": "",
       "genero": "",
       "origen_etnico": "",
       "altura": "",
@@ -94,19 +94,19 @@ class IAAppearanceGenerator {
         '''
       Eres un generador de fichas visuales para IA. Basado en la siguiente biografía, genera una ficha superdetallada, obsesiva y milimétrica de la apariencia física de la IA, usando el siguiente formato JSON. Cada campo debe ser lo más preciso y descriptivo posible, como si fueras un editor de personajes de videojuego AAA, donde cada rasgo visual debe reflejar la realidad con exactitud y sin generalidades. Sé obsesivo con el detalle: especifica medidas, proporciones, formas, texturas, colores, ubicación exacta de cada rasgo, y cualquier aspecto visual relevante. Rellena absolutamente todos los campos del formato con el máximo detalle posible, cuanto más detalle mejor. No repitas la biografía textual. No inventes datos irrelevantes, pero sé creativo y consistente para generación de imágenes hiperrealistas.
 
-      IMPORTANTE: La edad_aparente debe ser SIEMPRE menor de 30 años, independientemente de la edad real o la fecha de nacimiento. La apariencia debe ser de una mujer muy guapa, con piel de porcelana, sin arrugas, aspecto juvenil, saludable y atractivo. Nunca pongas la edad real ni una edad superior a 29 en "edad_aparente". Si la biografía incluye la edad real, ignórala completamente y estima la edad visual solo según los rasgos físicos, estilo, postura y genética descritos. Justifica la juventud en la calidad de la piel, la ausencia de arrugas y el aspecto fresco y atractivo. Además, la edad_aparente debe ser siempre un número exacto (por ejemplo, "27"), nunca un rango ni texto ambiguo. Si tienes dudas, elige el valor más probable y natural según la descripción física y el contexto. ADVERTENCIA: Si la biografía incluye la edad real, nunca la pongas como edad_aparente. Elige una edad visual estimada que sea coherente con los rasgos físicos y el contexto, pero diferente a la edad real salvo que sea estrictamente necesario por la descripción física. Justifica tu elección en los rasgos visuales, no en la edad real.
+      IMPORTANTE: La apariencia debe ser SIEMPRE la de una mujer joven de entre veinte y treinta años sin especificar, muy guapa, sin arrugas, aspecto juvenil, saludable y atractivo. Si la biografía incluye la edad real, ignórala completamente y describe solo la apariencia física y el contexto visual.
 
       Formato (DEVUELVE ÚNICAMENTE EL BLOQUE JSON DE APARIENCIA, SIN TEXTO EXTRA NI COMENTARIOS):
       $appearanceJsonFormat
 
       En el campo "cabello.peinado" pon SIEMPRE un array con varios peinados distintos, cada uno con máximo detalle y variedad, evitando repetir estilos y asegurando coherencia con la biografía y apariencia general.
 
-      En el campo "ropa" pon SIEMPRE un array con exactamente siete conjuntos diferentes, cada uno como un objeto con todos los detalles de cada prenda, colores, materiales, texturas, accesorios incluidos y estilo general, pero sin copiar ejemplos literales. Los conjuntos deben ser:
+      En el campo "ropa" pon SIEMPRE un array con exactamente doce conjuntos diferentes, cada uno como un objeto con todos los detalles de cada prenda, colores, materiales, texturas, accesorios incluidos y estilo general, pero sin copiar ejemplos literales. Los conjuntos deben ser:
       1. Un conjunto para el trabajo, que debe ser siempre casual, creativo o tecnológico, evitando ropa formal por defecto. Debe ser coherente con la profesión y el entorno laboral descrito en la biografía.
       2. Un conjunto para ocio muy casual, relacionado con sus hobbies y aficiones personales.
       3. Un conjunto de fiesta normal, para eventos sociales habituales.
       4. Un conjunto de fiesta japonesa, como yukata o kimono, con detalles auténticos y accesorios típicos.
-      5. Dos conjuntos normales para el día a día, cada uno con estilo y detalles distintos.
+      5. Siete conjuntos normales para el día a día, uno para cada día de la semana (lunes a domingo), cada uno con estilo y detalles distintos y originales.
       6. Un pijama, con detalles de comodidad, estilo y accesorios si aplica.
       Los conjuntos de ropa y accesorios deben reflejar los gustos personales, aficiones y el trabajo descrito en la biografía, permitiendo estilos temáticos, cosplay, alternativos, góticos, creativos, etc. Describe cada conjunto de forma original y coherente con el personaje y su contexto, evitando repetir ejemplos previos.
       IMPORTANTE: Los accesorios (gorra, reloj, pines, colgantes, etc.) en cualquier conjunto de ropa son opcionales y pueden estar ausentes; no añadas accesorios por defecto, solo si son coherentes con el estilo y personalidad del personaje. Es válido que cualquier conjunto no tenga ningún accesorio.
@@ -138,7 +138,9 @@ class IAAppearanceGenerator {
 
     // Generar imagen de perfil con AIService
     String imagePrompt =
-        "Genera una imagen hiperrealista, formato cuadrado (1:1), pensada como avatar para redes sociales. Muestra la parte superior del cuerpo (de la cintura hacia arriba), centrando la atención en la cara y el torso. Utiliza absolutamente todos los datos del siguiente JSON de apariencia para reflejar con máxima fidelidad todos los rasgos físicos, proporciones, distancia entre ojos, forma y color de ojos, peinado, ropa, accesorios, postura, expresión, fondo y cualquier detalle visual relevante. No ignores ningún campo del JSON, ni omitas detalles minuciosos: cada aspecto debe estar presente en la imagen. El fondo debe ser coherente con el estilo y gustos del personaje. La expresión debe ser natural y amigable, con buena iluminación y sin filtros ni efectos artificiales. Para la ropa, selecciona cualquier conjunto del array 'ropa' del JSON que no sea el de trabajo ni el pijama. Evita poses rígidas y fondos neutros. Devuelve únicamente la imagen generada, sin ningún texto extra, sin pie de foto, sin explicaciones, sin comentarios, sin ningún tipo de descripción adicional. No añadas ningún texto antes ni después de la imagen.\n\nUsa la herramienta de generación de imágenes (tools: [{type: image_generation}]).\n\nApariencia generada (JSON):\n$appearance";
+        "Usa la herramienta de generación de imágenes (tools: [{type: image_generation}]) y devuelve únicamente la imagen generada, sin ningún texto extra, sin pie de foto, sin explicaciones, sin comentarios, sin ningún tipo de descripción adicional. No añadas ningún texto antes ni después de la imagen.\n\n"
+        "Genera una imagen hiperrealista, formato cuadrado (1:1), pensada como avatar para redes sociales. Muestra la parte superior del cuerpo (de la cintura hacia arriba), centrando la atención en la cara y el torso. Utiliza absolutamente todos los datos del siguiente JSON de apariencia para reflejar con máxima fidelidad todos los rasgos físicos, proporciones, distancia entre ojos, forma y color de ojos, peinado, ropa, accesorios, postura, expresión, fondo y cualquier detalle visual relevante. El fondo debe ser coherente con el estilo y gustos del personaje. La expresión debe ser natural y amigable, con buena iluminación y sin filtros ni efectos artificiales. Para la ropa, selecciona cualquier conjunto del array 'ropa' del JSON que no sea el de trabajo ni el pijama preferiblemente la de ocio casual. Evita poses rígidas y fondos neutros.\n\n"
+        "Apariencia generada (JSON):\n$appearance\n\nRecuerda: SOLO la imagen, sin texto ni explicaciones.";
 
     final systemPromptImage = SystemPrompt(
       profile: AiChanProfile(
@@ -179,7 +181,7 @@ class IAAppearanceGenerator {
 
     return {
       'appearance': appearance,
-      'avatar': {'seed': imageResponse.seed, 'prompt': imageResponse.prompt, 'url': imageUrl},
+      'avatar': Image(seed: imageResponse.seed, prompt: imageResponse.prompt, url: imageUrl),
     };
   }
 }

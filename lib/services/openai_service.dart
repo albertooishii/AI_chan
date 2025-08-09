@@ -106,10 +106,49 @@ class OpenAIService implements AIService {
       final List models = data['data'] ?? [];
       // Filtrar solo modelos gpt-*
       final gptModels = models.where((m) => m['id'] != null && m['id'].toString().startsWith('gpt-')).toList();
-      // Ordenar por fecha de creación (más nuevo primero)
-      gptModels.sort((a, b) => (b['created'] as int).compareTo(a['created'] as int));
-      // Retornar solo los id
-      return gptModels.map<String>((m) => m['id'].toString()).toList();
+      // Agrupar por versión y tipo base (ej. gpt-5, gpt-5-mini, gpt-4.1, gpt-4.1-mini, etc.)
+      final groupMap = <String, List<String>>{};
+      final noVersion = <String>[];
+      final groupRegex = RegExp(r'^(gpt-(\d+(?:\.\d+)?)(?:-(mini|nano|chat|o|realtime|latest))?)');
+      for (final m in gptModels) {
+        final id = m['id'].toString();
+        final match = groupRegex.firstMatch(id);
+        if (match != null && match.group(2) != null) {
+          final type = match.group(3) ?? '';
+          final key = type.isNotEmpty ? 'gpt-${match.group(2)}-$type' : 'gpt-${match.group(2)}';
+          groupMap.putIfAbsent(key, () => []);
+          groupMap[key]!.add(id);
+        } else {
+          noVersion.add(id);
+        }
+      }
+      // Ordena los grupos por versión descendente y tipo base alfabéticamente
+      final ordered = <String>[];
+      final sortedKeys = groupMap.keys.toList()
+        ..sort((a, b) {
+          final vA = double.tryParse(RegExp(r'gpt-(\d+(?:\.\d+)?)').firstMatch(a)?.group(1) ?? '0') ?? 0.0;
+          final vB = double.tryParse(RegExp(r'gpt-(\d+(?:\.\d+)?)').firstMatch(b)?.group(1) ?? '0') ?? 0.0;
+          if (vA != vB) return vB.compareTo(vA);
+          return a.compareTo(b);
+        });
+      for (final key in sortedKeys) {
+        final models = groupMap[key]!;
+        // El modelo base primero, luego variantes alfabéticamente
+        models.sort((a, b) {
+          if (a == key) return -1;
+          if (b == key) return 1;
+          return a.compareTo(b);
+        });
+        ordered.addAll(models);
+      }
+      // Al final los que no tienen versión, ordenados alfabéticamente
+      noVersion.sort();
+      ordered.addAll(noVersion);
+      debugPrint('Listado de modelos GPT ordenados:');
+      for (final model in ordered) {
+        debugPrint(model);
+      }
+      return ordered;
     } else {
       throw Exception('Error al obtener modelos: ${response.body}');
     }
@@ -152,14 +191,21 @@ class OpenAIService implements AIService {
       {"type": "input_text", "text": allText.toString()},
     ];
     if (imageBase64 != null && imageBase64.isNotEmpty) {
-      userContent.add({"type": "input_image", "image_url": "data:${imageMimeType ?? 'image/png'};base64,$imageBase64"});
+      userContent.add({
+        "type": "input_image",
+        "image_url": "data:${imageMimeType ?? 'image/png'};base64,$imageBase64",
+        "detail": "high",
+      });
     }
     final avatar = systemPrompt.profile.avatar;
+    // El bloque 'role: user' siempre primero
+    input.add({"role": "user", "content": userContent});
+    // Luego image_generation_call si existe
     if (avatar != null && avatar.seed != null && avatar.seed!.isNotEmpty) {
-      input.add({"type": "image_generation_call", "id": avatar.seed});
+      final imageGenCall = {"type": "image_generation_call", "id": avatar.seed};
+      input.add(imageGenCall);
       debugPrint('[OpenAIService.sendMessage] Usando imageId: ${avatar.seed}');
     }
-    input.add({"role": "user", "content": userContent});
     int tokens = estimateTokens(history, systemPrompt);
     if (tokens > 128000) {
       return AIResponse(
@@ -168,13 +214,12 @@ class OpenAIService implements AIService {
       );
     }
     final body = jsonEncode({
-      "model": model ?? "gpt-5-mini",
+      "model": model ?? "gpt-5-nano",
       "input": input,
       "tools": [
         {"type": "image_generation"},
-        {"type": "web_search_preview"},
+        /*{"type": "web_search_preview"},*/
       ],
-      "text": {"verbosity": "low"},
     });
 
     final response = await http.post(url, headers: headers, body: body);
@@ -186,7 +231,7 @@ class OpenAIService implements AIService {
         try {
           final respJson = {
             'api_response': data,
-            'model': model ?? "gpt-5-mini",
+            'model': model ?? "gpt-5-nano",
             'timestamp': DateTime.now().toIso8601String(),
           };
           final directory = Directory('debug_json_logs');
@@ -209,7 +254,8 @@ class OpenAIService implements AIService {
       final output = data['output'] ?? data['data'];
       if (output is List && output.isNotEmpty) {
         // Recorrer todos los bloques y extraer según type con if/else if para mayor legibilidad
-        for (final item in output) {
+        for (int i = 0; i < output.length; i++) {
+          final item = output[i];
           final type = item['type'];
           if (type == 'image_generation_call') {
             if (item['result'] != null && imageBase64.isEmpty) imageBase64 = item['result'];

@@ -17,18 +17,54 @@ class GeminiService implements AIService {
     final response = await http.get(url);
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      final models = <String>[];
+      final versionGroups = <String, List<String>>{};
+      final noVersion = <String>[];
+      final versionRegex = RegExp(r'^gemini-(\d+\.\d+)-(\w+)');
       if (data['models'] != null) {
         for (final m in data['models']) {
           if (m['name'] != null) {
-            // El nombre viene como 'models/gemini-2.5-pro', extrae solo el id
             final name = m['name'].toString();
             final id = name.replaceFirst('models/', '');
-            models.add(id);
+            if (id.startsWith('gemini-')) {
+              final match = versionRegex.firstMatch(id);
+              if (match != null) {
+                final base = match.group(2) ?? '';
+                final key = 'gemini-${match.group(1)}-$base';
+                versionGroups.putIfAbsent(key, () => []);
+                versionGroups[key]!.add(id);
+              } else {
+                noVersion.add(id);
+              }
+            }
           }
         }
       }
-      return models;
+      // Ordena los grupos con versión por versión descendente
+      final ordered = <String>[];
+      final sortedVersionKeys = versionGroups.keys.toList()
+        ..sort((a, b) {
+          final vA = double.tryParse(RegExp(r'gemini-(\d+\.\d+)').firstMatch(a)?.group(1) ?? '0') ?? 0.0;
+          final vB = double.tryParse(RegExp(r'gemini-(\d+\.\d+)').firstMatch(b)?.group(1) ?? '0') ?? 0.0;
+          return vB.compareTo(vA);
+        });
+      for (final key in sortedVersionKeys) {
+        final models = versionGroups[key]!;
+        // El modelo base primero, luego variantes alfabéticamente
+        models.sort((a, b) {
+          if (a == key) return -1;
+          if (b == key) return 1;
+          return a.compareTo(b);
+        });
+        ordered.addAll(models);
+      }
+      // Al final los que no tienen versión, ordenados alfabéticamente
+      noVersion.sort();
+      ordered.addAll(noVersion);
+      print('Listado de modelos Gemini ordenados:');
+      for (final model in ordered) {
+        print(model);
+      }
+      return ordered;
     } else {
       // Si falla, retorna la lista estática como fallback
       return ['gemini-2.5-pro', 'gemini-2.5-flash'];

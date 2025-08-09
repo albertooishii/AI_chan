@@ -31,6 +31,16 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  Directory? _imageDir;
+
+  @override
+  void initState() {
+    super.initState();
+    getLocalImageDir().then((dir) {
+      if (mounted) setState(() => _imageDir = dir);
+    });
+  }
+
   Future<void> _showImportDialog(ChatProvider chatProvider) async {
     if (!mounted) return;
     final (jsonStr, error) = await chat_json_utils.ChatJsonUtils.importJsonFile();
@@ -229,21 +239,13 @@ class _ChatScreenState extends State<ChatScreen> {
             if (chatProvider.onboardingData.avatar != null &&
                 chatProvider.onboardingData.avatar!.url != null &&
                 chatProvider.onboardingData.avatar!.url!.isNotEmpty)
-              FutureBuilder<Directory>(
-                future: getLocalImageDir(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
-                    // Siempre usar solo el nombre de archivo, sin ruta
-                    final avatarFilename = chatProvider.onboardingData.avatar!.url!.split('/').last;
-                    final absPath = '${snapshot.data!.path}/$avatarFilename';
-                    return GestureDetector(
+              (_imageDir != null)
+                  ? GestureDetector(
                       onTap: () {
-                        // Solo mostrar el avatar en el visor, sin navegar a otras imágenes
                         final avatarFilename = chatProvider.onboardingData.avatar!.url!.split('/').last;
                         final avatarMessage = Message(
                           image: ai_image.Image(
                             url: avatarFilename,
-                            base64: chatProvider.onboardingData.avatar?.base64,
                             seed: chatProvider.onboardingData.avatar?.seed,
                             prompt: chatProvider.onboardingData.avatar?.prompt,
                           ),
@@ -252,22 +254,21 @@ class _ChatScreenState extends State<ChatScreen> {
                           isImage: true,
                           dateTime: DateTime.now(),
                         );
-                        ExpandableImageDialog.show(context, [avatarMessage], 0);
+                        ExpandableImageDialog.show(context, [avatarMessage], 0, imageDir: _imageDir);
                       },
                       child: CircleAvatar(
                         radius: 16,
                         backgroundColor: AppColors.secondary,
-                        backgroundImage: FileImage(File(absPath)),
+                        backgroundImage: FileImage(
+                          File('${_imageDir!.path}/${chatProvider.onboardingData.avatar!.url!.split('/').last}'),
+                        ),
                       ),
-                    );
-                  }
-                  return const CircleAvatar(
-                    radius: 16,
-                    backgroundColor: AppColors.secondary,
-                    child: Icon(Icons.person, color: AppColors.primary),
-                  );
-                },
-              ),
+                    )
+                  : const CircleAvatar(
+                      radius: 16,
+                      backgroundColor: AppColors.secondary,
+                      child: Icon(Icons.person, color: AppColors.primary),
+                    ),
             const SizedBox(width: 12),
             Flexible(
               child: Text(
@@ -314,7 +315,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                     Builder(
                       builder: (context) {
-                        final defaultModel = 'gpt-4.1-mini';
+                        final defaultModel = 'gpt-5-nano';
                         final selected = chatProvider.selectedModel ?? defaultModel;
                         return Padding(
                           padding: const EdgeInsets.only(left: 8.0),
@@ -468,7 +469,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 setState(() => _loadingModels = false);
                 if (!mounted) return;
                 final current = chatProvider.selectedModel;
-                final defaultModel = 'gpt-4.1-mini';
+                final defaultModel = 'gpt-5-nano';
                 final initialModel =
                     current ??
                     (models.contains(defaultModel) ? defaultModel : (models.isNotEmpty ? models.first : null));
@@ -494,13 +495,11 @@ class _ChatScreenState extends State<ChatScreen> {
                       .toList();
                   final reversedMessages = filteredMessages.reversed.toList();
                   final message = reversedMessages[index];
-                  // Solo el último mensaje del usuario (más reciente) debe tener isLastUserMessage = true
                   bool isLastUserMessage = false;
                   if (message.sender == MessageSender.user) {
-                    // Busca el primer mensaje user en la lista invertida (el más reciente)
                     isLastUserMessage = !reversedMessages.skip(index + 1).any((m) => m.sender == MessageSender.user);
                   }
-                  return ChatBubble(message: message, isLastUserMessage: isLastUserMessage);
+                  return ChatBubble(message: message, isLastUserMessage: isLastUserMessage, imageDir: _imageDir);
                 },
               ),
             ),

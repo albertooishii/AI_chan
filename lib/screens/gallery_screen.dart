@@ -43,7 +43,7 @@ class GalleryScreen extends StatelessWidget {
                     final file = File(absPath);
                     return GestureDetector(
                       onTap: () {
-                        ExpandableImageDialog.show(context, existingImages, index);
+                        ExpandableImageDialog.show(context, existingImages, index, imageDir: absDir);
                       },
                       child: Image.file(file, fit: BoxFit.cover),
                     );

@@ -1,5 +1,5 @@
 import 'dart:io';
-import '../utils/image_utils.dart';
+// import eliminado: '../utils/image_utils.dart';
 import 'package:flutter/material.dart';
 // import 'package:flutter/services.dart';
 import '../models/message.dart';
@@ -9,11 +9,11 @@ import '../utils/download_image.dart';
 class ExpandableImageDialog {
   /// images: lista de mensajes con imagePath válido
   /// initialIndex: índice de la imagen a mostrar primero
-  static void show(BuildContext context, List<Message> images, int initialIndex) {
+  static void show(BuildContext context, List<Message> images, int initialIndex, {Directory? imageDir}) {
     showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (context) => _GalleryImageViewerDialog(images: images, initialIndex: initialIndex),
+      builder: (context) => _GalleryImageViewerDialog(images: images, initialIndex: initialIndex, imageDir: imageDir),
     );
   }
 }
@@ -21,7 +21,8 @@ class ExpandableImageDialog {
 class _GalleryImageViewerDialog extends StatefulWidget {
   final List<Message> images;
   final int initialIndex;
-  const _GalleryImageViewerDialog({required this.images, required this.initialIndex});
+  final Directory? imageDir;
+  const _GalleryImageViewerDialog({required this.images, required this.initialIndex, this.imageDir});
 
   @override
   State<_GalleryImageViewerDialog> createState() => _GalleryImageViewerDialogState();
@@ -110,47 +111,41 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                     itemBuilder: (context, idx) {
                       final msg = widget.images[idx];
                       final relPath = msg.image?.url;
-                      return FutureBuilder<Directory>(
-                        future: getLocalImageDir(),
-                        builder: (context, snapshot) {
-                          if (!snapshot.hasData || relPath == null || relPath.isEmpty) {
-                            return Center(
-                              child: Container(
-                                color: Colors.grey[900],
-                                width: 200,
-                                height: 200,
-                                child: const Icon(Icons.broken_image, color: Colors.grey, size: 80),
+                      if (widget.imageDir == null || relPath == null || relPath.isEmpty) {
+                        return Center(
+                          child: Container(
+                            color: Colors.grey[900],
+                            width: 200,
+                            height: 200,
+                            child: const Icon(Icons.broken_image, color: Colors.grey, size: 80),
+                          ),
+                        );
+                      }
+                      final absPath = '${widget.imageDir!.path}/${relPath.split('/').last}';
+                      final file = File(absPath);
+                      final exists = file.existsSync();
+                      if (exists) {
+                        return Center(
+                          child: GestureDetector(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(18),
+                              child: Stack(
+                                children: [
+                                  InteractiveViewer(child: Image.file(file, fit: BoxFit.contain)),
+                                  // ...resto de la imagen y descarga...
+                                ],
                               ),
-                            );
-                          }
-                          final absPath = '${snapshot.data!.path}/${relPath.split('/').last}';
-                          final file = File(absPath);
-                          final exists = file.existsSync();
-                          if (exists) {
-                            return Center(
-                              child: GestureDetector(
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(18),
-                                  child: Stack(
-                                    children: [
-                                      InteractiveViewer(child: Image.file(file, fit: BoxFit.contain)),
-                                      // ...resto de la imagen y descarga...
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          } else {
-                            return Center(
-                              child: Container(
-                                color: Colors.grey[900],
-                                width: 200,
-                                height: 200,
-                                child: const Icon(Icons.broken_image, color: Colors.grey, size: 80),
-                              ),
-                            );
-                          }
-                        },
+                            ),
+                          ),
+                        );
+                      }
+                      return Center(
+                        child: Container(
+                          color: Colors.grey[900],
+                          width: 200,
+                          height: 200,
+                          child: const Icon(Icons.broken_image, color: Colors.grey, size: 80),
+                        ),
                       );
                     },
                   ),

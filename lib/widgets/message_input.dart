@@ -9,7 +9,6 @@ import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import '../constants/app_colors.dart';
 import '../providers/chat_provider.dart';
 import '../models/image.dart' as ai_image;
-import '../utils/image_utils.dart';
 
 class MessageInput extends StatefulWidget {
   final void Function(String text)? onSend;
@@ -155,17 +154,15 @@ class _MessageInputState extends State<MessageInput> {
     final chatProvider = context.read<ChatProvider>();
     ai_image.Image? imageToSend;
     if (hasImage) {
-      final bytes = base64Decode(_attachedImageBase64!);
-      final dir = await getLocalImageDir();
       final ext = _attachedImageMime == 'image/jpeg'
           ? 'jpg'
           : _attachedImageMime == 'image/webp'
           ? 'webp'
           : 'png';
       final fileName = 'img_user_${DateTime.now().millisecondsSinceEpoch}.$ext';
-      final filePath = '${dir.path}/$fileName';
-      final file = await File(filePath).writeAsBytes(bytes);
-      imageToSend = ai_image.Image(url: file.path, base64: _attachedImageBase64!);
+
+      // Solo el nombre del archivo en el campo url
+      imageToSend = ai_image.Image(url: fileName, base64: _attachedImageBase64!);
     }
     if (mounted) {
       setState(() {

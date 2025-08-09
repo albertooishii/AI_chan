@@ -21,7 +21,7 @@ Future<AiChanProfile> generateFullBiographyFlexible({
     bio,
     aiService: null,
     model: 'gemini-2.5-flash',
-    imageModel: 'gpt-4.1-mini',
+    imageModel: 'gpt-5-nano',
   );
   final biography = AiChanProfile(
     personality: bio.personality,
