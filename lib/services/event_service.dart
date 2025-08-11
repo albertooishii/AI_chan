@@ -116,7 +116,9 @@ class EventTimelineService {
     final sleepWords = r'sueño|dormir|duermo|duerma|duermes|duerme|duermen|dormido|dormida|dormidas|dormidos|sleep';
     final workWords = r'trabajo|work';
     final busyWords =
-        r'ocupada|ocupación|busy|gimnasio|gym|compras|estudiar|clase|reunión|reunion|cita|viaje|deporte|actividad|evento|tarea|proyecto';
+        r'ocupada|ocupación|busy|gimnasio|gym|compras|reunión|reunion|cita|viaje|deporte|actividad|evento|tarea|proyecto';
+    final studyWords =
+        r'estudio|estudiar|clase|universidad|escuela|facultad|tutoría|tutoria|asignatura|examen|prácticas|practicas';
     final preguntaSleep = text.contains(RegExp(sleepWords, caseSensitive: false));
     final respuestaSleep = textResponse.contains(RegExp(sleepWords, caseSensitive: false));
     final respuestaWork = textResponse.contains(RegExp(workWords, caseSensitive: false));
@@ -129,6 +131,8 @@ class EventTimelineService {
         tipoHorario = 'sleep';
       } else if (respuestaWork) {
         tipoHorario = 'work';
+      } else if (textResponse.contains(RegExp(studyWords, caseSensitive: false))) {
+        tipoHorario = 'study';
       } else if (respuestaBusy) {
         tipoHorario = 'busy';
       } else {
@@ -136,6 +140,8 @@ class EventTimelineService {
           tipoHorario = 'sleep';
         } else if (text.contains(RegExp(workWords, caseSensitive: false))) {
           tipoHorario = 'work';
+        } else if (text.contains(RegExp(studyWords, caseSensitive: false))) {
+          tipoHorario = 'study';
         } else if (text.contains(RegExp(busyWords, caseSensitive: false))) {
           tipoHorario = 'busy';
         }
@@ -165,15 +171,35 @@ class EventTimelineService {
           'to': '${toHourInt.toString().padLeft(2, '0')}:${toMin.padLeft(2, '0')}',
           'days': diasMatch != null ? (diasMatch.group(0)?.replaceAll(RegExp(r'\s+'), ' ').trim() ?? '') : '',
         };
-        final horarioMapWithType = Map<String, String>.from(horarioMap);
-        horarioMapWithType['type'] = tipoHorario;
-        final updatedSchedules = onboardingData.schedules != null
-            ? List<Map<String, String>>.from(onboardingData.schedules)
-            : <Map<String, String>>[];
-        updatedSchedules.add(horarioMapWithType);
-        onboardingData = onboardingData.copyWith(schedules: updatedSchedules);
-        await saveAll();
-        debugPrint('[HORARIO IA] Guardado en perfil: $tipoHorario=$horarioMapWithType');
+        // Guardar en biography según el tipo
+        try {
+          final Map<String, dynamic> bio = Map<String, dynamic>.from(onboardingData.biography);
+          final dias = horarioMap['days'] ?? '';
+          final entry = {
+            'from': horarioMap['from'] ?? '',
+            'to': horarioMap['to'] ?? '',
+            if (dias.isNotEmpty) 'dias': dias,
+          };
+          if (tipoHorario == 'sleep') {
+            bio['horario_dormir'] = entry;
+          } else if (tipoHorario == 'work') {
+            // Por defecto guardar como horario_trabajo; (estudio se detectará aparte si aplica)
+            bio['horario_trabajo'] = entry;
+          } else if (tipoHorario == 'study') {
+            bio['horario_estudio'] = entry;
+          } else if (tipoHorario == 'busy') {
+            final List<dynamic> acts = (bio['horarios_actividades'] is List)
+                ? List<dynamic>.from(bio['horarios_actividades'])
+                : <dynamic>[];
+            acts.add(entry);
+            bio['horarios_actividades'] = acts;
+          }
+          onboardingData = onboardingData.copyWith(biography: bio);
+          await saveAll();
+          debugPrint('[HORARIO IA] Guardado en biography: $tipoHorario=$entry');
+        } catch (e) {
+          debugPrint('[HORARIO IA] Error guardando en biography: $e');
+        }
       }
     }
     return onboardingData;

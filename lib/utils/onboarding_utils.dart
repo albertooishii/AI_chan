@@ -10,12 +10,16 @@ Future<AiChanProfile> generateFullBiographyFlexible({
   required DateTime userBirthday,
   required String meetStory,
   required IAAppearanceGenerator appearanceGenerator,
+  String? userCountryCode,
+  String? aiCountryCode,
 }) async {
   final bio = await generateAIBiographyWithAI(
     userName: userName,
     aiName: aiName,
     userBirthday: userBirthday,
     meetStory: meetStory,
+    userCountryCode: userCountryCode,
+    aiCountryCode: aiCountryCode,
   );
   final appearanceResult = await appearanceGenerator.generateAppearancePromptWithImage(
     bio,
@@ -23,6 +27,8 @@ Future<AiChanProfile> generateFullBiographyFlexible({
     model: 'gemini-2.5-flash',
     imageModel: 'gpt-5-mini',
   );
+  // Extraer avatar: el generador devuelve 'avatar' como Image
+  final Image? avatar = appearanceResult['avatar'] as Image?;
   final biography = AiChanProfile(
     personality: bio.personality,
     biography: bio.biography,
@@ -31,11 +37,9 @@ Future<AiChanProfile> generateFullBiographyFlexible({
     userBirthday: bio.userBirthday,
     aiBirthday: bio.aiBirthday,
     appearance: appearanceResult['appearance'] as Map<String, dynamic>? ?? <String, dynamic>{},
-    avatar: Image(
-      seed: appearanceResult['imageId'] as String?,
-      url: appearanceResult['imageUrl'] as String?,
-      prompt: appearanceResult['revisedPrompt'] as String?,
-    ),
+    userCountryCode: userCountryCode ?? bio.userCountryCode,
+    aiCountryCode: aiCountryCode ?? bio.aiCountryCode,
+    avatar: avatar,
     timeline: bio.timeline, // timeline SIEMPRE al final
   );
   return biography;

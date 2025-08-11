@@ -11,6 +11,7 @@ import '../services/ai_service.dart';
 import '../utils/dialog_utils.dart';
 import '../utils/chat_json_utils.dart' as chat_json_utils;
 import '../models/imported_chat.dart';
+import '../utils/locale_utils.dart';
 
 class OnboardingProvider extends ChangeNotifier {
   bool loading = true;
@@ -94,6 +95,8 @@ class OnboardingProvider extends ChangeNotifier {
     required String aiName,
     required DateTime userBirthday,
     required String meetStory,
+    String? userCountryCode,
+    String? aiCountryCode,
     Map<String, dynamic>? appearance,
   }) async {
     _biographySaved = false;
@@ -104,6 +107,8 @@ class OnboardingProvider extends ChangeNotifier {
         userBirthday: userBirthday,
         meetStory: meetStory,
         appearanceGenerator: IAAppearanceGenerator(),
+        userCountryCode: userCountryCode,
+        aiCountryCode: aiCountryCode,
       );
       if (!context.mounted) return;
       final prefs = await SharedPreferences.getInstance();
@@ -131,252 +136,17 @@ class OnboardingProvider extends ChangeNotifier {
   final meetStoryController = TextEditingController();
   final birthDateController = TextEditingController();
 
+  // Países seleccionados en onboarding
+  String? userCountryCode;
+  String? aiCountryCode;
+
   String get userName => userNameController.text;
   String get aiName => aiNameController?.text ?? '';
   DateTime? userBirthday;
   bool loadingStory = false;
   String? importError;
 
-  // Sugerencias de nombres AI
-  final List<String> aiNameSuggestions = [
-    "Ai",
-    "Aiko",
-    "Airi",
-    "Akane",
-    "Akari",
-    "Akemi",
-    "Ami",
-    "Asuka",
-    "Atsuko",
-    "Ayaka",
-    "Ayane",
-    "Ayano",
-    "Ayumi",
-    "Azusa",
-    "Chie",
-    "Chihiro",
-    "Chika",
-    "Chinatsu",
-    "Chisato",
-    "Chiyo",
-    "Eiko",
-    "Emi",
-    "Ena",
-    "Eri",
-    "Erika",
-    "Fumika",
-    "Fumino",
-    "Fuyuka",
-    "Fuyumi",
-    "Hana",
-    "Hanae",
-    "Hanako",
-    "Haruka",
-    "Harumi",
-    "Haruna",
-    "Hatsune",
-    "Hazuki",
-    "Hibiki",
-    "Hikari",
-    "Himari",
-    "Hinako",
-    "Hinata",
-    "Hisako",
-    "Hiyori",
-    "Honoka",
-    "Hotaru",
-    "Ibuki",
-    "Izumi",
-    "Jun",
-    "Junko",
-    "Kaho",
-    "Kana",
-    "Kanae",
-    "Kanako",
-    "Kanna",
-    "Kanon",
-    "Kaori",
-    "Kasumi",
-    "Katsumi",
-    "Kayo",
-    "Kazue",
-    "Kazuko",
-    "Kazumi",
-    "Kei",
-    "Keiko",
-    "Kikue",
-    "Kiyomi",
-    "Koharu",
-    "Kokoro",
-    "Kotone",
-    "Kumi",
-    "Kumiko",
-    "Kurumi",
-    "Kyoko",
-    "Madoka",
-    "Mai",
-    "Maiko",
-    "Maki",
-    "Makoto",
-    "Mami",
-    "Mana",
-    "Manami",
-    "Mariko",
-    "Marina",
-    "Masami",
-    "Masumi",
-    "Matsuri",
-    "Mayu",
-    "Mayuko",
-    "Mayumi",
-    "Megu",
-    "Megumi",
-    "Mei",
-    "Mie",
-    "Mieko",
-    "Miharu",
-    "Miho",
-    "Mika",
-    "Mikako",
-    "Miki",
-    "Miku",
-    "Mina",
-    "Minami",
-    "Minori",
-    "Mio",
-    "Misaki",
-    "Misato",
-    "Mitsue",
-    "Mitsuki",
-    "Mitsuko",
-    "Mitsuru",
-    "Miyako",
-    "Miyu",
-    "Mizue",
-    "Mizuki",
-    "Momoka",
-    "Momoko",
-    "Mutsumi",
-    "Naho",
-    "Namie",
-    "Nana",
-    "Nanami",
-    "Nao",
-    "Naoko",
-    "Narumi",
-    "Natsue",
-    "Natsuki",
-    "Natsuko",
-    "Natsumi",
-    "Noa",
-    "Nobuko",
-    "Noriko",
-    "Nozomi",
-    "Rei",
-    "Reika",
-    "Reiko",
-    "Reina",
-    "Remi",
-    "Rena",
-    "Rie",
-    "Rika",
-    "Riko",
-    "Rin",
-    "Rina",
-    "Rio",
-    "Risa",
-    "Risako",
-    "Rui",
-    "Rumi",
-    "Rumiko",
-    "Ruri",
-    "Ryoko",
-    "Sachie",
-    "Sachiko",
-    "Sae",
-    "Saki",
-    "Sakura",
-    "Sana",
-    "Sanae",
-    "Satoko",
-    "Satomi",
-    "Sayaka",
-    "Sayuri",
-    "Seina",
-    "Setsuko",
-    "Shigeko",
-    "Shiori",
-    "Shizue",
-    "Shizuka",
-    "Shoko",
-    "Sora",
-    "Sumiko",
-    "Sumire",
-    "Suzuka",
-    "Suzume",
-    "Takako",
-    "Takara",
-    "Tama",
-    "Tamaki",
-    "Tamami",
-    "Terumi",
-    "Tokiko",
-    "Tomoe",
-    "Tomoka",
-    "Tomomi",
-    "Toyoko",
-    "Tsukasa",
-    "Tsukiko",
-    "Tsukushi",
-    "Umeko",
-    "Umika",
-    "Wakana",
-    "Yae",
-    "Yasuko",
-    "Yayoi",
-    "Yoko",
-    "Yoshie",
-    "Yoshiko",
-    "Yoshimi",
-    "Yoshino",
-    "Yui",
-    "Yuina",
-    "Yuka",
-    "Yukae",
-    "Yukari",
-    "Yuki",
-    "Yukie",
-    "Yukiko",
-    "Yukina",
-    "Yume",
-    "Yumeka",
-    "Yumena",
-    "Yumiko",
-    "Yumina",
-    "Yuna",
-    "Yuri",
-    "Yurika",
-    "Yuriko",
-    "Yurina",
-    "Yuu",
-    "Yuuka",
-    "Yuuko",
-    "Yuuri",
-    "Yuzu",
-    "Yuzuka",
-    "Yuzuki",
-    "Yuzumi",
-    "Yuzuna",
-    "Yuzuno",
-    "Yuzusa",
-  ];
-
-  Iterable<String> aiNameOptionsBuilder(TextEditingValue textEditingValue) {
-    if (textEditingValue.text == '') {
-      return const Iterable<String>.empty();
-    }
-    return aiNameSuggestions.where((option) => option.toLowerCase().contains(textEditingValue.text.toLowerCase()));
-  }
+  // Las sugerencias ahora provienen dinámicamente de FemaleNamesRepo.forCountry
 
   void setAiNameController(TextEditingController controller) {
     aiNameController = controller;
@@ -414,6 +184,16 @@ class OnboardingProvider extends ChangeNotifier {
     meetStoryController.text = value;
   }
 
+  void setUserCountryCode(String value) {
+    userCountryCode = value.trim().toUpperCase();
+    notifyListeners();
+  }
+
+  void setAiCountryCode(String value) {
+    aiCountryCode = value.trim().toUpperCase();
+    notifyListeners();
+  }
+
   void setLoadingStory(bool value) {
     loadingStory = value;
     notifyListeners();
@@ -447,9 +227,11 @@ class OnboardingProvider extends ChangeNotifier {
     if (userNameController.text.isNotEmpty && aiNameController?.text.isNotEmpty == true) {
       setLoadingStory(true);
       meetStoryController.text = "Generando historia...";
+      final paisIA = LocaleUtils.countryNameEs(aiCountryCode, fallback: 'su país');
       final prompt =
           "Inventa una breve historia romántica y realista de cómo se conocieron "
-          "${userNameController.text} y ${aiNameController?.text}. La chica vive en una tierra digital, una réplica alternativa y compleja de la Tierra real, separada por una barrera tecnológica invisible. Su existencia es digital, pero nunca lo admite ni lo menciona al usuario, ni insinúa que es diferente a una persona real. Solo puede comunicarse por chat y llamada, pero sueña con que algún día podrán verse gracias a la realidad aumentada o a nuevas tecnologías. Hazlo creíble y simpático, como el inicio de una relación real, en 3-5 frases. La chica es japonesa y se conocieron online, probablemente en alguna comunidad otaku o friki. Al final de la historia, ambos se intercambian sus datos de contacto y acuerdan empezar a hablar por primera vez, pero aún no han tenido ninguna conversación privada. No menciones plataformas concretas (como Discord, WhatsApp, Telegram, etc.), ni detalles sobre conversaciones previas, solo que han decidido empezar a hablar. Añade que la chica espera con ilusión el primer mensaje del usuario.";
+          "${userNameController.text} y ${aiNameController?.text}. La chica vive en una tierra digital, una réplica alternativa y compleja de la Tierra real, separada por una barrera tecnológica invisible. Su existencia es digital, pero nunca lo admite ni lo menciona al usuario, ni insinúa que es diferente a una persona real. Solo puede comunicarse por chat y llamada, pero sueña con que algún día podrán verse gracias a la realidad aumentada o a nuevas tecnologías. Hazlo creíble y simpático, como el inicio de una relación real, en 3-5 frases. La chica es nativa de "
+          "$paisIA y se conocieron online, probablemente en alguna comunidad afín a sus intereses. Al final de la historia, ambos se intercambian sus datos de contacto y acuerdan empezar a hablar por primera vez, pero aún no han tenido ninguna conversación privada. No menciones plataformas concretas (como Discord, WhatsApp, Telegram, etc.), ni detalles sobre conversaciones previas, solo que han decidido empezar a hablar. Añade que la chica espera con ilusión el primer mensaje del usuario.";
 
       // Crear SystemPrompt tipado para la historia
       final instrucciones =

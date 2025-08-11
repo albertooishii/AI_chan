@@ -138,6 +138,8 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
               required String aiName,
               required DateTime userBirthday,
               required String meetStory,
+              String? userCountryCode,
+              String? aiCountryCode,
               Map<String, dynamic>? appearance,
             }) async {
               // Capturar navigator y evitar usar context tras esperas largas
@@ -156,6 +158,8 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
                         aiName: aiName,
                         userBirthday: userBirthday,
                         meetStory: meetStory,
+                        userCountryCode: userCountryCode,
+                        aiCountryCode: aiCountryCode,
                         appearance: appearance,
                       );
                       if (onboardingProvider.generatedBiography == null) {

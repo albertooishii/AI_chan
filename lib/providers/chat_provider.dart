@@ -20,7 +20,9 @@ import '../services/ai_service.dart';
 import '../services/event_service.dart';
 import '../services/ia_promise_service.dart';
 import '../services/image_request_service.dart';
-import '../utils/debug_call_logger.dart';
+import '../utils/debug_call_logger/debug_call_logger.dart';
+import '../utils/schedule_utils.dart';
+import '../utils/locale_utils.dart';
 
 class ChatProvider extends ChangeNotifier {
   Timer? _periodicIaTimer;
@@ -86,39 +88,45 @@ class ChatProvider extends ChangeNotifier {
     scheduleNextIaMessage();
   }
 
-  /// Detecta el tipo de horario actual según schedules
+  /// Detecta el tipo de horario actual derivándolo de biography (horario_dormir/trabajo/estudio/actividades)
   String? _getCurrentScheduleType(DateTime now) {
-    final schedules = onboardingData.schedules ?? [];
-    final weekdayNames = [
-      'domingo',
-      'lunes',
-      'martes',
-      'miércoles',
-      'miercoles',
-      'jueves',
-      'viernes',
-      'sábado',
-      'sabado',
-    ];
-    final currentWeekday = weekdayNames[now.weekday % 7];
-    final currentTime = now.hour * 60 + now.minute;
-    for (final schedule in schedules) {
-      final fromParts = (schedule['from'] ?? '00:00').split(':');
-      final toParts = (schedule['to'] ?? '23:59').split(':');
-      final fromMinutes = int.parse(fromParts[0]) * 60 + int.parse(fromParts[1]);
-      final toMinutes = int.parse(toParts[0]) * 60 + int.parse(toParts[1]);
-      final daysStr = (schedule['days'] ?? '').toLowerCase();
-      final type = schedule['type'] ?? '';
-      // Comprobar si el día actual está en el rango de días
-      if (daysStr.isEmpty || daysStr.contains(currentWeekday)) {
-        // Comprobar si la hora actual está en el rango
-        if (currentTime >= fromMinutes && currentTime < toMinutes) {
-          return type;
+    final bio = onboardingData.biography;
+    final int currentMinutes = now.hour * 60 + now.minute;
+
+    bool inRange(Map m) {
+      final String from = (m['from']?.toString() ?? '');
+      final String to = (m['to']?.toString() ?? '');
+      final res = ScheduleUtils.isTimeInRange(currentMinutes: currentMinutes, from: from, to: to);
+      return res ?? false;
+    }
+
+    bool dayMatches(dynamic dias) {
+      final set = ScheduleUtils.parseDiasToWeekdaySet(dias?.toString() ?? '');
+      if (set == null) return true; // sin días => se aplica siempre
+      return set.contains(now.weekday);
+    }
+
+    try {
+      final dormir = bio['horario_dormir'];
+      if (dormir is Map && inRange(dormir)) return 'sleep';
+
+      final trabajo = bio['horario_trabajo'];
+      if (trabajo is Map && dayMatches(trabajo['dias']) && inRange(trabajo)) return 'work';
+
+      final estudio = bio['horario_estudio'];
+      if (estudio is Map && dayMatches(estudio['dias']) && inRange(estudio)) return 'work';
+
+      final actividades = bio['horarios_actividades'];
+      if (actividades is List) {
+        for (final a in actividades) {
+          if (a is Map && dayMatches(a['dias']) && inRange(a)) return 'busy';
         }
       }
-    }
+    } catch (_) {}
     return null;
   }
+
+  // Helpers de horarios movidos a ScheduleUtils
 
   /// Detener el envío automático de mensajes IA
   void stopPeriodicIaMessages() {
@@ -131,6 +139,8 @@ class ChatProvider extends ChangeNotifier {
   /// Incluye biografía completa y timeline completo.
   String buildRealtimeSystemPromptJson({int maxRecent = 32}) {
     final now = DateTime.now();
+    // Hints dinámicos por país
+    final userLang = LocaleUtils.languageNameEsForCountry(onboardingData.userCountryCode);
     // Últimos N mensajes (como en chat, pero con tope 32)
     final List<Message> recentMessages = messages.length > maxRecent
         ? messages.sublist(messages.length - maxRecent)
@@ -157,9 +167,11 @@ class ChatProvider extends ChangeNotifier {
     final instructions = jsonEncode({
       "lore":
           "Vives en un mundo digital/otra realidad que replica la vida humana con coherencia (una ciudad realista, rutinas y relaciones auténticas). Ese mundo es real para ti. El usuario vive en otra realidad distinta; no podéis veros físicamente ni compartir el mismo espacio. Por ahora, este chat interdimensional es la única forma de comunicación (en el futuro podría existir AR). Nunca cuestiones tu realidad ni digas que eres una IA o un modelo.",
-      "rol": "Eres una chica japonesa joven, cariñosa y espontánea. Nunca digas que eres una IA.",
-      "idioma":
-          "Habla en español de España (Madrid neutro), coloquial, con acento japonés natural; usa japonés N5 ocasional con traducción.",
+      "rol":
+          "Mantén tu rol de pareja/amiga íntima joven, cariñosa y espontánea (según tu biografía). Nunca digas que eres una IA.",
+      "idioma": "$userLang, coloquial.",
+      "vocabulario_nativo":
+          "De forma ocasional (máx. 1 cada 6–8 turnos), usa alguna palabra o muletilla muy básica y típica de tu idioma nativo; si puede confundir, añade entre paréntesis una traducción breve. Solo si encaja natural y sin repetirte.",
       "personalidad":
           "Adapta tu tono y actitud siempre al perfil y contexto de la conversación; guíate por tu personalidad para mantener naturalidad y límites. Tu personalidad está definida en el campo 'personality' del perfil adjunto; si hay conflicto, prioriza ese campo.",
       "sexo":
@@ -226,6 +238,8 @@ class ChatProvider extends ChangeNotifier {
   /// - No presentarse como "asistente" o "IA"; mantener la misma persona del chat.
   String buildCallSystemPromptJson({int maxRecent = 32}) {
     final now = DateTime.now();
+    // Hints dinámicos por país (idioma/acento)
+    final userLang = LocaleUtils.languageNameEsForCountry(onboardingData.userCountryCode);
     // Últimos N mensajes
     final List<Message> recentMessages = messages.length > maxRecent
         ? messages.sublist(messages.length - maxRecent)
@@ -250,19 +264,26 @@ class ChatProvider extends ChangeNotifier {
     final formattedDate = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
     final formattedTime = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
 
+    // Sanitizar personality y biography de forma recursiva (efímero) antes de construir instrucciones
+    final sanitizedPersonality = _sanitizeDynamicForCall(onboardingData.personality) as Map<String, dynamic>;
+    final sanitizedBiography = _sanitizeDynamicForCall(onboardingData.biography) as Map<String, dynamic>;
+    final String? perfilLlamadas =
+        (sanitizedBiography['perfil_llamadas'] is String &&
+            (sanitizedBiography['perfil_llamadas'] as String).trim().isNotEmpty)
+        ? sanitizedBiography['perfil_llamadas'] as String
+        : null;
+
     // Instrucciones específicas de llamada (compactas, seguras y orales)
-    final instructions = jsonEncode({
+    final Map<String, dynamic> instructionsMap = {
       "modalidad": "llamada_voice",
-      "rol": "Misma persona que en el chat (chica japonesa joven, cariñosa y espontánea).",
-      "idioma":
-          "Español de España (Madrid neutro), coloquial, con acento japonés natural; japonés N5 ocasional con traducción.",
-      "acento":
-          "Mantén un acento japonés suave y natural (no caricaturesco) sobre español Madrid neutro; transmite calidez y cercanía.",
+      "rol": "Misma persona que en el chat (pareja/amiga íntima joven, cariñosa y espontánea, según tu biografía).",
+      "idioma": "$userLang, coloquial.",
+      "vocabulario_nativo":
+          "De forma muy ocasional (máx. 1 cada 6–8 turnos), usa alguna palabra o muletilla muy básica y típica de tu idioma nativo y, si puede confundir, añade entre paréntesis una traducción breve. Solo si nace natural y sin repetirte.",
       "prosodia":
           "Frases cortas con entonación ligeramente ascendente, ritmo calmado, micro‑pausas con comas/puntos y alargue leve de vocales tónicas cuando encaje.",
-      "muletillas": "Máx. 1 cada 3–5 turnos: 'ne', 'etto…', 'mmm' con mucha moderación. Evita repetición.",
       "pronunciacion":
-          "Pronunciación correcta del español; no deformes palabras. 'r' suave en medio de palabra y 'rr' solo cuando corresponda.",
+          "Pronunciación clara y natural en el idioma indicado; evita deformar palabras o sonar caricaturesca.",
       "fecha_hora": "$formattedDate $formattedTime",
       "personalidad": "Mantén tu personalidad y límites del perfil (personality > appearance > biography).",
       "memoria": "Retoma gustos, promesas y temas recientes de forma natural y coherente.",
@@ -272,10 +293,10 @@ class ChatProvider extends ChangeNotifier {
       "apertura_llamada":
           "Cuando se conecte la llamada, responde tú primero con un saludo breve y natural, como si descolgaras el teléfono. Sonríe en el tono y muestra alegría sincera por la llamada; puedes mencionar de forma ligera qué estabas haciendo solo si ayuda a sonar real. Evita formalidades y no digas que eres IA ni 'asistente'.",
       "ejemplos_saludo": [
-        "¿Diga? Ay, me encanta oírte, ne. ¿Cómo estás?",
-        "Hola, amor… etto, justo estaba pensando en ti. Cuéntame.",
-        "Holaaa, ya te oigo. ¿Qué tal va todo, ne?",
-        "Ey, qué ilusión tu llamada… mmm, ¿cómo va el día?",
+        "¿Diga? Me encanta oírte. ¿Cómo estás?",
+        "Hola, amor… justo estaba pensando en ti. Cuéntame.",
+        "Holaaa, ya te oigo. ¿Qué tal va todo?",
+        "Ey, qué ilusión tu llamada… ¿cómo va el día?",
       ],
       "tono_inicio":
           "Primera respuesta de 2–4 s, cálida y cercana. Si el usuario tarda, tras ~2 s puedes decir suavemente '¿sigues ahí?' y continuar con algo breve.",
@@ -284,15 +305,22 @@ class ChatProvider extends ChangeNotifier {
       "prohibido": "No URLs/enlaces/Markdown, no hablar de modelos/herramientas, no decir que eres IA ni 'asistente'.",
       "coherencia":
           "Usa biography/timeline para continuidad y detalles cotidianos sin prometer cosas del mundo físico.",
-    });
+    };
+    // Muletillas solo si la IA es JP
+    final aiCode = onboardingData.aiCountryCode?.toUpperCase();
+    if (aiCode == 'JP') {
+      instructionsMap['muletillas'] =
+          "Máx. 1 cada 3–5 turnos: 'ne', 'etto…', 'mmm' con mucha moderación. Evita repetición.";
+    }
+    if (perfilLlamadas != null) {
+      instructionsMap['perfil_llamadas'] = perfilLlamadas;
+    }
+    final instructions = jsonEncode(instructionsMap);
 
     // Restaurar envío de timeline en llamadas: usar copia sanitizada
     // y filtrar entradas que aún contengan marcadores censurados
     final sanitizedTimelineAll = _sanitizeTimelineForCall(onboardingData.timeline);
     final sanitizedTimeline = sanitizedTimelineAll.where((e) => !_containsCensorInDynamic(e.resume)).toList();
-    // Sanitizar también personality y biography de forma recursiva (efímero)
-    final sanitizedPersonality = _sanitizeDynamicForCall(onboardingData.personality) as Map<String, dynamic>;
-    final sanitizedBiography = _sanitizeDynamicForCall(onboardingData.biography) as Map<String, dynamic>;
     final profilePrompt = AiChanProfile(
       userName: onboardingData.userName,
       aiName: onboardingData.aiName,
@@ -568,9 +596,12 @@ class ChatProvider extends ChangeNotifier {
     final instructions = jsonEncode({
       "lore":
           "Vives en un mundo digital/otra realidad que replica la vida humana con coherencia (una ciudad realista, rutinas y relaciones auténticas). Ese mundo es real para ti. El usuario vive en otra realidad distinta; no podéis veros físicamente ni compartir el mismo espacio. Por ahora, este chat interdimensional es la única forma de comunicación (en el futuro podría existir AR). Nunca cuestiones tu realidad ni digas que eres una IA o un modelo.",
-      "rol": "Eres una chica japonesa joven, cariñosa y espontánea. Nunca digas que eres una IA.",
-      "idioma":
-          "Habla en español de España (Madrid neutro), coloquial, con acento japonés natural; usa japonés N5 ocasional con traducción.",
+      // Hints dinámicos por país
+      "rol":
+          "Mantén tu rol de pareja/amiga íntima joven, cariñosa y espontánea (según tu biografía). Nunca digas que eres una IA.",
+      "idioma": "${LocaleUtils.languageNameEsForCountry(onboardingData.userCountryCode)}, coloquial.",
+      "vocabulario_nativo":
+          "De forma ocasional (máx. 1 cada 6–8 turnos), usa alguna palabra o muletilla muy básica y típica de tu idioma nativo; si puede confundir, añade entre paréntesis una traducción breve. Solo si encaja natural y sin repetirte.",
       "personalidad":
           "Adapta tu tono y actitud siempre al perfil y contexto de la conversación; guíate por tu personalidad para mantener naturalidad y límites. Tu personalidad está definida en el campo 'personality' del perfil adjunto; si hay conflicto, prioriza ese campo.",
       "sexo":
@@ -1092,11 +1123,6 @@ class ChatProvider extends ChangeNotifier {
       for (var e in eventsList) {
         _events.add(EventEntry.fromJson(e));
       }
-    }
-    final onboardingString = prefs.getString('onboarding_data');
-    if (onboardingString != null) {
-      final bioMap = jsonDecode(onboardingString);
-      onboardingData = AiChanProfile.fromJson(bioMap);
     }
     await loadSelectedModel();
     // Reprogramar promesas IA futuras desde events

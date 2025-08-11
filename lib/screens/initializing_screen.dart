@@ -15,6 +15,8 @@ class _InitializingScreenState extends State<InitializingScreen> {
   final List<List<String>> steps = [
     ["Iniciando sistema", "システム"],
     ["Generando datos básicos", "ベーシック"],
+    ["Configurando país de origen", "国設定"],
+    ["Ajustando idioma y acento", "言語・アクセント"],
     ["Generando recuerdos", "メモリー"],
     ["Analizando personalidad", "パーソナリティ"],
     ["Configurando emociones", "エモーション"],
@@ -33,6 +35,7 @@ class _InitializingScreenState extends State<InitializingScreen> {
   int currentStep = 0;
   bool finished = false;
   bool bioReady = false;
+  bool _cancel = false; // Cancela la animación de pasos si hay error
 
   @override
   void initState() {
@@ -63,30 +66,35 @@ class _InitializingScreenState extends State<InitializingScreen> {
       });
       await Future.wait([bioFuture, stepsFuture]);
     } catch (e) {
-      _showError(e);
+      // En error: cancelar pasos y volver al onboarding
+      _cancel = true;
+      await _showError(e);
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     }
   }
 
-  void _showError(Object e) async {
+  Future<void> _showError(Object e) async {
     if (!mounted) return;
     await showErrorDialog(context, e.toString());
   }
 
   Future<void> _runSteps() async {
     for (var i = 0; i < steps.length; i++) {
-      if (!mounted) return;
+      if (!mounted || _cancel) return;
       await Future.delayed(const Duration(milliseconds: 8000));
-      if (!mounted) return;
+      if (!mounted || _cancel) return;
       setState(() {
         currentStep = i;
       });
     }
-    if (!mounted) return;
+    if (!mounted || _cancel) return;
     setState(() {
       finished = true;
     });
     await Future.delayed(const Duration(seconds: 1));
-    if (!mounted) return;
+    if (!mounted || _cancel) return;
   }
 
   @override

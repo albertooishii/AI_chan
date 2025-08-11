@@ -18,6 +18,7 @@ import '../utils/chat_json_utils.dart' as chat_json_utils;
 import 'gallery_screen.dart';
 import '../utils/image_utils.dart';
 import 'calendar_screen.dart';
+// import '../utils/locale_utils.dart';
 
 class ChatScreen extends StatefulWidget {
   final AiChanProfile bio;
@@ -307,6 +308,18 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                 ),
               ),
+              // Abrir calendario (opción normal, arriba de debug)
+              PopupMenuItem<String>(
+                value: 'calendar',
+                child: Row(
+                  children: const [
+                    Icon(Icons.calendar_month, color: AppColors.primary, size: 20),
+                    SizedBox(width: 8),
+                    Text('Abrir calendario', style: TextStyle(color: AppColors.primary)),
+                  ],
+                ),
+              ),
+              // (Eliminado) Selector de países
               // Seleccionar modelo
               PopupMenuItem<String>(
                 enabled: !_loadingModels,
@@ -382,17 +395,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                 ),
               ),
-              // Nueva opción: Abrir calendario
-              PopupMenuItem<String>(
-                value: 'calendar',
-                child: Row(
-                  children: const [
-                    Icon(Icons.calendar_month, color: AppColors.primary, size: 20),
-                    SizedBox(width: 8),
-                    Text('Abrir calendario', style: TextStyle(color: AppColors.primary)),
-                  ],
-                ),
-              ),
             ],
             onSelected: (value) async {
               if (value == 'gallery') {
@@ -433,7 +435,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     userBirthday: bio.userBirthday,
                     aiBirthday: bio.aiBirthday,
                     appearance: result['appearance'] as Map<String, dynamic>? ?? <String, dynamic>{},
-                    avatar: result['avatar'],
+                    avatar: result['avatar'] as ai_image.Image?,
                     timeline: bio.timeline, // timeline SIEMPRE al final
                   );
                   chatProvider.onboardingData = newBio;
@@ -600,4 +602,6 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
   }
+
+  // Eliminado: diálogo para seleccionar países
 }

@@ -14,7 +14,7 @@ class BirthDateField extends StatelessWidget {
       controller: provider.birthDateController,
       style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
       decoration: InputDecoration(
-        labelText: "Fecha de nacimiento",
+        labelText: "Tu fecha de nacimiento",
         labelStyle: const TextStyle(color: AppColors.secondary),
         enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
         focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
@@ -27,11 +27,12 @@ class BirthDateField extends StatelessWidget {
       validator: (v) => provider.userBirthday == null ? "Obligatorio" : null,
       onTap: () async {
         final now = DateTime.now();
+        final minAgeDate = DateTime(now.year - 18, now.month, now.day);
         final picked = await showDatePicker(
           context: context,
           initialDate: provider.userBirthday ?? DateTime(now.year - 25),
           firstDate: DateTime(1950),
-          lastDate: now,
+          lastDate: minAgeDate,
           locale: const Locale('es'),
           builder: (context, child) => Theme(
             data: ThemeData.dark().copyWith(

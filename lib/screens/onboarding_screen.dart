@@ -7,6 +7,9 @@ import '../providers/onboarding_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../models/imported_chat.dart';
+import '../utils/locale_utils.dart';
+import '../constants/countries_es.dart';
+import '../constants/female_names.dart';
 
 class OnboardingScreen extends StatelessWidget {
   final Future<void> Function({
@@ -14,6 +17,8 @@ class OnboardingScreen extends StatelessWidget {
     required String aiName,
     required DateTime userBirthday,
     required String meetStory,
+    String? userCountryCode,
+    String? aiCountryCode,
     Map<String, dynamic>? appearance,
   })
   onFinish;
@@ -37,6 +42,8 @@ class _OnboardingScreenContent extends StatefulWidget {
     required String aiName,
     required DateTime userBirthday,
     required String meetStory,
+    String? userCountryCode,
+    String? aiCountryCode,
     Map<String, dynamic>? appearance,
   })
   onFinish;
@@ -50,6 +57,56 @@ class _OnboardingScreenContent extends StatefulWidget {
 }
 
 class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
+  // Helper: normaliza strings para búsquedas sin acentos
+  String _normalize(String s) => s
+      .toLowerCase()
+      .replaceAll(RegExp('[áàäâã]'), 'a')
+      .replaceAll(RegExp('[éèëê]'), 'e')
+      .replaceAll(RegExp('[íìïî]'), 'i')
+      .replaceAll(RegExp('[óòöôõ]'), 'o')
+      .replaceAll(RegExp('[úùüû]'), 'u')
+      .replaceAll('ñ', 'n')
+      .replaceAll('ç', 'c');
+
+  // Helper: auto-abrir el Autocomplete al enfocar
+  void _attachAutoOpen(TextEditingController controller, FocusNode focusNode) {
+    focusNode.addListener(() {
+      if (focusNode.hasFocus) {
+        final original = controller.text;
+        controller.text = ' ';
+        controller.selection = TextSelection.collapsed(offset: controller.text.length);
+        Future.microtask(() {
+          controller.text = original;
+          controller.selection = TextSelection.collapsed(offset: controller.text.length);
+        });
+      }
+    });
+  }
+
+  // Subtítulo con divisor para secciones (estilo sutil)
+  Widget _sectionHeader(String title, {IconData? icon}) {
+    final subtleColor = AppColors.secondary.withValues(alpha: 0.7);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[Icon(icon, size: 14, color: subtleColor), const SizedBox(width: 6)],
+              Text(
+                title,
+                style: TextStyle(color: subtleColor, fontWeight: FontWeight.w600, fontSize: 17, letterSpacing: 0.3),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
   Future<void> _handleImportJson(OnboardingProvider provider) async {
     final result = await chat_json_utils.ChatJsonUtils.importJsonFile();
     if (!mounted) return;
@@ -96,7 +153,9 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
     return provider.userNameController.text.trim().isNotEmpty &&
         (provider.aiNameController?.text.trim().isNotEmpty ?? false) &&
         provider.userBirthday != null &&
-        provider.meetStoryController.text.trim().isNotEmpty;
+        provider.meetStoryController.text.trim().isNotEmpty &&
+        (provider.userCountryCode?.trim().isNotEmpty ?? false) &&
+        (provider.aiCountryCode?.trim().isNotEmpty ?? false);
   }
 
   late final TextEditingController _userNameController;
@@ -173,6 +232,62 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // 1) País de usuario
+              _sectionHeader('Mis datos', icon: Icons.person),
+              Autocomplete<String>(
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  final items = CountriesEs.items;
+                  final q = _normalize(textEditingValue.text.trim());
+                  final opts = items.map((c) {
+                    final flag = LocaleUtils.flagEmojiForCountry(c.iso2);
+                    return '${flag.isNotEmpty ? '$flag ' : ''}${c.nameEs} (${c.iso2})';
+                  });
+                  if (q.isEmpty) return opts.take(50);
+                  return opts.where((o) => _normalize(o).contains(q)).take(50);
+                },
+                fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                  // Inicializa el texto si ya hay código guardado
+                  final code = provider.userCountryCode;
+                  if ((controller.text.isEmpty) && code != null && code.isNotEmpty) {
+                    final name = CountriesEs.codeToName[code.toUpperCase()];
+                    if (name != null) {
+                      final flag = LocaleUtils.flagEmojiForCountry(code);
+                      controller.text = '${flag.isNotEmpty ? '$flag ' : ''}$name ($code)';
+                    }
+                  }
+                  // Abrir opciones al enfocar (inserta un espacio temporal y lo revierte)
+                  _attachAutoOpen(controller, focusNode);
+                  return TextFormField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
+                    decoration: InputDecoration(
+                      labelText: 'Tu país',
+                      labelStyle: const TextStyle(color: AppColors.secondary),
+                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
+                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
+                      prefixIcon: const Icon(Icons.flag, color: AppColors.secondary),
+                      helperText: provider.userCountryCode?.isNotEmpty == true
+                          ? 'Idioma: ${LocaleUtils.languageNameEsForCountry(provider.userCountryCode!)}'
+                          : null,
+                      helperStyle: const TextStyle(color: AppColors.secondary),
+                      fillColor: Colors.black,
+                      filled: true,
+                    ),
+                    validator: (_) => provider.userCountryCode?.isNotEmpty == true ? null : 'Obligatorio',
+                    onEditingComplete: onEditingComplete,
+                  );
+                },
+                onSelected: (selection) {
+                  // Extrae ISO2 del texto "Nombre (XX)"
+                  final match = RegExp(r'\(([^)]+)\)$').firstMatch(selection);
+                  final code = match != null ? match.group(1)! : '';
+                  provider.setUserCountryCode(code);
+                },
+              ),
+              const SizedBox(height: 18),
+
+              // 2) Nombre de usuario
               TextFormField(
                 controller: _userNameController,
                 onChanged: (value) {
@@ -191,14 +306,79 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                 validator: (v) => v == null || v.isEmpty ? "Obligatorio" : null,
               ),
               const SizedBox(height: 18),
+
+              // 3) Fecha de nacimiento
+              const BirthDateField(),
+              const SizedBox(height: 18),
+
+              // 4) País de la IA
+              _sectionHeader('Datos de la AI-Chan', icon: Icons.smart_toy),
               Autocomplete<String>(
+                key: ValueKey('ai-country-${provider.aiCountryCode ?? 'none'}'),
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  final items = CountriesEs.items;
+                  final q = _normalize(textEditingValue.text.trim());
+                  final opts = items.map((c) {
+                    final flag = LocaleUtils.flagEmojiForCountry(c.iso2);
+                    return '${flag.isNotEmpty ? '$flag ' : ''}${c.nameEs} (${c.iso2})';
+                  });
+                  if (q.isEmpty) return opts.take(50);
+                  return opts.where((o) => _normalize(o).contains(q)).take(50);
+                },
+                fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                  // Inicializa el texto si ya hay código guardado
+                  final code = provider.aiCountryCode;
+                  if ((controller.text.isEmpty) && code != null && code.isNotEmpty) {
+                    final name = CountriesEs.codeToName[code.toUpperCase()];
+                    if (name != null) {
+                      final flag = LocaleUtils.flagEmojiForCountry(code);
+                      controller.text = '${flag.isNotEmpty ? '$flag ' : ''}$name ($code)';
+                    }
+                  }
+                  // Abrir opciones al enfocar (inserta un espacio temporal y lo revierte)
+                  _attachAutoOpen(controller, focusNode);
+                  return TextFormField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
+                    decoration: InputDecoration(
+                      labelText: 'País de la AI-Chan',
+                      labelStyle: const TextStyle(color: AppColors.secondary),
+                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
+                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
+                      prefixIcon: const Icon(Icons.flag, color: AppColors.secondary),
+                      helperText: provider.aiCountryCode?.isNotEmpty == true
+                          ? 'Idioma: ${LocaleUtils.languageNameEsForCountry(provider.aiCountryCode!)}'
+                          : null,
+                      helperStyle: const TextStyle(color: AppColors.secondary),
+                      fillColor: Colors.black,
+                      filled: true,
+                    ),
+                    validator: (_) => provider.aiCountryCode?.isNotEmpty == true ? null : 'Obligatorio',
+                    onEditingComplete: onEditingComplete,
+                  );
+                },
+                onSelected: (selection) {
+                  final match = RegExp(r'\(([^)]+)\)$').firstMatch(selection);
+                  final code = match != null ? match.group(1)! : '';
+                  provider.setAiCountryCode(code);
+                },
+              ),
+              const SizedBox(height: 18),
+
+              // 5) Nombre de la IA
+              Autocomplete<String>(
+                key: ValueKey('ai-name-${provider.aiCountryCode ?? 'none'}'),
                 optionsBuilder: (TextEditingValue textEditingValue) {
                   if (textEditingValue.text == '') {
-                    return const Iterable<String>.empty();
+                    // Sugerencias base por país de la IA si no hay texto
+                    final base = FemaleNamesRepo.forCountry(provider.aiCountryCode);
+                    return base.take(20);
                   }
-                  return provider.aiNameSuggestions.where(
-                    (option) => option.toLowerCase().contains(textEditingValue.text.toLowerCase()),
-                  );
+                  final source = FemaleNamesRepo.forCountry(provider.aiCountryCode);
+                  return source
+                      .where((option) => option.toLowerCase().contains(textEditingValue.text.toLowerCase()))
+                      .take(50);
                 },
                 fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
                   // Enlaza el controller al provider para que nunca sea null
@@ -232,14 +412,14 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                 },
               ),
               const SizedBox(height: 18),
-              const BirthDateField(),
-              const SizedBox(height: 18),
+
+              // Historia de cómo se conocieron
               TextFormField(
                 controller: provider.meetStoryController,
                 onChanged: onMeetStoryChanged,
                 style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
                 decoration: InputDecoration(
-                  labelText: "¿Cómo se conocieron?",
+                  labelText: "¿Cómo os conocísteis?",
                   hintText: "Escribe o pulsa sugerir",
                   labelStyle: const TextStyle(color: AppColors.secondary),
                   enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
@@ -285,6 +465,8 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                           aiName: provider.aiNameController?.text ?? '',
                           userBirthday: provider.userBirthday!,
                           meetStory: provider.meetStoryController.text,
+                          userCountryCode: provider.userCountryCode,
+                          aiCountryCode: provider.aiCountryCode,
                           appearance: null,
                         );
                       }
@@ -298,3 +480,5 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
     );
   }
 }
+
+// Eliminado _CountryAutocomplete en favor del mismo patrón de Autocomplete<String> que el nombre de AI-Chan

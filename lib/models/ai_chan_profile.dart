@@ -15,11 +15,12 @@ class AiChanProfile {
   final Map<String, dynamic> appearance;
   final List<TimelineEntry> timeline;
 
+  /// Países (ISO-3166 alfa-2) del usuario y de la IA para adaptar idioma/acento
+  final String? userCountryCode; // p.ej., ES, US, MX
+  final String? aiCountryCode; // p.ej., JP, ES, US
+
   /// Datos de avatar: seed, url, prompt, etc.
   final Image? avatar;
-
-  /// Horarios unificados: cada elemento puede tener tipo ('sleep', 'work', 'busy'), from, to, days, etc.
-  final List<Map<String, String>>? schedules;
 
   AiChanProfile({
     this.events,
@@ -31,8 +32,9 @@ class AiChanProfile {
     required this.biography,
     required this.appearance,
     required this.timeline,
+    this.userCountryCode,
+    this.aiCountryCode,
     this.avatar,
-    this.schedules,
   });
 
   factory AiChanProfile.fromJson(Map<String, dynamic> json) {
@@ -61,14 +63,13 @@ class AiChanProfile {
       appearance: json['appearance'] is Map<String, dynamic>
           ? json['appearance'] as Map<String, dynamic>
           : <String, dynamic>{},
+      userCountryCode: json['userCountryCode'] as String?,
+      aiCountryCode: json['aiCountryCode'] as String?,
       events: events.isNotEmpty ? events : null,
       timeline: (json['timeline'] as List<dynamic>? ?? [])
           .map((e) => TimelineEntry.fromJson(e as Map<String, dynamic>))
           .toList(),
       avatar: json['avatar'] != null ? Image.fromJson(json['avatar'] as Map<String, dynamic>) : null,
-      schedules: json['schedules'] != null
-          ? (json['schedules'] as List).map((e) => Map<String, String>.from(e)).toList()
-          : null,
     );
   }
 
@@ -118,8 +119,9 @@ class AiChanProfile {
     'personality': personality,
     'biography': biography,
     'appearance': appearance,
+    if (userCountryCode != null) 'userCountryCode': userCountryCode,
+    if (aiCountryCode != null) 'aiCountryCode': aiCountryCode,
     if (avatar != null) 'avatar': avatar!.toJson(),
-    if (schedules != null) 'schedules': schedules,
     if (events != null) 'events': events!.map((e) => e.toJson()).toList(),
     // timeline SIEMPRE debe ir al final para mantener el orden y evitar problemas de import/export
     'timeline': timeline.map((e) => e.toJson()).toList(),
@@ -135,8 +137,9 @@ class AiChanProfile {
     Map<String, dynamic>? biography,
     Map<String, dynamic>? appearance,
     List<TimelineEntry>? timeline,
+    String? userCountryCode,
+    String? aiCountryCode,
     Image? avatar,
-    List<Map<String, String>>? schedules,
   }) {
     return AiChanProfile(
       events: events ?? this.events,
@@ -148,8 +151,9 @@ class AiChanProfile {
       biography: biography ?? this.biography,
       appearance: appearance ?? this.appearance,
       timeline: timeline ?? this.timeline,
+      userCountryCode: userCountryCode ?? this.userCountryCode,
+      aiCountryCode: aiCountryCode ?? this.aiCountryCode,
       avatar: avatar ?? this.avatar,
-      schedules: schedules ?? this.schedules,
     );
   }
 }

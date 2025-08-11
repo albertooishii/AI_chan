@@ -251,6 +251,7 @@ $appearanceJsonFormat
 
     return {
       'appearance': appearanceMap,
+      // Devolver avatar como objeto Image
       'avatar': Image(seed: imageResponse.seed, prompt: imageResponse.prompt, url: imageUrl),
     };
   }

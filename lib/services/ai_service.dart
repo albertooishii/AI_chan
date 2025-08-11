@@ -1,6 +1,4 @@
-import 'dart:convert';
-import 'dart:io';
-
+import '../utils/debug_call_logger/debug_call_logger.dart';
 import 'package:flutter/foundation.dart';
 import 'gemini_service.dart';
 import 'openai_service.dart';
@@ -38,31 +36,14 @@ abstract class AIService {
       return AIResponse(text: '');
     }
 
-    // Guardar logs JSON solo en escritorio (Windows, macOS, Linux)
-    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-      try {
-        final jsonData = {
-          'history': history,
-          'systemPrompt': systemPrompt.toJson(),
-          'model': m,
-          if (imageBase64 != null) 'imageBase64': imageBase64,
-          if (imageMimeType != null) 'imageMimeType': imageMimeType,
-        };
-        final jsonStr = const JsonEncoder().convert(jsonData);
-        // Guardar el JSON en un archivo temporal dentro del proyecto
-        final directory = Directory('debug_json_logs');
-        if (!directory.existsSync()) {
-          directory.createSync(recursive: true);
-        }
-        final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-        final filePath = '${directory.path}/ai_service_send_$timestamp.json';
-        final file = File(filePath);
-        file.writeAsStringSync(jsonStr);
-        debugPrint('[AIService.sendMessage] JSON enviado guardado en: $filePath');
-      } catch (e) {
-        debugPrint('[AIService.sendMessage] Error al serializar JSON para log: $e');
-      }
-    }
+    // Guardar logs usando debugLogCallPrompt (solo en debug/profile y escritorio)
+    await debugLogCallPrompt('ai_service_send', {
+      'history': history,
+      'systemPrompt': systemPrompt.toJson(),
+      'model': m,
+      if (imageBase64 != null) 'imageBase64': imageBase64,
+      if (imageMimeType != null) 'imageMimeType': imageMimeType,
+    });
     AIResponse response = await aiService.sendMessageImpl(
       history,
       systemPrompt,
@@ -71,23 +52,12 @@ abstract class AIService {
       imageMimeType: imageMimeType,
       enableImageGeneration: enableImageGeneration,
     );
-    // Guardar la respuesta de la IA en un archivo JSON de log solo en escritorio
-    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-      try {
-        final respJson = {'response': response.toJson(), 'model': m, 'timestamp': DateTime.now().toIso8601String()};
-        final directory = Directory('debug_json_logs');
-        if (!directory.existsSync()) {
-          directory.createSync(recursive: true);
-        }
-        final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-        final filePath = '${directory.path}/ai_service_response_$timestamp.json';
-        final file = File(filePath);
-        file.writeAsStringSync(const JsonEncoder().convert(respJson));
-        debugPrint('[AIService.sendMessage] JSON respuesta guardado en: $filePath');
-      } catch (e) {
-        debugPrint('[AIService.sendMessage] Error al guardar JSON de respuesta: $e');
-      }
-    }
+    // Guardar la respuesta usando debugLogCallPrompt
+    await debugLogCallPrompt('ai_service_response', {
+      'response': response.toJson(),
+      'model': m,
+      'timestamp': DateTime.now().toIso8601String(),
+    });
     bool hasQuotaError(String text) {
       return text.contains('RESOURCE_EXHAUSTED') ||
           text.contains('quota') ||

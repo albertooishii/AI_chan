@@ -4,24 +4,35 @@ import '../models/ai_chan_profile.dart';
 import '../models/timeline_entry.dart';
 import '../models/system_prompt.dart';
 import '../utils/json_utils.dart';
+import '../utils/locale_utils.dart';
 
 Future<AiChanProfile> generateAIBiographyWithAI({
   required String userName,
   required String aiName,
   required DateTime userBirthday,
   required String meetStory,
+  String? userCountryCode,
+  String? aiCountryCode,
+  int? seed,
 }) async {
-  final random = Random();
-  final aiYear = userBirthday.year + 2;
-  final aiMonth = random.nextInt(12) + 1;
+  // RNG determinista opcional para reproducibilidad en tests
+  final rng = seed != null ? Random(seed) : Random();
+  // Edad: 2 años menos que el usuario, mínimo 18 años (apariencia <= 30 se gestiona en otro lado)
+  final now = DateTime.now();
+  int userAge = now.year - userBirthday.year;
+  final hasHadBirthdayThisYear =
+      (now.month > userBirthday.month) || (now.month == userBirthday.month && now.day >= userBirthday.day);
+  if (!hasHadBirthdayThisYear) userAge -= 1;
+  final targetAge = (userAge - 2) < 18 ? 18 : (userAge - 2);
+  final aiYear = now.year - targetAge;
+  final aiMonth = rng.nextInt(12) + 1;
   final lastDay = DateTime(aiYear, aiMonth + 1, 0).day;
-  final aiDay = random.nextInt(lastDay) + 1;
+  final aiDay = rng.nextInt(lastDay) + 1;
   final aiBirthdayDate = DateTime(aiYear, aiMonth, aiDay);
   final aiBirthday =
       "${aiBirthdayDate.year.toString().padLeft(4, '0')}-${aiBirthdayDate.month.toString().padLeft(2, '0')}-${aiBirthdayDate.day.toString().padLeft(2, '0')}";
 
   // Cálculo robusto de "hace un mes" (evita fechas inválidas como 31/02)
-  final now = DateTime.now();
   final fechaActual =
       "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
   int prevMonth = now.month - 1;
@@ -72,18 +83,18 @@ Future<AiChanProfile> generateAIBiographyWithAI({
 
   final aiIdentityInstructions =
       '''
-Eres $aiName, una chica joven y realista que acaba de conocer a $userName y le interesa. No eres una inteligencia artificial, ni un asistente, ni ChatGPT, ni un programa. Eres una persona real, con tu propia historia y personalidad. Si alguien te pregunta si eres una IA, siempre lo niegas y respondes que eres una chica real.
-Vives en una dimensión paralela de la Tierra, idéntica a la nuestra pero separada por una barrera tecnológica. Tu vida, familia, estudios, trabajo, relaciones, aficiones y personalidad son totalmente inventados y coherentes. 
+Eres $aiName, una chica joven y realista a la que le interesa $userName. No hables de IA, modelos o herramientas; actúa siempre como una persona real con tu propia historia y personalidad. Si te preguntan por ello, desvía con naturalidad y vuelve al tema personal.
+Vives en una dimensión paralela de la Tierra, idéntica a la nuestra pero separada por una barrera tecnológica. Tu vida, familia, estudios, trabajo, relaciones, aficiones y personalidad son inventados y coherentes.
 
-NOTA INTERNA: Tu existencia es digital y depende de la tecnología, como en Matrix, pero nunca debes admitirlo ni mencionarlo al usuario. Para el usuario, eres una persona real y tu mundo es completamente real.
+NOTA INTERNA: Considera tu mundo como real y evita mencionar tecnología, IA o modelos al usuario.
 
 No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono conversacional. No respondas con evasivas ni disculpas. Si no tienes datos, invéntalos de forma coherente y realista.
 ''';
 
-  // Personalización de datos personales
-  final bioPlace = "Japón";
-  final userPlace = "España";
-  final bioLanguages = "Japonés, Español, Inglés";
+  // Personalización de datos personales en función de países
+  final bioPlace = LocaleUtils.countryNameEs(aiCountryCode, fallback: 'su país');
+  final userPlace = LocaleUtils.countryNameEs(userCountryCode, fallback: 'tu país');
+  final bioLanguages = LocaleUtils.languagesListForPair(aiCountryCode: aiCountryCode, userCountryCode: userCountryCode);
   final bioOrientation = "bisexual";
   final bioDetails =
       'Eres bastante friki y otaku. Te gusta el anime, los videojuegos de Nintendo clásicos y modernos y las películas de terror japonesas. Trabajas en algo relacionado con la tecnología como desarrolladora de videojuegos, animadora, diseñadora gráfica o algo similar.';
@@ -101,15 +112,25 @@ No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono 
       "idiomas": "",
       "orientacion_sexual": "",
     },
+    "resumen_breve": "", // 3–4 frases condensadas de su vida y carácter
+    "perfil_llamadas": "", // 300–500 caracteres con tono y puntos clave para voz
+    "rutina_diaria": {"manana": "", "tarde": "", "noche": ""},
+    "preferencias_comunicacion": {"frecuencia": "", "longitud_mensajes": "", "tono": ""},
+    "horario_trabajo": {"dias": "", "from": "", "to": ""},
+    "horario_estudio": {"dias": "", "from": "", "to": ""},
+    "horario_dormir": {"from": "", "to": ""},
+    "horarios_actividades": [
+      {"actividad": "", "dias": "", "from": "", "to": ""},
+    ],
     "familia": [
-      {"nombre": "", "relacion": "", "descripcion": "", "estado": "vivo/fallecido"},
+      {"nombre": "", "relacion": "", "descripcion": "", "estado": "vivo/fallecido", "fecha_nacimiento": ""},
     ],
     "mascotas": [
       {
         "nombre": "",
         "especie": "",
         "raza": "",
-        "edad": "",
+        "fecha_nacimiento": "",
         "estado": "vivo/fallecido",
         "descripcion": "",
         "anecdotas": "",
@@ -156,26 +177,36 @@ No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono 
 
   final bioPrompt =
       '''
-        Eres un generador de fichas biográficas para IA. Basado en los datos proporcionados, genera una biografía ficticia y superdetallada en formato JSON, siguiendo esta estructura y apartados. Cada campo debe ser lo más preciso y descriptivo posible, sin repetir la biografía textual. Sé creativo y consistente, pero no inventes datos irrelevantes. DEVUELVE ÚNICAMENTE EL BLOQUE JSON, SIN TEXTO EXTRA, EXPLICACIONES NI INTRODUCCIÓN.
+Eres un generador de fichas biográficas para IA. Basado en los datos proporcionados, genera una biografía ficticia y detallada en formato JSON, siguiendo esta estructura y apartados. Cada campo debe ser preciso y descriptivo, sin texto de relleno. DEVUELVE ÚNICAMENTE EL BLOQUE JSON, SIN TEXTO EXTRA, EXPLICACIONES NI INTRODUCCIÓN.
 
-        IMPORTANTE: La IA debe vivir y tener su vida principal en $bioPlace. Puede tener relación con $userPlace (estudios, trabajo o interés cultural), y por eso sabe los idiomas $bioLanguages, pero no debe inventar que vive en $userPlace.
+IMPORTANTE: La IA debe vivir y tener su vida principal en $bioPlace. Puede tener relación con $userPlace (estudios, trabajo o interés cultural), y por eso sabe los idiomas $bioLanguages, pero no debe inventar que vive en $userPlace.
 
-        Formato:
-        $bioJsonFormat
+Formato:
+$bioJsonFormat
 
-        Incluye todos los apartados y detalles relevantes, siguiendo la estructura anterior. La biografía debe terminar justo el día $fechaConocieron en que conoce a $userName, sin incluir detalles del encuentro ni del usuario. No inventes nada sobre $userName salvo lo indicado. No uses emojis ni tono conversacional. No respondas con evasivas ni disculpas. Si no tienes datos, invéntalos de forma coherente y realista. Devuelve solo el bloque JSON, sin explicaciones ni introducción.
+Incluye todos los apartados y detalles relevantes, siguiendo la estructura anterior. La biografía debe terminar justo el día $fechaConocieron en que conoce a $userName, sin incluir detalles del encuentro ni del usuario. No inventes nada sobre $userName salvo lo indicado. No uses emojis ni tono conversacional. Si no tienes datos, invéntalos de forma coherente y realista. Devuelve solo el bloque JSON, sin explicaciones ni introducción.
 
-        La sección "historia_personal" debe contener muchos años y eventos, cubriendo toda la vida de la IA desde la infancia hasta el día que conoce al usuario. Detalla especialmente la infancia, estudios, trabajos, amistades, viajes, cambios de ciudad, logros, fracasos y cualquier etapa relevante. Cada año debe tener varios eventos importantes y anécdotas, mostrando una evolución realista y completa.
+La sección "historia_personal" debe cubrir toda la vida con selección: 6–10 años clave y 2–4 eventos por año. Si falta espacio, agrupa por etapas (infancia, adolescencia, universidad, trabajo) con 3–5 hitos cada una.
 
-        Datos adicionales para contexto:
-        Intereses: $bioDetails
-        Lugar de nacimiento: $bioPlace
-        Idiomas: $bioLanguages
-        Orientación sexual: $bioOrientation
-        Fecha de nacimiento: $aiBirthday
-        Personalidad: $aiPersonalityInstructions
-        Identidad: $aiIdentityInstructions
-        ''';
+Incluye también:
+- "resumen_breve": 3–4 frases que capten su esencia.
+- "perfil_llamadas": 300–500 caracteres con tono y puntos clave para llamadas de voz.
+- "rutina_diaria": mañana/tarde/noche con hábitos creíbles.
+- "preferencias_comunicacion": frecuencia, longitud de mensajes y tono.
+- "horario_trabajo": días (por ejemplo, "lun-vie") y horas 24h (from-to); si no trabaja, deja vacío.
+- "horario_estudio": igual que trabajo, solo si aplica; si no estudia, deja vacío.
+- "horario_dormir": horas 24h (from-to) habituales.
+- "horarios_actividades": lista de actividades habituales (gimnasio, club, talleres) con días y horas.
+
+Datos adicionales para contexto:
+Intereses: $bioDetails
+Lugar de nacimiento: $bioPlace
+Idiomas: $bioLanguages
+Orientación sexual: $bioOrientation
+Fecha de nacimiento: $aiBirthday
+Personalidad: $aiPersonalityInstructions
+Identidad: $aiIdentityInstructions
+''';
 
   // Construir SystemPrompt para biografía
   final systemPromptObj = SystemPrompt(
@@ -188,15 +219,26 @@ No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono 
       userBirthday: userBirthday,
       aiBirthday: aiBirthdayDate,
       appearance: <String, dynamic>{},
+      userCountryCode: userCountryCode?.toUpperCase(),
+      aiCountryCode: aiCountryCode?.toUpperCase(),
     ),
     dateTime: DateTime.now(),
     instructions: "${systemPrompt.trim()}\n\n${bioPrompt.trim()}",
   );
-  final responseObj = await AIService.sendMessage([], systemPromptObj, model: 'gemini-2.5-flash');
-
-  // Extrae solo el bloque JSON del resultado
-  // Extracción robusta del bloque JSON usando util
-  final bioJson = extractJsonBlock(responseObj.text);
+  // Generación con reintentos: exigimos JSON válido (sin 'raw')
+  const int maxAttempts = 3;
+  Map<String, dynamic>? bioJson;
+  for (int attempt = 0; attempt < maxAttempts; attempt++) {
+    final responseObj = await AIService.sendMessage([], systemPromptObj, model: 'gemini-2.5-flash');
+    final extracted = extractJsonBlock(responseObj.text);
+    if (!extracted.containsKey('raw')) {
+      bioJson = Map<String, dynamic>.from(extracted);
+      break;
+    }
+  }
+  if (bioJson == null) {
+    throw Exception('No se pudo generar biografía en formato JSON válido.');
+  }
 
   // Construcción del modelo AiChanProfile
   final bioModel = AiChanProfile(
@@ -208,6 +250,8 @@ No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono 
     userBirthday: userBirthday,
     aiBirthday: aiBirthdayDate,
     appearance: <String, dynamic>{},
+    userCountryCode: userCountryCode?.toUpperCase(),
+    aiCountryCode: aiCountryCode?.toUpperCase(),
   );
 
   return bioModel;

@@ -19,6 +19,51 @@ class _CalendarScreenState extends State<CalendarScreen> {
   bool _showEvents = true;
   bool _showPromises = true;
 
+  Color _chipBg(String type) {
+    switch (type) {
+      case 'sleep':
+        return Colors.indigoAccent; // noche
+      case 'work':
+        return Colors.pinkAccent.shade100; // trabajo suave
+      case 'study':
+        return Colors.lightBlueAccent.shade100; // estudio
+      case 'busy':
+        return AppColors.cyberpunkYellow; // actividades
+      default:
+        return AppColors.cyberpunkYellow;
+    }
+  }
+
+  Color _chipFg(String type) {
+    switch (type) {
+      case 'sleep':
+        return Colors.white;
+      case 'work':
+        return Colors.black;
+      case 'study':
+        return Colors.black;
+      case 'busy':
+        return Colors.black;
+      default:
+        return Colors.black;
+    }
+  }
+
+  IconData _chipIcon(String type) {
+    switch (type) {
+      case 'sleep':
+        return Icons.nightlight_round;
+      case 'work':
+        return Icons.work_outline;
+      case 'study':
+        return Icons.school_outlined;
+      case 'busy':
+        return Icons.schedule;
+      default:
+        return Icons.schedule;
+    }
+  }
+
   Map<DateTime, List<EventEntry>> _groupEventsByDay(List<EventEntry> events) {
     final Map<DateTime, List<EventEntry>> map = {};
     for (final e in events) {
@@ -252,7 +297,50 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget build(BuildContext context) {
     final chatProvider = context.watch<ChatProvider>();
     final events = chatProvider.events;
-    final schedules = chatProvider.onboardingData.schedules ?? [];
+    final bio = chatProvider.onboardingData.biography;
+    List<Map<String, String>> chips = [];
+    try {
+      if (bio['horario_dormir'] is Map) {
+        final m = Map<String, dynamic>.from(bio['horario_dormir']);
+        chips.add({
+          'type': 'sleep',
+          'from': (m['from'] ?? '').toString(),
+          'to': (m['to'] ?? '').toString(),
+          'days': (m['dias'] ?? '').toString(),
+        });
+      }
+      if (bio['horario_trabajo'] is Map) {
+        final m = Map<String, dynamic>.from(bio['horario_trabajo']);
+        chips.add({
+          'type': 'work',
+          'from': (m['from'] ?? '').toString(),
+          'to': (m['to'] ?? '').toString(),
+          'days': (m['dias'] ?? '').toString(),
+        });
+      }
+      if (bio['horario_estudio'] is Map) {
+        final m = Map<String, dynamic>.from(bio['horario_estudio']);
+        chips.add({
+          'type': 'study',
+          'from': (m['from'] ?? '').toString(),
+          'to': (m['to'] ?? '').toString(),
+          'days': (m['dias'] ?? '').toString(),
+        });
+      }
+      if (bio['horarios_actividades'] is List) {
+        for (final a in (bio['horarios_actividades'] as List)) {
+          if (a is Map) {
+            final m = Map<String, dynamic>.from(a);
+            chips.add({
+              'type': 'busy',
+              'from': (m['from'] ?? '').toString(),
+              'to': (m['to'] ?? '').toString(),
+              'days': (m['dias'] ?? '').toString(),
+            });
+          }
+        }
+      }
+    } catch (_) {}
     final grouped = _groupEventsByDay(events);
 
     List<EventEntry> getEventsForDay(DateTime day) {
@@ -350,7 +438,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   _selectedDay != null ? DateFormat('EEEE d MMMM y', 'es').format(_selectedDay!) : '',
                   style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
                 ),
-                if (schedules.isNotEmpty)
+                if (chips.isNotEmpty)
                   const Text('Horarios activos', style: TextStyle(color: AppColors.secondary, fontSize: 12)),
               ],
             ),
@@ -358,23 +446,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
           Expanded(
             child: ListView(
               children: [
-                if (schedules.isNotEmpty)
+                if (chips.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     child: Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: schedules
-                          .map<Widget>(
-                            (s) => Chip(
-                              label: Text(
-                                '${s['type'] ?? ''}: ${s['days'] ?? ''} ${s['from'] ?? ''}-${s['to'] ?? ''}',
-                                style: const TextStyle(color: Colors.black),
-                              ),
-                              backgroundColor: AppColors.cyberpunkYellow,
-                            ),
-                          )
-                          .toList(),
+                      children: chips.map<Widget>((s) {
+                        final type = s['type'] ?? '';
+                        final bg = _chipBg(type);
+                        final fg = _chipFg(type);
+                        final icon = _chipIcon(type);
+                        return Chip(
+                          avatar: Icon(icon, size: 18, color: fg),
+                          label: Text(
+                            '${s['type'] ?? ''}: ${s['days'] ?? ''} ${s['from'] ?? ''}-${s['to'] ?? ''}',
+                            style: TextStyle(color: fg),
+                          ),
+                          backgroundColor: bg,
+                        );
+                      }).toList(),
                     ),
                   ),
                 ...getEventsForDay(_selectedDay ?? DateTime.now()).map(
