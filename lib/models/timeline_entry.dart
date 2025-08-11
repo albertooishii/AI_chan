@@ -1,5 +1,5 @@
 class TimelineEntry {
-  final String resume;
+  final dynamic resume; // Puede ser Map<String, dynamic> (JSON) o String
   final String? startDate;
   final String? endDate;
   final int level;
@@ -8,7 +8,7 @@ class TimelineEntry {
 
   factory TimelineEntry.fromJson(Map<String, dynamic> json) {
     return TimelineEntry(
-      resume: json['resume'] ?? '',
+      resume: json['resume'],
       startDate: json['startDate'],
       endDate: json['endDate'],
       level: json['level'] ?? 0,

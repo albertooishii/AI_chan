@@ -16,7 +16,7 @@ Future<String?> saveBase64ImageToFile(String base64, {String prefix = 'img'}) as
     final exists = await file.exists();
     if (exists) {
       debugPrint('[AI-chan][Image] Imagen guardada correctamente en: $absFilePath');
-      return absFilePath;
+      return fileName;
     } else {
       debugPrint('[AI-chan][Image] Error: El archivo no existe tras guardar.');
       return null;

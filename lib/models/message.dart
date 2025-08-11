@@ -1,6 +1,6 @@
 import 'image.dart';
 
-enum MessageSender { user, ia, system }
+enum MessageSender { user, assistant, system }
 
 enum MessageStatus { sending, sent, delivered, read }
 
@@ -41,7 +41,11 @@ class Message {
 
   Map<String, dynamic> toJson() => {
     'text': text,
-    'sender': sender == MessageSender.user ? 'user' : 'ia',
+    'sender': sender == MessageSender.user
+        ? 'user'
+        : sender == MessageSender.assistant
+        ? 'assistant'
+        : 'system',
     'dateTime': dateTime.toIso8601String(),
     'isImage': isImage,
     'status': status.name,
@@ -52,7 +56,9 @@ class Message {
     final imageObj = json['image'] != null ? Image.fromJson(json['image']) : null;
     return Message(
       text: json['text'],
-      sender: json['sender'] == 'user' ? MessageSender.user : MessageSender.ia,
+      sender: json['sender'] == 'user'
+          ? MessageSender.user
+          : (json['sender'] == 'system' ? MessageSender.system : MessageSender.assistant),
       dateTime: json['dateTime'] != null && json['dateTime'] is String
           ? DateTime.tryParse(json['dateTime']) ?? DateTime.now()
           : DateTime.now(),

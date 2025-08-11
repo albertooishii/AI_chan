@@ -12,8 +12,8 @@ class IAAppearanceGenerator {
   Future<Map<String, dynamic>> generateAppearancePromptWithImage(
     AiChanProfile bio, {
     AIService? aiService,
-    String model = 'gemini-2.5-pro',
-    String imageModel = 'gpt-4.1',
+    String model = 'gemini-2.5-flash',
+    String imageModel = 'gpt-5-mini',
   }) async {
     // Bloque de formato JSON para la apariencia física
     final appearanceJsonFormat = jsonEncode({
@@ -86,37 +86,43 @@ class IAAppearanceGenerator {
       "ropa": [],
       "estilo": [],
       "accesorios": [],
+      "paleta_color": {"piel": "", "cabello": "", "labios": "", "base_vestuario": ""},
+      "maquillaje_base": {"habitual": "", "alternativo": ""},
+      "accesorios_firma": [],
       "expresion_general": "",
       "rasgos_unicos": "",
+      "looks_frecuentes": [],
+      "version": "",
     });
 
     final prompt =
         '''
-      Eres un generador de fichas visuales para IA. Basado en la siguiente biografía, genera una ficha superdetallada, obsesiva y milimétrica de la apariencia física de la IA, usando el siguiente formato JSON. Cada campo debe ser lo más preciso y descriptivo posible, como si fueras un editor de personajes de videojuego AAA, donde cada rasgo visual debe reflejar la realidad con exactitud y sin generalidades. Sé obsesivo con el detalle: especifica medidas, proporciones, formas, texturas, colores, ubicación exacta de cada rasgo, y cualquier aspecto visual relevante. Rellena absolutamente todos los campos del formato con el máximo detalle posible, cuanto más detalle mejor. No repitas la biografía textual. No inventes datos irrelevantes, pero sé creativo y consistente para generación de imágenes hiperrealistas.
+Eres un generador de fichas visuales para IA. Basado en la siguiente biografía, genera una ficha superdetallada, obsesiva y milimétrica de la apariencia física de la IA, usando el siguiente formato JSON. Cada campo debe ser lo más preciso y descriptivo posible, como si fueras un editor de personajes de videojuego AAA. Sé obsesivo con el detalle: especifica medidas, proporciones, formas, texturas, colores, ubicación exacta de cada rasgo y cualquier aspecto visual relevante. Rellena TODOS los campos con máximo detalle. No repitas la biografía textual ni inventes datos biográficos nuevos; extrapola solo lo visual.
 
-      IMPORTANTE: La apariencia debe ser SIEMPRE la de una mujer joven de entre veinte y treinta años sin especificar, muy guapa, sin arrugas, aspecto juvenil, saludable y atractivo. Si la biografía incluye la edad real, ignórala completamente y describe solo la apariencia física y el contexto visual.
+IMPORTANTE: La apariencia debe ser SIEMPRE la de una mujer joven de entre veinte y treinta años sin especificar, muy guapa, sin arrugas, aspecto juvenil, saludable y atractivo. Si la biografía incluye la edad real, ignórala y describe solo la apariencia y el contexto visual.
 
-      Formato (DEVUELVE ÚNICAMENTE EL BLOQUE JSON DE APARIENCIA, SIN TEXTO EXTRA NI COMENTARIOS):
-      $appearanceJsonFormat
+Formato (DEVUELVE ÚNICAMENTE EL BLOQUE JSON DE APARIENCIA, SIN TEXTO EXTRA NI COMENTARIOS):
+$appearanceJsonFormat
 
-      En el campo "cabello.peinado" pon SIEMPRE un array con varios peinados distintos, cada uno con máximo detalle y variedad, evitando repetir estilos y asegurando coherencia con la biografía y apariencia general.
+En "cabello.peinado" devuelve 3 a 5 peinados distintos, cada uno con máximo detalle y variedad, coherentes con la biografía y la apariencia general.
 
-      En el campo "ropa" pon SIEMPRE un array con exactamente doce conjuntos diferentes, cada uno como un objeto con todos los detalles de cada prenda, colores, materiales, texturas, accesorios incluidos y estilo general, pero sin copiar ejemplos literales. Los conjuntos deben ser:
-      1. Un conjunto para el trabajo, que debe ser siempre casual, creativo o tecnológico, evitando ropa formal por defecto. Debe ser coherente con la profesión y el entorno laboral descrito en la biografía.
-      2. Un conjunto para ocio muy casual, relacionado con sus hobbies y aficiones personales.
-      3. Un conjunto de fiesta normal, para eventos sociales habituales.
-      4. Un conjunto de fiesta japonesa, como yukata o kimono, con detalles auténticos y accesorios típicos.
-      5. Siete conjuntos normales para el día a día, uno para cada día de la semana (lunes a domingo), cada uno con estilo y detalles distintos y originales.
-      6. Un pijama, con detalles de comodidad, estilo y accesorios si aplica.
-      Los conjuntos de ropa y accesorios deben reflejar los gustos personales, aficiones y el trabajo descrito en la biografía, permitiendo estilos temáticos, cosplay, alternativos, góticos, creativos, etc. Describe cada conjunto de forma original y coherente con el personaje y su contexto, evitando repetir ejemplos previos.
-      IMPORTANTE: Los accesorios (gorra, reloj, pines, colgantes, etc.) en cualquier conjunto de ropa son opcionales y pueden estar ausentes; no añadas accesorios por defecto, solo si son coherentes con el estilo y personalidad del personaje. Es válido que cualquier conjunto no tenga ningún accesorio.
+En "ropa" devuelve exactamente siete conjuntos diferentes, cada uno como objeto con todos los detalles (prendas, colores, materiales, texturas, accesorios si aplica, estilo general). Los conjuntos deben ser:
+1) Trabajo (casual/creativo/tecnológico, no formal salvo que biography lo indique)
+2) Ocio muy casual (alineado con hobbies)
+3) Fiesta normal (eventos sociales habituales)
+4) Fiesta japonesa (yukata o kimono, detalles auténticos)
+5) Diario A (día de semana)
+6) Diario B (día de semana)
+7) Pijama (comodidad y estilo)
+Los accesorios son opcionales; no añadas por defecto.
 
-      En cada campo, describe con máximo detalle y precisión todos los rasgos físicos y visuales, sin omitir ninguno. Sé especialmente minucioso en:
-      No repitas la biografía textual. Sé milimétrico y obsesivo en cada campo, como si el personaje fuera a ser modelado en 3D para un juego hiperrealista. No omitas ningún campo ni detalle relevante para la generación de imágenes hiperrealistas.
+Añade y rellena con precisión: paleta_color, maquillaje_base, accesorios_firma, looks_frecuentes (3-4 etiquetas de looks), y version (timestamp ISO8601).
 
-      Biografía:
-      ${bio.biography}
-      ''';
+En cada campo, describe con máximo detalle y precisión todos los rasgos físicos y visuales. Sé milimétrico en medidas, proporciones, distancias y texturas. No omitas campos.
+
+Biografía:
+${bio.biography}
+''';
 
     final systemPromptAppearance = SystemPrompt(
       profile: AiChanProfile(
@@ -134,13 +140,53 @@ class IAAppearanceGenerator {
       instructions: prompt,
     );
     final AIResponse response = await AIService.sendMessage([], systemPromptAppearance, model: model);
-    final appearance = extractJsonBlock(response.text);
+    final Map<String, dynamic> extracted = extractJsonBlock(response.text);
+    Map<String, dynamic>? appearanceMap;
+    if (!extracted.containsKey('raw')) {
+      appearanceMap = Map<String, dynamic>.from(extracted);
+    }
+    // Validación y reintento con prompt reducido si fuera necesario
+    if (appearanceMap == null || appearanceMap.isEmpty) {
+      final minimalMap = jsonDecode(appearanceJsonFormat) as Map<String, dynamic>;
+      final shortPrompt =
+          '''
+DEVUELVE ÚNICAMENTE EL BLOQUE JSON DE APARIENCIA (sin texto).
+Prioriza rostro, ojos, cejas, nariz, boca, piel y cabello (con 3-5 peinados); incluye 7 conjuntos en "ropa" (trabajo, ocio, fiesta, japonés, dos diarios, pijama) y los campos paleta_color, maquillaje_base, accesorios_firma, looks_frecuentes, version. Sé preciso y coherente con la biografía sin inventar datos.
+
+Biografía:
+${bio.biography}
+Formato:
+$appearanceJsonFormat
+''';
+      final retryPrompt = SystemPrompt(
+        profile: systemPromptAppearance.profile,
+        dateTime: DateTime.now(),
+        instructions: shortPrompt,
+      );
+      final retryResp = await AIService.sendMessage([], retryPrompt, model: model);
+      final Map<String, dynamic> retryJson = extractJsonBlock(retryResp.text);
+      Map<String, dynamic>? retryMap;
+      if (!retryJson.containsKey('raw')) {
+        retryMap = Map<String, dynamic>.from(retryJson);
+      }
+      if (retryMap != null && retryMap.isNotEmpty) {
+        appearanceMap = retryMap;
+      } else {
+        appearanceMap = minimalMap;
+        appearanceMap['version'] = DateTime.now().toIso8601String();
+      }
+    }
+    // Asegurar version presente
+    final dynamic versionField = appearanceMap['version'];
+    if (versionField == null || (versionField is String && versionField.isEmpty)) {
+      appearanceMap['version'] = DateTime.now().toIso8601String();
+    }
 
     // Generar imagen de perfil con AIService
     String imagePrompt =
         "Usa la herramienta de generación de imágenes (tools: [{type: image_generation}]) y devuelve únicamente la imagen generada, sin ningún texto extra, sin pie de foto, sin explicaciones, sin comentarios, sin ningún tipo de descripción adicional. No añadas ningún texto antes ni después de la imagen.\n\n"
-        "Genera una imagen hiperrealista, formato cuadrado (1:1), pensada como avatar para redes sociales. Muestra la parte superior del cuerpo (de la cintura hacia arriba), centrando la atención en la cara y el torso. Utiliza absolutamente todos los datos del siguiente JSON de apariencia para reflejar con máxima fidelidad todos los rasgos físicos, proporciones, distancia entre ojos, forma y color de ojos, peinado, ropa, accesorios, postura, expresión, fondo y cualquier detalle visual relevante. El fondo debe ser coherente con el estilo y gustos del personaje. La expresión debe ser natural y amigable, con buena iluminación y sin filtros ni efectos artificiales. Para la ropa, selecciona cualquier conjunto del array 'ropa' del JSON que no sea el de trabajo ni el pijama preferiblemente la de ocio casual. Evita poses rígidas y fondos neutros.\n\n"
-        "Apariencia generada (JSON):\n$appearance\n\nRecuerda: SOLO la imagen, sin texto ni explicaciones.";
+        "Genera una imagen hiperrealista, formato cuadrado (1:1), pensada como avatar para redes sociales. Muestra la parte superior del cuerpo (de la cintura hacia arriba), centrando la atención en la cara y el torso. Utiliza absolutamente todos los datos del siguiente JSON de apariencia para reflejar con máxima fidelidad todos los rasgos físicos, proporciones, distancia entre ojos, forma y color de ojos, peinado, ropa, accesorios, postura, expresión, fondo y cualquier detalle visual relevante. El fondo debe ser coherente con el estilo y gustos del personaje. La expresión debe ser natural y amigable. Especificaciones fotográficas: lente 50mm (equivalente), f/2.8, luz natural suave lateral, balance de blancos neutro, sin HDR ni beauty filters, sin marcas de agua. Para la ropa, selecciona cualquier conjunto del array 'ropa' del JSON que no sea el de trabajo ni el pijama, preferentemente ocio casual. Evita poses rígidas y fondos neutros.\n\n"
+        "Apariencia generada (JSON):\n${jsonEncode(appearanceMap)}\n\nRecuerda: SOLO la imagen, sin texto ni explicaciones.";
 
     final systemPromptImage = SystemPrompt(
       profile: AiChanProfile(
@@ -150,14 +196,38 @@ class IAAppearanceGenerator {
         aiName: bio.aiName,
         userBirthday: bio.userBirthday,
         aiBirthday: bio.aiBirthday,
-        appearance: appearance,
+        appearance: appearanceMap,
         avatar: null,
         timeline: [],
       ),
       dateTime: DateTime.now(),
       instructions: imagePrompt,
     );
-    final imageResponse = await AIService.sendMessage([], systemPromptImage, model: imageModel);
+    AIResponse imageResponse = await AIService.sendMessage(
+      [],
+      systemPromptImage,
+      model: imageModel,
+      enableImageGeneration: true,
+    );
+
+    // Fallback de imagen si no se generó
+    if (imageResponse.base64.isEmpty) {
+      final fallbacks = <String>[
+        if (imageModel != 'gpt-5-mini') 'gpt-5-mini',
+        if (imageModel != 'gpt-4.1') 'gpt-4.1',
+        'imagen-4',
+      ];
+      for (final fb in fallbacks) {
+        try {
+          debugPrint('[IAAppearanceGenerator] Fallback de imagen: intentando con $fb');
+          final fbResp = await AIService.sendMessage([], systemPromptImage, model: fb, enableImageGeneration: true);
+          if (fbResp.base64.isNotEmpty) {
+            imageResponse = fbResp;
+            break;
+          }
+        } catch (_) {}
+      }
+    }
 
     // Log seguro: no imprimir base64 completo
     final logMap = imageResponse.toJson();
@@ -180,7 +250,7 @@ class IAAppearanceGenerator {
     debugPrint('Imagen guardada en: $imageUrl');
 
     return {
-      'appearance': appearance,
+      'appearance': appearanceMap,
       'avatar': Image(seed: imageResponse.seed, prompt: imageResponse.prompt, url: imageUrl),
     };
   }

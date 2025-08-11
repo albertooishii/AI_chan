@@ -17,6 +17,7 @@ import '../models/image.dart' as ai_image;
 import '../utils/chat_json_utils.dart' as chat_json_utils;
 import 'gallery_screen.dart';
 import '../utils/image_utils.dart';
+import 'calendar_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final AiChanProfile bio;
@@ -250,7 +251,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             prompt: chatProvider.onboardingData.avatar?.prompt,
                           ),
                           text: '',
-                          sender: MessageSender.ia,
+                          sender: MessageSender.assistant,
                           isImage: true,
                           dateTime: DateTime.now(),
                         );
@@ -284,7 +285,12 @@ class _ChatScreenState extends State<ChatScreen> {
             icon: const Icon(Icons.call, color: AppColors.secondary),
             tooltip: 'Llamada de voz',
             onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute(builder: (_) => VoiceCallChat()));
+              final existing = context.read<ChatProvider>();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ChangeNotifierProvider.value(value: existing, child: const VoiceCallChat()),
+                ),
+              );
             },
           ),
           PopupMenuButton<String>(
@@ -315,7 +321,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                     Builder(
                       builder: (context) {
-                        final defaultModel = 'gpt-5-nano';
+                        final defaultModel = 'gemini-2.5-flash';
                         final selected = chatProvider.selectedModel ?? defaultModel;
                         return Padding(
                           padding: const EdgeInsets.only(left: 8.0),
@@ -376,6 +382,17 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                 ),
               ),
+              // Nueva opción: Abrir calendario
+              PopupMenuItem<String>(
+                value: 'calendar',
+                child: Row(
+                  children: const [
+                    Icon(Icons.calendar_month, color: AppColors.primary, size: 20),
+                    SizedBox(width: 8),
+                    Text('Abrir calendario', style: TextStyle(color: AppColors.primary)),
+                  ],
+                ),
+              ),
             ],
             onSelected: (value) async {
               if (value == 'gallery') {
@@ -384,6 +401,13 @@ class _ChatScreenState extends State<ChatScreen> {
                     .toList();
                 if (!mounted) return;
                 Navigator.of(context).push(MaterialPageRoute(builder: (_) => GalleryScreen(images: images)));
+              } else if (value == 'calendar') {
+                final existing = context.read<ChatProvider>();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ChangeNotifierProvider.value(value: existing, child: const CalendarScreen()),
+                  ),
+                );
               } else if (value == 'export_json') {
                 try {
                   final jsonStr = await chatProvider.exportAllToJson();
@@ -469,7 +493,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 setState(() => _loadingModels = false);
                 if (!mounted) return;
                 final current = chatProvider.selectedModel;
-                final defaultModel = 'gpt-5-nano';
+                final defaultModel = 'gemini-2.5-flash';
                 final initialModel =
                     current ??
                     (models.contains(defaultModel) ? defaultModel : (models.isNotEmpty ? models.first : null));

@@ -29,17 +29,36 @@ class _GalleryImageViewerDialog extends StatefulWidget {
 }
 
 class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
-  void _showRevisedPromptDialog(String? revised) {
+  bool _showText = true;
+  void _showImageDescriptionDialog(String? description) {
+    if (!context.mounted) return;
     showDialog(
       context: context,
       useRootNavigator: true,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
-        title: const Text('Revised Prompt', style: TextStyle(color: Colors.white)),
+        title: const Text('Descripción de la imagen', style: TextStyle(color: Colors.white)),
         content: SingleChildScrollView(
-          child: Text(revised ?? 'No hay revisedPrompt.', style: const TextStyle(color: Colors.white)),
+          child: Text(description ?? 'Sin descripción.', style: const TextStyle(color: Colors.white)),
         ),
         actions: [
+          TextButton(
+            child: const Text('Copiar', style: TextStyle(color: Colors.white)),
+            onPressed: () async {
+              final text = description ?? '';
+              if (text.isEmpty) {
+                Navigator.of(ctx).pop();
+                return;
+              }
+              // Capturar referencias antes del await para evitar usar context tras el gap
+              final messenger = ScaffoldMessenger.of(context);
+              final navigator = Navigator.of(ctx);
+              await Clipboard.setData(ClipboardData(text: text));
+              // Usar referencias capturadas
+              messenger.showSnackBar(const SnackBar(content: Text('Descripción copiada al portapapeles')));
+              navigator.pop();
+            },
+          ),
           TextButton(
             child: const Text('Cerrar', style: TextStyle(color: Colors.white)),
             onPressed: () => Navigator.of(ctx).pop(),
@@ -95,15 +114,26 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
         autofocus: true,
         focusNode: _focusNode,
         onKeyEvent: (event) => _onKey(event),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => Navigator.of(context).pop(),
-          child: Stack(
-            children: [
-              // Capa para evitar que el tap en la imagen cierre el dialog
-              Positioned.fill(child: Container(color: Colors.transparent)),
-              Center(
-                child: SizedBox.expand(
+        child: Stack(
+          children: [
+            // Fondo negro total si el texto está oculto, transparente si está visible
+            Positioned.fill(child: Container(color: _showText ? Colors.transparent : Colors.black)),
+            // Área de cierre al hacer tap fuera de la imagen
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: () => Navigator.of(context).pop(),
+                child: Container(),
+              ),
+            ),
+            // Imagen y navegación (pantalla completa, esquinas redondeadas siempre)
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Container(
+                  color: Colors.black,
+                  width: double.infinity,
+                  height: double.infinity,
                   child: PageView.builder(
                     controller: _controller,
                     onPageChanged: _onPageChanged,
@@ -125,17 +155,19 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                       final file = File(absPath);
                       final exists = file.existsSync();
                       if (exists) {
-                        return Center(
-                          child: GestureDetector(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(18),
-                              child: Stack(
-                                children: [
-                                  InteractiveViewer(child: Image.file(file, fit: BoxFit.contain)),
-                                  // ...resto de la imagen y descarga...
-                                ],
-                              ),
-                            ),
+                        return GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            setState(() {
+                              _showText = !_showText;
+                            });
+                          },
+                          child: InteractiveViewer(
+                            minScale: 1.0,
+                            maxScale: 6.0,
+                            panEnabled: true,
+                            clipBehavior: Clip.none,
+                            child: Image.file(file, fit: BoxFit.contain),
                           ),
                         );
                       }
@@ -151,6 +183,9 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                   ),
                 ),
               ),
+            ),
+            // Controles y texto (encima de la imagen)
+            if (_showText) ...[
               Positioned(
                 top: 8,
                 left: 8,
@@ -193,39 +228,40 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                       icon: const Icon(Icons.more_vert, color: Colors.white, size: 32),
                       tooltip: 'Opciones',
                       onSelected: (value) {
-                        if (value == 'revisedPrompt') {
-                          _showRevisedPromptDialog(widget.images[_currentIndex].image?.prompt);
+                        if (value == 'description') {
+                          _showImageDescriptionDialog(widget.images[_currentIndex].image?.prompt);
                         }
                       },
                       itemBuilder: (context) {
-                        return [const PopupMenuItem<String>(value: 'revisedPrompt', child: Text('Ver revisedPrompt'))];
+                        return [const PopupMenuItem<String>(value: 'description', child: Text('Ver descripción'))];
                       },
                     ),
                   ],
                 ),
               ),
-              // Mostrar el texto solo si no es vacío ni '[NO_REPLY]'
-              if (widget.images[_currentIndex].text.isNotEmpty &&
-                  widget.images[_currentIndex].text.trim() != '[NO_REPLY]')
-                Positioned(
-                  bottom: 24,
-                  left: 24,
-                  right: 24,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(
-                      widget.images[_currentIndex].text,
-                      style: const TextStyle(color: Colors.white, fontSize: 16),
-                      textAlign: TextAlign.center,
-                    ),
+            ],
+            // Mostrar el texto solo si no es vacío y si _showText está activo
+            if (_showText &&
+                widget.images[_currentIndex].text.isNotEmpty &&
+                widget.images[_currentIndex].text.trim() != '')
+              Positioned(
+                bottom: 24,
+                left: 24,
+                right: 24,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
+                  decoration: BoxDecoration(
+                    color: const Color.fromRGBO(0, 0, 0, 0.7),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    widget.images[_currentIndex].text,
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );

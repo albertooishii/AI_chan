@@ -3,6 +3,21 @@ import '../models/message.dart';
 import '../models/event_entry.dart';
 
 class IaPromiseService {
+  /// Restaura promesas desde EventEntry guardados previamente
+  static void restoreFromEventEntries({
+    required List<EventEntry> events,
+    required void Function(DateTime, String, String) scheduleIaPromise,
+  }) {
+    final now = DateTime.now();
+    for (final e in events) {
+      if (e.type == 'promesa' && e.date != null && e.date!.isAfter(now)) {
+        final motivo = e.extra != null ? (e.extra!['motivo']?.toString() ?? 'promesa') : 'promesa';
+        final original = e.extra != null ? (e.extra!['originalText']?.toString() ?? e.description) : e.description;
+        scheduleIaPromise(e.date!, motivo, original);
+      }
+    }
+  }
+
   /// Restaura eventos IA desde una lista JSON y programa recordatorios
   static void restoreIaPromiseEvents({
     required List<dynamic> eventsList,
@@ -43,14 +58,36 @@ class IaPromiseService {
     'perfecto',
   ];
 
-  static bool isIaPromiseDuplicated(List<EventEntry> events, String motivo) {
+  static bool isIaPromiseDuplicated(
+    List<EventEntry> events, {
+    String? motivo,
+    DateTime? target,
+    String? originalText,
+    Duration window = const Duration(minutes: 10),
+  }) {
     final now = DateTime.now();
-    final motivoLower = motivo.toLowerCase();
+    final motivoLower = motivo?.toLowerCase() ?? '';
+    final originalLower = originalText?.toLowerCase().trim();
     for (final event in events) {
-      if (event.date != null && event.date!.isAfter(now)) {
-        final eventMotivo = event.extra?['motivo']?.toString().toLowerCase() ?? '';
-        for (final kw in iaKeywords) {
-          if (motivoLower.contains(kw) && eventMotivo.contains(kw)) {
+      if (event.type != 'promesa') continue;
+      final date = event.date;
+      if (date == null || !date.isAfter(now)) continue;
+      final eventMotivo = event.extra?['motivo']?.toString().toLowerCase() ?? '';
+      final eventOriginal = event.extra?['originalText']?.toString().toLowerCase().trim();
+      // 1) Mismo originalText y hora cercana
+      if (originalLower != null && eventOriginal != null && originalLower == eventOriginal) {
+        if (target != null && (date.difference(target).inMinutes).abs() <= window.inMinutes) {
+          return true;
+        }
+      }
+      // 2) Motivo similar según keywords y hora cercana (si se pasa target)
+      if (motivoLower.isNotEmpty) {
+        final motivoOverlap = iaKeywords.any((kw) => motivoLower.contains(kw) && eventMotivo.contains(kw));
+        if (motivoOverlap) {
+          if (target == null) {
+            return true; // mismo motivo futuro sin comparar hora
+          }
+          if ((date.difference(target).inMinutes).abs() <= window.inMinutes) {
             return true;
           }
         }
@@ -66,7 +103,7 @@ class IaPromiseService {
   }) {
     if (messages.isEmpty) return;
     final lastMsg = messages.last;
-    if (lastMsg.sender.toString() != 'MessageSender.ia') return;
+    if (lastMsg.sender != MessageSender.assistant) return;
     final text = lastMsg.text.toLowerCase();
     final regexHora = RegExp(r'(?:a las|sobre las|cuando sean las)\s*(\d{1,2})(?::(\d{2}))?');
     final matchHora = regexHora.firstMatch(text);
@@ -82,10 +119,18 @@ class IaPromiseService {
       final hour = int.tryParse(matchHora.group(1) ?? '0') ?? 0;
       final minute = int.tryParse(matchHora.group(2) ?? '0') ?? 0;
       final now = DateTime.now();
-      DateTime target = DateTime(now.year, now.month, now.day, hour, minute);
+      int h = hour;
+      // Ajuste simple AM/PM a partir del texto
+      final lower = text.toLowerCase();
+      final hasPm =
+          lower.contains('de la tarde') || lower.contains('pm') || lower.contains('p.m.') || lower.contains('noche');
+      final hasAm = lower.contains('de la mañana') || lower.contains('am') || lower.contains('a.m.');
+      if (hasPm && h < 12) h += 12;
+      if (hasAm && h == 12) h = 0;
+      DateTime target = DateTime(now.year, now.month, now.day, h, minute);
       if (target.isBefore(now)) target = target.add(const Duration(days: 1));
       final motivo = 'descanso';
-      if (isIaPromiseDuplicated(events, motivo)) {
+      if (isIaPromiseDuplicated(events, motivo: motivo, target: target, originalText: lastMsg.text)) {
         debugPrint('[PROMESA IA] Evento duplicado detectado para motivo "$motivo". No se programa de nuevo.');
         return;
       }
@@ -114,7 +159,7 @@ class IaPromiseService {
         final now = DateTime.now();
         final target = now.add(const Duration(hours: 1));
         final motivo = key;
-        if (isIaPromiseDuplicated(events, motivo)) {
+        if (isIaPromiseDuplicated(events, motivo: motivo, target: target, originalText: lastMsg.text)) {
           debugPrint('[PROMESA IA] Evento duplicado detectado para motivo "$motivo". No se programa de nuevo.');
           return;
         }
@@ -133,48 +178,46 @@ class IaPromiseService {
         return;
       }
     }
+    // Filtro de promesas vagas: solo si hay verbo de acción futura y no es condicional
     final regexVago = RegExp(
-      r'('
-      r'en la próxima hora|'
-      r'cuando\s+((tenga|me quede|disponga de|pueda|esté|haya|me libere|me desocupe|acabe|termine|finalice|salga|vea|surja|encuentre|acabe aquí|termine aquí|termine en el trabajo|termine en la oficina|salga de la oficina|salga del trabajo|ponga un pie fuera|me marche|me vaya|me escape|me desocupe|me libere)(\s*(y|o|,)?\s*)?)+[^\n]{0,40}?(hueco|huequito|ratito|momento|pausa|break|descanso|espacio|oportunidad|chance|ocasión|disponibilidad|libre|perfecto)?(\s*libre)?|'
-      r'en cuanto\s+((pueda|tenga|me quede|disponga de|esté|haya|me libere|me desocupe|vea|surja|encuentre|acabe aquí|termine aquí|termine en el trabajo|termine en la oficina|salga de la oficina|salga del trabajo|ponga un pie fuera|me marche|me vaya|me escape)(\s*(y|o|,)?\s*)?)+[^\n]{0,40}?(hueco|huequito|ratito|momento|pausa|break|descanso|espacio|oportunidad|chance|ocasión|disponibilidad|libre|perfecto)?(\s*libre)?|'
-      r'deseando que llegue[^\n]*?(hueco|huequito|ratito|momento|pausa|break|descanso|espacio|perfecto)|'
-      r'esperando[^\n]*?(hueco|huequito|ratito|momento|pausa|break|descanso|espacio|perfecto)|'
-      r'que llegue[^\n]*?(hueco|huequito|ratito|momento|pausa|break|descanso|espacio|perfecto)|'
-      r'en cuanto salga de (la oficina|el trabajo|a la calle)|'
-      r'en cuanto ponga un pie fuera|'
-      r'en cuanto termine aquí|'
-      r'en cuanto acabe aquí|'
-      r'en cuanto me marche|'
-      r'en cuanto me vaya|'
-      r'en cuanto me escape|'
-      r'en cuanto me desocupe|'
-      r'en cuanto me libere|'
-      r'cuando salga de (la oficina|el trabajo|a la calle)|'
-      r'cuando ponga un pie fuera|'
-      r'cuando termine aquí|'
-      r'cuando acabe aquí|'
-      r'cuando me marche|'
-      r'cuando me vaya|'
-      r'cuando me escape|'
-      r'cuando me desocupe|'
-      r'cuando me libere|'
-      r'en un minutito salgo|'
-      r'ya estoy saliendo|'
-      r'estoy por salir|'
-      r'recogiendo mis cosas|'
-      r'ya casi salgo|'
-      r'ya me voy|'
-      r'estoy saliendo|'
-      r'qué ganas de llegar a casa|'
-      r'ya voy en camino|'
-      r'voy para allá|'
-      r'ya estoy en camino'
-      r')',
+      r'(te aviso|te escribo|te llamo|te recuerdo|te cuento|te aviso luego|te escribo luego|te llamo luego|te lo digo luego|te lo cuento luego|te aviso en cuanto pueda|te escribo en cuanto pueda|te llamo en cuanto pueda|prometo|prometo avisar|prometo escribir|prometo llamar|prometo contar|te aviso cuando termine|te escribo cuando termine|te llamo cuando termine|te aviso cuando salga|te escribo cuando salga|te llamo cuando salga)',
       caseSensitive: false,
     );
+    final condicionales = [
+      'quizá',
+      'intentare',
+      'intentaré',
+      'si puedo',
+      'a lo mejor',
+      'puede que',
+      'probablemente',
+      'posiblemente',
+      'si surge',
+      'si me acuerdo',
+      'si tengo tiempo',
+      'si se da',
+      'si sale',
+      'si me dejan',
+      'si me da tiempo',
+      'si me acuerdo',
+      'si me acuerdo te aviso',
+      'si me acuerdo te escribo',
+      'si me acuerdo te llamo',
+    ];
     final matchVago = regexVago.firstMatch(text);
-    if (matchVago != null) {
+    final contieneCondicional = condicionales.any((c) => text.contains(c));
+    final palabrasTiempo = [
+      'mañana',
+      'noche',
+      'tarde',
+      'por la mañana',
+      'por la noche',
+      'por la tarde',
+      'más tarde',
+      'luego',
+    ];
+    final contieneTiempo = palabrasTiempo.any((p) => text.contains(p));
+    if (matchVago != null && !contieneCondicional && !contieneTiempo) {
       final now = DateTime.now();
       final minutosRestantes = 60 - now.minute;
       final minMinutos = 5;
@@ -182,7 +225,7 @@ class IaPromiseService {
       final randomMinutes = minMinutos + (DateTime.now().millisecondsSinceEpoch % (maxMinutos - minMinutos + 1));
       final target = now.add(Duration(minutes: randomMinutes));
       final motivo = matchVago.group(0) ?? 'evento_vago';
-      if (isIaPromiseDuplicated(events, motivo)) {
+      if (isIaPromiseDuplicated(events, motivo: motivo, target: target, originalText: lastMsg.text)) {
         debugPrint('[PROMESA IA] Evento duplicado detectado para motivo "$motivo". No se programa de nuevo.');
         return;
       }

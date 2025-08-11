@@ -10,6 +10,44 @@ import '../constants/app_colors.dart';
 import '../models/message.dart';
 
 class ChatBubble extends StatelessWidget {
+  Widget _buildBubbleContent({
+    required Widget child,
+    required bool useIntrinsicWidth,
+    required bool isUser,
+    required Color borderColor,
+    required Color glowColor,
+    EdgeInsetsGeometry? padding,
+  }) {
+    final bubble = Container(
+      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+      padding: padding ?? const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.only(
+          topLeft: const Radius.circular(18),
+          topRight: const Radius.circular(18),
+          bottomLeft: Radius.circular(isUser ? 18 : 4),
+          bottomRight: Radius.circular(isUser ? 4 : 18),
+        ),
+        border: Border.all(color: borderColor, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: glowColor.withAlpha((0.4 * 255).round()),
+            blurRadius: 12,
+            spreadRadius: 1,
+            offset: const Offset(0, 0),
+          ),
+        ],
+      ),
+      child: child,
+    );
+    if (useIntrinsicWidth) {
+      return IntrinsicWidth(child: bubble);
+    } else {
+      return bubble;
+    }
+  }
+
   final Message message;
   final bool isLastUserMessage;
   final Directory? imageDir;
@@ -44,7 +82,7 @@ class ChatBubble extends StatelessWidget {
                       .toList();
                   final idx = images.indexWhere((m) => m.image?.url == imageUrl);
                   if (idx != -1) {
-                    ExpandableImageDialog.show(context, images, idx);
+                    ExpandableImageDialog.show(context, images, idx, imageDir: imageDir);
                   }
                 },
                 child: ClipRRect(
@@ -91,100 +129,68 @@ class ChatBubble extends StatelessWidget {
       statusWidget = Icon(icon, size: 16, color: color);
     }
 
-    final shouldShowText = message.text.isNotEmpty && message.text.trim() != '[NO_REPLY]';
+    final shouldShowText = message.text.isNotEmpty && message.text.trim() != '';
     final hasImage = message.image != null && message.image!.url != null && message.image!.url!.isNotEmpty;
 
-    // Si solo hay imagen y no texto, ajustar el ancho al tamaño de la imagen
-    if (hasImage && !shouldShowText) {
-      return Align(
-        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-        child: IntrinsicWidth(
-          child: Container(
-            margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(18),
-                topRight: const Radius.circular(18),
-                bottomLeft: Radius.circular(isUser ? 18 : 4),
-                bottomRight: Radius.circular(isUser ? 4 : 18),
-              ),
-              border: Border.all(color: borderColor, width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: glowColor.withAlpha((0.4 * 255).round()),
-                  blurRadius: 12,
-                  spreadRadius: 1,
-                  offset: const Offset(0, 0),
-                ),
-              ],
-            ),
-            child: _buildImageContent(message, glowColor),
+    Widget bubbleContent;
+    bool useIntrinsicWidth = false;
+    EdgeInsetsGeometry padding = const EdgeInsets.all(14);
+    if (hasImage) {
+      final isShortText = !shouldShowText || (shouldShowText && message.text.length < 80);
+      useIntrinsicWidth = isShortText;
+      padding = isShortText ? const EdgeInsets.all(6) : const EdgeInsets.all(14);
+      bubbleContent = Column(
+        crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildImageContent(message, glowColor),
+          if (shouldShowText) ...[
+            const SizedBox(height: 8),
+            ...MarkdownGenerator().buildWidgets(cleanText(message.text)),
+          ],
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const SizedBox(width: 8),
+              Text(_formatTime(message.dateTime), style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+              if (isUser) ...[const SizedBox(width: 4), statusWidget],
+            ],
           ),
-        ),
+        ],
+      );
+    } else {
+      bubbleContent = Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [...MarkdownGenerator().buildWidgets(cleanText(message.text.isNotEmpty ? message.text : ''))],
+            ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const SizedBox(width: 8),
+              Text(_formatTime(message.dateTime), style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+              if (isUser) ...[const SizedBox(width: 4), statusWidget],
+            ],
+          ),
+        ],
       );
     }
-    // Mensaje normal (texto o imagen+texto)
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(18),
-            topRight: const Radius.circular(18),
-            bottomLeft: Radius.circular(isUser ? 18 : 4),
-            bottomRight: Radius.circular(isUser ? 4 : 18),
-          ),
-          border: Border.all(color: borderColor, width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: glowColor.withAlpha((0.4 * 255).round()),
-              blurRadius: 12,
-              spreadRadius: 1,
-              offset: const Offset(0, 0),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: hasImage
-              ? (isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start)
-              : CrossAxisAlignment.end,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (hasImage) ...[_buildImageContent(message, glowColor), if (shouldShowText) const SizedBox(height: 8)],
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (!hasImage)
-                  Flexible(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ...MarkdownGenerator().buildWidgets(
-                          cleanText(message.text.isNotEmpty ? message.text : '[NO_REPLY]'),
-                        ),
-                      ],
-                    ),
-                  )
-                else if (shouldShowText)
-                  Flexible(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [...MarkdownGenerator().buildWidgets(cleanText(message.text))],
-                    ),
-                  ),
-                const SizedBox(width: 8),
-                Text(_formatTime(message.dateTime), style: TextStyle(color: Colors.grey[400], fontSize: 12)),
-                if (isUser) ...[const SizedBox(width: 4), statusWidget],
-              ],
-            ),
-          ],
-        ),
+      child: _buildBubbleContent(
+        child: bubbleContent,
+        useIntrinsicWidth: useIntrinsicWidth,
+        isUser: isUser,
+        borderColor: borderColor,
+        glowColor: glowColor,
+        padding: padding,
       ),
     );
   }

@@ -6,7 +6,7 @@ import '../widgets/expandable_image_dialog.dart';
 
 class GalleryScreen extends StatelessWidget {
   final List<Message> images;
-  const GalleryScreen({Key? key, required this.images}) : super(key: key);
+  const GalleryScreen({super.key, required this.images});
 
   @override
   Widget build(BuildContext context) {

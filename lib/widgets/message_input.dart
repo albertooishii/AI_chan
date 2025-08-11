@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
@@ -9,6 +10,16 @@ import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import '../constants/app_colors.dart';
 import '../providers/chat_provider.dart';
 import '../models/image.dart' as ai_image;
+import '../utils/image_utils.dart';
+
+// Intents para atajos de teclado en escritorio
+class SendMessageIntent extends Intent {
+  const SendMessageIntent();
+}
+
+class InsertNewlineIntent extends Intent {
+  const InsertNewlineIntent();
+}
 
 class MessageInput extends StatefulWidget {
   final void Function(String text)? onSend;
@@ -25,6 +36,7 @@ class _MessageInputState extends State<MessageInput> {
   final TextEditingController _controller = TextEditingController();
   bool _showEmojiPicker = false;
   final FocusNode _textFieldFocusNode = FocusNode();
+
   @override
   void initState() {
     super.initState();
@@ -43,9 +55,21 @@ class _MessageInputState extends State<MessageInput> {
     super.dispose();
   }
 
+  bool _isMobile(BuildContext context) {
+    // Nativo: Android/iOS -> móvil
+    // Web: si la ventana es "pequeña" (lado corto < 600), tratamos como móvil
+    final isNativeMobile =
+        !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
+    if (isNativeMobile) return true;
+    if (kIsWeb) {
+      final shortest = MediaQuery.of(context).size.shortestSide;
+      return shortest < 600;
+    }
+    return false;
+  }
+
   Future<void> _pickImage() async {
-    final isMobile =
-        kIsWeb || defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS;
+    final isMobile = _isMobile(context);
     if (isMobile) {
       final picker = ImagePicker();
       final context = this.context;
@@ -153,16 +177,23 @@ class _MessageInputState extends State<MessageInput> {
 
     final chatProvider = context.read<ChatProvider>();
     ai_image.Image? imageToSend;
+    String? imageMimeType = _attachedImageMime;
     if (hasImage) {
-      final ext = _attachedImageMime == 'image/jpeg'
-          ? 'jpg'
-          : _attachedImageMime == 'image/webp'
-          ? 'webp'
-          : 'png';
-      final fileName = 'img_user_${DateTime.now().millisecondsSinceEpoch}.$ext';
-
-      // Solo el nombre del archivo en el campo url
-      imageToSend = ai_image.Image(url: fileName, base64: _attachedImageBase64!);
+      // Guardar la imagen en local y obtener el nombre real
+      final savedPath = await saveBase64ImageToFile(_attachedImageBase64!, prefix: 'img_user');
+      if (savedPath != null) {
+        final fileName = savedPath.split('/').last;
+        imageToSend = ai_image.Image(url: fileName, base64: _attachedImageBase64!);
+      } else {
+        // Si falla, usar el nombre generado como antes
+        final ext = imageMimeType == 'image/jpeg'
+            ? 'jpg'
+            : imageMimeType == 'image/webp'
+            ? 'webp'
+            : 'png';
+        final fileName = 'img_user_${DateTime.now().millisecondsSinceEpoch}.$ext';
+        imageToSend = ai_image.Image(url: fileName, base64: _attachedImageBase64!);
+      }
     }
     if (mounted) {
       setState(() {
@@ -172,11 +203,13 @@ class _MessageInputState extends State<MessageInput> {
         _attachedImageMime = null;
       });
     }
-    await chatProvider.sendMessage(text, image: imageToSend, imageMimeType: _attachedImageMime);
+    await chatProvider.sendMessage(text, image: imageToSend, imageMimeType: imageMimeType);
   }
 
   @override
   Widget build(BuildContext context) {
+    // Desktop: Linux/Windows/macOS; Mobile: Android/iOS y Web "pequeño" (lado corto < 600)
+    final bool isMobile = _isMobile(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -212,79 +245,105 @@ class _MessageInputState extends State<MessageInput> {
                   ),
                 ),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
-                    child: TextField(
-                      focusNode: _textFieldFocusNode,
-                      controller: _controller,
-                      style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
-                      decoration: InputDecoration(
-                        hintText:
-                            'Escribe tu mensaje...'
-                            '${_attachedImage != null ? ' (opcional)' : ''}',
-                        hintStyle: const TextStyle(color: AppColors.secondary),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: AppColors.secondary),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: AppColors.primary, width: 2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: Colors.black,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        prefixIcon: IconButton(
-                          icon: _showEmojiPicker
-                              ? const Icon(Icons.close, color: AppColors.secondary)
-                              : const Icon(Icons.emoji_emotions_outlined, color: AppColors.secondary),
-                          onPressed: () {
-                            if (_showEmojiPicker) {
-                              // Cerrar emojis: volver a enfocar el TextField y mostrar teclado
-                              FocusScope.of(context).requestFocus(_textFieldFocusNode);
-                            } else {
-                              // Abrir emojis: ocultar teclado
-                              FocusScope.of(context).unfocus();
-                            }
-                            setState(() {
-                              _showEmojiPicker = !_showEmojiPicker;
-                            });
-                          },
-                          tooltip: _showEmojiPicker ? 'Cerrar emojis' : 'Emojis',
-                        ),
-                        suffixIcon: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (_showEmojiPicker)
-                              IconButton(
-                                icon: const Icon(Icons.backspace_outlined, color: AppColors.secondary),
-                                onPressed: () {
-                                  final text = _controller.text;
-                                  if (text.isNotEmpty) {
-                                    final chars = text.characters;
-                                    _controller.text = chars.skipLast(1).toString();
-                                    _controller.selection = TextSelection.fromPosition(
-                                      TextPosition(offset: _controller.text.length),
-                                    );
-                                  }
-                                },
-                                tooltip: 'Borrar último carácter',
-                              ),
-                            IconButton(
+                    child: Builder(
+                      builder: (context) {
+                        Widget field = TextField(
+                          focusNode: _textFieldFocusNode,
+                          controller: _controller,
+                          style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
+                          decoration: InputDecoration(
+                            hintText:
+                                'Escribe tu mensaje...'
+                                '${_attachedImage != null ? ' (opcional)' : ''}',
+                            hintStyle: const TextStyle(color: AppColors.secondary),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: AppColors.secondary),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: AppColors.primary, width: 2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.black,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            prefixIcon: IconButton(
+                              icon: _showEmojiPicker
+                                  ? const Icon(Icons.close, color: AppColors.secondary)
+                                  : const Icon(Icons.emoji_emotions_outlined, color: AppColors.secondary),
+                              onPressed: () {
+                                if (_showEmojiPicker) {
+                                  FocusScope.of(context).requestFocus(_textFieldFocusNode);
+                                } else {
+                                  FocusScope.of(context).unfocus();
+                                }
+                                setState(() {
+                                  _showEmojiPicker = !_showEmojiPicker;
+                                });
+                              },
+                              tooltip: _showEmojiPicker ? 'Cerrar emojis' : 'Emojis',
+                            ),
+                            suffixIcon: IconButton(
                               icon: const Icon(Icons.camera_alt, color: AppColors.secondary),
                               onPressed: _pickImage,
                               tooltip: 'Foto o galería',
                             ),
-                          ],
-                        ),
-                      ),
-                      onSubmitted: (_) => _send(),
+                          ),
+                          // En móvil, Enter inserta salto; en escritorio gestionamos con Shortcuts
+                          onSubmitted: isMobile ? null : null,
+                          textInputAction: TextInputAction.newline,
+                          keyboardType: TextInputType.multiline,
+                          minLines: 1,
+                          maxLines: 8,
+                        );
+                        if (isMobile) return field;
+                        return Shortcuts(
+                          shortcuts: <LogicalKeySet, Intent>{
+                            LogicalKeySet(LogicalKeyboardKey.enter): const SendMessageIntent(),
+                            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.enter):
+                                const InsertNewlineIntent(),
+                          },
+                          child: Actions(
+                            actions: <Type, Action<Intent>>{
+                              SendMessageIntent: CallbackAction<SendMessageIntent>(
+                                onInvoke: (intent) {
+                                  _send();
+                                  return null;
+                                },
+                              ),
+                              InsertNewlineIntent: CallbackAction<InsertNewlineIntent>(
+                                onInvoke: (intent) {
+                                  final sel = _controller.selection;
+                                  final start = sel.start >= 0 ? sel.start : _controller.text.length;
+                                  final end = sel.end >= 0 ? sel.end : _controller.text.length;
+                                  final newText = _controller.text.replaceRange(start, end, '\n');
+                                  _controller.text = newText;
+                                  _controller.selection = TextSelection.collapsed(offset: start + 1);
+                                  return null;
+                                },
+                              ),
+                            },
+                            child: field,
+                          ),
+                        );
+                      },
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.send, color: AppColors.primary),
-                    onPressed: _send,
+                  const SizedBox(width: 6),
+                  Align(
+                    alignment: Alignment.center,
+                    child: SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(Icons.send, color: AppColors.primary),
+                        onPressed: _send,
+                      ),
+                    ),
                   ),
                 ],
               ),

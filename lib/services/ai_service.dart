@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'gemini_service.dart';
 import 'openai_service.dart';
@@ -15,6 +18,7 @@ abstract class AIService {
     String? model,
     String? imageBase64,
     String? imageMimeType,
+    bool enableImageGeneration = false,
   });
 
   /// Punto único de entrada para enviar mensajes a la IA con fallback automático.
@@ -24,17 +28,18 @@ abstract class AIService {
     String? model,
     String? imageBase64,
     String? imageMimeType,
-    String fallbackModel = 'gpt-5-nano',
+    String fallbackModel = 'gpt-5-mini',
+    bool enableImageGeneration = false,
   }) async {
     final m = model ?? 'gemini-2.5-flash';
     AIService? aiService = AIService.select(m);
     if (aiService == null) {
       debugPrint('[AIService.sendMessage] No se pudo encontrar el servicio IA para el modelo: $m');
-      return AIResponse(text: '[NO_REPLY]');
+      return AIResponse(text: '');
     }
 
     // Guardar logs JSON solo en escritorio (Windows, macOS, Linux)
-    /*if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
       try {
         final jsonData = {
           'history': history,
@@ -57,16 +62,17 @@ abstract class AIService {
       } catch (e) {
         debugPrint('[AIService.sendMessage] Error al serializar JSON para log: $e');
       }
-    }*/
+    }
     AIResponse response = await aiService.sendMessageImpl(
       history,
       systemPrompt,
       model: m,
       imageBase64: imageBase64,
       imageMimeType: imageMimeType,
+      enableImageGeneration: enableImageGeneration,
     );
     // Guardar la respuesta de la IA en un archivo JSON de log solo en escritorio
-    /*if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
       try {
         final respJson = {'response': response.toJson(), 'model': m, 'timestamp': DateTime.now().toIso8601String()};
         final directory = Directory('debug_json_logs');
@@ -81,7 +87,7 @@ abstract class AIService {
       } catch (e) {
         debugPrint('[AIService.sendMessage] Error al guardar JSON de respuesta: $e');
       }
-    }*/
+    }
     bool hasQuotaError(String text) {
       return text.contains('RESOURCE_EXHAUSTED') ||
           text.contains('quota') ||
@@ -95,7 +101,7 @@ abstract class AIService {
       aiService = AIService.select(fallbackModel);
       if (aiService == null) {
         debugPrint('[AIService.sendMessage] No se pudo encontrar el servicio IA para el modelo: $fallbackModel');
-        return AIResponse(text: '[NO_REPLY]');
+        return AIResponse(text: '');
       }
       response = await aiService.sendMessageImpl(
         history,
@@ -103,6 +109,7 @@ abstract class AIService {
         model: fallbackModel,
         imageBase64: imageBase64,
         imageMimeType: imageMimeType,
+        enableImageGeneration: enableImageGeneration,
       );
     }
     return response;

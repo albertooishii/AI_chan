@@ -11,20 +11,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('App builds smoke test', (WidgetTester tester) async {
+    // Construir la app raíz (incluye MaterialApp y Providers)
+    await tester.pumpWidget(const RootApp());
+    // Dejar pasar el delay de initState (500ms) y tareas asíncronas mínimas
+    await tester.pump(const Duration(milliseconds: 700));
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Debe existir un MaterialApp en el árbol
+    expect(find.byType(MaterialApp), findsOneWidget);
   });
 }

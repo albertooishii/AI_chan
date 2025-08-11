@@ -1,8 +1,10 @@
 import 'package:ai_chan/models/ai_chan_profile.dart';
 import 'package:ai_chan/screens/initializing_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:io' show Platform;
 
 import 'screens/chat_screen.dart';
 import 'screens/onboarding_screen.dart';
@@ -87,7 +89,8 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       // Solicitar permisos de almacenamiento externo en Android
       // Solo si la plataforma es Android
       try {
-        if (Theme.of(context).platform == TargetPlatform.android) {
+        // Usar defaultTargetPlatform en lugar de Theme.of(context) en initState
+        if (!kIsWeb && Platform.isAndroid) {
           await Future.delayed(Duration(milliseconds: 500)); // Espera a que el contexto esté listo
           await Permission.storage.request();
         }
@@ -137,10 +140,12 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
               required String meetStory,
               Map<String, dynamic>? appearance,
             }) async {
+              // Capturar navigator y evitar usar context tras esperas largas
+              final navigator = Navigator.of(context);
               onboardingProvider.setUserName(userName);
               onboardingProvider.setAiName(aiName);
               // meetStory solo se usa aquí y se pasa a la generación de biografía
-              await Navigator.of(context).push<AiChanProfile>(
+              await navigator.push<AiChanProfile>(
                 MaterialPageRoute(
                   fullscreenDialog: true,
                   builder: (_) => InitializingScreen(
@@ -185,9 +190,9 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
           aiName: onboardingProvider.generatedBiography!.aiName,
           onClearAllDebug: resetApp,
           onImportJson: (importedChat) async {
-            final onboardingProvider = Provider.of<OnboardingProvider>(context, listen: false);
+            final ob = Provider.of<OnboardingProvider>(context, listen: false);
             final jsonStr = jsonEncode(importedChat.toJson());
-            await onboardingProvider.importAllFromJson(jsonStr);
+            await ob.importAllFromJson(jsonStr);
           },
         ),
       ),

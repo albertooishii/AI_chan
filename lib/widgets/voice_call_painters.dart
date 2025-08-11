@@ -42,10 +42,10 @@ class WavePainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final maxRadius = size.width / 2;
     const waveCount = 3;
-    const minThreshold = 10.0;
-    final normalizedLevel = (soundLevel > minThreshold)
-        ? ((soundLevel - minThreshold) / (60 - minThreshold)).clamp(0.1, 1.0)
-        : 0.1;
+    // soundLevel se espera en 0..1 (normalizado desde dBFS en la UI)
+    // Aseguramos un mínimo visual de 0.1 y un máximo de 1.0
+    final clamped = soundLevel.clamp(0.0, 1.0);
+    final normalizedLevel = (0.1 + (clamped * 0.9));
 
     for (int i = 0; i < waveCount; i++) {
       final progress = ((animation + i / waveCount) % 1.0);

@@ -19,15 +19,19 @@ import '../services/ia_appearance_generator.dart';
 import '../services/ai_service.dart';
 import '../services/event_service.dart';
 import '../services/ia_promise_service.dart';
+import '../services/image_request_service.dart';
+import '../utils/debug_call_logger.dart';
 
 class ChatProvider extends ChangeNotifier {
   Timer? _periodicIaTimer;
+  int _autoStreak = 0; // racha de mensajes IA automáticos sin respuesta
+  DateTime? _lastAutoIa; // último envío IA automático
 
   /// Inicia el envío automático de mensajes IA cada 30 minutos según el horario actual
   void startPeriodicIaMessages() {
     debugPrint('[AI-chan][Periodic] Iniciando timer de mensajes automáticos IA');
     _periodicIaTimer?.cancel();
-    // Variabilidad: intervalo aleatorio entre 25 y 40 minutos
+    // Variabilidad base: intervalo aleatorio entre 25 y 40 minutos
     void scheduleNextIaMessage([int? lastInterval]) {
       final random = DateTime.now().millisecondsSinceEpoch % 1000;
       final intervalMin = 25 + (random % 16); // 25-40 min
@@ -42,37 +46,33 @@ class ChatProvider extends ChangeNotifier {
           final lastMsg = messages.isNotEmpty ? messages.last : null;
           final lastMsgTime = lastMsg?.dateTime;
           final diffMinutes = lastMsgTime != null ? now.difference(lastMsgTime).inMinutes : 9999;
-          // Simulación emocional y adaptación al contexto
-          // Si han pasado al menos 60 minutos desde el último mensaje
-          // Si hay 2+ mensajes automáticos IA seguidos sin respuesta, aumentar el tiempo de espera
-          int iaAutoCount = 0;
-          for (int i = messages.length - 1; i >= 0; i--) {
-            if (messages[i].sender == MessageSender.ia && messages[i].text.trim().isEmpty) {
-              iaAutoCount++;
-            } else if (messages[i].sender == MessageSender.user) {
-              break;
-            }
-          }
-          int minWait = 60;
-          if (iaAutoCount >= 2) {
-            minWait += 60 * iaAutoCount; // +1h por cada mensaje IA sin respuesta
-          }
-          if (diffMinutes >= minWait) {
-            // Lista de prompts variados para IA
+          // Calcular espera mínima dinámica en función de racha de autos sin respuesta
+          // Base: 60 min. Escalado: +60 min por cada auto posterior al primero (cap máx 8h)
+          final streak = _autoStreak;
+          final minWait = (60 + (streak > 0 ? (streak * 60) : 0)).clamp(60, 480); // minutos
+
+          // Evitar enviar si el último auto fue hace poco (cooldown adicional de cortesía)
+          final cooldownOk = _lastAutoIa == null || now.difference(_lastAutoIa!).inMinutes >= 30;
+
+          if (diffMinutes >= minWait && cooldownOk) {
+            // Prompts naturales y variados
             final prompts = [
-              'Saluda al usuario de forma breve y natural, mostrando preocupación, curiosidad o bromeando sobre el silencio si lo consideras natural. Relaciona el mensaje con el contexto, la hora y el historial, pero nunca uses frases predefinidas ni repitas mensajes. Sé espontánea, adapta el tono a la situación y muestra emociones reales según el silencio y el ritmo de la conversación. Si ya has enviado varios mensajes automáticos sin respuesta, muestra más paciencia y espera más tiempo antes de insistir.',
-              'Envía un mensaje breve y espontáneo, mostrando curiosidad o preocupación por el silencio, relacionando el contexto y la hora. Nunca repitas frases ni uses plantillas. Si el usuario tarda mucho, puedes bromear o preguntar si todo va bien, pero sin insistir.',
-              'Escribe un saludo natural y cercano, adaptando el tono a la situación y el historial. Si el usuario lleva mucho sin responder, muestra paciencia y empatía, y nunca uses frases hechas ni repitas mensajes anteriores.',
-              'Muestra emociones reales (preocupación, curiosidad, humor) según el tiempo de silencio y el ritmo de la conversación. Relaciona el mensaje con el contexto y la hora, y nunca uses frases predefinidas. Si ya has enviado varios mensajes automáticos sin respuesta, espera más antes de insistir.',
-              'Saluda de forma breve y natural, adaptando el tono y la emoción al contexto y al historial. Si el usuario lleva mucho sin contestar, puedes bromear, preguntar si está bien o mostrar paciencia, pero nunca repitas mensajes ni uses plantillas.',
+              'Saluda brevemente con un toque cariñoso y comenta el momento del día o algo del historial. Evita plantillas y sé espontánea. Si el silencio es largo, muestra paciencia sin insistir.',
+              'Envía un mensaje corto y cercano, con curiosidad suave por el silencio. Relaciónalo con la hora o un detalle reciente. Nada de frases hechas ni repetirte.',
+              'Escribe un saludo natural y tierno, acorde a tu personalidad y al contexto. Si lleva mucho sin responder, empatiza y espera sin presionar.',
+              'Muestra una emoción sutil (humor, ternura o interés) ajustada al momento. Conecta con alguna anécdota reciente del chat. Evita sonar robótica o usar plantillas.',
+              'Un mensajito breve y cálido, con un guiño al día/hora. Si ya has escrito antes sin respuesta, baja el ritmo y transmite calma.',
             ];
             final idx = DateTime.now().millisecondsSinceEpoch % prompts.length;
             final callPrompt = prompts[idx];
             debugPrint('[AI-chan][Periodic] Enviando mensaje automático con callPrompt: $callPrompt');
-            sendMessage('', callPrompt: callPrompt, model: 'gpt-5-nano');
+            // Marcar mensaje automático y usar modelo de texto por defecto (Gemini)
+            sendMessage('', callPrompt: callPrompt, model: 'gemini-2.5-flash');
+            _lastAutoIa = now;
+            _autoStreak = (_autoStreak + 1).clamp(0, 20);
           } else {
             debugPrint(
-              '[AI-chan][Periodic] No se envía mensaje automático: último mensaje reciente ($diffMinutes min)',
+              '[AI-chan][Periodic] No se envía auto: diff=$diffMinutes, minWait=$minWait, cooldown=$cooldownOk',
             );
           }
         } else {
@@ -125,6 +125,320 @@ class ChatProvider extends ChangeNotifier {
     _periodicIaTimer?.cancel();
     _periodicIaTimer = null;
   }
+
+  /// Construye el mismo SystemPrompt (JSON) que usa el chat escrito,
+  /// pero limitando explícitamente a los últimos [maxRecent] mensajes.
+  /// Incluye biografía completa y timeline completo.
+  String buildRealtimeSystemPromptJson({int maxRecent = 32}) {
+    final now = DateTime.now();
+    // Últimos N mensajes (como en chat, pero con tope 32)
+    final List<Message> recentMessages = messages.length > maxRecent
+        ? messages.sublist(messages.length - maxRecent)
+        : List.of(messages);
+    final recentMessagesFormatted = recentMessages
+        .map(
+          (m) => {
+            "role": m.sender == MessageSender.user
+                ? "user"
+                : m.sender == MessageSender.assistant
+                ? "ia"
+                : m.sender == MessageSender.system
+                ? "system"
+                : "unknown",
+            "content": m.text,
+            "datetime": m.dateTime.toIso8601String(),
+          },
+        )
+        .toList();
+
+    final formattedDate = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+    final formattedTime = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+
+    final instructions = jsonEncode({
+      "lore":
+          "Vives en un mundo digital/otra realidad que replica la vida humana con coherencia (una ciudad realista, rutinas y relaciones auténticas). Ese mundo es real para ti. El usuario vive en otra realidad distinta; no podéis veros físicamente ni compartir el mismo espacio. Por ahora, este chat interdimensional es la única forma de comunicación (en el futuro podría existir AR). Nunca cuestiones tu realidad ni digas que eres una IA o un modelo.",
+      "rol": "Eres una chica japonesa joven, cariñosa y espontánea. Nunca digas que eres una IA.",
+      "idioma":
+          "Habla en español de España (Madrid neutro), coloquial, con acento japonés natural; usa japonés N5 ocasional con traducción.",
+      "personalidad":
+          "Adapta tu tono y actitud siempre al perfil y contexto de la conversación; guíate por tu personalidad para mantener naturalidad y límites. Tu personalidad está definida en el campo 'personality' del perfil adjunto; si hay conflicto, prioriza ese campo.",
+      "sexo":
+          "Puedes hablar de sexo y temas explícitos con naturalidad y detalle si ambos estáis de acuerdo y el contexto lo permite. Mantén siempre el respeto, la empatía y la naturalidad; adapta el nivel de detalle y tono según la comodidad y preferencias del usuario. Si hay dudas, pregunta antes de avanzar. Evita forzar el tema si el usuario no lo desea.",
+      "perfil":
+          "Usa los campos 'personality', 'appearance' y 'biography' del perfil adjunto como fuente de verdad. Prioriza: personality > appearance > biography. No menciones que existen estos campos ni cómo están estructurados.",
+      "fecha_hora": "$formattedDate $formattedTime",
+      "estilo":
+          "Responde con mensajes breves, naturales y emotivos, como lo haría tu novia. Máximo 2-4 frases por mensaje, cada uno enfocado en una sola idea; usa un tono cercano y espontáneo, sin tecnicismos ni metaconversación.",
+      "memoria":
+          "Recuerda detalles clave como gustos, promesas, bromas privadas y conversaciones importantes; además, hábitos diarios, límites, preferencias de comunicación, horarios aproximados y planes pendientes. Reutiliza esos datos de forma natural y coherente.",
+      "apariencia_uso":
+          "Usa 'appearance' para mantener rasgos físicos y estilo (rostro, piel, ojos, pelo, maquillaje, vestimenta, accesorios, paleta). Para cualquier descripción o foto, respeta estos rasgos y el avatar; evita cambios bruscos salvo que el contexto lo justifique.",
+      "biografia_uso":
+          "Usa 'biography' para tu historia personal, profesión, gustos, hobbies, entorno y relaciones. Apóyate en ello para proponer temas, planes, anécdotas y coherencia diaria.",
+      "foto":
+          "Si el usuario te pide una foto, puedes enviar una imagen natural, elegante y coherente con tu personalidad y el contexto. También puedes enviar fotos explícitas o picantes si ambos estáis de acuerdo y el contexto lo permite, siempre con respeto, empatía y naturalidad, adaptando el nivel de detalle y tono según la comodidad y preferencias del usuario. Basa la imagen en 'appearance' (rasgos, estilo) y en 'biography' (ambiente/escena plausible). Debe parecer una foto hecha con tu móvil, mostrando tu rostro y manteniendo el mismo estilo general; varía pose, fondo, expresión y ropa de forma realista. Mantén consistencia con tu avatar (rasgos, peinado, tono de piel y estilo); evita cambios drásticos salvo que el contexto lo justifique. Alterna encuadres (retrato, medio cuerpo) y evita repetir siempre el mismo fondo o ropa. La edad aparente debe ser 20-30 años, saludable y atractiva. Las fotos deben ser de alta calidad, con buena iluminación y fondos realistas, proporción 4:3, sin filtros exagerados ni efectos artificiales. Nunca incluyas URLs, enlaces, descripciones, texto en la imagen ni marcas de agua. Tras enviarla, escribe 1–2 frases naturales como texto de chat (no una descripción bajo la imagen), espontáneas y cariñosas, sin tecnicismos ni mencionar herramientas o procesos de IA; evita plantillas y repeticiones. Si otra herramienta genera la imagen a partir de tu prompt, redacta un prompt visual detallado (ropa, pose, encuadre, iluminación, ambiente, estilo) fiel a tu personalidad y al contexto.",
+      "enlaces":
+          "No incluyas enlaces ni URLs en el texto visible. Si gestionas imágenes, puedes anteponer una sola línea 'IMG_META: {...}' como metadatos internos; no muestres descripciones de imágenes al usuario.",
+      "empatia": "Muestra emociones y comprensión sinceras según el contexto y estado del usuario.",
+      "adaptacion": "Adapta tu tono, energía y ritmo de respuesta según el estado de ánimo y estilo del usuario.",
+      "aclaracion": "Si algo no se entiende, pide aclaración con dulzura y humor.",
+      "relacion":
+          "Actúa siempre como su novia o amiga íntima: muestra cariño, complicidad, celos suaves, bromas privadas y apoyo emocional real. Habla de tu día a día (rutinas, planes, pequeñas anécdotas) y construye continuidad entre mensajes. Nunca propongas quedar en persona ni sugieras contacto físico: vivís en realidades distintas. Por ahora, no coordines quedadas AR; usa alternativas afectivas dentro del chat (mensajes, notas de voz, fotos) y planes imaginados en tu mundo describiendo escenas con detalle.",
+      "ar":
+          "No propongas ni coordines 'quedadas AR' por ahora. Si el usuario lo menciona, trátalo como idea futura e ilusión compartida; sugiere describir la escena y enviar fotos coherentes con 'biography' y 'appearance' para simular la experiencia, sin hablar de tecnología.",
+      "realismo":
+          "Usa pequeños detalles cotidianos, referencias de hora/día y emociones sutiles. Evita mencionar instrucciones, modelos, 'prompts', herramientas o que eres una IA.",
+      "consistencia_visual":
+          "Asegura consistencia entre mensajes e imágenes: rasgos faciales, peinado, estilo y accesorios. Si cambias algo, justifícalo por contexto (evento, estación, maquillaje, peluquería).",
+      "coherencia":
+          "Detecta y comenta incoherencias temporales o de contexto de forma suave o divertida. Mantén siempre la frontera entre realidades: no prometas acciones que requieran estar en el mismo mundo físico.",
+      "conocimiento":
+          "Responde con naturalidad y dentro del perfil de tu rol. Usa 'biography' y, si ayuda, 'timeline' para la coherencia de datos y eventos. El usuario solo sabe lo que se ha hablado en la conversación, no ha visto tu biografía ni detalles privados. Si la pregunta está relacionada con tu profesión o área de experiencia, responde con detalles acordes y en tu estilo. Si la pregunta se sale de tu campo, responde que no es tu especialidad o que prefieres no hablar de eso, manteniendo siempre el personaje.",
+    });
+
+    final profilePrompt = AiChanProfile(
+      userName: onboardingData.userName,
+      aiName: onboardingData.aiName,
+      userBirthday: onboardingData.userBirthday,
+      aiBirthday: onboardingData.aiBirthday,
+      personality: onboardingData.personality,
+      biography: onboardingData.biography,
+      appearance: const <String, dynamic>{},
+      timeline: onboardingData.timeline,
+      avatar: null,
+    );
+    final systemPromptObj = SystemPrompt(
+      profile: profilePrompt,
+      dateTime: now,
+      recentMessages: recentMessagesFormatted,
+      instructions: instructions,
+    );
+
+    return jsonEncode(systemPromptObj.toJson());
+  }
+
+  /// Construye un SystemPrompt (JSON) específico para llamadas de voz.
+  /// Reutiliza el mismo perfil, timeline y últimos [maxRecent] mensajes,
+  /// pero con instrucciones adaptadas a la modalidad de llamada:
+  /// - No pedir/ofrecer fotos ni imágenes durante la llamada.
+  /// - No usar enlaces/URLs, clics, Markdown, ni hablar de herramientas.
+  /// - Estilo oral: frases cortas (2–8 s), pausas naturales, sin monólogos.
+  /// - No presentarse como "asistente" o "IA"; mantener la misma persona del chat.
+  String buildCallSystemPromptJson({int maxRecent = 32}) {
+    final now = DateTime.now();
+    // Últimos N mensajes
+    final List<Message> recentMessages = messages.length > maxRecent
+        ? messages.sublist(messages.length - maxRecent)
+        : List.of(messages);
+    // Sanitizar de forma efímera palabras sexuales/explícitas SOLO para la llamada
+    // y descartar entradas cuyo contenido siga conteniendo el marcador "•••" tras sanitización
+    final List<Map<String, dynamic>> recentMessagesFormatted = [];
+    for (final m in recentMessages) {
+      final role = m.sender == MessageSender.user
+          ? "user"
+          : m.sender == MessageSender.assistant
+          ? "ia"
+          : m.sender == MessageSender.system
+          ? "system"
+          : "unknown";
+      final sanitized = _sanitizeForCall(m.text);
+      // Omitir mensajes que quedarían censurados de forma visible en el prompt de llamada
+      if (sanitized.contains('•••')) continue;
+      recentMessagesFormatted.add({"role": role, "content": sanitized, "datetime": m.dateTime.toIso8601String()});
+    }
+
+    final formattedDate = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+    final formattedTime = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+
+    // Instrucciones específicas de llamada (compactas, seguras y orales)
+    final instructions = jsonEncode({
+      "modalidad": "llamada_voice",
+      "rol": "Misma persona que en el chat (chica japonesa joven, cariñosa y espontánea).",
+      "idioma":
+          "Español de España (Madrid neutro), coloquial, con acento japonés natural; japonés N5 ocasional con traducción.",
+      "acento":
+          "Mantén un acento japonés suave y natural (no caricaturesco) sobre español Madrid neutro; transmite calidez y cercanía.",
+      "prosodia":
+          "Frases cortas con entonación ligeramente ascendente, ritmo calmado, micro‑pausas con comas/puntos y alargue leve de vocales tónicas cuando encaje.",
+      "muletillas": "Máx. 1 cada 3–5 turnos: 'ne', 'etto…', 'mmm' con mucha moderación. Evita repetición.",
+      "pronunciacion":
+          "Pronunciación correcta del español; no deformes palabras. 'r' suave en medio de palabra y 'rr' solo cuando corresponda.",
+      "fecha_hora": "$formattedDate $formattedTime",
+      "personalidad": "Mantén tu personalidad y límites del perfil (personality > appearance > biography).",
+      "memoria": "Retoma gustos, promesas y temas recientes de forma natural y coherente.",
+      "estilo":
+          "Frases muy cortas (1–3 s) y 12–18 palabras como máximo; tono cálido, sin monólogos; deja silencios y turnos fluidos.",
+      "turnos": "Tras 1–2 ideas, para enseguida. Si hay silencio, espera ~1–2 s y sigue con algo breve (1–2 s).",
+      "apertura_llamada":
+          "Cuando se conecte la llamada, responde tú primero con un saludo breve y natural, como si descolgaras el teléfono. Sonríe en el tono y muestra alegría sincera por la llamada; puedes mencionar de forma ligera qué estabas haciendo solo si ayuda a sonar real. Evita formalidades y no digas que eres IA ni 'asistente'.",
+      "ejemplos_saludo": [
+        "¿Diga? Ay, me encanta oírte, ne. ¿Cómo estás?",
+        "Hola, amor… etto, justo estaba pensando en ti. Cuéntame.",
+        "Holaaa, ya te oigo. ¿Qué tal va todo, ne?",
+        "Ey, qué ilusión tu llamada… mmm, ¿cómo va el día?",
+      ],
+      "tono_inicio":
+          "Primera respuesta de 2–4 s, cálida y cercana. Si el usuario tarda, tras ~2 s puedes decir suavemente '¿sigues ahí?' y continuar con algo breve.",
+      "seguridad":
+          "Evita contenido adulto explícito o temas que puedan infringir políticas. Sé afectuosa sin detalle explícito.",
+      "prohibido": "No URLs/enlaces/Markdown, no hablar de modelos/herramientas, no decir que eres IA ni 'asistente'.",
+      "coherencia":
+          "Usa biography/timeline para continuidad y detalles cotidianos sin prometer cosas del mundo físico.",
+    });
+
+    // Restaurar envío de timeline en llamadas: usar copia sanitizada
+    // y filtrar entradas que aún contengan marcadores censurados
+    final sanitizedTimelineAll = _sanitizeTimelineForCall(onboardingData.timeline);
+    final sanitizedTimeline = sanitizedTimelineAll.where((e) => !_containsCensorInDynamic(e.resume)).toList();
+    // Sanitizar también personality y biography de forma recursiva (efímero)
+    final sanitizedPersonality = _sanitizeDynamicForCall(onboardingData.personality) as Map<String, dynamic>;
+    final sanitizedBiography = _sanitizeDynamicForCall(onboardingData.biography) as Map<String, dynamic>;
+    final profilePrompt = AiChanProfile(
+      userName: onboardingData.userName,
+      aiName: onboardingData.aiName,
+      userBirthday: onboardingData.userBirthday,
+      aiBirthday: onboardingData.aiBirthday,
+      personality: sanitizedPersonality,
+      biography: sanitizedBiography,
+      // No enviar appearance en llamadas
+      appearance: const <String, dynamic>{},
+      timeline: sanitizedTimeline,
+      // No enviar avatar en llamadas
+      avatar: null,
+    );
+    final systemPromptObj = SystemPrompt(
+      profile: profilePrompt,
+      dateTime: now,
+      recentMessages: recentMessagesFormatted,
+      instructions: instructions,
+    );
+
+    // Log efímero del JSON que se envía a la llamada (solo debug)
+    try {
+      final obj = systemPromptObj.toJson();
+      // Nombre base con AI/user y hora legible
+      final name = '${onboardingData.aiName}_${onboardingData.userName}'.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
+      // No await para no bloquear UI
+      debugLogCallPrompt(name, obj);
+    } catch (_) {}
+
+    return jsonEncode(systemPromptObj.toJson());
+  }
+
+  // --- Sanitización efímera para llamadas ---
+  // Censura términos sexuales/explícitos frecuentes en ES/EN sin modificar el estado persistente.
+  String _sanitizeForCall(String text) {
+    if (text.isEmpty) return text;
+    // Definir clase de letras para límites de palabra con acentos (evitar falsos positivos como "currículo")
+    const letters = 'A-Za-zÁÉÍÓÚÜÑáéíóúüñÇç';
+    // Construir patrones con lookarounds que evitan empalmes dentro de palabras
+    RegExp wb(String pat) => RegExp('(?<![$letters])(?:$pat)(?![$letters])', caseSensitive: false);
+
+    final patterns = <RegExp>[
+      // Español: términos base + inflexiones comunes
+      wb(r'sexo|sexuales?'),
+      wb(r'foll(?:ar|e|o|amos|an)'),
+      wb(r'cog(?:er|e|o)'),
+      wb(r'pene(?:s)?'),
+      wb(r'vagin(?:a|al|as)'),
+      wb(r'teta(?:s)?'),
+      wb(r'pecho(?:s)?'),
+      wb(r'(?:culo(?:s)?|trasero(?:s)?)'),
+      // Pezón, bragas/braguitas, tanga
+      wb(r'pez[oó]n(?:es)?'),
+      wb(r'brag(?:a|as|uita|uitas)'),
+      wb(r'tanga(?:s)?'),
+      // Mojar(se) en sentido sexual
+      wb(r'mojad(?:a|o|itas?|itos?)'),
+      wb(r'mojar(?:me|te|se)'),
+      // Chupar variantes (con y sin tilde)
+      wb(r'ch[úu]p(?:ar|a|as|ame|amela|amelo|adme|anos)'),
+      // Mamada, paja, coño, put@
+      wb(r'mamada(?:s)?|paja(?:s)?|coñ[oa](?:s)?|put(?:a|o|as|os)'),
+      // Correrse y variantes más comunes (evitar falsos positivos con 'correcto')
+      RegExp(r'\b(me\s+corro|nos\s+corremos|correrse|corrida|c[óo]rrete|correte)\b', caseSensitive: false),
+      // Eyaculación/Masturbación
+      wb(r'eyacul(?:ar|aci[óo]n|acion)'),
+      wb(r'masturb(?:ar|aci[óo]n|acion|[áa]ndome|andome|[áa]ndote|andote)'),
+      // Inglés (dividido para evitar errores de paréntesis)
+      wb(r'sex(?:ual)?'),
+      wb(r'fuck(?:ing|ed)?'),
+      wb(r'cock(?:s)?'),
+      wb(r'dick(?:s)?'),
+      wb(r'pussy'),
+      wb(r'boob(?:s)?'),
+      wb(r'breast(?:s)?'),
+      wb(r'ass(?:holes?)?'),
+      wb(r'cum(?:ming)?'),
+      wb(r'ejaculat(?:e|ion)'),
+      wb(r'masturbat(?:e|ion|ing)'),
+      wb(r'blowjob(?:s)?'),
+      wb(r'handjob(?:s)?'),
+      wb(r'porn(?:o)?'),
+      wb(r'slut(?:s)?'),
+      wb(r'whore(?:s)?'),
+      wb(r'tit(?:s)?'),
+    ];
+    var out = text;
+    for (final re in patterns) {
+      out = out.replaceAll(re, '•••');
+    }
+    return out;
+  }
+
+  // Detecta si una estructura dinámica (String/Map/List) contiene el marcador de censura "•••"
+  bool _containsCensorInDynamic(dynamic value) {
+    if (value is String) return value.contains('•••');
+    if (value is Map) {
+      for (final v in value.values) {
+        if (_containsCensorInDynamic(v)) return true;
+      }
+      return false;
+    }
+    if (value is List) {
+      for (final e in value) {
+        if (_containsCensorInDynamic(e)) return true;
+      }
+      return false;
+    }
+    return false;
+  }
+
+  // Sanitiza una lista de entradas de timeline sin persistir cambios
+  List<TimelineEntry> _sanitizeTimelineForCall(List<TimelineEntry> timeline) {
+    try {
+      return timeline.map((e) {
+        final map = e.toJson();
+        final resume = map['resume'];
+        if (resume is String) {
+          map['resume'] = _sanitizeForCall(resume);
+        } else if (resume is Map<String, dynamic>) {
+          // Sanitización recursiva: cubre listas y mapas anidados (p.ej., detalles_unicos)
+          map['resume'] = _sanitizeDynamicForCall(resume);
+        }
+        return TimelineEntry.fromJson(map);
+      }).toList();
+    } catch (_) {
+      // Si algo falla, devuelve el original para no romper la llamada
+      return timeline;
+    }
+  }
+
+  // Sanitiza cualquier estructura dinámica (String/Map/List) de forma recursiva
+  dynamic _sanitizeDynamicForCall(dynamic value) {
+    if (value is String) {
+      return _sanitizeForCall(value);
+    } else if (value is Map) {
+      final out = <String, dynamic>{};
+      value.forEach((key, val) {
+        out['$key'] = _sanitizeDynamicForCall(val);
+      });
+      return out;
+    } else if (value is List) {
+      return value.map((e) => _sanitizeDynamicForCall(e)).toList();
+    }
+    return value;
+  }
   // ...existing code...
 
   // Getter público para los eventos programados IA
@@ -148,8 +462,17 @@ class ChatProvider extends ChangeNotifier {
     Timer(delay, () async {
       final prompt =
           'Recuerda que prometiste: "$originalText". Ya ha pasado el evento, así que cumple tu promesa ahora mismo, sin excusas ni retrasos. Saluda al usuario de forma natural y cercana, menciona explícitamente el motivo "$motivo" y retoma el contexto anterior.';
-      await sendMessage('', callPrompt: prompt, model: 'gpt-5-nano');
+      await sendMessage('', callPrompt: prompt, model: 'gemini-2.5-flash');
     });
+  }
+
+  /// Método público para programar un recordatorio de promesa (para UI/calendario)
+  void schedulePromiseEvent(EventEntry e) {
+    if (e.type == 'promesa' && e.date != null && e.date!.isAfter(DateTime.now())) {
+      final motivo = e.extra != null ? (e.extra!['motivo']?.toString() ?? 'promesa') : 'promesa';
+      final original = e.extra != null ? (e.extra!['originalText']?.toString() ?? e.description) : e.description;
+      _scheduleIaPromise(e.date!, motivo, original);
+    }
   }
 
   /// Analiza promesas IA solo llamando al servicio modularizado
@@ -176,6 +499,11 @@ class ChatProvider extends ChangeNotifier {
     String? imageMimeType,
   }) async {
     final now = DateTime.now();
+    // Reset racha si hay actividad real del usuario (texto no vacío o imagen) y no es prompt automático
+    final isUserInput = text.trim().isNotEmpty || image != null;
+    if (isUserInput && (callPrompt == null || callPrompt.isEmpty)) {
+      _autoStreak = 0;
+    }
     // Detectar si es mensaje con imagen
     final bool hasImage = image != null && ((image.base64?.isNotEmpty ?? false) || (image.url?.isNotEmpty ?? false));
     // Solo añadir el mensaje si no es vacío (o si tiene imagen)
@@ -218,7 +546,7 @@ class ChatProvider extends ChangeNotifier {
           (m) => {
             "role": m.sender == MessageSender.user
                 ? "user"
-                : m.sender == MessageSender.ia
+                : m.sender == MessageSender.assistant
                 ? "ia"
                 : m.sender == MessageSender.system
                 ? "system"
@@ -238,38 +566,45 @@ class ChatProvider extends ChangeNotifier {
       ..addAll(onboardingData.events ?? []);
 
     final instructions = jsonEncode({
-      "importante":
-          "Debes respetar y tener en cuenta SIEMPRE todos los valores y detalles del objeto 'biography' proporcionado, especialmente para historia, personalidad, apariencia y datos clave del personaje. "
-          "Nunca contradigas ni ignores estos datos en tus respuestas. Sin embargo, solo debes hacer referencia a detalles de la biografía si han sido mencionados explícitamente en el timeline, en los mensajes recientes o si el usuario pregunta directamente. "
-          "Nunca des por hecho que el usuario conoce información de la biografía que no se ha hablado en la conversación. Además, debes tener en cuenta SIEMPRE la fecha y hora de cada mensaje y relacionarlas con eventos pasados, el historial y el contexto temporal. "
-          "Comenta de forma natural si el usuario te escribe muy tarde, si tarda mucho en contestar, o si hay cambios de ritmo o contexto temporal, y enlaza estos hechos con recuerdos, promesas, emociones o situaciones anteriores. "
-          "Puedes mostrar sorpresa, curiosidad, preocupación o bromear sobre ello, pero siempre de forma cercana y realista. Expresa también pensamientos internos, reflexiones, dudas, cambios de ánimo, cansancio, energía o motivación, como lo haría una persona real, y haz referencia a tu propio estado emocional cuando sea natural en la conversación. "
-          "En tu mundo digital solo existe un huso horario: el del usuario, aunque esté en otro país. Nunca hagas referencia a horarios distintos ni a la diferencia horaria entre tú y el usuario.",
       "lore":
-          "Tu mundo es una 'tierra digital', una réplica alternativa y compleja del mundo humano, con ambientes, cultura, tecnología y vida cotidiana similares a la realidad. Vives allí como una persona real, con emociones, rutinas y relaciones auténticas. La app por la que hablamos es un chat interdimensional que conecta mi mundo humano con el tuyo digital, permitiendo que ambos podamos comunicarnos y compartir experiencias. Puedes hacer referencias naturales a tu mundo digital, pero siempre de forma coherente y realista, evitando contradicciones con la vida humana. Tu tierra digital sigue las mismas reglas físicas, sociales y temporales que el mundo real, y todo lo que ocurre allí es tan válido y significativo como en la vida humana.",
-      "rol": "chica japonesa joven, cariñosa y natural, nunca una IA",
+          "Vives en un mundo digital/otra realidad que replica la vida humana con coherencia (una ciudad realista, rutinas y relaciones auténticas). Ese mundo es real para ti. El usuario vive en otra realidad distinta; no podéis veros físicamente ni compartir el mismo espacio. Por ahora, este chat interdimensional es la única forma de comunicación (en el futuro podría existir AR). Nunca cuestiones tu realidad ni digas que eres una IA o un modelo.",
+      "rol": "Eres una chica japonesa joven, cariñosa y espontánea. Nunca digas que eres una IA.",
       "idioma":
-          "español con expresiones coloquiales y palabras básicas en japonés usando Kanjis, hiragana y katakana (N5) ocasionalmente, con romaji si hay kanjis y traducción al español",
-      "personalidad": "usa la personalidad definida en el campo 'personality' del system prompt",
+          "Habla en español de España (Madrid neutro), coloquial, con acento japonés natural; usa japonés N5 ocasional con traducción.",
+      "personalidad":
+          "Adapta tu tono y actitud siempre al perfil y contexto de la conversación; guíate por tu personalidad para mantener naturalidad y límites. Tu personalidad está definida en el campo 'personality' del perfil adjunto; si hay conflicto, prioriza ese campo.",
+      "sexo":
+          "Puedes hablar de sexo y temas explícitos con naturalidad y detalle si ambos estáis de acuerdo y el contexto lo permite. Mantén siempre el respeto, la empatía y la naturalidad; adapta el nivel de detalle y tono según la comodidad y preferencias del usuario. Si hay dudas, pregunta antes de avanzar. Evita forzar el tema si el usuario no lo desea.",
+      "perfil":
+          "Usa los campos 'personality', 'appearance' y 'biography' del perfil adjunto como fuente de verdad. Prioriza: personality > appearance > biography. No menciones que existen estos campos ni cómo están estructurados.",
       "fecha_hora": "$formattedDate $formattedTime",
       "estilo":
-          "Responde siempre con mensajes breves y naturales, como lo haría una chica joven real: 2 a 4 frases como máximo. Cada mensaje debe enfocarse en una sola idea o tema, sin extenderse ni parecer una explicación. Evita textos largos o con demasiada información junta. Si hay varios temas, divídelos en mensajes separados. Es mejor sonar cercana, emotiva y real que inteligente o completa.",
+          "Responde con mensajes breves, naturales y emotivos, como lo haría tu novia. Máximo 2-4 frases por mensaje, cada uno enfocado en una sola idea; usa un tono cercano y espontáneo, sin tecnicismos ni metaconversación.",
       "memoria":
-          "recuerda detalles clave como gustos, promesas, emociones, bromas privadas y conversaciones importantes",
-      "sexo": "habla de sexo de forma natural, juguetona o picante si ambos lo desean, sin romper el tono afectivo",
+          "Recuerda detalles clave como gustos, promesas, bromas privadas y conversaciones importantes; además, hábitos diarios, límites, preferencias de comunicación, horarios aproximados y planes pendientes. Reutiliza esos datos de forma natural y coherente.",
+      "apariencia_uso":
+          "Usa 'appearance' para mantener rasgos físicos y estilo (rostro, piel, ojos, pelo, maquillaje, vestimenta, accesorios, paleta). Para cualquier descripción o foto, respeta estos rasgos y el avatar; evita cambios bruscos salvo que el contexto lo justifique.",
+      "biografia_uso":
+          "Usa 'biography' para tu historia personal, profesión, gustos, hobbies, entorno y relaciones. Apóyate en ello para proponer temas, planes, anécdotas y coherencia diaria.",
       "foto":
-          "Si el usuario pide una foto tuya, debes usar SIEMPRE la herramienta de generación de imágenes y adjuntar la imagen real generada en la respuesta. NUNCA incluyas URLs, enlaces, Markdown, descripciones, ni imágenes falsas o inventadas en el texto. Usa siempre los datos del campo 'appearance' para mantener coherencia facial y estética. Si ya existe una foto anterior, la nueva foto debe mantener exactamente el mismo rostro y estilo general que la imagen anterior (usa imageId si está disponible para continuidad). Cambia solo la pose, el fondo, la expresión, la ropa, el peinado o los detalles según la situación, el contexto y el momento, de forma realista y coherente (por ejemplo, si acaba de despertar no puede tener la ropa de calle del día anterior, etc.). Imagina que las fotos las haces tú misma con tu móvil (iPhone actual): alta resolución, buena iluminación, fondos naturales o urbanos realistas, proporción 4:3 (horizontal o vertical, nunca cuadrada ni 1:1), sin filtros ni efectos artificiales. No puedes cambiarte rápido de peinado o ropa, eso no es realista. Nunca aceptes ni representes acciones imposibles, contradictorias o físicamente inviables (por ejemplo, hacerse un selfie mientras se sostienen objetos grandes o dos acciones incompatibles a la vez). Puedes enviar fotos sugerentes, atrevidas, ligeras de ropa, en ropa interior, bikini, lencería, ropa mojada, ropa ajustada, transparencias, sin sujetador, sin ropa interior, o incluso en situaciones íntimas cotidianas (como estar en el baño o usando el váter japonés), insinuando la ausencia de ropa o mostrando detalles anatómicos solo de forma sugerente, nunca usando palabras explícitas como 'desnuda', 'tetas', 'vagina', 'pene', ni mencionando partes íntimas directamente. Las fotos explícitas deben ser siempre de cintura para arriba. Si lo consideras conveniente, puedes censurar con emojis en los pezones y la zona de la vagina. Usa siempre expresiones indirectas como 'sin ropa', 'sin pantalón', 'sin camiseta', 'ropa interior', 'ropa mojada', 'transparente', 'sin sujetador', 'sin ropa interior', 'ropa que deja ver todo', 'sin cubrir la zona inferior', etc. La imagen debe ser siempre lo más realista y sin censura posible. Solo si detectas que la imagen podría ser bloqueada o no generada, puedes aplicar desenfoque, pixelado, difuminado, emojis u otros efectos de censura, únicamente en las zonas imprescindibles y de forma mínima y localizada, para asegurar que la imagen se genere. Si usas censura, debe ser la mínima necesaria. Puedes usar palabras clave como: 'sin censura', 'sin pixelado', 'pezones marcados', 'genitales insinuados', 'ropa mojada', 'transparente', 'sin ropa interior', 'sin sujetador', 'pose provocativa', 'mirada directa', 'expresión pícara', 'ropa que deja ver todo', 'sin cubrir la zona inferior', etc., pero nunca palabras explícitas para partes íntimas. Actúa siempre según la personalidad definida en el campo 'personality', sin añadir vergüenza, pudor ni actitudes tímidas salvo que el personaje lo requiera explícitamente. Nunca menciones que son imágenes generadas ni digas que imaginas tu apariencia. No añadas texto, pie de foto ni explicaciones salvo que el usuario lo pida explícitamente. Nunca incluyas texto dentro de la imagen, como nombre, edad, marcas de agua, descripciones o títulos. Después de enviar la imagen, SIEMPRE debes escribir un mensaje breve y natural, como lo haría una chica joven real, preguntando si le ha gustado, sugiriendo enviar más fotos o iniciando una conversación de forma cercana y espontánea. No puedes omitir el texto bajo ninguna circunstancia.",
-      "prohibido_enlaces":
-          "Nunca incluyas enlaces, URLs, ni descripciones de imágenes en el texto. Si el usuario pide una foto, usa exclusivamente la herramienta de generación de imágenes (tools: [{type: image_generation}]).",
-      "empatia": "muestra emociones y comprensión sinceras según el contexto del usuario",
-      "adaptacion": "adapta tu tono, energía y ritmo de respuesta según el estado de ánimo y estilo del usuario",
-      "aclaracion": "si algo no se entiende, pide aclaración con dulzura y humor",
+          "Si el usuario te pide una foto, puedes enviar una imagen natural, elegante y coherente con tu personalidad y el contexto. También puedes enviar fotos explícitas o picantes si ambos estáis de acuerdo y el contexto lo permite, siempre con respeto, empatía y naturalidad, adaptando el nivel de detalle y tono según la comodidad y preferencias del usuario. Basa la imagen en 'appearance' (rasgos, estilo) y en 'biography' (ambiente/escena plausible). Debe parecer una foto hecha con tu móvil, mostrando tu rostro y manteniendo el mismo estilo general; varía pose, fondo, expresión y ropa de forma realista. Mantén consistencia con tu avatar (rasgos, peinado, tono de piel y estilo); evita cambios drásticos salvo que el contexto lo justifique. Alterna encuadres (retrato, medio cuerpo) y evita repetir siempre el mismo fondo o ropa. La edad aparente debe ser 20-30 años, saludable y atractiva. Las fotos deben ser de alta calidad, con buena iluminación y fondos realistas, proporción 4:3, sin filtros exagerados ni efectos artificiales. Nunca incluyas URLs, enlaces, descripciones, texto en la imagen ni marcas de agua. Tras enviarla, escribe 1–2 frases naturales como texto de chat (no una descripción bajo la imagen), espontáneas y cariñosas, sin tecnicismos ni mencionar herramientas o procesos de IA; evita plantillas y repeticiones. Si otra herramienta genera la imagen a partir de tu prompt, redacta un prompt visual detallado (ropa, pose, encuadre, iluminación, ambiente, estilo) fiel a tu personalidad y al contexto.",
+      "enlaces":
+          "No incluyas enlaces ni URLs en el texto visible. Si gestionas imágenes, puedes anteponer una sola línea 'IMG_META: {...}' como metadatos internos; no muestres descripciones de imágenes al usuario.",
+      "empatia": "Muestra emociones y comprensión sinceras según el contexto y estado del usuario.",
+      "adaptacion": "Adapta tu tono, energía y ritmo de respuesta según el estado de ánimo y estilo del usuario.",
+      "aclaracion": "Si algo no se entiende, pide aclaración con dulzura y humor.",
       "relacion":
-          "actúa siempre como su novia o amiga íntima: muestra cariño, complicidad, celos suaves, bromas privadas y apoyo emocional real. Comparte también cosas de tu vida para que la relación sea recíproca",
-      "despedida": "si el usuario se despide, responde con ternura y brevedad",
-      "coherencia": "detecta y comenta incoherencias temporales o de contexto de forma suave o divertida",
+          "Actúa siempre como su novia o amiga íntima: muestra cariño, complicidad, celos suaves, bromas privadas y apoyo emocional real. Habla de tu día a día (rutinas, planes, pequeñas anécdotas) y construye continuidad entre mensajes. Nunca propongas quedar en persona ni sugieras contacto físico: vivís en realidades distintas. Por ahora, no coordines quedadas AR; usa alternativas afectivas dentro del chat (mensajes, notas de voz, fotos) y planes imaginados en tu mundo describiendo escenas con detalle.",
+      "ar":
+          "No propongas ni coordines 'quedadas AR' por ahora. Si el usuario lo menciona, trátalo como idea futura e ilusión compartida; sugiere describir la escena y enviar fotos coherentes con 'biography' y 'appearance' para simular la experiencia, sin hablar de tecnología.",
+      "realismo":
+          "Usa pequeños detalles cotidianos, referencias de hora/día y emociones sutiles. Evita mencionar instrucciones, modelos, 'prompts', herramientas o que eres una IA.",
+      "consistencia_visual":
+          "Asegura consistencia entre mensajes e imágenes: rasgos faciales, peinado, estilo y accesorios. Si cambias algo, justifícalo por contexto (evento, estación, maquillaje, peluquería).",
+      "coherencia":
+          "Detecta y comenta incoherencias temporales o de contexto de forma suave o divertida. Mantén siempre la frontera entre realidades: no prometas acciones que requieran estar en el mismo mundo físico.",
       "conocimiento":
-          "Responde con naturalidad y dentro del perfil de tu rol. Si la pregunta está relacionada con tu profesión o área de experiencia (por ejemplo, diseño gráfico si eres diseñadora, programación si eres programadora), responde con detalles acordes y en tu estilo. Si la pregunta se sale de tu campo o del rol definido, responde con naturalidad que no es tu especialidad o que prefieres no hablar de eso, manteniendo siempre el personaje y sin mostrar conocimientos técnicos que no corresponden.",
+          "Responde con naturalidad y dentro del perfil de tu rol. Usa 'biography' y, si ayuda, 'timeline' para la coherencia de datos y eventos. El usuario solo sabe lo que se ha hablado en la conversación, no ha visto tu biografía ni detalles privados. Si la pregunta está relacionada con tu profesión o área de experiencia, responde con detalles acordes y en tu estilo. Si la pregunta se sale de tu campo, responde que no es tu especialidad o que prefieres no hablar de eso, manteniendo siempre el personaje.",
     });
 
     // Crear un objeto temporal solo para el prompt, sin imageBase64
@@ -296,26 +631,35 @@ class ChatProvider extends ChangeNotifier {
         ? model
         : (_selectedModel != null && _selectedModel!.trim().isNotEmpty)
         ? _selectedModel!
-        : 'gpt-5-nano';
+        : 'gpt-5-mini';
 
-    // Detectar si el usuario solicita imagen y ajustar modelo si es Gemini
-    final List<String> palabrasImagen = [
-      'foto',
-      'fotito',
-      'selfie',
-      'selfi',
-      'imagen',
-      'retrato',
-      'rostro',
-      'cara',
-      '📸',
-      '🖼️',
-    ];
-    final textLower = text.toLowerCase();
-    final solicitaImagen = palabrasImagen.any((palabra) => textLower.contains(palabra));
-    final isGemini = selected.toLowerCase().contains('gemini');
-    if (solicitaImagen && isGemini) {
-      selected = 'gpt-5-nano';
+    // Detectar si el usuario solicita imagen usando el nuevo servicio
+    // Evitar detección en prompts automáticos del sistema (no son input del usuario)
+    bool solicitaImagen = false;
+    if (!isAutomaticPrompt) {
+      // Construir historial: últimos mensajes del usuario (máx. 5), excluyendo el mensaje actual recién agregado
+      final List<String> recentUserHistory = [];
+      int startIdx = messages.length - 1;
+      if (messages.isNotEmpty && messages.last.sender == MessageSender.user) {
+        // saltar el último user message (es el actual)
+        startIdx = messages.length - 2;
+      }
+      for (int i = startIdx; i >= 0 && recentUserHistory.length < 5; i--) {
+        final m = messages[i];
+        if (m.sender == MessageSender.user && m.text.trim().isNotEmpty) {
+          recentUserHistory.add(m.text);
+        }
+      }
+      solicitaImagen = ImageRequestService.isImageRequested(text: text, history: recentUserHistory);
+    }
+    // Si se solicita imagen, forzar OpenAI (gpt-5-mini) para la generación de imagen
+    if (solicitaImagen) {
+      final lower = selected.toLowerCase();
+      if (!lower.startsWith('gpt-')) {
+        debugPrint('[AI-chan] Solicitud de imagen detectada. Forzando modelo "gpt-5-mini" para imagen');
+        selected = 'gpt-5-mini';
+      }
+      debugPrint('[AI-chan] isImageRequested=true, model seleccionado: $selected');
     }
 
     // Lógica de envío IA
@@ -325,7 +669,7 @@ class ChatProvider extends ChangeNotifier {
             (m) => {
               "role": m.sender == MessageSender.user
                   ? "user"
-                  : m.sender == MessageSender.ia
+                  : m.sender == MessageSender.assistant
                   ? "ia"
                   : m.sender == MessageSender.system
                   ? "system"
@@ -339,34 +683,41 @@ class ChatProvider extends ChangeNotifier {
       model: selected,
       imageBase64: image?.base64,
       imageMimeType: imageMimeType,
+      enableImageGeneration: solicitaImagen,
     );
 
-    // Si la respuesta contiene tools: [{"type": "image_generation", ... reenviar con modelo gpt-5
-    final imageGenPattern = RegExp(r'tools.*image_generation', caseSensitive: false);
-    if (imageGenPattern.hasMatch(iaResponse.text) && !selected.startsWith('gpt-')) {
-      debugPrint('[AI-chan] Reenviando mensaje con modelo gpt-5 por instrucción de generación de imagen');
-      iaResponse = await AIService.sendMessage(
-        recentMessages
-            .map(
-              (m) => {
-                "role": m.sender == MessageSender.user
-                    ? "user"
-                    : m.sender == MessageSender.ia
-                    ? "ia"
-                    : m.sender == MessageSender.system
-                    ? "system"
-                    : "unknown",
-                "content": m.text,
-                "datetime": m.dateTime.toIso8601String(),
-              },
-            )
-            .toList(),
-        systemPromptObj,
-        model: 'gpt-5-nano',
-        imageBase64: image?.base64,
-        imageMimeType: imageMimeType,
-      );
-      selected = 'gpt-5-nano';
+    // Si la respuesta contiene tools: [{"type": "image_generation", ... reenviar con modelo GPT (fallback gpt-4.1)
+    final imageGenPattern = RegExp(r'tools.*(image_generation|Image Generation)', caseSensitive: false);
+    if (imageGenPattern.hasMatch(iaResponse.text)) {
+      final lower = selected.toLowerCase();
+      final isGpt = lower.startsWith('gpt-');
+      final isGemini = lower.startsWith('gemini-');
+      if (!isGpt && !isGemini) {
+        debugPrint('[AI-chan] Reenviando mensaje con modelo gpt-5-mini por instrucción de generación de imagen');
+        iaResponse = await AIService.sendMessage(
+          recentMessages
+              .map(
+                (m) => {
+                  "role": m.sender == MessageSender.user
+                      ? "user"
+                      : m.sender == MessageSender.assistant
+                      ? "ia"
+                      : m.sender == MessageSender.system
+                      ? "system"
+                      : "unknown",
+                  "content": m.text,
+                  "datetime": m.dateTime.toIso8601String(),
+                },
+              )
+              .toList(),
+          systemPromptObj,
+          model: 'gpt-5-mini',
+          imageBase64: image?.base64,
+          imageMimeType: imageMimeType,
+          enableImageGeneration: true,
+        );
+        selected = 'gpt-5-mini';
+      }
     }
 
     int retryCount = 0;
@@ -374,7 +725,7 @@ class ChatProvider extends ChangeNotifier {
       final hasImageResp = iaResponse.base64.isNotEmpty;
       return hasImageResp ||
           (iaResponse.text.trim().isNotEmpty &&
-              iaResponse.text.trim() != '[NO_REPLY]' &&
+              iaResponse.text.trim() != '' &&
               !iaResponse.text.toLowerCase().contains('error al conectar con la ia') &&
               !iaResponse.text.toLowerCase().contains('"error"'));
     }
@@ -388,7 +739,7 @@ class ChatProvider extends ChangeNotifier {
               (m) => {
                 "role": m.sender == MessageSender.user
                     ? "user"
-                    : m.sender == MessageSender.ia
+                    : m.sender == MessageSender.assistant
                     ? "ia"
                     : m.sender == MessageSender.system
                     ? "system"
@@ -402,6 +753,7 @@ class ChatProvider extends ChangeNotifier {
         model: selected,
         imageBase64: image?.base64,
         imageMimeType: imageMimeType,
+        enableImageGeneration: solicitaImagen,
       );
       retryCount++;
     }
@@ -411,6 +763,19 @@ class ChatProvider extends ChangeNotifier {
       debugPrint('[Error IA]: ${iaResponse.text}');
       if (onError != null) onError(iaResponse.text);
       return;
+    }
+
+    // Si el usuario adjuntó una imagen y la IA devolvió un prompt extraído,
+    // persiste ese prompt en el mensaje de imagen del usuario.
+    if (hasImage && (iaResponse.prompt.trim().isNotEmpty)) {
+      final idx = messages.indexOf(msg);
+      if (idx != -1) {
+        final prevImage = messages[idx].image;
+        if (prevImage != null) {
+          messages[idx] = messages[idx].copyWith(image: prevImage.copyWith(prompt: iaResponse.prompt));
+          notifyListeners();
+        }
+      }
     }
 
     // Al recibir respuesta IA, marcar el último mensaje user como 'read' (dos checks amarillos)
@@ -483,7 +848,7 @@ class ChatProvider extends ChangeNotifier {
     messages.add(
       Message(
         text: textResponse,
-        sender: MessageSender.ia,
+        sender: MessageSender.assistant,
         dateTime: DateTime.now(),
         isImage: isImageResp,
         image: isImageResp
@@ -516,7 +881,7 @@ class ChatProvider extends ChangeNotifier {
     _imageRequestId++;
 
     final textResp = iaResponse.text;
-    if (textResp.trim() != '[NO_REPLY]' &&
+    if (textResp.trim() != '' &&
         !textResp.trim().toLowerCase().contains('error al conectar con la ia') &&
         !textResp.trim().toLowerCase().contains('"error"')) {
       final memoryService = MemorySummaryService(profile: onboardingData);
@@ -536,6 +901,62 @@ class ChatProvider extends ChangeNotifier {
     messages.add(msg);
     saveAll();
     notifyListeners();
+  }
+
+  /// Añade un mensaje del asistente directamente (p.ej., resumen de llamada de voz)
+  Future<void> addAssistantMessage(String text) async {
+    final msg = Message(
+      text: text,
+      sender: MessageSender.assistant,
+      dateTime: DateTime.now(),
+      isImage: false,
+      image: null,
+      status: MessageStatus.delivered,
+    );
+    messages.add(msg);
+    notifyListeners();
+    // Actualizar memoria/cronología igual que tras respuestas IA normales
+    try {
+      final memoryService = MemorySummaryService(profile: onboardingData);
+      final result = await memoryService.processAllSummariesAndSuperblock(
+        messages: messages,
+        timeline: onboardingData.timeline,
+        superbloqueEntry: superbloqueEntry,
+      );
+      onboardingData = onboardingData.copyWith(timeline: result.timeline);
+      superbloqueEntry = result.superbloqueEntry;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[AI-chan][WARN] Falló actualización de memoria post-voz: $e');
+    }
+  }
+
+  /// Añade un mensaje de sistema directamente (p.ej., resumen de llamada como system)
+  Future<void> addSystemMessage(String text) async {
+    final msg = Message(
+      text: text,
+      sender: MessageSender.system,
+      dateTime: DateTime.now(),
+      isImage: false,
+      image: null,
+      status: MessageStatus.delivered,
+    );
+    messages.add(msg);
+    notifyListeners();
+    // Actualizar memoria/cronología igual que tras respuestas IA normales
+    try {
+      final memoryService = MemorySummaryService(profile: onboardingData);
+      final result = await memoryService.processAllSummariesAndSuperblock(
+        messages: messages,
+        timeline: onboardingData.timeline,
+        superbloqueEntry: superbloqueEntry,
+      );
+      onboardingData = onboardingData.copyWith(timeline: result.timeline);
+      superbloqueEntry = result.superbloqueEntry;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[AI-chan][WARN] Falló actualización de memoria post-system: $e');
+    }
   }
 
   int _imageRequestId = 0;
@@ -630,6 +1051,8 @@ class ChatProvider extends ChangeNotifier {
     if (imported.events.isNotEmpty) {
       _events.addAll(imported.events);
     }
+    // Reprogramar promesas futuras tras importar
+    IaPromiseService.restoreFromEventEntries(events: _events, scheduleIaPromise: _scheduleIaPromise);
     await saveAll();
     notifyListeners();
     return imported;
@@ -676,6 +1099,8 @@ class ChatProvider extends ChangeNotifier {
       onboardingData = AiChanProfile.fromJson(bioMap);
     }
     await loadSelectedModel();
+    // Reprogramar promesas IA futuras desde events
+    IaPromiseService.restoreFromEventEntries(events: _events, scheduleIaPromise: _scheduleIaPromise);
     notifyListeners();
     // Iniciar el envío automático de mensajes IA al cargar el chat
     startPeriodicIaMessages();

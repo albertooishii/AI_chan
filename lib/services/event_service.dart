@@ -69,18 +69,35 @@ class EventTimelineService {
           : <EventEntry>[];
       // Usar la frase significativa extraída por createEventFromText
       final descripcionNatural = eventEntry.resume;
-      updatedEvents.add(
-        EventEntry(
-          type: 'evento',
-          description: descripcionNatural,
-          date: (eventEntry.startDate != null && eventEntry.startDate != '')
-              ? DateTime.parse(eventEntry.startDate!)
-              : null,
-        ),
-      );
-      onboardingData = onboardingData.copyWith(events: updatedEvents);
-      await saveAll();
-      debugPrint('[EVENTO IA] Guardado evento en events: $descripcionNatural (${eventEntry.startDate})');
+      final DateTime? eventDate = (eventEntry.startDate != null && eventEntry.startDate != '')
+          ? DateTime.parse(eventEntry.startDate!)
+          : null;
+      bool isDuplicate = false;
+      for (final ev in updatedEvents) {
+        final sameDesc = ev.description.trim().toLowerCase() == descripcionNatural.trim().toLowerCase();
+        final sameDay =
+            ev.date != null &&
+            eventDate != null &&
+            ev.date!.year == eventDate.year &&
+            ev.date!.month == eventDate.month &&
+            ev.date!.day == eventDate.day;
+        final closeInTime =
+            ev.date != null && eventDate != null && (ev.date!.difference(eventDate).inMinutes).abs() <= 120;
+        if (ev.type == 'evento' && sameDesc && (sameDay || closeInTime)) {
+          isDuplicate = true;
+          break;
+        }
+      }
+      if (!isDuplicate) {
+        updatedEvents.add(EventEntry(type: 'evento', description: descripcionNatural, date: eventDate));
+        onboardingData = onboardingData.copyWith(events: updatedEvents);
+        await saveAll();
+        debugPrint('[EVENTO IA] Guardado evento en events: $descripcionNatural (${eventEntry.startDate})');
+      } else {
+        debugPrint(
+          '[EVENTO IA] Evento duplicado detectado. No se guarda: $descripcionNatural (${eventEntry.startDate})',
+        );
+      }
     }
 
     // --- HORARIOS ---

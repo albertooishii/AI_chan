@@ -1,16 +1,28 @@
-# ai_chan
+# AI-chan
 
-A new Flutter project.
+Asistente conversacional con llamadas de voz Realtime y chat.
 
-## Getting Started
+## Configuración (.env)
 
-This project is a starting point for a Flutter application.
+Crea un archivo `.env` en la raíz con:
 
-A few resources to get you started if this is your first Flutter project:
+```
+OPENAI_API_KEY=sk-...
+GEMINI_API_KEY=AIza...
+# Opcional: clave de respaldo si la primaria no tiene cuota o retorna 403/429
+GEMINI_API_KEY_FALLBACK=AIza...
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+# Voz por defecto
+OPENAI_VOICE=sage
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Notas:
+- `.env` ya está ignorado en `.gitignore`.
+- Si `GEMINI_API_KEY` falla por cuota/permisos (401/403/429), el código reintenta automáticamente con `GEMINI_API_KEY_FALLBACK` si está definida.
+
+## Desarrollo
+
+1. Instala dependencias: `flutter pub get`
+2. Ejecuta: `flutter run`
+
+Requiere Flutter estable y un dispositivo/emulador activo.
