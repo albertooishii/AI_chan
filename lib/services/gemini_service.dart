@@ -182,8 +182,6 @@ class GeminiService implements AIService {
     }
     // Configuración de generación: cuando queremos imagen, pedir texto+imagen
     final Map<String, dynamic> requestPayload = {"contents": contents};
-    // Forzar solo texto en Gemini, incluso si enableImageGeneration=true
-    debugPrint('[Gemini] image_generation NO SOPORTADO en este servicio. Usando solo TEXT con modelo: $selectedModel');
     final body = jsonEncode(requestPayload);
 
     Future<AIResponse> parseAndBuild(String respBody) async {

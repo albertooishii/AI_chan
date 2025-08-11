@@ -4,5 +4,5 @@ import 'package:flutter/foundation.dart';
 Future<void> debugLogCallPrompt(String fileBaseName, Map<String, dynamic> jsonObj) async {
   if (kReleaseMode) return;
   // Mostrar en consola del navegador
-  print('[debugLogCallPrompt][$fileBaseName]: $jsonObj');
+  debugPrint('[debugLogCallPrompt][$fileBaseName]: $jsonObj');
 }

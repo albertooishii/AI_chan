@@ -267,11 +267,6 @@ class ChatProvider extends ChangeNotifier {
     // Sanitizar personality y biography de forma recursiva (efímero) antes de construir instrucciones
     final sanitizedPersonality = _sanitizeDynamicForCall(onboardingData.personality) as Map<String, dynamic>;
     final sanitizedBiography = _sanitizeDynamicForCall(onboardingData.biography) as Map<String, dynamic>;
-    final String? perfilLlamadas =
-        (sanitizedBiography['perfil_llamadas'] is String &&
-            (sanitizedBiography['perfil_llamadas'] as String).trim().isNotEmpty)
-        ? sanitizedBiography['perfil_llamadas'] as String
-        : null;
 
     // Instrucciones específicas de llamada (compactas, seguras y orales)
     final Map<String, dynamic> instructionsMap = {
@@ -312,9 +307,7 @@ class ChatProvider extends ChangeNotifier {
       instructionsMap['muletillas'] =
           "Máx. 1 cada 3–5 turnos: 'ne', 'etto…', 'mmm' con mucha moderación. Evita repetición.";
     }
-    if (perfilLlamadas != null) {
-      instructionsMap['perfil_llamadas'] = perfilLlamadas;
-    }
+    // Campo 'perfil_llamadas' eliminado del esquema para reducir tokens.
     final instructions = jsonEncode(instructionsMap);
 
     // Restaurar envío de timeline en llamadas: usar copia sanitizada

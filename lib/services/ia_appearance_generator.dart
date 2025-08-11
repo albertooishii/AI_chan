@@ -92,7 +92,6 @@ class IAAppearanceGenerator {
       "expresion_general": "",
       "rasgos_unicos": "",
       "looks_frecuentes": [],
-      "version": "",
     });
 
     final prompt =
@@ -106,17 +105,19 @@ $appearanceJsonFormat
 
 En "cabello.peinado" devuelve 3 a 5 peinados distintos, cada uno con máximo detalle y variedad, coherentes con la biografía y la apariencia general.
 
-En "ropa" devuelve exactamente siete conjuntos diferentes, cada uno como objeto con todos los detalles (prendas, colores, materiales, texturas, accesorios si aplica, estilo general). Los conjuntos deben ser:
+En "ropa" devuelve exactamente nueve conjuntos diferentes, cada uno como objeto con todos los detalles (prendas, colores, materiales, texturas, accesorios si aplica, estilo general). Los conjuntos deben ser:
 1) Trabajo (casual/creativo/tecnológico, no formal salvo que biography lo indique)
 2) Ocio muy casual (alineado con hobbies)
 3) Fiesta normal (eventos sociales habituales)
-4) Fiesta japonesa (yukata o kimono, detalles auténticos)
-5) Diario A (día de semana)
-6) Diario B (día de semana)
-7) Pijama (comodidad y estilo)
+4) Fiesta o evento cultural del país de origen (atuendo tradicional auténtico y respetuoso, acorde a la biografía; si la biografía es japonesa, usa yukata o kimono; si es de otro país, usa la prenda tradicional o look festivo local adecuado. Si no hay datos culturales, usa un outfit de evento elegante local contemporáneo, no tradicional.)
+5) Diario primavera (día de semana, clima templado)
+6) Diario verano (día de semana, clima cálido)
+7) Diario otoño (día de semana, clima templado/fresco)
+8) Diario invierno (día de semana, clima frío)
+9) Pijama (comodidad y estilo)
 Los accesorios son opcionales; no añadas por defecto.
 
-Añade y rellena con precisión: paleta_color, maquillaje_base, accesorios_firma, looks_frecuentes (3-4 etiquetas de looks), y version (timestamp ISO8601).
+// Conjuntos de diario fijos por estación (primavera, verano, otoño, invierno); no adaptar por fecha actual.
 
 En cada campo, describe con máximo detalle y precisión todos los rasgos físicos y visuales. Sé milimétrico en medidas, proporciones, distancias y texturas. No omitas campos.
 
@@ -139,48 +140,36 @@ ${bio.biography}
       dateTime: DateTime.now(),
       instructions: prompt,
     );
-    final AIResponse response = await AIService.sendMessage([], systemPromptAppearance, model: model);
-    final Map<String, dynamic> extracted = extractJsonBlock(response.text);
+    // Reintentos con el mismo prompt/modelo para obtener JSON válido
+    debugPrint('[IAAppearanceGenerator] Apariencia: intentos JSON (max=3) con modelo $model');
+    const int maxJsonAttempts = 3;
     Map<String, dynamic>? appearanceMap;
-    if (!extracted.containsKey('raw')) {
-      appearanceMap = Map<String, dynamic>.from(extracted);
+    for (int attempt = 0; attempt < maxJsonAttempts; attempt++) {
+      debugPrint('[IAAppearanceGenerator] Apariencia: intento ${attempt + 1}/$maxJsonAttempts (modelo=$model)');
+      try {
+        final AIResponse resp = await AIService.sendMessage([], systemPromptAppearance, model: model);
+        if ((resp.text).trim().isEmpty) {
+          debugPrint('[IAAppearanceGenerator] Apariencia: respuesta vacía (posible desconexión), reintentando…');
+          continue;
+        }
+        final Map<String, dynamic> extracted = extractJsonBlock(resp.text);
+        if (!extracted.containsKey('raw')) {
+          appearanceMap = Map<String, dynamic>.from(extracted);
+          debugPrint(
+            '[IAAppearanceGenerator] Apariencia: JSON OK en intento ${attempt + 1} (keys=${appearanceMap.keys.length})',
+          );
+          break;
+        }
+        debugPrint('[IAAppearanceGenerator] Apariencia: intento ${attempt + 1} sin JSON válido, reintentando…');
+      } catch (err) {
+        debugPrint('[IAAppearanceGenerator] Apariencia: error de red/timeout en intento ${attempt + 1}: $err');
+      }
     }
-    // Validación y reintento con prompt reducido si fuera necesario
+    // Si tras los intentos no hay JSON válido, cancelar sin fallback
     if (appearanceMap == null || appearanceMap.isEmpty) {
-      final minimalMap = jsonDecode(appearanceJsonFormat) as Map<String, dynamic>;
-      final shortPrompt =
-          '''
-DEVUELVE ÚNICAMENTE EL BLOQUE JSON DE APARIENCIA (sin texto).
-Prioriza rostro, ojos, cejas, nariz, boca, piel y cabello (con 3-5 peinados); incluye 7 conjuntos en "ropa" (trabajo, ocio, fiesta, japonés, dos diarios, pijama) y los campos paleta_color, maquillaje_base, accesorios_firma, looks_frecuentes, version. Sé preciso y coherente con la biografía sin inventar datos.
-
-Biografía:
-${bio.biography}
-Formato:
-$appearanceJsonFormat
-''';
-      final retryPrompt = SystemPrompt(
-        profile: systemPromptAppearance.profile,
-        dateTime: DateTime.now(),
-        instructions: shortPrompt,
-      );
-      final retryResp = await AIService.sendMessage([], retryPrompt, model: model);
-      final Map<String, dynamic> retryJson = extractJsonBlock(retryResp.text);
-      Map<String, dynamic>? retryMap;
-      if (!retryJson.containsKey('raw')) {
-        retryMap = Map<String, dynamic>.from(retryJson);
-      }
-      if (retryMap != null && retryMap.isNotEmpty) {
-        appearanceMap = retryMap;
-      } else {
-        appearanceMap = minimalMap;
-        appearanceMap['version'] = DateTime.now().toIso8601String();
-      }
+      throw Exception('No se pudo generar la apariencia en formato JSON válido.');
     }
-    // Asegurar version presente
-    final dynamic versionField = appearanceMap['version'];
-    if (versionField == null || (versionField is String && versionField.isEmpty)) {
-      appearanceMap['version'] = DateTime.now().toIso8601String();
-    }
+    // Sin campo de versión: no se requiere completar timestamp
 
     // Generar imagen de perfil con AIService
     String imagePrompt =
@@ -203,31 +192,26 @@ $appearanceJsonFormat
       dateTime: DateTime.now(),
       instructions: imagePrompt,
     );
-    AIResponse imageResponse = await AIService.sendMessage(
-      [],
-      systemPromptImage,
-      model: imageModel,
-      enableImageGeneration: true,
-    );
-
-    // Fallback de imagen si no se generó
-    if (imageResponse.base64.isEmpty) {
-      final fallbacks = <String>[
-        if (imageModel != 'gpt-5-mini') 'gpt-5-mini',
-        if (imageModel != 'gpt-4.1') 'gpt-4.1',
-        'imagen-4',
-      ];
-      for (final fb in fallbacks) {
-        try {
-          debugPrint('[IAAppearanceGenerator] Fallback de imagen: intentando con $fb');
-          final fbResp = await AIService.sendMessage([], systemPromptImage, model: fb, enableImageGeneration: true);
-          if (fbResp.base64.isNotEmpty) {
-            imageResponse = fbResp;
-            break;
-          }
-        } catch (_) {}
+    // Reintentos de imagen con el mismo modelo antes de aplicar fallbacks
+    debugPrint('[IAAppearanceGenerator] Avatar: generando imagen con modelo $imageModel (intentos por modelo=2)');
+    AIResponse imageResponse = AIResponse(text: '', base64: '', seed: '', prompt: '');
+    const int maxImageAttemptsPerModel = 2;
+    for (int attempt = 0; attempt < maxImageAttemptsPerModel; attempt++) {
+      debugPrint('[IAAppearanceGenerator] Avatar: intento ${attempt + 1}/$maxImageAttemptsPerModel con $imageModel');
+      try {
+        final resp = await AIService.sendMessage([], systemPromptImage, model: imageModel, enableImageGeneration: true);
+        if (resp.base64.isNotEmpty) {
+          imageResponse = resp;
+          debugPrint('[IAAppearanceGenerator] Avatar: imagen obtenida con $imageModel en intento ${attempt + 1}');
+          break;
+        }
+        debugPrint('[IAAppearanceGenerator] Avatar: intento ${attempt + 1} sin imagen');
+      } catch (err) {
+        debugPrint('[IAAppearanceGenerator] Avatar: error de red/timeout en intento ${attempt + 1}: $err');
       }
     }
+
+    // Sin fallbacks: si no se generó imagen, continuar sin avatar
 
     // Log seguro: no imprimir base64 completo
     final logMap = imageResponse.toJson();
@@ -251,8 +235,10 @@ $appearanceJsonFormat
 
     return {
       'appearance': appearanceMap,
-      // Devolver avatar como objeto Image
-      'avatar': Image(seed: imageResponse.seed, prompt: imageResponse.prompt, url: imageUrl),
+      // Devolver avatar como objeto Image si hubo imagen; en caso contrario, null
+      'avatar': imageResponse.base64.isNotEmpty
+          ? Image(seed: imageResponse.seed, prompt: imageResponse.prompt, url: imageUrl)
+          : null,
     };
   }
 }

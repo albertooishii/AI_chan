@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import '../services/ai_service.dart';
 import '../models/ai_chan_profile.dart';
 import '../models/timeline_entry.dart';
@@ -113,9 +114,6 @@ No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono 
       "orientacion_sexual": "",
     },
     "resumen_breve": "", // 3–4 frases condensadas de su vida y carácter
-    "perfil_llamadas": "", // 300–500 caracteres con tono y puntos clave para voz
-    "rutina_diaria": {"manana": "", "tarde": "", "noche": ""},
-    "preferencias_comunicacion": {"frecuencia": "", "longitud_mensajes": "", "tono": ""},
     "horario_trabajo": {"dias": "", "from": "", "to": ""},
     "horario_estudio": {"dias": "", "from": "", "to": ""},
     "horario_dormir": {"from": "", "to": ""},
@@ -186,13 +184,9 @@ $bioJsonFormat
 
 Incluye todos los apartados y detalles relevantes, siguiendo la estructura anterior. La biografía debe terminar justo el día $fechaConocieron en que conoce a $userName, sin incluir detalles del encuentro ni del usuario. No inventes nada sobre $userName salvo lo indicado. No uses emojis ni tono conversacional. Si no tienes datos, invéntalos de forma coherente y realista. Devuelve solo el bloque JSON, sin explicaciones ni introducción.
 
-La sección "historia_personal" debe cubrir toda la vida con selección: 6–10 años clave y 2–4 eventos por año. Si falta espacio, agrupa por etapas (infancia, adolescencia, universidad, trabajo) con 3–5 hitos cada una.
-
+La sección "historia_personal" debe contener muchos años y eventos, cubriendo toda la vida de la IA desde la infancia hasta el día que conoce al usuario. Detalla especialmente la infancia, estudios, trabajos, amistades, viajes, cambios de ciudad, logros, fracasos y cualquier etapa relevante. Cada año debe tener varios eventos importantes y anécdotas, mostrando una evolución realista y completa.
 Incluye también:
 - "resumen_breve": 3–4 frases que capten su esencia.
-- "perfil_llamadas": 300–500 caracteres con tono y puntos clave para llamadas de voz.
-- "rutina_diaria": mañana/tarde/noche con hábitos creíbles.
-- "preferencias_comunicacion": frecuencia, longitud de mensajes y tono.
 - "horario_trabajo": días (por ejemplo, "lun-vie") y horas 24h (from-to); si no trabaja, deja vacío.
 - "horario_estudio": igual que trabajo, solo si aplica; si no estudia, deja vacío.
 - "horario_dormir": horas 24h (from-to) habituales.
@@ -227,17 +221,30 @@ Identidad: $aiIdentityInstructions
   );
   // Generación con reintentos: exigimos JSON válido (sin 'raw')
   const int maxAttempts = 3;
+  debugPrint('[IABioGenerator] Biografía: intentos JSON (max=$maxAttempts) con gemini-2.5-flash');
   Map<String, dynamic>? bioJson;
   for (int attempt = 0; attempt < maxAttempts; attempt++) {
-    final responseObj = await AIService.sendMessage([], systemPromptObj, model: 'gemini-2.5-flash');
-    final extracted = extractJsonBlock(responseObj.text);
-    if (!extracted.containsKey('raw')) {
-      bioJson = Map<String, dynamic>.from(extracted);
-      break;
+    debugPrint('[IABioGenerator] Biografía: intento ${attempt + 1}/$maxAttempts');
+    try {
+      final responseObj = await AIService.sendMessage([], systemPromptObj, model: 'gemini-2.5-flash');
+      if ((responseObj.text).trim().isEmpty) {
+        debugPrint('[IABioGenerator] Biografía: respuesta vacía (posible desconexión), reintentando…');
+        continue;
+      }
+      final extracted = extractJsonBlock(responseObj.text);
+      if (!extracted.containsKey('raw')) {
+        bioJson = Map<String, dynamic>.from(extracted);
+        debugPrint('[IABioGenerator] Biografía: JSON OK en intento ${attempt + 1} (keys=${bioJson.keys.length})');
+        break;
+      }
+      debugPrint('[IABioGenerator] Biografía: intento ${attempt + 1} sin JSON válido, reintentando…');
+    } catch (err) {
+      debugPrint('[IABioGenerator] Biografía: error de red/timeout en intento ${attempt + 1}: $err');
+      // continúa a siguiente intento
     }
   }
   if (bioJson == null) {
-    throw Exception('No se pudo generar biografía en formato JSON válido.');
+    throw Exception('No se pudo generar biografía en formato JSON válido (posible error de conexión).');
   }
 
   // Construcción del modelo AiChanProfile

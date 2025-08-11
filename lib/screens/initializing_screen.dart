@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
-import '../utils/dialog_utils.dart';
 import '../models/ai_chan_profile.dart';
 
 class InitializingScreen extends StatefulWidget {
-  final Future<AiChanProfile> bioFuture;
-  const InitializingScreen({super.key, required this.bioFuture});
+  final Future<AiChanProfile> Function() bioFutureFactory;
+  const InitializingScreen({super.key, required this.bioFutureFactory});
 
   @override
   State<InitializingScreen> createState() => _InitializingScreenState();
@@ -15,8 +14,8 @@ class _InitializingScreenState extends State<InitializingScreen> {
   final List<List<String>> steps = [
     ["Iniciando sistema", "システム"],
     ["Generando datos básicos", "ベーシック"],
-    ["Configurando país de origen", "国設定"],
-    ["Ajustando idioma y acento", "言語・アクセント"],
+    ["Configurando país de origen", "コクセッテイ"],
+    ["Ajustando idioma y acento", "ゲンゴ・アクセント"],
     ["Generando recuerdos", "メモリー"],
     ["Analizando personalidad", "パーソナリティ"],
     ["Configurando emociones", "エモーション"],
@@ -36,6 +35,7 @@ class _InitializingScreenState extends State<InitializingScreen> {
   bool finished = false;
   bool bioReady = false;
   bool _cancel = false; // Cancela la animación de pasos si hay error
+  AiChanProfile? _generatedBio;
 
   @override
   void initState() {
@@ -44,40 +44,89 @@ class _InitializingScreenState extends State<InitializingScreen> {
   }
 
   Future<void> _startSync() async {
-    AiChanProfile? generatedBio;
     bool stepsDone = false;
     try {
-      final bioFuture = widget.bioFuture.then((bio) {
-        generatedBio = bio;
+      final bioFuture = _runGenerationOnce().then((bio) {
+        _generatedBio = bio;
         bioReady = true;
-        if (stepsDone && mounted && generatedBio != null) {
-          Navigator.of(context, rootNavigator: true).pop(generatedBio);
+        if (stepsDone && mounted && _generatedBio != null) {
+          Navigator.of(context, rootNavigator: true).pop(_generatedBio);
         } else if (stepsDone && mounted) {
           setState(() {});
         }
       });
       final stepsFuture = _runSteps().then((_) {
         stepsDone = true;
-        if (bioReady && generatedBio != null && mounted) {
-          Navigator.of(context, rootNavigator: true).pop(generatedBio);
+        if (bioReady && _generatedBio != null && mounted) {
+          Navigator.of(context, rootNavigator: true).pop(_generatedBio);
         } else if (mounted) {
           setState(() {});
         }
       });
       await Future.wait([bioFuture, stepsFuture]);
     } catch (e) {
-      // En error: cancelar pasos y volver al onboarding
-      _cancel = true;
-      await _showError(e);
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      // En error: ofrecer reintentar o volver
+      await _handleErrorWithOptions(e);
     }
   }
 
-  Future<void> _showError(Object e) async {
+  Future<AiChanProfile> _runGenerationOnce() async {
+    // Llama a la fábrica y deja que propague errores (incluidos de red)
+    return await widget.bioFutureFactory();
+  }
+
+  Future<void> _handleErrorWithOptions(Object e) async {
     if (!mounted) return;
-    await showErrorDialog(context, e.toString());
+    _cancel = true;
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.black,
+        title: const Text('No se pudo completar la configuración', style: TextStyle(color: AppColors.secondary)),
+        content: SingleChildScrollView(
+          child: Text(e.toString(), style: const TextStyle(color: AppColors.primary)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('cancel'),
+            child: const Text('Volver', style: TextStyle(color: AppColors.primary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('retry'),
+            child: const Text('Reintentar', style: TextStyle(color: AppColors.secondary)),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (choice == 'retry') {
+      // Reiniciar pasos y proceso
+      setState(() {
+        _cancel = false;
+        currentStep = 0;
+        finished = false;
+        bioReady = false;
+        _generatedBio = null;
+      });
+      try {
+        await Future.wait([
+          _runGenerationOnce().then((bio) {
+            _generatedBio = bio;
+            bioReady = true;
+          }),
+          _runSteps(),
+        ]);
+        if (mounted && _generatedBio != null) {
+          Navigator.of(context, rootNavigator: true).pop(_generatedBio);
+        }
+      } catch (err) {
+        // Si vuelve a fallar, ofrecer de nuevo
+        await _handleErrorWithOptions(err);
+      }
+    } else {
+      // Volver al onboarding
+      Navigator.of(context).pop();
+    }
   }
 
   Future<void> _runSteps() async {

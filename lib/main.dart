@@ -151,7 +151,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 MaterialPageRoute(
                   fullscreenDialog: true,
                   builder: (_) => InitializingScreen(
-                    bioFuture: () async {
+                    bioFutureFactory: () async {
                       await onboardingProvider.generateAndSaveBiography(
                         context: context,
                         userName: userName,
@@ -166,7 +166,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
                         throw Exception('No se pudo generar la biografía');
                       }
                       return onboardingProvider.generatedBiography!;
-                    }(),
+                    },
                   ),
                 ),
               );

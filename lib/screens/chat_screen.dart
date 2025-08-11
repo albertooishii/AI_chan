@@ -151,7 +151,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  void _showExportDialog(String jsonStr) {
+  void _showExportDialog(BuildContext ctx, String jsonStr) {
     if (!mounted) return;
     String previewJson = jsonStr;
     try {
@@ -159,7 +159,7 @@ class _ChatScreenState extends State<ChatScreen> {
       previewJson = const JsonEncoder.withIndent('  ').convert(decoded);
     } catch (_) {}
     showDialog(
-      context: context,
+      context: ctx,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
         title: const Text('Exportar chat (.json)', style: TextStyle(color: AppColors.secondary)),
@@ -207,9 +207,9 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  void _showAppearanceRegeneratedSnackBar() {
+  void _showAppearanceRegeneratedSnackBarWith(BuildContext ctx) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(ctx).showSnackBar(
       SnackBar(
         content: const Text('Apariencia IA regenerada y reemplazada.', style: TextStyle(color: Colors.black87)),
         backgroundColor: AppColors.cyberpunkYellow,
@@ -222,6 +222,11 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showErrorDialog(String error) {
     if (!mounted) return;
     showErrorDialog(context, error);
+  }
+
+  void _showErrorDialogWith(BuildContext ctx, String error) {
+    if (!mounted) return;
+    showErrorDialog(ctx, error);
   }
 
   @override
@@ -411,22 +416,24 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 );
               } else if (value == 'export_json') {
+                final ctx = context; // capturar contexto antes de await
                 try {
                   final jsonStr = await chatProvider.exportAllToJson();
-                  if (!mounted) return;
-                  _showExportDialog(jsonStr);
+                  if (!ctx.mounted) return;
+                  _showExportDialog(ctx, jsonStr);
                 } catch (e) {
                   debugPrint('[AI-chan] Error al exportar biografía: $e, valor=${chatProvider.onboardingData}');
-                  if (!mounted) return;
-                  _showErrorDialog(e.toString());
+                  if (!ctx.mounted) return;
+                  _showErrorDialogWith(ctx, e.toString());
                 }
               } else if (value == 'import_json') {
                 await _showImportDialog(chatProvider);
               } else if (value == 'regenAppearance') {
+                final ctx = context; // capturar contexto antes de awaits
                 final bio = chatProvider.onboardingData;
                 try {
                   final result = await chatProvider.iaAppearanceGenerator.generateAppearancePromptWithImage(bio);
-                  if (!mounted) return;
+                  if (!ctx.mounted) return;
                   final newBio = AiChanProfile(
                     personality: bio.personality,
                     biography: bio.biography,
@@ -441,10 +448,58 @@ class _ChatScreenState extends State<ChatScreen> {
                   chatProvider.onboardingData = newBio;
                   chatProvider.saveAll();
                   setState(() {});
-                  _showAppearanceRegeneratedSnackBar();
+                  _showAppearanceRegeneratedSnackBarWith(ctx);
                 } catch (e) {
-                  if (!mounted) return;
-                  _showErrorDialog('Error al regenerar apariencia:\n$e');
+                  if (!ctx.mounted) return;
+                  final choice = await showDialog<String>(
+                    context: ctx,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: Colors.black,
+                      title: const Text(
+                        'No se pudo regenerar la apariencia',
+                        style: TextStyle(color: AppColors.secondary),
+                      ),
+                      content: SingleChildScrollView(
+                        child: Text(e.toString(), style: const TextStyle(color: AppColors.primary)),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop('cancel'),
+                          child: const Text('Cerrar', style: TextStyle(color: AppColors.primary)),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop('retry'),
+                          child: const Text('Reintentar', style: TextStyle(color: AppColors.secondary)),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (!ctx.mounted) return;
+                  if (choice == 'retry') {
+                    // Un reintento directo
+                    try {
+                      final result = await chatProvider.iaAppearanceGenerator.generateAppearancePromptWithImage(bio);
+                      if (!ctx.mounted) return;
+                      final newBio = AiChanProfile(
+                        personality: bio.personality,
+                        biography: bio.biography,
+                        userName: bio.userName,
+                        aiName: bio.aiName,
+                        userBirthday: bio.userBirthday,
+                        aiBirthday: bio.aiBirthday,
+                        appearance: result['appearance'] as Map<String, dynamic>? ?? <String, dynamic>{},
+                        avatar: result['avatar'] as ai_image.Image?,
+                        timeline: bio.timeline,
+                      );
+                      chatProvider.onboardingData = newBio;
+                      chatProvider.saveAll();
+                      setState(() {});
+                      _showAppearanceRegeneratedSnackBarWith(ctx);
+                    } catch (e2) {
+                      if (!mounted) return;
+                      _showErrorDialogWith(ctx, 'Error al regenerar apariencia (reintento):\n$e2');
+                    }
+                  }
                 }
               } else if (value == 'clear_debug') {
                 final confirm = await showDialog<bool>(
