@@ -34,6 +34,7 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   Directory? _imageDir;
+  bool _isRegeneratingAppearance = false; // Muestra spinner en avatar durante la regeneración
 
   @override
   void initState() {
@@ -243,7 +244,21 @@ class _ChatScreenState extends State<ChatScreen> {
         surfaceTintColor: Colors.black,
         title: Row(
           children: [
-            if (chatProvider.onboardingData.avatar != null &&
+            if (_isRegeneratingAppearance)
+              // Spinner en lugar del avatar mientras se regenera
+              const CircleAvatar(
+                radius: 16,
+                backgroundColor: AppColors.secondary,
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                  ),
+                ),
+              )
+            else if (chatProvider.onboardingData.avatar != null &&
                 chatProvider.onboardingData.avatar!.url != null &&
                 chatProvider.onboardingData.avatar!.url!.isNotEmpty)
               (_imageDir != null)
@@ -431,6 +446,7 @@ class _ChatScreenState extends State<ChatScreen> {
               } else if (value == 'regenAppearance') {
                 final ctx = context; // capturar contexto antes de awaits
                 final bio = chatProvider.onboardingData;
+                if (mounted) setState(() => _isRegeneratingAppearance = true);
                 try {
                   final result = await chatProvider.iaAppearanceGenerator.generateAppearancePromptWithImage(bio);
                   if (!ctx.mounted) return;
@@ -500,6 +516,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       _showErrorDialogWith(ctx, 'Error al regenerar apariencia (reintento):\n$e2');
                     }
                   }
+                } finally {
+                  if (mounted) setState(() => _isRegeneratingAppearance = false);
                 }
               } else if (value == 'clear_debug') {
                 final confirm = await showDialog<bool>(

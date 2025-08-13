@@ -25,7 +25,7 @@ Future<AiChanProfile> generateFullBiographyFlexible({
     bio,
     aiService: null,
     model: 'gemini-2.5-flash',
-    imageModel: 'gpt-5-mini',
+    imageModel: 'gpt-4.1-mini',
   );
   // Extraer avatar: el generador devuelve 'avatar' como Image
   final Image? avatar = appearanceResult['avatar'] as Image?;

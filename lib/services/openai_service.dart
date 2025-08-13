@@ -148,7 +148,7 @@ class OpenAIService implements AIService {
       );
     }
     final Map<String, dynamic> bodyMap = {
-      "model": model ?? "gpt-5-mini", // preferir gpt-5-mini si no se especifica
+      "model": model ?? "gpt-4.1-mini", // default OpenAI cuando se fuerza imagen, pero app usa gemini para texto
       "input": input,
       if (tools.isNotEmpty) "tools": tools,
       // Nota: No incluir 'modalities' aquí; algunos modelos del endpoint /responses no lo soportan
@@ -159,27 +159,15 @@ class OpenAIService implements AIService {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
 
-      // Guardar la respuesta REAL de la API en un archivo JSON de log solo en escritorio
-      /*if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-        try {
-          final respJson = {
-            'api_response': data,
-            'model': model ?? "gpt-5",
-            'timestamp': DateTime.now().toIso8601String(),
-          };
-          final directory = Directory('debug_json_logs');
-          if (!directory.existsSync()) {
-            directory.createSync(recursive: true);
-          }
-          final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-          final filePath = '${directory.path}/openai_service_response_$timestamp.json';
-          final file = File(filePath);
-          file.writeAsStringSync(const JsonEncoder().convert(respJson));
-          debugPrint('[OpenAIService.sendMessageImpl] JSON respuesta REAL guardado en: $filePath');
-        } catch (e) {
-          debugPrint('[OpenAIService.sendMessageImpl] Error al guardar JSON de respuesta: $e');
-        }
-      }*/
+      // (Logging sustituido) Ejemplo de cómo usar ahora debugLogCallPrompt para registrar la respuesta.
+      // Mantener comentado para no afectar rendimiento en producción.
+      /*
+      await debugLogCallPrompt('openai_response', {
+        'api_response': data,
+        'model': model ?? 'gpt-4.1-mini',
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+      */
       String text = '';
       String imageBase64 = '';
       String imageId = '';

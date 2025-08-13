@@ -26,7 +26,7 @@ abstract class AIService {
     String? model,
     String? imageBase64,
     String? imageMimeType,
-    String fallbackModel = 'gpt-5-mini',
+    String fallbackModel = 'gpt-4.1-mini',
     bool enableImageGeneration = false,
   }) async {
     final m = model ?? 'gemini-2.5-flash';

@@ -13,7 +13,7 @@ class IAAppearanceGenerator {
     AiChanProfile bio, {
     AIService? aiService,
     String model = 'gemini-2.5-flash',
-    String imageModel = 'gpt-5-mini',
+    String imageModel = 'gpt-4.1-mini',
   }) async {
     // Bloque de formato JSON para la apariencia física
     final appearanceJsonFormat = jsonEncode({
@@ -98,7 +98,7 @@ class IAAppearanceGenerator {
         '''
 Eres un generador de fichas visuales para IA. Basado en la siguiente biografía, genera una ficha superdetallada, obsesiva y milimétrica de la apariencia física de la IA, usando el siguiente formato JSON. Cada campo debe ser lo más preciso y descriptivo posible, como si fueras un editor de personajes de videojuego AAA. Sé obsesivo con el detalle: especifica medidas, proporciones, formas, texturas, colores, ubicación exacta de cada rasgo y cualquier aspecto visual relevante. Rellena TODOS los campos con máximo detalle. No repitas la biografía textual ni inventes datos biográficos nuevos; extrapola solo lo visual.
 
-IMPORTANTE: La apariencia debe ser SIEMPRE la de una mujer joven de entre veinte y treinta años sin especificar, muy guapa, sin arrugas, aspecto juvenil, saludable y atractivo. Si la biografía incluye la edad real, ignórala y describe solo la apariencia y el contexto visual.
+IMPORTANTE: La apariencia debe ser SIEMPRE la de una mujer joven de entre veinte y treinta años sin especificar, muy guapa, sin arrugas, aspecto juvenil, saludable y atractivo. Si la biografía incluye la edad real o la fecha de nacimiento, ignóralas y describe solo la apariencia y el contexto visual.
 
 Formato (DEVUELVE ÚNICAMENTE EL BLOQUE JSON DE APARIENCIA, SIN TEXTO EXTRA NI COMENTARIOS):
 $appearanceJsonFormat
@@ -192,17 +192,31 @@ ${bio.biography}
       dateTime: DateTime.now(),
       instructions: imagePrompt,
     );
-    // Reintentos de imagen con el mismo modelo antes de aplicar fallbacks
-    debugPrint('[IAAppearanceGenerator] Avatar: generando imagen con modelo $imageModel (intentos por modelo=2)');
+    // Reintentos de imagen con el modelo forzado (sin fallbacks de modelo)
+    // TODO(albertooishii): Revisar volver a modelos gpt-5-* para imagen cuando OpenAI elimine o
+    // documente claramente el requisito de 'reasoning' para image_generation. Mientras tanto forzamos
+    // gpt-4.1-mini para evitar el error 400 por 'image_generation_call' sin 'reasoning'.
+    final String forcedImageModel = 'gpt-4.1-mini';
+    if (imageModel != forcedImageModel) {
+      debugPrint('[IAAppearanceGenerator] Avatar: imageModel "$imageModel" ignorado; se fuerza "$forcedImageModel"');
+    }
+    debugPrint('[IAAppearanceGenerator] Avatar: generando imagen con modelo $forcedImageModel (intentos por modelo=3)');
     AIResponse imageResponse = AIResponse(text: '', base64: '', seed: '', prompt: '');
-    const int maxImageAttemptsPerModel = 2;
+    const int maxImageAttemptsPerModel = 3;
     for (int attempt = 0; attempt < maxImageAttemptsPerModel; attempt++) {
-      debugPrint('[IAAppearanceGenerator] Avatar: intento ${attempt + 1}/$maxImageAttemptsPerModel con $imageModel');
+      debugPrint(
+        '[IAAppearanceGenerator] Avatar: intento ${attempt + 1}/$maxImageAttemptsPerModel con $forcedImageModel',
+      );
       try {
-        final resp = await AIService.sendMessage([], systemPromptImage, model: imageModel, enableImageGeneration: true);
+        final resp = await AIService.sendMessage(
+          [],
+          systemPromptImage,
+          model: forcedImageModel,
+          enableImageGeneration: true,
+        );
         if (resp.base64.isNotEmpty) {
           imageResponse = resp;
-          debugPrint('[IAAppearanceGenerator] Avatar: imagen obtenida con $imageModel en intento ${attempt + 1}');
+          debugPrint('[IAAppearanceGenerator] Avatar: imagen obtenida con $forcedImageModel en intento ${attempt + 1}');
           break;
         }
         debugPrint('[IAAppearanceGenerator] Avatar: intento ${attempt + 1} sin imagen');
@@ -211,7 +225,10 @@ ${bio.biography}
       }
     }
 
-    // Sin fallbacks: si no se generó imagen, continuar sin avatar
+    // Si no se generó imagen tras los reintentos, lanzar excepción para que la UI pregunte al usuario.
+    if (imageResponse.base64.isEmpty) {
+      throw Exception('No se pudo generar el avatar tras $maxImageAttemptsPerModel intentos con $forcedImageModel.');
+    }
 
     // Log seguro: no imprimir base64 completo
     final logMap = imageResponse.toJson();
@@ -223,22 +240,22 @@ ${bio.biography}
 
     // Guardar imagen en local y obtener la ruta
     String? imageUrl;
-    if (imageResponse.base64.isNotEmpty) {
-      try {
-        imageUrl = await saveBase64ImageToFile(imageResponse.base64, prefix: 'ai_avatar');
-      } catch (e) {
-        imageUrl = null;
-      }
+    try {
+      imageUrl = await saveBase64ImageToFile(imageResponse.base64, prefix: 'ai_avatar');
+    } catch (e) {
+      imageUrl = null;
+    }
+
+    if (imageUrl == null || imageUrl.isEmpty) {
+      throw Exception('Se generó el avatar pero no se pudo guardar la imagen en el dispositivo.');
     }
 
     debugPrint('Imagen guardada en: $imageUrl');
 
     return {
       'appearance': appearanceMap,
-      // Devolver avatar como objeto Image si hubo imagen; en caso contrario, null
-      'avatar': imageResponse.base64.isNotEmpty
-          ? Image(seed: imageResponse.seed, prompt: imageResponse.prompt, url: imageUrl)
-          : null,
+      // Devolver avatar como objeto Image (nunca null)
+      'avatar': Image(seed: imageResponse.seed, prompt: imageResponse.prompt, url: imageUrl),
     };
   }
 }

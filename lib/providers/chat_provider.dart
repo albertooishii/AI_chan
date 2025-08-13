@@ -655,7 +655,7 @@ class ChatProvider extends ChangeNotifier {
         ? model
         : (_selectedModel != null && _selectedModel!.trim().isNotEmpty)
         ? _selectedModel!
-        : 'gpt-5-mini';
+        : 'gemini-2.5-flash'; // default global texto
 
     // Detectar si el usuario solicita imagen usando el nuevo servicio
     // Evitar detección en prompts automáticos del sistema (no son input del usuario)
@@ -676,14 +676,14 @@ class ChatProvider extends ChangeNotifier {
       }
       solicitaImagen = ImageRequestService.isImageRequested(text: text, history: recentUserHistory);
     }
-    // Si se solicita imagen, forzar OpenAI (gpt-5-mini) para la generación de imagen
+    // Si se solicita imagen, forzar OpenAI (gpt-4.1-mini) para la generación de imagen
     if (solicitaImagen) {
       final lower = selected.toLowerCase();
       if (!lower.startsWith('gpt-')) {
-        debugPrint('[AI-chan] Solicitud de imagen detectada. Forzando modelo "gpt-5-mini" para imagen');
-        selected = 'gpt-5-mini';
+        debugPrint('[AI-chan] Solicitud de imagen detectada. Forzando modelo "gpt-4.1-mini" para imagen');
+        selected = 'gpt-4.1-mini';
       }
-      debugPrint('[AI-chan] isImageRequested=true, model seleccionado: $selected');
+      debugPrint('[AI-chan] isImageRequested=true, model seleccionado (imagen): $selected');
     }
 
     // Lógica de envío IA
@@ -710,14 +710,14 @@ class ChatProvider extends ChangeNotifier {
       enableImageGeneration: solicitaImagen,
     );
 
-    // Si la respuesta contiene tools: [{"type": "image_generation", ... reenviar con modelo GPT (fallback gpt-4.1)
+    // Si la respuesta contiene tools: [{"type": "image_generation", ... reenviar con modelo GPT (fallback gpt-4.1-mini)
     final imageGenPattern = RegExp(r'tools.*(image_generation|Image Generation)', caseSensitive: false);
     if (imageGenPattern.hasMatch(iaResponse.text)) {
       final lower = selected.toLowerCase();
       final isGpt = lower.startsWith('gpt-');
       final isGemini = lower.startsWith('gemini-');
       if (!isGpt && !isGemini) {
-        debugPrint('[AI-chan] Reenviando mensaje con modelo gpt-5-mini por instrucción de generación de imagen');
+        debugPrint('[AI-chan] Reenviando mensaje con modelo gpt-4.1-mini por instrucción de generación de imagen');
         iaResponse = await AIService.sendMessage(
           recentMessages
               .map(
@@ -735,12 +735,12 @@ class ChatProvider extends ChangeNotifier {
               )
               .toList(),
           systemPromptObj,
-          model: 'gpt-5-mini',
+          model: 'gpt-4.1-mini',
           imageBase64: image?.base64,
           imageMimeType: imageMimeType,
           enableImageGeneration: true,
         );
-        selected = 'gpt-5-mini';
+        selected = 'gpt-4.1-mini';
       }
     }
 

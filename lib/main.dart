@@ -39,6 +39,7 @@ class RootApp extends StatelessWidget {
       child: MaterialApp(
         navigatorKey: navigatorKey,
         title: 'ＡＩチャン',
+        locale: const Locale('es', 'ES'),
         theme: ThemeData(
           brightness: Brightness.dark,
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.pinkAccent, brightness: Brightness.dark),
@@ -52,7 +53,7 @@ class RootApp extends StatelessWidget {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        supportedLocales: const [Locale('es'), Locale('en')],
+        supportedLocales: const [Locale('es', 'ES'), Locale('es'), Locale('en')],
       ),
     );
   }
