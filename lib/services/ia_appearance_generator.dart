@@ -1,3 +1,4 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
 import 'package:ai_chan/utils/image_utils.dart';
 import 'package:flutter/foundation.dart';
@@ -9,12 +10,10 @@ import 'ai_service.dart';
 import '../models/system_prompt.dart';
 
 class IAAppearanceGenerator {
-  Future<Map<String, dynamic>> generateAppearancePromptWithImage(
-    AiChanProfile bio, {
-    AIService? aiService,
-    String model = 'gemini-2.5-flash',
-    String imageModel = 'gpt-4.1-mini',
-  }) async {
+  Future<Map<String, dynamic>> generateAppearancePromptWithImage(AiChanProfile bio, {AIService? aiService}) async {
+    final usedModel = dotenv.env['DEFAULT_TEXT_MODEL'] ?? '';
+    final imageModel = dotenv.env['DEFAULT_IMAGE_MODEL'] ?? '';
+
     // Bloque de formato JSON para la apariencia física
     final appearanceJsonFormat = jsonEncode({
       "genero": "",
@@ -141,13 +140,13 @@ ${bio.biography}
       instructions: prompt,
     );
     // Reintentos con el mismo prompt/modelo para obtener JSON válido
-    debugPrint('[IAAppearanceGenerator] Apariencia: intentos JSON (max=3) con modelo $model');
+    debugPrint('[IAAppearanceGenerator] Apariencia: intentos JSON (max=3) con modelo $usedModel');
     const int maxJsonAttempts = 3;
     Map<String, dynamic>? appearanceMap;
     for (int attempt = 0; attempt < maxJsonAttempts; attempt++) {
-      debugPrint('[IAAppearanceGenerator] Apariencia: intento ${attempt + 1}/$maxJsonAttempts (modelo=$model)');
+      debugPrint('[IAAppearanceGenerator] Apariencia: intento ${attempt + 1}/$maxJsonAttempts (modelo=$usedModel)');
       try {
-        final AIResponse resp = await AIService.sendMessage([], systemPromptAppearance, model: model);
+        final AIResponse resp = await AIService.sendMessage([], systemPromptAppearance, model: usedModel);
         if ((resp.text).trim().isEmpty) {
           debugPrint('[IAAppearanceGenerator] Apariencia: respuesta vacía (posible desconexión), reintentando…');
           continue;
@@ -196,7 +195,7 @@ ${bio.biography}
     // TODO(albertooishii): Revisar volver a modelos gpt-5-* para imagen cuando OpenAI elimine o
     // documente claramente el requisito de 'reasoning' para image_generation. Mientras tanto forzamos
     // gpt-4.1-mini para evitar el error 400 por 'image_generation_call' sin 'reasoning'.
-    final String forcedImageModel = 'gpt-4.1-mini';
+    final String forcedImageModel = dotenv.env['DEFAULT_IMAGE_MODEL'] ?? '';
     if (imageModel != forcedImageModel) {
       debugPrint('[IAAppearanceGenerator] Avatar: imageModel "$imageModel" ignorado; se fuerza "$forcedImageModel"');
     }

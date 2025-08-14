@@ -1,3 +1,4 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -354,7 +355,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                     Builder(
                       builder: (context) {
-                        final defaultModel = 'gemini-2.5-flash';
+                        final defaultModel = dotenv.env['DEFAULT_TEXT_MODEL'] ?? '';
                         final selected = chatProvider.selectedModel ?? defaultModel;
                         return Padding(
                           padding: const EdgeInsets.only(left: 8.0),
@@ -568,7 +569,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 setState(() => _loadingModels = false);
                 if (!mounted) return;
                 final current = chatProvider.selectedModel;
-                final defaultModel = 'gemini-2.5-flash';
+                final defaultModel = dotenv.env['DEFAULT_TEXT_MODEL'] ?? '';
                 final initialModel =
                     current ??
                     (models.contains(defaultModel) ? defaultModel : (models.isNotEmpty ? models.first : null));
@@ -587,11 +588,14 @@ class _ChatScreenState extends State<ChatScreen> {
               child: ListView.builder(
                 reverse: true,
                 padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-                itemCount: chatProvider.messages.length,
+                itemCount: chatProvider.messages.where((m) => m.sender != MessageSender.system).length,
                 itemBuilder: (context, index) {
                   final filteredMessages = chatProvider.messages
                       .where((m) => m.sender != MessageSender.system)
                       .toList();
+                  if (filteredMessages.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
                   final reversedMessages = filteredMessages.reversed.toList();
                   final message = reversedMessages[index];
                   bool isLastUserMessage = false;
@@ -628,6 +632,43 @@ class _ChatScreenState extends State<ChatScreen> {
                           Text(
                             'Enviando imagen...',
                             style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w500, fontSize: 15),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (chatProvider.isSendingAudio)
+              Padding(
+                padding: const EdgeInsets.only(left: 12.0, bottom: 8.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 14),
+                      decoration: BoxDecoration(
+                        color: AppColors.cyberpunkYellow.withAlpha((0.18 * 255).round()),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.cyberpunkYellow.withAlpha((0.12 * 255).round()),
+                            blurRadius: 8.0,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.mic, color: AppColors.cyberpunkYellow, size: 22),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Procesando nota de voz...',
+                            style: TextStyle(
+                              color: AppColors.cyberpunkYellow,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 15,
+                            ),
                           ),
                         ],
                       ),

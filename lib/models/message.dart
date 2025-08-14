@@ -12,6 +12,9 @@ class Message {
     bool? isImage,
     Image? image,
     MessageStatus? status,
+    bool? isAudio,
+    String? audioPath,
+    bool? autoTts,
   }) {
     return Message(
       text: text ?? this.text,
@@ -20,6 +23,9 @@ class Message {
       isImage: isImage ?? this.isImage,
       image: image ?? this.image,
       status: status ?? this.status,
+      isAudio: isAudio ?? this.isAudio,
+      audioPath: audioPath ?? this.audioPath,
+      autoTts: autoTts ?? this.autoTts,
     );
   }
 
@@ -29,6 +35,9 @@ class Message {
   final bool isImage;
   final Image? image;
   MessageStatus status;
+  final bool isAudio; // nuevo: indica si el mensaje contiene nota de voz
+  final String? audioPath; // ruta local del archivo de audio
+  final bool autoTts; // si fue generado automáticamente vía TTS IA
 
   Message({
     required this.text,
@@ -37,6 +46,9 @@ class Message {
     this.isImage = false,
     this.image,
     this.status = MessageStatus.sending,
+    this.isAudio = false,
+    this.audioPath,
+    this.autoTts = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -50,12 +62,16 @@ class Message {
     'isImage': isImage,
     'status': status.name,
     if (image != null) 'image': image!.toJson(),
+    if (isAudio) 'isAudio': isAudio,
+    if (audioPath != null) 'audioPath': audioPath,
+    if (autoTts) 'autoTts': autoTts,
   };
 
   factory Message.fromJson(Map<String, dynamic> json) {
     final imageObj = json['image'] != null ? Image.fromJson(json['image']) : null;
+    final bool isAudio = json['isAudio'] == true || json.containsKey('audioPath');
     return Message(
-      text: json['text'],
+      text: json['text'] ?? '',
       sender: json['sender'] == 'user'
           ? MessageSender.user
           : (json['sender'] == 'system' ? MessageSender.system : MessageSender.assistant),
@@ -68,6 +84,9 @@ class Message {
         (e) => e.name == (json['status'] ?? 'sent'),
         orElse: () => MessageStatus.sent,
       ),
+      isAudio: isAudio,
+      audioPath: json['audioPath'] as String?,
+      autoTts: json['autoTts'] == true,
     );
   }
 }

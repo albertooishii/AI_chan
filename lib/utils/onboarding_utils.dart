@@ -21,12 +21,7 @@ Future<AiChanProfile> generateFullBiographyFlexible({
     userCountryCode: userCountryCode,
     aiCountryCode: aiCountryCode,
   );
-  final appearanceResult = await appearanceGenerator.generateAppearancePromptWithImage(
-    bio,
-    aiService: null,
-    model: 'gemini-2.5-flash',
-    imageModel: 'gpt-4.1-mini',
-  );
+  final appearanceResult = await appearanceGenerator.generateAppearancePromptWithImage(bio, aiService: null);
   // Extraer avatar: el generador devuelve 'avatar' como Image
   final Image? avatar = appearanceResult['avatar'] as Image?;
   final biography = AiChanProfile(

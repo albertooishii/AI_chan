@@ -8,6 +8,8 @@ import 'package:markdown_widget/markdown_widget.dart';
 import 'dart:io';
 import '../constants/app_colors.dart';
 import '../models/message.dart';
+// import 'dart:math';
+import 'audio_message_player.dart';
 
 class ChatBubble extends StatelessWidget {
   Widget _buildBubbleContent({
@@ -103,6 +105,7 @@ class ChatBubble extends StatelessWidget {
     final isUser = message.sender == MessageSender.user;
     final borderColor = isUser ? AppColors.primary : AppColors.secondary;
     final glowColor = isUser ? AppColors.primary : AppColors.secondary;
+    final isVoiceNoteTag = message.text.trimLeft().toLowerCase().startsWith('[nota de voz]');
 
     Widget statusWidget = const SizedBox.shrink();
     if (isUser) {
@@ -129,8 +132,10 @@ class ChatBubble extends StatelessWidget {
       statusWidget = Icon(icon, size: 16, color: color);
     }
 
-    final shouldShowText = message.text.isNotEmpty && message.text.trim() != '';
+    // Ocultar texto si es audio o si está marcado como nota de voz (etiqueta previa a generación de TTS)
+    final shouldShowText = !message.isAudio && message.text.trim().isNotEmpty && !isVoiceNoteTag;
     final hasImage = message.image != null && message.image!.url != null && message.image!.url!.isNotEmpty;
+    final hasAudio = message.isAudio && (message.audioPath != null && message.audioPath!.isNotEmpty);
 
     Widget bubbleContent;
     bool useIntrinsicWidth = false;
@@ -148,6 +153,73 @@ class ChatBubble extends StatelessWidget {
             const SizedBox(height: 8),
             ...MarkdownGenerator().buildWidgets(cleanText(message.text)),
           ],
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const SizedBox(width: 8),
+              Text(_formatTime(message.dateTime), style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+              if (isUser) ...[const SizedBox(width: 4), statusWidget],
+            ],
+          ),
+        ],
+      );
+    } else if (hasAudio) {
+      bubbleContent = Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AudioMessagePlayer(message: message, width: 180),
+          if (shouldShowText) ...[
+            const SizedBox(height: 8),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [...MarkdownGenerator().buildWidgets(cleanText(message.text))],
+              ),
+            ),
+          ],
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const SizedBox(width: 8),
+              Text(_formatTime(message.dateTime), style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+              if (isUser) ...[const SizedBox(width: 4), statusWidget],
+            ],
+          ),
+        ],
+      );
+    } else if (isVoiceNoteTag) {
+      // Placeholder mientras se genera/adjunta el audio de una nota de voz de la IA
+      bubbleContent = Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 180,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: glowColor, width: 1.2),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.schedule, color: glowColor, size: 26),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: SizedBox(
+                    height: 12,
+                    child: LinearProgressIndicator(
+                      backgroundColor: Colors.grey[850],
+                      valueColor: AlwaysStoppedAnimation(glowColor.withValues(alpha: 0.55)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.end,

@@ -1,3 +1,4 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import '../services/ai_service.dart';
@@ -221,12 +222,12 @@ Identidad: $aiIdentityInstructions
   );
   // Generación con reintentos: exigimos JSON válido (sin 'raw')
   const int maxAttempts = 3;
-  debugPrint('[IABioGenerator] Biografía: intentos JSON (max=$maxAttempts) con gemini-2.5-flash');
+  debugPrint('[IABioGenerator] Biografía: intentos JSON (max=$maxAttempts) con ${dotenv.env['DEFAULT_TEXT_MODEL']}');
   Map<String, dynamic>? bioJson;
   for (int attempt = 0; attempt < maxAttempts; attempt++) {
     debugPrint('[IABioGenerator] Biografía: intento ${attempt + 1}/$maxAttempts');
     try {
-      final responseObj = await AIService.sendMessage([], systemPromptObj, model: 'gemini-2.5-flash');
+      final responseObj = await AIService.sendMessage([], systemPromptObj, model: dotenv.env['DEFAULT_TEXT_MODEL']);
       if ((responseObj.text).trim().isEmpty) {
         debugPrint('[IABioGenerator] Biografía: respuesta vacía (posible desconexión), reintentando…');
         continue;

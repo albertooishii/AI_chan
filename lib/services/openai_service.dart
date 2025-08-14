@@ -1,13 +1,13 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'dart:async';
+import 'dart:io';
 
 import 'ai_service.dart';
 import '../models/ai_response.dart';
 import '../models/system_prompt.dart';
-import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class OpenAIService implements AIService {
   /// Obtiene la lista de modelos disponibles en la API de OpenAI, ordenados por fecha de creación (más nuevo primero)
@@ -148,7 +148,7 @@ class OpenAIService implements AIService {
       );
     }
     final Map<String, dynamic> bodyMap = {
-      "model": model ?? "gpt-4.1-mini", // default OpenAI cuando se fuerza imagen, pero app usa gemini para texto
+      "model": model ?? dotenv.env['DEFAULT_IMAGE_MODEL'] ?? '', // default OpenAI cuando se fuerza imagen
       "input": input,
       if (tools.isNotEmpty) "tools": tools,
       // Nota: No incluir 'modalities' aquí; algunos modelos del endpoint /responses no lo soportan
@@ -164,7 +164,7 @@ class OpenAIService implements AIService {
       /*
       await debugLogCallPrompt('openai_response', {
         'api_response': data,
-        'model': model ?? 'gpt-4.1-mini',
+  'model': model ?? dotenv.env['DEFAULT_IMAGE_MODEL'],
         'timestamp': DateTime.now().toIso8601String(),
       });
       */
@@ -273,18 +273,34 @@ class OpenAIService implements AIService {
     if (apiKey.trim().isEmpty) {
       throw Exception('Falta la API key de OpenAI. Por favor, configúrala en la app.');
     }
+
     final url = Uri.parse('https://api.openai.com/v1/audio/transcriptions');
     final request = http.MultipartRequest('POST', url)
       ..headers['Authorization'] = 'Bearer $apiKey'
       ..fields['model'] = 'whisper-1'
       ..files.add(await http.MultipartFile.fromPath('file', filePath));
-    final streamed = await request.send();
-    final response = await http.Response.fromStream(streamed);
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['text'] as String?;
-    } else {
-      throw Exception('Error STT OpenAI: ${response.body}');
+
+    try {
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 30),
+        onTimeout: () => throw TimeoutException('Timeout en transcripción de audio', const Duration(seconds: 30)),
+      );
+      final response = await http.Response.fromStream(streamed);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['text'] as String?;
+      } else {
+        throw Exception('Error STT OpenAI (${response.statusCode}): ${response.body}');
+      }
+    } catch (e) {
+      if (e is TimeoutException) {
+        throw Exception('Timeout al transcribir audio: la conexión tardó demasiado');
+      } else if (e.toString().contains('Connection closed') || e.toString().contains('ClientException')) {
+        throw Exception('Error de conexión al transcribir audio: verifica tu conexión a internet');
+      } else {
+        throw Exception('Error STT OpenAI: $e');
+      }
     }
   }
 

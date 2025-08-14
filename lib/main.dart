@@ -25,6 +25,7 @@ Future<void> clearAppData() async {
 }
 
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // Necesario para registrar plugins antes de usarlos
   await dotenv.load();
   runApp(const RootApp());
 }

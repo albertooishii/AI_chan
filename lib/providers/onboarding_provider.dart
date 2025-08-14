@@ -1,3 +1,4 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:ai_chan/models/system_prompt.dart';
 import 'package:ai_chan/utils/storage_utils.dart';
 import 'package:flutter/material.dart';
@@ -256,7 +257,7 @@ class OnboardingProvider extends ChangeNotifier {
             {"role": "user", "content": prompt, "datetime": DateTime.now().toIso8601String()},
           ],
           systemPromptObj,
-          model: 'gemini-2.5-flash',
+          model: dotenv.env['DEFAULT_TEXT_MODEL'] ?? '',
         );
         if (!context.mounted) return;
         final storyText = story.text;

@@ -1,3 +1,4 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'package:ai_chan/models/ai_chan_profile.dart';
@@ -5,7 +6,6 @@ import 'package:ai_chan/services/ai_service.dart';
 import '../models/system_prompt.dart';
 import '../models/message.dart' as chat_model;
 import '../models/timeline_entry.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../utils/json_utils.dart';
 
 class MemorySuperblockResult {
@@ -223,7 +223,7 @@ class MemorySummaryService {
   // Lock de concurrencia optimizado: Completer estático compartido
   static Completer<void>? _lock;
   Future<void> _summaryQueue = Future.value();
-  static const String superblockModel = 'gemini-2.5-flash';
+  static String get superblockModel => dotenv.env['DEFAULT_TEXT_MODEL'] ?? '';
   final AiChanProfile profile;
   static int? get _maxHistory {
     final value = int.tryParse(dotenv.env['SUMMARY_BLOCK_SIZE'] ?? '');

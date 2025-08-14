@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
-// import eliminado: image_gallery_saver_plus
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+// Rutas ahora configurables vía .env: IMAGE_DIR_ANDROID, IMAGE_DIR_IOS, IMAGE_DIR_DESKTOP, IMAGE_DIR_WEB
 
 /// Guarda una imagen en base64 en el directorio local de imágenes y devuelve la ruta del archivo.
 Future<String?> saveBase64ImageToFile(String base64, {String prefix = 'img'}) async {
@@ -27,58 +27,51 @@ Future<String?> saveBase64ImageToFile(String base64, {String prefix = 'img'}) as
   }
 }
 
-/// Devuelve el directorio local para imágenes del chat (idéntico a ChatProvider)
+/// Devuelve el directorio local para imágenes del chat usando exclusivamente las claves de `.env`.
+/// Lanza un error si no está configurado.
 Future<Directory> getLocalImageDir() async {
-  if (Platform.isAndroid) {
-    // Guardar en /storage/emulated/0/Pictures/AI_chan (recomendado por Android moderno)
-    final picturesPath = '/storage/emulated/0/Pictures/AI_chan';
-    final aiChanDir = Directory(picturesPath);
-    if (!await aiChanDir.exists()) {
-      await aiChanDir.create(recursive: true);
+  if (kIsWeb) {
+    final webDir = dotenv.env['IMAGE_DIR_WEB'];
+    if (webDir == null || webDir.trim().isEmpty) {
+      throw StateError('IMAGE_DIR_WEB no está configurado en .env');
     }
-    return aiChanDir;
-  } else if (Platform.isIOS) {
-    final docsDir = await getApplicationDocumentsDirectory();
-    final aiChanDir = Directory('${docsDir.path}/AI_chan');
-    if (!await aiChanDir.exists()) {
-      await aiChanDir.create(recursive: true);
-    }
-    return aiChanDir;
-  } else {
-    final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '';
-    Directory? downloadsDir;
-    final descargas = Directory('$home/Descargas');
-    final downloads = Directory('$home/Downloads');
-    if (await descargas.exists()) {
-      downloadsDir = descargas;
-    } else if (await downloads.exists()) {
-      downloadsDir = downloads;
-    } else {
-      downloadsDir = downloads;
-      if (!await downloadsDir.exists()) {
-        await downloadsDir.create(recursive: true);
-      }
-    }
-    final aiChanDir = Directory('${downloadsDir.path}/AI_chan');
-    if (!await aiChanDir.exists()) {
-      await aiChanDir.create(recursive: true);
-    }
-    return aiChanDir;
+    return Directory(webDir.trim());
   }
+
+  String? configured;
+  if (Platform.isAndroid) {
+    configured = dotenv.env['IMAGE_DIR_ANDROID'];
+  } else if (Platform.isIOS) {
+    configured = dotenv.env['IMAGE_DIR_IOS'];
+  } else {
+    configured = dotenv.env['IMAGE_DIR_DESKTOP'];
+  }
+
+  if (configured == null || configured.trim().isEmpty) {
+    throw StateError('IMAGE_DIR no está configurado en .env para esta plataforma');
+  }
+
+  final dir = Directory(configured.trim());
+  if (!(await dir.exists())) {
+    await dir.create(recursive: true);
+  }
+  return dir;
 }
 
 /// Devuelve la ruta relativa para guardar imágenes
 Future<String> getRelativeImageDir() async {
   if (Platform.isAndroid) {
-    return 'Pictures/AI_chan';
+    final cfg = dotenv.env['IMAGE_DIR_ANDROID'];
+    if (cfg == null || cfg.trim().isEmpty) throw StateError('IMAGE_DIR_ANDROID no está en .env');
+    return cfg.trim();
   } else if (Platform.isIOS) {
-    return 'DCIM/AI_chan';
+    final cfg = dotenv.env['IMAGE_DIR_IOS'];
+    if (cfg == null || cfg.trim().isEmpty) throw StateError('IMAGE_DIR_IOS no está en .env');
+    return cfg.trim();
   } else {
+    // Desktop: always point to $HOME/AI_chan/images dynamically
     final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '';
-    if (Directory('$home/Descargas').existsSync()) {
-      return 'Descargas/AI_chan';
-    } else {
-      return 'Downloads/AI_chan';
-    }
+    if (home.isEmpty) throw StateError('No se pudo determinar el home del usuario');
+    return 'AI_chan/images';
   }
 }

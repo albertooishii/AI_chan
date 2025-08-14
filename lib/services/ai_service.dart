@@ -1,3 +1,4 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../utils/debug_call_logger/debug_call_logger.dart';
 import 'package:flutter/foundation.dart';
 import 'gemini_service.dart';
@@ -26,13 +27,14 @@ abstract class AIService {
     String? model,
     String? imageBase64,
     String? imageMimeType,
-    String fallbackModel = 'gpt-4.1-mini',
     bool enableImageGeneration = false,
   }) async {
-    final m = model ?? 'gemini-2.5-flash';
-    AIService? aiService = AIService.select(m);
+    model = model ?? dotenv.env['DEFAULT_TEXT_MODEL'] ?? '';
+    String fallbackModel = 'gpt-4.1-mini';
+
+    AIService? aiService = AIService.select(model);
     if (aiService == null) {
-      debugPrint('[AIService.sendMessage] No se pudo encontrar el servicio IA para el modelo: $m');
+      debugPrint('[AIService.sendMessage] No se pudo encontrar el servicio IA para el modelo: $model');
       return AIResponse(text: '');
     }
 
@@ -40,14 +42,14 @@ abstract class AIService {
     await debugLogCallPrompt('ai_service_send', {
       'history': history,
       'systemPrompt': systemPrompt.toJson(),
-      'model': m,
+      'model': model,
       if (imageBase64 != null) 'imageBase64': imageBase64,
       if (imageMimeType != null) 'imageMimeType': imageMimeType,
     });
     AIResponse response = await aiService.sendMessageImpl(
       history,
       systemPrompt,
-      model: m,
+      model: model,
       imageBase64: imageBase64,
       imageMimeType: imageMimeType,
       enableImageGeneration: enableImageGeneration,
@@ -55,7 +57,7 @@ abstract class AIService {
     // Guardar la respuesta usando debugLogCallPrompt
     await debugLogCallPrompt('ai_service_response', {
       'response': response.toJson(),
-      'model': m,
+      'model': model,
       'timestamp': DateTime.now().toIso8601String(),
     });
     bool hasQuotaError(String text) {
@@ -66,8 +68,8 @@ abstract class AIService {
           text.contains('Error: Falta la API key');
     }
 
-    if (hasQuotaError(response.text) && m != fallbackModel) {
-      debugPrint('[AIService.sendMessage] Modelo $m falló por cuota, reintentando con $fallbackModel...');
+    if (hasQuotaError(response.text) && model != fallbackModel) {
+      debugPrint('[AIService.sendMessage] Modelo $model falló por cuota, reintentando con $fallbackModel...');
       aiService = AIService.select(fallbackModel);
       if (aiService == null) {
         debugPrint('[AIService.sendMessage] No se pudo encontrar el servicio IA para el modelo: $fallbackModel');

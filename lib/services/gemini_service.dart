@@ -173,14 +173,10 @@ class GeminiService implements AIService {
       // No adjuntamos avatar de referencia para generación (desactivada en Gemini).
       contents.add({"role": "user", "parts": parts});
     }
-    int tokens = estimateTokens(history, systemPrompt);
-    if (tokens > 128000) {
-      return AIResponse(
-        text:
-            'Error: El mensaje supera el límite de tokens permitido por Gemini. Reduce la cantidad de mensajes o bloques.',
-      );
-    }
+    // Ya no imponemos corte local por tokens: dejamos que Gemini gestione límites reales.
+    // (Antes: se devolvía error si tokens > 128000)
     // Configuración de generación: cuando queremos imagen, pedir texto+imagen
+    // max_output_tokens eliminado: la API estándar de Gemini usa generationConfig (opcional)
     final Map<String, dynamic> requestPayload = {"contents": contents};
     final body = jsonEncode(requestPayload);
 
