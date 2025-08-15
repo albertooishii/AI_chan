@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 import 'dart:io';
 import '../constants/app_colors.dart';
-import '../constants/tags.dart';
 import '../models/message.dart';
 import 'audio_message_player.dart';
 
@@ -105,8 +104,8 @@ class ChatBubble extends StatelessWidget {
     final glowColor = isUser ? AppColors.primary : AppColors.secondary;
     final txtLower = message.text.trimLeft().toLowerCase();
     // Detectar tag de audio en formato [audio]...[/audio] o apertura sola
-    final openTag = '[$audioTagKey]';
-    final closeTag = '[/$audioTagKey]';
+    final openTag = '[audio]';
+    final closeTag = '[/audio]';
     // Sólo marcar como nota de voz si contiene apertura Y cierre exactos
     final isVoiceNoteTag = txtLower.contains(openTag) && txtLower.contains(closeTag);
 
