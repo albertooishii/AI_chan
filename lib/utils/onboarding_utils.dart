@@ -25,7 +25,6 @@ Future<AiChanProfile> generateFullBiographyFlexible({
   // Extraer avatar: el generador devuelve 'avatar' como Image
   final Image? avatar = appearanceResult['avatar'] as Image?;
   final biography = AiChanProfile(
-    personality: bio.personality,
     biography: bio.biography,
     userName: bio.userName,
     aiName: bio.aiName,

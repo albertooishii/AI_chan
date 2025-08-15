@@ -41,7 +41,6 @@ class ChatJsonUtils {
       if (decoded is! Map<String, dynamic> ||
           !decoded.containsKey('userName') ||
           !decoded.containsKey('aiName') ||
-          !decoded.containsKey('personality') ||
           !decoded.containsKey('biography') ||
           !decoded.containsKey('appearance') ||
           !decoded.containsKey('timeline') ||

@@ -57,22 +57,27 @@ class AiChatResponseService {
     int maxRetries = 3,
   }) async {
     String selected = model;
+
+    // Helper local para convertir Message -> history entry
+    Map<String, String> toHistoryEntry(Message m) {
+      String content = m.text.trim();
+      final imgPrompt = m.image?.prompt?.trim() ?? '';
+      if (imgPrompt.isNotEmpty) {
+        final caption = '[img_caption]$imgPrompt[/img_caption]';
+        content = content.isEmpty ? caption : '$caption\n\n$content';
+      }
+      final role = m.sender == MessageSender.user
+          ? 'user'
+          : m.sender == MessageSender.assistant
+          ? 'ia'
+          : m.sender == MessageSender.system
+          ? 'system'
+          : 'unknown';
+      return {"role": role, "content": content, "datetime": m.dateTime.toIso8601String()};
+    }
+
     AIResponse response = await AIService.sendMessage(
-      recentMessages
-          .map(
-            (m) => {
-              "role": m.sender == MessageSender.user
-                  ? "user"
-                  : m.sender == MessageSender.assistant
-                  ? "ia"
-                  : m.sender == MessageSender.system
-                  ? "system"
-                  : "unknown",
-              "content": m.text,
-              "datetime": m.dateTime.toIso8601String(),
-            },
-          )
-          .toList(),
+      recentMessages.map(toHistoryEntry).toList(),
       systemPromptObj,
       model: selected,
       imageBase64: imageBase64,
@@ -88,21 +93,7 @@ class AiChatResponseService {
       if (!isGpt && !isGemini) {
         selected = 'gpt-4.1-mini';
         response = await AIService.sendMessage(
-          recentMessages
-              .map(
-                (m) => {
-                  "role": m.sender == MessageSender.user
-                      ? "user"
-                      : m.sender == MessageSender.assistant
-                      ? "ia"
-                      : m.sender == MessageSender.system
-                      ? "system"
-                      : "unknown",
-                  "content": m.text,
-                  "datetime": m.dateTime.toIso8601String(),
-                },
-              )
-              .toList(),
+          recentMessages.map(toHistoryEntry).toList(),
           systemPromptObj,
           model: selected,
           imageBase64: imageBase64,
@@ -117,21 +108,7 @@ class AiChatResponseService {
       final waitSeconds = _extractWaitSeconds(response.text);
       await Future.delayed(Duration(seconds: waitSeconds));
       response = await AIService.sendMessage(
-        recentMessages
-            .map(
-              (m) => {
-                "role": m.sender == MessageSender.user
-                    ? "user"
-                    : m.sender == MessageSender.assistant
-                    ? "ia"
-                    : m.sender == MessageSender.system
-                    ? "system"
-                    : "unknown",
-                "content": m.text,
-                "datetime": m.dateTime.toIso8601String(),
-              },
-            )
-            .toList(),
+        recentMessages.map(toHistoryEntry).toList(),
         systemPromptObj,
         model: selected,
         imageBase64: imageBase64,

@@ -1,5 +1,3 @@
-// import eliminado: 'package:ai_chan/utils/image_utils.dart';
-
 import 'expandable_image_dialog.dart';
 import 'package:provider/provider.dart';
 import '../providers/chat_provider.dart';
@@ -7,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 import 'dart:io';
 import '../constants/app_colors.dart';
+import '../constants/tags.dart';
 import '../models/message.dart';
-// import 'dart:math';
 import 'audio_message_player.dart';
 
 class ChatBubble extends StatelessWidget {
@@ -105,7 +103,12 @@ class ChatBubble extends StatelessWidget {
     final isUser = message.sender == MessageSender.user;
     final borderColor = isUser ? AppColors.primary : AppColors.secondary;
     final glowColor = isUser ? AppColors.primary : AppColors.secondary;
-    final isVoiceNoteTag = message.text.trimLeft().toLowerCase().startsWith('[nota de voz]');
+    final txtLower = message.text.trimLeft().toLowerCase();
+    // Detectar tag de audio en formato [audio]...[/audio] o apertura sola
+    final openTag = '[$audioTagKey]';
+    final closeTag = '[/$audioTagKey]';
+    // Sólo marcar como nota de voz si contiene apertura Y cierre exactos
+    final isVoiceNoteTag = txtLower.contains(openTag) && txtLower.contains(closeTag);
 
     Widget statusWidget = const SizedBox.shrink();
     if (isUser) {

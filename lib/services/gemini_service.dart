@@ -142,10 +142,8 @@ class GeminiService implements AIService {
         if (allText.isNotEmpty) allText.write('\n\n');
         allText.write('[$role]: $contentStr');
       }
-      // Instrucción suave: incluir una línea de metadatos de la imagen para mantener el hilo conversacional
-      allText.write(
-        '\n\n[meta_instruction]: Primero devuelve una línea única que empiece por "IMG_META:" seguida de un JSON compacto con {"prompt":"descripción en español coloquial de la imagen generada o analizada", "scene":"", "outfit":"", "pose":"", "style":"", "nsfw":false, "camera":"", "time":"", "lighting":""}. No limites la longitud arbitrariamente; usa lo que consideres adecuado. Después de esa línea, escribe tu mensaje normal en 1-2 frases.',
-      );
+      // Instrucción suave: incluir metadatos internos de la imagen usando únicamente el tag emparejado
+      // NOTE: La instrucción para incluir [img_caption] está definida en PromptBuilder.
       contents.add({
         "role": "user",
         "parts": [
@@ -201,20 +199,7 @@ class GeminiService implements AIService {
             }
           }
         }
-        // Extraer IMG_META JSON si existe en el primer bloque de texto
-        if (text != null && text.isNotEmpty) {
-          try {
-            final metaMatch = RegExp(r'^\s*IMG_META:\s*(\{.+\})\s*$', multiLine: true).firstMatch(text);
-            if (metaMatch != null) {
-              final jsonStr = metaMatch.group(1);
-              if (jsonStr != null) {
-                final meta = jsonDecode(jsonStr);
-                final pr = (meta['prompt'] ?? meta['caption'] ?? '').toString();
-                if (pr.isNotEmpty) imagePrompt = pr;
-              }
-            }
-          } catch (_) {}
-        }
+        // NOTE: La extracción de [img_caption] se realiza centralmente en AIService.sendMessage
       }
       return AIResponse(
         text: (text != null && text.trim().isNotEmpty) ? text : '',

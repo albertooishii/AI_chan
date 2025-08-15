@@ -51,7 +51,20 @@ Future<Directory> getLocalImageDir() async {
     throw StateError('IMAGE_DIR no está configurado en .env para esta plataforma');
   }
 
-  final dir = Directory(configured.trim());
+  // Expandir '~' a la ruta HOME y resolver rutas relativas para escritorio
+  var cfg = configured.trim();
+  final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '';
+  if (cfg.startsWith('~')) {
+    if (home.isEmpty) {
+      throw StateError('No se pudo determinar HOME para expandir ~ en IMAGE_DIR_DESKTOP');
+    }
+    cfg = cfg.replaceFirst('~', home);
+  } else if (!cfg.startsWith('/') && home.isNotEmpty) {
+    // Ruta relativa -> interpretarla dentro de $HOME
+    cfg = '$home/$cfg';
+  }
+
+  final dir = Directory(cfg);
   if (!(await dir.exists())) {
     await dir.create(recursive: true);
   }

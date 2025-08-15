@@ -94,12 +94,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     ...models
                         .where((m) => m.toLowerCase().contains('gemini') || m.toLowerCase().contains('imagen-'))
                         .map(
-                          (m) => RadioListTile<String>(
-                            value: m,
-                            groupValue: initialModel,
-                            onChanged: (val) => Navigator.of(ctx).pop(val),
+                          (m) => ListTile(
                             title: Text(m, style: const TextStyle(color: AppColors.primary)),
-                            activeColor: AppColors.secondary,
+                            trailing: initialModel == m
+                                ? const Icon(Icons.radio_button_checked, color: AppColors.secondary)
+                                : const Icon(Icons.radio_button_off, color: AppColors.primary),
+                            onTap: () => Navigator.of(ctx).pop(m),
                           ),
                         ),
                     const Divider(color: AppColors.secondary, thickness: 1, height: 24),
@@ -114,12 +114,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     ...models
                         .where((m) => m.toLowerCase().startsWith('gpt-'))
                         .map(
-                          (m) => RadioListTile<String>(
-                            value: m,
-                            groupValue: initialModel,
-                            onChanged: (val) => Navigator.of(ctx).pop(val),
+                          (m) => ListTile(
                             title: Text(m, style: const TextStyle(color: AppColors.primary)),
-                            activeColor: AppColors.secondary,
+                            trailing: initialModel == m
+                                ? const Icon(Icons.radio_button_checked, color: AppColors.secondary)
+                                : const Icon(Icons.radio_button_off, color: AppColors.primary),
+                            onTap: () => Navigator.of(ctx).pop(m),
                           ),
                         ),
                   ],
@@ -452,7 +452,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   final result = await chatProvider.iaAppearanceGenerator.generateAppearancePromptWithImage(bio);
                   if (!ctx.mounted) return;
                   final newBio = AiChanProfile(
-                    personality: bio.personality,
                     biography: bio.biography,
                     userName: bio.userName,
                     aiName: bio.aiName,
@@ -498,7 +497,6 @@ class _ChatScreenState extends State<ChatScreen> {
                       final result = await chatProvider.iaAppearanceGenerator.generateAppearancePromptWithImage(bio);
                       if (!ctx.mounted) return;
                       final newBio = AiChanProfile(
-                        personality: bio.personality,
                         biography: bio.biography,
                         userName: bio.userName,
                         aiName: bio.aiName,
@@ -663,7 +661,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           Icon(Icons.mic, color: AppColors.cyberpunkYellow, size: 22),
                           const SizedBox(width: 10),
                           Text(
-                            'Procesando nota de voz...',
+                            'Enviando mensaje de audio',
                             style: TextStyle(
                               color: AppColors.cyberpunkYellow,
                               fontWeight: FontWeight.w500,

@@ -10,7 +10,6 @@ class AiChanProfile {
   final String aiName;
   final DateTime? userBirthday;
   final DateTime? aiBirthday;
-  final Map<String, dynamic> personality;
   final Map<String, dynamic> biography;
   final Map<String, dynamic> appearance;
   final List<TimelineEntry> timeline;
@@ -28,7 +27,6 @@ class AiChanProfile {
     required this.aiName,
     required this.userBirthday,
     required this.aiBirthday,
-    required this.personality,
     required this.biography,
     required this.appearance,
     required this.timeline,
@@ -54,9 +52,6 @@ class AiChanProfile {
       aiName: json['aiName'] ?? '',
       userBirthday: birth,
       aiBirthday: aiBirth,
-      personality: json['personality'] is Map<String, dynamic>
-          ? json['personality'] as Map<String, dynamic>
-          : <String, dynamic>{},
       biography: json['biography'] is Map<String, dynamic>
           ? json['biography'] as Map<String, dynamic>
           : <String, dynamic>{},
@@ -76,7 +71,7 @@ class AiChanProfile {
   /// Versión segura: devuelve null y borra datos corruptos si el perfil no es válido (estructura plana)
   static Future<AiChanProfile?> tryFromJson(Map<String, dynamic> json) async {
     // Estructura esperada: todos los campos al mismo nivel
-    final expectedKeys = ['userName', 'aiName', 'personality', 'biography', 'appearance', 'timeline'];
+    final expectedKeys = ['userName', 'aiName', 'biography', 'appearance', 'timeline'];
     bool valid = true;
     for (final key in expectedKeys) {
       if (!json.containsKey(key)) {
@@ -91,7 +86,6 @@ class AiChanProfile {
           (json['userName'] as String).isNotEmpty &&
           json['aiName'] is String &&
           (json['aiName'] as String).isNotEmpty &&
-          json['personality'] is Map<String, dynamic> &&
           json['biography'] is Map<String, dynamic> &&
           json['appearance'] is Map<String, dynamic> &&
           json['timeline'] is List;
@@ -116,7 +110,6 @@ class AiChanProfile {
     'aiBirthday': aiBirthday != null
         ? "${aiBirthday!.year.toString().padLeft(4, '0')}-${aiBirthday!.month.toString().padLeft(2, '0')}-${aiBirthday!.day.toString().padLeft(2, '0')}"
         : null,
-    'personality': personality,
     'biography': biography,
     'appearance': appearance,
     if (userCountryCode != null) 'userCountryCode': userCountryCode,
@@ -133,7 +126,6 @@ class AiChanProfile {
     String? aiName,
     DateTime? userBirthday,
     DateTime? aiBirthday,
-    Map<String, dynamic>? personality,
     Map<String, dynamic>? biography,
     Map<String, dynamic>? appearance,
     List<TimelineEntry>? timeline,
@@ -147,7 +139,6 @@ class AiChanProfile {
       aiName: aiName ?? this.aiName,
       userBirthday: userBirthday ?? this.userBirthday,
       aiBirthday: aiBirthday ?? this.aiBirthday,
-      personality: personality ?? this.personality,
       biography: biography ?? this.biography,
       appearance: appearance ?? this.appearance,
       timeline: timeline ?? this.timeline,

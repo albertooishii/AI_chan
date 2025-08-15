@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'dart:io';
+import '../utils/audio_utils.dart';
 
 import 'ai_service.dart';
 import '../models/ai_response.dart';
@@ -96,16 +97,12 @@ class OpenAIService implements AIService {
     List<Map<String, dynamic>> input = [];
     StringBuffer allText = StringBuffer();
     final systemPromptStr = jsonEncode(systemPrompt.toJson());
+    // El contenido del sistema proviene de PromptBuilder; las instrucciones específicas
+    // sobre metadatos de imagen ([img_caption]) están definidas allí.
     input.add({
       "role": "system",
       "content": [
         {"type": "input_text", "text": systemPromptStr},
-        if (imageBase64 != null && imageBase64.isNotEmpty)
-          {
-            "type": "input_text",
-            "text":
-                "Si el usuario ha adjuntado una imagen para analizar, antes de cualquier otra salida escribe una única línea que empiece exactamente con 'IMG_META: ' seguida de un JSON válido con la clave 'prompt' que describa en detalle lo que hay en la imagen que estás viendo. Ejemplo: IMG_META: {\"prompt\": \"<descripción larga y concreta de la imagen que ves>\"}. No uses backticks ni bloques de código. Después de esa línea, responde normalmente al usuario sin repetir el JSON.",
-          },
       ],
     });
     for (int i = 0; i < history.length; i++) {
@@ -158,16 +155,6 @@ class OpenAIService implements AIService {
     final response = await http.post(url, headers: headers, body: body);
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-
-      // (Logging sustituido) Ejemplo de cómo usar ahora debugLogCallPrompt para registrar la respuesta.
-      // Mantener comentado para no afectar rendimiento en producción.
-      /*
-      await debugLogCallPrompt('openai_response', {
-        'api_response': data,
-  'model': model ?? dotenv.env['DEFAULT_IMAGE_MODEL'],
-        'timestamp': DateTime.now().toIso8601String(),
-      });
-      */
       String text = '';
       String imageBase64 = '';
       String imageId = '';
@@ -228,28 +215,7 @@ class OpenAIService implements AIService {
           }
         }
       }
-      // Extraer IMG_META si viene en el texto (análisis de imagen) y limpiar esa línea
-      if (text.trim().isNotEmpty) {
-        try {
-          final metaRegex = RegExp(r'^\s*IMG_META\s*:\s*(\{.*\})\s*$', multiLine: true);
-          final match = metaRegex.firstMatch(text);
-          if (match != null && match.groupCount >= 1) {
-            final jsonStr = match.group(1);
-            if (jsonStr != null && jsonStr.trim().isNotEmpty) {
-              final meta = jsonDecode(jsonStr);
-              if (meta is Map && meta['prompt'] is String && (meta['prompt'] as String).trim().isNotEmpty) {
-                metaPrompt = (meta['prompt'] as String).trim();
-              } else if (meta is Map && meta['caption'] is String && (meta['caption'] as String).trim().isNotEmpty) {
-                metaPrompt = (meta['caption'] as String).trim();
-              }
-              // quitar la línea completa de IMG_META del texto
-              final lines = text.split('\n');
-              lines.removeWhere((l) => l.contains('IMG_META:'));
-              text = lines.join('\n').trim();
-            }
-          }
-        } catch (_) {}
-      }
+      // NOTE: La extracción de [img_caption] se realiza centralmente en AIService.sendMessage
 
       // Para generación usamos revised_prompt; para análisis usamos metaPrompt
       final effectivePrompt = (revisedPrompt.trim().isNotEmpty) ? revisedPrompt.trim() : metaPrompt;
@@ -322,8 +288,19 @@ class OpenAIService implements AIService {
       body: jsonEncode({'model': model, 'input': text, 'voice': voice, 'response_format': 'mp3'}),
     );
     if (response.statusCode == 200) {
-      final dir = outputDir ?? Directory.systemTemp.path;
-      final file = File('$dir/ai_tts_${DateTime.now().millisecondsSinceEpoch}.mp3');
+      // Si no se especifica outputDir, usar el directorio local de audios del usuario
+      String dirPath;
+      if (outputDir != null && outputDir.trim().isNotEmpty) {
+        dirPath = outputDir;
+      } else {
+        final audioDir = await getLocalAudioDir();
+        dirPath = audioDir.path;
+      }
+      final file = File('$dirPath/ai_tts_${DateTime.now().millisecondsSinceEpoch}.mp3');
+      if (!await File(dirPath).exists()) {
+        // Asegurar que el directorio exista: File(dirPath) es un archivo, creamos su directorio padre
+        await Directory(dirPath).create(recursive: true);
+      }
       await file.writeAsBytes(response.bodyBytes);
       return file;
     } else {

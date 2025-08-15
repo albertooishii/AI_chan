@@ -28,7 +28,7 @@ El onboarding se guarda en `SharedPreferences` bajo la clave `onboarding_data` y
 
 - La app construye un objeto de sistema (JSON) que contiene el perfil, la hora, mensajes recientes y unas instrucciones del sistema. Ese objeto se envía al servicio de IA (OpenAI / Gemini) para generar texto, llamadas o prompts de imagen.
 - Para generar avatar, la app pide a la IA una ficha de apariencia estricta (JSON) y, a partir de ella, genera un prompt para un servicio de imágenes. El proceso está en `lib/services/ia_appearance_generator.dart`.
-- Las instrucciones y reglas (persona, límites de lenguaje, reglas para fotos, formato IMG_META, etc.) están en `lib/services/prompt_builder.dart` y se usan por `lib/services/openai_service.dart` al construir solicitudes.
+- Las instrucciones y reglas (persona, límites de lenguaje, reglas para fotos, formato de caption de imagen, etc.) están en `lib/services/prompt_builder.dart` y se usan por `lib/services/openai_service.dart` al construir solicitudes.
 - Los logs de desarrollo (prompts y respuestas) se guardan en `debug_json_logs/` para depuración; revisa y limpia esos ficheros antes de compartir el repositorio públicamente.
 
 ## Privacidad y seguridad

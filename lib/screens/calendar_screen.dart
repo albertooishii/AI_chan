@@ -127,7 +127,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: type,
+                          initialValue: type,
                           items: const [
                             DropdownMenuItem(value: 'evento', child: Text('Evento')),
                             DropdownMenuItem(value: 'promesa', child: Text('Promesa')),

@@ -13,7 +13,6 @@ import '../models/system_prompt.dart';
 import '../models/chat_export.dart';
 import '../models/imported_chat.dart';
 import '../services/memory_summary_service.dart';
-// import '../services/openai_service.dart'; // eliminado: ya no se transcribe audio de mensajes
 import 'dart:io';
 import '../services/ia_appearance_generator.dart';
 import '../services/ai_service.dart';
@@ -198,6 +197,12 @@ class ChatProvider extends ChangeNotifier {
       }
       solicitaImagen = ImageRequestService.isImageRequested(text: text, history: recentUserHistory);
     }
+    // Si el usuario adjuntó una imagen, NO considerarlo como petición para que la IA genere
+    // una nueva imagen: estamos enviando la imagen del usuario para analizarla.
+    if (hasImage) {
+      solicitaImagen = false;
+      debugPrint('[AI-chan] Imagen adjunta por el usuario: omitiendo detección de solicitud de imagen.');
+    }
     if (solicitaImagen) {
       final lower = selected.toLowerCase();
       if (!lower.startsWith('gpt-')) {
@@ -225,13 +230,18 @@ class ChatProvider extends ChangeNotifier {
 
     // Persistir prompt extraído en imagen del usuario (si aplica)
     if (hasImage && (result.prompt?.trim().isNotEmpty ?? false)) {
-      final idx = messages.indexOf(msg);
+      // El mensaje de imagen es el que acabamos de añadir: tomar el último mensaje de usuario con imagen.
+      final idx = messages.lastIndexWhere((m) => m.sender == MessageSender.user && m.isImage);
       if (idx != -1) {
         final prevImage = messages[idx].image;
         if (prevImage != null) {
           messages[idx] = messages[idx].copyWith(image: prevImage.copyWith(prompt: result.prompt));
           notifyListeners();
         }
+      } else {
+        debugPrint(
+          '[AI-chan] No se encontró mensaje de imagen reciente para asignar prompt; prompt extraído: ${result.prompt}',
+        );
       }
     }
 
@@ -258,13 +268,24 @@ class ChatProvider extends ChangeNotifier {
     }
 
     // Normalizar posibles espacios o saltos de línea antes de la etiqueta de nota de voz
+    // Usamos etiquetas emparejadas: [audio]contenido[/audio]
     String assistantRawText = result.text;
-    final voiceNoteTag = '[nota de voz]';
+    // Construir tags con corchetes a partir de la clave
+    final openTag = '[audio]';
+    final closeTag = '[/audio]';
     final leftTrimmed = assistantRawText.trimLeft();
-    if (leftTrimmed.toLowerCase().startsWith(voiceNoteTag)) {
-      // Asegurar formato: '[nota de voz] ' + contenido (si hay contenido)
-      final afterTag = leftTrimmed.substring(voiceNoteTag.length).trimLeft();
-      assistantRawText = afterTag.isNotEmpty ? '$voiceNoteTag $afterTag' : voiceNoteTag;
+    final leftLower = leftTrimmed.toLowerCase();
+    // Solo aceptar como nota de voz si hay apertura y cierre exactos
+    if (leftLower.startsWith(openTag)) {
+      final afterTag = leftTrimmed.substring(openTag.length).trimLeft();
+      final lowerAfter = afterTag.toLowerCase();
+      if (lowerAfter.contains(closeTag)) {
+        final endIdx = lowerAfter.indexOf(closeTag);
+        final content = afterTag.substring(0, endIdx).trim();
+        assistantRawText = '$openTag $content $closeTag';
+      } else {
+        // No hay cierre: no lo tratamos como nota de voz — dejar el texto sin cambios
+      }
     }
     final assistantMessage = Message(
       text: assistantRawText,
@@ -279,7 +300,7 @@ class ChatProvider extends ChangeNotifier {
     messages.add(assistantMessage);
     // Generar TTS solo si la IA explícitamente marca su respuesta como nota de voz
     try {
-      if (!assistantMessage.isAudio && assistantMessage.text.trimLeft().startsWith('[nota de voz]')) {
+      if (!assistantMessage.isAudio && assistantMessage.text.toLowerCase().contains('[audio]')) {
         await generateTtsForMessage(assistantMessage);
       }
     } catch (_) {}
@@ -378,12 +399,8 @@ class ChatProvider extends ChangeNotifier {
       debugPrint('[Audio] Usando transcripción en vivo como fallback');
     }
 
-    final tagged = (transcript != null && transcript.trim().isNotEmpty)
-        ? '[nota de voz] ${transcript.trim()}'
-        : '[nota de voz]';
-
-    // Si la nota de voz no tiene contenido (solo la etiqueta), descartarla y eliminar el archivo.
-    if (tagged.trim() == '[nota de voz]') {
+    // Si la transcripción está vacía, descartar y eliminar archivo.
+    if (transcript == null || transcript.trim().isEmpty) {
       try {
         File(path).deleteSync();
       } catch (_) {}
@@ -392,6 +409,9 @@ class ChatProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
+
+    // Envolver la transcripción en etiquetas emparejadas [audio]texto[/audio]
+    final tagged = '[audio]${transcript.trim()}[/audio]';
 
     await sendMessage(tagged, model: model, userAudioPath: path, preTranscribedText: tagged);
 

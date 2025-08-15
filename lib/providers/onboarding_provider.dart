@@ -245,7 +245,6 @@ class OnboardingProvider extends ChangeNotifier {
           aiBirthday: DateTime.now(),
           timeline: [],
           biography: {},
-          personality: {},
           appearance: {},
         ),
         dateTime: DateTime.now(),

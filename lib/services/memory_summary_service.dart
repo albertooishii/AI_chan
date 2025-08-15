@@ -29,7 +29,6 @@ class MemorySummaryService {
       aiBirthday: profileOverride?.aiBirthday ?? profile.aiBirthday,
       appearance: {},
       timeline: [],
-      personality: {},
       biography: {},
     );
     final systemPrompt = SystemPrompt(
@@ -296,7 +295,6 @@ class MemorySummaryService {
               aiBirthday: profile.aiBirthday,
               appearance: {},
               timeline: [],
-              personality: {},
               biography: {},
             ),
           );
@@ -349,7 +347,6 @@ class MemorySummaryService {
             aiBirthday: profile.aiBirthday,
             appearance: {},
             timeline: [],
-            personality: {},
             biography: {},
           ),
         );
@@ -474,25 +471,26 @@ class MemorySummaryService {
     final fechasUnicas = block.map((m) => m.dateTime.toIso8601String().substring(0, 10)).toSet();
     String instruccionesBloque =
         "${_instruccionesFechas(fechasUnicas)}\n\nDEVUELVE ÚNICAMENTE EL BLOQUE JSON, SIN TEXTO EXTRA, EXPLICACIONES NI INTRODUCCIÓN. El formato debe ser:\n$resumenJsonSchema";
-    final recentMessages = block
-        .map(
-          (m) => {
-            "role": m.sender == chat_model.MessageSender.user
-                ? "user"
-                : m.sender == chat_model.MessageSender.assistant
-                ? "assistant"
-                : m.sender == chat_model.MessageSender.system
-                ? "system"
-                : "unknown",
-            "content": m.text,
-            "datetime": m.dateTime.toIso8601String(),
-            if (m.isImage && m.image != null && (m.image!.seed != null && m.image!.seed!.isNotEmpty))
-              "seed": m.image!.seed,
-            if (m.isImage && m.image != null && (m.image!.prompt != null && m.image!.prompt!.isNotEmpty))
-              "prompt": m.image!.prompt,
-          },
-        )
-        .toList();
+    final recentMessages = block.map((m) {
+      String content = m.text.trim();
+      final imgPrompt = (m.isImage && m.image != null) ? (m.image!.prompt?.trim() ?? '') : '';
+      if (imgPrompt.isNotEmpty) {
+        final caption = '[img_caption]$imgPrompt[/img_caption]';
+        content = content.isEmpty ? caption : '$caption\n\n$content';
+      }
+      final role = m.sender == chat_model.MessageSender.user
+          ? 'user'
+          : m.sender == chat_model.MessageSender.assistant
+          ? 'assistant'
+          : m.sender == chat_model.MessageSender.system
+          ? 'system'
+          : 'unknown';
+      final map = <String, dynamic>{'role': role, 'content': content, 'datetime': m.dateTime.toIso8601String()};
+      if (m.isImage && m.image != null && (m.image!.seed != null && m.image!.seed!.isNotEmpty)) {
+        map['seed'] = m.image!.seed;
+      }
+      return map;
+    }).toList();
     // Intentar obtener el resumen JSON con reintentos
     Map<String, dynamic>? resumenJson;
     // Variable retryCount eliminada porque no se usa

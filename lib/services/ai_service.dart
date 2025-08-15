@@ -46,6 +46,9 @@ abstract class AIService {
       if (imageBase64 != null) 'imageBase64': imageBase64,
       if (imageMimeType != null) 'imageMimeType': imageMimeType,
     });
+    // Revertir sanitización del history
+    final bool requestHadImage = imageBase64 != null && imageBase64.isNotEmpty;
+
     AIResponse response = await aiService.sendMessageImpl(
       history,
       systemPrompt,
@@ -54,6 +57,35 @@ abstract class AIService {
       imageMimeType: imageMimeType,
       enableImageGeneration: enableImageGeneration,
     );
+    // Eliminar siempre etiquetas [img_caption] del texto de la respuesta.
+    // Solo cuando la petición ORIGINAL incluía imagen (requestHadImage) se guardará
+    // el prompt extraído; si no, no se guarda nada sobre la imagen (solo se limpia el texto).
+    if (response.text.trim().isNotEmpty) {
+      try {
+        final tagRegex = RegExp(r'\[img_caption\](.*?)\[/img_caption\]', caseSensitive: false, dotAll: true);
+        final match = tagRegex.firstMatch(response.text);
+        final cleanedText = response.text.replaceAll(tagRegex, '').trim();
+        String finalPrompt = response.prompt.trim();
+        if (match != null && match.groupCount >= 1) {
+          final raw = match.group(1);
+          if (raw != null && raw.trim().isNotEmpty) {
+            final extracted = raw.trim();
+            if (requestHadImage) {
+              // Si el servicio ya devolvió 'prompt' no vacío, lo respetamos;
+              // si estaba vacío, usamos lo extraído.
+              finalPrompt = finalPrompt.isEmpty ? extracted : finalPrompt;
+            } else {
+              // Si no se envió imagen, no guardar prompt alguno.
+              finalPrompt = '';
+            }
+          }
+        } else {
+          // No hay match; si no se envió imagen, borrar cualquier prompt existente por seguridad
+          if (!requestHadImage) finalPrompt = '';
+        }
+        response = AIResponse(text: cleanedText, base64: response.base64, seed: response.seed, prompt: finalPrompt);
+      } catch (_) {}
+    }
     // Guardar la respuesta usando debugLogCallPrompt
     await debugLogCallPrompt('ai_service_response', {
       'response': response.toJson(),

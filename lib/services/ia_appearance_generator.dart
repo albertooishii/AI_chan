@@ -126,7 +126,6 @@ ${bio.biography}
 
     final systemPromptAppearance = SystemPrompt(
       profile: AiChanProfile(
-        personality: bio.personality,
         biography: bio.biography,
         userName: bio.userName,
         aiName: bio.aiName,
@@ -178,7 +177,6 @@ ${bio.biography}
 
     final systemPromptImage = SystemPrompt(
       profile: AiChanProfile(
-        personality: bio.personality,
         biography: bio.biography,
         userName: bio.userName,
         aiName: bio.aiName,

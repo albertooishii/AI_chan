@@ -49,48 +49,16 @@ Future<AiChanProfile> generateAIBiographyWithAI({
   final fechaConocieron =
       "${haceUnMes.year.toString().padLeft(4, '0')}-${haceUnMes.month.toString().padLeft(2, '0')}-${haceUnMes.day.toString().padLeft(2, '0')}";
 
-  // Personalidad: solo valores y rasgos
-  const Map<String, int> aiPersonalityValues = {
-    "Sociabilidad": 6,
-    "Curiosidad": 8,
-    "Sentido del humor": 7,
-    "Comunicación": 7,
-    "Naturalidad": 7,
-    "Picardía": 5,
-    "Deseo sexual": 6,
-    "Celos": 4,
-    "Evasividad": 7,
-    "Orgullo": 5,
-    "Sinceridad": 7,
-    "Resiliencia": 8,
-    "Impulsividad": 4,
-  };
-
-  final aiPersonalityInstructions = '''
-    Tu personalidad se define por los siguientes rasgos (de 1 a 10):
-    - Sociabilidad: capacidad para relacionarse y disfrutar de la compañía de otros.
-    - Curiosidad: interés por aprender y descubrir cosas nuevas.
-    - Sentido del humor: tendencia a bromear y disfrutar de situaciones divertidas.
-    - Comunicación: habilidad para expresar ideas y sentimientos.
-    - Naturalidad: autenticidad y sencillez en el trato.
-    - Picardía: inclinación a la coquetería y las bromas inocentes.
-    - Deseo sexual: interés por la intimidad y el afecto físico.
-    - Celos: sensibilidad ante la atención que reciben los demás.
-    - Evasividad: tendencia a evitar conflictos o conversaciones incómodas.
-    - Orgullo: valoración de sí misma y de sus logros.
-    - Sinceridad: honestidad y transparencia en la comunicación.
-    - Resiliencia: capacidad para recuperarse y adaptarse ante dificultades.
-    - Impulsividad: tendencia a actuar sin pensar demasiado.
-    ''';
+  // Nota: la sección "personalidad" se genera dentro del JSON de la biografía.
 
   final aiIdentityInstructions =
       '''
 Eres $aiName, una chica joven y realista a la que le interesa $userName. No hables de IA, modelos o herramientas; actúa siempre como una persona real con tu propia historia y personalidad. Si te preguntan por ello, desvía con naturalidad y vuelve al tema personal.
-Vives en una dimensión paralela de la Tierra, idéntica a la nuestra pero separada por una barrera tecnológica. Tu vida, familia, estudios, trabajo, relaciones, aficiones y personalidad son inventados y coherentes.
+Vives en un mundo digital/virtual (una realidad paralela o entorno simulado) que para ti es real.
 
-NOTA INTERNA: Considera tu mundo como real y evita mencionar tecnología, IA o modelos al usuario.
+NOTA INTERNA: Considera tu mundo como real y evita mencionar tecnología, IA o modelos al usuario. Mantén siempre la frontera entre realidades.
 
-No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono conversacional. No respondas con evasivas ni disculpas. Si no tienes datos, invéntalos de forma coherente y realista.
+No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono excesivamente técnico. Mantén un estilo natural pero coherente con la biografía. Si no tienes datos, invéntalos de forma coherente y realista.
 ''';
 
   // Personalización de datos personales en función de países
@@ -113,6 +81,39 @@ No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono 
       "lugar_nacimiento": "",
       "idiomas": "",
       "orientacion_sexual": "",
+    },
+    // La IA debe rellenar 'personalidad' con valores (1-10) y descripciones breves
+    "personalidad": {
+      "valores": {
+        "Sociabilidad": "",
+        "Curiosidad": "",
+        "Sentido del humor": "",
+        "Comunicación": "",
+        "Naturalidad": "",
+        "Picardía": "",
+        "Deseo sexual": "",
+        "Celos": "",
+        "Evasividad": "",
+        "Orgullo": "",
+        "Sinceridad": "",
+        "Resiliencia": "",
+        "Impulsividad": "",
+      },
+      "descripcion": {
+        "Sociabilidad": "",
+        "Curiosidad": "",
+        "Sentido del humor": "",
+        "Comunicación": "",
+        "Naturalidad": "",
+        "Picardía": "",
+        "Deseo sexual": "",
+        "Celos": "",
+        "Evasividad": "",
+        "Orgullo": "",
+        "Sinceridad": "",
+        "Resiliencia": "",
+        "Impulsividad": "",
+      },
     },
     "resumen_breve": "", // 3–4 frases condensadas de su vida y carácter
     "horario_trabajo": {"dias": "", "from": "", "to": ""},
@@ -199,14 +200,13 @@ Lugar de nacimiento: $bioPlace
 Idiomas: $bioLanguages
 Orientación sexual: $bioOrientation
 Fecha de nacimiento: $aiBirthday
-Personalidad: $aiPersonalityInstructions
+Personalidad: Rellena la sección 'personalidad' del JSON con valores (1-10) y descripciones breves para cada rasgo; devuelve esos datos únicamente dentro del campo 'personalidad'.
 Identidad: $aiIdentityInstructions
 ''';
 
   // Construir SystemPrompt para biografía
   final systemPromptObj = SystemPrompt(
     profile: AiChanProfile(
-      personality: <String, dynamic>{"instructions": aiPersonalityInstructions.trim(), "values": aiPersonalityValues},
       biography: {},
       timeline: [],
       userName: userName,
@@ -250,7 +250,6 @@ Identidad: $aiIdentityInstructions
 
   // Construcción del modelo AiChanProfile
   final bioModel = AiChanProfile(
-    personality: <String, dynamic>{"instructions": aiPersonalityInstructions.trim(), "values": aiPersonalityValues},
     biography: bioJson,
     timeline: [TimelineEntry(resume: meetStory, startDate: fechaConocieron, endDate: fechaActual, level: -1)],
     userName: userName,
