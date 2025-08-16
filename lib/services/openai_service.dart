@@ -235,7 +235,7 @@ class OpenAIService implements AIService {
   final String apiKey = dotenv.env['OPENAI_API_KEY'] ?? '';
 
   /// Transcribe un archivo de audio usando OpenAI Whisper
-  Future<String?> transcribeAudio(String filePath) async {
+  Future<String?> transcribeAudio(String filePath, {String? language}) async {
     if (apiKey.trim().isEmpty) {
       throw Exception('Falta la API key de OpenAI. Por favor, configúrala en la app.');
     }
@@ -245,6 +245,9 @@ class OpenAIService implements AIService {
       ..headers['Authorization'] = 'Bearer $apiKey'
       ..fields['model'] = 'whisper-1'
       ..files.add(await http.MultipartFile.fromPath('file', filePath));
+    if (language != null && language.trim().isNotEmpty) {
+      request.fields['language'] = language.trim();
+    }
 
     try {
       final streamed = await request.send().timeout(

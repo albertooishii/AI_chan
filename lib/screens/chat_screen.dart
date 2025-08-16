@@ -33,6 +33,8 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
+// (Clase ThreeDotsIndicator movida al final del archivo para claridad)
+
 class _ChatScreenState extends State<ChatScreen> {
   Directory? _imageDir;
   bool _isRegeneratingAppearance = false; // Muestra spinner en avatar durante la regeneración
@@ -586,10 +588,20 @@ class _ChatScreenState extends State<ChatScreen> {
               child: ListView.builder(
                 reverse: true,
                 padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-                itemCount: chatProvider.messages.where((m) => m.sender != MessageSender.system).length,
+                itemCount: chatProvider.messages
+                    .where(
+                      (m) =>
+                          m.sender != MessageSender.system ||
+                          (m.sender == MessageSender.system && m.text.contains('[call]')),
+                    )
+                    .length,
                 itemBuilder: (context, index) {
                   final filteredMessages = chatProvider.messages
-                      .where((m) => m.sender != MessageSender.system)
+                      .where(
+                        (m) =>
+                            m.sender != MessageSender.system ||
+                            (m.sender == MessageSender.system && m.text.contains('[call]')),
+                      )
                       .toList();
                   if (filteredMessages.isEmpty) {
                     return const SizedBox.shrink();
@@ -646,27 +658,33 @@ class _ChatScreenState extends State<ChatScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 14),
                       decoration: BoxDecoration(
-                        color: AppColors.cyberpunkYellow.withAlpha((0.18 * 255).round()),
+                        color: AppColors.secondary.withAlpha((0.18 * 255).round()),
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.cyberpunkYellow.withAlpha((0.12 * 255).round()),
+                            color: AppColors.secondary.withAlpha((0.12 * 255).round()),
                             blurRadius: 8.0,
-                            offset: Offset(0, 2),
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.mic, color: AppColors.cyberpunkYellow, size: 22),
+                          const Icon(Icons.mic_external_on, color: AppColors.secondary, size: 22),
                           const SizedBox(width: 10),
-                          Text(
-                            'Enviando mensaje de audio',
-                            style: TextStyle(
-                              color: AppColors.cyberpunkYellow,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 15,
-                            ),
+                          Row(
+                            children: [
+                              const ThreeDotsIndicator(color: AppColors.secondary),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Grabando nota de voz...',
+                                style: const TextStyle(
+                                  color: AppColors.secondary,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -716,4 +734,54 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   // Eliminado: diálogo para seleccionar países
+}
+
+class ThreeDotsIndicator extends StatefulWidget {
+  final Color color;
+  const ThreeDotsIndicator({super.key, required this.color});
+  @override
+  State<ThreeDotsIndicator> createState() => _ThreeDotsIndicatorState();
+}
+
+class _ThreeDotsIndicatorState extends State<ThreeDotsIndicator> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, _) {
+        final phase = _ctrl.value;
+        int active = (phase * 3).floor().clamp(0, 2);
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            final on = i == active;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: widget.color.withValues(alpha: on ? 1 : 0.25),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
 }

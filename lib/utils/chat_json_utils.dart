@@ -25,10 +25,25 @@ class ChatJsonUtils {
         allowedExtensions: ['json'],
         bytes: utf8.encode(exportStr),
       );
-      if (result != null) {
-        return (true, null);
+      if (result == null) return (false, null); // usuario canceló
+
+      // Asegurar extensión .json
+      var path = result;
+      if (!path.toLowerCase().endsWith('.json')) {
+        path = '$path.json';
       }
-      return (false, null);
+      // Algunos entornos (Linux / desktop) pueden ignorar 'bytes'; escribimos manualmente
+      try {
+        final file = File(path);
+        await file.writeAsString(exportStr);
+        final exists = await file.exists();
+        if (!exists) return (false, 'No se pudo crear el archivo en: $path');
+        final length = await file.length();
+        if (length == 0) return (false, 'Archivo creado vacío en: $path');
+      } catch (e) {
+        return (false, 'Error escribiendo archivo en disco:\n$e');
+      }
+      return (true, null);
     } catch (e) {
       return (false, 'Error al guardar archivo:\n${e.toString()}');
     }
@@ -92,7 +107,7 @@ class ChatJsonUtils {
 
   static Future<(String? json, String? error)> importJsonFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['json']);
+      final result = await FilePicker.platform.pickFiles(type: FileType.any);
       if (result != null && result.files.single.path != null) {
         final file = File(result.files.single.path!);
         return (await file.readAsString(), null);

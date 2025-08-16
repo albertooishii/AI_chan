@@ -78,6 +78,16 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> with SingleTick
     final isPlaying = chat.isPlaying(widget.message);
     final glowColor = widget.message.sender == MessageSender.user ? AppColors.primary : AppColors.secondary;
     final durationText = _durationSeconds != null ? _fmt(_durationSeconds!) : '--:--';
+    final screenWidth = MediaQuery.of(context).size.width;
+    double adaptiveWidth;
+    if (screenWidth < 480) {
+      adaptiveWidth = screenWidth - 32; // móvil casi completo
+    } else if (screenWidth < 900) {
+      adaptiveWidth = screenWidth * 0.7;
+    } else {
+      adaptiveWidth = screenWidth * 0.5; // escritorio medio ancho
+    }
+    adaptiveWidth = adaptiveWidth.clamp(220, 720);
 
     // Animar un leve cambio de alpha en las barras cuando está reproduciendo
     final t = _pulse.value; // 0..1
@@ -87,7 +97,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> with SingleTick
       child: GestureDetector(
         onTap: () => chat.togglePlayAudio(widget.message),
         child: Container(
-          width: widget.width,
+          width: adaptiveWidth,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: Colors.black,

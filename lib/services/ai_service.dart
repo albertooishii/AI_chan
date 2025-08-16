@@ -65,23 +65,46 @@ abstract class AIService {
         final tagRegex = RegExp(r'\[img_caption\](.*?)\[/img_caption\]', caseSensitive: false, dotAll: true);
         final match = tagRegex.firstMatch(response.text);
         final cleanedText = response.text.replaceAll(tagRegex, '').trim();
+        // Además: si el servicio devolvió un `revised_prompt` dentro del texto y
+        // `response.prompt` está vacío, extraerlo y usarlo como prompt.
         String finalPrompt = response.prompt.trim();
+        // Si el servicio no rellenó 'prompt', intentar extraer 'revised_prompt' de response.text
+        if (finalPrompt.isEmpty) {
+          try {
+            final patterns = [
+              RegExp(r'"revised_prompt"\s*:\s*"([^"]+)"', caseSensitive: false),
+              RegExp(r"'revised_prompt'\s*:\s*'([^']+)'", caseSensitive: false),
+              RegExp(r'\brevised_prompt\b\s*[:=]\s*"([^"]+)"', caseSensitive: false),
+              RegExp(r'\brevisedPrompt\b\s*[:=]\s*"([^"]+)"', caseSensitive: false),
+              RegExp(r'\brevised_prompt\b\s*[:=]\s*([^\n\r]+)', caseSensitive: false),
+            ];
+            for (final p in patterns) {
+              final m = p.firstMatch(response.text);
+              if (m != null && m.groupCount >= 1) {
+                finalPrompt = m.group(1)!.trim();
+                if (finalPrompt.isNotEmpty) break;
+              }
+            }
+          } catch (_) {}
+        }
+        // Determinar si la respuesta incluye una imagen (generada por la IA)
+        final bool responseHasImage = response.base64.trim().isNotEmpty || response.seed.trim().isNotEmpty;
         if (match != null && match.groupCount >= 1) {
           final raw = match.group(1);
           if (raw != null && raw.trim().isNotEmpty) {
             final extracted = raw.trim();
-            if (requestHadImage) {
-              // Si el servicio ya devolvió 'prompt' no vacío, lo respetamos;
-              // si estaba vacío, usamos lo extraído.
+            // Guardar el prompt extraído si la petición original incluía imagen
+            // o si la respuesta contiene una imagen generada por la IA (revised_prompt viene del servicio)
+            if (requestHadImage || responseHasImage) {
               finalPrompt = finalPrompt.isEmpty ? extracted : finalPrompt;
             } else {
-              // Si no se envió imagen, no guardar prompt alguno.
+              // No guardar prompts si ni la petición ni la respuesta contienen imagen
               finalPrompt = '';
             }
           }
         } else {
-          // No hay match; si no se envió imagen, borrar cualquier prompt existente por seguridad
-          if (!requestHadImage) finalPrompt = '';
+          // No hay match; si ni la petición original ni la respuesta tienen imagen, borrar prompt por seguridad
+          if (!requestHadImage && !responseHasImage) finalPrompt = '';
         }
         response = AIResponse(text: cleanedText, base64: response.base64, seed: response.seed, prompt: finalPrompt);
       } catch (_) {}

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
+import '../utils/schedule_utils.dart';
 import '../providers/chat_provider.dart';
 import '../models/event_entry.dart';
 import '../constants/app_colors.dart';
@@ -31,6 +32,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
         return AppColors.cyberpunkYellow; // actividades
       default:
         return AppColors.cyberpunkYellow;
+    }
+  }
+
+  String _typeLabel(String type) {
+    switch (type) {
+      case 'sleep':
+        return 'Dormir';
+      case 'work':
+        return 'Trabajo';
+      case 'study':
+        return 'Estudio';
+      case 'busy':
+        return 'Actividad';
+      default:
+        return type;
     }
   }
 
@@ -298,49 +314,110 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final chatProvider = context.watch<ChatProvider>();
     final events = chatProvider.events;
     final bio = chatProvider.onboardingData.biography;
-    List<Map<String, String>> chips = [];
-    try {
-      if (bio['horario_dormir'] is Map) {
-        final m = Map<String, dynamic>.from(bio['horario_dormir']);
-        chips.add({
-          'type': 'sleep',
-          'from': (m['from'] ?? '').toString(),
-          'to': (m['to'] ?? '').toString(),
-          'days': (m['dias'] ?? '').toString(),
-        });
+    // Funciones auxiliares para filtrar y mostrar horarios por día seleccionado
+    bool dayMatches(String daysStr, DateTime day) {
+      final set = ScheduleUtils.parseDiasToWeekdaySet(daysStr);
+      if (set == null) return true; // aplica a todos si no se pudo parsear
+      return set.contains(day.weekday);
+    }
+
+    DateTime? parseTime(DateTime baseDay, String hhmm) {
+      final parts = hhmm.split(':');
+      if (parts.length != 2) return null;
+      final h = int.tryParse(parts[0]);
+      final m = int.tryParse(parts[1]);
+      if (h == null || m == null) return null;
+      return DateTime(baseDay.year, baseDay.month, baseDay.day, h, m);
+    }
+
+    bool rangeContains(DateTime now, DateTime start, DateTime end) {
+      if (end.isBefore(start)) {
+        // Rango cruza medianoche: end pertenece al día siguiente
+        return now.isAfter(start) || now.isBefore(end);
       }
-      if (bio['horario_trabajo'] is Map) {
-        final m = Map<String, dynamic>.from(bio['horario_trabajo']);
-        chips.add({
-          'type': 'work',
-          'from': (m['from'] ?? '').toString(),
-          'to': (m['to'] ?? '').toString(),
-          'days': (m['dias'] ?? '').toString(),
-        });
-      }
-      if (bio['horario_estudio'] is Map) {
-        final m = Map<String, dynamic>.from(bio['horario_estudio']);
-        chips.add({
-          'type': 'study',
-          'from': (m['from'] ?? '').toString(),
-          'to': (m['to'] ?? '').toString(),
-          'days': (m['dias'] ?? '').toString(),
-        });
-      }
-      if (bio['horarios_actividades'] is List) {
-        for (final a in (bio['horarios_actividades'] as List)) {
-          if (a is Map) {
-            final m = Map<String, dynamic>.from(a);
-            chips.add({
-              'type': 'busy',
-              'from': (m['from'] ?? '').toString(),
-              'to': (m['to'] ?? '').toString(),
-              'days': (m['dias'] ?? '').toString(),
-            });
+      return (now.isAfter(start) || now.isAtSameMomentAs(start)) && now.isBefore(end);
+    }
+
+    List<Map<String, String>> rawSchedules() {
+      final list = <Map<String, String>>[];
+      try {
+        if (bio['horario_dormir'] is Map) {
+          final m = Map<String, dynamic>.from(bio['horario_dormir']);
+          list.add({
+            'type': 'sleep',
+            'from': '${m['from'] ?? ''}',
+            'to': '${m['to'] ?? ''}',
+            'days': '${m['dias'] ?? ''}',
+          });
+        }
+        if (bio['horario_trabajo'] is Map) {
+          final m = Map<String, dynamic>.from(bio['horario_trabajo']);
+          list.add({
+            'type': 'work',
+            'from': '${m['from'] ?? ''}',
+            'to': '${m['to'] ?? ''}',
+            'days': '${m['dias'] ?? ''}',
+          });
+        }
+        if (bio['horario_estudio'] is Map) {
+          final m = Map<String, dynamic>.from(bio['horario_estudio']);
+          final from = '${m['from'] ?? ''}';
+          final to = '${m['to'] ?? ''}';
+          final days = '${m['dias'] ?? ''}';
+          if (from.trim().isNotEmpty || to.trim().isNotEmpty || days.trim().isNotEmpty) {
+            list.add({'type': 'study', 'from': from, 'to': to, 'days': days});
           }
         }
+        if (bio['horarios_actividades'] is List) {
+          for (final a in (bio['horarios_actividades'] as List)) {
+            if (a is Map) {
+              final m = Map<String, dynamic>.from(a);
+              list.add({
+                'type': 'busy',
+                'from': '${m['from'] ?? ''}',
+                'to': '${m['to'] ?? ''}',
+                'days': '${m['dias'] ?? ''}',
+                'actividad': '${m['actividad'] ?? ''}',
+              });
+            }
+          }
+        }
+      } catch (_) {}
+      return list;
+    }
+
+    final DateTime selected = _selectedDay ?? DateTime.now();
+    final now = DateTime.now();
+    final schedulesForDay = <Map<String, String>>[];
+    for (final s in rawSchedules().where((s) => dayMatches(s['days'] ?? '', selected))) {
+      final fromStr = (s['from'] ?? '').trim();
+      final toStr = (s['to'] ?? '').trim();
+      final start = parseTime(selected, fromStr);
+      DateTime? end = parseTime(selected, toStr);
+      if (start != null && end != null && end.isBefore(start)) {
+        // Cruza medianoche: dividir en dos segmentos
+        final endOfDay = DateTime(selected.year, selected.month, selected.day, 23, 59, 59, 999);
+        final segment1End = endOfDay;
+        final segment2Start = DateTime(selected.year, selected.month, selected.day, 0, 0);
+        // Segmento del día seleccionado si la parte inicial cae ese día
+        final isToday = selected.year == now.year && selected.month == now.month && selected.day == now.day;
+        final active1 = isToday && rangeContains(now, start, segment1End);
+        schedulesForDay.add({...s, 'from': fromStr, 'to': '24:00', 'active': active1 ? '1' : '0'});
+        // La parte post medianoche pertenece al día siguiente; solo mostrarla si el día seleccionado es el siguiente
+        final nextDay = DateTime(selected.year, selected.month, selected.day).add(const Duration(days: 1));
+        if (_selectedDay != null && selected.isAtSameMomentAs(nextDay)) {
+          final segment2End = end; // real end time next day
+          final isToday2 = nextDay.year == now.year && nextDay.month == now.month && nextDay.day == now.day;
+          final active2 = isToday2 && rangeContains(now, segment2Start, segment2End);
+          schedulesForDay.add({...s, 'from': '00:00', 'to': toStr, 'active': active2 ? '1' : '0'});
+        }
+      } else {
+        final isToday = selected.year == now.year && selected.month == now.month && selected.day == now.day;
+        final active = start != null && end != null && isToday && rangeContains(now, start, end);
+        schedulesForDay.add({...s, 'from': fromStr, 'to': toStr, 'active': active ? '1' : '0'});
       }
-    } catch (_) {}
+    }
+    schedulesForDay.sort((a, b) => (a['from'] ?? '').compareTo(b['from'] ?? ''));
     final grouped = _groupEventsByDay(events);
 
     List<EventEntry> getEventsForDay(DateTime day) {
@@ -438,7 +515,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   _selectedDay != null ? DateFormat('EEEE d MMMM y', 'es').format(_selectedDay!) : '',
                   style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
                 ),
-                if (chips.isNotEmpty)
+                if (schedulesForDay.isNotEmpty)
                   const Text('Horarios activos', style: TextStyle(color: AppColors.secondary, fontSize: 12)),
               ],
             ),
@@ -446,24 +523,53 @@ class _CalendarScreenState extends State<CalendarScreen> {
           Expanded(
             child: ListView(
               children: [
-                if (chips.isNotEmpty)
+                if (schedulesForDay.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     child: Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: chips.map<Widget>((s) {
+                      children: schedulesForDay.map<Widget>((s) {
                         final type = s['type'] ?? '';
-                        final bg = _chipBg(type);
+                        final active = s['active'] == '1';
                         final fg = _chipFg(type);
                         final icon = _chipIcon(type);
+                        final label = _typeLabel(type);
+                        final from = s['from'] ?? '';
+                        final to = s['to'] ?? '';
+                        final actividad = (s['actividad'] ?? '').trim();
+                        final timePart = (from.isNotEmpty || to.isNotEmpty) ? '$from–$to' : '';
+                        String stateVerb;
+                        switch (type) {
+                          case 'sleep':
+                            stateVerb = active ? 'Durmiendo' : 'Dormir';
+                            break;
+                          case 'work':
+                            stateVerb = active ? 'Trabajando' : 'Trabajo';
+                            break;
+                          case 'study':
+                            stateVerb = active ? 'Estudiando' : 'Estudio';
+                            break;
+                          case 'busy':
+                            stateVerb = actividad.isNotEmpty
+                                ? (active ? actividad : actividad)
+                                : (active ? 'En actividad' : 'Actividad');
+                            break;
+                          default:
+                            stateVerb = label;
+                        }
+                        final text = [stateVerb, if (timePart.isNotEmpty) timePart].join(' ');
+                        final bgBase = _chipBg(type);
+                        final bg = active ? bgBase.withValues(alpha: 0.9) : bgBase.withValues(alpha: 0.6);
                         return Chip(
                           avatar: Icon(icon, size: 18, color: fg),
-                          label: Text(
-                            '${s['type'] ?? ''}: ${s['days'] ?? ''} ${s['from'] ?? ''}-${s['to'] ?? ''}',
-                            style: TextStyle(color: fg),
-                          ),
+                          label: Text(text, style: TextStyle(color: fg)),
                           backgroundColor: bg,
+                          shape: StadiumBorder(
+                            side: active
+                                ? const BorderSide(color: AppColors.cyberpunkYellow, width: 1.3)
+                                : BorderSide.none,
+                          ),
                         );
                       }).toList(),
                     ),

@@ -105,6 +105,8 @@ class ChatProvider extends ChangeNotifier {
     String? preTranscribedText,
     // Nuevo: si el usuario ha mandado nota de voz, guardamos ruta del audio
     String? userAudioPath,
+    // existingMessageIndex: si se proporciona, reusar el mensaje en esa posición (para reintentos)
+    int? existingMessageIndex,
   }) async {
     final now = DateTime.now();
     // Reset racha si hay actividad real del usuario (texto no vacío o imagen) y no es prompt automático
@@ -138,7 +140,18 @@ class ChatProvider extends ChangeNotifier {
       status: MessageStatus.sending,
     );
     if (text.trim().isNotEmpty || hasImage || isAutomaticPrompt || userAudioPath != null) {
-      messages.add(msg);
+      if (existingMessageIndex != null && existingMessageIndex >= 0 && existingMessageIndex < messages.length) {
+        // Reintento: sobrescribir estado del mensaje existente en lugar de añadir uno nuevo
+        messages[existingMessageIndex] = messages[existingMessageIndex].copyWith(
+          status: MessageStatus.sending,
+          text: msg.text,
+          image: msg.image,
+          isAudio: msg.isAudio,
+          audioPath: msg.audioPath,
+        );
+      } else {
+        messages.add(msg);
+      }
       if (userAudioPath != null) {
         try {
           final f = File(userAudioPath);
@@ -150,11 +163,8 @@ class ChatProvider extends ChangeNotifier {
       notifyListeners();
     }
 
-    // Cambiar a delivered (doble check gris) cuando la IA empieza a escribir
-    Future.delayed(const Duration(milliseconds: 300), () {
-      _setLastUserMessageStatus(MessageStatus.delivered);
-      notifyListeners();
-    });
+    // Mantener en sending hasta que la petición sea aceptada por el servicio.
+    // Marcamos como 'sent' justo después de obtener respuesta del servicio IA (éxito de red) y antes de marcar 'read'.
 
     // Construir el prompt para la IA usando los últimos mensajes y la biografía
     final maxHistory = MemorySummaryService.maxHistory;
@@ -212,18 +222,46 @@ class ChatProvider extends ChangeNotifier {
     }
 
     // Enviar vía servicio modularizado (maneja reintentos y base64)
-    final result = await AiChatResponseService.send(
-      recentMessages: recentMessages,
-      systemPromptObj: systemPromptObj,
-      model: selected,
-      imageBase64: image?.base64,
-      imageMimeType: imageMimeType,
-      enableImageGeneration: solicitaImagen,
-    );
-
-    if (result.text.toLowerCase().contains('error al conectar con la ia') && !result.isImage) {
+    AIChatResult result;
+    try {
+      result = await AiChatResponseService.send(
+        recentMessages: recentMessages,
+        systemPromptObj: systemPromptObj,
+        model: selected,
+        imageBase64: image?.base64,
+        imageMimeType: imageMimeType,
+        enableImageGeneration: solicitaImagen,
+      );
+      // Éxito de red: marcar último mensaje usuario como 'sent'
       _setLastUserMessageStatus(MessageStatus.sent);
-      notifyListeners();
+    } catch (e) {
+      debugPrint('[AI-chan] Error enviando mensaje: $e');
+      // Marcar último mensaje de usuario como failed
+      // Preferir existingMessageIndex si se proporcionó
+      int idx = -1;
+      if (existingMessageIndex != null && existingMessageIndex >= 0 && existingMessageIndex < messages.length) {
+        idx = existingMessageIndex;
+      } else {
+        idx = messages.lastIndexWhere((m) => m.sender == MessageSender.user);
+      }
+      if (idx != -1) {
+        messages[idx] = messages[idx].copyWith(status: MessageStatus.failed);
+        notifyListeners();
+      }
+      if (onError != null) onError(e.toString());
+      return;
+    }
+
+    // Manejo de errores reportados por el servicio (texto de error)
+    if (result.text.toLowerCase().contains('error al conectar con la ia') && !result.isImage) {
+      // Marcar mensaje como failed para permitir reintento manual
+      int idx = (existingMessageIndex != null && existingMessageIndex >= 0 && existingMessageIndex < messages.length)
+          ? existingMessageIndex
+          : messages.lastIndexWhere((m) => m.sender == MessageSender.user);
+      if (idx != -1) {
+        messages[idx] = messages[idx].copyWith(status: MessageStatus.failed);
+        notifyListeners();
+      }
       if (onError != null) onError(result.text);
       return;
     }
@@ -245,12 +283,18 @@ class ChatProvider extends ChangeNotifier {
       }
     }
 
+    // Ahora ya tenemos la respuesta completa: marcar como 'read'
     _setLastUserMessageStatus(MessageStatus.read);
 
     // Indicadores de escritura / imagen
     isTyping = !result.isImage;
     isSendingImage = result.isImage;
-    debugPrint('[AI] isTyping=$isTyping, isSendingImage=$isSendingImage (sendMessage)');
+    // Si la IA marca su respuesta como nota de voz ([audio]...[/audio]) activamos el indicador
+    final lowerResultText = result.text.toLowerCase();
+    if (lowerResultText.contains('[audio]')) {
+      isSendingAudio = true; // Se desactiva al final del flujo cuando termina la síntesis TTS
+    }
+    debugPrint('[AI] isTyping=$isTyping, isSendingImage=$isSendingImage, isSendingAudio=$isSendingAudio (sendMessage)');
     final textLength = result.text.length;
     final delayMs = (textLength * 15).clamp(15, double.maxFinite).toInt();
     await Future.delayed(Duration(milliseconds: delayMs));
@@ -295,7 +339,7 @@ class ChatProvider extends ChangeNotifier {
       image: result.isImage
           ? ai_image.Image(url: result.imagePath ?? '', seed: result.seed, prompt: result.prompt)
           : null,
-      status: MessageStatus.delivered,
+      status: MessageStatus.read,
     );
     messages.add(assistantMessage);
     // Generar TTS solo si la IA explícitamente marca su respuesta como nota de voz
@@ -325,14 +369,7 @@ class ChatProvider extends ChangeNotifier {
 
     isSendingImage = false;
     isTyping = false;
-    // No resetear isSendingAudio aquí si estamos procesando/ enviando una nota de voz
-    // El control de isSendingAudio lo gestiona quien inició el envío (stopAndSendRecording)
-    if (userAudioPath == null) {
-      isSendingAudio = false;
-      debugPrint('[AI] isSendingAudio = false (sendMessage)');
-    } else {
-      debugPrint('[AI] preserve isSendingAudio (sendMessage) because userAudioPath != null');
-    }
+    isSendingAudio = false;
     _imageRequestId++;
 
     final textResp = result.text;
@@ -367,8 +404,8 @@ class ChatProvider extends ChangeNotifier {
     if (path == null) return; // cancelado o error
 
     // Activar indicador de envío de audio
-    debugPrint('[Audio] isSendingAudio = true (stopAndSendRecording)');
-    isSendingAudio = true;
+    debugPrint('[Audio] isUploadingUserAudio = true (stopAndSendRecording)');
+    isUploadingUserAudio = true;
     notifyListeners();
 
     String? transcript;
@@ -405,7 +442,7 @@ class ChatProvider extends ChangeNotifier {
         File(path).deleteSync();
       } catch (_) {}
       debugPrint('[Audio] Nota de voz vacía descartada (no se añade mensaje)');
-      isSendingAudio = false;
+      isUploadingUserAudio = false;
       notifyListeners();
       return;
     }
@@ -416,8 +453,8 @@ class ChatProvider extends ChangeNotifier {
     await sendMessage(tagged, model: model, userAudioPath: path, preTranscribedText: tagged);
 
     // Desactivar indicador de envío de audio
-    debugPrint('[Audio] isSendingAudio = false (stopAndSendRecording)');
-    isSendingAudio = false;
+    debugPrint('[Audio] isUploadingUserAudio = false (stopAndSendRecording)');
+    isUploadingUserAudio = false;
     notifyListeners();
   }
 
@@ -455,8 +492,7 @@ class ChatProvider extends ChangeNotifier {
       dateTime: DateTime.now(),
       isImage: false,
       image: null,
-      // audioPath eliminado
-      status: MessageStatus.delivered,
+      status: MessageStatus.read,
     );
     messages.add(msg);
     notifyListeners();
@@ -484,7 +520,7 @@ class ChatProvider extends ChangeNotifier {
       dateTime: DateTime.now(),
       isImage: false,
       image: null,
-      status: MessageStatus.delivered,
+      status: MessageStatus.read,
     );
     messages.add(msg);
     notifyListeners();
@@ -501,6 +537,26 @@ class ChatProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('[AI-chan][WARN] Falló actualización de memoria post-system: $e');
+    }
+  }
+
+  /// Añade un mensaje directamente (p.ej., resumen de llamada de voz)
+  Future<void> addUserMessage(Message message) async {
+    messages.add(message);
+    notifyListeners();
+    // Actualizar memoria/cronología igual que tras respuestas IA normales
+    try {
+      final memoryService = MemorySummaryService(profile: onboardingData);
+      final result = await memoryService.processAllSummariesAndSuperblock(
+        messages: messages,
+        timeline: onboardingData.timeline,
+        superbloqueEntry: superbloqueEntry,
+      );
+      onboardingData = onboardingData.copyWith(timeline: result.timeline);
+      superbloqueEntry = result.superbloqueEntry;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[AI-chan][WARN] Falló actualización de memoria post-message: $e');
     }
   }
 
@@ -564,6 +620,7 @@ class ChatProvider extends ChangeNotifier {
   bool isTyping = false;
   bool isSendingImage = false;
   bool isSendingAudio = false;
+  bool isUploadingUserAudio = false;
   List<Message> messages = [];
   late AiChanProfile onboardingData;
 
@@ -669,6 +726,24 @@ class ChatProvider extends ChangeNotifier {
   void dispose() {
     audioService.dispose();
     super.dispose();
+  }
+
+  /// Reintenta enviar el último mensaje marcado como failed.
+  /// Devuelve true si arrancó un reintento, false si no había mensajes failed.
+  Future<bool> retryLastFailedMessage({void Function(String)? onError}) async {
+    final idx = messages.lastIndexWhere((m) => m.sender == MessageSender.user && m.status == MessageStatus.failed);
+    if (idx == -1) return false;
+    final msg = messages[idx];
+    // Reintentar reusando la lógica de sendMessage, pasando existingMessageIndex
+    await sendMessage(
+      msg.text,
+      image: msg.image,
+      imageMimeType: null,
+      model: _selectedModel,
+      onError: onError,
+      existingMessageIndex: idx,
+    );
+    return true;
   }
 }
 

@@ -10,11 +10,19 @@ class OpenAIRealtimeClient {
   final void Function(Uint8List audioChunk)? onAudio;
   final void Function()? onCompleted;
   final void Function(Object err)? onError;
+  final void Function(String userTranscription)? onUserTranscription;
 
   IOWebSocketChannel? _channel;
   bool _connected = false;
 
-  OpenAIRealtimeClient({this.model = 'gpt-4o-realtime', this.onText, this.onAudio, this.onCompleted, this.onError});
+  OpenAIRealtimeClient({
+    this.model = 'gpt-4o-realtime-preview',
+    this.onText,
+    this.onAudio,
+    this.onCompleted,
+    this.onError,
+    this.onUserTranscription,
+  });
 
   String get _apiKey => dotenv.env['OPENAI_API_KEY'] ?? '';
   bool get isConnected => _connected;
@@ -41,8 +49,7 @@ class OpenAIRealtimeClient {
     }
     final uri = Uri.parse('wss://api.openai.com/v1/realtime?model=$model');
     if (kDebugMode) {
-      // ignore: avoid_print
-      print('Realtime: conectando con modelo=$model');
+      debugPrint('Realtime: conectando con modelo=$model');
     }
     _channel = IOWebSocketChannel.connect(
       uri,
@@ -64,6 +71,7 @@ class OpenAIRealtimeClient {
         'modalities': ['audio', 'text'],
         'input_audio_format': 'pcm16',
         'output_audio_format': 'pcm16',
+        'input_audio_transcription': {'model': 'whisper-1', 'language': 'es'},
         'voice': voice,
         'turn_detection': {
           'type': turnDetectionType,
@@ -79,17 +87,29 @@ class OpenAIRealtimeClient {
             final type = (evt['type'] ?? '').toString();
             bool handledAudio = false;
             bool handledText = false;
+
+            // Log específico para eventos de input_audio y transcripción
+            if (type.contains('input_audio') ||
+                type.contains('transcription') ||
+                type.contains('conversation.item.input_audio') ||
+                type.startsWith('conversation.item.')) {
+              if (kDebugMode) {
+                // ignore: avoid_print
+                debugPrint('🔍 DEBUG INPUT AUDIO EVENT: $type');
+                // ignore: avoid_print
+                debugPrint('🔍 DEBUG FULL EVENT: $evt');
+              }
+            }
             if (kDebugMode) {
               // ignore: avoid_print
               // Suprime tipos muy ruidosos
               final noisy = type.startsWith('response.audio_transcript.') || type == 'response.audio.delta';
               if (!noisy) {
-                print('Realtime IN: type=$type');
+                debugPrint('Realtime IN: type=$type');
               }
               if (type == 'response.created') {
                 final mods = (evt['response'] is Map) ? (evt['response']['modalities']) : null;
-                // ignore: avoid_print
-                print('Realtime IN: response.created modalities=${mods ?? 'unknown'}');
+                debugPrint('Realtime IN: response.created modalities=${mods ?? 'unknown'}');
               }
             }
             if (type == 'response.created' || type == 'response.output_item.added') {
@@ -99,10 +119,18 @@ class OpenAIRealtimeClient {
               _responseCreateTimer = null;
               // Ignorar session.updated (flujo simple)
             }
+            // Eventos de transcripción de audio (cuando el servidor envía texto de lo que está diciendo)
+            if (type.startsWith('response.audio_transcript.') && evt['delta'] is String) {
+              final tx = (evt['delta'] as String).trim();
+              if (tx.isNotEmpty) onText?.call(tx);
+            }
+            if (type == 'response.audio_transcript.done') {
+              final t = (evt['transcript'] ?? '').toString();
+              if (t.isNotEmpty) onText?.call(t);
+            }
             if (type == 'session.created' && !sessionReady.isCompleted) {
               if (kDebugMode) {
-                // ignore: avoid_print
-                print('Realtime: session.created recibido, aplicando voice="$_voice"');
+                debugPrint('Realtime: session.created recibido, aplicando voice="$_voice"');
               }
               // Aplicar configuración de sesión ahora que la sesión existe
               _send(sessionUpdateEvent);
@@ -117,7 +145,7 @@ class OpenAIRealtimeClient {
               final dType = (delta['type'] ?? '').toString();
               if (kDebugMode && dType.isNotEmpty) {
                 // ignore: avoid_print
-                print('Realtime IN: delta.type=$dType');
+                debugPrint('Realtime IN: delta.type=$dType');
               }
               // Tipos: response.output_text.delta { text }
               if ((dType.contains('output_text') || dType.contains('text')) && delta['text'] is String) {
@@ -257,11 +285,8 @@ class OpenAIRealtimeClient {
                 } catch (_) {}
               }
             }
-            // Compleción de respuesta: incluir 'response.done'
-            if (type.contains('completed') ||
-                type == 'response.completed' ||
-                type == 'done' ||
-                type == 'response.done') {
+            // Compleción de respuesta SOLO cuando el servidor emite el final global
+            if (type == 'response.done' || type == 'response.completed') {
               onCompleted?.call();
               // Detectar fallo compacto
               final resp = evt['response'];
@@ -273,7 +298,7 @@ class OpenAIRealtimeClient {
                   final msg = (err is Map) ? (err['message'] ?? '').toString() : '';
                   if (kDebugMode) {
                     // ignore: avoid_print
-                    print('Realtime response failed: $code $msg');
+                    debugPrint('Realtime response failed: $code $msg');
                   }
                 }
               }
@@ -293,7 +318,38 @@ class OpenAIRealtimeClient {
               // Solo pedir respuesta automáticamente si NO usamos VAD del servidor
               requestResponse(audio: true, text: true);
             }
+            // Capturar transcripciones del usuario
+            if (type == 'conversation.item.input_audio_transcription.completed') {
+              if (kDebugMode) {
+                // ignore: avoid_print
+                debugPrint('Realtime IN: transcripción evento completo: $evt');
+              }
+              final transcript = (evt['transcript'] ?? '').toString().trim();
+              if (transcript.isNotEmpty) {
+                if (kDebugMode) {
+                  // ignore: avoid_print
+                  debugPrint('Realtime IN: transcripción usuario: "$transcript"');
+                }
+                onUserTranscription?.call(transcript);
+              } else {
+                // Intentar otros campos posibles
+                final altTranscript = (evt['text'] ?? evt['content'] ?? '').toString().trim();
+                if (altTranscript.isNotEmpty) {
+                  if (kDebugMode) {
+                    // ignore: avoid_print
+                    debugPrint('Realtime IN: transcripción usuario (alt): "$altTranscript"');
+                  }
+                  onUserTranscription?.call(altTranscript);
+                }
+              }
+            }
+
+            // Eliminado: envío de truncate para input_audio (causaba errores unsupported_content_type)
             if (type == 'error' && evt['error'] != null) {
+              if (kDebugMode) {
+                // ignore: avoid_print
+                debugPrint('Realtime ERROR completo: ${evt['error']}');
+              }
               onError?.call(Exception(evt['error'].toString()));
             }
           } else if (message is List<int>) {
@@ -302,7 +358,7 @@ class OpenAIRealtimeClient {
               final bytes = Uint8List.fromList(message);
               if (kDebugMode) {
                 // ignore: avoid_print
-                print('Realtime IN: binary audio chunk len=${bytes.length}');
+                debugPrint('Realtime IN: binary audio chunk len=${bytes.length}');
               }
               onAudio?.call(bytes);
             } catch (e) {
@@ -327,8 +383,7 @@ class OpenAIRealtimeClient {
       await sessionReady.future.timeout(const Duration(seconds: 5));
     } catch (_) {
       if (kDebugMode) {
-        // ignore: avoid_print
-        print('Realtime: timeout esperando session.created');
+        debugPrint('Realtime: timeout esperando session.created');
       }
     }
     // No esperar session.updated en versión simple
@@ -369,16 +424,16 @@ class OpenAIRealtimeClient {
     if (!_connected) return;
     if (_serverTurnDetection) {
       if (kDebugMode) {
-        // ignore: avoid_print
-        print('Realtime: commit manual ignorado (server VAD activo)');
+        debugPrint('Realtime: commit manual ignorado (server VAD activo)');
       }
       return;
     }
     // Evitar commit vacío: exigir >= ~100ms de PCM16 mono @16kHz (~3200 bytes)
     if (!_hasAppendedSinceConnect || _bytesSinceCommit < 3200) {
       if (kDebugMode) {
-        // ignore: avoid_print
-        print('Realtime: evitando commit vacío (_hasAppended=$_hasAppendedSinceConnect, bytes=$_bytesSinceCommit)');
+        debugPrint(
+          'Realtime: evitando commit vacío (_hasAppended=$_hasAppendedSinceConnect, bytes=$_bytesSinceCommit)',
+        );
       }
       return;
     }
@@ -391,22 +446,39 @@ class OpenAIRealtimeClient {
       _commitScheduled = true;
       Future.delayed(Duration(milliseconds: waitMs), () {
         if (!_connected) return;
+        if (_bytesSinceCommit < 3200) {
+          if (kDebugMode) {
+            debugPrint('Realtime: commit diferido cancelado por bytes insuficientes ($_bytesSinceCommit)');
+          }
+          _commitScheduled = false;
+          return;
+        }
+        if (kDebugMode) {
+          debugPrint('Realtime OUT (deferred): input_audio_buffer.commit bytes=$_bytesSinceCommit');
+        }
         _send({'type': 'input_audio_buffer.commit'});
         _bytesSinceCommit = 0;
         _commitScheduled = false;
       });
       return;
     }
+    if (kDebugMode) {
+      debugPrint('Realtime OUT: input_audio_buffer.commit bytes=$_bytesSinceCommit');
+    }
     _send({'type': 'input_audio_buffer.commit'});
     _bytesSinceCommit = 0;
+  }
+
+  // Exponer si hay audio suficiente pendiente para commit
+  bool hasPendingAudio({int minBytes = 3200}) {
+    return _bytesSinceCommit >= minBytes;
   }
 
   void requestResponse({bool audio = true, bool text = true}) {
     if (!_connected) return;
     if (_hasActiveResponse) {
       if (kDebugMode) {
-        // ignore: avoid_print
-        print('Realtime: omitiendo response.create (ya hay activa)');
+        debugPrint('Realtime: omitiendo response.create (ya hay activa)');
       }
       return;
     }
@@ -419,8 +491,7 @@ class OpenAIRealtimeClient {
       if (!_connected) return;
       if (_hasActiveResponse) {
         if (kDebugMode) {
-          // ignore: avoid_print
-          print('Realtime: cancelado response.create (respuesta activa detectada)');
+          debugPrint('Realtime: cancelado response.create (respuesta activa detectada)');
         }
         return;
       }
@@ -454,7 +525,7 @@ class OpenAIRealtimeClient {
       // ignore: avoid_print
       final t = event['type'];
       if (t != 'input_audio_buffer.append') {
-        print('Realtime OUT: type=$t');
+        debugPrint('Realtime OUT: type=$t');
       }
     }
     _channel!.sink.add(jsonEncode(event));
@@ -506,7 +577,7 @@ extension _RespExtract on OpenAIRealtimeClient {
     scan(resp);
     if (kDebugMode) {
       // ignore: avoid_print
-      print('Realtime: resp extract -> texts=${texts.length}, audioChunks=${audioChunks.length}');
+      debugPrint('Realtime: resp extract -> texts=${texts.length}, audioChunks=${audioChunks.length}');
     }
     for (final s in texts) {
       onText?.call(s);

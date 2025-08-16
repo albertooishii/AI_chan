@@ -2,42 +2,86 @@ import 'image.dart';
 
 enum MessageSender { user, assistant, system }
 
-enum MessageStatus { sending, sent, delivered, read }
+enum MessageStatus { sending, sent, read, failed }
 
-class Message {
-  Message copyWith({
-    String? text,
-    MessageSender? sender,
-    DateTime? dateTime,
-    bool? isImage,
-    Image? image,
-    MessageStatus? status,
-    bool? isAudio,
-    String? audioPath,
-    bool? autoTts,
-  }) {
-    return Message(
-      text: text ?? this.text,
-      sender: sender ?? this.sender,
-      dateTime: dateTime ?? this.dateTime,
-      isImage: isImage ?? this.isImage,
-      image: image ?? this.image,
-      status: status ?? this.status,
-      isAudio: isAudio ?? this.isAudio,
-      audioPath: audioPath ?? this.audioPath,
-      autoTts: autoTts ?? this.autoTts,
+/// Mensaje de voz dentro de una llamada
+class VoiceCallMessage {
+  final String text;
+  final bool isUser;
+  final DateTime timestamp;
+
+  VoiceCallMessage({required this.text, required this.isUser, required this.timestamp});
+
+  Map<String, dynamic> toJson() => {'text': text, 'isUser': isUser, 'timestamp': timestamp.toIso8601String()};
+
+  factory VoiceCallMessage.fromJson(Map<String, dynamic> json) {
+    return VoiceCallMessage(
+      text: json['text'] ?? '',
+      isUser: json['isUser'] == true,
+      timestamp: json['timestamp'] != null && json['timestamp'] is String
+          ? DateTime.tryParse(json['timestamp']) ?? DateTime.now()
+          : DateTime.now(),
     );
   }
+}
 
+/// Resumen completo de una llamada de voz
+class VoiceCallSummary {
+  final DateTime startTime;
+  final DateTime endTime;
+  final Duration duration;
+  final List<VoiceCallMessage> messages;
+  final bool userSpoke;
+  final bool aiResponded;
+
+  VoiceCallSummary({
+    required this.startTime,
+    required this.endTime,
+    required this.duration,
+    required this.messages,
+    required this.userSpoke,
+    required this.aiResponded,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'startTime': startTime.toIso8601String(),
+    'endTime': endTime.toIso8601String(),
+    'duration': duration.inMilliseconds,
+    'messages': messages.map((m) => m.toJson()).toList(),
+    'userSpoke': userSpoke,
+    'aiResponded': aiResponded,
+  };
+
+  factory VoiceCallSummary.fromJson(Map<String, dynamic> json) {
+    final messagesList = (json['messages'] as List? ?? [])
+        .cast<Map<String, dynamic>>()
+        .map(VoiceCallMessage.fromJson)
+        .toList();
+
+    return VoiceCallSummary(
+      startTime: DateTime.tryParse(json['startTime'] ?? '') ?? DateTime.now(),
+      endTime: DateTime.tryParse(json['endTime'] ?? '') ?? DateTime.now(),
+      duration: Duration(milliseconds: json['duration'] ?? 0),
+      messages: messagesList,
+      userSpoke: json['userSpoke'] == true,
+      aiResponded: json['aiResponded'] == true,
+    );
+  }
+}
+
+/// Modelo de mensaje principal
+class Message {
   final String text;
   final MessageSender sender;
   final DateTime dateTime;
   final bool isImage;
   final Image? image;
   MessageStatus status;
-  final bool isAudio; // nuevo: indica si el mensaje contiene nota de voz
-  final String? audioPath; // ruta local del archivo de audio
-  final bool autoTts; // si fue generado automáticamente vía TTS IA
+  final bool isAudio;
+  final String? audioPath;
+  final bool autoTts;
+  final Duration? callDuration;
+  final DateTime? callEndTime;
 
   Message({
     required this.text,
@@ -49,7 +93,51 @@ class Message {
     this.isAudio = false,
     this.audioPath,
     this.autoTts = false,
+    this.callDuration,
+    this.callEndTime,
   });
+
+  /// Determina si este mensaje es un resumen de llamada de voz
+  bool get isVoiceCallSummary => callDuration != null;
+
+  /// Formatea la duración de llamada si existe
+  String get formattedCallDuration {
+    if (callDuration == null) return '';
+    final d = callDuration!;
+    String two(int v) => v.toString().padLeft(2, '0');
+    final h = two(d.inHours);
+    final m = two(d.inMinutes.remainder(60));
+    final s = two(d.inSeconds.remainder(60));
+    return '$h:$m:$s';
+  }
+
+  Message copyWith({
+    String? text,
+    MessageSender? sender,
+    DateTime? dateTime,
+    bool? isImage,
+    Image? image,
+    MessageStatus? status,
+    bool? isAudio,
+    String? audioPath,
+    bool? autoTts,
+    Duration? callDuration,
+    DateTime? callEndTime,
+  }) {
+    return Message(
+      text: text ?? this.text,
+      sender: sender ?? this.sender,
+      dateTime: dateTime ?? this.dateTime,
+      isImage: isImage ?? this.isImage,
+      image: image ?? this.image,
+      status: status ?? this.status,
+      isAudio: isAudio ?? this.isAudio,
+      audioPath: audioPath ?? this.audioPath,
+      autoTts: autoTts ?? this.autoTts,
+      callDuration: callDuration ?? this.callDuration,
+      callEndTime: callEndTime ?? this.callEndTime,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
     'text': text,
@@ -65,6 +153,8 @@ class Message {
     if (isAudio) 'isAudio': isAudio,
     if (audioPath != null) 'audioPath': audioPath,
     if (autoTts) 'autoTts': autoTts,
+    if (callDuration != null) 'callDuration': callDuration!.inMilliseconds,
+    if (callEndTime != null) 'callEndTime': callEndTime!.toIso8601String(),
   };
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -87,6 +177,10 @@ class Message {
       isAudio: isAudio,
       audioPath: json['audioPath'] as String?,
       autoTts: json['autoTts'] == true,
+      callDuration: json['callDuration'] != null ? Duration(milliseconds: json['callDuration']) : null,
+      callEndTime: json['callEndTime'] != null && json['callEndTime'] is String
+          ? DateTime.tryParse(json['callEndTime'])
+          : null,
     );
   }
 }
