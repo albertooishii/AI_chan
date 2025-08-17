@@ -300,6 +300,8 @@ class OpenAIRealtimeClient {
                     // ignore: avoid_print
                     debugPrint('Realtime response failed: $code $msg');
                   }
+                  // Propagar como error para que capas superiores puedan colgar
+                  onError?.call(Exception('response_failed:$code $msg'));
                 }
               }
               _hasActiveResponse = false;

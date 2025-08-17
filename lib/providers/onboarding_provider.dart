@@ -248,7 +248,7 @@ class OnboardingProvider extends ChangeNotifier {
           appearance: {},
         ),
         dateTime: DateTime.now(),
-        instructions: instrucciones,
+        instructions: {'raw': instrucciones},
       );
       try {
         final story = await AIService.sendMessage(

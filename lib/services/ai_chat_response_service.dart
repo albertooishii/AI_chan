@@ -47,6 +47,86 @@ class AiChatResponseService {
     return true;
   }
 
+  // Validación estricta de etiquetas permitidas.
+  // Reglas:
+  //  - Etiquetas permitidas: [audio]...[/audio], [img_caption]...[/img_caption], [call][/call], [end_call][/end_call]
+  //  - [call][/call] y [end_call][/end_call] deben ser el ÚNICO contenido (ignorando espacios) del mensaje y estar vacías dentro.
+  //  - [audio] debe tener contenido no vacío que no contenga otra etiqueta de apertura '[' inmediatamente (evitar nesting).
+  //  - [img_caption] si aparece debe ir antes que cualquier otro texto (tras recorte inicial) y solo 1 vez.
+  //  - Cualquier secuencia estilo [palabra] o [/palabra] distinta a las permitidas => inválido.
+  //  - Secuencias de rol dentro de corchetes con espacios internos (ej: [y ahora alberto te envia flores]) NO se consideran etiquetas y se ignoran.
+  static bool _hasValidAllowedTagsStructure(String text) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return true;
+
+    final tagToken = RegExp(r'\[/?([a-zA-Z0-9_]+)\]');
+    final matches = tagToken.allMatches(trimmed).toList();
+    // Extraer tokens detectados (solo los que no llevan espacios dentro, para no confundir roleplay)
+    final allowed = {'audio', 'img_caption', 'call', 'end_call'};
+    final tokens = <String>[];
+    for (final m in matches) {
+      final name = m.group(1);
+      if (name == null) continue;
+      tokens.add(name.toLowerCase());
+    }
+    // Buscar tokens inventados
+    for (final tk in tokens) {
+      if (!allowed.contains(tk)) {
+        return false; // etiqueta inventada
+      }
+    }
+
+    // Validación de [call][/call] y [end_call][/end_call]
+    if (trimmed.contains('[call]') || trimmed.contains('[end_call]')) {
+      final simpleTagPattern = RegExp(r'^\s*(\[(?:call|end_call)\]\s*\[/(?:call|end_call)\])\s*$');
+      if (!simpleTagPattern.hasMatch(trimmed)) return false; // Debe ser lo único
+      // Nada más que validar en este caso
+      return true;
+    }
+
+    // Validación de img_caption: si existe, debe ir al inicio
+    final imgCaptionOpen = '[img_caption]';
+    final imgCaptionClose = '[/img_caption]';
+    if (trimmed.contains(imgCaptionOpen)) {
+      final firstIdx = trimmed.indexOf(imgCaptionOpen);
+      if (firstIdx != 0) return false; // Debe iniciar el mensaje
+      final closeIdx = trimmed.indexOf(imgCaptionClose, firstIdx + imgCaptionOpen.length);
+      if (closeIdx < 0) return false; // falta cierre
+      final after = trimmed.substring(closeIdx + imgCaptionClose.length).trimLeft();
+      // No permitir segunda aparición
+      if (after.contains(imgCaptionOpen)) return false;
+    }
+
+    // Validación de audio tags (puede haber 0 o 1)
+    final audioOpen = '[audio]';
+    final audioClose = '[/audio]';
+    if (trimmed.contains(audioOpen)) {
+      final openIdx = trimmed.indexOf(audioOpen);
+      final closeIdx = trimmed.indexOf(audioClose, openIdx + audioOpen.length);
+      if (closeIdx < 0) return false; // Falta cierre
+      final inner = trimmed.substring(openIdx + audioOpen.length, closeIdx).trim();
+      if (inner.isEmpty) return false; // Debe tener texto
+      // Si inner empieza con '[' considerarlo intento de anidar etiqueta no permitida
+      if (inner.startsWith('[')) return false;
+      // Solo una pareja de audio
+      final afterAudio = trimmed.substring(closeIdx + audioClose.length);
+      if (afterAudio.contains(audioOpen)) return false;
+    }
+
+    // Validar que no existan cierres sin apertura o aperturas sin cierre
+    // Conteos simples
+    bool balanced(String name) {
+      final openCount = RegExp('\\[$name\\]').allMatches(trimmed).length;
+      final closeCount = RegExp('\\[/$name\\]').allMatches(trimmed).length;
+      return openCount == closeCount;
+    }
+
+    for (final name in ['audio', 'img_caption']) {
+      if (!balanced(name)) return false;
+    }
+    return true;
+  }
+
   static Future<AIChatResult> send({
     required List<Message> recentMessages,
     required SystemPrompt systemPromptObj,
@@ -104,7 +184,7 @@ class AiChatResponseService {
     }
 
     int retry = 0;
-    while (!_hasValidText(response) && retry < maxRetries) {
+    while ((!_hasValidText(response) || !_hasValidAllowedTagsStructure(response.text)) && retry < maxRetries) {
       final waitSeconds = _extractWaitSeconds(response.text);
       await Future.delayed(Duration(seconds: waitSeconds));
       response = await AIService.sendMessage(
@@ -118,15 +198,35 @@ class AiChatResponseService {
       retry++;
     }
 
-    if (!_hasValidText(response)) {
+    if (!_hasValidText(response) || !_hasValidAllowedTagsStructure(response.text)) {
+      // Último intento inválido: sanitizar removiendo etiquetas desconocidas para no mostrar markup roto.
+      String sanitized = response.text;
+      // Quitar cualquier tag desconocido tipo [xxxx] o [/xxxx] que no sea permitido
+      sanitized = sanitized.replaceAll(RegExp(r'\[(?!/?(?:audio|img_caption|call|end_call)\b)[^\]\[]+\]'), '');
       return AIChatResult(
-        text: response.text,
+        text: sanitized,
         isImage: false,
         imagePath: null,
         prompt: response.prompt,
         seed: response.seed,
         finalModelUsed: selected,
       );
+    }
+    // Estructura válida: si es [call][/call] o [end_call][/end_call] dejarlo tal cual (ChatBubble lo gestionará).
+    final trimmed = response.text.trim();
+    if (trimmed.startsWith('[call]') || trimmed.startsWith('[end_call]')) {
+      // Normalizar a formato exacto
+      final exactPattern = RegExp(r'^\s*\[(call|end_call)\]\s*\[/\1\]\s*$');
+      if (!exactPattern.hasMatch(trimmed)) {
+        final kindMatch = RegExp(r'\[(call|end_call)\]').firstMatch(trimmed);
+        final kind = kindMatch != null ? kindMatch.group(1) : 'call';
+        response = AIResponse(
+          text: '[$kind][/$kind]',
+          base64: response.base64,
+          seed: response.seed,
+          prompt: response.prompt,
+        );
+      }
     }
 
     bool isImageResp = response.base64.isNotEmpty;

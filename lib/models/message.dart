@@ -4,6 +4,9 @@ enum MessageSender { user, assistant, system }
 
 enum MessageStatus { sending, sent, read, failed }
 
+/// Estado de una llamada (placeholder, completada con resumen, rechazada, perdida, cancelada)
+enum CallStatus { placeholder, completed, rejected, missed, canceled }
+
 /// Mensaje de voz dentro de una llamada
 class VoiceCallMessage {
   final String text;
@@ -82,6 +85,7 @@ class Message {
   final bool autoTts;
   final Duration? callDuration;
   final DateTime? callEndTime;
+  final CallStatus? callStatus; // null si no es mensaje de llamada
 
   Message({
     required this.text,
@@ -95,10 +99,11 @@ class Message {
     this.autoTts = false,
     this.callDuration,
     this.callEndTime,
+    this.callStatus,
   });
 
   /// Determina si este mensaje es un resumen de llamada de voz
-  bool get isVoiceCallSummary => callDuration != null;
+  bool get isVoiceCallSummary => callStatus == CallStatus.completed && callDuration != null;
 
   /// Formatea la duración de llamada si existe
   String get formattedCallDuration {
@@ -123,6 +128,7 @@ class Message {
     bool? autoTts,
     Duration? callDuration,
     DateTime? callEndTime,
+    CallStatus? callStatus,
   }) {
     return Message(
       text: text ?? this.text,
@@ -136,6 +142,7 @@ class Message {
       autoTts: autoTts ?? this.autoTts,
       callDuration: callDuration ?? this.callDuration,
       callEndTime: callEndTime ?? this.callEndTime,
+      callStatus: callStatus ?? this.callStatus,
     );
   }
 
@@ -155,6 +162,7 @@ class Message {
     if (autoTts) 'autoTts': autoTts,
     if (callDuration != null) 'callDuration': callDuration!.inMilliseconds,
     if (callEndTime != null) 'callEndTime': callEndTime!.toIso8601String(),
+    if (callStatus != null) 'callStatus': callStatus!.name,
   };
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -181,6 +189,23 @@ class Message {
       callEndTime: json['callEndTime'] != null && json['callEndTime'] is String
           ? DateTime.tryParse(json['callEndTime'])
           : null,
+      callStatus: _inferCallStatus(json),
     );
+  }
+
+  static CallStatus? _inferCallStatus(Map<String, dynamic> json) {
+    if (json['callStatus'] != null) {
+      final name = json['callStatus'];
+      try {
+        return CallStatus.values.firstWhere((e) => e.name == name);
+      } catch (_) {}
+    }
+    // Heurísticas retro-compatibilidad
+    final text = (json['text'] ?? '').toString().trim();
+    if (text == '[call][/call]') return CallStatus.placeholder;
+    if (text.toLowerCase() == 'llamada rechazada') return CallStatus.rejected;
+    if (text.toLowerCase() == 'llamada no contestada') return CallStatus.missed;
+    if (json['callDuration'] != null) return CallStatus.completed;
+    return null;
   }
 }

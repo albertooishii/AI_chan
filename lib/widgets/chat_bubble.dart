@@ -6,9 +6,106 @@ import 'package:markdown_widget/markdown_widget.dart';
 import 'dart:io';
 import '../constants/app_colors.dart';
 import '../models/message.dart';
-import 'audio_message_player.dart';
+// import 'audio_message_player.dart'; // reemplazado por versión con subtítulos
+import 'audio_message_player_with_subs.dart';
 
 class ChatBubble extends StatelessWidget {
+  // ===== Helpers de UI reutilizables para reducir duplicación =====
+  Widget _footerRow({
+    required BuildContext context,
+    required Message message,
+    required bool isUser,
+    required Widget statusWidget,
+    bool showRetry = true,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        const SizedBox(width: 8),
+        Text(_formatTime(message.dateTime), style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+        if (isUser) ...[
+          const SizedBox(width: 4),
+          statusWidget,
+          if (showRetry && message.status == MessageStatus.failed) ...[
+            const SizedBox(width: 6),
+            IconButton(
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+              icon: const Icon(Icons.refresh, size: 18, color: Colors.white),
+              tooltip: 'Reintentar',
+              onPressed: () {
+                try {
+                  context.read<ChatProvider>().retryLastFailedMessage(onError: (e) {});
+                } catch (_) {}
+              },
+            ),
+          ],
+        ],
+      ],
+    );
+  }
+
+  List<Widget> _buildMarkdownBlocks(String text) {
+    if (text.trim().isEmpty) return const [];
+    return MarkdownGenerator().buildWidgets(cleanText(text));
+  }
+
+  Widget _callHeader({
+    required bool isUser,
+    required bool isSummary,
+    required bool isPlaceholder,
+    CallStatus? callStatus,
+  }) {
+    String title;
+    IconData icon;
+    Color color = isUser ? AppColors.primary : AppColors.secondary;
+    switch (callStatus) {
+      case CallStatus.placeholder:
+        title = isUser ? 'Llamando…' : 'Llamada entrante';
+        icon = isUser ? Icons.call_made : Icons.call_received;
+        break;
+      case CallStatus.completed:
+        title = isUser ? 'Llamada realizada' : 'Llamada recibida';
+        icon = isUser ? Icons.call_made : Icons.call_received;
+        break;
+      case CallStatus.rejected:
+        title = 'Llamada rechazada';
+        icon = Icons.call_end;
+        color = Colors.redAccent;
+        break;
+      case CallStatus.missed:
+        title = 'Llamada no contestada';
+        icon = Icons.call_missed;
+        color = Colors.orangeAccent;
+        break;
+      case CallStatus.canceled:
+        title = 'Llamada cancelada';
+        icon = Icons.call_end;
+        color = Colors.deepOrangeAccent;
+        break;
+      case null:
+        if (isPlaceholder) {
+          title = isUser ? 'Llamando…' : 'Llamada recibida';
+          icon = isUser ? Icons.call_made : Icons.call_received;
+        } else {
+          title = isUser ? 'Llamada realizada' : 'Llamada recibida';
+          icon = isUser ? Icons.call_made : Icons.call_received;
+        }
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 18),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 14),
+        ),
+      ],
+    );
+  }
+
   Widget _buildBubbleContent({
     required Widget child,
     required bool useIntrinsicWidth,
@@ -109,11 +206,18 @@ class ChatBubble extends StatelessWidget {
     final borderColor = isUser ? AppColors.primary : AppColors.secondary;
     final glowColor = isUser ? AppColors.primary : AppColors.secondary;
     final txtLower = message.text.trimLeft().toLowerCase();
-    // Detectar tag de audio en formato [audio]...[/audio] o apertura sola
+    // Detectar tag de audio en formato [audio]...[/audio] con contenido no vacío
     final openTag = '[audio]';
     final closeTag = '[/audio]';
-    // Sólo marcar como nota de voz si contiene apertura Y cierre exactos
-    final isVoiceNoteTag = txtLower.contains(openTag) && txtLower.contains(closeTag);
+    int openIdx = txtLower.indexOf(openTag);
+    int closeIdx = openIdx >= 0 ? txtLower.indexOf(closeTag, openIdx + openTag.length) : -1;
+    // Solo consideramos placeholder de nota de voz pendiente para mensajes del asistente.
+    // Si el usuario escribe manualmente [audio]...[/audio] se mostrará como texto normal (NO barra de carga).
+    bool isVoiceNoteTag = false;
+    if (message.sender == MessageSender.assistant && openIdx >= 0 && closeIdx > openIdx) {
+      final inner = message.text.substring(openIdx + openTag.length, closeIdx).trim();
+      if (inner.isNotEmpty) isVoiceNoteTag = true;
+    }
 
     Widget statusWidget = const SizedBox.shrink();
     if (isUser) {
@@ -145,11 +249,58 @@ class ChatBubble extends StatelessWidget {
     final hasImage = message.image != null && message.image!.url != null && message.image!.url!.isNotEmpty;
     final hasAudio = message.isAudio && (message.audioPath != null && message.audioPath!.isNotEmpty);
     final isVoiceCallSummary = message.isVoiceCallSummary;
+    final bool isCallPlaceholder =
+        message.callStatus == CallStatus.placeholder || message.text.trim() == '[call][/call]';
+    final callStatus = message.callStatus;
 
     Widget bubbleContent;
     bool useIntrinsicWidth = false;
     EdgeInsetsGeometry padding = const EdgeInsets.all(14);
-    if (hasImage) {
+    if (hasImage && hasAudio) {
+      // Caso combinado: imagen + nota de voz
+      final showCaption = message.text.trim().isNotEmpty && !isVoiceNoteTag; // ignorar isAudio para caption
+      final isShortCaption = !showCaption || (showCaption && message.text.length < 80);
+      useIntrinsicWidth = isShortCaption;
+      padding = isShortCaption ? const EdgeInsets.all(6) : const EdgeInsets.all(14);
+      bubbleContent = Column(
+        crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildImageContent(message, glowColor),
+          const SizedBox(height: 8),
+          Stack(
+            children: [
+              AudioMessagePlayerWithSubs(message: message, width: 200),
+              if (isUser && message.status == MessageStatus.sending)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            valueColor: AlwaysStoppedAnimation(
+                              (isUser ? AppColors.primary : AppColors.secondary).withValues(alpha: 0.9),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          if (showCaption) ...[const SizedBox(height: 8), ...MarkdownGenerator().buildWidgets(cleanText(message.text))],
+          _footerRow(context: context, message: message, isUser: isUser, statusWidget: statusWidget),
+        ],
+      );
+    } else if (hasImage) {
       final isShortText = !shouldShowText || (shouldShowText && message.text.length < 80);
       useIntrinsicWidth = isShortText;
       padding = isShortText ? const EdgeInsets.all(6) : const EdgeInsets.all(14);
@@ -158,33 +309,8 @@ class ChatBubble extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildImageContent(message, glowColor),
-          if (shouldShowText) ...[
-            const SizedBox(height: 8),
-            ...MarkdownGenerator().buildWidgets(cleanText(message.text)),
-          ],
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const SizedBox(width: 8),
-              Text(_formatTime(message.dateTime), style: TextStyle(color: Colors.grey[400], fontSize: 12)),
-              if (isUser) ...[const SizedBox(width: 4), statusWidget],
-              if (isUser && message.status == MessageStatus.failed) ...[
-                const SizedBox(width: 6),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-                  icon: const Icon(Icons.refresh, size: 18, color: Colors.white),
-                  tooltip: 'Reintentar',
-                  onPressed: () {
-                    try {
-                      context.read<ChatProvider>().retryLastFailedMessage(onError: (e) {});
-                    } catch (_) {}
-                  },
-                ),
-              ],
-            ],
-          ),
+          if (shouldShowText) ...[const SizedBox(height: 8), ..._buildMarkdownBlocks(message.text)],
+          _footerRow(context: context, message: message, isUser: isUser, statusWidget: statusWidget),
         ],
       );
     } else if (hasAudio) {
@@ -194,7 +320,8 @@ class ChatBubble extends StatelessWidget {
         children: [
           Stack(
             children: [
-              AudioMessagePlayer(message: message, width: 180),
+              // Usar reproductor con subtítulos flotantes reutilizando efecto cyberpunk
+              AudioMessagePlayerWithSubs(message: message, width: 180),
               if (isUser && message.status == MessageStatus.sending)
                 Positioned.fill(
                   child: IgnorePointer(
@@ -229,29 +356,7 @@ class ChatBubble extends StatelessWidget {
               ),
             ),
           ],
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const SizedBox(width: 8),
-              Text(_formatTime(message.dateTime), style: TextStyle(color: Colors.grey[400], fontSize: 12)),
-              if (isUser) ...[const SizedBox(width: 4), statusWidget],
-              if (isUser && message.status == MessageStatus.failed) ...[
-                const SizedBox(width: 6),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-                  icon: const Icon(Icons.refresh, size: 18, color: Colors.white),
-                  tooltip: 'Reintentar',
-                  onPressed: () {
-                    try {
-                      context.read<ChatProvider>().retryLastFailedMessage(onError: (e) {});
-                    } catch (_) {}
-                  },
-                ),
-              ],
-            ],
-          ),
+          _footerRow(context: context, message: message, isUser: isUser, statusWidget: statusWidget),
         ],
       );
     } else if (isVoiceNoteTag) {
@@ -284,29 +389,7 @@ class ChatBubble extends StatelessWidget {
               ],
             ),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const SizedBox(width: 8),
-              Text(_formatTime(message.dateTime), style: TextStyle(color: Colors.grey[400], fontSize: 12)),
-              if (isUser) ...[const SizedBox(width: 4), statusWidget],
-              if (isUser && message.status == MessageStatus.failed) ...[
-                const SizedBox(width: 6),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-                  icon: const Icon(Icons.refresh, size: 18, color: Colors.white),
-                  tooltip: 'Reintentar',
-                  onPressed: () {
-                    try {
-                      context.read<ChatProvider>().retryLastFailedMessage(onError: (e) {});
-                    } catch (_) {}
-                  },
-                ),
-              ],
-            ],
-          ),
+          _footerRow(context: context, message: message, isUser: isUser, statusWidget: statusWidget),
         ],
       );
     } else if (isVoiceCallSummary) {
@@ -315,22 +398,7 @@ class ChatBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Encabezado de llamada
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.call_made, color: isUser ? AppColors.primary : AppColors.secondary, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                'Llamada realizada',
-                style: TextStyle(
-                  color: isUser ? AppColors.primary : AppColors.secondary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
+          _callHeader(isUser: isUser, isSummary: true, isPlaceholder: false, callStatus: callStatus),
           const SizedBox(height: 6),
           // Duración
           if (message.callDuration != null)
@@ -341,35 +409,31 @@ class ChatBubble extends StatelessWidget {
             Flexible(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [...MarkdownGenerator().buildWidgets(cleanText(message.text))],
+                children: [..._buildMarkdownBlocks(message.text)],
               ),
             ),
             const SizedBox(height: 8),
           ],
-          // Tiempo
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const SizedBox(width: 8),
-              Text(_formatTime(message.dateTime), style: TextStyle(color: Colors.grey[400], fontSize: 12)),
-              if (isUser) ...[const SizedBox(width: 4), statusWidget],
-              if (isUser && message.status == MessageStatus.failed) ...[
-                const SizedBox(width: 6),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-                  icon: const Icon(Icons.refresh, size: 18, color: Colors.white),
-                  tooltip: 'Reintentar',
-                  onPressed: () {
-                    try {
-                      context.read<ChatProvider>().retryLastFailedMessage(onError: (e) {});
-                    } catch (_) {}
-                  },
-                ),
-              ],
-            ],
+          _footerRow(context: context, message: message, isUser: isUser, statusWidget: statusWidget),
+        ],
+      );
+    } else if (isCallPlaceholder ||
+        callStatus == CallStatus.rejected ||
+        callStatus == CallStatus.missed ||
+        callStatus == CallStatus.canceled) {
+      // Placeholder o estados de llamada sin resumen
+      bubbleContent = Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _callHeader(
+            isUser: isUser,
+            isSummary: false,
+            isPlaceholder: isCallPlaceholder,
+            callStatus: callStatus ?? (isCallPlaceholder ? CallStatus.placeholder : null),
           ),
+          const SizedBox(height: 6),
+          _footerRow(context: context, message: message, isUser: isUser, statusWidget: statusWidget, showRetry: false),
         ],
       );
     } else {
@@ -380,32 +444,10 @@ class ChatBubble extends StatelessWidget {
           Flexible(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [...MarkdownGenerator().buildWidgets(cleanText(message.text.isNotEmpty ? message.text : ''))],
+              children: [..._buildMarkdownBlocks(message.text.isNotEmpty ? message.text : '')],
             ),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const SizedBox(width: 8),
-              Text(_formatTime(message.dateTime), style: TextStyle(color: Colors.grey[400], fontSize: 12)),
-              if (isUser) ...[const SizedBox(width: 4), statusWidget],
-              if (isUser && message.status == MessageStatus.failed) ...[
-                const SizedBox(width: 6),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-                  icon: const Icon(Icons.refresh, size: 18, color: Colors.white),
-                  tooltip: 'Reintentar',
-                  onPressed: () {
-                    try {
-                      context.read<ChatProvider>().retryLastFailedMessage(onError: (e) {});
-                    } catch (_) {}
-                  },
-                ),
-              ],
-            ],
-          ),
+          _footerRow(context: context, message: message, isUser: isUser, statusWidget: statusWidget),
         ],
       );
     }

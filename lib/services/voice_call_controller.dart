@@ -31,20 +31,26 @@ class VoiceCallController {
   bool _aiMessagePendingCommit = false; // asegurar 1 mensaje por respuesta AI
   bool _isStreaming = false; // streaming lógico activo
   bool _isPlayingComplete = false; // actualmente reproduciendo audio AI
+  bool _audioStartedForCurrentResponse = false; // gating para subtítulos: true solo cuando comienza audio real
   bool _shouldMuteMic = false; // micrófono gateado mientras AI habla/genera
   Timer? _playbackTimer;
   Timer? _subtitleRevealTimer;
   int _subtitleRevealIndex = 0; // índice de caracteres ya mostrados
   String _fullAiText = '';
   Function(String)? _uiOnText; // referencia al callback UI original
+  bool _suppressFurtherAiText = false; // suprimir subtítulos tras end_call detectado
+  bool get suppressFurtherAiTextFlag => _suppressFurtherAiText; // exposición de solo lectura para UI
   bool _firstAudioReceived = false;
   bool _ringbackActive = false;
-  static const int _ringbackMaxMs = 8000; // tope máximo
+  bool _disposed = false; // bandera de ciclo de vida para evitar callbacks tras dispose
+  static const int _ringbackMaxMs = 10000; // tope máximo ampliado (10s)
+  // Ajuste: ampliar a 10000ms para permitir etiqueta [start_call] antes de audio
   static const int _ringbackMinMs = 5500; // asegurar 2-3 loops (~2.5s cada) antes de cortar
   // Eliminamos ringback mínimo rígido para evitar solapes con voz AI; se detendrá al primer audio.
   DateTime? _ringbackStartAt;
   DateTime? _playbackStartAt;
-  static const double _earlyUnmuteProgress = 0.65; // permitir hablar al 65% del audio
+  // Ajustado: permitir hablar antes para no recortar primeras sílabas del usuario
+  static const double _earlyUnmuteProgress = 0.48; // antes 0.65
   // Debug subtítulos
   final bool _subtitleDebug = false; // desactivado: logs de subtítulos silenciados
   int _lastLoggedSubtitleChars = 0;
@@ -57,6 +63,11 @@ class VoiceCallController {
   bool _isConnected = false;
   bool _isMuted = false; // estado actual de mute (usuario)
   String _currentVoice = 'alloy';
+  bool _micStarted = false; // micrófono aún no iniciado (diferido hasta start_call o audio IA)
+  bool _startingMic = false; // previene arranques concurrentes
+  DateTime? _lastMicStartAt;
+  bool _pendingSecondPhaseAudio = false; // reintento diferido de audio si fallback fue saltado
+  int _responseFailureCount = 0; // conteo de fallos de respuesta para reintentos
 
   // Captura de audio
   AudioRecorder? _recorder;
@@ -64,18 +75,23 @@ class VoiceCallController {
 
   // Seguimiento de la llamada (para resumen)
   DateTime? _callStartTime;
+  DateTime? get callStartTime => _callStartTime;
   final List<VoiceCallMessage> _callMessages = [];
   bool _userSpoke = false;
   bool _aiResponded = false;
+  bool get userSpokeFlag => _userSpoke;
+  bool get aiRespondedFlag => _aiResponded;
+  bool get firstAudioReceivedFlag => _firstAudioReceived; // nuevo getter para decidir si realmente contestó la IA
   // Auto-gain para mejorar claridad de ASR
   final bool _enableMicAutoGain = true;
   // Parámetros AGC (auto gain control) adaptativo
-  final double _agcTargetRms = 0.18; // objetivo un poco más alto para que no tengas que alzar la voz
-  final double _agcMaxGain = 5.0; // permitir más amplificación (antes 3x)
+  // AGC ajustado para reducir amplificación de ruido constante (ventilador) y bombeo
+  final double _agcTargetRms = 0.145; // antes 0.18
+  final double _agcMaxGain = 3.8; // antes 5.0
   double _agcNoiseFloorRms = 0.0; // estimación de ruido de fondo
   final double _agcNoiseFloorAlpha = 0.05; // suavizado del ruido
-  final double _agcAttack = 0.35; // rapidez aumentando ganancia
-  final double _agcRelease = 0.08; // rapidez reduciendo ganancia
+  final double _agcAttack = 0.25; // antes 0.35 (menos agresivo)
+  final double _agcRelease = 0.10; // antes 0.08 (algo más lento al bajar)
   double _agcCurrentGain = 1.0; // ganancia suavizada actual
 
   // AGC adaptativo: eleva voz baja sin subir mucho el ruido ni recortar picos
@@ -193,7 +209,7 @@ class VoiceCallController {
   // ========== MICROPHONE CAPTURE ==========
 
   Future<void> _startMicrophoneCapture() async {
-    debugPrint('🎤 Starting microphone capture (simple)...');
+    debugPrint('🎤 Starting microphone capture (low-level)...');
     _recorder ??= AudioRecorder();
     try {
       final hasPermission = await _recorder!.hasPermission();
@@ -226,9 +242,41 @@ class VoiceCallController {
         }
         _micLevelController.add((_isMuted || aiTalking) ? 0.0 : (level * 0.6));
       });
-      debugPrint('🎤 Microphone capture started (simple)');
+      debugPrint('🎤 Microphone capture started (low-level)');
     } catch (e) {
       debugPrint('❌ Error starting microphone: $e');
+    }
+  }
+
+  /// Wrapper con debounce/concurrency guard para iniciar el mic una sola vez.
+  Future<void> ensureMicStarted() async {
+    if (_micStarted) {
+      // Ya activo; opcionalmente refresh status
+      return;
+    }
+    if (_startingMic) {
+      // Otro flujo lo está iniciando: esperar breve
+      for (int i = 0; i < 15; i++) {
+        if (_micStarted) return;
+        await Future.delayed(const Duration(milliseconds: 20));
+      }
+      return; // salir aunque no haya arrancado para evitar bloqueo
+    }
+    final now = DateTime.now();
+    if (_lastMicStartAt != null && now.difference(_lastMicStartAt!) < const Duration(milliseconds: 600)) {
+      debugPrint('⏱️ Debounce mic start (último inicio hace <600ms)');
+      return;
+    }
+    _startingMic = true;
+    try {
+      await _startMicrophoneCapture();
+      _micStarted = true;
+      _lastMicStartAt = DateTime.now();
+      debugPrint('✅ Mic ensureMicStarted listo');
+    } catch (e) {
+      debugPrint('❌ ensureMicStarted fallo: $e');
+    } finally {
+      _startingMic = false;
     }
   }
 
@@ -278,7 +326,22 @@ class VoiceCallController {
     debugPrint('🛑 Stopping VoiceCallController (keepFxPlaying: $keepFxPlaying)');
     _shouldMuteMic = false;
     await _stopMicrophoneCapture();
-    await stopStreaming();
+    if (keepFxPlaying) {
+      // Evitar detener el reproductor principal para que el tono de colgado siga sonando.
+      // Solo marcamos flags de streaming como inactivos.
+      _isStreaming = false;
+      debugPrint('🎵 Manteniendo reproductor activo para FX (hangup tone)');
+      // Pero aseguramos que cualquier ringback residual se detenga para no solaparse con el tono de colgado
+      if (_ringbackActive) {
+        try {
+          await _stopRingback();
+        } catch (_) {}
+        _ringbackActive = false;
+        debugPrint('🔔 Ringback detenido durante stop(keepFxPlaying)');
+      }
+    } else {
+      await stopStreaming();
+    }
     _playbackTimer?.cancel();
     _playbackTimer = null;
     // Cancelar revelado progresivo si estaba activo para evitar que siga imprimiendo/logueando tras colgar
@@ -321,6 +384,42 @@ class VoiceCallController {
     }
   }
 
+  // ===== Ring entrante público =====
+  Future<void> startIncomingRing() async {
+    if (_ringbackActive) return;
+    try {
+      await _startRingback();
+      _ringbackActive = true;
+      _ringbackStartAt = DateTime.now();
+      debugPrint('📞 Incoming ring started');
+    } catch (e) {
+      debugPrint('Error starting incoming ring: $e');
+    }
+  }
+
+  Future<void> stopIncomingRing() async {
+    if (!_ringbackActive) return;
+    try {
+      await _stopRingback();
+    } catch (e) {
+      debugPrint('Error stopping incoming ring: $e');
+    }
+    _ringbackActive = false;
+    debugPrint('📞 Incoming ring stopped');
+  }
+
+  // Método genérico para detener ringback (entrante o saliente) si sigue activo
+  Future<void> stopRingback() async {
+    if (!_ringbackActive) return;
+    try {
+      await _stopRingback();
+    } catch (e) {
+      debugPrint('Error stopping ringback: $e');
+    }
+    _ringbackActive = false;
+    debugPrint('🔕 Ringback tone stopped (generic)');
+  }
+
   Future<void> _startRingback() async {
     try {
       final ringbackWav = ToneService.buildMelodicRingbackWav(sampleRate: _lastOutputSampleRate);
@@ -352,6 +451,10 @@ class VoiceCallController {
     dynamic recorder, // Para compatibilidad
     String model = 'gpt-4o-mini-realtime',
     String voice = 'alloy',
+    bool suppressInitialAiRequest = false, // nuevo: IA no habla hasta que user hable
+    bool playRingback = true, // nuevo: controlar si reproducir ringback (entrante respondida no)
+    bool twoPhaseInitial = true, // Opción 1: primera generación SOLO texto para permitir [end_call][/end_call]
+    Function(int attempt, int backoffMs)? onRetryScheduled, // notificar reintentos
   }) async {
     debugPrint('📞 Starting continuous call with model: $model, voice: $voice');
     _currentVoice = voice;
@@ -364,31 +467,35 @@ class VoiceCallController {
     _subtitleRevealIndex = 0;
     _fullAiText = '';
     _firstAudioReceived = false;
+    _responseFailureCount = 0;
 
-    // Micrófono activo desde el principio para no perder la primera palabra del usuario.
-    _isMuted = false;
-    _shouldMuteMic = false;
-    debugPrint('🎤 Mic activo desde inicio (no se pierde primera palabra usuario)');
+    // Mic diferido: no iniciamos captura hasta aceptación (start_call puro) o primer audio IA.
+    _isMuted = true; // lógicamente silenciado
+    _shouldMuteMic = true; // gate para no enviar nada todavía
+    debugPrint('🎤 Mic diferido (esperando start_call puro o audio IA)');
 
     try {
-      // Start ringback tone immediately
-      debugPrint('🎵 Starting ringback tone...');
-      await _startRingback();
-      _ringbackActive = true;
-      _ringbackStartAt = DateTime.now();
-      // Timeout de seguridad para ringback
-      Timer(Duration(milliseconds: _ringbackMaxMs), () {
-        if (_ringbackActive && !_firstAudioReceived) {
-          debugPrint('⏱️ Ringback timeout alcanzado, deteniendo tono');
-          _stopRingback();
-          _ringbackActive = false;
-          _flushBufferedTextIfAny();
-        }
-      });
+      if (playRingback) {
+        // Start ringback tone immediately
+        debugPrint('🎵 Starting ringback tone...');
+        await _startRingback();
+        _ringbackActive = true;
+        _ringbackStartAt = DateTime.now();
+        // Timeout de seguridad para ringback
+        Timer(Duration(milliseconds: _ringbackMaxMs), () {
+          if (_ringbackActive && !_firstAudioReceived) {
+            debugPrint('⏱️ Ringback timeout alcanzado, deteniendo tono');
+            _stopRingback();
+            _ringbackActive = false;
+            _flushBufferedTextIfAny();
+          }
+        });
+      }
 
       _client = OpenAIRealtimeClient(
         model: 'gpt-4o-realtime-preview',
         onText: (textDelta) {
+          if (_suppressFurtherAiText) return; // no pasar más texto a la UI tras end_call
           _uiOnText ??= onText;
           // Detectar inicio de una nueva respuesta AI (la anterior ya fue commit + playback terminó)
           if (!_aiMessagePendingCommit && _currentAiResponseText.isNotEmpty && !_isPlayingComplete) {
@@ -413,10 +520,15 @@ class VoiceCallController {
           _aiResponded = true;
           _aiMessagePendingCommit = true; // se añadirá al final
         },
-        onAudio: (audioChunk) {
+        onAudio: (audioChunk) async {
           if (!_shouldMuteMic) {
             _shouldMuteMic = true; // gate mic once AI audio starts
             if (kDebugMode) debugPrint('🔇 Mic gated (AI audio)');
+          }
+          if (!_micStarted) {
+            await ensureMicStarted();
+            _isMuted = true; // seguimos muted mientras IA habla
+            debugPrint('🎤 Mic iniciado (diferido) al recibir audio IA');
           }
           _handleStreamingAudioBytes(audioChunk);
           if (!_firstAudioReceived) {
@@ -448,6 +560,109 @@ class VoiceCallController {
         },
         onError: (error) {
           debugPrint('❌ Realtime client error: $error');
+          final msg = error.toString();
+          if (msg.contains('response_failed:')) {
+            // Parsear código y mensaje
+            final m = RegExp(r'response_failed:([^ ]*)\s*(.*)').firstMatch(msg);
+            final code = (m != null ? m.group(1) : '')?.trim() ?? '';
+            final detail = (m != null ? m.group(2) : '')?.trim() ?? '';
+            final lowerCode = code.toLowerCase();
+            final lowerDetail = detail.toLowerCase();
+            String reasonCategory = 'model_server_error';
+            if (lowerCode.contains('policy') || lowerDetail.contains('policy') || lowerDetail.contains('safety')) {
+              reasonCategory = 'policy_violation';
+            } else if (lowerCode.contains('rate') || lowerDetail.contains('rate limit')) {
+              reasonCategory = 'rate_limit';
+            }
+            if (reasonCategory == 'policy_violation') {
+              // Detener inmediatamente (no reintentar)
+              if (_ringbackActive) {
+                try {
+                  _stopRingback();
+                } catch (_) {}
+                _ringbackActive = false;
+              }
+              try {
+                onHangupReason?.call('policy_violation');
+              } catch (_) {}
+              return;
+            }
+            _responseFailureCount++;
+            final maxRetries = 2;
+            final isFinal = _responseFailureCount > maxRetries;
+            if (isFinal) {
+              // Colgar con razón específica
+              if (_ringbackActive) {
+                try {
+                  _stopRingback();
+                } catch (_) {}
+                _ringbackActive = false;
+              }
+              try {
+                onHangupReason?.call(reasonCategory);
+              } catch (_) {}
+            } else {
+              // Reintento suave: pedir nueva respuesta (mantener subtítulos intactos)
+              final backoffMs = 200 + (_responseFailureCount * 250);
+              debugPrint(
+                '🔁 Reintentando respuesta tras fallo ($reasonCategory) intento=$_responseFailureCount en ${backoffMs}ms',
+              );
+              try {
+                onRetryScheduled?.call(_responseFailureCount, backoffMs);
+              } catch (_) {}
+              Future.delayed(Duration(milliseconds: backoffMs), () {
+                if (_client != null && _isConnected) {
+                  _client!.requestResponse(audio: true, text: true);
+                }
+              });
+            }
+          }
+          // Errores de conexión / socket genéricos (no response_failed)
+          else {
+            final lower = msg.toLowerCase();
+            final isConn =
+                lower.contains('socket') ||
+                lower.contains('websocket') ||
+                lower.contains('connection') ||
+                lower.contains('network') ||
+                lower.contains('handshake') ||
+                lower.contains('timed out') ||
+                lower.contains('timeout');
+            if (isConn) {
+              // Intento único de reconectar ligero si todavía no hubo audio ni conversación
+              if (_responseFailureCount == 0 && !_firstAudioReceived && !_userSpoke) {
+                debugPrint('🔌 Conexión perdida temprano -> intento reconexión suave en 400ms');
+                Future.delayed(const Duration(milliseconds: 400), () async {
+                  if (_disposed) return;
+                  try {
+                    if (_client != null && !_client!.isConnected) {
+                      await _client!.connect(
+                        systemPrompt: systemPrompt,
+                        voice: _currentVoice,
+                        inputAudioFormat: 'pcm16',
+                        outputAudioFormat: 'pcm16',
+                        turnDetectionType: 'server_vad',
+                        silenceDurationMs: 480,
+                      );
+                      _isConnected = true;
+                      debugPrint('🔄 Reconexión completada');
+                      return; // no colgar
+                    }
+                  } catch (e) {
+                    debugPrint('❌ Falló reconexión: $e');
+                  }
+                  // Si falla reconexión, notificar hangup por conexión
+                  try {
+                    onHangupReason?.call('connection_error');
+                  } catch (_) {}
+                });
+              } else {
+                try {
+                  onHangupReason?.call('connection_error');
+                } catch (_) {}
+              }
+            }
+          }
         },
         onUserTranscription: (transcription) {
           debugPrint('🎤 User transcription received: "$transcription"');
@@ -464,6 +679,16 @@ class VoiceCallController {
         },
         onCompleted: () {
           debugPrint('🤖 AI response complete - starting playback');
+          // Reintento diferido: si pedimos audio en fallback pero se omitió por respuesta activa
+          if (_pendingSecondPhaseAudio && !_firstAudioReceived && _continuousAudioBuffer.isEmpty) {
+            debugPrint('🔁 Reintento segunda fase: primera respuesta terminó sin audio');
+            _pendingSecondPhaseAudio = false;
+            Future.delayed(const Duration(milliseconds: 70), () {
+              if (_client != null && _isConnected) {
+                _client!.requestResponse(audio: true, text: true);
+              }
+            });
+          }
           // Commit único del mensaje AI (texto consolidado)
           if (_aiMessagePendingCommit) {
             final txt = _currentAiResponseText.trim();
@@ -483,22 +708,116 @@ class VoiceCallController {
         outputAudioFormat: 'pcm16',
         // Usamos VAD del servidor para commits automáticos
         turnDetectionType: 'server_vad',
-        silenceDurationMs: 700,
+        silenceDurationMs: 480, // antes 700 (menor latencia de cierre de turno)
       );
 
       _isConnected = true;
 
-      // Start audio input capture BEFORE stopping ringback
-      await _startMicrophoneCapture();
+      // Diferimos captura de micrófono hasta aceptación / primer audio IA
       await startStreaming();
 
-      // Iniciar IA mientras suena ringback
-      debugPrint('🎤 Starting AI response generation during ringback...');
-      if (_client != null) {
-        // Trigger AI to start conversation with a greeting DURING ringback
-        _client!.requestResponse(audio: true, text: true);
+      if (!suppressInitialAiRequest) {
+        // Opción 1: fase inicial solo texto para permitir rechazo inmediato con etiqueta limpia
+        if (twoPhaseInitial) {
+          debugPrint('🟢 Two-phase start: solicitando primera respuesta SOLO texto');
+          bool gotPureEndCall = false;
+          bool gotPureStartCall = false;
+          bool gotImplicitReject = false; // texto inesperado en lugar de start_call / end_call
+          // Enlazar un listener temporal para detectar etiqueta pura rápida
+          final completer = Completer<void>();
+          void tempListener(String delta) {
+            final t = delta.trim();
+            if (t.isEmpty) return;
+            if (t == '[end_call][/end_call]' || t == '[end_call]' || t == '[/end_call]') {
+              gotPureEndCall = true;
+              if (!completer.isCompleted) completer.complete();
+              return;
+            }
+            if (t == '[start_call][/start_call]' || t == '[start_call]' || t == '[/start_call]') {
+              gotPureStartCall = true;
+              if (!completer.isCompleted) completer.complete();
+              return;
+            }
+            // Cualquier otro texto en la PRIMERA respuesta (fase texto) implica que el modelo no siguió protocolo.
+            // Requerimiento: tratarlo como si hubiese enviado end_call (rechazo).
+            gotImplicitReject = true;
+            gotPureEndCall = true; // forzar que no se solicite audio
+            if (!completer.isCompleted) completer.complete();
+          }
+
+          // Re-asignar callback temporalmente (encapsulado)
+          final originalUiOnText = _uiOnText; // podría ser null todavía
+          _uiOnText = (s) {
+            final beforeImplicit = gotImplicitReject;
+            tempListener(s);
+            final becameImplicit = !beforeImplicit && gotImplicitReject;
+            // Solo reenviar a UI si NO se convirtió en rechazo implícito (para no mostrar texto basura)
+            if (!becameImplicit) {
+              try {
+                if (originalUiOnText != null) originalUiOnText(s);
+              } catch (_) {}
+            }
+          };
+          _safeRequestResponse(audio: false, text: true, ctx: 'twoPhaseInitial-phase1');
+          // Esperar breve ventana para ver si el modelo emite la etiqueta pura (evitar bloquear indefinidamente)
+          try {
+            await completer.future.timeout(const Duration(milliseconds: 900));
+          } catch (_) {}
+          // Restaurar callback original (para no interceptar la segunda fase)
+          _uiOnText = originalUiOnText;
+          if (gotPureEndCall) {
+            if (gotImplicitReject) {
+              debugPrint(
+                '� Primera respuesta inesperada (sin start_call puro) -> rechazo implícito simulado como end_call.',
+              );
+              // Enviar etiqueta end_call a la UI ahora que el callback original está restaurado
+              try {
+                onText('[end_call][/end_call]');
+              } catch (_) {}
+            } else {
+              debugPrint('🔴 Pure [end_call][/end_call] detectada en fase texto: no se pedirá audio.');
+              // BUGFIX: antes no se propagaba la etiqueta a la UI, impidiendo el colgado.
+              // Inyectamos la etiqueta para que la UI ejecute la lógica de rechazo.
+              try {
+                onText('[end_call][/end_call]');
+              } catch (_) {}
+              // Detener ringback si seguía activo
+              if (playRingback && _ringbackActive) {
+                try {
+                  await _stopRingback();
+                  _ringbackActive = false;
+                  debugPrint('🔕 Ringback detenido tras end_call temprano');
+                } catch (_) {}
+              }
+            }
+            // No se inicia segunda fase; la UI colgará al detectar etiqueta (inyectada o real).
+          } else if (gotPureStartCall) {
+            debugPrint('🟢 start_call puro -> solicitando audio IA y activando mic (diferido)');
+            _safeRequestResponse(audio: true, text: true, ctx: 'twoPhaseInitial-start_call');
+            if (!_micStarted) {
+              await ensureMicStarted();
+              _isMuted = false; // permitir hablar ya (gating se maneja con _shouldMuteMic)
+              _shouldMuteMic = true; // mantener gate hasta que IA termine primer turno
+              debugPrint('🎤 Mic iniciado tras start_call puro');
+            }
+            if (playRingback) debugPrint('🎵 Ringback activo hasta primer audio o timeout (tras start_call)...');
+          } else {
+            // Timeout sin etiqueta alguna: continuar como antes pidiendo audio (modelo quizá hable directamente en audio)
+            debugPrint('🟡 Sin etiqueta start/end en fase inicial -> solicitando audio (fallback)');
+            _safeRequestResponse(audio: true, text: true, ctx: 'twoPhaseInitial-fallback-noTag');
+            // Marcar reintento diferido, asumimos que la respuesta seguía activa
+            _pendingSecondPhaseAudio = true;
+            if (playRingback) debugPrint('🎵 Ringback activo hasta primer audio o timeout...');
+          }
+        } else {
+          // Comportamiento anterior (una sola petición audio+texto)
+          debugPrint('🎤 Starting AI response generation during ringback (single-phase)...');
+          _safeRequestResponse(audio: true, text: true, ctx: 'singlePhase-initial');
+          if (playRingback) debugPrint('🎵 Ringback activo hasta primer audio o timeout...');
+        }
+      } else {
+        debugPrint('⏳ Modo incoming: IA esperará primera intervención del usuario.');
       }
-      debugPrint('🎵 Ringback activo hasta primer audio o timeout...');
 
       debugPrint('✅ Continuous call started successfully');
 
@@ -514,9 +833,103 @@ class VoiceCallController {
   void setVoice(String voice) {
     _currentVoice = voice;
     debugPrint('🎵 Voice set to: $_currentVoice');
-
     if (_client != null && _isConnected) {
-      _client!.updateVoice(voice);
+      try {
+        _client!.updateVoice(voice);
+      } catch (e) {
+        debugPrint('⚠️ updateVoice seguro falló: $e');
+      }
+    } else {
+      debugPrint('⚠️ updateVoice ignorado: cliente no conectado');
+    }
+  }
+
+  // Solicita inmediatamente una respuesta con audio (se ignora si ya hay una activa)
+  void requestImmediateAudioResponse({bool includeText = true}) {
+    if (_client == null || !_isConnected) {
+      debugPrint('⚠️ requestImmediateAudioResponse ignorado: cliente nulo o desconectado');
+      return;
+    }
+    debugPrint('⚡ Forzando requestResponse(audio: true, text: $includeText) tras start_call');
+    _safeRequestResponse(audio: true, text: includeText, ctx: 'immediateAudio');
+  }
+
+  // Activar supresión de texto AI (tras detección de end_call en cualquier capa)
+  void suppressFurtherAiText() {
+    if (!_suppressFurtherAiText) {
+      debugPrint('[AI-chan][VoiceCall] Supresión de texto AI activada (end_call)');
+      _suppressFurtherAiText = true;
+    }
+  }
+
+  // ===== Wrappers seguros para requestResponse =====
+  void _safeRequestResponse({required bool audio, required bool text, String ctx = 'unknown'}) {
+    final c = _client;
+    if (c == null) {
+      debugPrint('🚫 requestResponse($audio,$text) abortado: _client=null (ctx=$ctx)');
+      return;
+    }
+    if (!_isConnected) {
+      debugPrint('🚫 requestResponse($audio,$text) abortado: _isConnected=false (ctx=$ctx)');
+      return;
+    }
+    try {
+      c.requestResponse(audio: audio, text: text);
+    } catch (e, st) {
+      debugPrint('❌ requestResponse fallo (ctx=$ctx): $e\n$st');
+    }
+  }
+
+  // Detener inmediatamente cualquier reproducción de audio AI en curso (para ocultar pronunciación de end_call)
+  Future<void> stopCurrentAiPlayback() async {
+    try {
+      if (_isPlayingComplete) {
+        await _audioPlayer.stop();
+        _isPlayingComplete = false;
+        debugPrint('[AI-chan][VoiceCall] Playback AI detenido inmediatamente por end_call');
+      }
+      // Limpiar buffer restante para evitar que se reprograme
+      _continuousAudioBuffer.clear();
+    } catch (e) {
+      debugPrint('[AI-chan][VoiceCall] Error deteniendo playback inmediato: $e');
+    }
+  }
+
+  // Descartar audio acumulado antes de que se inicie playback (se invoca al detectar plain end_call durante generación)
+  void discardPendingAiAudio() {
+    if (_continuousAudioBuffer.isNotEmpty) {
+      debugPrint('[AI-chan][VoiceCall] Descartando audio AI acumulado (plain end_call) antes de reproducir');
+      _continuousAudioBuffer.clear();
+    }
+  }
+
+  // Descarta cualquier texto AI acumulado hasta ahora si contiene artefactos de start_call.
+  // Se usa cuando llega una etiqueta [start_call] con texto adicional que decidimos ignorar.
+  void discardAiTextIfStartCallArtifact() {
+    final hasStart =
+        _currentAiResponseText.contains('[start_call') || _pendingAiTextSegments.any((s) => s.contains('[start_call'));
+    if (!hasStart) return;
+    debugPrint('🧽 Descargando buffer AI por start_call con texto (no se mostrará ni guardará)');
+    _currentAiResponseText = '';
+    _pendingAiTextSegments.clear();
+    _fullAiText = '';
+  }
+
+  // Salvage: si llega etiqueta start_call acompañada de texto (contaminada) igual la tomamos como aceptación
+  // y disparamos (o programamos) la petición de audio. Replica la lógica del start_call puro pero
+  // sin depender de que la respuesta actual haya terminado.
+  Future<void> salvageStartCallAfterContaminatedTag() async {
+    debugPrint('🛠️ Salvage start_call contaminado -> solicitar audio IA');
+    // Si ya hay una response activa, marcaremos reintento diferido para que onCompleted vuelva a pedir audio
+    _pendingSecondPhaseAudio = true;
+    // Intento inmediato (será ignorado si _hasActiveResponse=true en el cliente)
+    requestImmediateAudioResponse(includeText: true);
+    // Iniciar mic diferido si aún no
+    if (!_micStarted) {
+      await ensureMicStarted();
+      _isMuted = true; // mantener muted hasta que llegue el primer audio IA real
+      _shouldMuteMic = true;
+      debugPrint('🎤 Mic iniciado (salvage) a la espera de audio IA');
     }
   }
 
@@ -693,6 +1106,8 @@ class VoiceCallController {
 
       // Play the complete file
       await _audioPlayer.play(DeviceFileSource(tempFile.path));
+      _audioStartedForCurrentResponse = true; // habilita subtítulos
+      _isPlayingComplete = true;
 
       // Wait for playback to complete (estimate duration)
       final durationMs = (((_continuousAudioBuffer.length / 2) / 24000) * 1000).round();
@@ -726,6 +1141,7 @@ class VoiceCallController {
       _playbackTimer = Timer(Duration(milliseconds: durationMs + 200), () {
         debugPrint('🎵 Complete audio playback finished');
         _isPlayingComplete = false;
+        _audioStartedForCurrentResponse = false; // cerrar gating para siguiente respuesta
         _continuousAudioBuffer.clear();
         _shouldMuteMic = false;
         _isMuted = false;
@@ -744,6 +1160,13 @@ class VoiceCallController {
 
   void _startSubtitleReveal(int durationMs) {
     if (_pendingAiTextSegments.isEmpty || _uiOnText == null) return;
+    // No iniciar revelado si aún no comenzó audio real (evita subtítulos "silenciosos")
+    if (!_audioStartedForCurrentResponse) {
+      if (_subtitleDebug) {
+        debugPrint('⏸️ [SUB] Bloqueado inicio revelado: audio aún no ha comenzado');
+      }
+      return;
+    }
     _fullAiText = _pendingAiTextSegments.join('');
     final totalChars = _fullAiText.length;
     if (totalChars == 0) return;
@@ -759,7 +1182,7 @@ class VoiceCallController {
     } catch (_) {}
     if (durationMs < 600) {
       // audio muy corto -> mostrar todo
-      _uiOnText!(_fullAiText);
+      _emitUiTextSafely(_fullAiText);
       if (_subtitleDebug) {
         debugPrint('⚡ [SUB] Audio corto (${durationMs}ms). Mostrar todo ($totalChars chars)');
       }
@@ -789,11 +1212,25 @@ class VoiceCallController {
       if (targetChars < _subtitleRevealIndex) targetChars = _subtitleRevealIndex; // nunca retroceder
       final maxGrow = 28; // hard cap para no saltar de golpe textos muy largos
       if (targetChars > _subtitleRevealIndex + maxGrow) targetChars = _subtitleRevealIndex + maxGrow;
+      // Clamp absoluto contra longitud actual (por si se acortó inesperadamente)
+      final safeTotal = _fullAiText.length;
+      if (targetChars > safeTotal) targetChars = safeTotal;
       if (targetChars > _subtitleRevealIndex) {
         _subtitleRevealIndex = targetChars;
-        _uiOnText!(_fullAiText.substring(0, _subtitleRevealIndex));
+        try {
+          final end = _subtitleRevealIndex.clamp(0, _fullAiText.length);
+          _emitUiTextSafely(_fullAiText.substring(0, end));
+        } catch (e) {
+          if (_subtitleDebug) debugPrint('⚠️ [SUB] substring error (tick): $e');
+        }
         if (_subtitleDebug) {
-          final snippet = _fullAiText.substring(0, _subtitleRevealIndex).replaceAll('\n', ' ');
+          String snippet;
+          try {
+            final end = _subtitleRevealIndex.clamp(0, _fullAiText.length);
+            snippet = _fullAiText.substring(0, end).replaceAll('\n', ' ');
+          } catch (_) {
+            snippet = '[range-error]';
+          }
           final advancedEnough = _subtitleRevealIndex - _lastLoggedSubtitleChars >= 12;
           if (advancedEnough || _subtitleRevealIndex == totalChars) {
             debugPrint(
@@ -808,7 +1245,11 @@ class VoiceCallController {
         _subtitleRevealTimer = null;
         if (_subtitleRevealIndex < totalChars) {
           _subtitleRevealIndex = totalChars;
-          _uiOnText!(_fullAiText);
+          try {
+            _emitUiTextSafely(_fullAiText);
+          } catch (e) {
+            if (_subtitleDebug) debugPrint('⚠️ [SUB] final emit error: $e');
+          }
         }
         if (_subtitleDebug) {
           debugPrint('🏁 [SUB] Revelado completo (proporcional)');
@@ -1159,24 +1600,37 @@ class VoiceCallController {
 
   // ===== Filtrado de transcripciones de usuario =====
   final List<RegExp> _bannedTranscriptPatterns = [
+    // Frases típicas que aparecen erróneamente por modelos entrenados con videos
     RegExp(r'Subt[ií]tulos por la comunidad de Amara', caseSensitive: false),
+    RegExp(r'Subt[ií]tulos generados autom[aá]ticamente', caseSensitive: false),
+    RegExp(r'Suscr[ií]bete', caseSensitive: false),
+    RegExp(r'No olvides suscribirte', caseSensitive: false),
+    RegExp(r'Dale like', caseSensitive: false),
+    RegExp(r'Activa la campanita', caseSensitive: false),
+    RegExp(r'Comparte el video', caseSensitive: false),
+    RegExp(r'Ap[oó]yanos con un like', caseSensitive: false),
     RegExp(r'^¿?Viemos\??$', caseSensitive: false),
   ];
   String? _filterUserTranscript(String raw) {
     final t = raw.trim();
     if (t.isEmpty) return null;
     for (final p in _bannedTranscriptPatterns) {
-      if (p.hasMatch(t)) return null;
+      if (p.hasMatch(t)) return null; // descartar frase típica irrelevante
     }
-    if (t.length <= 2 && !RegExp(r'[aeiouáéíóú]').hasMatch(t.toLowerCase())) return null;
+    // Permitir muletillas/fillers cortos comunes que ayudan a no recortar inicio de turno
+    const fillers = {'m', 'mm', 'mmm', 'eh', 'ehm', 'em', 'hm', 'uh', 'ah'};
+    if (t.length <= 2 && !RegExp(r'[aeiouáéíóú]').hasMatch(t.toLowerCase())) {
+      if (!fillers.contains(t.toLowerCase())) return null;
+    }
     return t;
   }
 
   void _emitFullSubtitleIfPending() {
+    if (_disposed) return;
     if (_uiOnText != null && _fullAiText.isNotEmpty) {
-      _uiOnText!(_fullAiText);
+      _emitUiTextSafely(_fullAiText);
     } else if (_uiOnText != null && _pendingAiTextSegments.isNotEmpty) {
-      _uiOnText!(_pendingAiTextSegments.join(''));
+      _emitUiTextSafely(_pendingAiTextSegments.join(''));
     }
     _pendingAiTextSegments.clear();
   }
@@ -1237,12 +1691,37 @@ class VoiceCallController {
   }
 
   void dispose() {
+    _disposed = true;
     _stopMicrophoneCapture();
     _audioPlayer.dispose();
     _ringPlayer.dispose();
     _recorder?.dispose();
     _micLevelController.close();
     _playbackTimer?.cancel();
+    try {
+      _subtitleRevealTimer?.cancel();
+    } catch (_) {}
+    _uiOnText = null; // liberar callback para GC
+  }
+
+  // ====== Emisión segura a la UI (previene TypeError por null check) ======
+  void _emitUiTextSafely(String text) {
+    // Gating adicional: si no hay audio en curso (o aún no inició para esta respuesta) y no es sentinel, bloquear
+    if (text != '__REVEAL__' && !_audioStartedForCurrentResponse) {
+      if (_subtitleDebug) {
+        debugPrint('🚫 [SUB] Bloqueado texto sin audio: len=${text.length}');
+      }
+      return;
+    }
+    if (_disposed) return; // no emitir tras dispose
+    if (_suppressFurtherAiText) return; // suprimido por protocolo end_call
+    final cb = _uiOnText;
+    if (cb == null) return;
+    try {
+      cb(text);
+    } catch (e, st) {
+      debugPrint('⚠️ Error emitiendo texto UI: $e\n$st');
+    }
   }
 
   // ==== API de depuración / análisis: obtener mapeo aproximado audio<->subtítulos ====

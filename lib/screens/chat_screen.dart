@@ -237,6 +237,22 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final chatProvider = context.watch<ChatProvider>();
     final aiName = widget.aiName;
+    // Detectar llamada entrante pendiente y abrir pantalla si aún no está abierta
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (chatProvider.hasPendingIncomingCall) {
+        // Abrir VoiceCallChat en modo incoming solo si no hay ya otra ruta de llamada
+        final navigator = Navigator.of(context);
+        final alreadyOpen = navigator.widget is VoiceCallChat; // heurístico simple
+        if (!alreadyOpen) {
+          final existing = context.read<ChatProvider>();
+          navigator.push(
+            MaterialPageRoute(
+              builder: (_) => ChangeNotifierProvider.value(value: existing, child: const VoiceCallChat(incoming: true)),
+            ),
+          );
+        }
+      }
+    });
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(

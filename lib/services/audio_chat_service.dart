@@ -30,6 +30,13 @@ class AudioChatService {
   final AudioPlayer _audioPlayer = AudioPlayer();
   String? _currentPlayingId;
   bool isPlayingMessage(Message m) => _currentPlayingId == m.audioPath;
+  // Tracking posición/duración para subtítulos flotantes
+  Duration _currentPosition = Duration.zero;
+  Duration _currentDuration = Duration.zero;
+  Duration get currentPosition => _currentPosition;
+  Duration get currentDuration => _currentDuration;
+  StreamSubscription<Duration>? _posSub;
+  StreamSubscription<Duration>? _durSub;
 
   final OnStateChanged onStateChanged;
   final OnWaveformUpdate onWaveform;
@@ -202,21 +209,48 @@ class AudioChatService {
     if (_currentPlayingId == msg.audioPath) {
       await _audioPlayer.stop();
       _currentPlayingId = null;
+      _currentPosition = Duration.zero;
+      _currentDuration = Duration.zero;
+      await _posSub?.cancel();
+      await _durSub?.cancel();
       onState();
       return;
     }
     try {
       await _audioPlayer.stop();
       _currentPlayingId = msg.audioPath;
+      _currentPosition = Duration.zero;
+      _currentDuration = Duration.zero;
+      await _posSub?.cancel();
+      await _durSub?.cancel();
       await _audioPlayer.play(DeviceFileSource(msg.audioPath!));
-      _audioPlayer.onPlayerComplete.listen((event) {
+      _durSub = _audioPlayer.onDurationChanged.listen((d) {
+        _currentDuration = d;
+        onState();
+      });
+      _posSub = _audioPlayer.onPositionChanged.listen((p) {
+        _currentPosition = p;
+        onState();
+      });
+      _audioPlayer.onPlayerComplete.listen((event) async {
         _currentPlayingId = null;
+        _currentPosition = _currentDuration;
+        try {
+          await _posSub?.cancel();
+        } catch (_) {}
+        try {
+          await _durSub?.cancel();
+        } catch (_) {}
         onState();
       });
       onState();
     } catch (e) {
       debugPrint('[Audio] Play error: $e');
       _currentPlayingId = null;
+      _currentPosition = Duration.zero;
+      _currentDuration = Duration.zero;
+      await _posSub?.cancel();
+      await _durSub?.cancel();
       onState();
     }
   }
@@ -235,6 +269,12 @@ class AudioChatService {
   void dispose() {
     _partialTxTimer?.cancel();
     _ampSub?.cancel();
+    try {
+      _posSub?.cancel();
+    } catch (_) {}
+    try {
+      _durSub?.cancel();
+    } catch (_) {}
     _audioPlayer.dispose();
   }
 }

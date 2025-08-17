@@ -16,21 +16,31 @@ class VoiceCallSummaryService {
     try {
       final instrucciones =
           '''
-Eres un asistente especializado en resumir llamadas de voz. Tu tarea es crear un resumen natural y fluido en español de la conversación telefónica SOLO si hubo contenido útil o significativo.
+Eres un analista de llamadas y debes producir un resumen breve EN ESPAÑOL SOLO cuando exista contenido con significado.
 
-Si la llamada NO tuvo contenido útil (solo saludos, pruebas de audio, ruido, palabras sueltas sin sentido, o conversación muy breve sin sustancia), responde exactamente: "SIN_CONTENIDO"
+CUÁNDO RESUMIR (produce 2‑4 oraciones naturales):
+Debe cumplirse AL MENOS UNO:
+1. Se abordó un tema, problema, duda, idea, plan o decisión (más allá de saludo/prueba).
+2. Hubo intercambio con al menos 2 turnos del usuario que aportan nueva información (no solo "hola", "¿me oyes?", "probando").
+3. Se expresaron emociones u opiniones (ej: preocupación, interés, agrado, frustración) relacionadas con algo concreto.
+4. Se pactó o insinuó una acción futura, próxima consulta, tarea, recordatorio, seguimiento o compromiso.
 
-Si SÍ hubo contenido útil, describe de forma clara y concisa:
-• Los temas principales que se discutieron
-• Las decisiones o acuerdos importantes
-• El tono emocional de la conversación
-• Cualquier plan o promesa mencionada
+CUÁNDO NO RESUMIR (responde EXACTAMENTE "SIN_CONTENIDO"):
+• Solo saludos iniciales / despedidas.
+• Solo pruebas de audio: "hola", "probando", "¿me escuchas?", "funciona", ecos, ruidos.
+• Palabras sueltas o frases inconexas sin un tema claro.
+• Duración efectiva con habla significativa < 5 segundos de contenido útil.
 
-El resumen debe ser como si alguien te preguntara "¿de qué hablaron en la llamada?" - responde de forma natural en 2-4 oraciones.
+ESTILO DEL RESUMEN (cuando procede):
+• 2‑4 oraciones fluidas en español neutro.
+• Usa SIEMPRE los nombres reales: usuario = ${profile.userName.trim()}, IA = ${profile.aiName.trim()}.
+• Incluye: (a) tema(s) central(es); (b) acuerdos/decisiones o próxima acción; (c) tono emocional si es relevante.
+• No enumeres con viñetas, no uses encabezados, no cites textualmente salvo que una frase sea esencial.
+• No inventes detalles; si algo solo se insinuó, usa formulaciones prudentes ("se comentó la posibilidad de...").
 
-Usa SIEMPRE los nombres reales: usuario = ${profile.userName.trim()}, IA = ${profile.aiName.trim()}.
-
-Responde únicamente con el resumen en texto natural o "SIN_CONTENIDO", sin formato JSON ni estructura especial.
+FORMATO DE SALIDA:
+• Únicamente el texto del resumen O la cadena exacta "SIN_CONTENIDO".
+• No añadas prefijos, etiquetas, JSON ni markdown.
 ''';
 
       final response = await AIService.sendMessage(
@@ -39,18 +49,17 @@ Responde únicamente con el resumen en texto natural o "SIN_CONTENIDO", sin form
           profile: profile,
           dateTime: DateTime.now(),
           recentMessages: voiceMessages,
-          instructions: instrucciones,
+          instructions: {'raw': instrucciones},
         ),
         // Usar el modelo configurado en .env en lugar de hardcodeado
       );
 
       final summaryText = response.text.trim();
 
-      // Si la IA determinó que no hay contenido útil, devolver cadena vacía
+      // Si la IA dijo SIN_CONTENIDO o devolvió vacío => no guardar
       if (summaryText == 'SIN_CONTENIDO' || summaryText.isEmpty) {
         return '';
       }
-
       return summaryText;
     } catch (e) {
       // Fallback más inteligente - analizar si hay contenido útil

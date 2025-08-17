@@ -218,7 +218,7 @@ Identidad: $aiIdentityInstructions
       aiCountryCode: aiCountryCode?.toUpperCase(),
     ),
     dateTime: DateTime.now(),
-    instructions: "${systemPrompt.trim()}\n\n${bioPrompt.trim()}",
+    instructions: {'raw': "${systemPrompt.trim()}\n\n${bioPrompt.trim()}"},
   );
   // Generación con reintentos: exigimos JSON válido (sin 'raw')
   const int maxAttempts = 3;

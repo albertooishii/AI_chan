@@ -35,7 +35,7 @@ class MemorySummaryService {
       profile: minimalProfile,
       dateTime: DateTime.now(),
       recentMessages: recentMessages,
-      instructions: instrucciones,
+      instructions: {'raw': instrucciones},
     );
     final response = await AIService.sendMessage([], systemPrompt, model: superblockModel);
     final resumenJson = extractJsonBlock(response.text.trim());

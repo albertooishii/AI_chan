@@ -136,7 +136,7 @@ ${bio.biography}
         timeline: [],
       ),
       dateTime: DateTime.now(),
-      instructions: prompt,
+      instructions: {'raw': prompt},
     );
     // Reintentos con el mismo prompt/modelo para obtener JSON válido
     debugPrint('[IAAppearanceGenerator] Apariencia: intentos JSON (max=3) con modelo $usedModel');
@@ -187,7 +187,7 @@ ${bio.biography}
         timeline: [],
       ),
       dateTime: DateTime.now(),
-      instructions: imagePrompt,
+      instructions: {'raw': imagePrompt},
     );
 
     final String forcedImageModel = dotenv.env['DEFAULT_IMAGE_MODEL'] ?? '';

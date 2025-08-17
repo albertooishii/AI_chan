@@ -57,8 +57,13 @@ class ChatProvider extends ChangeNotifier {
   /// - No usar enlaces/URLs, clics, Markdown, ni hablar de herramientas.
   /// - Estilo oral: frases cortas (2–8 s), pausas naturales, sin monólogos.
   /// - No presentarse como "asistente" o "IA"; mantener la misma persona del chat.
-  String buildCallSystemPromptJson({int maxRecent = 32}) =>
-      _promptBuilder.buildCallSystemPromptJson(profile: onboardingData, messages: messages, maxRecent: maxRecent);
+  String buildCallSystemPromptJson({int maxRecent = 32, required bool aiInitiatedCall}) =>
+      _promptBuilder.buildCallSystemPromptJson(
+        profile: onboardingData,
+        messages: messages,
+        maxRecent: maxRecent,
+        aiInitiatedCall: aiInitiatedCall,
+      );
 
   // Sanitización y construcción de prompts movidos a PromptBuilder
   // ...existing code...
@@ -342,10 +347,32 @@ class ChatProvider extends ChangeNotifier {
       status: MessageStatus.read,
     );
     messages.add(assistantMessage);
+    // Detección de llamada entrante cuando el modelo responde con el placeholder exacto
+    if (assistantMessage.text.trim() == '[call][/call]') {
+      pendingIncomingCallMsgIndex = messages.length - 1;
+      debugPrint('[AI-chan][Call] Placeholder de llamada entrante detectado (index=$pendingIncomingCallMsgIndex)');
+      // Notificar ya para que la UI abra la pantalla de llamada sin esperar al resto del post-procesado
+      notifyListeners();
+    }
     // Generar TTS solo si la IA explícitamente marca su respuesta como nota de voz
     try {
-      if (!assistantMessage.isAudio && assistantMessage.text.toLowerCase().contains('[audio]')) {
-        await generateTtsForMessage(assistantMessage);
+      if (!assistantMessage.isAudio) {
+        final lower = assistantMessage.text.toLowerCase();
+        final openTag = '[audio]';
+        final closeTag = '[/audio]';
+        final hasOpen = lower.contains(openTag);
+        final hasClose = lower.contains(closeTag);
+        if (hasOpen && hasClose) {
+          final start = lower.indexOf(openTag) + openTag.length;
+          final end = lower.indexOf(closeTag, start);
+          if (end > start) {
+            final inner = assistantMessage.text.substring(start, end).trim();
+            // Solo generar si hay texto real entre las etiquetas
+            if (inner.isNotEmpty) {
+              await generateTtsForMessage(assistantMessage);
+            }
+          }
+        }
       }
     } catch (_) {}
 
@@ -385,7 +412,10 @@ class ChatProvider extends ChangeNotifier {
       onboardingData = onboardingData.copyWith(timeline: result.timeline);
       superbloqueEntry = result.superbloqueEntry;
     }
-    notifyListeners();
+    // Si se agregó un placeholder de llamada entrante ya se notificó antes (evitamos doble render inmediato)
+    if (assistantMessage.text.trim() != '[call][/call]') {
+      notifyListeners();
+    }
   }
 
   // ================= NUEVO BLOQUE AUDIO =================
@@ -463,6 +493,8 @@ class ChatProvider extends ChangeNotifier {
   Future<void> togglePlayAudio(Message msg) => audioService.togglePlay(msg, () => notifyListeners());
 
   bool isPlaying(Message msg) => audioService.isPlayingMessage(msg);
+  Duration get playingPosition => audioService.currentPosition;
+  Duration get playingDuration => audioService.currentDuration;
 
   Future<void> generateTtsForMessage(Message msg, {String voice = 'nova'}) async {
     if (msg.sender != MessageSender.assistant || msg.isAudio) return;
@@ -486,6 +518,7 @@ class ChatProvider extends ChangeNotifier {
 
   /// Añade un mensaje del asistente directamente (p.ej., resumen de llamada de voz)
   Future<void> addAssistantMessage(String text, {bool isAudio = false}) async {
+    final isCallPlaceholder = text.trim() == '[call][/call]';
     final msg = Message(
       text: text,
       sender: MessageSender.assistant,
@@ -493,8 +526,13 @@ class ChatProvider extends ChangeNotifier {
       isImage: false,
       image: null,
       status: MessageStatus.read,
+      callStatus: isCallPlaceholder ? CallStatus.placeholder : null,
     );
     messages.add(msg);
+    // Detección de llamada entrante solicitada por la IA mediante [call][/call]
+    if (text.trim() == '[call][/call]') {
+      pendingIncomingCallMsgIndex = messages.length - 1;
+    }
     notifyListeners();
     // Actualizar memoria/cronología igual que tras respuestas IA normales
     try {
@@ -512,19 +550,41 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  /// Añade un mensaje de sistema directamente (p.ej., resumen de llamada como system)
-  Future<void> addSystemMessage(String text) async {
-    final msg = Message(
-      text: text,
-      sender: MessageSender.system,
-      dateTime: DateTime.now(),
-      isImage: false,
-      image: null,
-      status: MessageStatus.read,
-    );
-    messages.add(msg);
+  /// Crea o actualiza un mensaje de estado de llamada (rechazada, no contestada, cancelada, placeholder).
+  /// Nunca usa sender system; se asigna assistant para llamadas entrantes (placeholder original assistant) y user para salientes.
+  Future<void> updateOrAddCallStatusMessage({
+    required String text,
+    required CallStatus callStatus,
+    bool incoming = false,
+    int? placeholderIndex,
+  }) async {
+    // Determinar sender deseado
+    final MessageSender sender = incoming ? MessageSender.assistant : MessageSender.user;
+
+    // Si hay placeholder entrante y se pasa índice, reemplazarlo conservando fecha original si existe
+    if (placeholderIndex != null && placeholderIndex >= 0 && placeholderIndex < messages.length) {
+      final original = messages[placeholderIndex];
+      messages[placeholderIndex] = Message(
+        text: text,
+        sender: sender,
+        dateTime: original.dateTime,
+        status: MessageStatus.read,
+        callStatus: callStatus,
+      );
+      if (pendingIncomingCallMsgIndex == placeholderIndex) pendingIncomingCallMsgIndex = null;
+    } else {
+      // Añadir nuevo mensaje de estado
+      messages.add(
+        Message(
+          text: text,
+          sender: sender,
+          dateTime: DateTime.now(),
+          status: MessageStatus.read,
+          callStatus: callStatus,
+        ),
+      );
+    }
     notifyListeners();
-    // Actualizar memoria/cronología igual que tras respuestas IA normales
     try {
       final memoryService = MemorySummaryService(profile: onboardingData);
       final result = await memoryService.processAllSummariesAndSuperblock(
@@ -536,12 +596,16 @@ class ChatProvider extends ChangeNotifier {
       superbloqueEntry = result.superbloqueEntry;
       notifyListeners();
     } catch (e) {
-      debugPrint('[AI-chan][WARN] Falló actualización de memoria post-system: $e');
+      debugPrint('[AI-chan][WARN] Falló actualización de memoria post-updateCallStatus: $e');
     }
   }
 
   /// Añade un mensaje directamente (p.ej., resumen de llamada de voz)
   Future<void> addUserMessage(Message message) async {
+    // Completar callStatus si viene con duración y no está seteado
+    if (message.callDuration != null && message.callStatus == null) {
+      message = message.copyWith(callStatus: CallStatus.completed);
+    }
     messages.add(message);
     notifyListeners();
     // Actualizar memoria/cronología igual que tras respuestas IA normales
@@ -558,6 +622,87 @@ class ChatProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('[AI-chan][WARN] Falló actualización de memoria post-message: $e');
     }
+  }
+
+  // ======== Soporte llamada entrante ========
+  int? pendingIncomingCallMsgIndex; // índice del mensaje [call][/call] pendiente de contestar
+
+  bool get hasPendingIncomingCall => pendingIncomingCallMsgIndex != null;
+
+  void clearPendingIncomingCall() {
+    pendingIncomingCallMsgIndex = null;
+    notifyListeners();
+  }
+
+  /// Reemplaza el mensaje placeholder [call][/call] por el resumen final de la llamada.
+  void replaceIncomingCallPlaceholder({
+    required int index,
+    required VoiceCallSummary summary,
+    required String summaryText,
+  }) {
+    if (index < 0 || index >= messages.length) return;
+    final original = messages[index];
+    if (!original.text.contains('[call]')) return; // sanity
+    // Mantener el sender original (assistant) para diferenciar "recibida" en la UI.
+    messages[index] = Message(
+      text: summaryText,
+      sender: original.sender,
+      dateTime: summary.startTime,
+      callDuration: summary.duration,
+      callEndTime: summary.endTime,
+      status: MessageStatus.read,
+      callStatus: CallStatus.completed,
+    );
+    pendingIncomingCallMsgIndex = null;
+    notifyListeners();
+    // Actualizar memoria igual que otros mensajes
+    () async {
+      try {
+        final memoryService = MemorySummaryService(profile: onboardingData);
+        final result = await memoryService.processAllSummariesAndSuperblock(
+          messages: messages,
+          timeline: onboardingData.timeline,
+          superbloqueEntry: superbloqueEntry,
+        );
+        onboardingData = onboardingData.copyWith(timeline: result.timeline);
+        superbloqueEntry = result.superbloqueEntry;
+        notifyListeners();
+      } catch (e) {
+        debugPrint('[AI-chan][WARN] Falló actualización de memoria post-replace-call: $e');
+      }
+    }();
+  }
+
+  /// Marca una llamada entrante como rechazada antes de que hubiera conversación.
+  void rejectIncomingCallPlaceholder({required int index, String text = 'Llamada rechazada'}) {
+    if (index < 0 || index >= messages.length) return;
+    final original = messages[index];
+    if (!original.text.contains('[call]')) return;
+    messages[index] = Message(
+      text: text,
+      // Mantener el sender original (assistant) para reflejar que provino de llamada IA
+      sender: original.sender,
+      dateTime: DateTime.now(),
+      status: MessageStatus.read,
+      callStatus: text.toLowerCase().contains('no contestada') ? CallStatus.missed : CallStatus.rejected,
+    );
+    pendingIncomingCallMsgIndex = null;
+    notifyListeners();
+    () async {
+      try {
+        final memoryService = MemorySummaryService(profile: onboardingData);
+        final result = await memoryService.processAllSummariesAndSuperblock(
+          messages: messages,
+          timeline: onboardingData.timeline,
+          superbloqueEntry: superbloqueEntry,
+        );
+        onboardingData = onboardingData.copyWith(timeline: result.timeline);
+        superbloqueEntry = result.superbloqueEntry;
+        notifyListeners();
+      } catch (e) {
+        debugPrint('[AI-chan][WARN] Falló actualización de memoria post-reject-call: $e');
+      }
+    }();
   }
 
   int _imageRequestId = 0;

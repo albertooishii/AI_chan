@@ -485,41 +485,50 @@ class _RecordingOrTextBar extends StatelessWidget {
           tooltip: 'Foto o galería',
         ),
       ),
-      textInputAction: TextInputAction.newline,
+      // En móvil mantenemos botón "enviar" del teclado; en desktop/web usamos newline para gestionar atajos manualmente
+      textInputAction: isMobile ? TextInputAction.send : TextInputAction.newline,
+      onSubmitted: (_) async {
+        if (!isMobile) return; // Desktop/web: envío sólo vía shortcut Enter sin Shift
+        if (controller.text.trim().isNotEmpty || hasImage) {
+          await onSend();
+        }
+      },
       keyboardType: TextInputType.multiline,
       minLines: 1,
       maxLines: 8,
     );
-    if (!isMobile) {
-      field = Shortcuts(
-        shortcuts: <LogicalKeySet, Intent>{
-          LogicalKeySet(LogicalKeyboardKey.enter): const SendMessageIntent(),
-          LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.enter): const InsertNewlineIntent(),
+    // Atajos activos en todas las plataformas (teclado físico / desktop / web / móvil con teclado).
+    field = Shortcuts(
+      // Usamos SingleActivator para distinguir explícitamente Enter sin Shift vs Shift+Enter
+      shortcuts: <ShortcutActivator, Intent>{
+        const SingleActivator(LogicalKeyboardKey.enter): const SendMessageIntent(),
+        const SingleActivator(LogicalKeyboardKey.enter, shift: true): const InsertNewlineIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          SendMessageIntent: CallbackAction<SendMessageIntent>(
+            onInvoke: (intent) {
+              // Evitar enviar si está vacío y sin imagen
+              if (controller.text.trim().isEmpty && !hasImage) return null;
+              onSend();
+              return null;
+            },
+          ),
+          InsertNewlineIntent: CallbackAction<InsertNewlineIntent>(
+            onInvoke: (intent) {
+              final sel = controller.selection;
+              final start = sel.start >= 0 ? sel.start : controller.text.length;
+              final end = sel.end >= 0 ? sel.end : controller.text.length;
+              final newText = controller.text.replaceRange(start, end, '\n');
+              controller.text = newText;
+              controller.selection = TextSelection.collapsed(offset: start + 1);
+              return null;
+            },
+          ),
         },
-        child: Actions(
-          actions: <Type, Action<Intent>>{
-            SendMessageIntent: CallbackAction<SendMessageIntent>(
-              onInvoke: (intent) {
-                onSend();
-                return null;
-              },
-            ),
-            InsertNewlineIntent: CallbackAction<InsertNewlineIntent>(
-              onInvoke: (intent) {
-                final sel = controller.selection;
-                final start = sel.start >= 0 ? sel.start : controller.text.length;
-                final end = sel.end >= 0 ? sel.end : controller.text.length;
-                final newText = controller.text.replaceRange(start, end, '\n');
-                controller.text = newText;
-                controller.selection = TextSelection.collapsed(offset: start + 1);
-                return null;
-              },
-            ),
-          },
-          child: field,
-        ),
-      );
-    }
+        child: field,
+      ),
+    );
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
