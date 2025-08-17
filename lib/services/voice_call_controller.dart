@@ -10,10 +10,14 @@ import 'package:record/record.dart';
 import '../services/openai_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:ai_chan/constants/voices.dart';
+import '../constants/voices.dart';
+import '../services/google_speech_service.dart';
 import '../services/openai_realtime_client.dart';
 import '../services/tone_service.dart';
 import '../models/message.dart';
+import '../services/audio_playback_strategy_factory.dart';
+import '../models/realtime_provider.dart';
+import '../utils/log_utils.dart';
 
 class VoiceCallController {
   final OpenAIService openAIService;
@@ -461,19 +465,43 @@ class VoiceCallController {
   }) async {
     // Determinar voz efectiva: preferencia guardada -> argumento -> .env -> fallback lista
     String effectiveVoice = voice ?? _currentVoice;
+    final providerName = _getRealtimeProvider().name;
+    List<String> googleVoices = [];
+    if (providerName == 'google' && GoogleSpeechService.isConfigured) {
+      // Obtener voces femeninas filtradas para español (España)
+      try {
+        final fetchedVoices = await GoogleSpeechService.voicesForUserAndAi(['es-ES'], ['es-ES']);
+        googleVoices = fetchedVoices.map((v) => v['name'] as String).toList();
+      } catch (e) {
+        debugPrint('Error fetching Google voices: $e');
+      }
+    }
+    List<String> openaiVoices = kOpenAIVoices;
+    List<String> validVoices = providerName == 'google' ? googleVoices : openaiVoices;
     try {
       final prefs = await SharedPreferences.getInstance();
       final saved = prefs.getString('selected_voice');
-      if (saved != null && kAvailableVoices.contains(saved)) {
+      if (saved != null && validVoices.contains(saved)) {
         effectiveVoice = saved;
       }
     } catch (_) {}
     final envDefault = dotenv.env['OPENAI_VOICE'];
-    if (!kAvailableVoices.contains(effectiveVoice)) {
-      effectiveVoice = resolveDefaultVoice(envDefault);
+    if (!validVoices.contains(effectiveVoice)) {
+      effectiveVoice = validVoices.isNotEmpty ? validVoices.first : resolveDefaultVoice(envDefault);
     }
     _currentVoice = effectiveVoice;
-    debugPrint('📞 Starting continuous call with model: $model, voice: $_currentVoice');
+
+    // Mostrar configuración de audio
+    final ttsMode = dotenv.env['AUDIO_TTS_MODE']?.toLowerCase() ?? 'google';
+    final useGoogleVoice = _shouldUseGoogleVoiceSystem();
+
+    if (useGoogleVoice) {
+      debugPrint('📞 Starting call with GOOGLE VOICE SYSTEM: Gemini AI + Google Cloud TTS/STT, voice: $_currentVoice');
+    } else {
+      debugPrint('📞 Starting continuous call with OpenAI Realtime: $model, voice: $_currentVoice');
+    }
+    debugPrint('🔧 Audio config: provider=$providerName, tts_mode=$ttsMode');
+
     _callStartTime = DateTime.now();
     _callMessages.clear();
     _userSpoke = false;
@@ -713,7 +741,12 @@ class VoiceCallController {
             }
             _aiMessagePendingCommit = false;
           }
-          Timer(const Duration(milliseconds: 40), () => _playCompleteAudioFile());
+          // Usar estrategia de reproducción basada en el proveedor
+          final providerType = _getRealtimeProvider();
+          final strategy = AudioPlaybackStrategyFactory.createStrategy(provider: providerType);
+          strategy.schedulePlayback(_playCompleteAudioFile);
+
+          Log.d('Using ${providerType.name} audio playback strategy');
         },
       );
 
@@ -876,6 +909,12 @@ class VoiceCallController {
       debugPrint('[AI-chan][VoiceCall] Supresión de texto AI activada (end_call)');
       _suppressFurtherAiText = true;
     }
+  }
+
+  /// Obtiene el proveedor de realtime desde las variables de entorno
+  RealtimeProvider _getRealtimeProvider() {
+    final audioProvider = dotenv.env['AUDIO_PROVIDER']?.toLowerCase() ?? 'gemini';
+    return RealtimeProviderHelper.fromString(audioProvider);
   }
 
   // ===== Wrappers seguros para requestResponse =====
@@ -1504,6 +1543,13 @@ class VoiceCallController {
       }
     }
     return merged;
+  }
+
+  /// Determina si debe usar el sistema de Google Voice (Gemini AI + Google Cloud TTS/STT)
+  bool _shouldUseGoogleVoiceSystem() {
+    final provider = _getRealtimeProvider();
+    final ttsMode = dotenv.env['AUDIO_TTS_MODE']?.toLowerCase() ?? 'google';
+    return provider == RealtimeProvider.gemini && ttsMode == 'google';
   }
 }
 

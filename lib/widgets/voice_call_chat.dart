@@ -12,6 +12,7 @@ import 'voice_call_painters.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_chan/constants/voices.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../services/google_speech_service.dart';
 import 'cyberpunk_subtitle.dart';
 import '../services/subtitle_controller.dart';
 
@@ -339,8 +340,41 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
       try {
         final prefs = await SharedPreferences.getInstance();
         final saved = prefs.getString('selected_voice');
+        // Determinar proveedor activo (prefs -> env), mapeando gemini->google para compatibilidad
+        final savedProvider = prefs.getString('selected_audio_provider');
+        final envProvider = dotenv.env['AUDIO_PROVIDER']?.toLowerCase();
+        String provider;
+        if (savedProvider != null) {
+          provider = (savedProvider == 'gemini') ? 'google' : savedProvider.toLowerCase();
+        } else if (envProvider != null) {
+          provider = (envProvider == 'gemini') ? 'google' : envProvider;
+        } else {
+          provider = 'google';
+        }
+
+        // Construir lista válida según provider
+        List<String> validVoices;
+        if (provider == 'google') {
+          if (GoogleSpeechService.isConfigured) {
+            try {
+              // Obtener voces femeninas filtradas para español (España)
+              final fetchedVoices = await GoogleSpeechService.voicesForUserAndAi(['es-ES'], ['es-ES']);
+              validVoices = fetchedVoices.map((v) => v['name'] as String).toList();
+            } catch (e) {
+              debugPrint('Error fetching Google voices: $e');
+              validVoices = [];
+            }
+          } else {
+            validVoices = [];
+          }
+        } else {
+          validVoices = kOpenAIVoices;
+        }
+
         final envDefault = dotenv.env['OPENAI_VOICE'];
-        final effective = saved != null && kAvailableVoices.contains(saved) ? saved : resolveDefaultVoice(envDefault);
+        final effective = (saved != null && validVoices.contains(saved))
+            ? saved
+            : (validVoices.isNotEmpty ? validVoices.first : resolveDefaultVoice(envDefault));
         controller.setVoice(effective); // asegurar antes de iniciar llamada
       } catch (_) {
         controller.setVoice(resolveDefaultVoice(dotenv.env['OPENAI_VOICE']));
@@ -534,7 +568,7 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
                 builder: (context, aiValue, _) {
                   return ValueListenableBuilder<String>(
                     valueListenable: _subtitleController.user,
-                    builder: (context, userValue, __) {
+                    builder: (context, userValue, _) {
                       if (aiValue.isEmpty && userValue.isEmpty) return const SizedBox.shrink();
                       // Obtener nombres reales desde el ChatProvider (fallback si algo falla)
                       String aiLabel = 'AI';

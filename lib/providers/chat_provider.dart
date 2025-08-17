@@ -21,6 +21,7 @@ import '../services/promise_service.dart';
 import '../services/image_request_service.dart';
 import '../services/openai_service.dart';
 import '../services/audio_chat_service.dart';
+import '../services/google_speech_service.dart';
 import '../services/periodic_ia_message_scheduler.dart';
 import '../services/prompt_builder.dart';
 import '../services/ai_chat_response_service.dart';
@@ -498,7 +499,19 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> generateTtsForMessage(Message msg, {String voice = 'nova'}) async {
     if (msg.sender != MessageSender.assistant || msg.isAudio) return;
-    final file = await audioService.synthesizeTts(msg.text, voice: voice);
+    String? lang;
+    // Heurística: si la voz parece una voz de Google (contiene guion y dos letras al inicio), intentar resolver languageCode
+    if (voice.contains('-') && RegExp(r'^[a-zA-Z]{2}-').hasMatch(voice)) {
+      try {
+        final all = await GoogleSpeechService.fetchGoogleVoices();
+        final found = all.firstWhere((v) => (v['name'] as String?) == voice, orElse: () => {});
+        if (found.isNotEmpty) {
+          final lcodes = (found['languageCodes'] as List<dynamic>?)?.cast<String>() ?? [];
+          if (lcodes.isNotEmpty) lang = lcodes.first;
+        }
+      } catch (_) {}
+    }
+    final file = await audioService.synthesizeTts(msg.text, voice: voice, languageCode: lang);
     if (file != null) {
       final idx = messages.indexOf(msg);
       if (idx != -1) {

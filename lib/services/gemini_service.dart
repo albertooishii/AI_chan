@@ -17,7 +17,7 @@ class GeminiService implements AIService {
   Future<List<String>> getAvailableModels() async {
     // Obtiene la lista real de modelos desde el endpoint de Gemini con fallback de API key
     bool isQuotaLike(int code, String body) {
-      if (code == 403 || code == 429) return true;
+      if (code == 400 || code == 403 || code == 429) return true;
       return false;
     }
 
@@ -210,7 +210,7 @@ class GeminiService implements AIService {
 
     Future<AIResponse> sendToModel(String modelId) async {
       bool isQuotaLike(int code, String body) {
-        if (code == 403 || code == 429) return true;
+        if (code == 400 || code == 403 || code == 429) return true;
         return false;
       }
 

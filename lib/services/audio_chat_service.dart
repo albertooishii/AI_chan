@@ -5,6 +5,11 @@ import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../utils/audio_utils.dart';
 import 'openai_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'google_speech_service.dart';
+import 'android_native_tts_service.dart';
+import 'cache_service.dart';
 import '../models/message.dart';
 
 typedef OnWaveformUpdate = void Function(List<int> samples);
@@ -255,8 +260,98 @@ class AudioChatService {
     }
   }
 
-  Future<File?> synthesizeTts(String text, {String voice = 'sage'}) async {
+  Future<File?> synthesizeTts(String text, {String voice = 'sage', String? languageCode}) async {
     try {
+      // Determinar provider activo: prefs -> env (compatibilidad gemini->google)
+      String provider = 'google';
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final saved = prefs.getString('selected_audio_provider');
+        if (saved != null) {
+          provider = (saved == 'gemini') ? 'google' : saved.toLowerCase();
+        } else {
+          final env = dotenv.env['AUDIO_PROVIDER']?.toLowerCase();
+          if (env != null) provider = (env == 'gemini') ? 'google' : env;
+        }
+      } catch (_) {
+        final env = dotenv.env['AUDIO_PROVIDER']?.toLowerCase();
+        if (env != null) provider = (env == 'gemini') ? 'google' : env;
+      }
+
+      // Probar TTS nativo de Android primero si está disponible
+      if (AndroidNativeTtsService.isAndroid) {
+        final isNativeAvailable = await AndroidNativeTtsService.isNativeTtsAvailable();
+        if (isNativeAvailable) {
+          // Buscar caché primero
+          final cachedFile = await CacheService.getCachedAudioFile(
+            text: text,
+            voice: voice,
+            languageCode: languageCode ?? 'es-ES',
+            provider: 'android_native',
+          );
+
+          if (cachedFile != null) {
+            debugPrint('[Audio][TTS] Usando audio nativo Android desde caché');
+            return cachedFile;
+          }
+
+          // Generar con TTS nativo si no está en caché
+          try {
+            final cacheDir = await CacheService.getAudioCacheDirectory();
+            final outputPath = '${cacheDir.path}/android_native_${DateTime.now().millisecondsSinceEpoch}.mp3';
+
+            final result = await AndroidNativeTtsService.synthesizeToFile(
+              text: text,
+              outputPath: outputPath,
+              voiceName: voice,
+              languageCode: languageCode ?? 'es-ES',
+            );
+
+            if (result != null) {
+              final file = File(result);
+              if (await file.exists()) {
+                debugPrint('[Audio][TTS] Audio generado con TTS nativo Android');
+
+                // Guardar referencia en caché
+                try {
+                  final audioData = await file.readAsBytes();
+                  await CacheService.saveAudioToCache(
+                    audioData: audioData,
+                    text: text,
+                    voice: voice,
+                    languageCode: languageCode ?? 'es-ES',
+                    provider: 'android_native',
+                  );
+                } catch (e) {
+                  debugPrint('[Audio][TTS] Warning: Error guardando TTS nativo en caché: $e');
+                }
+
+                return file;
+              }
+            }
+          } catch (e) {
+            debugPrint('[Audio][TTS] Error con TTS nativo Android, continuando con $provider: $e');
+          }
+        }
+      }
+
+      if (provider == 'google') {
+        // voice is expected to be a Google voice name like 'es-ES-Neural2-A'
+        if (GoogleSpeechService.isConfigured) {
+          try {
+            final lang = languageCode ?? dotenv.env['GOOGLE_LANGUAGE_CODE'] ?? 'es-ES';
+            final file = await GoogleSpeechService.textToSpeechFile(text: text, voiceName: voice, languageCode: lang);
+            if (file != null) return file;
+            debugPrint('[Audio][TTS] Google TTS returned null file, falling back to OpenAI');
+          } catch (e) {
+            debugPrint('[Audio][TTS] Google TTS error: $e — falling back to OpenAI');
+          }
+        } else {
+          debugPrint('[Audio][TTS] Google TTS not configured (no API key) — falling back to OpenAI');
+        }
+      }
+
+      // Fallback / default: use OpenAI TTS (voice must be one of OpenAI voices)
       final openai = OpenAIService();
       final file = await openai.textToSpeech(text: text, voice: voice);
       return file;

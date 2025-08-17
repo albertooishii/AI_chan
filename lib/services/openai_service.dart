@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'dart:io';
 import '../utils/audio_utils.dart';
+import 'cache_service.dart';
 
 import 'ai_service.dart';
 import '../models/ai_response.dart';
@@ -273,7 +274,7 @@ class OpenAIService implements AIService {
     }
   }
 
-  /// Genera un archivo de voz usando OpenAI TTS
+  /// Genera un archivo de voz usando OpenAI TTS con caché
   Future<File?> textToSpeech({
     required String text,
     String voice = 'sage',
@@ -284,14 +285,51 @@ class OpenAIService implements AIService {
       throw Exception('Falta la API key de OpenAI. Por favor, configúrala en la app.');
     }
     if (text.trim().isEmpty) return null;
+
+    try {
+      // Verificar caché primero
+      final cachedFile = await CacheService.getCachedAudioFile(
+        text: text,
+        voice: voice,
+        languageCode: 'openai-$model', // Usar modelo como "idioma" para OpenAI
+        provider: 'openai',
+      );
+
+      if (cachedFile != null) {
+        debugPrint('[OpenAI TTS] Usando audio desde caché');
+        return cachedFile;
+      }
+    } catch (e) {
+      debugPrint('[OpenAI TTS] Error leyendo caché, continuando con API: $e');
+    }
+
     final url = Uri.parse('https://api.openai.com/v1/audio/speech');
     final response = await http.post(
       url,
       headers: {'Authorization': 'Bearer $apiKey', 'Content-Type': 'application/json'},
       body: jsonEncode({'model': model, 'input': text, 'voice': voice, 'response_format': 'mp3'}),
     );
+
     if (response.statusCode == 200) {
-      // Si no se especifica outputDir, usar el directorio local de audios del usuario
+      try {
+        // Guardar en caché primero
+        final cachedFile = await CacheService.saveAudioToCache(
+          audioData: response.bodyBytes,
+          text: text,
+          voice: voice,
+          languageCode: 'openai-$model',
+          provider: 'openai',
+        );
+
+        if (cachedFile != null) {
+          debugPrint('[OpenAI TTS] Audio guardado en caché y devuelto');
+          return cachedFile;
+        }
+      } catch (e) {
+        debugPrint('[OpenAI TTS] Warning: Error guardando en caché: $e');
+      }
+
+      // Fallback: guardar en directorio tradicional si el caché falla
       String dirPath;
       if (outputDir != null && outputDir.trim().isNotEmpty) {
         dirPath = outputDir;
@@ -301,10 +339,10 @@ class OpenAIService implements AIService {
       }
       final file = File('$dirPath/ai_tts_${DateTime.now().millisecondsSinceEpoch}.mp3');
       if (!await File(dirPath).exists()) {
-        // Asegurar que el directorio exista: File(dirPath) es un archivo, creamos su directorio padre
         await Directory(dirPath).create(recursive: true);
       }
       await file.writeAsBytes(response.bodyBytes);
+      debugPrint('[OpenAI TTS] Audio generado sin caché: ${file.path}');
       return file;
     } else {
       throw Exception('Error TTS OpenAI: ${response.body}');
@@ -318,5 +356,68 @@ class OpenAIService implements AIService {
       charCount += msg['content']?.length ?? 0;
     }
     return (charCount / 4).round();
+  }
+
+  /// Obtiene la lista de voces disponibles de OpenAI (estática, no requiere API)
+  static List<Map<String, dynamic>> getAvailableVoices() {
+    return [
+      {
+        'name': 'alloy',
+        'description': 'Alloy - Voz equilibrada y versátil',
+        'gender': 'neutral',
+        'language': 'multi',
+        'provider': 'openai',
+      },
+      {
+        'name': 'echo',
+        'description': 'Echo - Voz clara y directa',
+        'gender': 'neutral',
+        'language': 'multi',
+        'provider': 'openai',
+      },
+      {
+        'name': 'fable',
+        'description': 'Fable - Voz narrativa y expresiva',
+        'gender': 'neutral',
+        'language': 'multi',
+        'provider': 'openai',
+      },
+      {
+        'name': 'onyx',
+        'description': 'Onyx - Voz profunda y autoritative',
+        'gender': 'masculine',
+        'language': 'multi',
+        'provider': 'openai',
+      },
+      {
+        'name': 'nova',
+        'description': 'Nova - Voz joven y enérgica',
+        'gender': 'feminine',
+        'language': 'multi',
+        'provider': 'openai',
+      },
+      {
+        'name': 'shimmer',
+        'description': 'Shimmer - Voz suave y cálida',
+        'gender': 'feminine',
+        'language': 'multi',
+        'provider': 'openai',
+      },
+    ];
+  }
+
+  /// Obtiene voces femeninas de OpenAI
+  static List<Map<String, dynamic>> getFemaleVoices() {
+    return getAvailableVoices().where((voice) => voice['gender'] == 'feminine').toList();
+  }
+
+  /// Limpia el caché de audio de OpenAI
+  static Future<void> clearAudioCache() async {
+    try {
+      await CacheService.clearAudioCache();
+      debugPrint('[OpenAI TTS] Caché de audio limpiado');
+    } catch (e) {
+      debugPrint('[OpenAI TTS] Error limpiando caché de audio: $e');
+    }
   }
 }

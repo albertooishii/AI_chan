@@ -250,4 +250,228 @@ class LocaleUtils {
     final int second = base + (code.codeUnitAt(1) - aCode);
     return String.fromCharCode(first) + String.fromCharCode(second);
   }
+
+  // Devuelve una lista de códigos de idioma oficiales/uso común para un país ISO2.
+  // Los códigos intentan usar la forma 'll-CC' (por ejemplo 'es-ES', 'ja-JP') cuando es posible.
+  // Si no se conoce una correspondencia específica, devuelve una lista vacía.
+  // Esta función está pensada para pasar a servicios TTS que aceptan tanto 'ja' como 'ja-JP'.
+  static List<String> officialLanguageCodesForCountry(String? iso2) {
+    if (iso2 == null || iso2.trim().isEmpty) return <String>[];
+    switch (iso2.toUpperCase()) {
+      // Europa occidental y central
+      case 'ES':
+        // España tiene varios idiomas cooficiales según la comunidad autónoma
+        return ['es-ES', 'ca-ES', 'eu-ES', 'gl-ES', 'oc-ES'];
+      case 'FR':
+        return ['fr-FR'];
+      case 'IT':
+        return ['it-IT'];
+      case 'PT':
+        return ['pt-PT'];
+      case 'DE':
+        return ['de-DE'];
+      case 'GB':
+        return ['en-GB'];
+      case 'IE':
+        return ['en-IE'];
+      case 'BE':
+        return ['nl-BE', 'fr-BE'];
+      case 'NL':
+        return ['nl-NL'];
+      case 'CH':
+        return ['de-CH', 'fr-CH', 'it-CH'];
+      case 'AT':
+        return ['de-AT'];
+      case 'GR':
+        return ['el-GR'];
+      case 'PL':
+        return ['pl-PL'];
+      case 'HU':
+        return ['hu-HU'];
+      case 'CZ':
+        return ['cs-CZ'];
+      case 'NO':
+        return ['no-NO'];
+      case 'SE':
+        return ['sv-SE'];
+      case 'FI':
+        return ['fi-FI', 'sv-FI'];
+      case 'DK':
+        return ['da-DK'];
+      case 'IS':
+        return ['is-IS'];
+      case 'RU':
+        return ['ru-RU'];
+      case 'UA':
+        return ['uk-UA'];
+      case 'RO':
+        return ['ro-RO'];
+      case 'BG':
+        return ['bg-BG'];
+      case 'HR':
+        return ['hr-HR'];
+      case 'RS':
+        return ['sr-RS'];
+      case 'TR':
+        return ['tr-TR'];
+      case 'MT':
+        return ['mt-MT', 'en-MT'];
+      case 'AD':
+        return ['ca-AD', 'es-AD'];
+      case 'SI':
+        return ['sl-SI'];
+      case 'SK':
+        return ['sk-SK'];
+      case 'ME':
+        return ['sr-ME', 'cnr-ME'];
+      case 'BA':
+        return ['bs-BA', 'sr-BA', 'hr-BA'];
+      case 'EE':
+        return ['et-EE'];
+      case 'LV':
+        return ['lv-LV'];
+
+      // Américas
+      case 'US':
+        return ['en-US', 'es-US'];
+      case 'CA':
+        return ['en-CA', 'fr-CA'];
+      case 'MX':
+        return ['es-MX'];
+      case 'CU':
+        return ['es-CU'];
+      case 'DO':
+        return ['es-DO'];
+      case 'PR':
+        return ['es-PR', 'en-PR'];
+      case 'CR':
+        return ['es-CR'];
+      case 'PA':
+        return ['es-PA'];
+      case 'GT':
+        return ['es-GT'];
+      case 'HN':
+        return ['es-HN'];
+      case 'SV':
+        return ['es-SV'];
+      case 'NI':
+        return ['es-NI'];
+      case 'CO':
+        return ['es-CO'];
+      case 'VE':
+        return ['es-VE'];
+      case 'EC':
+        return ['es-EC'];
+      case 'PE':
+        return ['es-PE'];
+      case 'BO':
+        return ['es-BO'];
+      case 'CL':
+        return ['es-CL'];
+      case 'AR':
+        return ['es-AR'];
+      case 'BR':
+        return ['pt-BR'];
+      case 'PY':
+        return ['es-PY', 'gn-PY'];
+      case 'UY':
+        return ['es-UY'];
+      case 'HT':
+        return ['fr-HT', 'ht-HT'];
+      case 'JM':
+        return ['en-JM'];
+
+      // África
+      case 'MA':
+        return ['ar-MA', 'fr-MA'];
+      case 'DZ':
+        return ['ar-DZ', 'fr-DZ'];
+      case 'TN':
+        return ['ar-TN', 'fr-TN'];
+      case 'EG':
+        return ['ar-EG'];
+      case 'SD':
+        return ['ar-SD'];
+      case 'LY':
+        return ['ar-LY'];
+      case 'SN':
+        return ['fr-SN'];
+      case 'GM':
+        return ['en-GM'];
+      case 'GH':
+        return ['en-GH'];
+      case 'NG':
+        return ['en-NG'];
+      case 'ET':
+        return ['am-ET'];
+      case 'KE':
+        return ['en-KE', 'sw-KE'];
+      case 'TZ':
+        return ['sw-TZ', 'en-TZ'];
+      case 'UG':
+        return ['en-UG', 'sw-UG'];
+      case 'CD':
+        return ['fr-CD', 'ln-CD'];
+      case 'AO':
+        return ['pt-AO'];
+      case 'MZ':
+        return ['pt-MZ'];
+      case 'MG':
+        return ['mg-MG', 'fr-MG'];
+      case 'ZA':
+        return ['en-ZA', 'af-ZA', 'zu-ZA'];
+      case 'GQ':
+        return ['es-GQ', 'fr-GQ', 'pt-GQ'];
+
+      // Asia
+      case 'CN':
+        return ['zh-CN'];
+      case 'JP':
+        return ['ja-JP'];
+      case 'KR':
+        return ['ko-KR'];
+      case 'KP':
+        return ['ko-KP'];
+      case 'IN':
+        return ['hi-IN', 'en-IN'];
+      case 'PK':
+        return ['ur-PK', 'en-PK'];
+      case 'NP':
+        return ['ne-NP'];
+      case 'LK':
+        return ['si-LK', 'ta-LK'];
+      case 'TH':
+        return ['th-TH'];
+      case 'VN':
+        return ['vi-VN'];
+      case 'KH':
+        return ['km-KH'];
+      case 'LA':
+        return ['lo-LA'];
+      case 'MM':
+        return ['my-MM'];
+      case 'MY':
+        return ['ms-MY'];
+      case 'SG':
+        return ['en-SG', 'zh-SG', 'ms-SG', 'ta-SG'];
+      case 'ID':
+        return ['id-ID'];
+      case 'PH':
+        return ['fil-PH', 'en-PH'];
+      case 'IL':
+        return ['he-IL', 'ar-IL'];
+
+      // Oceanía
+      case 'AU':
+        return ['en-AU'];
+      case 'NZ':
+        return ['en-NZ', 'mi-NZ'];
+      case 'FJ':
+        return ['en-FJ', 'fj-FJ'];
+
+      // Por defecto: devolver vacío para indicar que no hay mapeo conocido
+      default:
+        return <String>[];
+    }
+  }
 }

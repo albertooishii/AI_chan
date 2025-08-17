@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:provider/provider.dart';
 import '../providers/chat_provider.dart';
+import '../utils/locale_utils.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/message_input.dart';
 import '../widgets/voice_call_chat.dart';
@@ -22,7 +23,7 @@ import '../utils/chat_json_utils.dart' as chat_json_utils;
 import 'gallery_screen.dart';
 import '../utils/image_utils.dart';
 import 'calendar_screen.dart';
-// import '../utils/locale_utils.dart';
+import '../services/google_speech_service.dart';
 
 class ChatScreen extends StatefulWidget {
   final AiChanProfile bio;
@@ -41,6 +42,8 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   Directory? _imageDir;
   bool _isRegeneratingAppearance = false; // Muestra spinner en avatar durante la regeneración
+  List<Map<String, dynamic>> _fetchedGoogleVoices = [];
+  bool _loadingGoogleVoices = false;
 
   @override
   void initState() {
@@ -48,6 +51,32 @@ class _ChatScreenState extends State<ChatScreen> {
     getLocalImageDir().then((dir) {
       if (mounted) setState(() => _imageDir = dir);
     });
+    _maybeFetchGoogleVoices();
+  }
+
+  Future<void> _maybeFetchGoogleVoices() async {
+    if (!GoogleSpeechService.isConfigured) return;
+    if (_loadingGoogleVoices) return;
+    setState(() => _loadingGoogleVoices = true);
+    try {
+      // Determinar idiomas del usuario y de la IA
+      final userCountry = widget.bio.userCountryCode;
+      List<String> userLangCodes = [];
+      if (userCountry != null && userCountry.trim().isNotEmpty) {
+        userLangCodes = LocaleUtils.officialLanguageCodesForCountry(userCountry.trim().toUpperCase());
+      }
+
+      final aiCountry = widget.bio.aiCountryCode;
+      List<String> aiLangCodes = [];
+      if (aiCountry != null && aiCountry.trim().isNotEmpty) {
+        aiLangCodes = LocaleUtils.officialLanguageCodesForCountry(aiCountry.trim().toUpperCase());
+      }
+
+      final voices = await GoogleSpeechService.voicesForUserAndAi(userLangCodes, aiLangCodes);
+      if (mounted) setState(() => _fetchedGoogleVoices = voices);
+    } finally {
+      if (mounted) setState(() => _loadingGoogleVoices = false);
+    }
   }
 
   Future<void> _showImportDialog(ChatProvider chatProvider) async {
@@ -92,7 +121,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 8.0),
                       child: Text(
-                        'Gemini',
+                        'Google',
                         style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                     ),
@@ -391,6 +420,32 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                 ),
               ),
+              // Seleccionar proveedor de audio
+              PopupMenuItem<String>(
+                value: 'select_audio_provider',
+                child: Row(
+                  children: [
+                    const Icon(Icons.speaker, color: AppColors.primary, size: 20),
+                    const SizedBox(width: 8),
+                    const Text('Sistema de voz', style: TextStyle(color: AppColors.primary)),
+                    FutureBuilder<String>(
+                      future: _loadActiveAudioProvider(),
+                      builder: (context, snapshot) {
+                        final provider = snapshot.data ?? 'google';
+                        final displayName = provider == 'google' ? 'GOOGLE' : provider.toUpperCase();
+                        return Padding(
+                          padding: const EdgeInsets.only(left: 8.0),
+                          child: Text(
+                            displayName,
+                            style: const TextStyle(color: AppColors.secondary, fontSize: 11),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
               // Seleccionar voz para llamadas / TTS
               PopupMenuItem<String>(
                 value: 'select_voice',
@@ -620,68 +675,211 @@ class _ChatScreenState extends State<ChatScreen> {
                     (models.contains(defaultModel) ? defaultModel : (models.isNotEmpty ? models.first : null));
                 final selected = await _showModelSelectionDialog(models, initialModel);
                 _setSelectedModel(selected, current, chatProvider);
-              } else if (value == 'select_voice') {
-                final voices = kAvailableVoices;
-                final current = await _loadActiveVoice();
+              } else if (value == 'select_audio_provider') {
+                final providers = ['openai', 'google'];
+                final current = await _loadActiveAudioProvider();
                 if (!mounted) return;
                 final selected = await showDialog<String>(
                   context: context,
                   builder: (ctx) {
                     return AlertDialog(
                       backgroundColor: Colors.black,
-                      title: const Text('Selecciona voz', style: TextStyle(color: AppColors.secondary)),
+                      title: const Text('Seleccionar sistema de voz', style: TextStyle(color: AppColors.secondary)),
                       content: SizedBox(
-                        width: 320,
-                        child: ListView(
-                          shrinkWrap: true,
-                          children: [
-                            for (final v in voices)
-                              ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: Icon(
-                                  current == v ? Icons.radio_button_checked : Icons.radio_button_off,
-                                  color: AppColors.secondary,
-                                  size: 20,
+                        width: 300,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: providers.map((provider) {
+                            return ListTile(
+                              title: Text(
+                                provider.toUpperCase(),
+                                style: TextStyle(
+                                  color: current == provider ? AppColors.primary : AppColors.secondary,
+                                  fontWeight: current == provider ? FontWeight.bold : FontWeight.normal,
                                 ),
-                                title: Text(v, style: const TextStyle(color: AppColors.primary)),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.play_arrow, color: AppColors.secondary),
-                                  tooltip: 'Escuchar demo',
-                                  onPressed: () async {
-                                    // Sintetizar frase corta de demostración
-                                    final phrase = 'Hola, soy tu asistente con la voz $v';
-                                    try {
-                                      final file = await context.read<ChatProvider>().audioService.synthesizeTts(
-                                        phrase,
-                                        voice: v,
-                                      );
-                                      if (file != null) {
-                                        // Reproducir directamente usando AudioPlayer temporal
-                                        final player = AudioPlayer();
-                                        await player.play(DeviceFileSource(file.path));
-                                      }
-                                    } catch (e) {
-                                      debugPrint('[VoicePreview] Error preview voz $v: $e');
-                                    }
-                                  },
-                                ),
-                                onTap: () => Navigator.of(ctx).pop(v),
                               ),
-                          ],
+                              subtitle: Text(
+                                provider == 'openai'
+                                    ? 'OpenAI Realtime API - Rápido y integrado'
+                                    : 'Google Voice - Gemini AI + Cloud TTS/STT',
+                                style: const TextStyle(color: Colors.grey, fontSize: 12),
+                              ),
+                              leading: Icon(
+                                provider == 'openai' ? Icons.speed : Icons.graphic_eq,
+                                color: current == provider ? AppColors.primary : AppColors.secondary,
+                              ),
+                              onTap: () => Navigator.of(ctx).pop(provider),
+                            );
+                          }).toList(),
                         ),
                       ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(ctx).pop(),
-                          child: const Text('Cerrar', style: TextStyle(color: AppColors.primary)),
-                        ),
-                      ],
                     );
                   },
                 );
-                if (selected != null) {
+                if (selected != null && selected != current) {
+                  await _saveActiveAudioProvider(selected);
+                  if (mounted) {
+                    setState(() {});
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Proveedor de audio cambiado a ${selected.toUpperCase()}',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        backgroundColor: AppColors.primary,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                }
+              } else if (value == 'select_voice') {
+                final provider = await _loadActiveAudioProvider();
+                final current = await _loadActiveVoice();
+                List<dynamic> voices;
+                bool isGoogle = provider == 'google';
+                if (isGoogle) {
+                  voices = _fetchedGoogleVoices.isNotEmpty ? _fetchedGoogleVoices : [];
+                } else {
+                  voices = kOpenAIVoices;
+                }
+                if (!mounted) return;
+                final selected = await showDialog<String>(
+                  context: context,
+                  builder: (ctx) {
+                    return AlertDialog(
+                      backgroundColor: Colors.black,
+                      title: Text(
+                        'Selecciona voz (${provider.toUpperCase()})',
+                        style: const TextStyle(color: AppColors.secondary),
+                      ),
+                      content: SizedBox(
+                        width: 320,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isGoogle)
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton.icon(
+                                  icon: const Icon(Icons.refresh, size: 16),
+                                  label: Text(
+                                    _loadingGoogleVoices ? 'Actualizando...' : 'Actualizar voces',
+                                    style: const TextStyle(color: AppColors.secondary),
+                                  ),
+                                  onPressed: _loadingGoogleVoices
+                                      ? null
+                                      : () async {
+                                          if (!mounted) return;
+                                          setState(() => _loadingGoogleVoices = true);
+                                          try {
+                                            final aiCountry = widget.bio.aiCountryCode;
+                                            String? aiLangCode;
+                                            if (aiCountry != null && aiCountry.trim().isNotEmpty) {
+                                              final codes = LocaleUtils.officialLanguageCodesForCountry(
+                                                aiCountry.trim().toUpperCase(),
+                                              );
+                                              if (codes.isNotEmpty) aiLangCode = codes.first;
+                                            }
+                                            final voices = await GoogleSpeechService.voicesForAiAndSpanish(
+                                              aiLangCode,
+                                              forceRefresh: true,
+                                            );
+                                            if (mounted) setState(() => _fetchedGoogleVoices = voices);
+                                          } finally {
+                                            if (mounted) setState(() => _loadingGoogleVoices = false);
+                                          }
+                                        },
+                                ),
+                              ),
+                            Flexible(
+                              child: ListView(
+                                shrinkWrap: true,
+                                children: [
+                                  ...voices.map<Widget>((v) {
+                                    final isMap = v is Map<String, dynamic>;
+                                    final name = isMap ? (v['name'] as String? ?? '') : (v as String);
+                                    final lcodes = (isMap && v['languageCodes'] is List)
+                                        ? (v['languageCodes'] as List).cast<String>()
+                                        : <String>[];
+                                    final descRaw = isMap
+                                        ? (v['description'] ?? v['gender'] ?? v['ssmlGender'] ?? '')
+                                        : '';
+                                    final desc = descRaw is String ? descRaw : descRaw?.toString() ?? '';
+                                    final isNeural = RegExp(r'neural|wavenet', caseSensitive: false).hasMatch(name);
+
+                                    final List<Widget> subtitleWidgets = [];
+                                    if (desc.isNotEmpty)
+                                      subtitleWidgets.add(
+                                        Text(desc, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                                      );
+                                    if (isNeural)
+                                      subtitleWidgets.add(
+                                        Text('Neural', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                                      );
+
+                                    return ListTile(
+                                      contentPadding: EdgeInsets.zero,
+                                      leading: Icon(
+                                        current == (isGoogle ? name : v)
+                                            ? Icons.radio_button_checked
+                                            : Icons.radio_button_off,
+                                        color: AppColors.secondary,
+                                        size: 20,
+                                      ),
+                                      title: isGoogle
+                                          ? Text(
+                                              '$name (${lcodes.join(',')})',
+                                              style: const TextStyle(color: AppColors.primary),
+                                            )
+                                          : Text(v, style: const TextStyle(color: AppColors.primary)),
+                                      subtitle: subtitleWidgets.isEmpty
+                                          ? null
+                                          : Row(
+                                              children: [
+                                                for (int i = 0; i < subtitleWidgets.length; i++) ...[
+                                                  subtitleWidgets[i],
+                                                  if (i != subtitleWidgets.length - 1) const SizedBox(width: 8),
+                                                ],
+                                              ],
+                                            ),
+                                      trailing: IconButton(
+                                        icon: const Icon(Icons.play_arrow, color: AppColors.secondary),
+                                        tooltip: 'Escuchar demo',
+                                        onPressed: () async {
+                                          final phrase = isGoogle
+                                              ? 'Hola, soy tu asistente con la voz $name'
+                                              : 'Hola, soy tu asistente con la voz $v';
+                                          try {
+                                            String? lang;
+                                            if (isGoogle) {
+                                              if (lcodes.isNotEmpty) lang = lcodes.first;
+                                            }
+                                            final file = await context.read<ChatProvider>().audioService.synthesizeTts(
+                                              phrase,
+                                              voice: isGoogle ? name : v,
+                                              languageCode: lang,
+                                            );
+                                            if (file != null) {
+                                              final player = AudioPlayer();
+                                              await player.play(DeviceFileSource(file.path));
+                                            }
+                                          } catch (e) {}
+                                        },
+                                      ),
+                                      onTap: () => Navigator.of(ctx).pop(isGoogle ? name : v),
+                                    );
+                                  }).toList(),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+                if (selected != null && selected != current) {
                   await _saveActiveVoice(selected);
-                  setState(() {}); // refrescar FutureBuilder
                 }
               }
             },
@@ -857,6 +1055,43 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('selected_voice', voice);
+    } catch (_) {}
+  }
+
+  Future<String> _loadActiveAudioProvider() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('selected_audio_provider');
+      final envValue = dotenv.env['AUDIO_PROVIDER']?.toLowerCase();
+
+      // Mapear 'gemini' a 'google' para compatibilidad hacia atrás
+      String defaultValue = 'google';
+      if (envValue == 'openai') {
+        defaultValue = 'openai';
+      } else if (envValue == 'gemini') {
+        defaultValue = 'google'; // Mapear gemini a google
+      }
+
+      // Si el valor guardado es 'gemini', mapearlo a 'google'
+      if (saved == 'gemini') {
+        return 'google';
+      }
+
+      return saved ?? defaultValue;
+    } catch (_) {
+      return 'google';
+    }
+  }
+
+  Future<void> _saveActiveAudioProvider(String provider) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('selected_audio_provider', provider);
+
+      // También actualizar la variable de entorno para que el sistema la use
+      // Mapear 'google' a 'gemini' para el RealtimeProvider interno
+      final envValue = provider == 'google' ? 'gemini' : provider;
+      dotenv.env['AUDIO_PROVIDER'] = envValue;
     } catch (_) {}
   }
 }
