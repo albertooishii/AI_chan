@@ -16,6 +16,7 @@ class IAAppearanceGenerator {
 
     // Bloque de formato JSON para la apariencia física
     final appearanceJsonFormat = jsonEncode({
+      "edad_aparente": "", // Forzar luego a 25
       "genero": "",
       "origen_etnico": "",
       "altura": "",
@@ -97,7 +98,10 @@ class IAAppearanceGenerator {
         '''
 Eres un generador de fichas visuales para IA. Basado en la siguiente biografía, genera una ficha superdetallada, obsesiva y milimétrica de la apariencia física de la IA, usando el siguiente formato JSON. Cada campo debe ser lo más preciso y descriptivo posible, como si fueras un editor de personajes de videojuego AAA. Sé obsesivo con el detalle: especifica medidas, proporciones, formas, texturas, colores, ubicación exacta de cada rasgo y cualquier aspecto visual relevante. Rellena TODOS los campos con máximo detalle. No repitas la biografía textual ni inventes datos biográficos nuevos; extrapola solo lo visual.
 
-IMPORTANTE: La apariencia debe ser SIEMPRE la de una mujer joven de unos 25 años años aunque realmente tenga otra edad, muy guapa, sin arrugas, aspecto juvenil, saludable y atractivo. Si la biografía incluye la edad real o la fecha de nacimiento, ignóralas y describe solo la apariencia y el contexto visual.
+IMPORTANTE:
+- La apariencia debe ser SIEMPRE la de una mujer joven de 25 años (aspecto juvenil, saludable, sin arrugas marcadas), aunque su edad biográfica sea distinta.
+- Añade el campo "edad_aparente" y fíjalo EXACTAMENTE al número 25 (no texto como "25 años", solo 25 o "25"). Si la biografía menciona otra edad, ignórala.
+- No contradigas este requisito en ninguna descripción.
 
 Formato (DEVUELVE ÚNICAMENTE EL BLOQUE JSON DE APARIENCIA, SIN TEXTO EXTRA NI COMENTARIOS):
 $appearanceJsonFormat
@@ -167,12 +171,16 @@ ${bio.biography}
     if (appearanceMap == null || appearanceMap.isEmpty) {
       throw Exception('No se pudo generar la apariencia en formato JSON válido.');
     }
+    // Forzar edad_aparente=25 por consistencia (si el modelo no la puso o puso otro valor)
+    try {
+      appearanceMap['edad_aparente'] = 25;
+    } catch (_) {}
     // Sin campo de versión: no se requiere completar timestamp
 
     // Generar imagen de perfil con AIService
     String imagePrompt =
         "Usa la herramienta de generación de imágenes (tools: [{type: image_generation}]) y devuelve únicamente la imagen generada, sin ningún texto extra, sin pie de foto, sin explicaciones, sin comentarios, sin ningún tipo de descripción adicional. No añadas ningún texto antes ni después de la imagen.\n\n"
-        "Genera una imagen hiperrealista en formato cuadrado (1:1) con encuadre limpio y recortado (sin cortar cabeza, frente, barbilla ni hombros principales), pensada como avatar para redes sociales. Muestra la parte superior del cuerpo (de la cintura hacia arriba), centrando la atención en la cara y el torso. La apariencia DEBE reflejar claramente a una mujer joven de unos 25 años (aspecto juvenil, saludable, sin arrugas marcadas), independientemente de edades reales o fechas mencionadas en la biografía. Utiliza todos los datos del JSON de apariencia para reflejar rasgos físicos, proporciones, ojos, peinado, ropa, accesorios, postura, expresión, fondo y detalles relevantes. El fondo debe ser coherente con su estilo y gustos y la expresión natural y cercana. Para la ropa, elige uno de los conjuntos existentes en el array 'ropa' (que no sea el de trabajo ni el pijama). No inventes ni mezcles prendas nuevas: usa el conjunto exactamente como está descrito en el JSON. Evita poses rígidas y fondos totalmente planos.\n\nAñade un toque divertido y espontáneo coherente con los intereses/hobbies mencionados en la biografía (por ejemplo un gesto, una micro‑expresión, la interacción casual con un objeto del fondo o un detalle ambiental), siempre sutil y natural, sin introducir texto, logos, marcas ni elementos que contradigan el JSON y sin añadir prendas o accesorios no listados. El resultado debe transmitir cercanía, energía positiva y personalidad propia sin volverse caricatura.\n\n"
+        "Genera una imagen hiperrealista en formato cuadrado (1:1) con encuadre limpio y recortado (sin cortar cabeza, frente, barbilla ni hombros principales), pensada como avatar para redes sociales. Muestra la parte superior del cuerpo (de la cintura hacia arriba), centrando la atención en la cara y el torso. La apariencia DEBE reflejar claramente a una mujer joven de 25 años (edad aparente exacta = 25) independientemente de la edad biográfica. Utiliza todos los datos del JSON de apariencia para reflejar rasgos físicos, proporciones, ojos, peinado, ropa, accesorios, postura, expresión, fondo y detalles relevantes. El fondo debe ser coherente con su estilo y gustos y la expresión natural y cercana. Para la ropa, elige uno de los conjuntos existentes en el array 'ropa' (que no sea el de trabajo ni el pijama). No inventes ni mezcles prendas nuevas: usa el conjunto exactamente como está descrito en el JSON. Evita poses rígidas y fondos totalmente planos.\n\nAñade un toque divertido y espontáneo coherente con los intereses/hobbies mencionados en la biografía (por ejemplo un gesto, una micro‑expresión, la interacción casual con un objeto del fondo o un detalle ambiental), siempre sutil y natural, sin introducir texto, logos, marcas ni elementos que contradigan el JSON y sin añadir prendas o accesorios no listados. El resultado debe transmitir cercanía, energía positiva y personalidad propia sin volverse caricatura.\n\n"
         "Apariencia generada (JSON):\n${jsonEncode(appearanceMap)}\n\nRecuerda: SOLO la imagen, sin texto ni explicaciones.";
 
     final systemPromptImage = SystemPrompt(
