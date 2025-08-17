@@ -11,6 +11,7 @@ import 'dart:async';
 import 'voice_call_painters.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'cyberpunk_subtitle.dart';
+import '../services/subtitle_controller.dart';
 
 class VoiceCallChat extends StatefulWidget {
   final bool incoming; // true si la llamada es entrante (IA llama al usuario)
@@ -31,8 +32,8 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
   int _earlyPhaseAlnumAccumulated = 0; // acumulador de caracteres alfanuméricos en fase temprana para rechazo implícito
   Timer? _noAnswerTimer; // timeout para llamada no contestada
   Timer? _incomingAnswerTimer; // timeout para llamadas entrantes no aceptadas
-  // Debug UI subtítulos
-  final bool _subtitleUiDebug = true; // ACTIVADO: mostrar logs detallados de subtítulos
+  // Debug subtítulos (mutable vía popup)
+  bool _subtitleDebug = false;
 
   Future<void> _hangUp() async {
     if (_hangupInProgress) return;
@@ -49,11 +50,11 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
 
     // Parar animación y timers antes de cerrar la pantalla
     try {
-      _subtitleTimer?.cancel();
-      _userSubtitleTimer?.cancel();
       _levelSub?.cancel();
       _controller.stop();
     } catch (_) {}
+    _levelSub?.cancel();
+    _controller.stop();
 
     // Reproducir tono de colgado en background y cerrar la pantalla inmediatamente
     try {
@@ -81,24 +82,23 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
       }
     }
 
-    // Determinar si hubo conversación (usuario o IA habló) antes de limpiar
-    final bool hadConversation = controller.userSpokeFlag || controller.aiRespondedFlag;
+    // Determinar si hubo conversación REAL: solo cuenta si hubo audio IA reproducido o el usuario habló.
+    // Antes se usaba aiRespondedFlag (texto IA) lo que impedía marcar como "sin contestar" cuando solo llegó texto.
+    final bool hadConversation = controller.userSpokeFlag || controller.firstAudioReceivedFlag;
     final int? placeholderIndex = chat?.pendingIncomingCallMsgIndex;
     // Forzar rechazo si IA emitió [end_call][/end_call] (aunque controller marque que habló)
-    // Nuevo criterio: "aceptación silenciosa" => hubo (start_call) pero jamás llegó audio ni voz usuario -> tratar como rechazo técnico
-    final bool silentAcceptance =
-        _startCallTagReceived && !controller.firstAudioReceivedFlag && !controller.userSpokeFlag;
-    // Reglas actualización:
-    // - Rejected: usuario/IA explicitó rechazo (_forceReject) o IA aceptó start_call pero nunca hubo audio ni voz (silentAcceptance)
-    // - Missed: no hubo conversación (nadie habló) y no se recibió etiqueta de fin [end_call][/end_call] (llamada sin contestar)
-    bool markRejected = _forceReject || silentAcceptance;
+    // Criterio de "aceptación silenciosa": hubo start_call pero jamás llegó audio IA ni voz usuario.
+    // Antes se trataba como rechazo técnico; lo reclasificamos como missed (equivale a que la IA nunca contestó realmente).
+    final bool silentNoAudio = _startCallTagReceived && !controller.firstAudioReceivedFlag && !controller.userSpokeFlag;
+    // Reglas actualizadas:
+    // - Rejected: solo si _forceReject (end_call temprano, rechazo explícito, implícito, timeout forzado)
+    // - Missed: (a) no hubo conversación y no se recibió fin, o (b) silentNoAudio
+    bool markRejected = _forceReject;
     bool markMissed = false;
-    if (!markRejected && !hadConversation) {
-      // Llamada perdida (sin respuesta) si había placeholder entrante o saliente sin interacción
+    if (!markRejected && (silentNoAudio || !hadConversation)) {
       markMissed = true;
     }
-    // Si antes marcábamos como rejected por placeholder pendiente sin conversación, ahora lo reinterpretamos como missed
-    final bool shouldMarkRejected = markRejected;
+    final bool shouldMarkRejected = markRejected; // alias semántico para claridad posterior
 
     // Limpieza en background: detener sesión de voz/mic y guardar resumen o marcar rechazo
     unawaited(
@@ -268,54 +268,20 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
   Future<void> _hangUpNoAnswer() async {
     // Reutiliza misma lógica de _hangUp, marcando rechazo/no contestada
     if (_hangupInProgress) return;
-    _forceReject = true; // marcar para que background cleanup lo trate como rechazo
+    // Antes forzábamos rechazo (_forceReject=true) pero semánticamente un timeout sin audio ni voz
+    // es "no contestada" (missed), no un rechazo activo. Dejamos que _hangUp evalúe hadConversation
+    // y clasifique como missed automáticamente (markMissed) al no haber conversación.
     await _hangUp();
   }
 
-  // Sistema de subtítulos con concatenación
-  String _currentAiSubtitle = '';
-  String _accumulatedFragments = ''; // Acumular fragmentos hasta tener frase completa
-  String _currentUserSubtitle = ''; // Subtítulos del usuario
-  bool _hideSubtitles = false;
-  Timer? _subtitleTimer;
-  Timer? _userSubtitleTimer;
-  // Logging y control simple
-  String _lastLoggedSubtitle = ''; // para delta logging
-  int _rawSubtitleSeq = 0; // contador de textos crudos recibidos
+  // Controlador de subtítulos unificado
+  late final SubtitleController _subtitleController;
+  // Eliminado _hideSubtitles: siempre mostrar subtítulos.
 
   // --- FIN: eliminación de lógica progresiva y normalizaciones agresivas para modo ultra simple ---
 
   // Heurística para limpiar fragmentos degradados (artefactos de streaming parcial)
   // (Funciones de limpieza avanzadas eliminadas para depuración simple)
-
-  void _debugLogDelta(String phase, String nextText) {
-    if (!_subtitleUiDebug) return;
-    final prev = _lastLoggedSubtitle;
-    if (prev == nextText) return;
-    // Detectar añadido o recorte
-    int commonPrefix = 0;
-    final minLen = prev.length < nextText.length ? prev.length : nextText.length;
-    while (commonPrefix < minLen && prev.codeUnitAt(commonPrefix) == nextText.codeUnitAt(commonPrefix)) {
-      commonPrefix++;
-    }
-    final removed = prev.length > commonPrefix ? prev.substring(commonPrefix) : '';
-    final added = nextText.length > commonPrefix ? nextText.substring(commonPrefix) : '';
-    debugPrint(
-      '👁️ [SUB-Δ][$phase] len=${nextText.length} +' +
-          added.length.toString() +
-          '/-' +
-          removed.length.toString() +
-          (removed.isNotEmpty ? ' removed="${_shorten(removed)}"' : '') +
-          (added.isNotEmpty ? ' added="${_shorten(added)}"' : '') +
-          ' -> "${_shorten(nextText, 160)}"',
-    );
-    _lastLoggedSubtitle = nextText;
-  }
-
-  String _shorten(String s, [int max = 60]) {
-    if (s.length <= max) return s;
-    return s.substring(0, max) + '…';
-  }
 
   // Eliminadas funciones de recorte/deduplicación complejas
 
@@ -344,100 +310,20 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
   }
 
   void _showAiSubtitle(String text) {
-    if (!mounted || _hideSubtitles) return;
-
-    // Log crudo siempre
-    _rawSubtitleSeq++;
-    if (_subtitleUiDebug) {
-      debugPrint('👁️ [RAW-SUB][#$_rawSubtitleSeq] len=${text.length} -> "$text"');
-    }
-
-    // Ignorar sentinel antiguo de revelado
-    if (text == '__REVEAL__') return;
-
-    // Gating: no mostrar nada antes del primer audio IA real
-    if (!controller.firstAudioReceivedFlag) return;
-
-    // Supresión global (rechazo / end_call)
-    try {
-      if (controller.suppressFurtherAiTextFlag) return;
-    } catch (_) {}
-
-    final raw = text.trim();
-    if (raw.isEmpty) return;
-
-    // Ignorar retrocesos (prefijo más corto)
-    if (_currentAiSubtitle.isNotEmpty && raw.length < _currentAiSubtitle.length && _currentAiSubtitle.startsWith(raw)) {
-      return;
-    }
-
-    // Normalización mínima: colapsar espacios, unir '¡ ' / '¿ '
-    String cleaned = raw.replaceAll(RegExp(r'\s{2,}'), ' ');
-    cleaned = cleaned.replaceAllMapped(RegExp(r'([¡¿])\s+([A-Za-zÁÉÍÓÚáéíóúÑñ])'), (m) => '${m.group(1)}${m.group(2)}');
-
-    // Política simple de actualización: actualizar si crece o termina en puntuación fuerte
-    final grows = cleaned.length >= _currentAiSubtitle.length;
-    final punctFinish = RegExp(r'[\.\!\?…]$').hasMatch(cleaned);
-    if (!grows && !punctFinish) return;
-
-    if (cleaned != _currentAiSubtitle) {
-      setState(() => _currentAiSubtitle = cleaned);
-      _debugLogDelta('simple', cleaned);
-    }
-
-    // Programar limpieza diferida (reiniciar cada update)
-    _subtitleTimer?.cancel();
-    _subtitleTimer = Timer(const Duration(seconds: 15), () {
-      if (!mounted) return;
-      setState(() => _currentAiSubtitle = '');
-      if (_subtitleUiDebug) debugPrint('👁️ [SUB-UI] cleared (timeout)');
-    });
+    if (!mounted) return;
+    _subtitleController.handleAiChunk(
+      text,
+      // Solo mostrar tras recibir primer audio real de la IA
+      firstAudioReceived: controller.firstAudioReceivedFlag,
+      suppressFurther: controller.suppressFurtherAiTextFlag,
+    );
   }
 
   // Eliminadas heurísticas de reinicio y comparación de palabras
 
   void _showUserSubtitle(String text) {
-    if (!mounted || _hideSubtitles) return;
-
-    // Filtro de frases inválidas / watermarks / artefactos que NO deben mostrarse como subtítulo del usuario
-    // Ejemplo reportado: "Subtítulos realizados por la comunidad de Amara.org" (o variantes)
-    try {
-      final raw = text.trim();
-      if (raw.isNotEmpty) {
-        final lower = raw.toLowerCase();
-        // Lista de frases / patrones prohibidos (extensible)
-        final blockedSubstrings = <String>[
-          'subtítulos realizados por la comunidad de amara.org',
-          // variantes sin acento o con posibles errores del ASR
-          'subtitulos realizados por la comunidad de amara.org',
-        ];
-        final blockedRegexes = <RegExp>[
-          // tolera í o i, posibles espacios extra
-          RegExp(r'subt[íi]tulos\s+realizados\s+por\s+la\s+comunidad\s+de\s+amara\.org', caseSensitive: false),
-        ];
-        bool blocked = blockedSubstrings.any((p) => lower.contains(p)) || blockedRegexes.any((r) => r.hasMatch(raw));
-        // También bloquear si empieza con nuestro prefijo de log accidental
-        if (!blocked && lower.startsWith('🎤 user transcription received')) blocked = true;
-        if (blocked) {
-          if (_subtitleUiDebug) {
-            debugPrint('👁️ [SUB-UI][user] suprimido watermark/artefacto: "$raw"');
-          }
-          return; // no mostrar
-        }
-      }
-    } catch (_) {
-      // Silencioso: en caso de error de parsing, seguimos mostrando texto normal.
-    }
-
-    setState(() => _currentUserSubtitle = text);
-
-    // Auto-hide user subtitle after 8 seconds
-    _userSubtitleTimer?.cancel();
-    _userSubtitleTimer = Timer(const Duration(seconds: 8), () {
-      if (mounted) {
-        setState(() => _currentUserSubtitle = '');
-      }
-    });
+    if (!mounted) return;
+    _subtitleController.handleUserTranscription(text);
   }
 
   @override
@@ -445,6 +331,7 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
     super.initState();
     _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
     controller = VoiceCallController(openAIService: openai);
+    _subtitleController = SubtitleController(debug: _subtitleDebug);
 
     // Cargar voz activa guardada
     Future.microtask(() async {
@@ -518,8 +405,7 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
   void dispose() {
     _incomingAnswerTimer?.cancel();
     _noAnswerTimer?.cancel();
-    _subtitleTimer?.cancel();
-    _userSubtitleTimer?.cancel();
+    _subtitleController.dispose();
     try {
       _levelSub?.cancel();
     } catch (_) {}
@@ -573,6 +459,7 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
             ],
           ),
           actions: [
+            // Toggle debug subtítulos + selector de voz
             PopupMenuButton<String>(
               tooltip: 'Voz',
               icon: const Icon(Icons.record_voice_over, color: Colors.cyanAccent),
@@ -605,6 +492,33 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
                       ],
                     ),
                   ),
+                const PopupMenuDivider(),
+                PopupMenuItem<String>(
+                  enabled: false,
+                  child: Row(
+                    children: [
+                      Switch(
+                        value: _subtitleDebug,
+                        thumbColor: WidgetStateProperty.resolveWith((states) => Colors.cyanAccent),
+                        // Reemplazo de withOpacity (deprecado) por withValues para evitar pérdida de precisión
+                        trackColor: WidgetStateProperty.resolveWith(
+                          (states) => Colors.cyanAccent.withValues(alpha: 0.4),
+                        ),
+                        onChanged: (val) {
+                          Navigator.pop(context); // cerrar menú
+                          setState(() {
+                            _subtitleDebug = val;
+                            _subtitleController.setDebug(val);
+                          });
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text('Debug subtítulos', style: TextStyle(color: Colors.cyanAccent, fontSize: 13)),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ],
@@ -669,38 +583,48 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
                 ),
               ),
             ),
-            // Subtítulo IA actual
-            if (!_hideSubtitles && _currentAiSubtitle.isNotEmpty)
-              Positioned(
-                left: 12,
-                right: 12,
-                bottom: 110 + 72 + 8,
-                child: _ScrollableAiSubtitle(text: _currentAiSubtitle),
+            // Subtítulo IA actual (siempre visible si hay texto)
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 110 + 72 + 8,
+              child: ValueListenableBuilder<String>(
+                valueListenable: _subtitleController.ai,
+                builder: (context, value, _) {
+                  if (value.isEmpty) return const SizedBox.shrink();
+                  return _ScrollableAiSubtitle(text: value);
+                },
               ),
-            // Subtítulo usuario actual
-            if (!_hideSubtitles && _currentUserSubtitle.isNotEmpty)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 110 + 72 + 8 + 70,
-                child: Center(
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 320),
-                    child: Text(
-                      _currentUserSubtitle,
-                      style: const TextStyle(
-                        color: Colors.pinkAccent,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        height: 1.3,
-                        overflow: TextOverflow.ellipsis,
+            ),
+            // Subtítulo usuario actual (siempre visible si hay texto)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 110 + 72 + 8 + 70,
+              child: Center(
+                child: ValueListenableBuilder<String>(
+                  valueListenable: _subtitleController.user,
+                  builder: (context, value, _) {
+                    if (value.isEmpty) return const SizedBox.shrink();
+                    return Container(
+                      constraints: const BoxConstraints(maxWidth: 320),
+                      child: Text(
+                        value,
+                        style: const TextStyle(
+                          color: Colors.pinkAccent,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          height: 1.3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 3,
                       ),
-                      textAlign: TextAlign.center,
-                      maxLines: 3,
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
+            ),
             // Controles inferiores (añadir botón aceptar en entrante)
             Positioned(
               left: 24,
@@ -852,8 +776,7 @@ extension _IncomingLogic on _VoiceCallChatState {
               '[AI-chan][VoiceCall] Detectado "end call" plano (voz) early=$earlyPlain -> colgando silencioso',
             );
             controller.suppressFurtherAiText();
-            _currentAiSubtitle = '';
-            _accumulatedFragments = '';
+            _subtitleController.clearAll();
             _endCallTagHandled = true;
             if (earlyPlain) _forceReject = true; // si es temprano lo marcamos como rechazo
             () async {
@@ -895,13 +818,7 @@ extension _IncomingLogic on _VoiceCallChatState {
               // Etiqueta start_call acompañada de texto: se IGNORA TODO ese texto (no subtítulo, no log conversational)
               controller.discardAiTextIfStartCallArtifact();
               // Limpiar cualquier subtítulo AI ya mostrado (fragmentos previos) para asegurar que nada del texto contaminado quede visible
-              if (mounted) {
-                _currentAiSubtitle = '';
-                _accumulatedFragments = '';
-                // Usar setState para reflejar limpieza inmediata
-                // ignore: invalid_use_of_protected_member
-                setState(() {});
-              }
+              if (mounted) _subtitleController.clearAll();
               if (!_startCallTagReceived) {
                 // Tratarlo igualmente como aceptación salvage
                 _startCallTagReceived = true;
@@ -928,8 +845,7 @@ extension _IncomingLogic on _VoiceCallChatState {
           if (containsEndTag) {
             _endCallTagHandled = true;
             controller.suppressFurtherAiText();
-            _currentAiSubtitle = '';
-            _accumulatedFragments = '';
+            _subtitleController.clearAll();
             // Cortar audio IA ya en reproducción para que no se oiga "end_call" pronunciado
             () async {
               try {
@@ -979,8 +895,7 @@ extension _IncomingLogic on _VoiceCallChatState {
               _forceReject = true;
               debugPrint('[AI-chan][VoiceCall] Rechazo implícito: texto inicial sin protocolo -> colgando');
               // Limpiar cualquier fragmento que haya entrado parcialmente
-              _currentAiSubtitle = '';
-              _accumulatedFragments = '';
+              _subtitleController.clearAll();
               controller.suppressFurtherAiText();
               () async {
                 try {
@@ -995,12 +910,7 @@ extension _IncomingLogic on _VoiceCallChatState {
         }
         // No mostrar subtítulos si controller indicó supresión tras end_call / rechazo
         if (controller.suppressFurtherAiTextFlag) {
-          if (_currentAiSubtitle.isNotEmpty || _accumulatedFragments.isNotEmpty) {
-            _currentAiSubtitle = '';
-            _accumulatedFragments = '';
-            // ignore: invalid_use_of_protected_member
-            setState(() {});
-          }
+          _subtitleController.clearAll();
           return;
         }
         _showAiSubtitle(chunk);
@@ -1010,7 +920,6 @@ extension _IncomingLogic on _VoiceCallChatState {
         if (!mounted) return;
         // Capturar messenger antes de cualquier await para cumplir regla use_build_context_synchronously
         final messenger = ScaffoldMessenger.maybeOf(context);
-        _hideSubtitles = true; // ocultar subtítulos inmediatamente
         if (!_hangupNoticeShown && messenger != null) {
           _hangupNoticeShown = true;
           String msg;
