@@ -524,46 +524,37 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
                 ),
               ),
             ),
-            // Subtítulo IA actual (siempre visible si hay texto)
+            // Subtítulos combinados (IA + Usuario) en un solo contenedor cyberpunk
             Positioned(
               left: 12,
               right: 12,
-              bottom: 110 + 72 + 8,
+              bottom: 110 + 72 + 8, // base sobre controles
               child: ValueListenableBuilder<String>(
                 valueListenable: _subtitleController.ai,
-                builder: (context, value, _) {
-                  if (value.isEmpty) return const SizedBox.shrink();
-                  return _ScrollableAiSubtitle(text: value);
+                builder: (context, aiValue, _) {
+                  return ValueListenableBuilder<String>(
+                    valueListenable: _subtitleController.user,
+                    builder: (context, userValue, __) {
+                      if (aiValue.isEmpty && userValue.isEmpty) return const SizedBox.shrink();
+                      // Obtener nombres reales desde el ChatProvider (fallback si algo falla)
+                      String aiLabel = 'AI';
+                      String userLabel = 'Tú';
+                      try {
+                        final chat = context.read<ChatProvider>();
+                        final rawAi = chat.onboardingData.aiName;
+                        final rawUser = chat.onboardingData.userName;
+                        if (rawAi.trim().isNotEmpty) aiLabel = rawAi.trim();
+                        if (rawUser.trim().isNotEmpty) userLabel = rawUser.trim();
+                      } catch (_) {}
+                      return _ScrollableConversationSubtitles(
+                        aiText: aiValue,
+                        userText: userValue,
+                        aiLabel: aiLabel,
+                        userLabel: userLabel,
+                      );
+                    },
+                  );
                 },
-              ),
-            ),
-            // Subtítulo usuario actual (siempre visible si hay texto)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 110 + 72 + 8 + 70,
-              child: Center(
-                child: ValueListenableBuilder<String>(
-                  valueListenable: _subtitleController.user,
-                  builder: (context, value, _) {
-                    if (value.isEmpty) return const SizedBox.shrink();
-                    return Container(
-                      constraints: const BoxConstraints(maxWidth: 320),
-                      child: Text(
-                        value,
-                        style: const TextStyle(
-                          color: Colors.pinkAccent,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          height: 1.3,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 3,
-                      ),
-                    );
-                  },
-                ),
               ),
             ),
             // Controles inferiores (añadir botón aceptar en entrante)
@@ -968,24 +959,32 @@ extension _IncomingLogic on _VoiceCallChatState {
   }
 }
 
-class _ScrollableAiSubtitle extends StatefulWidget {
-  final String text;
-  const _ScrollableAiSubtitle({required this.text});
+class _ScrollableConversationSubtitles extends StatefulWidget {
+  final String aiText;
+  final String userText;
+  final String aiLabel;
+  final String userLabel;
+  const _ScrollableConversationSubtitles({
+    required this.aiText,
+    required this.userText,
+    required this.aiLabel,
+    required this.userLabel,
+  });
 
   @override
-  State<_ScrollableAiSubtitle> createState() => _ScrollableAiSubtitleState();
+  State<_ScrollableConversationSubtitles> createState() => _ScrollableConversationSubtitlesState();
 }
 
-class _ScrollableAiSubtitleState extends State<_ScrollableAiSubtitle> {
+class _ScrollableConversationSubtitlesState extends State<_ScrollableConversationSubtitles> {
   final _scrollCtrl = ScrollController();
-  String _lastText = '';
+  String _lastCombinedKey = '';
+
   @override
-  void didUpdateWidget(covariant _ScrollableAiSubtitle oldWidget) {
+  void didUpdateWidget(covariant _ScrollableConversationSubtitles oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.text != widget.text) {
+    if (oldWidget.aiText != widget.aiText || oldWidget.userText != widget.userText) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        // Autoscroll al final siempre
         if (_scrollCtrl.hasClients) {
           _scrollCtrl.jumpTo(_scrollCtrl.position.maxScrollExtent);
         }
@@ -1001,18 +1000,20 @@ class _ScrollableAiSubtitleState extends State<_ScrollableAiSubtitle> {
 
   @override
   Widget build(BuildContext context) {
-    final text = widget.text;
-    final changed = text != _lastText;
-    if (changed) _lastText = text;
+    final size = MediaQuery.of(context).size;
+    final maxHeight = size.width < 430 ? 110.0 : 150.0; // un poco más alto para dos líneas
+    final keyNow = '${widget.aiText.length}|${widget.userText.length}';
+    if (keyNow != _lastCombinedKey) _lastCombinedKey = keyNow;
+
     return Container(
-      constraints: const BoxConstraints(maxWidth: 400, maxHeight: 170),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      constraints: BoxConstraints(maxWidth: 420, maxHeight: maxHeight),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.black.withAlpha((0.35 * 255).round()),
-        border: Border.all(color: Colors.cyanAccent.withAlpha((0.4 * 255).round())),
-        borderRadius: BorderRadius.circular(10),
+        color: Colors.black.withAlpha((0.40 * 255).round()),
+        border: Border.all(color: Colors.cyanAccent.withAlpha((0.45 * 255).round())),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(color: Colors.cyanAccent.withAlpha((0.2 * 255).round()), blurRadius: 12, spreadRadius: 1),
+          BoxShadow(color: Colors.cyanAccent.withAlpha((0.25 * 255).round()), blurRadius: 14, spreadRadius: 1),
         ],
       ),
       child: Scrollbar(
@@ -1020,13 +1021,73 @@ class _ScrollableAiSubtitleState extends State<_ScrollableAiSubtitle> {
         thumbVisibility: true,
         child: SingleChildScrollView(
           controller: _scrollCtrl,
-          padding: const EdgeInsets.only(right: 4),
-          child: CyberpunkRealtimeSubtitle(
-            text: text,
-            style: const TextStyle(color: Colors.cyanAccent, fontSize: 13, fontWeight: FontWeight.w400, height: 1.25),
+          padding: const EdgeInsets.only(right: 6, top: 2, bottom: 2),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (widget.aiText.isNotEmpty)
+                _SpeakerLine(
+                  label: widget.aiLabel,
+                  labelColor: Colors.cyanAccent,
+                  text: widget.aiText,
+                  textStyle: const TextStyle(
+                    color: Colors.cyanAccent,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
+                    height: 1.22,
+                  ),
+                ),
+              if (widget.userText.isNotEmpty) ...[
+                if (widget.aiText.isNotEmpty) const SizedBox(height: 4),
+                _SpeakerLine(
+                  label: widget.userLabel,
+                  labelColor: Colors.pinkAccent,
+                  text: widget.userText,
+                  textStyle: const TextStyle(
+                    color: Colors.pinkAccent,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    height: 1.22,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SpeakerLine extends StatelessWidget {
+  final String label;
+  final Color labelColor;
+  final String text;
+  final TextStyle textStyle;
+  const _SpeakerLine({required this.label, required this.labelColor, required this.text, required this.textStyle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          margin: const EdgeInsets.only(top: 2, right: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: labelColor.withAlpha((0.18 * 255).round()),
+            border: Border.all(color: labelColor.withAlpha((0.60 * 255).round()), width: 1),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(color: labelColor, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+          ),
+        ),
+        Expanded(
+          child: CyberpunkRealtimeSubtitle(text: text, style: textStyle),
+        ),
+      ],
     );
   }
 }

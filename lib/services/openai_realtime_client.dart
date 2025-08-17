@@ -33,14 +33,14 @@ class OpenAIRealtimeClient {
   bool _serverTurnDetection = false;
   bool _hasActiveResponse = false;
   Timer? _responseCreateTimer;
-  String _voice = 'nova'; // se ajustará en connect()
+  String _voice = 'sage'; // se ajustará en connect()
   // Versión simple sin interceptores ni guardias
 
   Future<void> connect({
     required String systemPrompt,
     String inputAudioFormat = 'pcm16',
     String outputAudioFormat = 'pcm16',
-    String voice = 'nova', // el controlador ya normaliza antes de llamar
+    String voice = 'sage', // el controlador ya normaliza antes de llamar
     String turnDetectionType = 'server_vad', // 'server_vad' | 'semantic_vad'
     int silenceDurationMs = 700,
   }) async {

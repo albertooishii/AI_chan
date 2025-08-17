@@ -255,7 +255,7 @@ class AudioChatService {
     }
   }
 
-  Future<File?> synthesizeTts(String text, {String voice = 'nova'}) async {
+  Future<File?> synthesizeTts(String text, {String voice = 'sage'}) async {
     try {
       final openai = OpenAIService();
       final file = await openai.textToSpeech(text: text, voice: voice);

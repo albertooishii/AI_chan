@@ -276,7 +276,7 @@ class OpenAIService implements AIService {
   /// Genera un archivo de voz usando OpenAI TTS
   Future<File?> textToSpeech({
     required String text,
-    String voice = 'nova',
+    String voice = 'sage',
     String model = 'tts-1',
     String? outputDir,
   }) async {
