@@ -10,6 +10,8 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'voice_call_painters.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ai_chan/constants/voices.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'cyberpunk_subtitle.dart';
 import '../services/subtitle_controller.dart';
 
@@ -32,8 +34,7 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
   int _earlyPhaseAlnumAccumulated = 0; // acumulador de caracteres alfanuméricos en fase temprana para rechazo implícito
   Timer? _noAnswerTimer; // timeout para llamada no contestada
   Timer? _incomingAnswerTimer; // timeout para llamadas entrantes no aceptadas
-  // Debug subtítulos (mutable vía popup)
-  bool _subtitleDebug = false;
+  // Debug de subtítulos siempre desactivado (control solo por código, sin botón UI)
 
   Future<void> _hangUp() async {
     if (_hangupInProgress) return;
@@ -331,15 +332,19 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
     super.initState();
     _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
     controller = VoiceCallController(openAIService: openai);
-    _subtitleController = SubtitleController(debug: _subtitleDebug);
+    _subtitleController = SubtitleController(debug: false);
 
-    // Cargar voz activa guardada
+    // Cargar / validar voz por defecto inmediatamente para el controlador
     Future.microtask(() async {
       try {
         final prefs = await SharedPreferences.getInstance();
-        final v = prefs.getString('selected_voice');
-        if (v != null && mounted) setState(() => _activeVoice = v);
-      } catch (_) {}
+        final saved = prefs.getString('selected_voice');
+        final envDefault = dotenv.env['OPENAI_VOICE'];
+        final effective = saved != null && kAvailableVoices.contains(saved) ? saved : resolveDefaultVoice(envDefault);
+        controller.setVoice(effective); // asegurar antes de iniciar llamada
+      } catch (_) {
+        controller.setVoice(resolveDefaultVoice(dotenv.env['OPENAI_VOICE']));
+      }
     });
 
     // Llamada saliente: iniciar inmediatamente. Entrante: esperar a que usuario acepte.
@@ -416,15 +421,14 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
 
   late AnimationController _controller;
   double _soundLevel = 0.0;
-  String? _activeVoice;
+  // Selector de voz migrado al chat principal.
 
   @override
   Widget build(BuildContext context) {
     final isIncoming = widget.incoming;
     final baseColor = Colors.cyanAccent;
     final accentColor = Colors.pinkAccent;
-    final voices = const ['alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse'];
-    final activeVoice = _activeVoice;
+    // Lista de voces ya no se muestra aquí.
     final neonShadow = [
       BoxShadow(color: baseColor.withAlpha((0.7 * 255).round()), blurRadius: 16, spreadRadius: 2),
       BoxShadow(color: accentColor.withAlpha((0.4 * 255).round()), blurRadius: 32, spreadRadius: 8),
@@ -458,70 +462,7 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
               ),
             ],
           ),
-          actions: [
-            // Toggle debug subtítulos + selector de voz
-            PopupMenuButton<String>(
-              tooltip: 'Voz',
-              icon: const Icon(Icons.record_voice_over, color: Colors.cyanAccent),
-              color: Colors.black,
-              onSelected: (v) {
-                controller.setVoice(v);
-                () async {
-                  try {
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.setString('selected_voice', v);
-                    if (mounted) setState(() => _activeVoice = v);
-                  } catch (_) {
-                    if (mounted) setState(() => _activeVoice = v);
-                  }
-                }();
-              },
-              itemBuilder: (context) => [
-                for (final v in voices)
-                  PopupMenuItem<String>(
-                    value: v,
-                    child: Row(
-                      children: [
-                        Icon(
-                          activeVoice == v ? Icons.radio_button_checked : Icons.radio_button_off,
-                          size: 18,
-                          color: Colors.cyanAccent,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(v, style: const TextStyle(color: Colors.cyanAccent)),
-                      ],
-                    ),
-                  ),
-                const PopupMenuDivider(),
-                PopupMenuItem<String>(
-                  enabled: false,
-                  child: Row(
-                    children: [
-                      Switch(
-                        value: _subtitleDebug,
-                        thumbColor: WidgetStateProperty.resolveWith((states) => Colors.cyanAccent),
-                        // Reemplazo de withOpacity (deprecado) por withValues para evitar pérdida de precisión
-                        trackColor: WidgetStateProperty.resolveWith(
-                          (states) => Colors.cyanAccent.withValues(alpha: 0.4),
-                        ),
-                        onChanged: (val) {
-                          Navigator.pop(context); // cerrar menú
-                          setState(() {
-                            _subtitleDebug = val;
-                            _subtitleController.setDebug(val);
-                          });
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text('Debug subtítulos', style: TextStyle(color: Colors.cyanAccent, fontSize: 13)),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
+          actions: const [],
         ),
         body: Stack(
           children: [

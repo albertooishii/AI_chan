@@ -1,5 +1,8 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ai_chan/constants/voices.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:provider/provider.dart';
@@ -388,6 +391,32 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                 ),
               ),
+              // Seleccionar voz para llamadas / TTS
+              PopupMenuItem<String>(
+                value: 'select_voice',
+                child: Row(
+                  children: [
+                    const Icon(Icons.record_voice_over, color: AppColors.primary, size: 20),
+                    const SizedBox(width: 8),
+                    const Text('Seleccionar voz', style: TextStyle(color: AppColors.primary)),
+                    FutureBuilder<String?>(
+                      future: _loadActiveVoice(),
+                      builder: (context, snap) {
+                        final v = snap.data;
+                        if (v == null) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(left: 8.0),
+                          child: Text(
+                            v,
+                            style: const TextStyle(color: AppColors.secondary, fontSize: 11),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
               const PopupMenuDivider(),
               // Exportar chat
               PopupMenuItem<String>(
@@ -591,6 +620,69 @@ class _ChatScreenState extends State<ChatScreen> {
                     (models.contains(defaultModel) ? defaultModel : (models.isNotEmpty ? models.first : null));
                 final selected = await _showModelSelectionDialog(models, initialModel);
                 _setSelectedModel(selected, current, chatProvider);
+              } else if (value == 'select_voice') {
+                final voices = kAvailableVoices;
+                final current = await _loadActiveVoice();
+                if (!mounted) return;
+                final selected = await showDialog<String>(
+                  context: context,
+                  builder: (ctx) {
+                    return AlertDialog(
+                      backgroundColor: Colors.black,
+                      title: const Text('Selecciona voz', style: TextStyle(color: AppColors.secondary)),
+                      content: SizedBox(
+                        width: 320,
+                        child: ListView(
+                          shrinkWrap: true,
+                          children: [
+                            for (final v in voices)
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(
+                                  current == v ? Icons.radio_button_checked : Icons.radio_button_off,
+                                  color: AppColors.secondary,
+                                  size: 20,
+                                ),
+                                title: Text(v, style: const TextStyle(color: AppColors.primary)),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.play_arrow, color: AppColors.secondary),
+                                  tooltip: 'Escuchar demo',
+                                  onPressed: () async {
+                                    // Sintetizar frase corta de demostración
+                                    final phrase = 'Hola, soy tu asistente con la voz $v';
+                                    try {
+                                      final file = await context.read<ChatProvider>().audioService.synthesizeTts(
+                                        phrase,
+                                        voice: v,
+                                      );
+                                      if (file != null) {
+                                        // Reproducir directamente usando AudioPlayer temporal
+                                        final player = AudioPlayer();
+                                        await player.play(DeviceFileSource(file.path));
+                                      }
+                                    } catch (e) {
+                                      debugPrint('[VoicePreview] Error preview voz $v: $e');
+                                    }
+                                  },
+                                ),
+                                onTap: () => Navigator.of(ctx).pop(v),
+                              ),
+                          ],
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          child: const Text('Cerrar', style: TextStyle(color: AppColors.primary)),
+                        ),
+                      ],
+                    );
+                  },
+                );
+                if (selected != null) {
+                  await _saveActiveVoice(selected);
+                  setState(() {}); // refrescar FutureBuilder
+                }
               }
             },
           ),
@@ -750,6 +842,23 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   // Eliminado: diálogo para seleccionar países
+
+  // ===== Soporte selección de voz (compartida con llamadas) =====
+  Future<String?> _loadActiveVoice() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('selected_voice');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _saveActiveVoice(String voice) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('selected_voice', voice);
+    } catch (_) {}
+  }
 }
 
 class ThreeDotsIndicator extends StatefulWidget {

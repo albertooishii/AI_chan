@@ -8,6 +8,9 @@ import 'dart:math' as math;
 import 'package:record/record.dart';
 
 import '../services/openai_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ai_chan/constants/voices.dart';
 import '../services/openai_realtime_client.dart';
 import '../services/tone_service.dart';
 import '../models/message.dart';
@@ -52,7 +55,7 @@ class VoiceCallController {
   // Ajustado: permitir hablar antes para no recortar primeras sílabas del usuario
   static const double _earlyUnmuteProgress = 0.48; // antes 0.65
   // Debug subtítulos
-  final bool _subtitleDebug = false; // desactivado: logs de subtítulos silenciados
+  final bool _subtitleDebug = true; // desactivado: logs de subtítulos silenciados
   int _lastLoggedSubtitleChars = 0;
   // Latencia artificial para que los subtítulos vayan detrás del audio simulando procesamiento.
   int _subtitleLagMs = 1000; // ajustable (reducido en modo directo)
@@ -62,7 +65,7 @@ class VoiceCallController {
   OpenAIRealtimeClient? _client;
   bool _isConnected = false;
   bool _isMuted = false; // estado actual de mute (usuario)
-  String _currentVoice = 'alloy';
+  String _currentVoice = resolveDefaultVoice(dotenv.env['OPENAI_VOICE']);
   bool _micStarted = false; // micrófono aún no iniciado (diferido hasta start_call o audio IA)
   bool _startingMic = false; // previene arranques concurrentes
   DateTime? _lastMicStartAt;
@@ -450,14 +453,27 @@ class VoiceCallController {
     Function(String)? onUserTranscription, // Nuevo callback para transcripciones del usuario
     dynamic recorder, // Para compatibilidad
     String model = 'gpt-4o-mini-realtime',
-    String voice = 'alloy',
+    String? voice,
     bool suppressInitialAiRequest = false, // nuevo: IA no habla hasta que user hable
     bool playRingback = true, // nuevo: controlar si reproducir ringback (entrante respondida no)
     bool twoPhaseInitial = true, // Opción 1: primera generación SOLO texto para permitir [end_call][/end_call]
     Function(int attempt, int backoffMs)? onRetryScheduled, // notificar reintentos
   }) async {
-    debugPrint('📞 Starting continuous call with model: $model, voice: $voice');
-    _currentVoice = voice;
+    // Determinar voz efectiva: preferencia guardada -> argumento -> .env -> fallback lista
+    String effectiveVoice = voice ?? _currentVoice;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('selected_voice');
+      if (saved != null && kAvailableVoices.contains(saved)) {
+        effectiveVoice = saved;
+      }
+    } catch (_) {}
+    final envDefault = dotenv.env['OPENAI_VOICE'];
+    if (!kAvailableVoices.contains(effectiveVoice)) {
+      effectiveVoice = resolveDefaultVoice(envDefault);
+    }
+    _currentVoice = effectiveVoice;
+    debugPrint('📞 Starting continuous call with model: $model, voice: $_currentVoice');
     _callStartTime = DateTime.now();
     _callMessages.clear();
     _userSpoke = false;
@@ -703,7 +719,7 @@ class VoiceCallController {
 
       await _client!.connect(
         systemPrompt: systemPrompt,
-        voice: voice,
+        voice: _currentVoice,
         inputAudioFormat: 'pcm16',
         outputAudioFormat: 'pcm16',
         // Usamos VAD del servidor para commits automáticos
