@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:io' show Platform;
+import 'utils/log_utils.dart';
 
 import 'screens/chat_screen.dart';
 import 'screens/onboarding_screen.dart';
@@ -69,9 +70,9 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   // Permite borrar todo y reiniciar la app desde cualquier sitio
 
   Future<void> resetApp() async {
-    debugPrint('[AI-chan] resetApp llamado');
+    Log.i('resetApp llamado', tag: 'APP');
     await clearAppData();
-    debugPrint('[AI-chan] resetApp completado');
+    Log.i('resetApp completado', tag: 'APP');
     if (mounted) {
       final onboardingProvider = Provider.of<OnboardingProvider>(context, listen: false);
       onboardingProvider.reset();
@@ -95,7 +96,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
           await Permission.storage.request();
         }
       } catch (e) {
-        debugPrint('[AI-chan] Error solicitando permisos de almacenamiento: $e');
+        Log.e('Error solicitando permisos de almacenamiento', tag: 'PERM', error: e);
       }
       setState(() {
         _initialized = true;

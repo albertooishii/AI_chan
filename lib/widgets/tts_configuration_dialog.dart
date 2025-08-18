@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/log_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/android_native_tts_service.dart';
 import '../services/google_speech_service.dart';
@@ -51,22 +52,22 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
   }
 
   void _loadVoices() async {
-    print('DEBUG TTS: _loadVoices iniciado - _showOnlySpanishVoices: $_showOnlySpanishVoices');
+    Log.d('DEBUG TTS: _loadVoices iniciado - _showOnlySpanishVoices: $_showOnlySpanishVoices', tag: 'TTS_DIALOG');
     try {
       List<Map<String, dynamic>> voices;
       if (_showOnlySpanishVoices) {
         voices = await GoogleSpeechService.voicesForAiAndSpanish('es-ES');
-        print('DEBUG TTS: Spanish Spain voices loaded: ${voices.length}');
+        Log.d('DEBUG TTS: Spanish Spain voices loaded: ${voices.length}', tag: 'TTS_DIALOG');
         // Imprimir los primeros 5 para debug
         for (int i = 0; i < voices.length && i < 5; i++) {
           final voice = voices[i];
           final name = voice['name'] ?? 'Sin nombre';
           final langCodes = voice['languageCodes'] ?? [];
-          print('DEBUG TTS: Voice $i: $name - Languages: $langCodes');
+          Log.d('DEBUG TTS: Voice $i: $name - Languages: $langCodes', tag: 'TTS_DIALOG');
         }
       } else {
         voices = await GoogleSpeechService.fetchGoogleVoices();
-        print('DEBUG TTS: All voices loaded: ${voices.length}');
+        Log.d('DEBUG TTS: All voices loaded: ${voices.length}', tag: 'TTS_DIALOG');
         // Contar voces españolas para debug
         int spanishCount = 0;
         for (final voice in voices) {
@@ -75,7 +76,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
             spanishCount++;
           }
         }
-        print('DEBUG TTS: Total Spanish voices in all: $spanishCount');
+        Log.d('DEBUG TTS: Total Spanish voices in all: $spanishCount', tag: 'TTS_DIALOG');
       }
 
       if (mounted) {
@@ -83,10 +84,10 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
           _googleVoices = voices;
           _isLoading = false;
         });
-        print('DEBUG TTS: setState completado con ${_googleVoices.length} voces');
+        Log.d('DEBUG TTS: setState completado con ${_googleVoices.length} voces', tag: 'TTS_DIALOG');
       }
     } catch (e) {
-      print('DEBUG TTS: Error loading voices: $e');
+      Log.d('DEBUG TTS: Error loading voices: $e', tag: 'TTS_DIALOG');
       if (mounted) {
         setState(() {
           _googleVoices = [];
@@ -113,20 +114,20 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
     setState(() => _isLoading = true);
 
     try {
-      debugPrint('[TTS Dialog] Refrescando voces, filtro activo: $_showOnlySpanishVoices');
+      Log.d('[TTS Dialog] Refrescando voces, filtro activo: $_showOnlySpanishVoices', tag: 'TTS_DIALOG');
 
       if (GoogleSpeechService.isConfigured) {
         await GoogleSpeechService.clearVoicesCache();
-        debugPrint('[TTS Dialog] Cache limpiado');
+        Log.d('[TTS Dialog] Cache limpiado', tag: 'TTS_DIALOG');
 
         if (_showOnlySpanishVoices) {
           // Usar voces filtradas para español de España con refresh forzado
           _googleVoices = await GoogleSpeechService.voicesForUserAndAi(['es-ES'], ['es-ES'], forceRefresh: true);
-          debugPrint('[TTS Dialog] Voces filtradas refrescadas: ${_googleVoices.length}');
+          Log.d('[TTS Dialog] Voces filtradas refrescadas: ${_googleVoices.length}', tag: 'TTS_DIALOG');
         } else {
           // Usar todas las voces disponibles con refresh forzado
           _googleVoices = await GoogleSpeechService.fetchGoogleVoices(forceRefresh: true);
-          debugPrint('[TTS Dialog] Todas las voces refrescadas: ${_googleVoices.length}');
+          Log.d('[TTS Dialog] Todas las voces refrescadas: ${_googleVoices.length}', tag: 'TTS_DIALOG');
         }
 
         // Debug: mostrar algunas voces después del refresh
@@ -134,7 +135,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
           final voice = _googleVoices[i];
           final name = voice['name'];
           final langs = voice['languageCodes'];
-          debugPrint('[TTS Dialog] Después del refresh, voz $i: $name -> $langs');
+          Log.d('[TTS Dialog] Después del refresh, voz $i: $name -> $langs', tag: 'TTS_DIALOG');
         }
       }
 
@@ -142,7 +143,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
         _androidNativeVoices = await AndroidNativeTtsService.getAvailableVoices();
       }
     } catch (e) {
-      debugPrint('[TTS Dialog] Error refrescando voces: $e');
+      Log.d('[TTS Dialog] Error refrescando voces: $e', tag: 'TTS_DIALOG');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error actualizando voces: $e')));
       }

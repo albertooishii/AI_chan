@@ -13,6 +13,7 @@ import '../utils/dialog_utils.dart';
 import '../utils/chat_json_utils.dart' as chat_json_utils;
 import '../models/imported_chat.dart';
 import '../utils/locale_utils.dart';
+import '../utils/log_utils.dart';
 
 class OnboardingProvider extends ChangeNotifier {
   bool loading = true;
@@ -167,7 +168,7 @@ class OnboardingProvider extends ChangeNotifier {
   void setAiName(String value) {
     if (aiNameController != null && aiNameController!.text != value) {
       aiNameController!.text = value;
-      debugPrint('[LOG setAiName] aiNameController.text forzado a: "$value"');
+      Log.i('setAiName: aiNameController.text forzado a: "$value"', tag: 'ONBOARD');
     }
     // notifyListeners(); // Solo si necesitas refresco inmediato en la UI
   }

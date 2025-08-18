@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ai_chan/utils/log_utils.dart';
 import '../constants/app_colors.dart';
 
 import 'package:ai_chan/main.dart';
@@ -24,12 +25,12 @@ Future<void> showSuccessDialog(BuildContext context, String title, String messag
 
 /// Muestra un diálogo de error centralizado
 Future<void> showErrorDialog(BuildContext context, String error) async {
-  debugPrint('[DialogUtils] Error mostrado: $error');
+  Log.e('Error mostrado', tag: 'DIALOG_UTILS', error: error);
   // Si el error contiene 'unmounted', solo loguea pero permite mostrar el diálogo normalmente
   final ctx = (context.mounted) ? context : navigatorKey.currentContext;
   if (ctx == null) {
     // Fallback: mostrar SnackBar si no hay contexto válido
-    debugPrint('[DialogUtils] No hay contexto válido para mostrar el diálogo de error: $error');
+    Log.w('No hay contexto válido para mostrar el diálogo de error: $error', tag: 'DIALOG_UTILS');
     // Si hay un ScaffoldMessenger disponible, mostrar SnackBar
     final navState = navigatorKey.currentState;
     final navContext = navState?.context;

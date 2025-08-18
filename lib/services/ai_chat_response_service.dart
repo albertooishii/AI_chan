@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart';
+// import 'package:flutter/foundation.dart';
+import '../utils/log_utils.dart';
 import '../models/message.dart';
 import '../models/system_prompt.dart';
 import '../services/ai_service.dart';
@@ -237,18 +238,18 @@ class AiChatResponseService {
       // Validar que realmente sea base64 y no una URL
       final urlPattern = RegExp(r'^(https?:\/\/|file:|\/|[A-Za-z]:\\)');
       if (urlPattern.hasMatch(response.base64)) {
-        debugPrint('[AI-chan][ERROR] La IA envió una URL/ruta en vez de imagen base64');
+        Log.e('La IA envió una URL/ruta en vez de imagen base64', tag: 'AI_CHAT_RESPONSE');
         textResponse += '\n[ERROR: La IA envió una URL/ruta en vez de imagen. Pide la foto de nuevo.]';
         isImageResp = false;
       } else {
         try {
           imagePathResp = await saveBase64ImageToFile(response.base64, prefix: 'img');
           if (imagePathResp == null) {
-            debugPrint('[AI-chan][ERROR] No se pudo guardar la imagen localmente');
+            Log.e('No se pudo guardar la imagen localmente', tag: 'AI_CHAT_RESPONSE');
             isImageResp = false;
           }
         } catch (e) {
-          debugPrint('[AI-chan][ERROR] Fallo guardando imagen: $e');
+          Log.e('Fallo guardando imagen', tag: 'AI_CHAT_RESPONSE', error: e);
           isImageResp = false;
           imagePathResp = null;
         }
@@ -256,7 +257,7 @@ class AiChatResponseService {
     }
 
     if (_markdownImagePattern.hasMatch(textResponse) || _urlInTextPattern.hasMatch(textResponse)) {
-      debugPrint('[AI-chan][ERROR] La IA envió una imagen Markdown o URL en el texto');
+      Log.e('La IA envió una imagen Markdown o URL en el texto', tag: 'AI_CHAT_RESPONSE');
       textResponse += '\n[ERROR: La IA envió una imagen como enlace o Markdown. Pide la foto de nuevo.]';
     }
 

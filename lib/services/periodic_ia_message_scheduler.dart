@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import '../utils/log_utils.dart';
 import '../models/message.dart';
 import '../models/ai_chan_profile.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -20,7 +20,7 @@ class PeriodicIaMessageScheduler {
     Duration? initialDelay,
   }) {
     stop();
-    debugPrint('[AI-chan][Periodic] Iniciando scheduler de mensajes automáticos IA');
+    Log.i('Iniciando scheduler de mensajes automáticos IA', tag: 'PERIODIC_IA');
 
     void scheduleNext([int? prevIntervalMin]) {
       final nowMs = DateTime.now().millisecondsSinceEpoch;
@@ -31,7 +31,7 @@ class PeriodicIaMessageScheduler {
         final messages = messagesGetter();
         final now = DateTime.now();
         final tipo = _getCurrentScheduleType(now, profile);
-        debugPrint('[AI-chan][Periodic] Timer @ ${now.toIso8601String()} tipo=$tipo');
+        Log.d('Timer @ ${now.toIso8601String()} tipo=$tipo', tag: 'PERIODIC_IA');
         if (tipo != 'sleep' && tipo != 'work' && tipo != 'busy') {
           final lastMsg = messages.isNotEmpty ? messages.last : null;
           final lastMsgTime = lastMsg?.dateTime;
@@ -49,10 +49,10 @@ class PeriodicIaMessageScheduler {
             _lastAutoIa = now;
             _autoStreak = (_autoStreak + 1).clamp(0, 20);
           } else {
-            debugPrint('[AI-chan][Periodic] Skip auto diff=$diffMinutes minWait=$minWait cooldown=$cooldownOk');
+            Log.d('Skip auto diff=$diffMinutes minWait=$minWait cooldown=$cooldownOk', tag: 'PERIODIC_IA');
           }
         } else {
-          debugPrint('[AI-chan][Periodic] Skip por horario: $tipo');
+          Log.d('Skip por horario: $tipo', tag: 'PERIODIC_IA');
         }
         scheduleNext(intervalMin);
       });

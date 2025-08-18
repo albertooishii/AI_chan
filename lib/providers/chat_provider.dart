@@ -25,6 +25,7 @@ import '../services/google_speech_service.dart';
 import '../services/periodic_ia_message_scheduler.dart';
 import '../services/prompt_builder.dart';
 import '../services/ai_chat_response_service.dart';
+import '../utils/log_utils.dart';
 
 class ChatProvider extends ChangeNotifier {
   ChatProvider() {
@@ -161,8 +162,9 @@ class ChatProvider extends ChangeNotifier {
       if (userAudioPath != null) {
         try {
           final f = File(userAudioPath);
-          debugPrint(
-            '[Audio] sendMessage added msg with audioPath=$userAudioPath exists=${f.existsSync()} size=${f.existsSync() ? f.lengthSync() : 0}',
+          Log.d(
+            '[Audio] sendMessage added msg con audioPath=$userAudioPath exists=${f.existsSync()} size=${f.existsSync() ? f.lengthSync() : 0}',
+            tag: 'AUDIO',
           );
         } catch (_) {}
       }
@@ -217,12 +219,12 @@ class ChatProvider extends ChangeNotifier {
     // una nueva imagen: estamos enviando la imagen del usuario para analizarla.
     if (hasImage) {
       solicitaImagen = false;
-      debugPrint('[AI-chan] Imagen adjunta por el usuario: omitiendo detección de solicitud de imagen.');
+      Log.i('Imagen adjunta por el usuario: omitiendo detección de solicitud de imagen.', tag: 'CHAT');
     }
     if (solicitaImagen) {
       final lower = selected.toLowerCase();
       if (!lower.startsWith('gpt-')) {
-        debugPrint('[AI-chan] Solicitud de imagen detectada. Forzando modelo "gpt-4.1-mini"');
+        Log.i('Solicitud de imagen detectada. Forzando modelo "gpt-4.1-mini"', tag: 'CHAT');
         selected = 'gpt-4.1-mini';
       }
     }
@@ -241,7 +243,7 @@ class ChatProvider extends ChangeNotifier {
       // Éxito de red: marcar último mensaje usuario como 'sent'
       _setLastUserMessageStatus(MessageStatus.sent);
     } catch (e) {
-      debugPrint('[AI-chan] Error enviando mensaje: $e');
+      Log.e('Error enviando mensaje', tag: 'CHAT', error: e);
       // Marcar último mensaje de usuario como failed
       // Preferir existingMessageIndex si se proporcionó
       int idx = -1;
@@ -283,8 +285,9 @@ class ChatProvider extends ChangeNotifier {
           notifyListeners();
         }
       } else {
-        debugPrint(
-          '[AI-chan] No se encontró mensaje de imagen reciente para asignar prompt; prompt extraído: ${result.prompt}',
+        Log.i(
+          'No se encontró mensaje de imagen reciente para asignar prompt; prompt extraído: ${result.prompt}',
+          tag: 'CHAT',
         );
       }
     }
@@ -300,7 +303,10 @@ class ChatProvider extends ChangeNotifier {
     if (lowerResultText.contains('[audio]')) {
       isSendingAudio = true; // Se desactiva al final del flujo cuando termina la síntesis TTS
     }
-    debugPrint('[AI] isTyping=$isTyping, isSendingImage=$isSendingImage, isSendingAudio=$isSendingAudio (sendMessage)');
+    Log.d(
+      'isTyping=$isTyping, isSendingImage=$isSendingImage, isSendingAudio=$isSendingAudio (sendMessage)',
+      tag: 'CHAT',
+    );
     final textLength = result.text.length;
     final delayMs = (textLength * 15).clamp(15, double.maxFinite).toInt();
     await Future.delayed(Duration(milliseconds: delayMs));
@@ -351,7 +357,7 @@ class ChatProvider extends ChangeNotifier {
     // Detección de llamada entrante cuando el modelo responde con el placeholder exacto
     if (assistantMessage.text.trim() == '[call][/call]') {
       pendingIncomingCallMsgIndex = messages.length - 1;
-      debugPrint('[AI-chan][Call] Placeholder de llamada entrante detectado (index=$pendingIncomingCallMsgIndex)');
+      Log.i('[Call] Placeholder de llamada entrante detectado (index=$pendingIncomingCallMsgIndex)', tag: 'CHAT');
       // Notificar ya para que la UI abra la pantalla de llamada sin esperar al resto del post-procesado
       notifyListeners();
     }
@@ -431,11 +437,11 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> stopAndSendRecording({String? model}) async {
     final path = await audioService.stopRecording();
-    debugPrint('[Audio] stopAndSendRecording got path: $path');
+    Log.d('stopAndSendRecording got path: $path', tag: 'AUDIO');
     if (path == null) return; // cancelado o error
 
     // Activar indicador de envío de audio
-    debugPrint('[Audio] isUploadingUserAudio = true (stopAndSendRecording)');
+    Log.d('isUploadingUserAudio = true (stopAndSendRecording)', tag: 'AUDIO');
     isUploadingUserAudio = true;
     notifyListeners();
 
@@ -449,12 +455,12 @@ class ChatProvider extends ChangeNotifier {
         final openai = OpenAIService();
         transcript = await openai.transcribeAudio(path);
         if (transcript != null && transcript.trim().isNotEmpty) {
-          debugPrint('[Audio] Transcripción exitosa en intento ${retries + 1}');
+          Log.i('Transcripción exitosa en intento ${retries + 1}', tag: 'AUDIO');
           break;
         }
       } catch (e) {
         retries++;
-        debugPrint('[Audio] Error transcribiendo (intento $retries/$maxRetries): $e');
+        Log.e('Error transcribiendo (intento $retries/$maxRetries)', tag: 'AUDIO', error: e);
         if (retries <= maxRetries) {
           await Future.delayed(Duration(milliseconds: 500 * retries)); // backoff progresivo
         }
@@ -464,7 +470,7 @@ class ChatProvider extends ChangeNotifier {
     // Fallback: usar transcripción en vivo si la final falló o es muy corta
     if ((transcript == null || transcript.trim().length < liveTranscript.trim().length) && liveTranscript.isNotEmpty) {
       transcript = liveTranscript.trim();
-      debugPrint('[Audio] Usando transcripción en vivo como fallback');
+      Log.w('Usando transcripción en vivo como fallback', tag: 'AUDIO');
     }
 
     // Si la transcripción está vacía, descartar y eliminar archivo.
@@ -472,7 +478,7 @@ class ChatProvider extends ChangeNotifier {
       try {
         File(path).deleteSync();
       } catch (_) {}
-      debugPrint('[Audio] Nota de voz vacía descartada (no se añade mensaje)');
+      Log.w('Nota de voz vacía descartada (no se añade mensaje)', tag: 'AUDIO');
       isUploadingUserAudio = false;
       notifyListeners();
       return;
@@ -484,7 +490,7 @@ class ChatProvider extends ChangeNotifier {
     await sendMessage(tagged, model: model, userAudioPath: path, preTranscribedText: tagged);
 
     // Desactivar indicador de envío de audio
-    debugPrint('[Audio] isUploadingUserAudio = false (stopAndSendRecording)');
+    Log.d('isUploadingUserAudio = false (stopAndSendRecording)', tag: 'AUDIO');
     isUploadingUserAudio = false;
     notifyListeners();
   }
@@ -559,7 +565,7 @@ class ChatProvider extends ChangeNotifier {
       superbloqueEntry = result.superbloqueEntry;
       notifyListeners();
     } catch (e) {
-      debugPrint('[AI-chan][WARN] Falló actualización de memoria post-voz: $e');
+      Log.w('[AI-chan][WARN] Falló actualización de memoria post-voz: $e');
     }
   }
 
@@ -609,7 +615,7 @@ class ChatProvider extends ChangeNotifier {
       superbloqueEntry = result.superbloqueEntry;
       notifyListeners();
     } catch (e) {
-      debugPrint('[AI-chan][WARN] Falló actualización de memoria post-updateCallStatus: $e');
+      Log.w('[AI-chan][WARN] Falló actualización de memoria post-updateCallStatus: $e');
     }
   }
 
@@ -633,7 +639,7 @@ class ChatProvider extends ChangeNotifier {
       superbloqueEntry = result.superbloqueEntry;
       notifyListeners();
     } catch (e) {
-      debugPrint('[AI-chan][WARN] Falló actualización de memoria post-message: $e');
+      Log.w('[AI-chan][WARN] Falló actualización de memoria post-message: $e');
     }
   }
 
@@ -681,7 +687,7 @@ class ChatProvider extends ChangeNotifier {
         superbloqueEntry = result.superbloqueEntry;
         notifyListeners();
       } catch (e) {
-        debugPrint('[AI-chan][WARN] Falló actualización de memoria post-replace-call: $e');
+        Log.w('[AI-chan][WARN] Falló actualización de memoria post-replace-call: $e');
       }
     }();
   }
@@ -713,7 +719,7 @@ class ChatProvider extends ChangeNotifier {
         superbloqueEntry = result.superbloqueEntry;
         notifyListeners();
       } catch (e) {
-        debugPrint('[AI-chan][WARN] Falló actualización de memoria post-reject-call: $e');
+        Log.w('[AI-chan][WARN] Falló actualización de memoria post-reject-call: $e');
       }
     }();
   }
@@ -856,12 +862,12 @@ class ChatProvider extends ChangeNotifier {
   }
 
   Future<void> clearAll() async {
-    debugPrint('[AI-chan] clearAll llamado');
+    Log.d('[AI-chan] clearAll llamado');
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('chat_history');
     await prefs.remove('onboarding_data');
     messages.clear();
-    debugPrint('[AI-chan] clearAll completado, mensajes: ${messages.length}');
+    Log.d('[AI-chan] clearAll completado, mensajes: ${messages.length}');
     notifyListeners();
   }
 

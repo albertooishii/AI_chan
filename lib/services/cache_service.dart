@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:ai_chan/utils/log_utils.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -14,7 +15,7 @@ class CacheService {
     try {
       return await getLocalCacheDir();
     } catch (e) {
-      debugPrint('Error getting local cache directory: $e');
+      Log.e('Error getting local cache directory: $e');
       // Fallback to application support directory
       return await getApplicationSupportDirectory();
     }
@@ -78,11 +79,11 @@ class CacheService {
       final cachedFile = File('${audioDir.path}/$hash.mp3');
 
       if (await cachedFile.exists()) {
-        debugPrint('[Cache] Audio encontrado en caché: ${cachedFile.path}');
+        Log.d('[Cache] Audio encontrado en caché: ${cachedFile.path}');
         return cachedFile;
       }
     } catch (e) {
-      debugPrint('[Cache] Error obteniendo audio cacheado: $e');
+      Log.e('[Cache] Error obteniendo audio cacheado: $e');
     }
     return null;
   }
@@ -111,10 +112,10 @@ class CacheService {
       final cachedFile = File('${audioDir.path}/$hash.mp3');
 
       await cachedFile.writeAsBytes(audioData);
-      debugPrint('[Cache] Audio guardado en caché: ${cachedFile.path}');
+      Log.d('[Cache] Audio guardado en caché: ${cachedFile.path}');
       return cachedFile;
     } catch (e) {
-      debugPrint('[Cache] Error guardando audio en caché: $e');
+      Log.e('[Cache] Error guardando audio en caché: $e');
       return null;
     }
   }
@@ -128,9 +129,9 @@ class CacheService {
       final cacheData = {'provider': provider, 'timestamp': DateTime.now().millisecondsSinceEpoch, 'voices': voices};
 
       await cacheFile.writeAsString(jsonEncode(cacheData));
-      debugPrint('[Cache] Voces $provider guardadas en caché: ${voices.length} voces');
+      Log.d('[Cache] Voces $provider guardadas en caché: ${voices.length} voces');
     } catch (e) {
-      debugPrint('[Cache] Error guardando voces en caché: $e');
+      Log.e('[Cache] Error guardando voces en caché: $e');
     }
   }
 

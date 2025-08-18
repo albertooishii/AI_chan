@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart';
+// import eliminado porque no se usa
+import 'package:ai_chan/utils/log_utils.dart';
 import '../models/message.dart';
 import '../models/event_entry.dart';
 
@@ -131,10 +132,10 @@ class IaPromiseService {
       if (target.isBefore(now)) target = target.add(const Duration(days: 1));
       final motivo = 'descanso';
       if (isIaPromiseDuplicated(events, motivo: motivo, target: target, originalText: lastMsg.text)) {
-        debugPrint('[PROMESA IA] Evento duplicado detectado para motivo "$motivo". No se programa de nuevo.');
+        Log.w('[PROMESA IA] Evento duplicado detectado para motivo "$motivo". No se programa de nuevo.');
         return;
       }
-      debugPrint('[PROMESA IA] Detectada promesa de hora: "${lastMsg.text}" para las $hour:$minute ($target)');
+      Log.i('[PROMESA IA] Detectada promesa de hora: "${lastMsg.text}" para las $hour:$minute ($target)');
       events.add(
         EventEntry(
           type: 'promesa',
@@ -160,10 +161,10 @@ class IaPromiseService {
         final target = now.add(const Duration(hours: 1));
         final motivo = key;
         if (isIaPromiseDuplicated(events, motivo: motivo, target: target, originalText: lastMsg.text)) {
-          debugPrint('[PROMESA IA] Evento duplicado detectado para motivo "$motivo". No se programa de nuevo.');
+          Log.w('[PROMESA IA] Evento duplicado detectado para motivo "$motivo". No se programa de nuevo.');
           return;
         }
-        debugPrint(
+        Log.i(
           '[PROMESA IA] Detectada promesa de evento: "${lastMsg.text}" para "$key" (ejecutar a las ${target.hour}:${target.minute} - $target)',
         );
         events.add(
@@ -226,10 +227,10 @@ class IaPromiseService {
       final target = now.add(Duration(minutes: randomMinutes));
       final motivo = matchVago.group(0) ?? 'evento_vago';
       if (isIaPromiseDuplicated(events, motivo: motivo, target: target, originalText: lastMsg.text)) {
-        debugPrint('[PROMESA IA] Evento duplicado detectado para motivo "$motivo". No se programa de nuevo.');
+        Log.w('[PROMESA IA] Evento duplicado detectado para motivo "$motivo". No se programa de nuevo.');
         return;
       }
-      debugPrint(
+      Log.i(
         '[PROMESA IA] Detectada promesa vaga de tiempo: "${lastMsg.text}" para "$motivo" (ejecutar en $randomMinutes minutos, a las ${target.hour}:${target.minute} - $target)',
       );
       events.add(

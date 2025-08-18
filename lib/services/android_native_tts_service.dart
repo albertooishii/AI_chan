@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:ai_chan/utils/log_utils.dart';
 import 'package:flutter/services.dart';
 
 class AndroidNativeTtsService {
@@ -15,7 +16,7 @@ class AndroidNativeTtsService {
       final result = await _channel.invokeMethod<bool>('isAvailable');
       return result ?? false;
     } catch (e) {
-      debugPrint('[AndroidTTS] Error verificando disponibilidad: $e');
+      Log.e('[AndroidTTS] Error verificando disponibilidad: $e');
       return false;
     }
   }
@@ -30,7 +31,7 @@ class AndroidNativeTtsService {
 
       return result.map((voice) => Map<String, dynamic>.from(voice)).toList();
     } catch (e) {
-      debugPrint('[AndroidTTS] Error obteniendo voces: $e');
+      Log.e('[AndroidTTS] Error obteniendo voces: $e');
       return [];
     }
   }
@@ -72,7 +73,7 @@ class AndroidNativeTtsService {
 
       return result ?? false;
     } catch (e) {
-      debugPrint('[AndroidTTS] Error sintetizando texto: $e');
+      Log.e('[AndroidTTS] Error sintetizando texto: $e');
       return false;
     }
   }
@@ -100,7 +101,7 @@ class AndroidNativeTtsService {
 
       return result;
     } catch (e) {
-      debugPrint('[AndroidTTS] Error sintetizando a archivo: $e');
+      Log.e('[AndroidTTS] Error sintetizando a archivo: $e');
       return null;
     }
   }
@@ -113,7 +114,7 @@ class AndroidNativeTtsService {
       final result = await _channel.invokeMethod<bool>('stop');
       return result ?? false;
     } catch (e) {
-      debugPrint('[AndroidTTS] Error deteniendo síntesis: $e');
+      Log.e('[AndroidTTS] Error deteniendo síntesis: $e');
       return false;
     }
   }
@@ -134,7 +135,7 @@ class AndroidNativeTtsService {
 
       return result.map((lang) => Map<String, dynamic>.from(lang)).toList();
     } catch (e) {
-      debugPrint('[AndroidTTS] Error obteniendo idiomas descargables: $e');
+      Log.e('[AndroidTTS] Error obteniendo idiomas descargables: $e');
       return [];
     }
   }

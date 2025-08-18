@@ -1,6 +1,7 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+// import 'package:flutter/foundation.dart';
+import '../utils/log_utils.dart';
 import 'dart:async';
 import 'dart:io';
 import '../utils/audio_utils.dart';
@@ -66,9 +67,9 @@ class OpenAIService implements AIService {
       // Al final los que no tienen versión, ordenados alfabéticamente
       noVersion.sort();
       ordered.addAll(noVersion);
-      debugPrint('Listado de modelos GPT ordenados:');
+      Log.d('Listado de modelos GPT ordenados:', tag: 'OPENAI_SERVICE');
       for (final model in ordered) {
-        debugPrint(model);
+        Log.d(model, tag: 'OPENAI_SERVICE');
       }
       return ordered;
     } else {
@@ -125,7 +126,7 @@ class OpenAIService implements AIService {
     List<Map<String, dynamic>> tools = [];
     // Luego image_generation_call y tools si corresponde
     if (enableImageGeneration) {
-      debugPrint('[OpenAIService.sendMessage] image_generation ACTIVADO');
+      Log.i('image_generation ACTIVADO', tag: 'OPENAI_SERVICE');
       tools = [
         {"type": "image_generation"},
       ];
@@ -133,10 +134,10 @@ class OpenAIService implements AIService {
       if (avatar != null && avatar.seed != null && avatar.seed!.isNotEmpty) {
         final imageGenCall = {"type": "image_generation_call", "id": avatar.seed};
         input.add(imageGenCall);
-        debugPrint('[OpenAIService.sendMessage] Usando imageId: ${avatar.seed}');
+        Log.d('Usando imageId: ${avatar.seed}', tag: 'OPENAI_SERVICE');
       }
     } else {
-      debugPrint('[OpenAIService.sendMessage] image_generation DESACTIVADO');
+      Log.i('image_generation DESACTIVADO', tag: 'OPENAI_SERVICE');
     }
     int tokens = estimateTokens(history, systemPrompt);
     if (tokens > 128000) {
@@ -228,7 +229,7 @@ class OpenAIService implements AIService {
       );
       return aiResponse;
     } else {
-      debugPrint('[OpenAIService] ERROR: statusCode=${response.statusCode}, body=${response.body}');
+      Log.e('ERROR: statusCode=${response.statusCode}, body=${response.body}', tag: 'OPENAI_SERVICE');
       return AIResponse(text: 'Error al conectar con la IA: Status ${response.statusCode} ${response.body}');
     }
   }
@@ -296,11 +297,11 @@ class OpenAIService implements AIService {
       );
 
       if (cachedFile != null) {
-        debugPrint('[OpenAI TTS] Usando audio desde caché');
+        Log.d('Usando audio desde caché', tag: 'OPENAI_TTS');
         return cachedFile;
       }
     } catch (e) {
-      debugPrint('[OpenAI TTS] Error leyendo caché, continuando con API: $e');
+      Log.w('Error leyendo caché, continuando con API: $e', tag: 'OPENAI_TTS');
     }
 
     final url = Uri.parse('https://api.openai.com/v1/audio/speech');
@@ -322,11 +323,11 @@ class OpenAIService implements AIService {
         );
 
         if (cachedFile != null) {
-          debugPrint('[OpenAI TTS] Audio guardado en caché y devuelto');
+          Log.d('Audio guardado en caché y devuelto', tag: 'OPENAI_TTS');
           return cachedFile;
         }
       } catch (e) {
-        debugPrint('[OpenAI TTS] Warning: Error guardando en caché: $e');
+        Log.w('Warning: Error guardando en caché: $e', tag: 'OPENAI_TTS');
       }
 
       // Fallback: guardar en directorio tradicional si el caché falla
@@ -342,7 +343,7 @@ class OpenAIService implements AIService {
         await Directory(dirPath).create(recursive: true);
       }
       await file.writeAsBytes(response.bodyBytes);
-      debugPrint('[OpenAI TTS] Audio generado sin caché: ${file.path}');
+      Log.i('Audio generado sin caché: ${file.path}', tag: 'OPENAI_TTS');
       return file;
     } else {
       throw Exception('Error TTS OpenAI: ${response.body}');
@@ -415,9 +416,9 @@ class OpenAIService implements AIService {
   static Future<void> clearAudioCache() async {
     try {
       await CacheService.clearAudioCache();
-      debugPrint('[OpenAI TTS] Caché de audio limpiado');
+      Log.i('Caché de audio limpiado', tag: 'OPENAI_TTS');
     } catch (e) {
-      debugPrint('[OpenAI TTS] Error limpiando caché de audio: $e');
+      Log.w('Error limpiando caché de audio: $e', tag: 'OPENAI_TTS');
     }
   }
 }

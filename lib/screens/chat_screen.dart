@@ -24,6 +24,7 @@ import 'gallery_screen.dart';
 import '../utils/image_utils.dart';
 import 'calendar_screen.dart';
 import '../services/google_speech_service.dart';
+import '../utils/log_utils.dart';
 
 class ChatScreen extends StatefulWidget {
   final AiChanProfile bio;
@@ -540,7 +541,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   if (!ctx.mounted) return;
                   _showExportDialog(ctx, jsonStr);
                 } catch (e) {
-                  debugPrint('[AI-chan] Error al exportar biografía: $e, valor=${chatProvider.onboardingData}');
+                  Log.e('Error al exportar biografía', tag: 'CHAT_SCREEN', error: e);
                   if (!ctx.mounted) return;
                   _showErrorDialogWith(ctx, e.toString());
                 }

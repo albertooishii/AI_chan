@@ -1,6 +1,6 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ai_chan/utils/log_utils.dart';
 import 'dart:math';
-import 'package:flutter/foundation.dart';
 import '../services/ai_service.dart';
 import '../models/ai_chan_profile.dart';
 import '../models/timeline_entry.dart';
@@ -222,25 +222,25 @@ Identidad: $aiIdentityInstructions
   );
   // Generación con reintentos: exigimos JSON válido (sin 'raw')
   const int maxAttempts = 3;
-  debugPrint('[IABioGenerator] Biografía: intentos JSON (max=$maxAttempts) con ${dotenv.env['DEFAULT_TEXT_MODEL']}');
+  Log.d('[IABioGenerator] Biografía: intentos JSON (max=$maxAttempts) con ${dotenv.env['DEFAULT_TEXT_MODEL']}');
   Map<String, dynamic>? bioJson;
   for (int attempt = 0; attempt < maxAttempts; attempt++) {
-    debugPrint('[IABioGenerator] Biografía: intento ${attempt + 1}/$maxAttempts');
+    Log.d('[IABioGenerator] Biografía: intento ${attempt + 1}/$maxAttempts');
     try {
       final responseObj = await AIService.sendMessage([], systemPromptObj, model: dotenv.env['DEFAULT_TEXT_MODEL']);
       if ((responseObj.text).trim().isEmpty) {
-        debugPrint('[IABioGenerator] Biografía: respuesta vacía (posible desconexión), reintentando…');
+        Log.w('[IABioGenerator] Biografía: respuesta vacía (posible desconexión), reintentando…');
         continue;
       }
       final extracted = extractJsonBlock(responseObj.text);
       if (!extracted.containsKey('raw')) {
         bioJson = Map<String, dynamic>.from(extracted);
-        debugPrint('[IABioGenerator] Biografía: JSON OK en intento ${attempt + 1} (keys=${bioJson.keys.length})');
+        Log.d('[IABioGenerator] Biografía: JSON OK en intento ${attempt + 1} (keys=${bioJson.keys.length})');
         break;
       }
-      debugPrint('[IABioGenerator] Biografía: intento ${attempt + 1} sin JSON válido, reintentando…');
+      Log.w('[IABioGenerator] Biografía: intento ${attempt + 1} sin JSON válido, reintentando…');
     } catch (err) {
-      debugPrint('[IABioGenerator] Biografía: error de red/timeout en intento ${attempt + 1}: $err');
+      Log.e('[IABioGenerator] Biografía: error de red/timeout en intento ${attempt + 1}: $err');
       // continúa a siguiente intento
     }
   }

@@ -7,6 +7,7 @@ import '../services/voice_call_controller.dart';
 import '../services/voice_call_summary_service.dart';
 import '../providers/chat_provider.dart';
 import 'package:flutter/material.dart';
+import '../utils/log_utils.dart';
 import 'dart:async';
 import 'voice_call_painters.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -120,34 +121,34 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
     int? placeholderIndex,
     String? rejectionText,
   }) async {
-    debugPrint('🧹 Iniciando limpieza en background después de colgar');
+    Log.i('🧹 Iniciando limpieza en background después de colgar', tag: 'VOICE_CALL');
     try {
-      debugPrint('🧹 Deteniendo controller...');
+      Log.d('🧹 Deteniendo controller...', tag: 'VOICE_CALL');
       await controller.stop(keepFxPlaying: true).timeout(const Duration(milliseconds: 800));
-      debugPrint('🧹 Controller detenido');
+      Log.d('🧹 Controller detenido', tag: 'VOICE_CALL');
     } catch (e) {
-      debugPrint('🧹 Error deteniendo controller: $e');
+      Log.e('🧹 Error deteniendo controller', tag: 'VOICE_CALL', error: e);
     }
 
     try {
-      debugPrint('🧹 Deteniendo grabadora...');
+      Log.d('🧹 Deteniendo grabadora...', tag: 'VOICE_CALL');
       await _recorder.stop();
-      debugPrint('🧹 Grabadora detenida');
+      Log.d('🧹 Grabadora detenida', tag: 'VOICE_CALL');
     } catch (e) {
-      debugPrint('🧹 Error deteniendo grabadora: $e');
+      Log.e('🧹 Error deteniendo grabadora', tag: 'VOICE_CALL', error: e);
     }
 
     try {
-      debugPrint('🧹 Disponiendo grabadora...');
+      Log.d('🧹 Disponiendo grabadora...', tag: 'VOICE_CALL');
       await _recorder.dispose();
-      debugPrint('🧹 Grabadora dispuesta');
+      Log.d('🧹 Grabadora dispuesta', tag: 'VOICE_CALL');
     } catch (e) {
-      debugPrint('🧹 Error disponiendo grabadora: $e');
+      Log.e('🧹 Error disponiendo grabadora', tag: 'VOICE_CALL', error: e);
     }
 
     if (chat != null) {
       if (markRejected) {
-        debugPrint('🧹 Marcando llamada rechazada (flag markRejected=true)');
+        Log.d('🧹 Marcando llamada rechazada (flag markRejected=true)', tag: 'VOICE_CALL');
         try {
           if (placeholderIndex != null) {
             chat.rejectIncomingCallPlaceholder(index: placeholderIndex, text: rejectionText ?? 'Llamada rechazada');
@@ -161,10 +162,10 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
             );
           }
         } catch (e) {
-          debugPrint('[AI-chan][VoiceCall] Error marcando rechazo: $e');
+          Log.e('Error marcando rechazo', tag: 'VOICE_CALL', error: e);
         }
       } else if (markMissed) {
-        debugPrint('🧹 Marcando llamada perdida (missed)');
+        Log.d('🧹 Marcando llamada perdida (missed)', tag: 'VOICE_CALL');
         try {
           if (placeholderIndex != null) {
             // Reemplazar placeholder entrante con estado missed
@@ -178,11 +179,11 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
             );
           }
         } catch (e) {
-          debugPrint('[AI-chan][VoiceCall] Error marcando missed: $e');
+          Log.e('Error marcando missed', tag: 'VOICE_CALL', error: e);
         }
       } else {
         try {
-          debugPrint('🧹 Guardando resumen de llamada...');
+          Log.d('🧹 Guardando resumen de llamada...', tag: 'VOICE_CALL');
           final summaryResult = await _generateCallSummary(chat);
           if (summaryResult != null) {
             final (callSummary, summaryText) = summaryResult;
@@ -204,9 +205,9 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
               );
               await chat.addUserMessage(callMessage);
             }
-            debugPrint('🧹 Proceso de resumen completado');
+            Log.d('🧹 Proceso de resumen completado', tag: 'VOICE_CALL');
           } else {
-            debugPrint('🧹 No se generó resumen (criterios no cumplidos)');
+            Log.d('🧹 No se generó resumen (criterios no cumplidos)', tag: 'VOICE_CALL');
             // Política solicitada:
             // 1. Si fue rechazo (markRejected ya tratado arriba) y llegamos aquí sin summary -> mostrar "Llamada rechazada".
             // 2. Si usuario colgó muy temprano (sin start_call, sin audio IA, sin voz usuario) -> NO registrar nada.
@@ -217,18 +218,22 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
                 !controller.userSpokeFlag &&
                 !_endCallTagHandled;
             if (earlyAbort) {
-              debugPrint('🧹 Colgado temprano sin respuesta -> sin registro de mensaje.');
+              Log.d('🧹 Colgado temprano sin respuesta -> sin registro de mensaje.', tag: 'VOICE_CALL');
             } else if (markRejected) {
               try {
-                debugPrint(
+                Log.d(
                   '[RejectFlow] markRejected path: incoming=${widget.incoming} placeholderIndex=${chat.pendingIncomingCallMsgIndex} totalMsgsBefore=${chat.messages.length}',
+                  tag: 'VOICE_CALL',
                 );
                 if (widget.incoming && chat.pendingIncomingCallMsgIndex != null) {
                   chat.rejectIncomingCallPlaceholder(
                     index: chat.pendingIncomingCallMsgIndex!,
                     text: 'Llamada rechazada',
                   );
-                  debugPrint('[RejectFlow] Placeholder reemplazado -> totalMsgsAfter=${chat.messages.length}');
+                  Log.d(
+                    '[RejectFlow] Placeholder reemplazado -> totalMsgsAfter=${chat.messages.length}',
+                    tag: 'VOICE_CALL',
+                  );
                 } else {
                   // Crear mensaje con sender apropiado (assistant si era entrante, user si saliente)
                   await chat.updateOrAddCallStatusMessage(
@@ -237,15 +242,15 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
                     incoming: widget.incoming,
                     placeholderIndex: null,
                   );
-                  debugPrint('[RejectFlow] Mensaje añadido -> totalMsgsAfter=${chat.messages.length}');
+                  Log.d('[RejectFlow] Mensaje añadido -> totalMsgsAfter=${chat.messages.length}', tag: 'VOICE_CALL');
                 }
-                debugPrint('🧹 Registrado mensaje de llamada rechazada (sin resumen)');
+                Log.d('🧹 Registrado mensaje de llamada rechazada (sin resumen)', tag: 'VOICE_CALL');
               } catch (e) {
-                debugPrint('⚠️ Error registrando llamada rechazada sin resumen: $e');
+                Log.e('⚠️ Error registrando llamada rechazada sin resumen', tag: 'VOICE_CALL', error: e);
               }
             } else if (markMissed) {
               try {
-                debugPrint('[MissedFlow] Registrando llamada sin contestar');
+                Log.d('[MissedFlow] Registrando llamada sin contestar', tag: 'VOICE_CALL');
                 await chat.updateOrAddCallStatusMessage(
                   text: 'Llamada sin contestar',
                   callStatus: CallStatus.missed,
@@ -253,18 +258,18 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
                   placeholderIndex: null,
                 );
               } catch (e) {
-                debugPrint('⚠️ Error registrando llamada missed: $e');
+                Log.e('⚠️ Error registrando llamada missed', tag: 'VOICE_CALL', error: e);
               }
             } else {
-              debugPrint('🧹 Llamada corta aceptada sin resumen -> no se registra mensaje.');
+              Log.d('🧹 Llamada corta aceptada sin resumen -> no se registra mensaje.', tag: 'VOICE_CALL');
             }
           }
         } catch (e) {
-          debugPrint('🧹 Error guardando resumen: $e');
+          Log.e('🧹 Error guardando resumen', tag: 'VOICE_CALL', error: e);
         }
       }
     }
-    debugPrint('🧹 Limpieza en background finalizada');
+    Log.d('🧹 Limpieza en background finalizada', tag: 'VOICE_CALL');
   }
 
   Future<void> _hangUpNoAnswer() async {
@@ -306,7 +311,7 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
       controller.clearMessages();
       return (callSummary, conversationSummary);
     } catch (e) {
-      debugPrint('[AI-chan][VoiceCall] Error generando resumen: $e');
+      Log.e('[AI-chan][VoiceCall] Error generando resumen', tag: 'VOICE_CALL', error: e);
       return null;
     }
   }
@@ -711,9 +716,9 @@ extension _IncomingLogic on _VoiceCallChatState {
         maxRecent: 32,
         aiInitiatedCall: widget.incoming, // incoming=true => IA inició la llamada
       );
-      debugPrint('VoiceCallChat: usando SystemPrompt JSON de llamada (len=${systemPrompt.length})');
+      Log.d('VoiceCallChat: usando SystemPrompt JSON de llamada (len=${systemPrompt.length})', tag: 'VOICE_CALL');
     } catch (e) {
-      debugPrint('VoiceCallChat: ChatProvider no disponible ($e).');
+      Log.e('VoiceCallChat: ChatProvider no disponible', tag: 'VOICE_CALL', error: e);
       if (!mounted) return;
       await controller.playNoAnswerTone(duration: const Duration(seconds: 3));
       if (!mounted) return;
@@ -738,8 +743,9 @@ extension _IncomingLogic on _VoiceCallChatState {
           ).hasMatch(trimmed);
           if (plainEndCall) {
             final earlyPlain = !_startCallTagReceived && !controller.userSpokeFlag && !controller.aiRespondedFlag;
-            debugPrint(
+            Log.d(
               '[AI-chan][VoiceCall] Detectado "end call" plano (voz) early=$earlyPlain -> colgando silencioso',
+              tag: 'VOICE_CALL',
             );
             controller.suppressFurtherAiText();
             _subtitleController.clearAll();
@@ -771,7 +777,7 @@ extension _IncomingLogic on _VoiceCallChatState {
               // Solo aceptar si es etiqueta "pura" sin texto adicional alrededor.
               if (!_startCallTagReceived) {
                 _startCallTagReceived = true;
-                debugPrint('[AI-chan][VoiceCall] Detectado start_call puro (aceptación)');
+                Log.d('[AI-chan][VoiceCall] Detectado start_call puro (aceptación)', tag: 'VOICE_CALL');
                 // Ya no detenemos el ringback aquí; se detendrá automáticamente al primer audio IA.
                 _noAnswerTimer?.cancel();
                 _incomingAnswerTimer?.cancel();
@@ -788,7 +794,7 @@ extension _IncomingLogic on _VoiceCallChatState {
               if (!_startCallTagReceived) {
                 // Tratarlo igualmente como aceptación salvage
                 _startCallTagReceived = true;
-                debugPrint('[AI-chan][VoiceCall] Salvage: start_call contaminado -> aceptación forzada');
+                Log.d('[AI-chan][VoiceCall] Salvage: start_call contaminado -> aceptación forzada', tag: 'VOICE_CALL');
                 // Mantener ringback hasta primer audio IA (no detener todavía)
                 _noAnswerTimer?.cancel();
                 _incomingAnswerTimer?.cancel();
@@ -824,8 +830,9 @@ extension _IncomingLogic on _VoiceCallChatState {
             // Considerar que hubo conversación solo si realmente hubo audio IA o voz usuario (texto puro no cuenta)
             final realConversation = controller.userSpokeFlag || controller.firstAudioReceivedFlag;
             _forceReject = earlyPhase || !realConversation; // rechazo si fue antes de audio/voz real
-            debugPrint(
-              '[AI-chan][VoiceCall] Detectado [end_call][/end_call] — earlyPhase=$earlyPhase realConversation=$realConversation -> forceReject=$_forceReject',
+            Log.d(
+              '[AI-chan][VoiceCall] Detectado [end_call][/end_call] — earlyPhase=$earlyPhase realConversation=$realConversation forceReject=$_forceReject',
+              tag: 'VOICE_CALL',
             );
             // Colgar inmediatamente (limpieza generará mensaje de rechazo)
             // Silenciar y parar ringback si aplica
@@ -859,7 +866,10 @@ extension _IncomingLogic on _VoiceCallChatState {
               _implicitRejectHandled = true;
               _endCallTagHandled = true; // tratar como end_call
               _forceReject = true;
-              debugPrint('[AI-chan][VoiceCall] Rechazo implícito: texto inicial sin protocolo -> colgando');
+              Log.d(
+                '[AI-chan][VoiceCall] Rechazo implícito: texto inicial sin protocolo -> colgando',
+                tag: 'VOICE_CALL',
+              );
               // Limpiar cualquier fragmento que haya entrado parcialmente
               _subtitleController.clearAll();
               controller.suppressFurtherAiText();
@@ -953,13 +963,11 @@ extension _IncomingLogic on _VoiceCallChatState {
               final userSpoke = controller.userSpokeFlag;
               final answered = (hasAudio || userSpoke) && !_endCallTagHandled;
               if (!answered && !_endCallTagHandled) {
-                debugPrint('[AI-chan][VoiceCall] Timeout extendido -> no contestada');
+                Log.d('[AI-chan][VoiceCall] Timeout extendido -> no contestada', tag: 'VOICE_CALL');
                 _hangUpNoAnswer();
               }
             });
-            debugPrint(
-              '[AI-chan][VoiceCall] Timeout no-answer extendido tras retry intento=$attempt rest=${remaining}s',
-            );
+            Log.d('[AI-chan][VoiceCall] Timeout no-answer extendido tras retry intento=$attempt rest=${remaining}s');
           }
         }
       },
@@ -981,11 +989,15 @@ extension _IncomingLogic on _VoiceCallChatState {
         final userSpoke = controller.userSpokeFlag;
         final answered = (hasAudio || userSpoke) && !_endCallTagHandled;
         if (!answered && !_endCallTagHandled) {
-          debugPrint('[AI-chan][VoiceCall] Timeout 10s -> no contestada (sin audio IA y sin voz usuario)');
+          Log.d(
+            '[AI-chan][VoiceCall] Timeout 10s -> no contestada (sin audio IA y sin voz usuario)',
+            tag: 'VOICE_CALL',
+          );
           _hangUpNoAnswer();
         } else {
-          debugPrint(
+          Log.d(
             '[AI-chan][VoiceCall] Timeout 10s ignorado: audio=$hasAudio userSpoke=$userSpoke endTag=$_endCallTagHandled',
+            tag: 'VOICE_CALL',
           );
         }
       });

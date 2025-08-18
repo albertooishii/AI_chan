@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:ai_chan/utils/log_utils.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -11,18 +12,18 @@ Future<String?> saveBase64ImageToFile(String base64, {String prefix = 'img'}) as
     final fileName = '${prefix}_${DateTime.now().millisecondsSinceEpoch}.png';
     final absDir = await getLocalImageDir();
     final absFilePath = '${absDir.path}/$fileName';
-    debugPrint('[AI-chan][Image] Guardando imagen en: $absFilePath');
+    Log.d('[Image] Guardando imagen en: $absFilePath', tag: 'IMAGE_UTILS');
     final file = await File(absFilePath).writeAsBytes(bytes);
     final exists = await file.exists();
     if (exists) {
-      debugPrint('[AI-chan][Image] Imagen guardada correctamente en: $absFilePath');
+      Log.i('[Image] Imagen guardada correctamente en: $absFilePath', tag: 'IMAGE_UTILS');
       return fileName;
     } else {
-      debugPrint('[AI-chan][Image] Error: El archivo no existe tras guardar.');
+      Log.w('[Image] Error: El archivo no existe tras guardar.', tag: 'IMAGE_UTILS');
       return null;
     }
   } catch (e) {
-    debugPrint('[AI-chan][Image] Error al guardar imagen: $e');
+    Log.e('[Image] Error al guardar imagen', tag: 'IMAGE_UTILS', error: e);
     return null;
   }
 }
