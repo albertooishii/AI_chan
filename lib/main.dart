@@ -1,4 +1,4 @@
-import 'package:ai_chan/core/models/index.dart';
+import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/screens/initializing_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/foundation.dart';
@@ -12,7 +12,7 @@ import 'screens/onboarding_screen.dart';
 import 'dart:convert';
 import 'providers/onboarding_provider.dart';
 import 'providers/chat_provider.dart';
-import 'chat/repositories/local_chat_repository.dart';
+import 'core/di.dart' as di;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -185,8 +185,9 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     // Si hay biografía, muestra chat
     return ChangeNotifierProvider(
       create: (_) {
-        final repo = LocalChatRepository();
-        final provider = ChatProvider(repository: repo);
+        final repo = di.getChatRepository();
+        final chatAdapter = di.getChatResponseService();
+        final provider = ChatProvider(repository: repo, chatResponseService: chatAdapter);
         provider.onboardingData = onboardingProvider.generatedBiography!;
         provider.loadAll();
         return provider;

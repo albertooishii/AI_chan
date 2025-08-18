@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:ai_chan/core/models/index.dart';
+import 'package:ai_chan/core/models.dart';
 import '../utils/locale_utils.dart';
 import '../utils/debug_call_logger/debug_call_logger.dart';
 // model types imported from core barrel

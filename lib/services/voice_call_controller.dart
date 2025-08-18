@@ -7,20 +7,20 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:record/record.dart';
 
-import '../services/openai_service.dart';
+import 'package:ai_chan/core/interfaces/ai_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/voices.dart';
 import '../services/google_speech_service.dart';
-import '../services/openai_realtime_client.dart';
+import 'package:ai_chan/core/di.dart' as di;
 import '../services/tone_service.dart';
-import 'package:ai_chan/core/models/index.dart';
+import 'package:ai_chan/core/models.dart';
 import '../services/audio_playback_strategy_factory.dart';
 // duplicate import removed
 import '../utils/log_utils.dart';
 
 class VoiceCallController {
-  final OpenAIService openAIService;
+  final IAIService aiService;
   late AudioPlayer _audioPlayer;
   late AudioPlayer _ringPlayer;
 
@@ -66,7 +66,7 @@ class VoiceCallController {
   // Ya no usamos milestones heurísticos; pacing proporcional directo.
 
   // Estado de conexión
-  OpenAIRealtimeClient? _client;
+  dynamic _client;
   bool _isConnected = false;
   bool _isMuted = false; // estado actual de mute (usuario)
   String _currentVoice = resolveDefaultVoice(dotenv.env['OPENAI_VOICE']);
@@ -190,7 +190,7 @@ class VoiceCallController {
   final _micLevelController = StreamController<double>.broadcast();
   Stream<double> get micLevelStream => _micLevelController.stream;
 
-  VoiceCallController({required this.openAIService}) {
+  VoiceCallController({required this.aiService}) {
     _audioPlayer = AudioPlayer();
     _ringPlayer = AudioPlayer();
     // Listener para detectar fin REAL de reproducción de audio (voz AI acabó de hablar)
@@ -536,7 +536,8 @@ class VoiceCallController {
         });
       }
 
-      _client = OpenAIRealtimeClient(
+      _client = di.getRealtimeClientForProvider(
+        providerName,
         model: 'gpt-4o-realtime-preview',
         onText: (textDelta) {
           if (_suppressFurtherAiText) return; // no pasar más texto a la UI tras end_call

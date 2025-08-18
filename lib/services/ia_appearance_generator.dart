@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:ai_chan/utils/image_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/core/models/image.dart' as models;
 import '../utils/json_utils.dart';
 import 'ai_service.dart';
 
@@ -255,7 +254,7 @@ ${bio.biography}
     return {
       'appearance': appearanceMap,
       // Devolver avatar como objeto AiImage (nunca null)
-      'avatar': models.AiImage(seed: imageResponse.seed, prompt: imageResponse.prompt, url: imageUrl),
+      'avatar': AiImage(seed: imageResponse.seed, prompt: imageResponse.prompt, url: imageUrl),
     };
   }
 }

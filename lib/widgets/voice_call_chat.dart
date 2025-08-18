@@ -1,8 +1,9 @@
 import 'package:record/record.dart';
 import 'package:provider/provider.dart';
 
-import 'package:ai_chan/core/models/index.dart';
-import '../services/openai_service.dart';
+import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/core/di.dart' as di;
+import 'package:ai_chan/core/interfaces/ai_service.dart';
 import '../services/voice_call_controller.dart';
 import '../services/voice_call_summary_service.dart';
 import '../providers/chat_provider.dart';
@@ -292,7 +293,7 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
 
   // Eliminadas funciones de recorte/deduplicación complejas
 
-  final OpenAIService openai = OpenAIService();
+  late final IAIService openai;
   late final VoiceCallController controller;
   final AudioRecorder _recorder = AudioRecorder();
   bool _muted = false;
@@ -337,7 +338,9 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
   void initState() {
     super.initState();
     _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
-    controller = VoiceCallController(openAIService: openai);
+    // Resolve AI service via DI based on selected provider/model; use default model mapping
+    openai = di.getIAIServiceForModel('gpt-4o-mini-realtime');
+    controller = VoiceCallController(aiService: openai);
     _subtitleController = SubtitleController(debug: false);
 
     // Cargar / validar voz por defecto inmediatamente para el controlador

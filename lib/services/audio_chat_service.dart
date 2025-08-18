@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../utils/audio_utils.dart';
-import 'openai_service.dart';
+import 'package:ai_chan/core/di.dart' as di;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'google_speech_service.dart';
@@ -187,8 +187,8 @@ class AudioChatService {
       }
       if (len < 24000) return;
       _isPartialTranscribing = true;
-      final openai = OpenAIService();
-      final partial = await openai.transcribeAudio(path);
+      final stt = di.getSttService();
+      final partial = await stt.transcribeAudio(path);
       if (partial != null && partial.trim().isNotEmpty) {
         if (partial.trim().length > _liveTranscript.trim().length) {
           _liveTranscript = partial.trim();
@@ -351,10 +351,21 @@ class AudioChatService {
         }
       }
 
-      // Fallback / default: use OpenAI TTS (voice must be one of OpenAI voices)
-      final openai = OpenAIService();
-      final file = await openai.textToSpeech(text: text, voice: voice);
-      return file;
+      // Fallback / default: delegate to the configured ITtsService (registered in DI)
+      try {
+        final tts = di.getTtsService();
+        final path = await tts.synthesizeToFile(
+          text: text,
+          options: {'voice': voice, 'languageCode': languageCode ?? dotenv.env['GOOGLE_LANGUAGE_CODE'] ?? 'es-ES'},
+        );
+        if (path == null) return null;
+        final f = File(path);
+        if (await f.exists()) return f;
+        return null;
+      } catch (e) {
+        debugPrint('[Audio][TTS] DI fallback error: $e');
+        return null;
+      }
     } catch (e) {
       debugPrint('[Audio][TTS] Error: $e');
       return null;

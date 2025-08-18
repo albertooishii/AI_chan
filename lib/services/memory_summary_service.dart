@@ -1,9 +1,9 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:async';
-import 'package:ai_chan/core/models/index.dart';
+// Replaced legacy barrel import with canonical barrel
 import 'package:ai_chan/services/ai_service.dart';
-import 'package:ai_chan/core/models.dart' as chat_model;
+import 'package:ai_chan/core/models.dart';
 import '../utils/json_utils.dart';
 
 class MemorySuperblockResult {
@@ -234,7 +234,7 @@ class MemorySummaryService {
 
   /// Procesa resúmenes y superbloque en un solo paso: recibe mensajes, timeline y superbloque actual, y devuelve ambos actualizados
   Future<MemorySuperblockResult> processAllSummariesAndSuperblock({
-    required List<chat_model.Message> messages,
+    required List<Message> messages,
     required List<TimelineEntry> timeline,
     TimelineEntry? superbloqueEntry,
     void Function(String? blockDate)? onSummaryError,
@@ -375,7 +375,7 @@ class MemorySummaryService {
 
   /// Genera resúmenes de bloques de mensajes y los añade al timeline si corresponde
   Future<List<TimelineEntry>?> updateConversationSummary(
-    List<chat_model.Message> messages,
+    List<Message> messages,
     List<TimelineEntry> timeline, {
     void Function(String? blockDate)? onSummaryError,
   }) async {
@@ -398,7 +398,7 @@ class MemorySummaryService {
         superbloques.sort((a, b) => (b.endDate ?? '').compareTo(a.endDate ?? ''));
         final lastSuperbloqueEnd = superbloques.first.endDate;
         if (lastSuperbloqueEnd != null && lastSuperbloqueEnd.isNotEmpty) {
-          messages = messages.where((m) => m.dateTime.isAfter(DateTime.parse(lastSuperbloqueEnd))).toList();
+          messages = messages.where((m) => (m.dateTime).isAfter(DateTime.parse(lastSuperbloqueEnd))).toList();
         }
       }
       final maxHistory = _maxHistory;
@@ -416,7 +416,7 @@ class MemorySummaryService {
       // Siempre crear bloques de nivel 0 cada 32 mensajes, aunque ya existan resúmenes previos
       if (messages.length >= maxHistory) {
         int numBlocks = messages.length ~/ maxHistory;
-        List<List<chat_model.Message>> bloquesPendientes = [];
+        List<List<Message>> bloquesPendientes = [];
         for (int i = 0; i < numBlocks; i++) {
           final block = messages.sublist(i * maxHistory, (i + 1) * maxHistory);
           final blockStartDate = block.first.dateTime.toIso8601String();
@@ -455,7 +455,7 @@ class MemorySummaryService {
   }
 
   Future<void> _summarizeBlock(
-    List<chat_model.Message> block,
+    List<Message> block,
     List<TimelineEntry> timeline,
     void Function(String? blockDate)? onSummaryError,
   ) async {
@@ -466,7 +466,7 @@ class MemorySummaryService {
     // Unir todos los textos del bloque para análisis semántico
     // Variable textoBloque eliminada porque no se usa
     // Crear instrucciones y mensajes para el bloque
-    final fechasUnicas = block.map((m) => m.dateTime.toIso8601String().substring(0, 10)).toSet();
+    final fechasUnicas = block.map((m) => (m.dateTime).toIso8601String().substring(0, 10)).toSet();
     String instruccionesBloque =
         "${_instruccionesFechas(fechasUnicas)}\n\nDEVUELVE ÚNICAMENTE EL BLOQUE JSON, SIN TEXTO EXTRA, EXPLICACIONES NI INTRODUCCIÓN. El formato debe ser:\n$resumenJsonSchema";
     final recentMessages = block.map((m) {
@@ -476,11 +476,11 @@ class MemorySummaryService {
         final caption = '[img_caption]$imgPrompt[/img_caption]';
         content = content.isEmpty ? caption : '$caption\n\n$content';
       }
-      final role = m.sender == chat_model.MessageSender.user
+      final role = m.sender == MessageSender.user
           ? 'user'
-          : m.sender == chat_model.MessageSender.assistant
+          : m.sender == MessageSender.assistant
           ? 'assistant'
-          : m.sender == chat_model.MessageSender.system
+          : m.sender == MessageSender.system
           ? 'system'
           : 'unknown';
       final map = <String, dynamic>{'role': role, 'content': content, 'datetime': m.dateTime.toIso8601String()};

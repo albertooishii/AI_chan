@@ -1,5 +1,5 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:ai_chan/core/models/index.dart';
+import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/utils/storage_utils.dart';
 import 'package:flutter/material.dart';
 // removed duplicate import

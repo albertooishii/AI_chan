@@ -1,6 +1,6 @@
 // import eliminado porque no se usa
 import 'package:ai_chan/utils/log_utils.dart';
-import 'package:ai_chan/core/models/index.dart';
+import 'package:ai_chan/core/models.dart';
 
 class IaPromiseService {
   /// Restaura promesas desde EventEntry guardados previamente

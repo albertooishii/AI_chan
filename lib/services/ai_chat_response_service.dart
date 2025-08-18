@@ -1,6 +1,6 @@
 // import 'package:flutter/foundation.dart';
 import '../utils/log_utils.dart';
-import 'package:ai_chan/core/models/index.dart';
+import 'package:ai_chan/core/models.dart';
 import '../services/ai_service.dart';
 import '../utils/image_utils.dart';
 

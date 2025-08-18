@@ -16,8 +16,7 @@ import '../constants/app_colors.dart';
 import '../utils/dialog_utils.dart';
 import '../widgets/expandable_image_dialog.dart';
 // model imports covered by core barrel
-import 'package:ai_chan/core/models/index.dart';
-import 'package:ai_chan/core/models/image.dart' as models;
+import 'package:ai_chan/core/models.dart';
 import '../utils/chat_json_utils.dart' as chat_json_utils;
 import 'gallery_screen.dart';
 import '../utils/image_utils.dart';
@@ -320,7 +319,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       onTap: () {
                         final avatarFilename = chatProvider.onboardingData.avatar!.url!.split('/').last;
                         final avatarMessage = Message(
-                          image: models.AiImage(
+                          image: AiImage(
                             url: avatarFilename,
                             seed: chatProvider.onboardingData.avatar?.seed,
                             prompt: chatProvider.onboardingData.avatar?.prompt,
@@ -564,7 +563,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     userBirthday: bio.userBirthday,
                     aiBirthday: bio.aiBirthday,
                     appearance: result['appearance'] as Map<String, dynamic>? ?? <String, dynamic>{},
-                    avatar: result['avatar'] as models.AiImage?,
+                    avatar: result['avatar'] as AiImage?,
                     timeline: bio.timeline, // timeline SIEMPRE al final
                   );
                   chatProvider.onboardingData = newBio;
@@ -609,7 +608,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         userBirthday: bio.userBirthday,
                         aiBirthday: bio.aiBirthday,
                         appearance: result['appearance'] as Map<String, dynamic>? ?? <String, dynamic>{},
-                        avatar: result['avatar'] as models.AiImage?,
+                        avatar: result['avatar'] as AiImage?,
                         timeline: bio.timeline,
                       );
                       chatProvider.onboardingData = newBio;

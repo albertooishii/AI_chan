@@ -2,7 +2,7 @@ import 'dart:io';
 // import eliminado: '../utils/image_utils.dart';
 import 'package:flutter/material.dart';
 // import 'package:flutter/services.dart';
-import 'package:ai_chan/core/models/index.dart';
+import 'package:ai_chan/core/models.dart';
 import 'package:flutter/services.dart';
 import '../utils/download_image.dart';
 

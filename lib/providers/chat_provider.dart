@@ -4,8 +4,8 @@ import 'dart:async';
 import 'package:flutter/material.dart' hide Image;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/core/models/index.dart' as models;
 import 'package:ai_chan/core/interfaces/i_chat_repository.dart';
+import 'package:ai_chan/core/interfaces/i_chat_response_service.dart';
 import 'package:ai_chan/core/interfaces/ai_service.dart';
 import '../utils/chat_json_utils.dart' as chat_json_utils;
 import '../services/memory_summary_service.dart';
@@ -15,21 +15,21 @@ import '../services/ai_service.dart';
 import '../services/event_service.dart';
 import '../services/promise_service.dart';
 import '../services/image_request_service.dart';
-import '../services/openai_service.dart';
 import '../services/audio_chat_service.dart';
 import '../services/google_speech_service.dart';
 import '../services/periodic_ia_message_scheduler.dart';
 import '../services/prompt_builder.dart';
 import '../services/ai_chat_response_service.dart';
+import 'package:ai_chan/core/di.dart' as di;
 import '../utils/log_utils.dart';
 
 class ChatProvider extends ChangeNotifier {
   final IChatRepository? repository;
   final IAIService? aiService;
+  final IChatResponseService? chatResponseService;
 
-  ChatProvider({this.repository, this.aiService}) {
-    // Inicializar servicio de audio delegando notificaciones al provider
-    audioService = AudioChatService(onStateChanged: () => notifyListeners(), onWaveform: (_) => notifyListeners());
+  ChatProvider({this.repository, this.aiService, this.chatResponseService}) {
+    // AudioService se inicializa perezosamente en la primera llamada (evita inicializar plugins en tests)
   }
   final PeriodicIaMessageScheduler _periodicScheduler = PeriodicIaMessageScheduler();
 
@@ -105,7 +105,7 @@ class ChatProvider extends ChangeNotifier {
     String? callPrompt,
     String? model,
     void Function(String)? onError,
-    models.AiImage? image,
+    AiImage? image,
     String? imageMimeType,
     // Nuevo: adjuntar transcripción ya preparada de un audio (para no volver a transcribir)
     String? preTranscribedText,
@@ -118,14 +118,14 @@ class ChatProvider extends ChangeNotifier {
     // Reset racha si hay actividad real del usuario (texto no vacío o imagen) y no es prompt automático
     // Racha de autos ahora gestionada dentro de PeriodicIaMessageScheduler; no se requiere flag local aquí
     // Detectar si es mensaje con imagen
-    final bool hasImage = image != null && ((image.base64?.isNotEmpty ?? false) || (image.url?.isNotEmpty ?? false));
+    final bool hasImage = image != null && (((image.base64 ?? '').isNotEmpty) || ((image.url ?? '').isNotEmpty));
     // Solo añadir el mensaje si no es vacío (o si tiene imagen)
     // Si es mensaje automático (callPrompt, texto vacío), NO añadir a la lista de mensajes enviados
     final isAutomaticPrompt = text.trim().isEmpty && (callPrompt != null && callPrompt.isNotEmpty);
     // Si el mensaje tiene imagen, NO guardar el base64 en el historial, solo la URL local
-    models.AiImage? imageForHistory;
+    AiImage? imageForHistory;
     if (hasImage) {
-      imageForHistory = models.AiImage(url: image.url, seed: image.seed, prompt: image.prompt);
+      imageForHistory = AiImage(url: image.url, seed: image.seed, prompt: image.prompt);
     }
     // Guardar siempre el texto (incluida transcripción) para contexto IA; la UI decide mostrarlo (audio oculto).
     String displayText;
@@ -192,11 +192,15 @@ class ChatProvider extends ChangeNotifier {
     final systemPromptObj = SystemPrompt.fromJson(jsonDecode(systemPromptJson));
 
     // Seleccionar modelo base
-    String selected = (model != null && model.trim().isNotEmpty)
-        ? model
-        : (_selectedModel != null && _selectedModel!.trim().isNotEmpty)
-        ? _selectedModel!
-        : 'gemini-2.5-flash';
+    String selected;
+    if (model != null && model.trim().isNotEmpty) {
+      selected = model;
+    } else if (_selectedModel != null && _selectedModel!.trim().isNotEmpty) {
+      final s = _selectedModel!.trim();
+      selected = s;
+    } else {
+      selected = 'gemini-2.5-flash';
+    }
 
     // Detección de petición de imagen (solo si no es prompt automático)
     bool solicitaImagen = false;
@@ -231,14 +235,71 @@ class ChatProvider extends ChangeNotifier {
     // Enviar vía servicio modularizado (maneja reintentos y base64)
     AIChatResult result;
     try {
-      result = await AiChatResponseService.send(
-        recentMessages: recentMessages,
-        systemPromptObj: systemPromptObj,
-        model: selected,
-        imageBase64: image?.base64,
-        imageMimeType: imageMimeType,
-        enableImageGeneration: solicitaImagen,
-      );
+      if (chatResponseService != null) {
+        // Convert recentMessages -> List<Map> expected por la interfaz
+        final msgs = recentMessages
+            .map(
+              (m) => {
+                'role': m.sender == MessageSender.user
+                    ? 'user'
+                    : (m.sender == MessageSender.assistant ? 'ia' : 'system'),
+                'content': m.text,
+                'datetime': m.dateTime.toIso8601String(),
+              },
+            )
+            .toList();
+        final mapResult = await chatResponseService!.sendChat(
+          msgs,
+          options: {
+            'systemPromptObj': systemPromptObj.toJson(),
+            'model': selected,
+            'imageBase64': image?.base64,
+            'imageMimeType': imageMimeType,
+            'enableImageGeneration': solicitaImagen,
+          },
+        );
+        // Map -> AIChatResult
+        result = AIChatResult(
+          text: mapResult['text'] as String? ?? '',
+          isImage: mapResult['isImage'] as bool? ?? false,
+          imagePath: mapResult['imagePath'] as String?,
+          prompt: mapResult['prompt'] as String?,
+          seed: mapResult['seed'] as String?,
+          finalModelUsed: mapResult['finalModelUsed'] as String? ?? selected,
+        );
+      } else {
+        // Resolver una implementación por medio de la fábrica DI y usar la interfaz
+        final impl = di.getChatResponseService();
+        final msgs = recentMessages
+            .map(
+              (m) => {
+                'role': m.sender == MessageSender.user
+                    ? 'user'
+                    : (m.sender == MessageSender.assistant ? 'ia' : 'system'),
+                'content': m.text,
+                'datetime': m.dateTime.toIso8601String(),
+              },
+            )
+            .toList();
+        final mapResult = await impl.sendChat(
+          msgs,
+          options: {
+            'systemPromptObj': systemPromptObj.toJson(),
+            'model': selected,
+            'imageBase64': image?.base64,
+            'imageMimeType': imageMimeType,
+            'enableImageGeneration': solicitaImagen,
+          },
+        );
+        result = AIChatResult(
+          text: mapResult['text'] as String? ?? '',
+          isImage: mapResult['isImage'] as bool? ?? false,
+          imagePath: mapResult['imagePath'] as String?,
+          prompt: mapResult['prompt'] as String?,
+          seed: mapResult['seed'] as String?,
+          finalModelUsed: mapResult['finalModelUsed'] as String? ?? selected,
+        );
+      }
       // Éxito de red: marcar último mensaje usuario como 'sent'
       _setLastUserMessageStatus(MessageStatus.sent);
     } catch (e) {
@@ -347,9 +408,7 @@ class ChatProvider extends ChangeNotifier {
       sender: MessageSender.assistant,
       dateTime: DateTime.now(),
       isImage: result.isImage,
-      image: result.isImage
-          ? models.AiImage(url: result.imagePath ?? '', seed: result.seed, prompt: result.prompt)
-          : null,
+      image: result.isImage ? AiImage(url: result.imagePath ?? '', seed: result.seed, prompt: result.prompt) : null,
       status: MessageStatus.read,
     );
     messages.add(assistantMessage);
@@ -425,7 +484,10 @@ class ChatProvider extends ChangeNotifier {
   }
 
   // ================= NUEVO BLOQUE AUDIO =================
-  late final AudioChatService audioService;
+  AudioChatService? _audioService;
+
+  AudioChatService get audioService =>
+      _audioService ??= AudioChatService(onStateChanged: () => notifyListeners(), onWaveform: (_) => notifyListeners());
 
   bool get isRecording => audioService.isRecording;
   List<int> get currentWaveform => audioService.currentWaveform;
@@ -451,8 +513,8 @@ class ChatProvider extends ChangeNotifier {
     const maxRetries = 2;
     while (retries <= maxRetries && transcript == null) {
       try {
-        final openai = OpenAIService();
-        transcript = await openai.transcribeAudio(path);
+        final stt = di.getSttService();
+        transcript = await stt.transcribeAudio(path);
         if (transcript != null && transcript.trim().isNotEmpty) {
           Log.i('Transcripción exitosa en intento ${retries + 1}', tag: 'AUDIO');
           break;
@@ -789,8 +851,16 @@ class ChatProvider extends ChangeNotifier {
 
   Future<String> exportAllToJson() async {
     final export = ChatExport(profile: onboardingData, messages: messages, events: _events);
+    final map = export.toJson();
+    if (repository != null) {
+      try {
+        return await repository!.exportAllToJson(map);
+      } catch (_) {
+        // fallback to local encoding
+      }
+    }
     final encoder = JsonEncoder.withIndent('  ');
-    return encoder.convert(export.toJson());
+    return encoder.convert(map);
   }
 
   // Eliminada versión sync, usar solo la versión async
@@ -819,10 +889,50 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> saveAll() async {
     final exported = ImportedChat(profile: onboardingData, messages: messages, events: _events);
-    await StorageUtils.saveImportedChatToPrefs(exported);
+    // Prefer repository if provided
+    if (repository != null) {
+      try {
+        await repository!.saveAll(exported.toJson());
+        return;
+      } catch (e) {
+        Log.w('IChatRepository.saveAll failed, falling back to StorageUtils: $e', tag: 'PERSIST');
+      }
+    }
+    // Fallback: legacy StorageUtils
+    try {
+      await StorageUtils.saveImportedChatToPrefs(exported);
+    } catch (e) {
+      Log.w('StorageUtils.saveImportedChatToPrefs failed: $e', tag: 'PERSIST');
+    }
   }
 
   Future<void> loadAll() async {
+    // Try to load via repository if available
+    if (repository != null) {
+      try {
+        final Map<String, dynamic>? data = await repository!.loadAll();
+        if (data != null) {
+          try {
+            final imported = ImportedChat.fromJson(data);
+            onboardingData = imported.profile;
+            messages = imported.messages.cast<Message>();
+            _events.clear();
+            if (imported.events.isNotEmpty) _events.addAll(imported.events);
+            await loadSelectedModel();
+            _promiseService.restoreFromEvents();
+            notifyListeners();
+            startPeriodicIaMessages();
+            return;
+          } catch (e) {
+            Log.w('Failed to parse repository.loadAll result: $e', tag: 'PERSIST');
+          }
+        }
+      } catch (e) {
+        Log.w('IChatRepository.loadAll failed, falling back to SharedPreferences: $e', tag: 'PERSIST');
+      }
+    }
+
+    // Fallback legacy loading via SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     // Restaurar biografía
     final bioString = prefs.getString('onboarding_data');
@@ -862,9 +972,20 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> clearAll() async {
     Log.d('[AI-chan] clearAll llamado');
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('chat_history');
-    await prefs.remove('onboarding_data');
+    if (repository != null) {
+      try {
+        await repository!.clearAll();
+      } catch (e) {
+        Log.w('IChatRepository.clearAll failed, falling back: $e', tag: 'PERSIST');
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('chat_history');
+        await prefs.remove('onboarding_data');
+      }
+    } else {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('chat_history');
+      await prefs.remove('onboarding_data');
+    }
     messages.clear();
     Log.d('[AI-chan] clearAll completado, mensajes: ${messages.length}');
     notifyListeners();

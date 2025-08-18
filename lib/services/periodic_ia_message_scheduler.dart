@@ -1,6 +1,6 @@
 import 'dart:async';
 import '../utils/log_utils.dart';
-import 'package:ai_chan/core/models/index.dart';
+import 'package:ai_chan/core/models.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../utils/schedule_utils.dart';
 
