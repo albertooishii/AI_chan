@@ -220,12 +220,18 @@ Identidad: $aiIdentityInstructions
   );
   // Generación con reintentos: exigimos JSON válido (sin 'raw')
   const int maxAttempts = 3;
-  Log.d('[IABioGenerator] Biografía: intentos JSON (max=$maxAttempts) con ${dotenv.env['DEFAULT_TEXT_MODEL']}');
+  String defaultModel = '';
+  try {
+    defaultModel = dotenv.env['DEFAULT_TEXT_MODEL'] ?? '';
+  } catch (_) {
+    defaultModel = '';
+  }
+  Log.d('[IABioGenerator] Biografía: intentos JSON (max=$maxAttempts) con $defaultModel');
   Map<String, dynamic>? bioJson;
   for (int attempt = 0; attempt < maxAttempts; attempt++) {
     Log.d('[IABioGenerator] Biografía: intento ${attempt + 1}/$maxAttempts');
     try {
-      final responseObj = await AIService.sendMessage([], systemPromptObj, model: dotenv.env['DEFAULT_TEXT_MODEL']);
+      final responseObj = await AIService.sendMessage([], systemPromptObj, model: defaultModel);
       if ((responseObj.text).trim().isEmpty) {
         Log.w('[IABioGenerator] Biografía: respuesta vacía (posible desconexión), reintentando…');
         continue;

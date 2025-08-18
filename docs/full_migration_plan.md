@@ -80,7 +80,7 @@ Pasos de migración (prioridad alta)
 5. Tests:
    - Unit: `ChatProvider` con un `IRealtimeClient` falso que emule pasos.
    - Integration: smoke test enviar mensaje y recibir respuesta (mock LLM) + audio path generado.
-6. Sanear imports: reemplazar `models.AiImage` por `AiImage` y usar `package:ai_chan/core/models.dart` (barrel) — tarea en curso.
+6. Sanear imports: reemplazar `AiImage` por `AiImage` y usar `package:ai_chan/core/models.dart` (barrel) — tarea en curso.
 
 Riesgos
 - Reemplazo masivo de tipos puede romper archivos si se hace sin pruebas. Hacer migración por lotes.
@@ -93,7 +93,7 @@ Checklist
 - [ ] Añadir/validar interfaces: `IRealtimeClient`, `IChatRepository`, `IChatResponseService` en `lib/core/interfaces/`
  - [x] Registrar `getRealtimeClientForProvider` en `lib/core/di.dart`
 - [ ] Refactor `ChatProvider`, widgets y servicios para usar interfaces en vez de implementaciones concretas
-- [ ] Sustituir `models.AiImage` por `AiImage` en todo el repo (por lotes)
+- [ ] Sustituir `AiImage` por `AiImage` en todo el repo (por lotes)
 - [ ] Tests: unitarios para `ChatProvider` con mock `IRealtimeClient`; integration smoke test
 
 Detalle extraído de `docs/chat_migration_plan.md`
@@ -243,7 +243,7 @@ Resumen: añadir una combinaci n de tests unitarios, tests de integración "smok
 Estrategia general
 - Unit tests: prueban l f3gica aislada (providers, servicios, orquestador) usando mocks/fakes (recomendado: `mocktail`).
 - Integration / smoke tests: prueban flujos esenciales con fakes que imitan providers externos (LLM, STT, TTS) sin requerir keys.
-- Regression tests: scripts que escanean el c f3digo para detectar patrones indeseados (p.ej. `package:ai_chan/core/models/index.dart` o `import .* as models`). Ya tenemos `test/migration/import_sanity_test.dart` y conviene ampliarla.
+- Regression tests: scripts que escanean el c f3digo para detectar patrones indeseados (p.ej. `package:ai_chan/core/models.dart` o `import .* as models`). Ya tenemos `test/migration/import_sanity_test.dart` y conviene ampliarla.
 
 Ficheros de test sugeridos y objetivos
 - test/migration/import_sanity_test.dart — ya existente: detectar imports legacy y alias `as models`.
@@ -326,7 +326,7 @@ Notas finales
 2. Terminar la migración restante de `AiImage` en los ficheros que quedan (por lotes) y ejecutar `flutter analyze` tras cada lote.
 3. Finalizar wiring del orquestador Gemini y añadir tests unitarios básicos.
 
-Si quieres, empiezo ahora mismo con el punto 2: busco referencias restantes a `models.AiImage` y aplico parches por lotes (3–5 archivos por batch), ejecutando `flutter analyze` tras cada lote y reportando progresos.
+Si quieres, empiezo ahora mismo con el punto 2: busco referencias restantes a `AiImage` y aplico parches por lotes (3–5 archivos por batch), ejecutando `flutter analyze` tras cada lote y reportando progresos.
 
 ---
 

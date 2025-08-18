@@ -9,7 +9,12 @@ enum LogLevel { error, warn, info, debug, trace }
 class Log {
   // Solo APP_LOG_LEVEL controla el nivel de log. APP_DEBUG_LOGS ya no tiene efecto.
   static LogLevel get _configuredLevel {
-    final raw = dotenv.env['APP_LOG_LEVEL']?.toLowerCase().trim();
+    String? raw;
+    try {
+      raw = dotenv.env['APP_LOG_LEVEL']?.toLowerCase().trim();
+    } catch (_) {
+      raw = null;
+    }
     switch (raw) {
       case 'error':
         return LogLevel.error;
