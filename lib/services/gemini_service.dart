@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'ai_service.dart';
-import '../models/system_prompt.dart';
+import 'package:ai_chan/core/models.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import '../models/ai_response.dart';
+// duplicate import removed
 
 class GeminiService implements AIService {
   static String get _primaryKey => dotenv.env['GEMINI_API_KEY']?.trim() ?? '';

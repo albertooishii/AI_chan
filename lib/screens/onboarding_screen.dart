@@ -6,7 +6,7 @@ import '../widgets/birth_date_field.dart';
 import '../providers/onboarding_provider.dart';
 import 'package:provider/provider.dart';
 
-import '../models/imported_chat.dart';
+import 'package:ai_chan/core/models.dart';
 import '../utils/locale_utils.dart';
 import '../constants/countries_es.dart';
 import '../constants/female_names.dart';

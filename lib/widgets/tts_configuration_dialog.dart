@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import '../utils/log_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,7 +20,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
   bool _androidNativeAvailable = false;
   bool _showOnlySpanishVoices = true; // Filtro para mostrar solo voces de español España
   List<Map<String, dynamic>> _googleVoices = [];
-  List<Map<String, dynamic>> _openaiVoices = [];
+  final List<Map<String, dynamic>> _openaiVoices = [];
   List<Map<String, dynamic>> _androidNativeVoices = [];
   String? _selectedVoice;
   int _cacheSize = 0;
@@ -56,7 +57,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
     try {
       List<Map<String, dynamic>> voices;
       if (_showOnlySpanishVoices) {
-        voices = await GoogleSpeechService.voicesForAiAndSpanish('es-ES');
+        voices = await GoogleSpeechService.voicesForUserAndAi(['es-ES'], ['es-ES']);
         Log.d('DEBUG TTS: Spanish Spain voices loaded: ${voices.length}', tag: 'TTS_DIALOG');
         // Imprimir los primeros 5 para debug
         for (int i = 0; i < voices.length && i < 5; i++) {
@@ -145,7 +146,8 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
     } catch (e) {
       Log.d('[TTS Dialog] Error refrescando voces: $e', tag: 'TTS_DIALOG');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error actualizando voces: $e')));
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.showSnackBar(SnackBar(content: Text('Error actualizando voces: $e')));
       }
     }
 
@@ -172,7 +174,8 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
       await _loadCacheSize();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Caché limpiado exitosamente')));
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.showSnackBar(const SnackBar(content: Text('Caché limpiado exitosamente')));
       }
     }
   }
@@ -307,8 +310,10 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
         ElevatedButton(
           onPressed: () async {
+            final navCtx = context;
+            final navigator = Navigator.of(navCtx);
             await _saveSettings();
-            if (mounted) Navigator.pop(context, true);
+            if (navCtx.mounted) navigator.pop(true);
           },
           child: const Text('Guardar'),
         ),

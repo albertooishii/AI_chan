@@ -14,11 +14,10 @@ import '../widgets/voice_call_chat.dart';
 import '../widgets/typing_animation.dart';
 import '../constants/app_colors.dart';
 import '../utils/dialog_utils.dart';
-import '../models/ai_chan_profile.dart';
 import '../widgets/expandable_image_dialog.dart';
-import '../models/imported_chat.dart';
-import '../models/message.dart';
-import '../models/image.dart' as ai_image;
+// model imports covered by core barrel
+import 'package:ai_chan/core/models/index.dart';
+import 'package:ai_chan/core/models/image.dart' as models;
 import '../utils/chat_json_utils.dart' as chat_json_utils;
 import 'gallery_screen.dart';
 import '../utils/image_utils.dart';
@@ -82,8 +81,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _showImportDialog(ChatProvider chatProvider) async {
     if (!mounted) return;
+    final ctx = context;
     final (jsonStr, error) = await chat_json_utils.ChatJsonUtils.importJsonFile();
-    if (!mounted) return;
+    if (!ctx.mounted) return;
     if (error != null) {
       _showErrorDialog(error);
       return;
@@ -104,10 +104,10 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<String?> _showModelSelectionDialog(List<String> models, String? initialModel) async {
-    if (!mounted) return null;
+  Future<String?> _showModelSelectionDialog(BuildContext ctx, List<String> models, String? initialModel) async {
+    if (!ctx.mounted) return null;
     return await showDialog<String>(
-      context: context,
+      context: ctx,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
         title: const Text('Seleccionar modelo', style: TextStyle(color: AppColors.primary)),
@@ -180,7 +180,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _showImportSuccessSnackBar() {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
       SnackBar(
         content: const Text('Chat importado correctamente.', style: TextStyle(color: AppColors.primary)),
         backgroundColor: AppColors.cyberpunkYellow,
@@ -272,12 +273,13 @@ class _ChatScreenState extends State<ChatScreen> {
     final aiName = widget.aiName;
     // Detectar llamada entrante pendiente y abrir pantalla si aún no está abierta
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final navCtx = context;
+      final navigator = Navigator.of(navCtx);
       if (chatProvider.hasPendingIncomingCall) {
         // Abrir VoiceCallChat en modo incoming solo si no hay ya otra ruta de llamada
-        final navigator = Navigator.of(context);
         final alreadyOpen = navigator.widget is VoiceCallChat; // heurístico simple
         if (!alreadyOpen) {
-          final existing = context.read<ChatProvider>();
+          final existing = navCtx.read<ChatProvider>();
           navigator.push(
             MaterialPageRoute(
               builder: (_) => ChangeNotifierProvider.value(value: existing, child: const VoiceCallChat(incoming: true)),
@@ -318,7 +320,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       onTap: () {
                         final avatarFilename = chatProvider.onboardingData.avatar!.url!.split('/').last;
                         final avatarMessage = Message(
-                          image: ai_image.Image(
+                          image: models.AiImage(
                             url: avatarFilename,
                             seed: chatProvider.onboardingData.avatar?.seed,
                             prompt: chatProvider.onboardingData.avatar?.prompt,
@@ -521,15 +523,16 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ],
             onSelected: (value) async {
+              final ctx = context;
               if (value == 'gallery') {
                 final images = chatProvider.messages
                     .where((m) => m.isImage && m.image != null && m.image!.url != null && m.image!.url!.isNotEmpty)
                     .toList();
-                if (!mounted) return;
-                Navigator.of(context).push(MaterialPageRoute(builder: (_) => GalleryScreen(images: images)));
+                if (!ctx.mounted) return;
+                Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => GalleryScreen(images: images)));
               } else if (value == 'calendar') {
-                final existing = context.read<ChatProvider>();
-                Navigator.of(context).push(
+                final existing = ctx.read<ChatProvider>();
+                Navigator.of(ctx).push(
                   MaterialPageRoute(
                     builder: (_) => ChangeNotifierProvider.value(value: existing, child: const CalendarScreen()),
                   ),
@@ -561,7 +564,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     userBirthday: bio.userBirthday,
                     aiBirthday: bio.aiBirthday,
                     appearance: result['appearance'] as Map<String, dynamic>? ?? <String, dynamic>{},
-                    avatar: result['avatar'] as ai_image.Image?,
+                    avatar: result['avatar'] as models.AiImage?,
                     timeline: bio.timeline, // timeline SIEMPRE al final
                   );
                   chatProvider.onboardingData = newBio;
@@ -606,7 +609,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         userBirthday: bio.userBirthday,
                         aiBirthday: bio.aiBirthday,
                         appearance: result['appearance'] as Map<String, dynamic>? ?? <String, dynamic>{},
-                        avatar: result['avatar'] as ai_image.Image?,
+                        avatar: result['avatar'] as models.AiImage?,
                         timeline: bio.timeline,
                       );
                       chatProvider.onboardingData = newBio;
@@ -648,10 +651,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   try {
                     if (widget.onClearAllDebug != null) {
                       await widget.onClearAllDebug?.call();
-                      if (!mounted) return;
+                      if (!ctx.mounted) return;
                     }
                   } catch (e) {
-                    if (!mounted) return;
+                    if (!ctx.mounted) return;
                     _showErrorDialog(e.toString());
                   }
                 }
@@ -668,20 +671,24 @@ class _ChatScreenState extends State<ChatScreen> {
                   return;
                 }
                 setState(() => _loadingModels = false);
-                if (!mounted) return;
+                final ctx = context;
+                if (!ctx.mounted) return;
                 final current = chatProvider.selectedModel;
                 final defaultModel = dotenv.env['DEFAULT_TEXT_MODEL'] ?? '';
                 final initialModel =
                     current ??
                     (models.contains(defaultModel) ? defaultModel : (models.isNotEmpty ? models.first : null));
-                final selected = await _showModelSelectionDialog(models, initialModel);
+                // ignore: use_build_context_synchronously
+                final selected = await _showModelSelectionDialog(ctx, models, initialModel);
+                if (!ctx.mounted) return;
                 _setSelectedModel(selected, current, chatProvider);
               } else if (value == 'select_audio_provider') {
                 final providers = ['openai', 'google'];
                 final current = await _loadActiveAudioProvider();
-                if (!mounted) return;
+                final ctx = context;
+                if (!ctx.mounted) return;
                 final selected = await showDialog<String>(
-                  context: context,
+                  context: ctx,
                   builder: (ctx) {
                     return AlertDialog(
                       backgroundColor: Colors.black,
@@ -717,21 +724,22 @@ class _ChatScreenState extends State<ChatScreen> {
                     );
                   },
                 );
+                if (!ctx.mounted) return;
                 if (selected != null && selected != current) {
+                  // ignore: use_build_context_synchronously
                   await _saveActiveAudioProvider(selected);
-                  if (mounted) {
-                    setState(() {});
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Proveedor de audio cambiado a ${selected.toUpperCase()}',
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                        backgroundColor: AppColors.primary,
-                        duration: const Duration(seconds: 2),
+                  if (!ctx.mounted) return;
+                  setState(() {});
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Proveedor de audio cambiado a ${selected.toUpperCase()}',
+                        style: const TextStyle(color: Colors.white),
                       ),
-                    );
-                  }
+                      backgroundColor: AppColors.primary,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
                 }
               } else if (value == 'select_voice') {
                 final provider = await _loadActiveAudioProvider();
@@ -743,9 +751,11 @@ class _ChatScreenState extends State<ChatScreen> {
                 } else {
                   voices = kOpenAIVoices;
                 }
-                if (!mounted) return;
+                final ctx = context;
+                if (!ctx.mounted) return;
+                // ignore: use_build_context_synchronously
                 final selected = await showDialog<String>(
-                  context: context,
+                  context: ctx,
                   builder: (ctx) {
                     return AlertDialog(
                       backgroundColor: Colors.black,
@@ -770,7 +780,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                   onPressed: _loadingGoogleVoices
                                       ? null
                                       : () async {
-                                          if (!mounted) return;
+                                          final ctx = context;
+                                          if (!ctx.mounted) return;
                                           setState(() => _loadingGoogleVoices = true);
                                           try {
                                             final aiCountry = widget.bio.aiCountryCode;
@@ -781,13 +792,14 @@ class _ChatScreenState extends State<ChatScreen> {
                                               );
                                               if (codes.isNotEmpty) aiLangCode = codes.first;
                                             }
-                                            final voices = await GoogleSpeechService.voicesForAiAndSpanish(
-                                              aiLangCode,
+                                            final voices = await GoogleSpeechService.voicesForUserAndAi(
+                                              ['es-ES'],
+                                              [aiLangCode ?? 'es-ES'],
                                               forceRefresh: true,
                                             );
-                                            if (mounted) setState(() => _fetchedGoogleVoices = voices);
+                                            if (ctx.mounted) setState(() => _fetchedGoogleVoices = voices);
                                           } finally {
-                                            if (mounted) setState(() => _loadingGoogleVoices = false);
+                                            if (ctx.mounted) setState(() => _loadingGoogleVoices = false);
                                           }
                                         },
                                 ),
@@ -809,14 +821,16 @@ class _ChatScreenState extends State<ChatScreen> {
                                     final isNeural = RegExp(r'neural|wavenet', caseSensitive: false).hasMatch(name);
 
                                     final List<Widget> subtitleWidgets = [];
-                                    if (desc.isNotEmpty)
+                                    if (desc.isNotEmpty) {
                                       subtitleWidgets.add(
                                         Text(desc, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                                       );
-                                    if (isNeural)
+                                    }
+                                    if (isNeural) {
                                       subtitleWidgets.add(
                                         Text('Neural', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                                       );
+                                    }
 
                                     return ListTile(
                                       contentPadding: EdgeInsets.zero,
@@ -847,6 +861,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                         icon: const Icon(Icons.play_arrow, color: AppColors.secondary),
                                         tooltip: 'Escuchar demo',
                                         onPressed: () async {
+                                          final ctx = context;
+                                          final chatProv = ctx.read<ChatProvider>();
                                           final phrase = isGoogle
                                               ? 'Hola, soy tu asistente con la voz $name'
                                               : 'Hola, soy tu asistente con la voz $v';
@@ -855,7 +871,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                             if (isGoogle) {
                                               if (lcodes.isNotEmpty) lang = lcodes.first;
                                             }
-                                            final file = await context.read<ChatProvider>().audioService.synthesizeTts(
+                                            final file = await chatProv.audioService.synthesizeTts(
                                               phrase,
                                               voice: isGoogle ? name : v,
                                               languageCode: lang,
@@ -864,12 +880,14 @@ class _ChatScreenState extends State<ChatScreen> {
                                               final player = AudioPlayer();
                                               await player.play(DeviceFileSource(file.path));
                                             }
-                                          } catch (e) {}
+                                          } catch (e) {
+                                            Log.d('Error during voice demo playback: $e', tag: 'CHAT_SCREEN');
+                                          }
                                         },
                                       ),
                                       onTap: () => Navigator.of(ctx).pop(isGoogle ? name : v),
                                     );
-                                  }).toList(),
+                                  }),
                                 ],
                               ),
                             ),
@@ -879,6 +897,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     );
                   },
                 );
+                if (!ctx.mounted) return;
                 if (selected != null && selected != current) {
                   await _saveActiveVoice(selected);
                 }

@@ -5,11 +5,10 @@ import '../utils/log_utils.dart';
 import 'dart:async';
 import 'dart:io';
 import '../utils/audio_utils.dart';
-import 'cache_service.dart';
+import '../core/cache/cache_service.dart';
 
 import 'ai_service.dart';
-import '../models/ai_response.dart';
-import '../models/system_prompt.dart';
+import 'package:ai_chan/core/models.dart';
 import 'package:http/http.dart' as http;
 
 class OpenAIService implements AIService {

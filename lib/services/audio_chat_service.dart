@@ -9,11 +9,11 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'google_speech_service.dart';
 import 'android_native_tts_service.dart';
-import 'cache_service.dart';
-import '../models/message.dart';
+import '../core/cache/cache_service.dart';
+import 'package:ai_chan/core/models.dart';
 
-typedef OnWaveformUpdate = void Function(List<int> samples);
 typedef OnStateChanged = void Function();
+typedef OnWaveformUpdate = void Function(List<int> waveform);
 
 /// Servicio que encapsula grabación, transcripción parcial, reproducción y TTS.
 class AudioChatService {

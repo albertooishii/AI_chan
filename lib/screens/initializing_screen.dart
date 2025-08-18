@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
-import '../models/ai_chan_profile.dart';
+import 'package:ai_chan/core/models.dart';
 
 class InitializingScreen extends StatefulWidget {
   final Future<AiChanProfile> Function() bioFutureFactory;

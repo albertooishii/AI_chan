@@ -1,6 +1,6 @@
 import 'timeline_entry.dart';
 import 'event_entry.dart';
-import 'image.dart';
+import 'package:ai_chan/core/models/image.dart' as models;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AiChanProfile {
@@ -19,7 +19,7 @@ class AiChanProfile {
   final String? aiCountryCode; // p.ej., JP, ES, US
 
   /// Datos de avatar: seed, url, prompt, etc.
-  final Image? avatar;
+  final models.AiImage? avatar;
 
   AiChanProfile({
     this.events,
@@ -64,7 +64,7 @@ class AiChanProfile {
       timeline: (json['timeline'] as List<dynamic>? ?? [])
           .map((e) => TimelineEntry.fromJson(e as Map<String, dynamic>))
           .toList(),
-      avatar: json['avatar'] != null ? Image.fromJson(json['avatar'] as Map<String, dynamic>) : null,
+      avatar: json['avatar'] != null ? models.AiImage.fromJson(json['avatar'] as Map<String, dynamic>) : null,
     );
   }
 
@@ -131,7 +131,7 @@ class AiChanProfile {
     List<TimelineEntry>? timeline,
     String? userCountryCode,
     String? aiCountryCode,
-    Image? avatar,
+    models.AiImage? avatar,
   }) {
     return AiChanProfile(
       events: events ?? this.events,

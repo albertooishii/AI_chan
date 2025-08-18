@@ -1,11 +1,9 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:async';
-import 'package:ai_chan/models/ai_chan_profile.dart';
+import 'package:ai_chan/core/models/index.dart';
 import 'package:ai_chan/services/ai_service.dart';
-import '../models/system_prompt.dart';
-import '../models/message.dart' as chat_model;
-import '../models/timeline_entry.dart';
+import 'package:ai_chan/core/models.dart' as chat_model;
 import '../utils/json_utils.dart';
 
 class MemorySuperblockResult {

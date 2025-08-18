@@ -1,9 +1,7 @@
 // import 'package:flutter/foundation.dart';
 import '../utils/log_utils.dart';
-import '../models/message.dart';
-import '../models/system_prompt.dart';
+import 'package:ai_chan/core/models/index.dart';
 import '../services/ai_service.dart';
-import '../models/ai_response.dart';
 import '../utils/image_utils.dart';
 
 class AIChatResult {

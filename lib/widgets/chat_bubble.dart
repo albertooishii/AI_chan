@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 import 'dart:io';
 import '../constants/app_colors.dart';
-import '../models/message.dart';
+import 'package:ai_chan/core/models/index.dart';
 // import 'audio_message_player.dart'; // reemplazado por versión con subtítulos
 import 'audio_message_player_with_subs.dart';
 

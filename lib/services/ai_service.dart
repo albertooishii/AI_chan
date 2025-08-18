@@ -3,8 +3,7 @@ import '../utils/debug_call_logger/debug_call_logger.dart';
 import 'package:flutter/foundation.dart';
 import 'gemini_service.dart';
 import 'openai_service.dart';
-import '../models/ai_response.dart';
-import '../models/system_prompt.dart';
+import 'package:ai_chan/core/models.dart';
 
 abstract class AIService {
   /// Implementación base para enviar mensajes a la IA.

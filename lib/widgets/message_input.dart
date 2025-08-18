@@ -9,7 +9,7 @@ import 'dart:convert';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import '../constants/app_colors.dart';
 import '../providers/chat_provider.dart';
-import '../models/image.dart' as ai_image;
+import 'package:ai_chan/core/models/image.dart' as models;
 import '../utils/image_utils.dart';
 
 // Intents para atajos de teclado en escritorio
@@ -181,14 +181,14 @@ class _MessageInputState extends State<MessageInput> {
     if (text.isEmpty && !hasImage) return;
 
     final chatProvider = context.read<ChatProvider>();
-    ai_image.Image? imageToSend;
+    models.AiImage? imageToSend;
     String? imageMimeType = _attachedImageMime;
     if (hasImage) {
       // Guardar la imagen en local y obtener el nombre real
       final savedPath = await saveBase64ImageToFile(_attachedImageBase64!, prefix: 'img_user');
       if (savedPath != null) {
         final fileName = savedPath.split('/').last;
-        imageToSend = ai_image.Image(url: fileName, base64: _attachedImageBase64!);
+        imageToSend = models.AiImage(url: fileName, base64: _attachedImageBase64!);
       } else {
         // Si falla, usar el nombre generado como antes
         final ext = imageMimeType == 'image/jpeg'
@@ -197,7 +197,7 @@ class _MessageInputState extends State<MessageInput> {
             ? 'webp'
             : 'png';
         final fileName = 'img_user_${DateTime.now().millisecondsSinceEpoch}.$ext';
-        imageToSend = ai_image.Image(url: fileName, base64: _attachedImageBase64!);
+        imageToSend = models.AiImage(url: fileName, base64: _attachedImageBase64!);
       }
     }
     if (mounted) {

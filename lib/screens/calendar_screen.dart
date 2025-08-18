@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../utils/schedule_utils.dart';
 import '../providers/chat_provider.dart';
-import '../models/event_entry.dart';
+import 'package:ai_chan/core/models.dart';
 import '../constants/app_colors.dart';
 
 class CalendarScreen extends StatefulWidget {

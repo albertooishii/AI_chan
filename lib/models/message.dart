@@ -1,4 +1,4 @@
-import 'image.dart';
+import 'package:ai_chan/core/models/image.dart' as models;
 
 enum MessageSender { user, assistant, system }
 
@@ -78,7 +78,7 @@ class Message {
   final MessageSender sender;
   final DateTime dateTime;
   final bool isImage;
-  final Image? image;
+  final models.AiImage? image;
   MessageStatus status;
   final bool isAudio;
   final String? audioPath;
@@ -121,7 +121,7 @@ class Message {
     MessageSender? sender,
     DateTime? dateTime,
     bool? isImage,
-    Image? image,
+    models.AiImage? image,
     MessageStatus? status,
     bool? isAudio,
     String? audioPath,
@@ -166,7 +166,7 @@ class Message {
   };
 
   factory Message.fromJson(Map<String, dynamic> json) {
-    final imageObj = json['image'] != null ? Image.fromJson(json['image']) : null;
+    final imageObj = json['image'] != null ? models.AiImage.fromJson(json['image']) : null;
     final bool isAudio = json['isAudio'] == true || json.containsKey('audioPath');
     return Message(
       text: json['text'] ?? '',

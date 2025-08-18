@@ -3,9 +3,8 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
-import '../models/imported_chat.dart';
+import 'package:ai_chan/core/models.dart';
 import '../constants/app_colors.dart';
-import '../models/ai_chan_profile.dart';
 
 /// Muestra un diálogo para pegar JSON manualmente
 

@@ -1,8 +1,8 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:ai_chan/models/system_prompt.dart';
+import 'package:ai_chan/core/models/index.dart';
 import 'package:ai_chan/utils/storage_utils.dart';
 import 'package:flutter/material.dart';
-import 'package:ai_chan/models/ai_chan_profile.dart';
+// removed duplicate import
 import 'package:ai_chan/services/ia_appearance_generator.dart';
 import 'package:ai_chan/main.dart' show navigatorKey;
 import 'package:ai_chan/utils/onboarding_utils.dart';
@@ -11,7 +11,7 @@ import 'dart:convert';
 import '../services/ai_service.dart';
 import '../utils/dialog_utils.dart';
 import '../utils/chat_json_utils.dart' as chat_json_utils;
-import '../models/imported_chat.dart';
+// removed duplicate import
 import '../utils/locale_utils.dart';
 import '../utils/log_utils.dart';
 

@@ -70,6 +70,6 @@ class Log {
 
   // Registro de excepción estándar
   static void ex(Object error, StackTrace stack, {String tag = 'APP', String? context}) {
-    e(context != null ? '$context' : 'Excepción capturada', tag: tag, error: error, stack: stack);
+    e(context ?? 'Excepción capturada', tag: tag, error: error, stack: stack);
   }
 }

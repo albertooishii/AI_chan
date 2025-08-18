@@ -2,12 +2,10 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
 import 'package:ai_chan/utils/image_utils.dart';
 import 'package:flutter/foundation.dart';
-import '../models/image.dart';
-import '../models/ai_chan_profile.dart';
+import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/core/models/image.dart' as models;
 import '../utils/json_utils.dart';
-import '../models/ai_response.dart';
 import 'ai_service.dart';
-import '../models/system_prompt.dart';
 
 class IAAppearanceGenerator {
   Future<Map<String, dynamic>> generateAppearancePromptWithImage(AiChanProfile bio, {AIService? aiService}) async {
@@ -256,8 +254,8 @@ ${bio.biography}
 
     return {
       'appearance': appearanceMap,
-      // Devolver avatar como objeto Image (nunca null)
-      'avatar': Image(seed: imageResponse.seed, prompt: imageResponse.prompt, url: imageUrl),
+      // Devolver avatar como objeto AiImage (nunca null)
+      'avatar': models.AiImage(seed: imageResponse.seed, prompt: imageResponse.prompt, url: imageUrl),
     };
   }
 }

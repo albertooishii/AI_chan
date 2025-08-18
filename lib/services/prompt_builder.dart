@@ -1,10 +1,8 @@
 import 'dart:convert';
-import '../models/message.dart';
-import '../models/ai_chan_profile.dart';
-import '../models/system_prompt.dart';
+import 'package:ai_chan/core/models/index.dart';
 import '../utils/locale_utils.dart';
 import '../utils/debug_call_logger/debug_call_logger.dart';
-import '../models/timeline_entry.dart';
+// model types imported from core barrel
 
 /// Encapsula la construcción de SystemPrompts y lógica de sanitización
 /// para separar esta responsabilidad del ChatProvider.

@@ -1,7 +1,6 @@
 import 'dart:async';
 import '../utils/log_utils.dart';
-import '../models/message.dart';
-import '../models/ai_chan_profile.dart';
+import 'package:ai_chan/core/models/index.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../utils/schedule_utils.dart';
 

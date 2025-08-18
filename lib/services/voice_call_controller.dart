@@ -14,9 +14,9 @@ import '../constants/voices.dart';
 import '../services/google_speech_service.dart';
 import '../services/openai_realtime_client.dart';
 import '../services/tone_service.dart';
-import '../models/message.dart';
+import 'package:ai_chan/core/models/index.dart';
 import '../services/audio_playback_strategy_factory.dart';
-import '../models/realtime_provider.dart';
+// duplicate import removed
 import '../utils/log_utils.dart';
 
 class VoiceCallController {

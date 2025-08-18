@@ -1,7 +1,7 @@
-import '../models/ai_chan_profile.dart';
+import 'package:ai_chan/core/models.dart';
 import '../services/ia_bio_generator.dart';
 import '../services/ia_appearance_generator.dart';
-import '../models/image.dart';
+import 'package:ai_chan/core/models/image.dart' as models;
 
 /// Utilidad flexible para crear la biografía completa (con apariencia), permitiendo elegir el generador
 Future<AiChanProfile> generateFullBiographyFlexible({
@@ -23,7 +23,7 @@ Future<AiChanProfile> generateFullBiographyFlexible({
   );
   final appearanceResult = await appearanceGenerator.generateAppearancePromptWithImage(bio, aiService: null);
   // Extraer avatar: el generador devuelve 'avatar' como Image
-  final Image? avatar = appearanceResult['avatar'] as Image?;
+  final models.AiImage? avatar = appearanceResult['avatar'] as models.AiImage?;
   final biography = AiChanProfile(
     biography: bio.biography,
     userName: bio.userName,

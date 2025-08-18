@@ -1,4 +1,4 @@
-import '../models/realtime_provider.dart';
+import 'package:ai_chan/core/models.dart';
 import 'audio_playback_strategy.dart';
 
 /// Factory for creating audio playback strategies

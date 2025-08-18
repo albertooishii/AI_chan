@@ -2,9 +2,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:ai_chan/utils/log_utils.dart';
 import 'dart:math';
 import '../services/ai_service.dart';
-import '../models/ai_chan_profile.dart';
-import '../models/timeline_entry.dart';
-import '../models/system_prompt.dart';
+import 'package:ai_chan/core/models.dart';
 import '../utils/json_utils.dart';
 import '../utils/locale_utils.dart';
 

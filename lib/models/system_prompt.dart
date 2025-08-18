@@ -1,5 +1,5 @@
 import 'dart:convert';
-import '../models/ai_chan_profile.dart';
+import 'package:ai_chan/core/models.dart';
 
 class SystemPrompt {
   final AiChanProfile profile;

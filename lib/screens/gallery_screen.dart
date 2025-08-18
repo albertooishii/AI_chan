@@ -1,7 +1,7 @@
 import 'dart:io';
 import '../utils/image_utils.dart';
 import 'package:flutter/material.dart';
-import '../models/message.dart';
+import 'package:ai_chan/core/models/index.dart';
 import '../widgets/expandable_image_dialog.dart';
 
 class GalleryScreen extends StatelessWidget {

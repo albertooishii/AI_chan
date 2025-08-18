@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
-import '../models/timeline_entry.dart';
+import 'package:ai_chan/core/models.dart';
 import '../utils/event_parser_utils.dart';
-import '../models/event_entry.dart';
+// event_entry is exported by core barrel
 
 class EventTimelineService {
   // Añade un evento al timeline si se detecta fecha y palabras clave

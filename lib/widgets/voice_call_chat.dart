@@ -1,7 +1,7 @@
 import 'package:record/record.dart';
 import 'package:provider/provider.dart';
 
-import '../models/message.dart';
+import 'package:ai_chan/core/models/index.dart';
 import '../services/openai_service.dart';
 import '../services/voice_call_controller.dart';
 import '../services/voice_call_summary_service.dart';

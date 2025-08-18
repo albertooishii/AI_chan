@@ -1,6 +1,4 @@
-import '../models/message.dart';
-import '../models/ai_chan_profile.dart';
-import '../models/system_prompt.dart';
+import 'package:ai_chan/core/models/index.dart';
 import 'ai_service.dart';
 
 /// Servicio para generar resúmenes de llamadas de voz

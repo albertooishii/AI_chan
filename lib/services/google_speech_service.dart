@@ -4,7 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
-import 'cache_service.dart';
+import '../core/cache/cache_service.dart';
 
 class GoogleSpeechService {
   static String get _apiKey => dotenv.env['GOOGLE_CLOUD_API_KEY']?.trim() ?? '';
@@ -356,7 +356,12 @@ class GoogleSpeechService {
   }
 
   /// Legacy method - kept for backward compatibility
-  @deprecated
+  ///
+  /// Deprecated: use `voicesForUserAndAi(List<String> userCodes, List<String> aiCodes, {bool forceRefresh = false})`
+  /// instead. This method will be removed in a future release.
+  @Deprecated(
+    'use voicesForUserAndAi(List<String> userCodes, List<String> aiCodes, {bool forceRefresh = false}) instead',
+  )
   static Future<List<Map<String, dynamic>>> voicesForAiAndSpanish(
     String? aiLanguageCode, {
     bool forceRefresh = false,

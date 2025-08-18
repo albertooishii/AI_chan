@@ -1,17 +1,13 @@
 import 'package:ai_chan/utils/storage_utils.dart';
 import 'dart:convert';
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Image;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/message.dart';
-import '../models/image.dart' as ai_image;
+import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/core/models/index.dart' as models;
+import 'package:ai_chan/core/interfaces/i_chat_repository.dart';
+import 'package:ai_chan/core/interfaces/ai_service.dart';
 import '../utils/chat_json_utils.dart' as chat_json_utils;
-import '../models/timeline_entry.dart';
-import '../models/ai_chan_profile.dart';
-import '../models/event_entry.dart';
-import '../models/system_prompt.dart';
-import '../models/chat_export.dart';
-import '../models/imported_chat.dart';
 import '../services/memory_summary_service.dart';
 import 'dart:io';
 import '../services/ia_appearance_generator.dart';
@@ -28,7 +24,10 @@ import '../services/ai_chat_response_service.dart';
 import '../utils/log_utils.dart';
 
 class ChatProvider extends ChangeNotifier {
-  ChatProvider() {
+  final IChatRepository? repository;
+  final IAIService? aiService;
+
+  ChatProvider({this.repository, this.aiService}) {
     // Inicializar servicio de audio delegando notificaciones al provider
     audioService = AudioChatService(onStateChanged: () => notifyListeners(), onWaveform: (_) => notifyListeners());
   }
@@ -106,7 +105,7 @@ class ChatProvider extends ChangeNotifier {
     String? callPrompt,
     String? model,
     void Function(String)? onError,
-    ai_image.Image? image,
+    models.AiImage? image,
     String? imageMimeType,
     // Nuevo: adjuntar transcripción ya preparada de un audio (para no volver a transcribir)
     String? preTranscribedText,
@@ -124,9 +123,9 @@ class ChatProvider extends ChangeNotifier {
     // Si es mensaje automático (callPrompt, texto vacío), NO añadir a la lista de mensajes enviados
     final isAutomaticPrompt = text.trim().isEmpty && (callPrompt != null && callPrompt.isNotEmpty);
     // Si el mensaje tiene imagen, NO guardar el base64 en el historial, solo la URL local
-    ai_image.Image? imageForHistory;
+    models.AiImage? imageForHistory;
     if (hasImage) {
-      imageForHistory = ai_image.Image(url: image.url, seed: image.seed, prompt: image.prompt);
+      imageForHistory = models.AiImage(url: image.url, seed: image.seed, prompt: image.prompt);
     }
     // Guardar siempre el texto (incluida transcripción) para contexto IA; la UI decide mostrarlo (audio oculto).
     String displayText;
@@ -141,7 +140,7 @@ class ChatProvider extends ChangeNotifier {
       sender: isAutomaticPrompt ? MessageSender.system : MessageSender.user,
       dateTime: now,
       isImage: hasImage,
-      image: hasImage ? imageForHistory : null,
+      image: imageForHistory,
       isAudio: userAudioPath != null,
       audioPath: userAudioPath,
       status: MessageStatus.sending,
@@ -349,7 +348,7 @@ class ChatProvider extends ChangeNotifier {
       dateTime: DateTime.now(),
       isImage: result.isImage,
       image: result.isImage
-          ? ai_image.Image(url: result.imagePath ?? '', seed: result.seed, prompt: result.prompt)
+          ? models.AiImage(url: result.imagePath ?? '', seed: result.seed, prompt: result.prompt)
           : null,
       status: MessageStatus.read,
     );

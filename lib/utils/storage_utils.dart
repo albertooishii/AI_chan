@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/imported_chat.dart';
+import 'package:ai_chan/core/models.dart';
 
 /// Utilidades para persistencia robusta en SharedPreferences
 class StorageUtils {
