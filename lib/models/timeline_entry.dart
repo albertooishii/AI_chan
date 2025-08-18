@@ -1,1 +1,1 @@
-export 'package:ai_chan/core/models/timeline_entry.dart';
+export 'package:ai_chan/core/models.dart';

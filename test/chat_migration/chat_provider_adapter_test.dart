@@ -3,7 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_chan/core/interfaces/i_chat_response_service.dart';
 import 'package:ai_chan/providers/chat_provider.dart';
-import 'package:ai_chan/core/models/index.dart';
+import 'package:ai_chan/core/models.dart';
 
 class FakeChatResponseService implements IChatResponseService {
   final String responseText;

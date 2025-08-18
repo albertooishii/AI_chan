@@ -1,7 +1,7 @@
 import 'package:ai_chan/utils/storage_utils.dart';
 import 'dart:convert';
 import 'dart:async';
-import 'package:flutter/material.dart' hide Image;
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/interfaces/i_chat_repository.dart';

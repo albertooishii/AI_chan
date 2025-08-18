@@ -1,1 +1,1 @@
-export 'package:ai_chan/core/models/message.dart';
+export 'package:ai_chan/core/models.dart';
