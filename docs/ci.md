@@ -12,3 +12,12 @@ Usage:
 ```bash
 ./scripts/install-hooks.sh
 ```
+
+Quick setup after clone:
+
+```bash
+flutter pub get
+./scripts/setup.sh
+```
+
+Note: Git does not install hooks automatically when cloning. Run `./scripts/setup.sh` once after cloning to install dependencies and the pre-commit hook.
