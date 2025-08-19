@@ -2,22 +2,28 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: ["main", "migration"]
   pull_request:
-    branches: ["**"]
+    branches: ["main", "migration"]
 
 jobs:
   analyze-and-test:
+    name: Analyze and Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: stable
+          flutter-version: 'stable'
+
       - name: Install dependencies
         run: flutter pub get
-      - name: Run analyzer
+
+      - name: Analyze
         run: flutter analyze
-      - name: Run tests (fast)
-        run: flutter test test/migration/import_sanity_test.dart test/chat/chat_provider_test.dart test/calls/gemini_orchestrator_test.dart -r expanded
+
+      - name: Run tests
+        run: flutter test --coverage

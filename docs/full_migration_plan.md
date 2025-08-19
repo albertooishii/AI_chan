@@ -3,12 +3,13 @@
 Fecha: 19 de agosto de 2025
 Branch actual / objetivo: `migration` (cambios commiteados en esta rama)
 
-Resumen de cambios recientes (estado a 2025-08-19):
+Resumen de cambios recientes (estado a 2025-08-19 -> actualizado ahora):
 - Migración: se movieron las implementaciones canónicas a `lib/core/services/` y se eliminaron las implementaciones legacy en `lib/services/`.
 - Compatibilidad: se añadieron shims / re-exports donde fue necesario y se limpiaron imports rotos.
-- Tests: se ejecutaron los tests de onboarding y de chat; todos pasaron localmente.
-- Analyze: `flutter analyze` reportó inicialmente warnings; tras limpiar imports y adaptar imports a `lib/core/services/` el análisis quedó limpio ("No issues found!").
-- Commit: cambios commiteados en la rama `migration` con mensaje `chore(migration): remove legacy service implementations from lib/services; use canonical lib/core/services`.
+- Tests: se añadieron tests de persistencia/import/export (`test/onboarding/persistence_test.dart`) y varios tests de onboarding/chat; la suite local completa pasó.
+- Fixes: se corrigieron fallos de persistencia detectados por los tests (ajustes en `lib/utils/storage_utils.dart` y `lib/chat/repositories/local_chat_repository.dart`).
+- Analyze: `flutter analyze` actualmente no reporta issues ("No issues found!").
+- Commit & push: cambios commiteados y pusheados a `origin/migration` (commit incluye tests y fixes de persistencia/import/export).
 
 Estado objetivo: dejar `lib/core/services/` como fuente canónica, eliminar duplicados y mantener la API estable para providers y adaptadores; preparar la rama `migration` para push/PR.
 
@@ -56,8 +57,8 @@ Contrato / Outputs
 - [x] Adaptador `openai_profile_adapter.dart` implementado y testeado.
 - [ ] Adaptador `google_profile_adapter.dart` pendiente (puede ser stub/fake).
 - [x] Fábrica DI `getProfileServiceForProvider` añadida en `lib/core/di.dart`.
-- [ ] Wiring en el provider de onboarding para usar la interfaz (siguiente paso).
-- [x] Tests unitarios robustos para el adaptador OpenAI y CI verde.
+- [x] Wiring en el provider de onboarding para usar la interfaz (ya usa `IProfileService` vía DI en `OnboardingProvider`).
+- [x] Tests unitarios y de persistencia añadidos (incluye casos de import/export y recarga); suite local pasó.
 
 **Siguiente paso:**
 - Refactorizar el provider de onboarding para usar `IProfileService` vía la fábrica DI.
@@ -75,12 +76,12 @@ Criterio de éxito
 - Onboarding funciona con provider `mock` y con provider `openai/google` (si keys disponibles) sin editar la UI.
 
 Checklist
-- [ ] Mover `AiChanProfile`, `AiImage`, `Appearance` a `lib/core/models/` y actualizar barrels
-- [ ] Crear `IProfileService` en `lib/core/interfaces/` con métodos documentados
-- [ ] Implementar adaptadores `openai_profile_adapter.dart` y `google_profile_adapter.dart`
-- [ ] Añadir `getProfileServiceForProvider` en `lib/core/di.dart`
-- [ ] Refactor UI/logic de onboarding para usar `IProfileService`
-- [ ] Añadir tests unitarios e integración (mock LLM, mock storage)
+- [x] Mover `AiChanProfile`, `AiImage`, `Appearance` a `lib/core/models/` y actualizar barrels
+- [x] Crear `IProfileService` en `lib/core/interfaces/` con métodos documentados
+- [x] Implementar adaptadores `openai_profile_adapter.dart` (Google adapter pendiente)
+- [x] Añadir `getProfileServiceForProvider` en `lib/core/di.dart`
+- [x] Refactor UI/logic de onboarding para usar `IProfileService` (OnboardingProvider usa DI)
+- [x] Añadir tests unitarios e integración (mock LLM, mock storage) y tests de persistencia/import/export
 
 ---
 
@@ -184,8 +185,9 @@ Checklist
 - [ ] Definir esquema JSON y versionado (v1)
 - [ ] Implementar `IImportExportService` en `lib/core/interfaces/`
 - [ ] Crear adaptador `json_import_export.dart` en `lib/services/adapters/`
-- [ ] Integrar UI (settings/screen) para importar/exportar y usar la interfaz
-- [ ] Tests: importar/exportar roundtrip con archivo de ejemplo
+- [x] Utilidades de import/export implementadas: `ChatJsonUtils.importAllFromJson`, `ChatExport`, `ImportedChat`, `StorageUtils.saveImportedChatToPrefs` y `LocalChatRepository.exportAllToJson`/`importAllFromJson`.
+- [x] Tests: importar/exportar roundtrip y casos corruptos añadidos (`test/onboarding/persistence_test.dart`).
+- [ ] Integrar UI (settings/screen) para importar/exportar y usar la interfaz (pendiente si se quiere UI dedicada)
 
 ---
 
@@ -213,9 +215,9 @@ Checklist
 
 ## 8) Plan de trabajo por oleadas (sprints pequeños)
 Oleada 1 (1-3 días)
-- Completar canonicalización de modelos faltantes (AiImage, Message, Profile, TimelineEntry).
-- Finalizar `lib/core/models/index.dart` barrel.
-- Ejecutar `flutter analyze` y arreglar imports rotos.
+- Completar canonicalización de modelos faltantes (AiImage, Message, Profile, TimelineEntry) — mayormente completado (revisar barrels y imports por lotes).
+- Finalizar `lib/core/models/index.dart` barrel (hay `lib/core/models/index.dart` presente; validar exports adicionales).
+- Ejecutar `flutter analyze` y arreglar imports rotos (se ejecutó y está limpio localmente).
 
 Oleada 2 (3-7 días)
 - Onboarding: interfaces + adaptadores + tests básicos.
@@ -241,10 +243,10 @@ Checklist
 ---
 
 ## Checklist global (entrega / PR)
-- [ ] `flutter analyze` limpio en la rama `chat/migration/prepare`
-- [ ] Tests unitarios básicos añadidos por cada contexto
-- [ ] PRs atómicas por oleada con cambios documentados en `docs/`
-- [ ] Job CI ejecutando `flutter analyze` y tests
+- [x] `flutter analyze` limpio (local)
+- [x] Tests unitarios básicos añadidos por contexto y tests de persistencia/import/export añadidos
+- [ ] PRs atómicas por oleada con cambios documentados en `docs/` (pendiente cuando se abra PRs)
+- [ ] Job CI ejecutando `flutter analyze` y tests (pendiente)
 
 ---
 

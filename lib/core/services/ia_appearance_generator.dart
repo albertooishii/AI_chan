@@ -7,7 +7,11 @@ import 'package:ai_chan/utils/json_utils.dart';
 import 'package:ai_chan/services/ai_service.dart';
 
 class IAAppearanceGenerator {
-  Future<Map<String, dynamic>> generateAppearancePromptWithImage(AiChanProfile bio, {AIService? aiService}) async {
+  Future<Map<String, dynamic>> generateAppearancePromptWithImage(
+    AiChanProfile bio, {
+    AIService? aiService,
+    Future<String?> Function(String base64, {String prefix})? saveImageFunc,
+  }) async {
     final usedModel = dotenv.env['DEFAULT_TEXT_MODEL'] ?? '';
     final imageModel = dotenv.env['DEFAULT_IMAGE_MODEL'] ?? '';
 
@@ -240,7 +244,9 @@ Biografía:
     // Guardar imagen en local y obtener la ruta
     String? imageUrl;
     try {
-      imageUrl = await saveBase64ImageToFile(imageResponse.base64, prefix: 'ai_avatar');
+    imageUrl = await (saveImageFunc != null
+      ? saveImageFunc(imageResponse.base64, prefix: 'ai_avatar')
+      : saveBase64ImageToFile(imageResponse.base64, prefix: 'ai_avatar'));
     } catch (e) {
       imageUrl = null;
     }
