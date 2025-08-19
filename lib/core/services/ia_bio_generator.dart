@@ -1,8 +1,9 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:ai_chan/utils/log_utils.dart';
 import 'dart:math';
 import 'package:ai_chan/services/ai_service.dart';
+import 'package:ai_chan/core/ai_runtime_guard.dart';
 import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/utils/json_utils.dart';
 import 'package:ai_chan/utils/locale_utils.dart';
 
@@ -215,12 +216,7 @@ Identidad: $aiIdentityInstructions
   );
 
   const int maxAttempts = 3;
-  String defaultModel = '';
-  try {
-    defaultModel = dotenv.env['DEFAULT_TEXT_MODEL'] ?? '';
-  } catch (_) {
-    defaultModel = '';
-  }
+  String defaultModel = Config.getDefaultTextModel();
   Log.d('[IABioGenerator] Biografía: intentos JSON (max=$maxAttempts) con $defaultModel');
   Map<String, dynamic>? bioJson;
   for (int attempt = 0; attempt < maxAttempts; attempt++) {
@@ -241,7 +237,11 @@ Identidad: $aiIdentityInstructions
       }
       Log.w('[IABioGenerator] Biografía: intento ${attempt + 1} sin JSON válido, reintentando…');
     } catch (err) {
-      Log.e('[IABioGenerator] Biografía: error de red/timeout en intento ${attempt + 1}: $err');
+      if (handleRuntimeError(err, 'IABioGenerator')) {
+        // already logged inside helper
+      } else {
+        Log.e('[IABioGenerator] Biografía: error de red/timeout en intento ${attempt + 1}: $err');
+      }
     }
   }
   if (bioJson == null) {

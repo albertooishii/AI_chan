@@ -338,8 +338,8 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
   void initState() {
     super.initState();
     _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
-    // Resolve AI service via DI based on selected provider/model; use default model mapping
-    openai = di.getIAIServiceForModel('gpt-4o-mini-realtime');
+  // Resolve AI service via DI based on selected provider/model; use default model mapping
+  openai = di.getAIServiceForModel('gpt-4o-mini-realtime');
     controller = VoiceCallController(aiService: openai);
     _subtitleController = SubtitleController(debug: false);
 

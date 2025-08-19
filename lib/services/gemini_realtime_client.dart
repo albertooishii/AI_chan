@@ -77,7 +77,7 @@ class GeminiCallOrchestrator {
 
   Future<void> _sendTranscriptToGemini(String transcript) async {
     try {
-      final IAIService ai = di.getIAIServiceForModel(model);
+  final IAIService ai = di.getAIServiceForModel(model);
       // Use the adapter's sendMessage with a minimal history to get a response map
       final respMap = await ai.sendMessage(
         messages: [

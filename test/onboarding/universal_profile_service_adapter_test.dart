@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../test_setup.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/services/adapters/universal_profile_service_adapter.dart';
+import 'package:ai_chan/services/adapters/google_profile_adapter.dart';
 import 'package:ai_chan/services/ai_service.dart';
 
 class FakeAIService implements AIService {
@@ -37,14 +37,13 @@ class FakeAIService implements AIService {
 
 void main() {
   setUpAll(() async {
-    TestWidgetsFlutterBinding.ensureInitialized();
-    await dotenv.load();
+    await initializeTestEnvironment();
     // Inyectar servicio IA fake para tests (evita llamadas HTTP reales)
     AIService.testOverride = FakeAIService();
   });
 
   test('UniversalProfileServiceAdapter genera biografía y apariencia correctamente', () async {
-    final adapter = UniversalProfileServiceAdapter();
+  final adapter = GoogleProfileAdapter(aiService: AIService.testOverride!);
 
     final profile = await adapter.generateBiography(
       userName: 'UserTest',

@@ -2,7 +2,8 @@ import 'package:ai_chan/core/interfaces/ai_service.dart';
 import 'package:ai_chan/services/gemini_service.dart';
 
 class GeminiAdapter implements IAIService {
-  final GeminiService _impl = GeminiService();
+  final GeminiService _impl;
+  GeminiAdapter(GeminiService impl) : _impl = impl;
 
   @override
   Future<List<String>> getAvailableModels() => _impl.getAvailableModels();

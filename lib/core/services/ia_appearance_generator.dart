@@ -1,10 +1,11 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ai_chan/core/config.dart';
 import 'dart:convert';
 import 'package:ai_chan/utils/image_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/utils/json_utils.dart';
 import 'package:ai_chan/services/ai_service.dart';
+import 'package:ai_chan/core/ai_runtime_guard.dart';
 
 class IAAppearanceGenerator {
   Future<Map<String, dynamic>> generateAppearancePromptWithImage(
@@ -12,8 +13,8 @@ class IAAppearanceGenerator {
     AIService? aiService,
     Future<String?> Function(String base64, {String prefix})? saveImageFunc,
   }) async {
-    final usedModel = dotenv.env['DEFAULT_TEXT_MODEL'] ?? '';
-    final imageModel = dotenv.env['DEFAULT_IMAGE_MODEL'] ?? '';
+  final usedModel = Config.getDefaultTextModel();
+  final imageModel = Config.getDefaultImageModel();
 
     // Bloque de formato JSON para la apariencia física
     final appearanceJsonFormat = jsonEncode({
@@ -168,7 +169,11 @@ Biografía:
         }
         debugPrint('[IAAppearanceGenerator] Apariencia: intento ${attempt + 1} sin JSON válido, reintentando…');
       } catch (err) {
-        debugPrint('[IAAppearanceGenerator] Apariencia: error de red/timeout en intento ${attempt + 1}: $err');
+        if (handleRuntimeError(err, 'IAAppearanceGenerator')) {
+          // logged by helper
+        } else {
+          debugPrint('[IAAppearanceGenerator] Apariencia: error de red/timeout en intento ${attempt + 1}: $err');
+        }
       }
     }
     // Si tras los intentos no hay JSON válido, cancelar sin fallback
@@ -202,7 +207,7 @@ Biografía:
       instructions: {'raw': imagePrompt},
     );
 
-    final String forcedImageModel = dotenv.env['DEFAULT_IMAGE_MODEL'] ?? '';
+  final String forcedImageModel = Config.getDefaultImageModel();
     if (imageModel != forcedImageModel) {
       debugPrint('[IAAppearanceGenerator] Avatar: imageModel "$imageModel" ignorado; se fuerza "$forcedImageModel"');
     }
@@ -224,7 +229,11 @@ Biografía:
         }
         debugPrint('[IAAppearanceGenerator] Avatar: intento ${attempt + 1} sin imagen');
       } catch (err) {
-        debugPrint('[IAAppearanceGenerator] Avatar: error de red/timeout en intento ${attempt + 1}: $err');
+        if (handleRuntimeError(err, 'IAAppearanceGenerator')) {
+          // logged by helper
+        } else {
+          debugPrint('[IAAppearanceGenerator] Avatar: error de red/timeout en intento ${attempt + 1}: $err');
+        }
       }
     }
 

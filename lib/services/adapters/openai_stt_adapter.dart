@@ -2,7 +2,8 @@ import 'package:ai_chan/core/interfaces/i_stt_service.dart';
 import 'package:ai_chan/services/openai_service.dart';
 
 class OpenAISttAdapter implements ISttService {
-  final OpenAIService _impl = OpenAIService();
+  final OpenAIService _impl;
+  OpenAISttAdapter(OpenAIService impl) : _impl = impl;
 
   @override
   Future<String?> transcribeAudio(String path) async {

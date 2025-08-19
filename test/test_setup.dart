@@ -9,8 +9,17 @@ Future<void> initializeTestEnvironment({Map<String, Object>? prefs, String? dote
     dotenv.testLoad(fileInput: dotenvContents);
   } else {
     try {
+      // Intentar cargar .env real si existe
       await dotenv.load();
-    } catch (_) {}
+    } catch (_) {
+      // Si no hay .env disponible en el entorno de test, inyectar valores por defecto mínimos
+      const defaultContents = '''
+DEFAULT_TEXT_MODEL=gemini-2.5-flash
+DEFAULT_IMAGE_MODEL=gpt-4.1-mini
+APP_LOG_LEVEL=trace
+''';
+      dotenv.testLoad(fileInput: defaultContents);
+    }
   }
   SharedPreferences.setMockInitialValues(prefs ?? {});
 }

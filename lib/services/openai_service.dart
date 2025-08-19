@@ -233,7 +233,7 @@ class OpenAIService implements AIService {
     }
   }
 
-  final String apiKey = dotenv.env['OPENAI_API_KEY'] ?? '';
+  String get apiKey => dotenv.env['OPENAI_API_KEY'] ?? '';
 
   /// Transcribe un archivo de audio usando OpenAI Whisper
   Future<String?> transcribeAudio(String filePath, {String? language}) async {

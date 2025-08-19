@@ -798,11 +798,13 @@ class ChatProvider extends ChangeNotifier {
     if (_services.containsKey(modelId)) {
       return _services[modelId];
     }
-    final service = AIService.select(modelId);
-    if (service != null) {
-      _services[modelId] = service;
+    // Use centralized DI factory to obtain the IA service implementation
+    final service = di.getAIServiceForModel(modelId);
+    if (service is AIService) {
+      _services[modelId] = service as AIService;
+      return _services[modelId];
     }
-    return service;
+    return null;
   }
 
   TimelineEntry? superbloqueEntry;

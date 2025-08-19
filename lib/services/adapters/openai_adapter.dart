@@ -3,7 +3,8 @@ import 'package:ai_chan/services/openai_service.dart';
 
 /// Adapter that implements IAIService and delegates to the existing OpenAIService
 class OpenAIAdapter implements IAIService {
-  final OpenAIService _impl = OpenAIService();
+  final OpenAIService _impl;
+  OpenAIAdapter(OpenAIService impl) : _impl = impl;
 
   @override
   Future<List<String>> getAvailableModels() => _impl.getAvailableModels();

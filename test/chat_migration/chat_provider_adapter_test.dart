@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../test_setup.dart';
 import 'package:ai_chan/core/interfaces/i_chat_response_service.dart';
 import 'package:ai_chan/providers/chat_provider.dart';
 import 'package:ai_chan/core/models.dart';
@@ -19,10 +18,7 @@ class FakeChatResponseService implements IChatResponseService {
 }
 
 void main() async {
-  TestWidgetsFlutterBinding.ensureInitialized();
-  // Inicializar dotenv y SharedPreferences en entorno de test
-  await dotenv.load();
-  SharedPreferences.setMockInitialValues({});
+  await initializeTestEnvironment(prefs: {});
 
   test('ChatProvider uses IChatResponseService adapter to append assistant message', () async {
     final fake = FakeChatResponseService('hola desde fake');

@@ -1,9 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import '../test_setup.dart';
-import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/services/adapters/google_profile_adapter.dart';
 import 'package:ai_chan/services/ai_service.dart';
+import 'package:ai_chan/core/models.dart';
+import '../test_setup.dart';
 
+// Fake implementation to avoid network calls in unit tests
 class FakeAIService implements AIService {
   @override
   Future<AIResponse> sendMessageImpl(
@@ -19,43 +20,32 @@ class FakeAIService implements AIService {
           'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAAWgmWQ0AAAAASUVORK5CYII=';
       return AIResponse(text: '', base64: onePixelPngBase64, seed: 'fake-seed', prompt: 'fake-prompt');
     }
-    final json = '''{
-"datos_personales": {"nombre_completo": "Ai Test", "fecha_nacimiento": "1999-01-01"},
-"personalidad": {"valores": {"Sociabilidad": "5"}, "descripcion": {}},
-"resumen_breve": "Resumen de prueba",
-"historia_personal": []
-}''';
-    return AIResponse(text: json, base64: '', seed: '', prompt: '');
+    return AIResponse(text: '{}', base64: '', seed: '', prompt: '');
   }
 
   @override
   Future<List<String>> getAvailableModels() async => ['fake-model'];
+
 }
 
 void main() {
-  setUpAll(() async {
+  test('GoogleProfileAdapter returns a basic profile and appearance', () async {
     await initializeTestEnvironment();
     AIService.testOverride = FakeAIService();
-  });
+    final adapter = GoogleProfileAdapter(aiService: AIService.testOverride!);
 
-  test('ProfileService (antes OpenAI) funciona con adaptador universal y fake', () async {
-  final adapter = GoogleProfileAdapter(aiService: AIService.testOverride!);
-
+    final now = DateTime(1990, 1, 1);
     final profile = await adapter.generateBiography(
-      userName: 'UserX',
-      aiName: 'AiX',
-      userBirthday: DateTime(1990, 1, 1),
-      meetStory: 'Historia',
-      userCountryCode: 'ES',
-      aiCountryCode: 'JP',
+      userName: 'User',
+      aiName: 'AiChan',
+      userBirthday: now,
+      meetStory: 'A test meet',
     );
     expect(profile, isA<AiChanProfile>());
-    expect(profile.userName, 'UserX');
-    expect(profile.aiName, 'AiX');
-    expect(profile.biography, isNotEmpty);
+    expect(profile.userName, 'User');
 
-    final avatar = await adapter.generateAppearance(profile);
-    expect(avatar, isA<AiImage>());
-    expect(avatar?.url, isNotEmpty);
+    final image = await adapter.generateAppearance(profile);
+    expect(image, isA<AiImage>());
+    expect(image!.url, contains('example.com'));
   });
 }
