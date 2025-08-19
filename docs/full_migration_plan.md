@@ -93,10 +93,13 @@ Batch 5 — CI, regresión y sanity checks
 - Añadir `test/migration/import_sanity_test.dart` que busque imports directos a adaptadores concretos desde `lib/features/` o `lib/providers/`.
 - Añadir job de CI básico que corra `flutter analyze` y `flutter test`.
 
-Listado propuesto de archivos a eliminar (o archivar)
-- `lib/core/provider_selector.dart` (duplicado)
-- Adaptadores legacy no usados: `lib/services/adapters/openai_profile_adapter.dart`, `lib/services/adapters/universal_profile_service_adapter.dart` (verificar referencias antes de borrar)
-- Cualquier fichero marcado previamente como eliminado por el usuario: validar y borrar/archivar según convenga.
+Listado actualizado de archivos eliminados / a archivar
+- [x] `lib/core/provider_selector.dart` (duplicado, eliminado / archivado)
+- [x] `lib/services/adapters/openai_profile_adapter.dart` (legacy)
+- [x] `lib/services/adapters/universal_profile_service_adapter.dart` (legacy)
+- [ ] Limpiar carpeta `archive/` tras finalizar Batch 4 (eliminar restos si ya no hay referencias)
+
+Nota: los wrappers activos `openai_adapter.dart` y `gemini_adapter.dart` se mantienen (no eliminarlos); actúan como façade fina sobre runtimes centralizados.
 
 Acciones inmediatas que puedo ejecutar ahora (elige una)
 - A: Crear `lib/core/config.dart` y reemplazar unas pocas lecturas de `dotenv.env` por getters (Batch 1). Ejecutaré `flutter analyze` después.
@@ -155,8 +158,8 @@ Próximo paso (Batch 3 — SWEEP)
       - [x] Búsqueda rápida en el repo: instanciaciones de runtimes encontradas únicamente en `lib/core/runtime_factory.dart`; lecturas de `dotenv.env` encontradas únicamente en `lib/core/config.dart` (lecturas en import-time eliminadas fuera de `config`).
    - Notas/acciones residuales (baja prioridad):
       - [ ] Revisar imports en `lib/features/` que puedan referenciar adaptadores obsoletos (auditoría por lotes en Batch 4).
-      - [ ] Auditoría rápida de `lib/core/di.dart` para detectar factories duplicadas o edge-cases que creen runtimes.
-      - [ ] Considerar añadir un chequeo CI estático/regresión (Batch 5) que detecte instanciaciones directas si se reintroducen.
+   - [x] Auditoría rápida de `lib/core/di.dart` para detectar factories duplicadas o edge-cases que creen runtimes (hecha: `getAIServiceForModel` ahora inyecta runtime y no duplica lógica).
+   - [ ] Considerar añadir un chequeo CI estático/regresión (Batch 5) que detecte instanciaciones directas de runtimes (p. ej. OpenAI/Gemini) y alerte en el pipeline si aparecen.
    - Política recomendada: eliminar el fallback; `AIService.select` queda deprecado/evitado. Todo el código debe resolver runtimes mediante DI/fábricas (`lib/core/di.dart`) o `runtime_factory` y no usar `select` como mecanismo automático.
 
 Batch 4 — Resto del repo (pendiente, por lotes)
@@ -177,6 +180,44 @@ Batch 4 — Resto del repo (pendiente, por lotes)
    Pendientes globales (post-sweep):
       - [ ] Añadir check de regresión estática para detectar instanciaciones directas de runtimes y afinar en caso de falsos positivos.
       - [ ] Auditoría final de imports en `lib/features/` y `lib/providers/`.
+
+   ---
+
+   ## Estado consolidado tras inyección de runtimes en DI (2025-08-19)
+   Resumen técnico:
+   - `getAIServiceForModel` ahora obtiene runtime vía `runtime_factory.getRuntimeAIServiceForModel` y lo inyecta en `OpenAIAdapter` / `GeminiAdapter`.
+   - `DefaultTtsService` usa el runtime centralizado para construir su `OpenAIAdapter` fallback.
+   - Adaptadores (`openai_adapter.dart`, `gemini_adapter.dart`) aceptan parámetro opcional `runtime` manteniendo compatibilidad con tests.
+   - Únicas instanciaciones directas de `OpenAIService()` / `GeminiService()` residen en `lib/core/runtime_factory.dart` (punto autorizado).
+   - Lecturas de `dotenv.env` visibles solo en `lib/core/config.dart` (y un comentario informativo en `chat_screen.dart`).
+
+   Evidencia (grep último barrido):
+   - OpenAIService()/GeminiService(): solo en `lib/core/runtime_factory.dart`.
+   - dotenv.env: solo en `lib/core/config.dart` + comentario en `chat_screen.dart`.
+   - Imports adapters: centralizados en `di.dart` y `default_tts_service.dart` (válido).
+
+   Next actions (próximo commit / Batch 4 continuación):
+   1. Lote A (UI/providers): revisar `lib/providers/` y `lib/screens/` para eliminar comentarios obsoletos de dotenv y asegurar que ningún widget hace lógica de selección de provider (delegar a DI).
+   2. Lote B (features): buscar imports directos de adapters fuera de `core/di.dart` y `services/adapters/`; si existen, reemplazar por funciones factory de DI.
+   3. Lote C (tests smoke voice/chat): crear test de smoke para llamada (STT -> AI -> TTS) usando fakes y validar orden de llamadas.
+   4. Regresión estática: script/test que falle si aparece `OpenAIService(` o `GeminiService(` fuera de `runtime_factory.dart`.
+   5. Cleanup: evaluar eliminación definitiva de archivos archivados en `archive/` tras confirmar sin referencias.
+
+   Definición de done para cerrar Batch 4:
+   - [ ] Ningún import de adapters concretos fuera de `services/adapters/` y `core/di.dart`.
+   - [ ] Tests smoke voice y chat agregados y verdes.
+   - [ ] Script de regresión estática añadido y ejecutado en CI.
+   - [ ] Archivo `docs/full_migration_plan.md` actualizado con sección "Batch 4 (COMPLETADO)".
+
+   Riesgos actuales:
+   - Reintroducción accidental de instanciaciones directas al crear nuevos providers/widgets.
+   - Tests lentos si smoke voice se conecta a red (mitigar con fakes).
+
+   Mitigaciones:
+   - Mantener adapters como thin wrappers sin lógica de fallback; toda la selección centralizada en DI.
+   - Añadir test de regresión estática antes de ampliar a más bounded contexts.
+
+   ---
 
 Este documento consolida la migración que ya iniciamos (chat) y la extiende a los demás contextos/productos del app: onboarding, llamadas (voice), import/export JSON y calendario. Está escrito como un plan ejecutable por etapas, siguiendo principios DDD (secciones por bounded context), y usando la estrategia de "Adaptadores + Interfaces" (Opción A) que ya comenzamos.
 
@@ -359,12 +400,30 @@ Si eliminaste más archivos localmente, actualiza la lista y ejecuta `flutter an
 - Oleada C (3–7 días): Chat — refactorizar providers para DI y añadir unit tests con fakes.
 - Oleada D (3–7 días): Calls & Import/Export — finalizar orquestador, añadir smoke tests, versionado JSON.
 
+## Checklist global (estado actual)
+- Config centralizada (`Config`): [x]
+- Lecturas de dotenv fuera de `Config` eliminadas: [x]
+- `runtime_factory` único punto de instanciación de runtimes: [x]
+- DI inyecta runtime en adapters (`getAIServiceForModel`): [x]
+- Wrappers `OpenAIAdapter` / `GeminiAdapter` sin lógica extra: [x]
+- Pruebas de regresión (import + instantiation): [x]
+- CI básico (analyze + test): [x]
+- Script/regresión estática adicional formalizado en pipeline: [ ]
+- Smoke tests voice/chat: [ ]
+- Limpieza carpeta `archive/`: [ ]
+
 ## Próximos pasos (si me das OK)
 1. Ejecutar un barrido por lotes (3–5 ficheros) para reemplazar imports directos por `lib/core/models/` y correr `flutter analyze` tras cada lote.
 2. Implementar `google_profile_adapter.dart` y añadir test que lo inyecte con `AIService.testOverride`.
 3. Añadir test de regresión que detecte usos directos de `OpenAIService`/`GeminiService` en tests sin fakes.
 
 ## Resumen final breve
-El trabajo esencial ya está avanzado: modelos y fábricas DI existen, tests clave migrados a `initializeTestEnvironment()` y adaptadores OpenAI listos. Lo que falta es terminar el wiring por contextos (Google adapter, orquestador Gemini, refactor por lotes de imports) y añadir 2–3 regresiones/CI jobs para evitar reintroducir dependencias directas a proveedores.
+Trabajo esencial avanzado: modelos + interfaces canónicos, DI centralizado, runtime_factory único, adapters wrappers listos, pruebas de regresión y CI básico en marcha. Pendiente: smoke tests voice/chat, script de regresión estática formal, limpieza archivos archivados y refactor incremental de providers/widgets para cerrar Batch 4.
+
+Recordatorios operativos finales:
+- No crear nuevas instancias de runtimes fuera de `runtime_factory`.
+- Mantener selección de modelos/proveedores sólo en `di.dart` / `runtime_factory`.
+- Tests con IA: usar `AIService.testOverride` o inyectar fakes.
+- Antes de eliminar archivos en `archive/`, correr `flutter analyze` para asegurar cero referencias.
 
 Si quieres, empiezo por la oleada A (sanear imports por lotes). Dime si quieres que lo haga en este PR y aplicar los cambios en bloques pequeños para revisar después de cada batch.
