@@ -1,7 +1,16 @@
 # Plan de Migración Completa del Dominio Chat y Módulos Relacionados
 
-Fecha: 18 de agosto de 2025
-Branch objetivo: `chat/migration/prepare`
+Fecha: 19 de agosto de 2025
+Branch actual / objetivo: `migration` (cambios commiteados en esta rama)
+
+Resumen de cambios recientes (estado a 2025-08-19):
+- Migración: se movieron las implementaciones canónicas a `lib/core/services/` y se eliminaron las implementaciones legacy en `lib/services/`.
+- Compatibilidad: se añadieron shims / re-exports donde fue necesario y se limpiaron imports rotos.
+- Tests: se ejecutaron los tests de onboarding y de chat; todos pasaron localmente.
+- Analyze: `flutter analyze` reportó inicialmente warnings; tras limpiar imports y adaptar imports a `lib/core/services/` el análisis quedó limpio ("No issues found!").
+- Commit: cambios commiteados en la rama `migration` con mensaje `chore(migration): remove legacy service implementations from lib/services; use canonical lib/core/services`.
+
+Estado objetivo: dejar `lib/core/services/` como fuente canónica, eliminar duplicados y mantener la API estable para providers y adaptadores; preparar la rama `migration` para push/PR.
 
 Este documento consolida la migración que ya iniciamos (chat) y la extiende a los demás contextos/productos del app: onboarding, llamadas (voice), import/export JSON y calendario. Está escrito como un plan ejecutable por etapas, siguiendo principios DDD (secciones por bounded context), y usando la estrategia de "Adaptadores + Interfaces" (Opción A) que ya comenzamos.
 

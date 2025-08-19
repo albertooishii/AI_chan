@@ -124,12 +124,13 @@ class OnboardingProvider extends ChangeNotifier {
         avatar: appearanceResult['avatar'] as AiImage?,
         appearance: appearanceResult['appearance'] as Map<String, dynamic>?,
       );
-      if (!context.mounted) return;
+      // Persistir siempre en SharedPreferences aunque el contexto UI haya sido desmontado.
       final prefs = await SharedPreferences.getInstance();
       final jsonBio = jsonEncode(biographyWithAvatar.toJson());
       await prefs.setString('onboarding_data', jsonBio);
       _generatedBiography = biographyWithAvatar;
       _biographySaved = true;
+      // Notificar listeners (si los hay). Mostrar diálogos UI solo si el context está montado.
       notifyListeners();
     } catch (e) {
       _biographySaved = false;

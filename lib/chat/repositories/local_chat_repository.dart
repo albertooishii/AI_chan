@@ -29,9 +29,20 @@ class LocalChatRepository implements IChatRepository {
     final jsonString = prefs.getString('chat_history');
     if (bioString != null || jsonString != null) {
       try {
-        final profile = bioString != null ? jsonDecode(bioString) as Map<String, dynamic> : <String, dynamic>{};
-        final messages = jsonString != null ? jsonDecode(jsonString) as List<dynamic> : <dynamic>[];
-        return {'profile': profile, 'messages': messages};
+        // El onboarding_data puede ser el JSON completo (profile + messages/events) o solo el profile.
+        final Map<String, dynamic> profileMap = bioString != null
+            ? (jsonDecode(bioString) as Map<String, dynamic>)
+            : <String, dynamic>{};
+        final List<dynamic> messages = jsonString != null ? jsonDecode(jsonString) as List<dynamic> : <dynamic>[];
+        // Normalizar la salida para que sea compatible con ImportedChat.fromJson:
+        // devolver un mapa con los campos del perfil en el nivel superior y las claves 'messages' y 'events'.
+        final Map<String, dynamic> out = Map<String, dynamic>.from(profileMap);
+        out['messages'] = messages;
+        // Si no existen events en el profileMap, intentar tomar events desde el propio JSON guardado
+        if (!out.containsKey('events')) {
+          out['events'] = <dynamic>[];
+        }
+        return out;
       } catch (_) {}
     }
 
