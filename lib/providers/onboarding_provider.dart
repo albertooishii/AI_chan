@@ -263,12 +263,12 @@ class OnboardingProvider extends ChangeNotifier {
         instructions: {'raw': instrucciones},
       );
       try {
-        final story = await AIService.sendMessage(
+    final story = await AIService.sendMessage(
           [
             {"role": "user", "content": prompt, "datetime": DateTime.now().toIso8601String()},
           ],
           systemPromptObj,
-    model: Config.getDefaultTextModel(),
+  model: Config.getDefaultTextModel(),
         );
         if (!context.mounted) return;
         final storyText = story.text;

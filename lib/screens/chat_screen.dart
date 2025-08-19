@@ -432,8 +432,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     const Text('Sistema de voz', style: TextStyle(color: AppColors.primary)),
                     FutureBuilder<String>(
                       future: _loadActiveAudioProvider(),
-                      builder: (context, snapshot) {
-                        final provider = snapshot.data ?? 'google';
+                        builder: (context, snapshot) {
+                          final provider = snapshot.data ?? Config.getAudioProvider().toLowerCase();
                         final displayName = provider == 'google' ? 'GOOGLE' : provider.toUpperCase();
                         return Padding(
                           padding: const EdgeInsets.only(left: 8.0),

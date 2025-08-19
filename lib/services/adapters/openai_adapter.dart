@@ -1,4 +1,5 @@
 import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
+import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/interfaces/ai_service.dart';
 
 /// Thin adapter that implements the legacy IAIService port and delegates to
@@ -12,9 +13,12 @@ class OpenAIAdapter implements IAIService {
   /// runtime instance (OpenAIService) instead of relying on the internal
   /// factory. If not provided, the adapter falls back to the centralized
   /// runtime factory.
-  OpenAIAdapter({this.modelId = 'gpt-4o', this.runtime});
+  OpenAIAdapter({String? modelId, this.runtime}) : modelId = modelId ?? Config.getDefaultTextModel();
 
-  dynamic get _impl => runtime ?? runtime_factory.getRuntimeAIServiceForModel(modelId);
+  dynamic get _impl {
+    final resolved = (runtime != null) ? (runtime) : runtime_factory.getRuntimeAIServiceForModel(modelId.isNotEmpty ? modelId : Config.getDefaultTextModel());
+    return resolved;
+  }
 
   @override
   Future<List<String>> getAvailableModels() async {

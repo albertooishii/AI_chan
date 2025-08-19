@@ -338,8 +338,8 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
   void initState() {
     super.initState();
     _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
-  // Resolve AI service via DI based on selected provider/model; use default model mapping
-  openai = di.getAIServiceForModel('gpt-4o-mini-realtime');
+    // Resolve AI service via DI based on selected provider/model; use configured default model
+  openai = di.getAIServiceForModel(Config.getDefaultTextModel());
     controller = VoiceCallController(aiService: openai);
     _subtitleController = SubtitleController(debug: false);
 
@@ -974,8 +974,8 @@ extension _IncomingLogic on _VoiceCallChatState {
           }
         }
       },
-      recorder: _recorder,
-      model: 'gpt-4o-mini-realtime',
+  recorder: _recorder,
+  model: Config.getDefaultTextModel(),
       // Si es entrante pero ya fue aceptada, permitir arranque inicial (no suprimir)
       suppressInitialAiRequest: widget.incoming && !_incomingAccepted,
       playRingback: !widget.incoming, // si era entrante ya sonó antes aceptar

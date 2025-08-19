@@ -456,7 +456,7 @@ class VoiceCallController {
     Function(String)? onHangupReason,
     Function(String)? onUserTranscription, // Nuevo callback para transcripciones del usuario
     dynamic recorder, // Para compatibilidad
-    String model = 'gpt-4o-mini-realtime',
+  String? model,
     String? voice,
     bool suppressInitialAiRequest = false, // nuevo: IA no habla hasta que user hable
     bool playRingback = true, // nuevo: controlar si reproducir ringback (entrante respondida no)
@@ -538,7 +538,7 @@ class VoiceCallController {
 
       _client = di.getRealtimeClientForProvider(
         providerName,
-        model: 'gpt-4o-realtime-preview',
+  model: model ?? Config.requireDefaultTextModel(),
         onText: (textDelta) {
           if (_suppressFurtherAiText) return; // no pasar más texto a la UI tras end_call
           _uiOnText ??= onText;

@@ -16,13 +16,14 @@ class OpenAIRealtimeClient {
   bool _connected = false;
 
   OpenAIRealtimeClient({
-    this.model = 'gpt-4o-realtime-preview',
+    String? model,
     this.onText,
     this.onAudio,
     this.onCompleted,
     this.onError,
     this.onUserTranscription,
-  });
+  }) : model = model ?? Config.requireOpenAIRealtimeModel();
+  // Nota: OpenAI realtime debe usar el OPENAI_REALTIME_MODEL configurado; fallar si no está presente.
 
   String get _apiKey => Config.getOpenAIKey();
   bool get isConnected => _connected;

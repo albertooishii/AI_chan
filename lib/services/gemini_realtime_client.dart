@@ -6,6 +6,7 @@ import 'package:ai_chan/core/interfaces/ai_service.dart';
 import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/core/interfaces/i_stt_service.dart';
 import 'package:ai_chan/core/interfaces/tts_service.dart';
+import 'package:ai_chan/core/config.dart';
 
 /// Orquestador que emula comportamiento realtime para Gemini usando Google STT/TTS.
 class GeminiCallOrchestrator {
@@ -23,13 +24,15 @@ class GeminiCallOrchestrator {
   Timer? _deferredTranscribeTimer;
 
   GeminiCallOrchestrator({
-    this.model = 'gemini-2.5-flash',
+    String? model,
     this.onText,
     this.onAudio,
     this.onCompleted,
     this.onError,
     this.onUserTranscription,
-  });
+  }) : model = model ?? Config.requireGoogleRealtimeModel();
+  // Para el flujo realtime 'google' usamos un modelo específico configurable
+  // (GOOGLE_REALTIME_MODEL) y fallamos si no está presente.
 
   Future<void> connect({required String systemPrompt, String voice = 'default'}) async {
     _connected = true;

@@ -47,13 +47,24 @@ IAIService getAIServiceForModel(String modelId) {
     final runtime = runtime_factory.getRuntimeAIServiceForModel(normalized);
     impl = GeminiAdapter(modelId: normalized, runtime: runtime);
   } else if (normalized.isEmpty) {
-    // Default behavior: prefer Gemini for empty/unspecified
-    final runtime = runtime_factory.getRuntimeAIServiceForModel('gemini-2.5-flash');
-    impl = GeminiAdapter(modelId: 'gemini-2.5-flash', runtime: runtime);
+    // Default behavior: require configured default model; fail fast if missing
+    final defaultModel = Config.requireDefaultTextModel();
+    final runtime = runtime_factory.getRuntimeAIServiceForModel(defaultModel);
+    if (defaultModel.startsWith('gpt-')) {
+      impl = OpenAIAdapter(modelId: defaultModel, runtime: runtime);
+    } else {
+      impl = GeminiAdapter(modelId: defaultModel, runtime: runtime);
+    }
   } else {
-    // Fallback: default to OpenAI runtime
-    final runtime = runtime_factory.getRuntimeAIServiceForModel('gpt-4o');
-    impl = OpenAIAdapter(modelId: 'gpt-4o', runtime: runtime);
+    // Fallback: prefer configured DEFAULT_TEXT_MODEL, otherwise fall back to Gemini as project-wide default
+  final fallbackModel = Config.requireDefaultTextModel();
+    final runtime = runtime_factory.getRuntimeAIServiceForModel(fallbackModel);
+    // Choose adapter based on resolved runtime (runtime factory inspects prefix)
+    if (fallbackModel.startsWith('gpt-')) {
+      impl = OpenAIAdapter(modelId: fallbackModel, runtime: runtime);
+    } else {
+      impl = GeminiAdapter(modelId: fallbackModel, runtime: runtime);
+    }
   }
   _aiServiceSingletons[key] = impl;
   return impl;
@@ -93,7 +104,7 @@ dynamic getRealtimeClientForProvider(
   final p = provider.toLowerCase();
   if (p == 'openai') {
     return OpenAIRealtimeClient(
-      model: model ?? 'gpt-4o-realtime-preview',
+      model: model ?? Config.requireOpenAIRealtimeModel(),
       onText: onText,
       onAudio: onAudio,
       onCompleted: onCompleted,
@@ -103,7 +114,7 @@ dynamic getRealtimeClientForProvider(
   }
   // default to Gemini orchestrator for providers like 'google' that need emulation
   return GeminiCallOrchestrator(
-    model: model ?? 'gemini-2.5-flash',
+    model: model ?? Config.requireGoogleRealtimeModel(),
     onText: onText,
     onAudio: onAudio,
     onCompleted: onCompleted,
@@ -116,9 +127,16 @@ IProfileService getProfileServiceForProvider([String? provider]) {
   // If caller passes provider explicitly, use it.
   if (provider != null && provider.trim().isNotEmpty) {
     final p = provider.toLowerCase();
-  if (p == 'google' || p == 'gemini') return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gemini-2.5-flash'));
-  if (p == 'openai') return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gpt-4o'));
-    return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gemini-2.5-flash'));
+    if (p == 'google' || p == 'gemini') {
+      final imgModel = Config.getDefaultImageModel().isNotEmpty ? Config.getDefaultImageModel() : 'gpt-4.1-mini';
+      return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(imgModel));
+    }
+    if (p == 'openai') {
+      final txtModel = Config.getDefaultTextModel().isNotEmpty ? Config.getDefaultTextModel() : 'gpt-5-mini';
+      return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(txtModel));
+    }
+    final fallbackImg = Config.getDefaultImageModel().isNotEmpty ? Config.getDefaultImageModel() : 'gpt-4.1-mini';
+    return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(fallbackImg));
   }
 
   // Otherwise, prefer the DEFAULT_TEXT_MODEL from config to infer the provider.
@@ -135,7 +153,7 @@ IProfileService getProfileServiceForProvider([String? provider]) {
   // This corresponds to using 'gemini-2.5-flash' as the default text model.
   if (resolved.isEmpty) resolved = 'google';
 
-  if (resolved == 'google' || resolved == 'gemini') return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gemini-2.5-flash'));
-  if (resolved == 'openai') return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gpt-4o'));
-  return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gemini-2.5-flash'));
+  if (resolved == 'google' || resolved == 'gemini') return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(Config.requireDefaultImageModel()));
+  if (resolved == 'openai') return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(Config.requireDefaultTextModel()));
+  return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(Config.requireDefaultImageModel()));
 }

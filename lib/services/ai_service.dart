@@ -3,6 +3,7 @@ import '../utils/debug_call_logger/debug_call_logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
 import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/core/config.dart';
 
 abstract class AIService {
   /// Test hook: permite inyectar una implementación fake durante tests.
@@ -136,8 +137,8 @@ abstract class AIService {
 Future<List<String>> getAllAIModels() async {
   // Pedimos instancias a la fábrica centralizada para evitar instanciaciones dispersas
   final services = [
-    runtime_factory.getRuntimeAIServiceForModel('gemini-1'),
-    runtime_factory.getRuntimeAIServiceForModel('gpt-4o'),
+    runtime_factory.getRuntimeAIServiceForModel(Config.requireDefaultImageModel()),
+    runtime_factory.getRuntimeAIServiceForModel(Config.requireDefaultTextModel()),
   ];
   final allModels = <String>[];
   for (final service in services) {

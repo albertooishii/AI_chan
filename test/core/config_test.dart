@@ -9,8 +9,8 @@ void main() {
     expect(defaultModel.isNotEmpty, true);
 
     // Test overrides
-    Config.setOverrides({'DEFAULT_TEXT_MODEL': 'gpt-4o-test'});
-    expect(Config.getDefaultTextModel(), 'gpt-4o-test');
+  Config.setOverrides({'DEFAULT_TEXT_MODEL': 'gemini-test'});
+  expect(Config.getDefaultTextModel(), 'gemini-test');
 
     // Clean overrides
     Config.setOverrides(null);

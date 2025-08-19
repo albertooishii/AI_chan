@@ -31,8 +31,8 @@ class DefaultTtsService implements ITtsService {
 
   @override
   Future<String?> synthesizeToFile({required String text, Map<String, dynamic>? options}) async {
-  final voice = options?['voice'] as String? ?? 'sage';
-  final languageCode = options?['languageCode'] as String? ?? 'es-ES';
+    final voice = options?['voice'] as String? ?? 'sage';
+    final languageCode = options?['languageCode'] as String? ?? 'es-ES';
 
     // Resolve preferred provider from prefs/env (attempt to preserve previous behaviour)
     String provider = 'openai';
@@ -81,10 +81,20 @@ class DefaultTtsService implements ITtsService {
       }
     } catch (_) {}
 
-    // 3) Fallback to OpenAI adapter (default) using centralized runtime factory
+    // 3) Fallback to a runtime adapter using centralized runtime factory.
+    // Project-wide default is Gemini ('gemini-2.5-flash'). If the chosen provider is OpenAI,
+    // we prefer 'gpt-5-mini'. Otherwise use DEFAULT_TEXT_MODEL when configured.
     try {
-      final runtime = runtime_factory.getRuntimeAIServiceForModel('gpt-4o');
-      final adapter = OpenAIAdapter(modelId: 'gpt-4o', runtime: runtime);
+      final defaultModel = Config.getDefaultTextModel();
+      String modelToUse;
+      if (provider == 'openai') {
+        modelToUse = defaultModel.isNotEmpty ? defaultModel : 'gpt-5-mini';
+      } else {
+        modelToUse = defaultModel.isNotEmpty ? defaultModel : 'gemini-2.5-flash';
+      }
+      final runtime = runtime_factory.getRuntimeAIServiceForModel(modelToUse);
+      // Choose adapter wrapper according to model prefix (runtime factory will return correct impl)
+      final adapter = modelToUse.startsWith('gpt-') ? OpenAIAdapter(modelId: modelToUse, runtime: runtime) : OpenAIAdapter(modelId: modelToUse, runtime: runtime);
       final path = await adapter.textToSpeech(text, voice: voice);
       if (path != null) return path;
     } catch (_) {}

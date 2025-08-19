@@ -3,6 +3,7 @@ import '../utils/log_utils.dart';
 import 'package:ai_chan/core/models.dart';
 import '../services/ai_service.dart';
 import '../utils/image_utils.dart';
+import 'package:ai_chan/core/config.dart';
 
 class AIChatResult {
   final String text;
@@ -170,7 +171,9 @@ class AiChatResponseService {
       final isGpt = lower.startsWith('gpt-');
       final isGemini = lower.startsWith('gemini-');
       if (!isGpt && !isGemini) {
-        selected = 'gpt-4.1-mini';
+        // Re-forward: requerir DEFAULT_IMAGE_MODEL configurado o fallar.
+        final cfgModel = Config.requireDefaultImageModel();
+        selected = cfgModel;
         response = await AIService.sendMessage(
           recentMessages.map(toHistoryEntry).toList(),
           systemPromptObj,

@@ -1,13 +1,17 @@
 import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
 import 'package:ai_chan/core/interfaces/ai_service.dart';
+import 'package:ai_chan/core/config.dart';
 
 class GeminiAdapter implements IAIService {
   final String modelId;
   final dynamic runtime;
 
-  const GeminiAdapter({this.modelId = 'gemini-2.5-flash', this.runtime});
+  const GeminiAdapter({String? modelId, this.runtime}) : modelId = modelId ?? '';
 
-  dynamic get _impl => runtime ?? runtime_factory.getRuntimeAIServiceForModel(modelId);
+  dynamic get _impl {
+    final resolvedModel = modelId.isNotEmpty ? modelId : (Config.getDefaultImageModel().isNotEmpty ? Config.getDefaultImageModel() : 'gemini-2.5-flash');
+    return runtime ?? runtime_factory.getRuntimeAIServiceForModel(resolvedModel);
+  }
 
   @override
   Future<List<String>> getAvailableModels() async {

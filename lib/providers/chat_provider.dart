@@ -200,7 +200,7 @@ class ChatProvider extends ChangeNotifier {
       final s = _selectedModel!.trim();
       selected = s;
     } else {
-      selected = Config.getDefaultTextModel();
+      selected = Config.requireDefaultTextModel();
     }
 
     // Detección de petición de imagen (solo si no es prompt automático)
@@ -228,8 +228,9 @@ class ChatProvider extends ChangeNotifier {
     if (solicitaImagen) {
       final lower = selected.toLowerCase();
       if (!lower.startsWith('gpt-')) {
-        Log.i('Solicitud de imagen detectada. Forzando modelo "gpt-4.1-mini"', tag: 'CHAT');
-        selected = 'gpt-4.1-mini';
+  final cfgModel = Config.requireDefaultImageModel();
+  Log.i('Solicitud de imagen detectada. Forzando modelo desde Config', tag: 'CHAT');
+  selected = cfgModel;
       }
     }
 

@@ -2,6 +2,13 @@
 
 AI-chan es una "novia virtual": una aplicación experimental que crea una compañera conversacional personalizada. La app combina chat con memoria contextual, llamadas/nota de voz con prosodia, y generación de avatar a partir de una ficha de apariencia creada por IA. Está pensada para experimentación, investigación y uso personal responsable — no para suplantación, abuso ni usos ilegales.
 
+## CI
+
+Status: ![CI](https://github.com/albertooishii/AI_chan/actions/workflows/ci.yml/badge.svg)
+# AI-chan
+
+AI-chan es una "novia virtual": una aplicación experimental que crea una compañera conversacional personalizada. La app combina chat con memoria contextual, llamadas/nota de voz con prosodia, y generación de avatar a partir de una ficha de apariencia creada por IA. Está pensada para experimentación, investigación y uso personal responsable — no para suplantación, abuso ni usos ilegales.
+
 Principales características
 
 - Chat con contexto y memoria: la IA mantiene parte de la historia y usa una ficha de perfil para dar continuidad a la relación.
@@ -64,6 +71,14 @@ Notas:
 - El archivo `.env` está en `.gitignore` por seguridad; no subas tus claves.
 - Ajusta `DEFAULT_TEXT_MODEL` y `DEFAULT_IMAGE_MODEL` según el proveedor que uses (OpenAI, Gemini/Vertex, etc.).
 - Si `GEMINI_API_KEY` falla por cuota/permiso (401/403/429), la app intentará `GEMINI_API_KEY_FALLBACK` automáticamente si está definida.
+
+Realtime model vars
+- `OPENAI_REALTIME_MODEL`: modelo usado para conexiones realtime a OpenAI (WebSocket). Ejemplo: `gpt-4o-realtime-preview`.
+- `GOOGLE_REALTIME_MODEL`: modelo usado para orquestación realtime con Gemini/Google (texto). Ejemplo: `gemini-2.5-flash`.
+
+Credenciales rápidas
+- `GEMINI_API_KEY`: clave de Vertex/Generative AI (Google Cloud).
+- `GOOGLE_CLOUD_API_KEY` o Application Default Credentials: necesarias para STT/TTS de Google.
 
 ## Config y creación de runtimes (nota para desarrolladores)
 
