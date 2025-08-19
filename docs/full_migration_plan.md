@@ -1,17 +1,150 @@
+# Plan de Migración Completa (DDD + Hexagonal)
+
+Fecha: 2025-08-19
+Branch objetivo: `migration`
+
+Propósito
+- Evaluar el estado actual del código respecto a una arquitectura DDD + Hexagonal (ports & adapters).
+- Proponer y documentar un plan completo, paso a paso, para dejar el repo desacoplado, provider-agnostic y testeable.
+- Listar qué archivos mantener, mover, eliminar y en qué orden hacerlo por lotes.
+
+Resumen del análisis (hallazgos principales)
+- El proyecto ya contiene muchas piezas compatibles con DDD/hexagonal:
+  - `lib/core/models/`, `lib/core/interfaces/` y `lib/core/services/` contienen modelos, puertos y servicios canónicos.
+  - `lib/core/di.dart` actúa como composition root/fábrica central.
+  - Generadores de onboarding (`ia_bio_generator`, `ia_appearance_generator`) aceptan inyección de `AIService` en muchos lugares.
+  - Existe un adaptador canónico de perfil (`lib/services/adapters/google_profile_adapter.dart`) que delega en los generadores y acepta un runtime inyectado.
+- Sin embargo, quedan elementos que rompen la pureza hexagonal y deben ser corregidos:
+  - Instanciaciones directas de runtimes (p. ej. `OpenAIService()` y `GeminiService()`) en múltiples ficheros (`lib/services/ai_service.dart`, adaptadores, factories). Esto dificulta sustituir runtimes por fakes en tests.
+  - Lecturas de `dotenv.env` (config) repartidas por muchos módulos, incluso en puntos que pueden ejecutarse durante import-time; esto puede causar errores en tests si `.env` no existe.
+  - Algunos adaptadores legacy para OpenAI/Gemini existen en `lib/services/adapters/` y se usan directamente desde `lib/core/di.dart` en vez de resolver solo el adaptador canónico.
+  - `lib/core/provider_selector.dart` y ciertas funciones de selección duplican lógica entre `di.dart` y `AIService.select`.
+
+Objetivos de la migración (contratos y criterios)
+- Dominio (lib/core/*) debe contener modelos, puertos e implementaciones de casos de uso (services) sin depender de infra concreta.
+- Infraestructura (lib/services/, lib/infrastructure/) contendrá adaptadores que implementen los puertos.
+- `lib/core/di.dart` será la única ubicación recomendada para la composición/instanciación de adaptadores y runtimes; el resto del código debe resolver a través de fábricas o interfaces.
+- El código de tests no debe depender de `.env` local; usar `test/test_setup.dart::initializeTestEnvironment()` y `AIService.testOverride` para fakes.
+
+Inventario y decisiones por archivo/directorio
+(Anotación: enumero los ficheros detectados durante el análisis y una decisión recomendada)
+
+1) `lib/core/` (mantener como canónico)
+- Mantener: `lib/core/models/` (AiChanProfile, AiImage, Message, AiResponse, etc.).
+- Mantener: `lib/core/interfaces/` (IAIService, IProfileService, ISttService, ITtsService, IChatRepository, etc.).
+- Mantener y reforzar: `lib/core/services/` (generadores `ia_bio_generator.dart`, `ia_appearance_generator.dart`, `memory_summary_service.dart`, `image_request_service.dart`), asegurando que acepten `AIService` inyectado y no lean `.env` en import-time.
+- Mantener: `lib/core/di.dart` como composition root, pero refactorizar para eliminar lecturas directas de `dotenv.env` en lógica compleja y delegar a una única función de configuración.
+- Eliminar/archivar: `lib/core/provider_selector.dart` (duplica lógica de selección; consolidar en `di.dart` o eliminar).
+
+2) `lib/services/` (infra/adapters)
+- Mantener: `openai_service.dart`, `gemini_service.dart`, `openai_realtime_client.dart`, `gemini_realtime_client.dart` como runtimes/clients (implementaciones concretas).
+- Refactorizar: `lib/services/adapters/openai_adapter.dart` y `lib/services/adapters/gemini_adapter.dart` deben implementar los puertos (`IAIService`) y no instanciar internamente runtimes sin inyección. Cambiar constructores para requerir la inyección del runtime desde `di.dart` o usar `AIService.testOverride` en tests.
+- Mantener con cambios: `lib/services/adapters/google_profile_adapter.dart` — convertir a adaptador canónico provider-agnostic y renombrar (p. ej. `profile_adapter.dart`) para evitar confusión con la palabra "google".
+- Eliminar/archivar: adaptadores duplicados o deprecados si no son usados (`openai_profile_adapter.dart`, `universal_profile_service_adapter.dart`) — validar referencias antes de borrar.
+
+3) Lecturas de configuración (`dotenv.env`)
+- Problema: Uso extendido de `dotenv.env` en `lib/core/di.dart`, `ia_bio_generator.dart`, `ia_appearance_generator.dart`, `openai_service.dart`, `gemini_service.dart`, y UI/widgets.
+- Solución: mover la carga/lectura de `.env` a inicio de aplicación (`main()`) y reemplazar accesos directos por getters en un helper de configuración (`lib/core/config.dart`) que permita test injection.
+
+4) Instanciaciones directas de runtimes
+- Detectadas instanciaciones directas (`OpenAIService()`, `GeminiService()`) en varios archivos (incl. `AIService.select`, adaptadores, factories).
+- Solución: eliminar las instanciaciones directas y forzar resolución vía `lib/core/di.dart` o inyección por constructor. Mantener `AIService.select` solo como fallback documentado si se decide.
+
+Plan por lotes (acciones concretas y orden)
+- Nota: aplicar cambios por lotes pequeños (3–6 archivos) y ejecutar `flutter analyze` y tests focalizados después de cada lote.
+
+Batch 1 — Preparación (1–2 horas)
+- Crear `lib/core/config.dart` con getters para variables críticas: `DEFAULT_TEXT_MODEL`, `DEFAULT_IMAGE_MODEL`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `AUDIO_PROVIDER`, `OPENAI_VOICE`.
+- Reemplazar `dotenv.env[...]` en `lib/core/di.dart`, `ia_bio_generator.dart`, `ia_appearance_generator.dart` por usos de `Config.getDefaultTextModel()` etc.
+- Ejecutar `flutter analyze` y corregir errores simples.
+
+Status: [x] Batch 1 completado — `lib/core/config.dart` añadido y reemplazos iniciales aplicados en `di.dart`, `ia_bio_generator.dart` y `ia_appearance_generator.dart`.
+
+Changelog (Batch 1 & Batch 2 - parcial):
+- Batch 1 (completado):
+   - Añadido `lib/core/config.dart` (helper de configuración centralizada).
+   - `lib/core/di.dart` ahora usa `Config.getDefaultTextModel()` y `Config.getDefaultImageModel()`.
+   - `lib/core/services/ia_bio_generator.dart` y `lib/core/services/ia_appearance_generator.dart` usan `Config` en lugar de `dotenv.env`.
+- Batch 2 (COMPLETADO):
+   - Adaptadores actualizados para requerir runtimes inyectados (`OpenAIAdapter`, `GeminiAdapter`, `OpenAISttAdapter`, `GoogleProfileAdapter`).
+   - `lib/core/di.dart` actualizado para crear y cachear instancias runtime y pasar las instancias concretas a los adapters.
+   - `lib/services/adapters/default_tts_service.dart` actualizado para construir `OpenAIAdapter` con el runtime.
+   - Tests de onboarding actualizados para usar `AIService.testOverride` y pasar `aiService` a `GoogleProfileAdapter` donde correspondía.
+   - Estado actual: los cambios aplicados quedaron compilando y `flutter analyze` reportó "No issues found!" tras adaptar los tests problemáticos.
+
+Batch 2 — DI y runtimes (2–4 horas)
+- Refactorizar `lib/core/di.dart`: eliminar dependencias directas e instanciaciones implícitas; exponer fábricas que acepten inyección opcional de `runtimeAi` (para tests).
+- Cambiar `getProfileServiceForProvider` para devolver un adaptador canónico renombrado (p. ej. `ProfileAdapter`) en lugar de `GoogleProfileAdapter`.
+- Actualizar `lib/services/adapters/openai_adapter.dart` y `gemini_adapter.dart` para requerir el runtime inyectado en el constructor.
+- Ejecutar `flutter analyze` y tests unitarios de onboarding.
+
+Batch 3 — Adaptadores y nombres (2–4 horas)
+- Renombrar `google_profile_adapter.dart` a `profile_adapter.dart` o `canonical_profile_adapter.dart` y ajustar su constructor para no instanciar `GeminiService()` internamente; exigir inyección.
+- Eliminar adaptadores obsoletos listados (archivar en `archive/` antes de borrar si deseas conservar historial).
+- Ejecutar `flutter analyze` y tests de perfil.
+
+Batch 4 — Resto del repo (1–3 días, por lotes)
+- Buscar ejes restantes de instanciación directa (`OpenAIService()`, `GeminiService()`) y reemplazarlos por resolución via `di.dart` o inyección.
+- Reemplazar usos directos de `dotenv.env[...]` en widgets por `Config` getters; para widgets que cambian en runtime, permitir inyección desde `Provider` si se necesita cambiar en caliente.
+- Actualizar tests para usar `initializeTestEnvironment()` y `AIService.testOverride` donde proceda.
+- Ejecutar `flutter analyze` y la suite de tests completa por lotes.
+
+Batch 5 — CI, regresión y sanity checks
+- Añadir `test/migration/import_sanity_test.dart` que busque imports directos a adaptadores concretos desde `lib/features/` o `lib/providers/`.
+- Añadir job de CI básico que corra `flutter analyze` y `flutter test`.
+
+Listado propuesto de archivos a eliminar (o archivar)
+- `lib/core/provider_selector.dart` (duplicado)
+- Adaptadores legacy no usados: `lib/services/adapters/openai_profile_adapter.dart`, `lib/services/adapters/universal_profile_service_adapter.dart` (verificar referencias antes de borrar)
+- Cualquier fichero marcado previamente como eliminado por el usuario: validar y borrar/archivar según convenga.
+
+Acciones inmediatas que puedo ejecutar ahora (elige una)
+- A: Crear `lib/core/config.dart` y reemplazar unas pocas lecturas de `dotenv.env` por getters (Batch 1). Ejecutaré `flutter analyze` después.
+- B: Auditar y listar todos los lugares donde se instancian `OpenAIService()` y `GeminiService()`, y generar parches sugeridos (Batch 2 plan).
+- C: Renombrar `google_profile_adapter.dart` a `profile_adapter.dart` y ajustar el constructor para inyección (Batch 3).
+
+Recomendación priorizada
+1. Crear `lib/core/config.dart` (Batch 1) para evitar lecturas de `.env` en import-time y facilitar tests.
+2. Forzar inyección de runtimes en adaptadores y fábricas (Batch 2/3).
+3. Hacer sweep para eliminar instancias directas de runtimes (Batch 4).
+
+Siguiente paso propuesto
+- Confirmame si quieres que empiece con la acción A (crear `lib/core/config.dart` y aplicar cambios en Batch 1). Si sí, la ejecutaré en lotes y reportaré resultados (analyze + tests focalizados) tras cada cambio.
+
+*** Fin del análisis y plan ***
 # Plan de Migración Completa del Dominio Chat y Módulos Relacionados
 
 Fecha: 19 de agosto de 2025
 Branch actual / objetivo: `migration` (cambios commiteados en esta rama)
 
-Resumen de cambios recientes (estado a 2025-08-19 -> actualizado ahora):
-- Migración: se movieron las implementaciones canónicas a `lib/core/services/` y se eliminaron las implementaciones legacy en `lib/services/`.
-- Compatibilidad: se añadieron shims / re-exports donde fue necesario y se limpiaron imports rotos.
-- Tests: se añadieron tests de persistencia/import/export (`test/onboarding/persistence_test.dart`) y varios tests de onboarding/chat; la suite local completa pasó.
-- Fixes: se corrigieron fallos de persistencia detectados por los tests (ajustes en `lib/utils/storage_utils.dart` y `lib/chat/repositories/local_chat_repository.dart`).
-- Analyze: `flutter analyze` actualmente no reporta issues ("No issues found!").
-- Commit & push: cambios commiteados y pusheados a `origin/migration` (commit incluye tests y fixes de persistencia/import/export).
+Resumen de cambios recientes (actualizado 2025-08-19)
 
-Estado objetivo: dejar `lib/core/services/` como fuente canónica, eliminar duplicados y mantener la API estable para providers y adaptadores; preparar la rama `migration` para push/PR.
+- Batch 1 — CONFIG (COMPLETADO)
+   - Añadido `lib/core/config.dart` (helper centralizado para acceso a `.env` con overrides para tests).
+   - Reemplazadas lecturas directas de `dotenv.env` en puntos críticos: `lib/core/di.dart`, `lib/core/services/ia_bio_generator.dart`, `lib/core/services/ia_appearance_generator.dart`.
+
+- Batch 2 — DI y RUNTIMES (COMPLETADO)
+   - Adaptadores modificados para requerir runtimes inyectados en su constructor: `OpenAIAdapter`, `GeminiAdapter`, `OpenAISttAdapter`, `GoogleProfileAdapter`.
+   - `lib/core/di.dart` actualizado para crear y cachear instancias runtime con `getRuntimeAIServiceForModel(...)` y pasar esas instancias a los adapters.
+   - `lib/services/adapters/default_tts_service.dart` actualizado para construir `OpenAIAdapter` con la instancia runtime desde `di.dart`.
+   - Tests afectados actualizados para inyectar `AIService.testOverride` o pasar fakes a los constructores de adapters (tests de onboarding y perfil).
+   - Verificación: tras estas modificaciones se ejecutó `flutter analyze` y el analizador quedó limpio ("No issues found!").
+
+Estado objetivo tras Batch 2: `lib/core/services/` y `lib/core/interfaces/` son las fuentes canónicas; `lib/core/di.dart` actúa como composition root para adaptadores y runtimes.
+
+Changelog delta (archivos más relevantes modificados en esta rama):
+   - `lib/core/config.dart` (nuevo)
+   - `lib/core/di.dart` (actualizado: usa Config y pasa runtimes a adapters)
+   - `lib/services/adapters/openai_adapter.dart`, `openai_stt_adapter.dart`, `gemini_adapter.dart`, `google_profile_adapter.dart` (constructores ahora requieren runtime)
+   - `lib/services/adapters/default_tts_service.dart` (usa runtime para OpenAIAdapter)
+   - Tests: `test/onboarding/*` actualizados para usar `AIService.testOverride`
+
+Próximo paso (Batch 3 — SWEEP, planificado)
+   - Objetivo: detectar y corregir instanciaciones directas residuales de `OpenAIService()` y `GeminiService()` en el resto del repo (incluye `AIService.select` si aplica).
+   - Estrategia: hacer un barrido automático para listar todos los sitios con instanciaciones directas, aplicar parches por lotes (3–6 ficheros por lote) que sustituyan las instanciaciones por llamadas a `getRuntimeAIServiceForModel(...)` o inyección desde `di.dart`, y correr `flutter analyze` tras cada lote.
+   - También revisar `AIService.select` y decidir si mantenerlo como fallback documentado o reemplazar su uso por DI. Recomendado: mantener sólo como fallback documentado y migrar los call-sites a DI.
+
+Si confirmas, inicio el Batch 3: primero listaré todas las instanciaciones directas y propondré el primer lote de cambios.
 
 Este documento consolida la migración que ya iniciamos (chat) y la extiende a los demás contextos/productos del app: onboarding, llamadas (voice), import/export JSON y calendario. Está escrito como un plan ejecutable por etapas, siguiendo principios DDD (secciones por bounded context), y usando la estrategia de "Adaptadores + Interfaces" (Opción A) que ya comenzamos.
 
@@ -43,310 +176,163 @@ Cómo leer este documento
 - Error modes: transcripción fallida, TTS no disponible, LLM rate-limit, fallos de red.
 - Éxito mínimo: cada contexto puede ejecutarse localmente con un provider «mock» y con un provider real (cuando esté disponible) sin cambios en la lógica de negocio.
 
----
-
-## 3) Onboarding (biografía y apariencia)
-Contrato / Outputs
-- Input: prompts y/o formularios del usuario.
-- Output: `AiChanProfile` con `biography`, `appearance` (imagen/seed), `voiceConfig` opcional.
-
-
-**Progreso actual:**
-- [x] Modelos canónicos (`AiChanProfile`, `AiImage`, `Appearance`) en `lib/core/models/`.
-- [x] Interfaz `IProfileService` creada en `lib/core/interfaces/`.
-- [x] Adaptador `openai_profile_adapter.dart` implementado y testeado.
-- [ ] Adaptador `google_profile_adapter.dart` pendiente (puede ser stub/fake).
-- [x] Fábrica DI `getProfileServiceForProvider` añadida en `lib/core/di.dart`.
-- [x] Wiring en el provider de onboarding para usar la interfaz (ya usa `IProfileService` vía DI en `OnboardingProvider`).
-- [x] Tests unitarios y de persistencia añadidos (incluye casos de import/export y recarga); suite local pasó.
-
-**Siguiente paso:**
-- Refactorizar el provider de onboarding para usar `IProfileService` vía la fábrica DI.
-- Implementar (o stubear) el adaptador Google si se requiere compatibilidad multi-proveedor.
-
-**Notas:**
-- La CI está activa y los tests de onboarding pasan correctamente.
-- El adaptador OpenAI está desacoplado y testeable con mocks/fakes.
-
-Riesgos & Notas
-- Generación de imagen puede depender de políticas de uso de terceros.
-- Volcar la imagen en storage (local vs cloud) debe abstraerse por `IStorageService`.
-
-Criterio de éxito
-- Onboarding funciona con provider `mock` y con provider `openai/google` (si keys disponibles) sin editar la UI.
-
-Checklist
-- [x] Mover `AiChanProfile`, `AiImage`, `Appearance` a `lib/core/models/` y actualizar barrels
-- [x] Crear `IProfileService` en `lib/core/interfaces/` con métodos documentados
-- [x] Implementar adaptadores `openai_profile_adapter.dart` (Google adapter pendiente)
-- [x] Añadir `getProfileServiceForProvider` en `lib/core/di.dart`
-- [x] Refactor UI/logic de onboarding para usar `IProfileService` (OnboardingProvider usa DI)
-- [x] Añadir tests unitarios e integración (mock LLM, mock storage) y tests de persistencia/import/export
-
----
-
-## 4) Chat (estado actual: en progreso)
-Contrato / Outputs
-- Messages: `Message` (texto, author, timestamp, optional AiImage, audio refs).
-- Realtime: `IRealtimeClient` con métodos `connect`, `appendAudio`, `requestResponse`, `updateVoice`, `close`.
-
-Pasos de migración (prioridad alta)
-1. Finalizar canonicalización de modelos en `lib/core/models/` (ya comenzado).
-2. Verificar/crear interfaces en `lib/core/interfaces/` para IA, STT, TTS, ChatRepository.
-3. Completar adaptadores existentes (`openai_realtime_client.dart`, `gemini_realtime_client.dart` — orquestador emulado) y registrarlos en `lib/core/di.dart` con `getRealtimeClientForProvider`.
-4. Refactorizar consumidores (providers, widgets, services) para inyectar `IRealtimeClient` y `IChatRepository` en vez de instancias concretas.
-5. Tests:
-   - Unit: `ChatProvider` con un `IRealtimeClient` falso que emule pasos.
-   - Integration: smoke test enviar mensaje y recibir respuesta (mock LLM) + audio path generado.
-6. Sanear imports: reemplazar `AiImage` por `AiImage` y usar `package:ai_chan/core/models.dart` (barrel) — tarea en curso.
-
-Riesgos
-- Reemplazo masivo de tipos puede romper archivos si se hace sin pruebas. Hacer migración por lotes.
-
-Criterio de éxito
-- `flutter analyze` sin errores y prueba manual de chat (envío de mensaje → respuesta) funcionando con provider mock y con OpenAI realtime si se desean.
-
-Checklist
- - [x] Completar canonicalización de modelos en `lib/core/models/` (Message, AiImage, Profile, TimelineEntry)
-- [ ] Añadir/validar interfaces: `IRealtimeClient`, `IChatRepository`, `IChatResponseService` en `lib/core/interfaces/`
- - [x] Registrar `getRealtimeClientForProvider` en `lib/core/di.dart`
-- [ ] Refactor `ChatProvider`, widgets y servicios para usar interfaces en vez de implementaciones concretas
-- [ ] Sustituir `AiImage` por `AiImage` en todo el repo (por lotes)
-- [ ] Tests: unitarios para `ChatProvider` con mock `IRealtimeClient`; integration smoke test
-
-Detalle extraído de `docs/chat_migration_plan.md`
-
-- Resumen rápido del estado actual en la rama `chat/migration/prepare`:
-   - Se implementaron y actualizaron interfaces parciales (`IAIService`, `ISttService`) y adaptadores (`OpenAIAdapter`, `GeminiAdapter`, `OpenAISttAdapter`).
-   - `AudioChatService.synthesizeTts` y transcripción parcial ya usan fábricas DI (`getIAIServiceForModel`, `getSttService`).
-   - Se añadió `GeminiCallOrchestrator` (emulación realtime via STT -> Gemini -> TTS) y `getRealtimeClientForProvider` en DI.
-   - `VoiceCallController` fue adaptado para resolver el cliente realtime vía la fábrica de DI.
-
-- Tareas con estado (extracto):
-   - [DONE] Crear branch `chat/migration/prepare` y preparar estructura inicial.
-   - [DONE] Crear adaptadores iniciales y algunas interfaces (`IAIService`, `ISttService`, OpenAI/Gemini adapters).
-   - [DONE] Reemplazar instancias directas de `OpenAIService()` en puntos clave por llamadas via DI.
-   - [PARTIAL] Consolidar modelos en `lib/core/models/` (trabajo iniciado, queda sanear imports y barrels).
-   - [PARTIAL] Completar `IChatRepository` y wiring de `ITtsService` (algunos adaptadores ya creados).
-   - [PENDING] Extraer módulo `lib/voice/` de forma completa y añadir tests unitarios para Chat y Calls.
-
-- Notas importantes extraídas:
-   - Mensajes de audio (notas de voz dentro de conversaciones) pertenecen al dominio `chat` y se mantienen allí; las llamadas en tiempo real son un módulo separado (`calls/voice`).
-   - Comportamiento provider-specific: si el audio provider es `google` → llamadas usan Gemini + Google STT/TTS; si es `openai` → se usa OpenAI Realtime.
-
-
----
-
-## 5) Calls / Voice (orquestador Gemini y OpenAI Realtime)
-Contrato
-- `IRealtimeClient` es el contrato común. Por provider:
-  - `openai` → `OpenAIRealtimeClient` (usa streaming websocket/configs existentes).
-  - `google` → `GeminiCallOrchestrator` (emulación: STT -> LLM -> TTS).
-
-Pasos de migración
-1. Crear/validar `ISttService` y `ITtsService` (ya existentes, comprobar adaptadores google/openai).
-2. Finalizar `GeminiCallOrchestrator` y añadir tests de integración local:
-   - Simular envío de audio file -> orquestador -> devuelve audio bytes.
-3. Registrar fábrica `getRealtimeClientForProvider` en `lib/core/di.dart` (hecho parcialmente).
-4. Refactor `VoiceCallController` para aceptar `IRealtimeClient` (ya en progreso).
-5. Tests:
-   - Unit: orquestador con STT/TTS mocks.
-   - Smoke: iniciar llamada local con mock LLM y verificar flujo.
-
-Riesgos
-- Latencia por escritura/lectura de archivos temporales (emulación). Considerar buffers y chunking.
-
-Criterio de éxito
-- Llamada end-to-end emulada funciona localmente (transcribe -> LLM -> synthesize).
-
-Checklist
- - [x] Validar `ISttService` y `ITtsService` en `lib/core/interfaces/`
-- [ ] Finalizar `GeminiCallOrchestrator` y `OpenAIRealtimeClient` en `lib/features/calls/` o `lib/services/`
- - [x] Registrar fábrica `getRealtimeClientForProvider` en `lib/core/di.dart` (si no está)
- - [x] Refactor `VoiceCallController` para aceptar `IRealtimeClient` inyectado
-- [ ] Tests: unitarios para orquestador con STT/TTS mocks y smoke test emulado
-
----
-
-## 6) Import / Export JSON
-Contrato
-- `IImportExportService` con `importChatFromJson(File)` y `exportChatToJson(Chat)`.
-
-Pasos
-1. Canonicalizar modelos usados en import/export (Chat, Message, Profile).
-2. Implementar `IImportExportService` con adaptadores: `json_import_export.dart`.
-3. Wire UI: sección de settings o screen de import/export que use la interfaz.
-4. Tests: importar archivo de muestra y comparar estructura serializada.
-
-Notas
-- Definir la versión del esquema (v1, v2) para permitir migraciones futuras.
-
-Checklist
-- [ ] Definir esquema JSON y versionado (v1)
-- [ ] Implementar `IImportExportService` en `lib/core/interfaces/`
-- [ ] Crear adaptador `json_import_export.dart` en `lib/services/adapters/`
-- [x] Utilidades de import/export implementadas: `ChatJsonUtils.importAllFromJson`, `ChatExport`, `ImportedChat`, `StorageUtils.saveImportedChatToPrefs` y `LocalChatRepository.exportAllToJson`/`importAllFromJson`.
-- [x] Tests: importar/exportar roundtrip y casos corruptos añadidos (`test/onboarding/persistence_test.dart`).
-- [ ] Integrar UI (settings/screen) para importar/exportar y usar la interfaz (pendiente si se quiere UI dedicada)
-
----
-
-## 7) Calendar / Agenda
-Contrato
-- `ICalendarService` con métodos `createEvent`, `listEvents`, `importEvents`.
-
-Pasos
-1. Diseñar modelo `CalendarEntry` y colocarlo en `lib/core/models/calendar_entry.dart`.
-2. Crear interfaz `ICalendarService` y un `LocalCalendarAdapter`.
-3. Integrar con timeline/tareas (TimelineEntry canonicalizado ya).
-4. Tests: crear y listar evento.
-
-Notas
-- Integraciones con calendarios externos (Google Calendar) se tratan como adaptadores adicionales.
-
-Checklist
-- [ ] Diseñar `CalendarEntry` en `lib/core/models/calendar_entry.dart`
-- [ ] Crear `ICalendarService` en `lib/core/interfaces/`
-- [ ] Implementar `LocalCalendarAdapter` básico
-- [ ] Integrar con `EventTimelineService` y `MemorySummaryService`
-- [ ] Tests: crear y listar evento básico
-
----
-
-## 8) Plan de trabajo por oleadas (sprints pequeños)
-Oleada 1 (1-3 días)
-- Completar canonicalización de modelos faltantes (AiImage, Message, Profile, TimelineEntry) — mayormente completado (revisar barrels y imports por lotes).
-- Finalizar `lib/core/models/index.dart` barrel (hay `lib/core/models/index.dart` presente; validar exports adicionales).
-- Ejecutar `flutter analyze` y arreglar imports rotos (se ejecutó y está limpio localmente).
-
-Oleada 2 (3-7 días)
-- Onboarding: interfaces + adaptadores + tests básicos.
-- Chat: terminar reemplazos de imports y tipos, asegurar `ChatProvider` compila.
-
-Oleada 3 (4-10 días)
-- Calls: terminar `GeminiCallOrchestrator` y wiring en DI; refactor `VoiceCallController`.
-- Crear tests de integración para llamadas.
-
-Oleada 4 (2-4 días)
-- Import/Export y Calendar: modelos, interfaces, adaptadores básicos y tests.
-
----
-
-## Gallery / Image Viewer (UI / utilería)
-
-Checklist
-- [ ] Centralizar componentes de galería en `lib/features/media/` o `lib/widgets/media/`
-- [ ] Definir `IMediaStorage` si es necesario para subir/guardar imágenes
-- [ ] Actualizar `Message` y `ChatBubble` para usar `AiImage` y rutas locales (imageDir)
-- [ ] Tests: abrir galería y ver imágenes desde mensajes
-
----
-
-## Checklist global (entrega / PR)
-- [x] `flutter analyze` limpio (local)
-- [x] Tests unitarios básicos añadidos por contexto y tests de persistencia/import/export añadidos
-- [ ] PRs atómicas por oleada con cambios documentados en `docs/` (pendiente cuando se abra PRs)
-- [ ] Job CI ejecutando `flutter analyze` y tests (pendiente)
-
----
-
-## 9) Calidad, CI y checks
-- En cada PR: `flutter analyze` y tests unitarios que toquen los ficheros cambiados.
-- Añadir un job de CI que ejecute `flutter analyze` y tests.
-- Para cambios de modelo: incluir un migrator y pruebas de compatibilidad JSON (si aplica).
-
-## Tests recomendados (unitarios, integración y regresión)
-
-Resumen: añadir una combinaci n de tests unitarios, tests de integración "smoke" y tests de regresi n autom e1ticos para asegurar que la migraci f3n no vuelva a introducir imports legacy ni dependencias directas a proveedores.
-
-Estrategia general
-- Unit tests: prueban l f3gica aislada (providers, servicios, orquestador) usando mocks/fakes (recomendado: `mocktail`).
-- Integration / smoke tests: prueban flujos esenciales con fakes que imitan providers externos (LLM, STT, TTS) sin requerir keys.
-- Regression tests: scripts que escanean el c f3digo para detectar patrones indeseados (p.ej. `package:ai_chan/core/models.dart` o `import .* as models`). Ya tenemos `test/migration/import_sanity_test.dart` y conviene ampliarla.
-
-Ficheros de test sugeridos y objetivos
-- test/migration/import_sanity_test.dart — ya existente: detectar imports legacy y alias `as models`.
-- test/migration/di_resolution_test.dart — verifica que las f e1bricas en `lib/core/di.dart` resuelven objetos y que podemos inyectar fakes.
-
-- Chat
-   - test/chat/chat_provider_test.dart (unit): mock `IRealtimeClient` que emite eventos de texto/audio; assert: mensajes cambian de `sending` a `sent/read` y el `ChatProvider` guarda respuestas.
-   - test/chat/chat_smoke_test.dart (integration): usa un `FakeRealtimeClient` que devuelve una respuesta y una ruta de audio; assert: la interfaz de usuario (provider) recibe el audioPath y el mensaje de respuesta.
-
-- Calls / Orquestador
-   - test/calls/gemini_orchestrator_test.dart (unit): mock `ISttService` y `ITtsService`; assert: orquestador llama en orden STT -> LLM -> TTS y devuelve bytes de audio.
-   - test/calls/voice_call_controller_smoke_test.dart (integration): instanciar `VoiceCallController` con un `FakeRealtimeClient`, simular inicio y cierre de llamada; assert: estados esperados y resumen final.
-
-- Onboarding
-   - test/onboarding/profile_service_test.dart (unit): mock `IAIService` + `IStorage`; assert: `generateBiography` produce campos esperados y `saveProfile` persiste.
-
-- Import/Export
-   - test/import_export/roundtrip_test.dart (integration): importar un JSON de ejemplo en `test/assets/` y exportarlo; assert: roundtrip id e9ntico o normalizado por esquema.
-
-- Calendar
-   - test/calendar/calendar_service_test.dart (unit): `LocalCalendarAdapter` create/list events.
-
-Mocking y fakes
-- Recomiendo `mocktail` (sin necesidad de generar código) o `mockito` si prefieres generated mocks.
-- Crear fakes minimalistas en `test/fakes/` (p.ej. `fake_realtime_client.dart`, `fake_stt.dart`, `fake_tts.dart`) que implementen las interfaces de `lib/core/interfaces/`.
-
-Reglas de regresión (tests de seguridad)
-- Mantener `test/migration/import_sanity_test.dart` actualizado y ampliar con:
-   - comprobación de que `lib/core/models.dart` es el barrel usado (en lugar de `index.dart`).
-   - detectar imports con alias `as models`.
-   - detectar referencias directas a adaptadores concretos desde providers (p.ej. `OpenAIAdapter` usado sin pasar por `di.dart`).
-
-Integración en CI
-- Job de GitHub Actions (o similar) que ejecute en cada PR:
-   - flutter analyze
-   - flutter test (tests unitarios + migration tests)
-   - opcional: un job nightly que ejecute los smoke/integration tests más lentos.
-
-Ejemplos de aserciones concretas (para cada test sugerido)
-- chat_provider_test.dart: tras simular la respuesta del realtime, `expect(provider.messages.last.sender, MessageSender.assistant);` y `expect(provider.messages.last.status, MessageStatus.sent);`.
-- gemini_orchestrator_test.dart: verificar llamadas ordenadas con `verify(() => mockStt.transcribe(...)).called(1);` y `expect(audioBytes.length, greaterThan(0));`.
-
-Prioridad inicial
-- Añadir y estabilizar: `test/migration/import_sanity_test.dart`, `test/chat/chat_provider_test.dart`, `test/calls/gemini_orchestrator_test.dart`.
-- Luego: smoke tests y roundtrip import/export.
-
-Notas finales
-- Mantener tests atómicos y rápidos. Para tests que dependan de I/O pesado (audio), marcar como integration y ejecutarlos en pipelines separados o nightly.
-
-
----
-
-## 10) Rollback y mitigación
-- Hacer cambios en ramas pequeñas y atómicas.
-- Mantener feature flags si un cambio puede romper runtime.
-- Revertir PR rápidamente si `flutter analyze` o tests fallan en CI.
-
----
-
-## 11) Artefactos y mapeo a ficheros (sugerido)
-- `lib/core/models/` (ya en progreso): Message, AiImage, AiResponse, Profile, TimelineEntry, CalendarEntry, RealtimeProvider, UnifiedAudioConfig
-- `lib/core/interfaces/`: IAIService, ISttService, ITtsService, IChatRepository, IProfileService, IImportExportService, ICalendarService
-- `lib/services/adapters/`: openai_realtime_client.dart, gemini_realtime_client.dart, google_stt_adapter.dart, google_tts_adapter.dart, openai_stt_adapter.dart, default_tts_service.dart, json_import_export.dart
-- `lib/core/di.dart`: fábricas `getXForProvider(provider)`
-- `test/`: tests por contexto (chat_test.dart, onboarding_test.dart, calls_orchestrator_test.dart, import_export_test.dart)
-
----
-
-## 12) Checklist de aceptación por contexto (al entregar)
-- Onboarding: ✅ Biografía y apariencia generadas vía `IProfileService` y tests verdes.
-- Chat: ✅ Chat funciona con interfaces y `flutter analyze` limpio.
-- Calls: ✅ Orquestador Gemini emulado produce audio de respuesta.
-- Import/Export: ✅ Importa/exporta JSON de ejemplo.
-- Calendar: ✅ Crear/listar evento básico.
-
----
-
-## 13) Próximos pasos inmediatos (qué haré si me das luz verde)
-1. Añadir y refinar este documento en `docs/full_migration_plan.md` (hecho si aceptas).
-2. Terminar la migración restante de `AiImage` en los ficheros que quedan (por lotes) y ejecutar `flutter analyze` tras cada lote.
-3. Finalizar wiring del orquestador Gemini y añadir tests unitarios básicos.
-
-Si quieres, empiezo ahora mismo con el punto 2: busco referencias restantes a `AiImage` y aplico parches por lotes (3–5 archivos por batch), ejecutando `flutter analyze` tras cada lote y reportando progresos.
-
----
-
-Si quieres que reordene las prioridades o añada más detalles (scripts de CI, ejemplos de tests, o plantillas de interfaces), dime cuál prefieres y lo incorporo.
+## Plan de migración (resumen simplificado)
+
+Fecha: 2025-08-19
+Branch objetivo: `migration`
+
+Este documento es la versión simplificada y accionable del plan de migración: ordena el trabajo por bounded contexts (DDD), muestra qué está hecho y qué falta, y ofrece pasos concretos para completar el desacoplamiento provider-agnostic.
+
+Principios rápidos
+- Separar interfaces (contratos) en `lib/core/interfaces/`.
+- Mantener modelos canónicos en `lib/core/models/`.
+- Registrar adaptadores por proveedor en `lib/services/adapters/` y resolverlos desde `lib/core/di.dart`.
+- Evitar lecturas de `.env` en tiempo de import; usar inicialización explícita en runtime / tests.
+
+## Arquitectura recomendada: DDD + Hexagonal
+
+Breve nota: queremos un diseño centrado en el dominio (DDD) y desacoplado respecto a infra/servicios externos; la arquitectura hexagonal (ports & adapters) es la opción que mejor encaja con este objetivo. Usar ambos no es contradictorio: DDD define los bounded contexts y el modelo del dominio; la arquitectura hexagonal define cómo aislar ese dominio de los detalles (APIs, runtimes, storage) mediante puertos (interfaces) y adaptadores.
+
+Reglas prácticas (cómo aplicarlo aquí)
+- Dominio y contratos
+   - Coloca modelos y lógica pura del dominio en `lib/core/models/` y `lib/core/domain/` (entidades, value objects, reglas de negocio). No deben depender de paquetes de infra.
+   - Define los puertos (interfaces) en `lib/core/interfaces/` (p. ej. `IAIService`, `IProfileService`, `IChatRepository`, `ISttService`, `ITtsService`). Estos son las abstracciones que el dominio usa.
+- Adaptadores e infraestructura
+   - Implementaciones concretas (OpenAI, Gemini, storage, realtime clients) van en `lib/services/` o `lib/infrastructure/` y actúan como adaptadores que implementan los puertos.
+   - Evita que los adaptadores se mezclen con la lógica del dominio: deben recibir y devolver DTOs o modelos canónicos y no contener lógica de negocio compleja.
+- Composición / wiring
+   - Reserva `lib/core/di.dart` como composition root para resolver puertos a adaptadores según la configuración (env, feature flags). Aquí inyectas runtimes (`AIService`), storage, y clientes.
+- Tests
+   - Tests de dominio: prueban lógica pura con mocks de puertos (unitarios, rápidos).
+   - Tests de adaptadores: prueban integración con la API externa pero deben ser marcados/integration y usar credenciales controladas o fakes.
+   - Tests de integración/smoke: combinan adaptadores y wiring para validar flujos reales en un entorno controlado.
+- Reglas adicionales
+   - No leer `.env` en archivos importados por los tests o por definiciones de constantes; usar inicialización en `main()` o en el helper de tests (`initializeTestEnvironment`).
+   - No instanciar runtimes (p. ej. `OpenAIService()`) directamente fuera de `di.dart`; siempre resolver via fábricas para facilitar sustitución por fakes.
+
+Estructura de carpetas sugerida (mínima)
+- lib/core/models/
+- lib/core/domain/           # entidades, reglas de negocio
+- lib/core/interfaces/       # puertos (interfaces)
+- lib/core/services/         # implementaciones canónicas que contienen lógica de aplicación (use cases)
+- lib/core/di.dart           # composition root / factories
+- lib/services/adapters/     # adaptadores concretos (OpenAI, Gemini, storage, realtime)
+- lib/features/              # UI/feature-specific wiring (providers, controllers)
+
+Beneficios esperados
+- Permite cambiar provider (OpenAI <-> Gemini) sin tocar la lógica del dominio.
+- Facilita pruebas unitarias y local CI sin llamadas reales.
+- Hace el código más mantenible y modular para migraciones incrementales.
+
+
+Requisitos de la reescritura solicitada
+- Leer y simplificar el documento original, eliminar incoherencias y duplicados. (Hecho con este archivo).
+- Añadir checklists por contexto mostrando lo completado y lo pendiente. (Abajo).
+
+### Cobertura de requisitos
+- Reescritura y simplificación: Done.
+- Checklists claras por contexto: Done.
+
+## Estado por contexto (hecho / pendiente)
+
+### Onboarding — biografía y apariencia
+- Estado general: mayormente completado.
+- Hecho
+   - [x] Modelos canónicos (`AiChanProfile`, `AiImage`, `Appearance`) en `lib/core/models/`.
+   - [x] Interfaz `IProfileService` en `lib/core/interfaces/`.
+   - [x] Existe un adaptador canónico de perfil (provider-agnostic) que delega en los generadores (`generateAIBiographyWithAI`, `IAAppearanceGenerator`) y acepta el runtime inyectado vía DI.
+   - [x] Fábrica `getProfileServiceForProvider` en `lib/core/di.dart` (resuelve la implementación canónica y pasa el runtime cuando corresponde).
+   - [x] Tests de persistencia/import-export añadidos y funcionando localmente.
+- Pendiente
+   - [ ] Revisar y mover cualquier código que lea `.env` al import-time; usar getters o inicialización explícita.
+
+Acción recomendada inmediata: garantizar que el adaptador de perfil sea único y agnóstico (no crear `google_profile_adapter.dart` ni `openai_profile_adapter.dart` por separado). El adaptador debe aceptar un `AIService` inyectado y delegar en los generadores internos.
+
+### Chat — mensajería y realtime
+- Estado general: en progreso.
+- Hecho
+   - [x] Modelos canonizados en `lib/core/models/` (parcialmente).
+   - [x] Registro inicial `getRealtimeClientForProvider` en `lib/core/di.dart`.
+- Pendiente
+   - [ ] Completar e importar interfaces: `IRealtimeClient`, `IChatRepository`, `IChatResponseService`.
+   - [ ] Refactorizar consumidores (providers/widgets) para usar interfaces inyectadas.
+   - [ ] Tests unitarios e integración (mock `IRealtimeClient`) estabilizados.
+
+Acción recomendada inmediata: por lotes de 3–5 ficheros, reemplazar imports directos por barrels `lib/core/models/` y correr `flutter analyze` tras cada lote.
+
+### Calls / Voice — orquestador Gemini y OpenAI Realtime
+- Estado general: parcialmente implementado (orquestador y algunos adaptadores).
+- Hecho
+   - [x] `ISttService` y `ITtsService` definidos.
+   - [x] `VoiceCallController` adaptado para aceptar un `IRealtimeClient` inyectado.
+- Pendiente
+   - [ ] Finalizar `GeminiCallOrchestrator` y añadir tests unitarios.
+   - [ ] Tests de integración emulados (smoke) que verifiquen STT -> LLM -> TTS.
+
+Acción recomendada inmediata: crear tests unitarios que verifiquen orden de llamadas (mock STT/TTS) para el orquestador.
+
+### Import / Export JSON
+- Estado general: utilidades implementadas; integración parcial.
+- Hecho
+   - [x] Utilidades: `ChatJsonUtils.importAllFromJson`, `LocalChatRepository` import/export implementados.
+   - [x] Tests de roundtrip import/export añadidos para casos básicos.
+- Pendiente
+   - [ ] Definir formalmente versión de esquema JSON (v1) y documentarla.
+   - [ ] Implementar `IImportExportService` e integrarlo con UI/settings si aplica.
+
+Acción recomendada inmediata: documentar esquema JSON v1 y añadir validaciones básicas en `ChatJsonUtils`.
+
+### Calendar / Agenda
+- Estado general: diseño pendiente.
+- Hecho
+   - [x] `TimelineEntry` canonicalizado (relevante para calendar integration).
+- Pendiente
+   - [ ] Diseñar modelo `CalendarEntry` en `lib/core/models/`.
+   - [ ] Implementar `ICalendarService` y `LocalCalendarAdapter`.
+   - [ ] Tests unitarios básicos (create/list).
+
+Acción recomendada inmediata: crear el fichero `lib/core/models/calendar_entry.dart` con fields mínimos y un test básico.
+
+## Tests, `.env` y prácticas para evitar llamadas reales en CI
+- Centralizar setup de tests: usar `test/test_setup.dart` y `initializeTestEnvironment()`.
+- Reglas rápidas
+   - [x] Cargar `.env` sólo en runtime; evitar load en import-time.
+   - [x] Tests que ejerciten IA deben inyectar `AIService.testOverride` o pasar `aiServiceOverride` a generadores.
+   - [x] Existe helper `initializeTestEnvironment()` que inyecta un `.env` falso si no hay uno real.
+
+Acciones para migrar tests
+   1. Reemplazar `await dotenv.load()` por `await initializeTestEnvironment()` en tests.
+   2. Asegurar que cualquier test que use IA inyecta `AIService.testOverride`.
+   3. Marcar tests lentos/integración como `integration` y correrlos separadamente.
+
+## Limpieza y archivos eliminados (registro)
+Estos archivos se eliminaron durante la migración local (actualiza si falta alguno):
+- `lib/services/adapters/openai_adapter.dart`
+- `lib/services/adapters/gemini_adapter.dart`
+- `lib/services/adapters/openai_stt_adapter.dart`
+- `lib/services/adapters/openai_profile_adapter.dart`
+- `lib/services/adapters/universal_profile_service_adapter.dart`
+- `lib/core/provider_selector.dart`
+
+Si eliminaste más archivos localmente, actualiza la lista y ejecuta `flutter analyze` para verificar imports rotos.
+
+## Calidad, CI y checks recomendados
+- Job PR: `flutter analyze` + `flutter test` (unitarios y tests de migración rápidos).
+- Job nightly (opcional): ejecutar smoke/integration tests pesados.
+- Añadir una prueba de regresión que detecte imports directos a adaptadores concretos desde providers (heurística en `test/migration/import_sanity_test.dart`).
+
+## Plan de trabajo por oleadas (breve)
+- Oleada A (hoy — 1–2 días): terminar `AiImage` canonicalization por lotes y actualizar barrels; correr `flutter analyze` tras cada lote.
+- Oleada B (2–5 días): Onboarding — implementar `google_profile_adapter.dart`, estabilizar tests de perfil.
+- Oleada C (3–7 días): Chat — refactorizar providers para DI y añadir unit tests con fakes.
+- Oleada D (3–7 días): Calls & Import/Export — finalizar orquestador, añadir smoke tests, versionado JSON.
+
+## Próximos pasos (si me das OK)
+1. Ejecutar un barrido por lotes (3–5 ficheros) para reemplazar imports directos por `lib/core/models/` y correr `flutter analyze` tras cada lote.
+2. Implementar `google_profile_adapter.dart` y añadir test que lo inyecte con `AIService.testOverride`.
+3. Añadir test de regresión que detecte usos directos de `OpenAIService`/`GeminiService` en tests sin fakes.
+
+## Resumen final breve
+El trabajo esencial ya está avanzado: modelos y fábricas DI existen, tests clave migrados a `initializeTestEnvironment()` y adaptadores OpenAI listos. Lo que falta es terminar el wiring por contextos (Google adapter, orquestador Gemini, refactor por lotes de imports) y añadir 2–3 regresiones/CI jobs para evitar reintroducir dependencias directas a proveedores.
+
+Si quieres, empiezo por la oleada A (sanear imports por lotes). Dime si quieres que lo haga en este PR y aplicar los cambios en bloques pequeños para revisar después de cada batch.
