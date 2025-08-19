@@ -76,13 +76,17 @@ git clone <tu-repo>.git
 cd ai_chan
 ```
 
-2. Instala dependencias:
+2. Instala dependencias (o usa el Makefile para preparar todo):
 
 ```bash
 flutter pub get
 ```
 
-3. Crea tu `.env` renombrando ` .env.example ` y colocando tus claves reales.
+3. Crea tu `.env` renombrando ` .env.example ` y colocando tus claves reales, o usa el asistente interactivo:
+
+```bash
+make setup   # (recomendado) ejecuta el asistente para .env, instala hooks y deps
+```
 
 4. Ejecuta en desarrollo:
 

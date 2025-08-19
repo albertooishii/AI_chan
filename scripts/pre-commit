@@ -1,10 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Fast pre-commit mode: if FAST_PRECOMMIT=1, run a smaller, faster test set.
+FAST=${FAST_PRECOMMIT:-0}
+
 echo "[pre-commit] Running flutter analyze..."
 flutter analyze
 
-echo "[pre-commit] Running flutter test..."
-flutter test --coverage
+if [ "$FAST" = "1" ]; then
+	echo "[pre-commit] FAST_PRECOMMIT=1 -> running quick tests (onboarding subset)..."
+	flutter test test/onboarding -r expanded || exit 1
+else
+	echo "[pre-commit] Running flutter test (full suite)..."
+	flutter test --coverage || exit 1
+fi
 
 echo "[pre-commit] All checks passed."
