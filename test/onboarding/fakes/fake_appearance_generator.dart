@@ -7,6 +7,9 @@ class FakeAppearanceGenerator extends IAAppearanceGenerator {
   Future<Map<String, dynamic>> generateAppearancePromptWithImage(AiChanProfile bio, {AIService? aiService}) async {
     // return a simple appearance map with an avatar AiImage
     final avatar = AiImage(url: 'https://example.com/avatar.png', seed: '123', prompt: 'fake-prompt');
-    return {'appearance': {'color': 'pink'}, 'avatar': avatar};
+    return {
+      'appearance': {'color': 'pink'},
+      'avatar': avatar,
+    };
   }
 }

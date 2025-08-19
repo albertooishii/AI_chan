@@ -1,40 +1,41 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/providers/onboarding_provider.dart';
 import 'package:ai_chan/services/ai_service.dart';
-import 'onboarding/fakes/fake_ai_service.dart';
-import 'onboarding/fakes/fake_appearance_generator.dart';
+import 'fakes/fake_ai_service.dart';
+import 'fakes/fake_appearance_generator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:ai_chan/utils/onboarding_utils.dart';
 
 void main() {
-  testWidgets('generateAndSaveBiography uses IA and saves to prefs', (WidgetTester tester) async {
+  test('generateFullBiographyFlexible + provider loads saved prefs', () async {
     SharedPreferences.setMockInitialValues({});
     AIService.testOverride = FakeAIServiceImpl();
 
-    final provider = OnboardingProvider();
-
-    // Simulate calling generateAndSaveBiography; use a minimal BuildContext via pumpWidget
-    await tester.pumpWidget(MaterialApp(home: Builder(builder: (context) {
-      // call generation
-      provider.generateAndSaveBiography(
-        context: context,
-        userName: 'UserX',
-        aiName: 'AiX',
-        userBirthday: DateTime(1990, 1, 1),
-        meetStory: 'Historia',
-        userCountryCode: 'ES',
-        aiCountryCode: 'JP',
-      );
-      return const SizedBox.shrink();
-    })));
-
-    // Wait a small duration for async ops
-    await tester.pumpAndSettle(const Duration(seconds: 1));
+    // Generate a biography using the flexible generator and fake appearance generator
+    final bio = await generateFullBiographyFlexible(
+      userName: 'UserX',
+      aiName: 'AiX',
+      userBirthday: DateTime(1990, 1, 1),
+      meetStory: 'Historia',
+      appearanceGenerator: FakeAppearanceGenerator(),
+      userCountryCode: 'ES',
+      aiCountryCode: 'JP',
+    );
 
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('onboarding_data'), isNotNull);
+    await prefs.setString('onboarding_data', jsonEncode(bio.toJson()));
+
+    // Now create provider which should load from prefs
+    final provider = OnboardingProvider();
+
+    // wait until provider done loading
+    while (provider.loading) {
+      await Future.delayed(const Duration(milliseconds: 10));
+    }
+
+    expect(provider.generatedBiography, isNotNull);
 
     AIService.testOverride = null;
   });

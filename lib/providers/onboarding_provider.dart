@@ -100,6 +100,8 @@ class OnboardingProvider extends ChangeNotifier {
     String? userCountryCode,
     String? aiCountryCode,
     Map<String, dynamic>? appearance,
+    // Permite inyectar un generador de apariencia en pruebas
+    IAAppearanceGenerator? appearanceGenerator,
   }) async {
     _biographySaved = false;
     try {
@@ -108,7 +110,7 @@ class OnboardingProvider extends ChangeNotifier {
         aiName: aiName,
         userBirthday: userBirthday,
         meetStory: meetStory,
-        appearanceGenerator: IAAppearanceGenerator(),
+        appearanceGenerator: appearanceGenerator ?? IAAppearanceGenerator(),
         userCountryCode: userCountryCode,
         aiCountryCode: aiCountryCode,
       );

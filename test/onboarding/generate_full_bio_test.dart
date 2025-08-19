@@ -1,15 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/utils/onboarding_utils.dart';
-import 'package:ai_chan/core/models.dart';
 import 'fakes/fake_appearance_generator.dart';
 import 'fakes/fake_ai_service.dart';
-import 'fakes/fake_appearance_generator.dart';
 import 'package:ai_chan/services/ai_service.dart';
 
 void main() {
   test('generateFullBiographyFlexible integrates appearance generator', () async {
-  // Inject fake AI service for downstream generators
-  AIService.testOverride = FakeAIServiceImpl();
+    // Inject fake AI service for downstream generators
+    AIService.testOverride = FakeAIServiceImpl();
     final bio = await generateFullBiographyFlexible(
       userName: 'UserX',
       aiName: 'AiX',
@@ -24,6 +22,6 @@ void main() {
     expect(bio.avatar, isNotNull);
     expect(bio.avatar!.url, contains('https://'));
     expect(bio.appearance, isA<Map<String, dynamic>>());
-  AIService.testOverride = null;
+    AIService.testOverride = null;
   });
 }

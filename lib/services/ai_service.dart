@@ -8,6 +8,7 @@ import 'package:ai_chan/core/models.dart';
 abstract class AIService {
   /// Test hook: permite inyectar una implementación fake durante tests.
   static AIService? testOverride;
+
   /// Implementación base para enviar mensajes a la IA.
   ///
   /// Si se adjunta imagen, debe combinarse en el mismo bloque/parte que el texto del último mensaje 'user',
@@ -33,8 +34,8 @@ abstract class AIService {
     model = model ?? dotenv.env['DEFAULT_TEXT_MODEL'] ?? '';
     String fallbackModel = 'gpt-4.1-mini';
 
-  // Si en tests se ha inyectado una implementación, usarla
-  AIService? aiService = AIService.testOverride ?? AIService.select(model);
+    // Si en tests se ha inyectado una implementación, usarla
+    AIService? aiService = AIService.testOverride ?? AIService.select(model);
     if (aiService == null) {
       debugPrint('[AIService.sendMessage] No se pudo encontrar el servicio IA para el modelo: $model');
       return AIResponse(text: '');
