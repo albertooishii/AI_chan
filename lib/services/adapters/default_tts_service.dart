@@ -4,7 +4,10 @@ import 'package:ai_chan/core/interfaces/tts_service.dart';
 import 'package:ai_chan/services/google_speech_service.dart';
 import 'package:ai_chan/services/android_native_tts_service.dart';
 import 'package:ai_chan/services/adapters/openai_adapter.dart';
+import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ai_chan/services/openai_service.dart';
+import 'package:ai_chan/core/config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Default TTS service that tries native -> Google -> OpenAI in that order.
@@ -28,8 +31,8 @@ class DefaultTtsService implements ITtsService {
 
   @override
   Future<String?> synthesizeToFile({required String text, Map<String, dynamic>? options}) async {
-    final voice = options?['voice'] as String? ?? 'sage';
-    final languageCode = options?['languageCode'] as String? ?? dotenv.env['GOOGLE_LANGUAGE_CODE'] ?? 'es-ES';
+  final voice = options?['voice'] as String? ?? 'sage';
+  final languageCode = options?['languageCode'] as String? ?? Config.getGoogleLanguageCode();
 
     // Resolve preferred provider from prefs/env (attempt to preserve previous behaviour)
     String provider = 'openai';
@@ -80,8 +83,12 @@ class DefaultTtsService implements ITtsService {
 
     // 3) Fallback to OpenAI adapter (default)
     try {
-      final path = await OpenAIAdapter().textToSpeech(text, voice: voice);
-      if (path != null) return path;
+      final openaiRuntime = runtime_factory.getRuntimeAIServiceForModel('gpt-4o');
+      // OpenAIAdapter expects an OpenAIService runtime; cast safely when applicable.
+      if (openaiRuntime is OpenAIService) {
+        final path = await OpenAIAdapter(openaiRuntime).textToSpeech(text, voice: voice);
+        if (path != null) return path;
+      }
     } catch (_) {}
 
     return null;

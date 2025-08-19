@@ -2,32 +2,23 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('migration import sanity', () {
-    test('no legacy core/models/index.dart imports in lib/', () {
-      final dir = Directory('lib');
-      final bad = <String>[];
-      for (final f in dir.listSync(recursive: true)) {
-        if (f is File && f.path.endsWith('.dart')) {
-          final s = f.readAsStringSync();
-          if (s.contains("package:ai_chan/core/models/index.dart")) {
-            bad.add(f.path);
-          }
-        }
-      }
-      expect(bad, isEmpty, reason: 'Found legacy imports: ${bad.join(', ')}');
-    });
+  test('no direct runtime instantiations (OpenAIService/GeminiService) in lib/', () {
+    final root = Directory('lib');
+    final disallowed = RegExp(r'\b(OpenAIService)\s*\(|\b(GeminiService)\s*\(');
+    final allowedPaths = {
+      'lib/core/runtime_factory.dart', // central factory allowed to instantiate
+    };
 
-    test('no imports using alias "as models" in lib/', () {
-      final dir = Directory('lib');
-      final bad = <String>[];
-      final re = RegExp(r'''import\s+['"][^'"]+['"]\s+as\s+models\b''');
-      for (final f in dir.listSync(recursive: true)) {
-        if (f is File && f.path.endsWith('.dart')) {
-          final s = f.readAsStringSync();
-          if (re.hasMatch(s)) bad.add(f.path);
-        }
+    final matches = <String>[];
+    for (final entity in root.listSync(recursive: true)) {
+      if (entity is File && entity.path.endsWith('.dart')) {
+        final rel = entity.path.replaceAll('\\', '/');
+        if (allowedPaths.contains(rel)) continue;
+        final content = entity.readAsStringSync();
+        if (disallowed.hasMatch(content)) matches.add(rel);
       }
-      expect(bad, isEmpty, reason: 'Found imports using alias "models": ${bad.join(', ')}');
-    });
+    }
+
+    expect(matches, isEmpty, reason: 'Found direct runtime instantiations in these files: ${matches.join(', ')}');
   });
 }

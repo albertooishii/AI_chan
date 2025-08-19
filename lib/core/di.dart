@@ -15,8 +15,13 @@ import 'dart:typed_data';
 
 import 'package:ai_chan/services/openai_realtime_client.dart';
 import 'package:ai_chan/services/gemini_realtime_client.dart';
-import 'package:ai_chan/services/adapters/universal_profile_service_adapter.dart';
+import 'package:ai_chan/services/openai_service.dart';
+import 'package:ai_chan/services/gemini_service.dart';
 import 'package:ai_chan/core/interfaces/i_profile_service.dart';
+import 'package:ai_chan/services/adapters/google_profile_adapter.dart';
+import 'package:ai_chan/core/config.dart';
+// ...existing code...
+import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
 
 /// Pequeñas fábricas/funciones de DI para la migración incremental.
 /// Idealmente esto evolucionará a un contenedor/locator más completo.
@@ -24,15 +29,37 @@ IChatRepository getChatRepository() => LocalChatRepository();
 
 IChatResponseService getChatResponseService() => const AiChatResponseAdapter();
 
-IAIService getIAIServiceForModel(String modelId) {
+/// Fábrica centralizada para obtener instancias de `IAIService` por modelo.
+/// Mantiene singletons por proveedor para reutilizar estado interno (caches, preferencias de clave, etc.).
+final Map<String, IAIService> _aiServiceSingletons = {};
+
+IAIService getAIServiceForModel(String modelId) {
   final normalized = modelId.trim().toLowerCase();
-  if (normalized.startsWith('gpt-')) return OpenAIAdapter();
-  if (normalized.startsWith('gemini-') || normalized.startsWith('imagen-')) return GeminiAdapter();
-  // Default to OpenAIAdapter as fallback
-  return OpenAIAdapter();
+  String key = normalized;
+  if (key.isEmpty) key = 'default';
+  if (_aiServiceSingletons.containsKey(key)) return _aiServiceSingletons[key]!;
+
+  IAIService impl;
+  if (normalized.startsWith('gpt-')) {
+  // Create runtime OpenAIService and pass to adapter
+  impl = OpenAIAdapter(runtime_factory.getRuntimeAIServiceForModel(normalized) as OpenAIService);
+  } else if (normalized.startsWith('gemini-') || normalized.startsWith('imagen-')) {
+  impl = GeminiAdapter(runtime_factory.getRuntimeAIServiceForModel(normalized) as GeminiService);
+  } else if (normalized.isEmpty) {
+    // Default behavior: prefer GeminiAdapter (google) for empty/unspecified
+  impl = GeminiAdapter(runtime_factory.getRuntimeAIServiceForModel('gemini-2.5-flash') as GeminiService);
+  } else {
+    // Fallback: prefer OpenAI for unknown ids
+  impl = OpenAIAdapter(runtime_factory.getRuntimeAIServiceForModel('gpt-4o') as OpenAIService);
+  }
+  _aiServiceSingletons[key] = impl;
+  return impl;
 }
 
-ISttService getSttService() => OpenAISttAdapter();
+/// Fábrica para obtener las implementaciones runtime de `AIService` (OpenAIService/GeminiService)
+// Use centralized runtime factory from `lib/core/runtime_factory.dart`
+
+ISttService getSttService() => OpenAISttAdapter(runtime_factory.getRuntimeAIServiceForModel('gpt-4o') as OpenAIService);
 
 ITtsService getTtsService() => const DefaultTtsService();
 
@@ -82,7 +109,30 @@ dynamic getRealtimeClientForProvider(
   );
 }
 
-IProfileService getProfileServiceForProvider(String provider) {
-  // Siempre usar el adaptador universal, configurable por modelo desde .env
-  return UniversalProfileServiceAdapter();
+IProfileService getProfileServiceForProvider([String? provider]) {
+  // If caller passes provider explicitly, use it.
+  if (provider != null && provider.trim().isNotEmpty) {
+    final p = provider.toLowerCase();
+  if (p == 'google' || p == 'gemini') return GoogleProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gemini-2.5-flash'));
+  if (p == 'openai') return GoogleProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gpt-4o'));
+    return GoogleProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gemini-2.5-flash'));
+  }
+
+  // Otherwise, prefer the DEFAULT_TEXT_MODEL from config to infer the provider.
+  final defaultTextModel = Config.getDefaultTextModel();
+  final defaultImageModel = Config.getDefaultImageModel();
+  String resolved = '';
+  final modelToCheck = (defaultTextModel.isNotEmpty ? defaultTextModel : defaultImageModel).toLowerCase();
+  if (modelToCheck.isNotEmpty) {
+    if (modelToCheck.startsWith('gpt-')) resolved = 'openai';
+    if (modelToCheck.startsWith('gemini-') || modelToCheck.startsWith('imagen-')) resolved = 'google';
+  }
+
+  // If we couldn't infer from DEFAULT_TEXT_MODEL/DEFAULT_IMAGE_MODEL, default to Gemini ('google').
+  // This corresponds to using 'gemini-2.5-flash' as the default text model.
+  if (resolved.isEmpty) resolved = 'google';
+
+  if (resolved == 'google' || resolved == 'gemini') return GoogleProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gemini-2.5-flash'));
+  if (resolved == 'openai') return GoogleProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gpt-4o'));
+  return GoogleProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gemini-2.5-flash'));
 }

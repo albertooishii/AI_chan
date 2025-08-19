@@ -1,8 +1,7 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../utils/debug_call_logger/debug_call_logger.dart';
 import 'package:flutter/foundation.dart';
-import 'gemini_service.dart';
-import 'openai_service.dart';
+import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
 import 'package:ai_chan/core/models.dart';
 
 abstract class AIService {
@@ -155,18 +154,25 @@ abstract class AIService {
       debugPrint('[AIService.select] El modelo recibido está vacío.');
       return null;
     }
-    final normalized = modelId.trim().toLowerCase();
-    if (normalized.startsWith('gpt-')) return OpenAIService();
-    if (normalized.startsWith('gemini-')) return GeminiService();
-    if (normalized.startsWith('imagen-')) return GeminiService();
-    debugPrint('[AIService.select] Modelo "$modelId" no reconocido.');
-    return null;
+    // Delegar la creación/selección del runtime al factory centralizado.
+    try {
+      final impl = runtime_factory.getRuntimeAIServiceForModel(modelId);
+      return impl;
+    } catch (e) {
+  debugPrint('[AIService.select] Error al delegar en runtime_factory: $e');
+  debugPrint('[AIService.select] Modelo "$modelId" no reconocido.');
+      return null;
+    }
   }
 }
 
 /// Devuelve la lista combinada de modelos de todos los servicios IA
 Future<List<String>> getAllAIModels() async {
-  final services = [GeminiService(), OpenAIService()];
+  // Pedimos instancias a la fábrica centralizada para evitar instanciaciones dispersas
+  final services = [
+    runtime_factory.getRuntimeAIServiceForModel('gemini-1'),
+    runtime_factory.getRuntimeAIServiceForModel('gpt-4o'),
+  ];
   final allModels = <String>[];
   for (final service in services) {
     try {
