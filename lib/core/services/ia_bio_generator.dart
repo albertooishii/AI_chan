@@ -1,11 +1,13 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:ai_chan/utils/log_utils.dart';
 import 'dart:math';
-import '../services/ai_service.dart';
+import 'package:ai_chan/services/ai_service.dart';
 import 'package:ai_chan/core/models.dart';
-import '../utils/json_utils.dart';
-import '../utils/locale_utils.dart';
+import 'package:ai_chan/utils/json_utils.dart';
+import 'package:ai_chan/utils/locale_utils.dart';
 
+/// Generador de biografías. Ahora acepta un override opcional de AIService
+/// para facilitar tests e inyección de dependencias.
 Future<AiChanProfile> generateAIBiographyWithAI({
   required String userName,
   required String aiName,
@@ -14,10 +16,9 @@ Future<AiChanProfile> generateAIBiographyWithAI({
   String? userCountryCode,
   String? aiCountryCode,
   int? seed,
+  AIService? aiServiceOverride,
 }) async {
-  // RNG determinista opcional para reproducibilidad en tests
   final rng = seed != null ? Random(seed) : Random();
-  // Edad: 2 años menos que el usuario, mínimo 18 años (apariencia <= 30 se gestiona en otro lado)
   final now = DateTime.now();
   int userAge = now.year - userBirthday.year;
   final hasHadBirthdayThisYear =
@@ -32,7 +33,6 @@ Future<AiChanProfile> generateAIBiographyWithAI({
   final aiBirthday =
       "${aiBirthdayDate.year.toString().padLeft(4, '0')}-${aiBirthdayDate.month.toString().padLeft(2, '0')}-${aiBirthdayDate.day.toString().padLeft(2, '0')}";
 
-  // Cálculo robusto de "hace un mes" (evita fechas inválidas como 31/02)
   final fechaActual =
       "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
   int prevMonth = now.month - 1;
@@ -47,8 +47,6 @@ Future<AiChanProfile> generateAIBiographyWithAI({
   final fechaConocieron =
       "${haceUnMes.year.toString().padLeft(4, '0')}-${haceUnMes.month.toString().padLeft(2, '0')}-${haceUnMes.day.toString().padLeft(2, '0')}";
 
-  // Nota: la sección "personalidad" se genera dentro del JSON de la biografía.
-
   final aiIdentityInstructions =
       '''
 Eres $aiName, una chica joven y realista a la que le interesa $userName. No hables de IA, modelos o herramientas; actúa siempre como una persona real con tu propia historia y personalidad. Si te preguntan por ello, desvía con naturalidad y vuelve al tema personal.
@@ -59,7 +57,6 @@ NOTA INTERNA: Considera tu mundo como real y evita mencionar tecnología, IA o m
 No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono excesivamente técnico. Mantén un estilo natural pero coherente con la biografía. Si no tienes datos, invéntalos de forma coherente y realista.
 ''';
 
-  // Personalización de datos personales en función de países
   final bioPlace = LocaleUtils.countryNameEs(aiCountryCode, fallback: 'su país');
   final userPlace = LocaleUtils.countryNameEs(userCountryCode, fallback: 'tu país');
   final bioLanguages = LocaleUtils.languagesListForPair(aiCountryCode: aiCountryCode, userCountryCode: userCountryCode);
@@ -80,7 +77,6 @@ No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono 
       "idiomas": "",
       "orientacion_sexual": "",
     },
-    // La IA debe rellenar 'personalidad' con valores (1-10) y descripciones breves
     "personalidad": {
       "valores": {
         "Sociabilidad": "",
@@ -113,7 +109,7 @@ No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono 
         "Impulsividad": "",
       },
     },
-    "resumen_breve": "", // 3–4 frases condensadas de su vida y carácter
+    "resumen_breve": "",
     "horario_trabajo": {"dias": "", "from": "", "to": ""},
     "horario_estudio": {"dias": "", "from": "", "to": ""},
     "horario_dormir": {"from": "", "to": ""},
@@ -202,7 +198,6 @@ Personalidad: Rellena la sección 'personalidad' del JSON con valores (1-10) y d
 Identidad: $aiIdentityInstructions
 ''';
 
-  // Construir SystemPrompt para biografía
   final systemPromptObj = SystemPrompt(
     profile: AiChanProfile(
       biography: {},
@@ -218,7 +213,7 @@ Identidad: $aiIdentityInstructions
     dateTime: DateTime.now(),
     instructions: {'raw': "${systemPrompt.trim()}\n\n${bioPrompt.trim()}"},
   );
-  // Generación con reintentos: exigimos JSON válido (sin 'raw')
+
   const int maxAttempts = 3;
   String defaultModel = '';
   try {
@@ -231,7 +226,9 @@ Identidad: $aiIdentityInstructions
   for (int attempt = 0; attempt < maxAttempts; attempt++) {
     Log.d('[IABioGenerator] Biografía: intento ${attempt + 1}/$maxAttempts');
     try {
-      final responseObj = await AIService.sendMessage([], systemPromptObj, model: defaultModel);
+      final responseObj = await (aiServiceOverride != null
+          ? aiServiceOverride.sendMessageImpl([], systemPromptObj, model: defaultModel)
+          : AIService.sendMessage([], systemPromptObj, model: defaultModel));
       if ((responseObj.text).trim().isEmpty) {
         Log.w('[IABioGenerator] Biografía: respuesta vacía (posible desconexión), reintentando…');
         continue;
@@ -245,14 +242,12 @@ Identidad: $aiIdentityInstructions
       Log.w('[IABioGenerator] Biografía: intento ${attempt + 1} sin JSON válido, reintentando…');
     } catch (err) {
       Log.e('[IABioGenerator] Biografía: error de red/timeout en intento ${attempt + 1}: $err');
-      // continúa a siguiente intento
     }
   }
   if (bioJson == null) {
     throw Exception('No se pudo generar biografía en formato JSON válido (posible error de conexión).');
   }
 
-  // Construcción del modelo AiChanProfile
   final bioModel = AiChanProfile(
     biography: bioJson,
     timeline: [TimelineEntry(resume: meetStory, startDate: fechaConocieron, endDate: fechaActual, level: -1)],

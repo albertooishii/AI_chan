@@ -15,6 +15,8 @@ import 'dart:typed_data';
 
 import 'package:ai_chan/services/openai_realtime_client.dart';
 import 'package:ai_chan/services/gemini_realtime_client.dart';
+import 'package:ai_chan/services/adapters/universal_profile_service_adapter.dart';
+import 'package:ai_chan/core/interfaces/i_profile_service.dart';
 
 /// Pequeñas fábricas/funciones de DI para la migración incremental.
 /// Idealmente esto evolucionará a un contenedor/locator más completo.
@@ -78,4 +80,9 @@ dynamic getRealtimeClientForProvider(
     onError: onError,
     onUserTranscription: onUserTranscription,
   );
+}
+
+IProfileService getProfileServiceForProvider(String provider) {
+  // Siempre usar el adaptador universal, configurable por modelo desde .env
+  return UniversalProfileServiceAdapter();
 }

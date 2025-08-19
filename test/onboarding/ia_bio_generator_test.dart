@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ai_chan/services/ia_bio_generator.dart';
+import 'package:ai_chan/core/services/ia_bio_generator.dart';
 import 'package:ai_chan/core/models.dart';
 import 'dart:convert';
 import 'package:ai_chan/services/ai_service.dart';

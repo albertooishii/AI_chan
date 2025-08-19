@@ -1,6 +1,6 @@
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/services/ai_service.dart';
-import 'package:ai_chan/services/ia_appearance_generator.dart';
+import 'package:ai_chan/core/services/ia_appearance_generator.dart';
 
 class FakeAppearanceGenerator extends IAAppearanceGenerator {
   @override

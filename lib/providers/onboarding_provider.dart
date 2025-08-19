@@ -3,12 +3,15 @@ import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/utils/storage_utils.dart';
 import 'package:flutter/material.dart';
 // removed duplicate import
-import 'package:ai_chan/services/ia_appearance_generator.dart';
 import 'package:ai_chan/main.dart' show navigatorKey;
-import 'package:ai_chan/utils/onboarding_utils.dart';
+// import 'package:ai_chan/services/ia_appearance_generator.dart';
+// import 'package:ai_chan/utils/onboarding_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../services/ai_service.dart';
+import 'package:ai_chan/core/services/ia_appearance_generator.dart';
+import 'package:ai_chan/core/interfaces/i_profile_service.dart';
+import 'package:ai_chan/core/di.dart';
 import '../utils/dialog_utils.dart';
 import '../utils/chat_json_utils.dart' as chat_json_utils;
 // removed duplicate import
@@ -16,6 +19,15 @@ import '../utils/locale_utils.dart';
 import '../utils/log_utils.dart';
 
 class OnboardingProvider extends ChangeNotifier {
+  bool loadingStory = false;
+  DateTime? userBirthday;
+  final IProfileService _profileService;
+
+  // Permite inyectar el servicio en tests, por defecto usa DI
+  OnboardingProvider({IProfileService? profileService})
+    : _profileService = profileService ?? getProfileServiceForProvider('openai') {
+    _loadBiographyFromPrefs();
+  }
   bool loading = true;
 
   /// Importa y guarda biografía y mensajes desde un JSON robusto (ImportedChat), actualizando estado y notificando listeners
@@ -40,11 +52,6 @@ class OnboardingProvider extends ChangeNotifier {
     _generatedBiography = null;
     _biographySaved = false;
     notifyListeners();
-  }
-
-  // Inicialización automática desde SharedPreferences
-  OnboardingProvider() {
-    _loadBiographyFromPrefs();
   }
 
   Future<void> _loadBiographyFromPrefs() async {
@@ -100,26 +107,30 @@ class OnboardingProvider extends ChangeNotifier {
     String? userCountryCode,
     String? aiCountryCode,
     Map<String, dynamic>? appearance,
-    // Permite inyectar un generador de apariencia en pruebas
-    IAAppearanceGenerator? appearanceGenerator,
   }) async {
     _biographySaved = false;
     try {
-      final biography = await generateFullBiographyFlexible(
+      final biography = await _profileService.generateBiography(
         userName: userName,
         aiName: aiName,
         userBirthday: userBirthday,
         meetStory: meetStory,
-        appearanceGenerator: appearanceGenerator ?? IAAppearanceGenerator(),
         userCountryCode: userCountryCode,
         aiCountryCode: aiCountryCode,
       );
+      // Generar apariencia y avatar
+      final appearanceResult = await IAAppearanceGenerator().generateAppearancePromptWithImage(biography);
+      final biographyWithAvatar = biography.copyWith(
+        avatar: appearanceResult['avatar'] as AiImage?,
+        appearance: appearanceResult['appearance'] as Map<String, dynamic>?,
+      );
       if (!context.mounted) return;
       final prefs = await SharedPreferences.getInstance();
-      final jsonBio = jsonEncode(biography.toJson());
+      final jsonBio = jsonEncode(biographyWithAvatar.toJson());
       await prefs.setString('onboarding_data', jsonBio);
-      _generatedBiography = biography;
+      _generatedBiography = biographyWithAvatar;
       _biographySaved = true;
+      notifyListeners();
     } catch (e) {
       _biographySaved = false;
       if (!context.mounted) return;
@@ -145,9 +156,6 @@ class OnboardingProvider extends ChangeNotifier {
   String? aiCountryCode;
 
   String get userName => userNameController.text;
-  String get aiName => aiNameController?.text ?? '';
-  DateTime? userBirthday;
-  bool loadingStory = false;
   String? importError;
 
   // Las sugerencias ahora provienen dinámicamente de FemaleNamesRepo.forCountry

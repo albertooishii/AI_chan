@@ -1,6 +1,6 @@
 import 'package:ai_chan/core/models.dart';
-import '../services/ia_bio_generator.dart';
-import '../services/ia_appearance_generator.dart';
+import 'package:ai_chan/core/services/ia_bio_generator.dart';
+import 'package:ai_chan/core/services/ia_appearance_generator.dart';
 
 /// Utilidad flexible para crear la biografía completa (con apariencia), permitiendo elegir el generador
 Future<AiChanProfile> generateFullBiographyFlexible({

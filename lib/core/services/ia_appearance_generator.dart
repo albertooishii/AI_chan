@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:ai_chan/utils/image_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ai_chan/core/models.dart';
-import '../utils/json_utils.dart';
-import 'ai_service.dart';
+import 'package:ai_chan/utils/json_utils.dart';
+import 'package:ai_chan/services/ai_service.dart';
 
 class IAAppearanceGenerator {
   Future<Map<String, dynamic>> generateAppearancePromptWithImage(AiChanProfile bio, {AIService? aiService}) async {
@@ -122,7 +122,7 @@ Los accesorios son opcionales; no añadas por defecto.
 En cada campo, describe con máximo detalle y precisión todos los rasgos físicos y visuales. Sé milimétrico en medidas, proporciones, distancias y texturas. No omitas campos.
 
 Biografía:
-${bio.biography}
+\${bio.biography}
 ''';
 
     final systemPromptAppearance = SystemPrompt(
@@ -139,6 +139,7 @@ ${bio.biography}
       dateTime: DateTime.now(),
       instructions: {'raw': prompt},
     );
+
     // Reintentos con el mismo prompt/modelo para obtener JSON válido
     debugPrint('[IAAppearanceGenerator] Apariencia: intentos JSON (max=3) con modelo $usedModel');
     const int maxJsonAttempts = 3;
@@ -146,7 +147,9 @@ ${bio.biography}
     for (int attempt = 0; attempt < maxJsonAttempts; attempt++) {
       debugPrint('[IAAppearanceGenerator] Apariencia: intento ${attempt + 1}/$maxJsonAttempts (modelo=$usedModel)');
       try {
-        final AIResponse resp = await AIService.sendMessage([], systemPromptAppearance, model: usedModel);
+        final AIResponse resp = await (aiService != null
+            ? aiService.sendMessageImpl([], systemPromptAppearance, model: usedModel)
+            : AIService.sendMessage([], systemPromptAppearance, model: usedModel));
         if ((resp.text).trim().isEmpty) {
           debugPrint('[IAAppearanceGenerator] Apariencia: respuesta vacía (posible desconexión), reintentando…');
           continue;
@@ -207,12 +210,9 @@ ${bio.biography}
         '[IAAppearanceGenerator] Avatar: intento ${attempt + 1}/$maxImageAttemptsPerModel con $forcedImageModel',
       );
       try {
-        final resp = await AIService.sendMessage(
-          [],
-          systemPromptImage,
-          model: forcedImageModel,
-          enableImageGeneration: true,
-        );
+        final resp = await (aiService != null
+            ? aiService.sendMessageImpl([], systemPromptImage, model: forcedImageModel, enableImageGeneration: true)
+            : AIService.sendMessage([], systemPromptImage, model: forcedImageModel, enableImageGeneration: true));
         if (resp.base64.isNotEmpty) {
           imageResponse = resp;
           debugPrint('[IAAppearanceGenerator] Avatar: imagen obtenida con $forcedImageModel en intento ${attempt + 1}');
@@ -232,8 +232,8 @@ ${bio.biography}
     // Log seguro: no imprimir base64 completo
     final logMap = imageResponse.toJson();
     if (logMap['imageBase64'] != null && logMap['imageBase64'].toString().isNotEmpty) {
-      final base64 = logMap['imageBase64'] as String;
-      logMap['imageBase64'] = '[${base64.length} chars] ${base64.substring(0, 40)}...';
+      final base64Str = logMap['imageBase64'] as String;
+      logMap['imageBase64'] = '[${base64Str.length} chars] ${base64Str.substring(0, 40)}...';
     }
     debugPrint('Imagen generada: $logMap');
 

@@ -40,15 +40,23 @@ Contrato / Outputs
 - Input: prompts y/o formularios del usuario.
 - Output: `AiChanProfile` con `biography`, `appearance` (imagen/seed), `voiceConfig` opcional.
 
-Pasos de migración
-1. Canonicalizar modelos: mover `AiChanProfile`, `AiImage`, `Appearance` a `lib/core/models/` (si no está ya).
-2. Crear `IProfileService` / `IProfileGenerator` en `lib/core/interfaces/` (métodos: `generateBiography`, `generateAppearance`, `saveProfile`).
-3. Implementar adaptadores: `openai_profile_adapter.dart`, `google_profile_adapter.dart` que usan `IAIService`, `ITtsService` si aplica.
-4. DI: añadir fábrica `getProfileServiceForProvider(provider)` en `lib/core/di.dart`.
-5. Wire-up: actualizar el flujo de onboarding para usar la interfaz en vez de llamadas concretas.
-6. Tests:
-   - Unit: generar biografía mock → verifica campos no vacíos.
-   - Integration (smoke): ejecutar onboarding con un mock LLM y mock storage.
+
+**Progreso actual:**
+- [x] Modelos canónicos (`AiChanProfile`, `AiImage`, `Appearance`) en `lib/core/models/`.
+- [x] Interfaz `IProfileService` creada en `lib/core/interfaces/`.
+- [x] Adaptador `openai_profile_adapter.dart` implementado y testeado.
+- [ ] Adaptador `google_profile_adapter.dart` pendiente (puede ser stub/fake).
+- [x] Fábrica DI `getProfileServiceForProvider` añadida en `lib/core/di.dart`.
+- [ ] Wiring en el provider de onboarding para usar la interfaz (siguiente paso).
+- [x] Tests unitarios robustos para el adaptador OpenAI y CI verde.
+
+**Siguiente paso:**
+- Refactorizar el provider de onboarding para usar `IProfileService` vía la fábrica DI.
+- Implementar (o stubear) el adaptador Google si se requiere compatibilidad multi-proveedor.
+
+**Notas:**
+- La CI está activa y los tests de onboarding pasan correctamente.
+- El adaptador OpenAI está desacoplado y testeable con mocks/fakes.
 
 Riesgos & Notas
 - Generación de imagen puede depender de políticas de uso de terceros.

@@ -4,7 +4,7 @@ import 'dart:async';
 // Replaced legacy barrel import with canonical barrel
 import 'package:ai_chan/services/ai_service.dart';
 import 'package:ai_chan/core/models.dart';
-import '../utils/json_utils.dart';
+import 'package:ai_chan/utils/json_utils.dart';
 
 class MemorySuperblockResult {
   final List<TimelineEntry> timeline;
@@ -13,7 +13,7 @@ class MemorySuperblockResult {
 }
 
 class MemorySummaryService {
-  /// Función común para pedir y extraer el resumen JSON
+  /// Función compacta para pedir y extraer el resumen JSON
   Future<Map<String, dynamic>?> _getJsonSummary({
     required String instrucciones,
     required List<Map<String, dynamic>> recentMessages,
@@ -53,9 +53,9 @@ class MemorySummaryService {
     'detalles_unicos': [], // Frases, nombres, bromas internas, datos triviales relevantes
   };
   // Prompt unificado para todos los niveles de resumen
-  // Listas estáticas reutilizables
+  // Listas estticas reutilizables
   static const List<String> _eventosClave = [
-    'cumpleaños',
+    'cumpleaios',
     'aniversario',
     'primer beso',
     'boda',
@@ -64,37 +64,37 @@ class MemorySummaryService {
     'mudanza',
     'fallecimiento',
     'nacimiento',
-    'graduación',
+    'graduacin',
     'ascenso',
     'despedida',
-    'reconciliación',
+    'reconciliacin',
     'hospital',
     'accidente',
     'navidad',
-    'año nuevo',
+    'ao nuevo',
     'vacaciones',
     'regalo',
     'sorpresa',
     'fiesta',
     'cena especial',
-    'declaración',
+    'declaracin',
     'compromiso',
-    'adopción',
+    'adopcin',
     'nuevo trabajo',
     'nuevo hogar',
     'nuevo miembro',
     'enfermedad',
     'amistad',
     'enemistad',
-    'confesión',
+    'confesin',
     'disculpa',
-    'perdón',
+    'perd3n',
     'reencuentro',
   ];
   static const List<String> _temasClave = [
     'amor',
     'odio',
-    'alegría',
+    'alegrda',
     'tristeza',
     'miedo',
     'esperanza',
@@ -105,40 +105,40 @@ class MemorySummaryService {
     'calma',
     'sorpresa',
     'rutina',
-    'motivación',
-    'desmotivación',
+    'motivacin',
+    'desmotivacin',
     'apoyo',
     'rechazo',
     'soledad',
-    'compañía',
-    'ilusión',
-    'decepción',
+    'compa',
+    'ilusin',
+    'decepcin',
     'orgullo',
-    'vergüenza',
+    'vergfenza',
     'culpa',
     'remordimiento',
     'agradecimiento',
-    'preocupación',
+    'preocupacin',
     'optimismo',
     'pesimismo',
     'curiosidad',
     'aburrimiento',
-    'diversión',
-    'tensión',
-    'relajación',
+    'diversin',
+    'tensifn',
+    'relajacifn',
     'conflicto',
     'acuerdo',
     'duda',
     'certeza',
     'inseguridad',
     'seguridad',
-    'empatía',
+    'empata',
     'frialdad',
-    'cariño',
+    'carifn',
     'distancia',
     'proximidad',
     'alejamiento',
-    'reconciliación',
+    'reconciliacin',
     'ruptura',
     'amistad',
     'enemistad',
@@ -152,8 +152,8 @@ class MemorySummaryService {
     'logro',
     'fracaso',
     'reto',
-    'superación',
-    'pérdida',
+    'superacifn',
+    'pfdida',
     'ganancia',
     'crecimiento',
     'retroceso',
@@ -165,31 +165,23 @@ class MemorySummaryService {
     'claridad',
     'oscuridad',
     'espera',
-    'acción',
+    'accifn',
     'pasividad',
     'actividad',
     'descanso',
     'agotamiento',
-    'energía',
+    'energfa',
     'fuerza',
     'debilidad',
     'enfermedad',
-    'recuperación',
-    'caída',
-    'levantarse',
-    'viaje',
-    'hogar',
-    'familia',
-    'amistad',
-    'soledad',
-    'compañía',
+    'recuperacifn',
   ];
 
-  // Función de detección de emociones/temas
+  // Funcifn de deteccifn de emociones/temas
   static List<String> _emocionesDetectadas(String texto) =>
       _temasClave.where((t) => texto.toLowerCase().contains(t)).toList();
 
-  // Función para construir etiquetas
+  // Funcifn para construir etiquetas
   static String _buildEtiquetas(String textoBloque) {
     final eventosDetectados = _eventosClave.where((e) => textoBloque.toLowerCase().contains(e)).toList();
     final emociones = _emocionesDetectadas(textoBloque);
@@ -203,7 +195,7 @@ class MemorySummaryService {
     return etiquetas.isNotEmpty ? "[${etiquetas.join(' | ')}]\n" : "";
   }
 
-  // Función para instrucciones de fechas exactas
+  // Funcifn para instrucciones de fechas exactas
   String _instruccionesFechas(Set<String> fechasUnicas) {
     String instrucciones = unifiedInstructions;
     if (fechasUnicas.length > 1) {
@@ -214,7 +206,7 @@ class MemorySummaryService {
   }
 
   String get unifiedInstructions {
-    return "Eres un sistema de memoria, NO eres la IA del chat. Tu única tarea es generar un resumen estructurado y realista en español, solo de los mensajes o bloques proporcionados.\n\nOrganiza la información en formato de puntos, incluyendo:\n1) Hechos importantes y datos personales\n2) Emociones y estados de ánimo detectados\n3) Promesas, planes y bromas internas\n4) Cambios en la relación o temas recurrentes\n\nEn el campo 'resumen' incluye únicamente frases clave, hechos, promesas, emociones y detalles importantes, pero NUNCA el texto literal de los mensajes originales.\n\nEn el campo 'detalles_unicos' añade SOLO las frases, nombres propios, apodos, bromas internas, expresiones o datos que sean realmente únicos, recurrentes, o tengan un significado especial en la relación. Excluye cumplidos genéricos, reacciones comunes, frases triviales o cualquier elemento que no aporte valor de recuerdo a largo plazo. Prioriza lo que el usuario suele mencionar como memorable, divertido o importante. Si detectas metadatos de imagen en los mensajes (p. ej., claves 'seed' o 'prompt'), registra que hubo una imagen enviada/recibida y añade un apunte breve con el tema visual (p. ej., 'foto_usuario: <resumen corto>' o 'foto_ia: <resumen corto>'); incluye la 'seed' solo si aporta valor. Si aparecen menciones a 'quedadas AR' (realidad aumentada), trátalas como idea futura o ilusión compartida; regístralas como intención, no como evento coordinado, y anota la escena soñada si se describe.\n\nNo incluyas los mensajes originales ni referencias directas a ellos, solo la síntesis y los datos estructurados.\n\nNo respondas con saludos, introducciones, preguntas, frases de error, disculpas o negaciones. Tu respuesta debe ser únicamente el resumen estructurado en español, útil para recordar la conversación en el futuro.\n\nUsa SIEMPRE los nombres reales de los participantes: usuario = ${profile.userName.trim()}, IA = ${profile.aiName.trim()}. Respeta SIEMPRE las palabras, expresiones y el vocabulario original de los mensajes. Si aparecen propuestas de quedar en persona, anótalas como intención no viable por vivir en realidades distintas; sugiere que se sustituyan por descripciones y fotos coherentes con la relación.\n\nSi respondes de forma conversacional o con error, tu respuesta será descartada.";
+    return "Eres un sistema de memoria, NO eres la IA del chat. Tu única tarea es generar un resumen estructurado y realista en español, solo de los mensajes o bloques proporcionados.\\n\\nOrganiza la información en formato de puntos, incluyendo:\\n1) Hechos importantes y datos personales\\n2) Emociones y estados de ánimo detectados\\n3) Promesas, planes y bromas internas\\n4) Cambios en la relación o temas recurrentes\\n\\nEn el campo 'resumen' incluye únicamente frases clave, hechos, promesas, emociones y detalles importantes, pero NUNCA el texto literal de los mensajes originales.\\n\\nEn el campo 'detalles_unicos' añade SOLO las frases, nombres propios, apodos, bromas internas, expresiones o datos que sean realmente únicos, recurrentes, o tengan un significado especial en la relación. Excluye cumplidos genéricos, reacciones comunes, frases triviales o cualquier elemento que no aporte valor de recuerdo a largo plazo. Prioriza lo que el usuario suele mencionar como memorable, divertido o importante. Si detectas metadatos de imagen en los mensajes (p. ej., claves 'seed' o 'prompt'), registra que hubo una imagen enviada/recibida y añade un apunte breve con el tema visual (p. ej., 'foto_usuario: <resumen corto>' o 'foto_ia: <resumen corto>'); incluye la 'seed' solo si aporta valor. Si aparecen menciones a 'quedadas AR' (realidad aumentada), trátalas como idea futura o ilusión compartida; regístralas como intención, no como evento coordinado, y anota la escena soñada si se describe.\\n\\nNo incluyas los mensajes originales ni referencias directas a ellos, solo la síntesis y los datos estructurados.\\n\\nNo respondas con saludos, introducciones, preguntas, frases de error, disculpas o negaciones. Tu respuesta debe ser únicamente el resumen estructurado en español, útil para recordar la conversación en el futuro.\\n\\nUsa SIEMPRE los nombres reales de los participantes: usuario = ${profile.userName.trim()}, IA = ${profile.aiName.trim()}. Respeta SIEMPRE las palabras, expresiones y el vocabulario original de los mensajes. Si aparecen propuestas de quedar en persona, anótalas como intención no viable por vivir en realidades distintas; sugiere que se sustituyan por descripciones y fotos coherentes con la relación.\\n\\nSi respondes de forma conversacional o con error, tu respuesta será descartada.";
   }
 
   // Lock de concurrencia optimizado: Completer estático compartido
@@ -282,7 +274,7 @@ class MemorySummaryService {
           final instruccionesSuperbloque =
               "$unifiedInstructions\nSintetiza y resume los bloques proporcionados, evitando copiar literalmente los textos originales. Extrae y agrupa la información relevante, pero NO pierdas ningún detalle importante ni ninguna fecha significativa. Incluye SIEMPRE una fecha aproximada (mes, semana o rango general) en el resumen generado, antes de cada fragmento resumido. Puedes agrupar bloques cercanos temporalmente bajo una misma fecha si tiene sentido, aunque se pierdan detalles exactos. Si algún evento, mensaje o bloque corresponde a una fecha importante (cumpleaños, aniversario, primer beso, etc.), conserva y destaca la fecha exacta en el resumen. El resultado debe ser una memoria de largo plazo útil y efectiva, con todos los datos relevantes y fechas importantes bien conservadas.";
           final instruccionesSuperbloqueJson =
-              "$instruccionesSuperbloque\n\nDEVUELVE ÚNICAMENTE EL BLOQUE JSON, SIN TEXTO EXTRA, EXPLICACIONES NI INTRODUCCIÓN. El formato debe ser:\n$resumenJsonSchema\n\nResumen de los bloques:\n$resumenTexto";
+              "$instruccionesSuperbloque\n\nDEVUELVE \u00daNICAMENTE EL BLOQUE JSON, SIN TEXTO EXTRA, EXPLICACIONES NI INTRODUCCI\u00d3N. El formato debe ser:\n$resumenJsonSchema\n\nResumen de los bloque:\n$resumenTexto";
           final resumenJson = await _getJsonSummary(
             instrucciones: instruccionesSuperbloqueJson,
             recentMessages: [],
@@ -334,7 +326,7 @@ class MemorySummaryService {
         final instruccionesSuperbloque =
             "$unifiedInstructions\nIncluye SIEMPRE una fecha aproximada (mes, semana o rango general) en el resumen generado, antes de cada fragmento resumido. Puedes agrupar bloques cercanos temporalmente bajo una misma fecha si tiene sentido, aunque se pierdan detalles exactos. Si algún evento, mensaje o bloque corresponde a una fecha importante (cumpleaños, aniversario, primer beso, etc.), conserva y destaca la fecha exacta en el resumen.";
         final instruccionesSuperbloqueJson =
-            "$instruccionesSuperbloque\n\nDEVUELVE ÚNICAMENTE EL BLOQUE JSON, SIN TEXTO EXTRA, EXPLICACIONES NI INTRODUCCIÓN. El formato debe ser:\n$resumenJsonSchema\n\nResumen de los bloques:\n$resumenTexto";
+            "$instruccionesSuperbloque\n\nDEVUELVE \u00daNICAMENTE EL BLOQUE JSON, SIN TEXTO EXTRA, EXPLICACIONES NI INTRODUCCI\u00d3N. El formato debe ser:\n$resumenJsonSchema\n\nResumen de los bloques:\n$resumenTexto";
         final resumenJson = await _getJsonSummary(
           instrucciones: instruccionesSuperbloqueJson,
           recentMessages: [],
@@ -462,13 +454,10 @@ class MemorySummaryService {
     final blockStartDate = block.first.dateTime.toIso8601String();
     final blockEndDate = block.last.dateTime.toIso8601String();
     int retryCount = 0;
-    // Variable summary eliminada porque no se usa
     // Unir todos los textos del bloque para análisis semántico
-    // Variable textoBloque eliminada porque no se usa
-    // Crear instrucciones y mensajes para el bloque
     final fechasUnicas = block.map((m) => (m.dateTime).toIso8601String().substring(0, 10)).toSet();
     String instruccionesBloque =
-        "${_instruccionesFechas(fechasUnicas)}\n\nDEVUELVE ÚNICAMENTE EL BLOQUE JSON, SIN TEXTO EXTRA, EXPLICACIONES NI INTRODUCCIÓN. El formato debe ser:\n$resumenJsonSchema";
+        "${_instruccionesFechas(fechasUnicas)}\n\nDEVUELVE \u00daNICAMENTE EL BLOQUE JSON, SIN TEXTO EXTRA, EXPLICACIONES NI INTRODUCCI\u00d3N. El formato debe ser:\n$resumenJsonSchema";
     final recentMessages = block.map((m) {
       String content = m.text.trim();
       final imgPrompt = (m.isImage && m.image != null) ? (m.image!.prompt?.trim() ?? '') : '';
@@ -491,7 +480,6 @@ class MemorySummaryService {
     }).toList();
     // Intentar obtener el resumen JSON con reintentos
     Map<String, dynamic>? resumenJson;
-    // Variable retryCount eliminada porque no se usa
     do {
       resumenJson = await _getJsonSummary(instrucciones: instruccionesBloque, recentMessages: recentMessages);
       if (resumenJson != null) break;
@@ -502,7 +490,6 @@ class MemorySummaryService {
       // Evitar duplicados: no añadir si ya existe un bloque con mismo rango y nivel
       final exists = timeline.any((t) => t.startDate == blockStartDate && t.endDate == blockEndDate && t.level == 0);
       if (!exists) {
-        // Guardar fecha con hora exacta en los bloques
         timeline.add(
           TimelineEntry(
             resume: resumenJson,
