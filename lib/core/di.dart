@@ -3,10 +3,10 @@ import 'package:ai_chan/chat/services/adapters/ai_chat_response_adapter.dart';
 import 'package:ai_chan/core/interfaces/i_chat_response_service.dart';
 import 'package:ai_chan/core/interfaces/i_chat_repository.dart';
 import 'package:ai_chan/core/interfaces/ai_service.dart';
-import 'package:ai_chan/services/adapters/openai_adapter.dart';
-import 'package:ai_chan/services/adapters/gemini_adapter.dart';
+// Use canonical adapters present in lib/services/adapters
+import 'package:ai_chan/services/adapters/profile_adapter.dart';
 import 'package:ai_chan/core/interfaces/i_stt_service.dart';
-import 'package:ai_chan/services/adapters/openai_stt_adapter.dart';
+// OpenAI-specific STT adapter removed from active code; prefer Google STT or runtime-based STT
 import 'package:ai_chan/core/interfaces/tts_service.dart';
 import 'package:ai_chan/services/adapters/default_tts_service.dart';
 import 'package:ai_chan/services/adapters/google_stt_adapter.dart';
@@ -15,10 +15,10 @@ import 'dart:typed_data';
 
 import 'package:ai_chan/services/openai_realtime_client.dart';
 import 'package:ai_chan/services/gemini_realtime_client.dart';
-import 'package:ai_chan/services/openai_service.dart';
-import 'package:ai_chan/services/gemini_service.dart';
+// Use adapter wrappers that implement the legacy IAIService port
+import 'package:ai_chan/services/adapters/openai_adapter.dart';
+import 'package:ai_chan/services/adapters/gemini_adapter.dart';
 import 'package:ai_chan/core/interfaces/i_profile_service.dart';
-import 'package:ai_chan/services/adapters/profile_adapter.dart';
 import 'package:ai_chan/core/config.dart';
 // ...existing code...
 import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
@@ -41,16 +41,15 @@ IAIService getAIServiceForModel(String modelId) {
 
   IAIService impl;
   if (normalized.startsWith('gpt-')) {
-  // Create runtime OpenAIService and pass to adapter
-  impl = OpenAIAdapter(runtime_factory.getRuntimeAIServiceForModel(normalized) as OpenAIService);
+    impl = OpenAIAdapter(modelId: normalized);
   } else if (normalized.startsWith('gemini-') || normalized.startsWith('imagen-')) {
-  impl = GeminiAdapter(runtime_factory.getRuntimeAIServiceForModel(normalized) as GeminiService);
+    impl = GeminiAdapter(modelId: normalized);
   } else if (normalized.isEmpty) {
-    // Default behavior: prefer GeminiAdapter (google) for empty/unspecified
-  impl = GeminiAdapter(runtime_factory.getRuntimeAIServiceForModel('gemini-2.5-flash') as GeminiService);
+    // Default behavior: prefer Gemini for empty/unspecified
+    impl = GeminiAdapter(modelId: 'gemini-2.5-flash');
   } else {
-    // Fallback: prefer OpenAI for unknown ids
-  impl = OpenAIAdapter(runtime_factory.getRuntimeAIServiceForModel('gpt-4o') as OpenAIService);
+    // Fallback: default to OpenAI runtime
+    impl = OpenAIAdapter(modelId: 'gpt-4o');
   }
   _aiServiceSingletons[key] = impl;
   return impl;
@@ -59,7 +58,7 @@ IAIService getAIServiceForModel(String modelId) {
 /// Fábrica para obtener las implementaciones runtime de `AIService` (OpenAIService/GeminiService)
 // Use centralized runtime factory from `lib/core/runtime_factory.dart`
 
-ISttService getSttService() => OpenAISttAdapter(runtime_factory.getRuntimeAIServiceForModel('gpt-4o') as OpenAIService);
+ISttService getSttService() => const GoogleSttAdapter();
 
 ITtsService getTtsService() => const DefaultTtsService();
 

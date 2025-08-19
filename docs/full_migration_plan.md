@@ -140,24 +140,24 @@ Changelog delta (archivos más relevantes modificados en esta rama):
    - Tests: `test/onboarding/*` actualizados para usar `AIService.testOverride`
 
 Próximo paso (Batch 3 — SWEEP)
-     - Objetivo: detectar y corregir instanciaciones directas residuales de `OpenAIService()` y `GeminiService()` en el resto del repo (incluye `AIService.select`).
-     - Estado: COMPLETADO ✅ (verificado localmente el 2025-08-19).
-     - Cambios aplicados (checklist):
-        - [x] Refactorizar `AIService.select` para delegar en `lib/core/runtime_factory.dart`.
-        - [x] Cambiar `getAllAIModels()` para pedir instancias al runtime factory en lugar de instanciar runtimes directamente.
-        - [x] Ajustar `lib/core/runtime_factory.dart` para usar `Config.getDefaultTextModel()` y mantener singletons por modelo.
-        - [x] Reemplazar lecturas directas de `dotenv` por `Config` en puntos críticos (`default_tts_service` y otros).
-        - [x] Añadir prueba de regresión `test/migration/import_sanity_test.dart`.
-        - [x] Añadida también `test/migration/check_runtime_instantiation_test.dart` para detectar instanciaciones directas fuera del factory.
-     - Verificación realizada:
-        - [x] `flutter analyze`: sin issues (análisis local).
-        - [x] `flutter test` (suite local): pasada.
-        - [x] Búsqueda rápida en el repo: instanciaciones de runtimes encontradas únicamente en `lib/core/runtime_factory.dart`; lecturas de `dotenv.env` encontradas únicamente en `lib/core/config.dart` (import-time reads eliminados fuera de `config`).
-     - Notas/acciones residuales (bajas prioridades):
-        - [ ] Revisar imports en `lib/features/` que puedan referenciar adaptadores obsoletos (auditoría por lotes en Batch 4).
-        - [ ] Auditoría rápida de `lib/core/di.dart` para detectar factories duplicadas o edge-cases que creen runtimes.
-        - [ ] Posible ajuste en CI: añadir chequeo estático/regresión que detecte instanciaciones directas si se reintroducen (Batch 5).
-   - Política recomendada: eliminar el fallback; `AIService.select` queda deprecado/evitado. Todo el código debe resolver runtimes mediante DI/fábricas (`lib/core/di.dart`) o `runtime_factory` y no usar select como mecanismo automático.
+   - Objetivo: detectar y corregir instanciaciones directas residuales de `OpenAIService()` y `GeminiService()` en el resto del repo (incluye `AIService.select`).
+   - Estado: COMPLETADO ✅ (verificado localmente el 2025-08-19).
+   - Cambios aplicados (checklist):
+      - [x] Refactorizar `AIService.select` para delegar en `lib/core/runtime_factory.dart`.
+      - [x] Cambiar `getAllAIModels()` para pedir instancias al runtime factory en lugar de instanciar runtimes directamente.
+      - [x] Ajustar `lib/core/runtime_factory.dart` para usar `Config.getDefaultTextModel()` y mantener singletons por modelo.
+      - [x] Reemplazar lecturas directas de `dotenv` por `Config` en puntos críticos (`default_tts_service` y otros).
+      - [x] Añadir prueba de regresión `test/migration/import_sanity_test.dart`.
+      - [x] Añadida `test/migration/check_runtime_instantiation_test.dart` para detectar instanciaciones directas fuera del factory.
+   - Verificación realizada:
+      - [x] `flutter analyze`: sin issues (análisis local).
+      - [x] `flutter test` (suite local): pasada.
+      - [x] Búsqueda rápida en el repo: instanciaciones de runtimes encontradas únicamente en `lib/core/runtime_factory.dart`; lecturas de `dotenv.env` encontradas únicamente en `lib/core/config.dart` (lecturas en import-time eliminadas fuera de `config`).
+   - Notas/acciones residuales (baja prioridad):
+      - [ ] Revisar imports en `lib/features/` que puedan referenciar adaptadores obsoletos (auditoría por lotes en Batch 4).
+      - [ ] Auditoría rápida de `lib/core/di.dart` para detectar factories duplicadas o edge-cases que creen runtimes.
+      - [ ] Considerar añadir un chequeo CI estático/regresión (Batch 5) que detecte instanciaciones directas si se reintroducen.
+   - Política recomendada: eliminar el fallback; `AIService.select` queda deprecado/evitado. Todo el código debe resolver runtimes mediante DI/fábricas (`lib/core/di.dart`) o `runtime_factory` y no usar `select` como mecanismo automático.
 
 Batch 4 — Resto del repo (pendiente, por lotes)
    Objetivo general: completar el sweep y aplicar verificaciones/CI que eviten regresiones.
@@ -167,7 +167,7 @@ Batch 4 — Resto del repo (pendiente, por lotes)
          - Archivos propuestos: `lib/screens/*`, `lib/providers/*`, `lib/widgets/*` (detallar tras grep)
       - [ ] Lote B (3–6 archivos): auditar y actualizar imports que apunten a adaptadores obsoletos y renombrados (`openai_profile_adapter.dart` → `profile_adapter.dart`).
       - [ ] Lote C (3–6 archivos): pruebas de integración/local (smoke) para orquestadores (Calls/Voice) con fakes.
-   - [x] Añadir y verificar scripts de CI para prevenir regresiones (workflow básico creado en `.github/workflows/flutter-ci.yml`).
+   - [x] Añadido y verificado workflow básico de CI (`.github/workflows/flutter-ci.yml`) que ejecuta `flutter analyze` + `flutter test`.
    Verificación requerida tras cada lote:
       - Ejecutar `flutter analyze` y corregir issues.
       - Ejecutar subset de `flutter test` afectado y luego la suite completa si todo pasa.
@@ -175,7 +175,6 @@ Batch 4 — Resto del repo (pendiente, por lotes)
       - Mantener PRs pequeños por lote y documentar verificación (analyze + tests) en el PR body.
       - Usar `Config.setOverrides` y `AIService.testOverride` en `test_setup.dart` para evitar dependencia de `.env` en CI.
    Pendientes globales (post-sweep):
-   - [x] Crear job CI que ejecute `flutter analyze` + `flutter test` en cada PR. (workflow básico añadido en `.github/workflows/flutter-ci.yml`)
       - [ ] Añadir check de regresión estática para detectar instanciaciones directas de runtimes y afinar en caso de falsos positivos.
       - [ ] Auditoría final de imports en `lib/features/` y `lib/providers/`.
 

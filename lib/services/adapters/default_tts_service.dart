@@ -4,9 +4,8 @@ import 'package:ai_chan/core/interfaces/tts_service.dart';
 import 'package:ai_chan/services/google_speech_service.dart';
 import 'package:ai_chan/services/android_native_tts_service.dart';
 import 'package:ai_chan/services/adapters/openai_adapter.dart';
-import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
 // dotenv usage removed — use Config getters instead
-import 'package:ai_chan/services/openai_service.dart';
+// removed unused runtime/openai imports: use OpenAIAdapter wrapper instead
 import 'package:ai_chan/core/config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -83,12 +82,9 @@ class DefaultTtsService implements ITtsService {
 
     // 3) Fallback to OpenAI adapter (default)
     try {
-      final openaiRuntime = runtime_factory.getRuntimeAIServiceForModel('gpt-4o');
-      // OpenAIAdapter expects an OpenAIService runtime; cast safely when applicable.
-      if (openaiRuntime is OpenAIService) {
-        final path = await OpenAIAdapter(openaiRuntime).textToSpeech(text, voice: voice);
-        if (path != null) return path;
-      }
+      final adapter = OpenAIAdapter(modelId: 'gpt-4o');
+      final path = await adapter.textToSpeech(text, voice: voice);
+      if (path != null) return path;
     } catch (_) {}
 
     return null;
