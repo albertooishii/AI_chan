@@ -366,17 +366,73 @@ Acción recomendada inmediata: documentar esquema JSON v1 y añadir validaciones
 
 Acción recomendada inmediata: crear el fichero `lib/core/models/calendar_entry.dart` con fields mínimos y un test básico.
 
-## Tests, `.env` y prácticas para evitar llamadas reales en CI
-- Centralizar setup de tests: usar `test/test_setup.dart` y `initializeTestEnvironment()`.
-- Reglas rápidas
-   - [x] Cargar `.env` sólo en runtime; evitar load en import-time.
-   - [x] Tests que ejerciten IA deben inyectar `AIService.testOverride` o pasar `aiServiceOverride` a generadores.
-   - [x] Existe helper `initializeTestEnvironment()` que inyecta un `.env` falso si no hay uno real.
+## Matriz de tests por bounded context (deduplicada)
 
-Acciones para migrar tests
-   1. Reemplazar `await dotenv.load()` por `await initializeTestEnvironment()` en tests.
-   2. Asegurar que cualquier test que use IA inyecta `AIService.testOverride`.
-   3. Marcar tests lentos/integración como `integration` y correrlos separadamente.
+Abajo incluyo los tests existentes por contexto, el estado (existente / pendiente) y notas sobre duplicados que conviene consolidar.
+
+Onboarding
+- [x] test/onboarding/ia_bio_generator_test.dart — generación de biografías (unitario)
+- [x] test/onboarding/generate_and_save_bio_test.dart — flujo de generación y persistencia
+- [x] test/onboarding/generate_full_bio_test.dart — variantes de generación (edge cases)
+- [x] test/onboarding/google_profile_adapter_test.dart — adaptador de perfil (ahora canonical)
+- [x] test/onboarding/profile_service_test.dart — servicio de perfil (unit)
+- [x] test/onboarding/onboarding_provider_test.dart — provider (integration/unit)
+- [x] test/onboarding/persistence_test.dart — persistencia local
+- [x] test/onboarding/appearance_save_failure_test.dart — error en guardado (edge)
+- [x] test/onboarding/appearance_save_io_failure_test.dart — IO failure (edge)
+- [x] test/onboarding/ai_chan_profile_json_test.dart — serialización/JSON
+- [x] test/onboarding/universal_profile_service_adapter_test.dart — adapter adapter (integration)
+
+Notas Onboarding:
+- Consolidar los tests de adaptador de perfil en un único archivo canonical (por ejemplo `test/onboarding/profile_adapter_test.dart`). Actualmente existen `google_profile_adapter_test.dart` y `universal_profile_service_adapter_test.dart` que cubren lógica similar.
+
+Chat
+- [x] test/chat/chat_provider_test.dart — provider (existente)
+- [x] test/chat/chat_provider_send_message_test.dart — nuevo: happy path sendMessage (añadido)
+- [x] test/chat/chat_import_export_roundtrip_test.dart — import/export roundtrip (añadido)
+- [x] test/chat/local_chat_repository_test.dart — repo local (persistencia)
+- [x] test/chat_migration/chat_provider_adapter_test.dart — compatibilidad / adapters
+- [x] test/chat_migration/migration_step1_test.dart — migración específica
+
+Notas Chat:
+- `chat_provider_test.dart` y `chat_provider_send_message_test.dart` se solapan; proponer consolidar en `test/chat/chat_provider_unit_test.dart` (unit + casos edge separados en otros archivos).
+
+Calls / Voice
+- [x] test/calls/gemini_orchestrator_test.dart — orquestador (existing)
+- [x] test/calls/gemini_orchestrator_flow_test.dart — añadido: flujo STT->AI->TTS (smoke/unit)
+
+Notas Calls:
+- Consolidar `gemini_orchestrator_test.dart` y `gemini_orchestrator_flow_test.dart` en un conjunto: unidad (orden de llamadas) + smoke (integración con fakes). Mantener nombres claros: `gemini_orchestrator_unit_test.dart` y `gemini_orchestrator_flow_test.dart`.
+
+Import / Export
+- [x] test/chat/chat_import_export_roundtrip_test.dart — roundtrip básico (ya cubierto)
+- [ ] Falta test de esquema JSON formal (validación de versión/errores de import)
+
+Core / Infra / Migration
+- [x] test/core/config_test.dart — configuración central y overrides (añadido)
+- [x] test/core/runtime_factory_test.dart — selección y caching de runtimes (añadido)
+- [x] test/core/ai_image_test.dart — imagenes/DTOs (existing)
+- [x] test/migration/import_sanity_test.dart — detecta imports directos a adaptadores concretos (regresión)
+- [x] test/migration/check_runtime_instantiation_test.dart — detecta instanciaciones directas fuera del factory
+
+Transversales / Utilitarios
+- [x] test/schedule_utils_test.dart — utilidades de programación
+- [x] test/widget_test.dart — widget básico (flutter)
+- [x] test/test_setup.dart — helper de inicialización (usar siempre)
+
+Consolidación y reglas propuestas
+- Regla 1: Todos los tests deben usar `await initializeTestEnvironment()` en `setUp`/main para evitar dependencia de `.env`.
+- Regla 2: Tests que usan IA deben inyectar `AIService.testOverride` o pasar fakes explícitos. Evitar llamadas de red.
+- Regla 3: Identificar tests que cubren lo mismo y consolidarlos; mantener un test unitario por función/hoja de ruta y tests de integración/smoke separados y etiquetados.
+
+Acciones inmediatas sugeridas (prioritarias)
+- [ ] Consolidar tests de adapadores de perfil: crear `test/onboarding/profile_adapter_test.dart` y mover/mergear casos relevantes.
+- [ ] Consolidar tests de chat provider en `test/chat/chat_provider_unit_test.dart` y extraer flujos de integración a `test/chat/chat_provider_integration_test.dart`.
+- [ ] Añadir test de validación de esquema JSON para import/export (`test/import/schema_validation_test.dart`).
+- [ ] Añadir test de regressión CI que falle si aparece `OpenAIService(` o `GeminiService(` fuera de `lib/core/runtime_factory.dart`.
+
+Uso de `.env` en tests
+- Mantener la práctica: cargar `.env` sólo a través de `initializeTestEnvironment()` y/o `Config.setOverrides(...)` desde `test/test_setup.dart`. Esto asegura reproducibilidad en CI.
 
 ## Limpieza y archivos eliminados (registro)
 Estos archivos se eliminaron durante la migración local (actualiza si falta alguno):
@@ -427,3 +483,5 @@ Recordatorios operativos finales:
 - Antes de eliminar archivos en `archive/`, correr `flutter analyze` para asegurar cero referencias.
 
 Si quieres, empiezo por la oleada A (sanear imports por lotes). Dime si quieres que lo haga en este PR y aplicar los cambios en bloques pequeños para revisar después de cada batch.
+
+Nota de flujo de trabajo: en este proceso NO crearemos PRs intermedios; los cambios se harán push directo a la rama `migration`. Cuando la migración esté finalizada y verificada, se mergeará la rama `migration` a `main`.
