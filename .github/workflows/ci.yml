@@ -23,15 +23,6 @@ jobs:
           GOOGLE_REALTIME_MODEL=gemini-2.5-flash
           EOF
 
-      - name: Create .env example
-        run: |
-          cat > .env <<'EOF'
-          DEFAULT_TEXT_MODEL=gemini-2.5-flash
-          DEFAULT_IMAGE_MODEL=gpt-4.1-mini
-          OPENAI_REALTIME_MODEL=gpt-4o-realtime-preview
-          GOOGLE_REALTIME_MODEL=gemini-2.5-flash
-          EOF
-
       - name: Cache pub
         uses: actions/cache@v4
         with:
@@ -40,13 +31,13 @@ jobs:
             .dart_tool
           key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml') }}
 
-      - name: Install Flutter 3.17.12
-        run: |
-          set -e
-          git clone --depth 1 --branch 3.17.12 https://github.com/flutter/flutter.git $HOME/flutter
-          echo "$HOME/flutter/bin" >> $GITHUB_PATH
-          echo "$HOME/flutter/bin/cache/dart-sdk/bin" >> $GITHUB_PATH
-          flutter --version
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version-file: pubspec.yaml # path to pubspec.yaml
+      - name: Check Flutter version
+        run: flutter --version
 
       - name: Install dependencies
         run: flutter pub get
@@ -79,13 +70,13 @@ jobs:
             .dart_tool
           key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml') }}
 
-      - name: Install Flutter 3.17.12
-        run: |
-          set -e
-          git clone --depth 1 --branch 3.17.12 https://github.com/flutter/flutter.git $HOME/flutter
-          echo "$HOME/flutter/bin" >> $GITHUB_PATH
-          echo "$HOME/flutter/bin/cache/dart-sdk/bin" >> $GITHUB_PATH
-          flutter --version
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version-file: pubspec.yaml # path to pubspec.yaml
+      - name: Check Flutter version
+        run: flutter --version
 
       - name: Install dependencies
         run: flutter pub get
@@ -118,13 +109,13 @@ jobs:
             .dart_tool
           key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml') }}
 
-      - name: Install Flutter 3.17.12
-        run: |
-          set -e
-          git clone --depth 1 --branch 3.17.12 https://github.com/flutter/flutter.git $HOME/flutter
-          echo "$HOME/flutter/bin" >> $GITHUB_PATH
-          echo "$HOME/flutter/bin/cache/dart-sdk/bin" >> $GITHUB_PATH
-          flutter --version
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version-file: pubspec.yaml # path to pubspec.yaml
+      - name: Check Flutter version
+        run: flutter --version
 
       - name: Install dependencies
         run: flutter pub get
