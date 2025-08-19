@@ -94,6 +94,32 @@ make setup   # (recomendado) ejecuta el asistente para .env, instala hooks y dep
 flutter run
 ```
 
+Preparación rápida tras clonar
+-------------------------------
+
+Si acabas de clonar el repositorio, ejecuta lo siguiente para preparar tu entorno e instalar el hook pre-commit que ejecuta el analizador y los tests en cada commit:
+
+```bash
+git clone <repo-url>
+cd ai_chan
+make setup
+```
+
+Notas:
+- El hook pre-commit ejecuta `flutter analyze` y `flutter test --coverage` en cada commit. Si algún check falla, el commit se aborta.
+- Para omitir el hook en un commit puntual (solo cuando sea necesario), usa:
+
+```bash
+git commit -m "WIP" --no-verify
+```
+
+- Para desinstalar el hook local:
+
+```bash
+rm .git/hooks/pre-commit
+```
+
+
 ## Compilación por plataforma
 
 - Android: `flutter build apk` / `flutter run` (requiere Android SDK/emulador o dispositivo)

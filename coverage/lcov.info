@@ -1114,7 +1114,7 @@ LF:5
 LH:5
 end_of_record
 SF:lib/chat/services/adapters/ai_chat_response_adapter.dart
-DA:10,3
+DA:10,4
 DA:12,0
 DA:14,0
 DA:17,0
@@ -1269,7 +1269,7 @@ LF:109
 LH:1
 end_of_record
 SF:lib/constants/countries_es.dart
-DA:4,3
+DA:4,4
 LF:1
 LH:1
 end_of_record
@@ -1342,7 +1342,7 @@ LF:2
 LH:0
 end_of_record
 SF:lib/services/adapters/default_tts_service.dart
-DA:12,3
+DA:12,4
 DA:14,0
 DA:17,0
 DA:19,0
@@ -1371,7 +1371,7 @@ LF:25
 LH:1
 end_of_record
 SF:lib/services/adapters/google_stt_adapter.dart
-DA:9,3
+DA:9,4
 DA:11,1
 DA:14,1
 DA:15,1
@@ -1381,7 +1381,7 @@ LF:6
 LH:5
 end_of_record
 SF:lib/services/adapters/google_tts_adapter.dart
-DA:6,3
+DA:6,4
 DA:8,0
 DA:11,0
 DA:13,0
