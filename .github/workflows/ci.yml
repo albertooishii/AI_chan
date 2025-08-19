@@ -14,6 +14,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Create .env example
+        run: |
+          cat > .env <<'EOF'
+          DEFAULT_TEXT_MODEL=gemini-2.5-flash
+          DEFAULT_IMAGE_MODEL=gpt-4.1-mini
+          OPENAI_REALTIME_MODEL=gpt-4o-realtime-preview
+          GOOGLE_REALTIME_MODEL=gemini-2.5-flash
+          EOF
+
       - name: Cache pub
         uses: actions/cache@v4
         with:
