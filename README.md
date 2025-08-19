@@ -65,6 +65,15 @@ Notas:
 - Ajusta `DEFAULT_TEXT_MODEL` y `DEFAULT_IMAGE_MODEL` según el proveedor que uses (OpenAI, Gemini/Vertex, etc.).
 - Si `GEMINI_API_KEY` falla por cuota/permiso (401/403/429), la app intentará `GEMINI_API_KEY_FALLBACK` automáticamente si está definida.
 
+## Config y creación de runtimes (nota para desarrolladores)
+
+Este repo centraliza el acceso a configuración y la creación de runtimes AI para facilitar pruebas y migraciones:
+
+- `lib/core/config.dart`: helper central para leer variables de entorno y exponer getters (con posibilidad de `setOverrides` en tests). Evita lecturas de `.env` en import-time: carga la configuración en `main()` o mediante `initializeTestEnvironment()` en tests.
+- `lib/core/runtime_factory.dart`: fábrica y caché central que crea instancias de runtimes (p.ej. `OpenAIService` y `GeminiService`). Este fichero es el único lugar autorizado para instanciar runtimes en el código de la app; para evitar regresiones hay tests en `test/migration/` que lo verifican.
+
+Si modificas la creación de un runtime, actualiza `lib/core/runtime_factory.dart` y añade un test en `test/migration/` que cubra la nueva regla si procede.
+
 ## Instalación y ejecución rápida
 
 Requisitos: Flutter (canal `stable`) y los SDKs nativos de las plataformas que quieras probar.
@@ -149,18 +158,18 @@ Consejo: si vas a modificar instrucciones o prompts, evita dejar texto sensible 
 
 - Durante desarrollo la app escribe archivos JSON en `debug_json_logs/` para permitir inspección de prompts/respuestas y facilitar debugging. Antes de publicar, limpia o anonimiza ese directorio.
 
-## Contribuir
+## Uso local y experimentación
 
-- Abre issues para bugs o propuestas.
-- Haz forks y PRs pequeños y documentados.
-- Añade tests cuando cambies reglas de negocio o parsing de JSON.
+Este repositorio está mantenido por un único desarrollador. Otras personas pueden clonar el proyecto y compilar o experimentar en local, pero no se gestiona colaboración externa mediante forks o pull requests en el flujo habitual del proyecto.
+
+Si vas a probarlo localmente, sigue las instrucciones de instalación y los pasos rápidos en la sección "Instalación y ejecución rápida".
+
+Para problemas de seguridad o fallos graves, abre un issue en el repositorio para notificar al mantenedor.
 
 ## Licencia
 
-- MIT por defecto. Si prefieres otra licencia, añade un fichero `LICENSE` con la licencia deseada.
+MIT por defecto. Si deseas otra licencia, añade un fichero `LICENSE` con la licencia deseada.
 
 ## Contacto
 
-- Usa Issues en GitHub para preguntas, propuestas de mejora o reportes de seguridad.
-
-Gracias por tu interés. Si quieres que añada la sección `docs/PROMPTS.md` con los prompts internos (separados del README), dímelo y lo creo como archivo aparte y opcionalmente lo excluyo del repositorio público.
+Usa Issues en GitHub para preguntas importantes, reportes de seguridad o solicitudes específicas al mantenedor.

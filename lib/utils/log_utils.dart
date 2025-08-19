@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ai_chan/core/config.dart';
 import 'dart:developer' as dev;
 
 /// Niveles de log soportados (cuanto mayor el número, más detallado)
@@ -11,7 +11,8 @@ class Log {
   static LogLevel get _configuredLevel {
     String? raw;
     try {
-      raw = dotenv.env['APP_LOG_LEVEL']?.toLowerCase().trim();
+      raw = Config.get('APP_LOG_LEVEL', '').toLowerCase().trim();
+      if (raw.isEmpty) raw = null;
     } catch (_) {
       raw = null;
     }

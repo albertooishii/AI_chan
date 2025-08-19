@@ -1,4 +1,4 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ai_chan/core/config.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:async';
 // Replaced legacy barrel import with canonical barrel
@@ -212,10 +212,10 @@ class MemorySummaryService {
   // Lock de concurrencia optimizado: Completer estático compartido
   static Completer<void>? _lock;
   Future<void> _summaryQueue = Future.value();
-  static String get superblockModel => dotenv.env['DEFAULT_TEXT_MODEL'] ?? '';
+  static String get superblockModel => Config.getDefaultTextModel();
   final AiChanProfile profile;
   static int? get _maxHistory {
-    final value = int.tryParse(dotenv.env['SUMMARY_BLOCK_SIZE'] ?? '');
+    final value = int.tryParse(Config.get('SUMMARY_BLOCK_SIZE', ''));
     return (value != null && value > 0) ? value : null;
   }
 

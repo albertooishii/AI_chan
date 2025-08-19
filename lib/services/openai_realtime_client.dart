@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ai_chan/core/config.dart';
 import 'package:web_socket_channel/io.dart';
 
 class OpenAIRealtimeClient {
@@ -24,7 +24,7 @@ class OpenAIRealtimeClient {
     this.onUserTranscription,
   });
 
-  String get _apiKey => dotenv.env['OPENAI_API_KEY'] ?? '';
+  String get _apiKey => Config.getOpenAIKey();
   bool get isConnected => _connected;
   int _bytesSinceCommit = 0;
   bool _hasAppendedSinceConnect = false;

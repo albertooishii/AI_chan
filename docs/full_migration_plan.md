@@ -140,18 +140,44 @@ Changelog delta (archivos más relevantes modificados en esta rama):
    - Tests: `test/onboarding/*` actualizados para usar `AIService.testOverride`
 
 Próximo paso (Batch 3 — SWEEP)
-    - Objetivo: detectar y corregir instanciaciones directas residuales de `OpenAIService()` y `GeminiService()` en el resto del repo (incluye `AIService.select`).
-    - Estado: aplicado (delta resumido).
-    - Cambios aplicados (checklist):
-       - [x] Refactorizar `AIService.select` para delegar en `lib/core/runtime_factory.dart`.
-       - [x] Cambiar `getAllAIModels()` para pedir instancias al runtime factory en lugar de instanciar runtimes directamente.
-       - [x] Ajustar `lib/core/runtime_factory.dart` para usar `Config.getDefaultTextModel()` y mantener singletons por modelo.
-       - [x] Reemplazar lecturas directas de `dotenv` por `Config` en puntos críticos (`default_tts_service` y otros).
-       - [x] Añadir prueba de regresión `test/migration/import_sanity_test.dart`.
-    - Estrategia siguiente: completar un sweep opcional por archivos restantes por lotes pequeños (3–6 ficheros), ejecutar `flutter analyze` y la suite de tests tras cada lote.
-    - Política recomendada: mantener `AIService.select` solo como fallback documentado y que el código resuelva runtimes mediante DI/fábricas (`lib/core/di.dart`) o `runtime_factory`.
+     - Objetivo: detectar y corregir instanciaciones directas residuales de `OpenAIService()` y `GeminiService()` en el resto del repo (incluye `AIService.select`).
+     - Estado: COMPLETADO ✅ (verificado localmente el 2025-08-19).
+     - Cambios aplicados (checklist):
+        - [x] Refactorizar `AIService.select` para delegar en `lib/core/runtime_factory.dart`.
+        - [x] Cambiar `getAllAIModels()` para pedir instancias al runtime factory en lugar de instanciar runtimes directamente.
+        - [x] Ajustar `lib/core/runtime_factory.dart` para usar `Config.getDefaultTextModel()` y mantener singletons por modelo.
+        - [x] Reemplazar lecturas directas de `dotenv` por `Config` en puntos críticos (`default_tts_service` y otros).
+        - [x] Añadir prueba de regresión `test/migration/import_sanity_test.dart`.
+        - [x] Añadida también `test/migration/check_runtime_instantiation_test.dart` para detectar instanciaciones directas fuera del factory.
+     - Verificación realizada:
+        - [x] `flutter analyze`: sin issues (análisis local).
+        - [x] `flutter test` (suite local): pasada.
+        - [x] Búsqueda rápida en el repo: instanciaciones de runtimes encontradas únicamente en `lib/core/runtime_factory.dart`; lecturas de `dotenv.env` encontradas únicamente en `lib/core/config.dart` (import-time reads eliminados fuera de `config`).
+     - Notas/acciones residuales (bajas prioridades):
+        - [ ] Revisar imports en `lib/features/` que puedan referenciar adaptadores obsoletos (auditoría por lotes en Batch 4).
+        - [ ] Auditoría rápida de `lib/core/di.dart` para detectar factories duplicadas o edge-cases que creen runtimes.
+        - [ ] Posible ajuste en CI: añadir chequeo estático/regresión que detecte instanciaciones directas si se reintroducen (Batch 5).
+   - Política recomendada: eliminar el fallback; `AIService.select` queda deprecado/evitado. Todo el código debe resolver runtimes mediante DI/fábricas (`lib/core/di.dart`) o `runtime_factory` y no usar select como mecanismo automático.
 
-Si confirmas, inicio el Batch 3: primero listaré todas las instanciaciones directas y propondré el primer lote de cambios.
+Batch 4 — Resto del repo (pendiente, por lotes)
+   Objetivo general: completar el sweep y aplicar verificaciones/CI que eviten regresiones.
+   Estado: EN PROGRESO — la mayor parte del código crítico fue migrado; quedan tareas por lotes y verificación de imports.
+   Tareas priorizadas (checklist de lote inicial):
+      - [ ] Lote A (3–6 archivos): revisar y reemplazar usos residuales de `dotenv.env[...]` en widgets/providers/helpers.
+         - Archivos propuestos: `lib/screens/*`, `lib/providers/*`, `lib/widgets/*` (detallar tras grep)
+      - [ ] Lote B (3–6 archivos): auditar y actualizar imports que apunten a adaptadores obsoletos y renombrados (`openai_profile_adapter.dart` → `profile_adapter.dart`).
+      - [ ] Lote C (3–6 archivos): pruebas de integración/local (smoke) para orquestadores (Calls/Voice) con fakes.
+   - [x] Añadir y verificar scripts de CI para prevenir regresiones (workflow básico creado en `.github/workflows/flutter-ci.yml`).
+   Verificación requerida tras cada lote:
+      - Ejecutar `flutter analyze` y corregir issues.
+      - Ejecutar subset de `flutter test` afectado y luego la suite completa si todo pasa.
+   Notas operativas:
+      - Mantener PRs pequeños por lote y documentar verificación (analyze + tests) en el PR body.
+      - Usar `Config.setOverrides` y `AIService.testOverride` en `test_setup.dart` para evitar dependencia de `.env` en CI.
+   Pendientes globales (post-sweep):
+   - [x] Crear job CI que ejecute `flutter analyze` + `flutter test` en cada PR. (workflow básico añadido en `.github/workflows/flutter-ci.yml`)
+      - [ ] Añadir check de regresión estática para detectar instanciaciones directas de runtimes y afinar en caso de falsos positivos.
+      - [ ] Auditoría final de imports en `lib/features/` y `lib/providers/`.
 
 Este documento consolida la migración que ya iniciamos (chat) y la extiende a los demás contextos/productos del app: onboarding, llamadas (voice), import/export JSON y calendario. Está escrito como un plan ejecutable por etapas, siguiendo principios DDD (secciones por bounded context), y usando la estrategia de "Adaptadores + Interfaces" (Opción A) que ya comenzamos.
 
@@ -251,7 +277,7 @@ Requisitos de la reescritura solicitada
    - [x] Fábrica `getProfileServiceForProvider` en `lib/core/di.dart` (resuelve la implementación canónica y pasa el runtime cuando corresponde).
    - [x] Tests de persistencia/import-export añadidos y funcionando localmente.
 - Pendiente
-   - [ ] Revisar y mover cualquier código que lea `.env` al import-time; usar getters o inicialización explícita. (parcialmente cubierto: `Config` añadido)
+   - [x] Revisar y mover cualquier código que lea `.env` al import-time; usar getters o inicialización explícita. (completado: `Config` centraliza la carga en `initialize()` y no hay lecturas directas en import-time fuera de `lib/core/config.dart`)
 
 Acción recomendada inmediata: garantizar que el adaptador de perfil sea único y agnóstico (no crear `google_profile_adapter.dart` ni `openai_profile_adapter.dart` por separado). El adaptador debe aceptar un `AIService` inyectado y delegar en los generadores internos.
 
@@ -343,63 +369,3 @@ Si eliminaste más archivos localmente, actualiza la lista y ejecuta `flutter an
 El trabajo esencial ya está avanzado: modelos y fábricas DI existen, tests clave migrados a `initializeTestEnvironment()` y adaptadores OpenAI listos. Lo que falta es terminar el wiring por contextos (Google adapter, orquestador Gemini, refactor por lotes de imports) y añadir 2–3 regresiones/CI jobs para evitar reintroducir dependencias directas a proveedores.
 
 Si quieres, empiezo por la oleada A (sanear imports por lotes). Dime si quieres que lo haga en este PR y aplicar los cambios en bloques pequeños para revisar después de cada batch.
-
-## Batch 3 — SWEEP (aplicado)
-
-Estado: aplicado (delta resumido).
-
-Cambios principales realizados en este lote:
-- `lib/services/ai_service.dart`
-   - `AIService.select` ahora delega la selección/creación de runtimes a `lib/core/runtime_factory.dart`.
-   - `getAllAIModels()` pide instancias al runtime factory en lugar de instanciar `GeminiService()`/`OpenAIService()` directamente.
-- `lib/core/runtime_factory.dart`
-   - Refactorizado para usar `Config.getDefaultTextModel()` como origen de modelo por defecto cuando no se pasa `modelId`.
-   - Mantiene singletons por `key` y centraliza las únicas instanciaciones de `OpenAIService` y `GeminiService`.
-- `lib/core/config.dart`
-   - Añadido `Config.getGoogleLanguageCode()` y pequeñas mejoras en getters.
-- `lib/services/adapters/default_tts_service.dart`
-   - Evita lecturas directas de `dotenv` para `GOOGLE_LANGUAGE_CODE` y usa `Config`.
-   - Reemplaza la creación directa de runtimes por llamadas al `runtime_factory` y hace casts seguros.
-- `test/migration/import_sanity_test.dart` (nuevo)
-   - Prueba de regresión que falla si se detectan instanciaciones directas de `OpenAIService()` o `GeminiService()` fuera de `lib/core/runtime_factory.dart`.
-
-Verificación realizada:
-- `flutter analyze`: sin issues.
-- `flutter test`: la suite completa pasó (tests unitarios locales).
-
-Motivación y efecto:
-- Este batch reduce puntos de creación de runtimes a un único lugar (`runtime_factory`) y facilita el uso de fakes en tests y la sustitución de proveedores.
-
-Notas para el PR y comandos sugeridos
-
-PR title suggestion:
-   "migration: centralize AI runtime creation (Batch 3 — runtime factory + tests)"
-
-PR body suggestion (breve):
-   - Motivo: centralizar instanciación de runtimes (OpenAI/Gemini) para seguir el patrón Hexagonal/DDD y facilitar tests.
-   - Cambios: lista de archivos modificados (ver arriba).
-   - Verificación: `flutter analyze` y `flutter test` pasaron localmente.
-
-Comandos sugeridos para commit/PR:
-
-```bash
-# revisar cambios
-git status --porcelain
-
-# añadir cambios y commitear en la rama actual (migration)
-git add docs/full_migration_plan.md lib/core/config.dart lib/core/runtime_factory.dart lib/services/ai_service.dart lib/services/adapters/default_tts_service.dart test/migration/import_sanity_test.dart
-git commit -m "migration(batch3): centralize AI runtime creation, use Config and add migration sanity test"
-
-# push la rama (si corresponde)
-git push origin HEAD
-
-# Crear PR (ejemplo para GitHub CLI)
-gh pr create --base migration --title "migration: centralize AI runtime creation (Batch 3)" --body "Centraliza creación de runtimes (OpenAI/Gemini) en runtime_factory; refactoriza AIService.select y añade prueba de regresión." 
-```
-
-Checklist de requisitos y estado:
-- Centralizar config y evitar lectura de dotenv en import-time: Done (Config + reemplazos aplicados).
-- Evitar instanciaciones directas de runtimes fuera del factory: Done (runtime_factory es el único sitio que crea runtimes).
-- Tests: Añadida prueba de regresión y suite completa pasó: Done.
-
-Si quieres, puedo también generar el texto exacto del PR (más largo) y una lista completa de los hunks de cambio para revisión de código en GitHub. Dime si quieres que lo añada al PR body.

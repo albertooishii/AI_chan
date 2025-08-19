@@ -13,7 +13,7 @@ import 'dart:async';
 import 'voice_call_painters.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_chan/constants/voices.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ai_chan/core/config.dart';
 import '../services/google_speech_service.dart';
 import 'cyberpunk_subtitle.dart';
 import '../services/subtitle_controller.dart';
@@ -350,11 +350,11 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
         final saved = prefs.getString('selected_voice');
         // Determinar proveedor activo (prefs -> env), mapeando gemini->google para compatibilidad
         final savedProvider = prefs.getString('selected_audio_provider');
-        final envProvider = dotenv.env['AUDIO_PROVIDER']?.toLowerCase();
+            final envProvider = Config.getAudioProvider().toLowerCase();
         String provider;
         if (savedProvider != null) {
           provider = (savedProvider == 'gemini') ? 'google' : savedProvider.toLowerCase();
-        } else if (envProvider != null) {
+        } else if (envProvider.isNotEmpty) {
           provider = (envProvider == 'gemini') ? 'google' : envProvider;
         } else {
           provider = 'google';
@@ -379,13 +379,13 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
           validVoices = kOpenAIVoices;
         }
 
-        final envDefault = dotenv.env['OPENAI_VOICE'];
+            final envDefault = Config.getOpenaiVoice();
         final effective = (saved != null && validVoices.contains(saved))
             ? saved
             : (validVoices.isNotEmpty ? validVoices.first : resolveDefaultVoice(envDefault));
         controller.setVoice(effective); // asegurar antes de iniciar llamada
       } catch (_) {
-        controller.setVoice(resolveDefaultVoice(dotenv.env['OPENAI_VOICE']));
+            controller.setVoice(resolveDefaultVoice(Config.getOpenaiVoice()));
       }
     });
 

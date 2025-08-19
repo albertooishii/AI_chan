@@ -1,6 +1,6 @@
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/screens/initializing_screen.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ai_chan/core/config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -28,7 +28,7 @@ Future<void> clearAppData() async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Necesario para registrar plugins antes de usarlos
-  await dotenv.load();
+  await Config.initialize();
   runApp(const RootApp());
 }
 

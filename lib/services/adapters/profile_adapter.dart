@@ -4,15 +4,15 @@ import 'package:ai_chan/services/ai_service.dart';
 import 'package:ai_chan/core/services/ia_bio_generator.dart';
 import 'package:ai_chan/core/services/ia_appearance_generator.dart';
 
-/// Google/Gemini adapter real: delega la generación de biografía y apariencia
-/// a los generadores existentes pasando una instancia de [GeminiService].
+/// Adaptador canónico de perfil: delega la generación de biografía y apariencia
+/// a los generadores existentes pasando una instancia de [AIService].
 ///
 /// Permite inyectar una implementación de [AIService] para tests.
-class GoogleProfileAdapter implements IProfileService {
+class ProfileAdapter implements IProfileService {
   final AIService _aiService;
 
   /// Constructor que requiere la inyección de una implementación de `AIService`.
-  GoogleProfileAdapter({required AIService aiService}) : _aiService = aiService;
+  ProfileAdapter({required AIService aiService}) : _aiService = aiService;
 
   @override
   Future<AiChanProfile> generateBiography({
@@ -35,9 +35,7 @@ class GoogleProfileAdapter implements IProfileService {
         aiServiceOverride: _aiService,
       );
     } catch (e) {
-      // Si falla por falta de claves o inicialización (tests/local), caer en un fallback determinista.
-      // Esto permite que la app siga funcionando sin claves en entorno local, pero cuando las claves
-      // estén presentes se usará GeminiService.
+      // Fallback determinista para entornos sin claves
       return AiChanProfile(
         userName: userName,
         aiName: aiName,
@@ -63,16 +61,12 @@ class GoogleProfileAdapter implements IProfileService {
       );
       return result['avatar'] as AiImage?;
     } catch (e) {
-      // Fallback a imagen placeholder cuando la generación falla por falta de servicio
       return AiImage(url: 'https://example.com/avatar_placeholder.png', seed: 'fallback-seed', prompt: 'fallback');
     }
   }
 
   @override
   Future<void> saveProfile(AiChanProfile profile) async {
-    // Actualmente la persistencia global la maneja repositorios/StorageUtils.
-    // Aquí dejamos un no-op para mantener la interfaz; si se requiere,
-    // podemos inyectar un IStorageService y guardar el perfil.
     return;
   }
 }

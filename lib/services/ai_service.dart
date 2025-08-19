@@ -1,4 +1,4 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+// dotenv no se usa aquí; la configuración se centraliza en runtime_factory / Config
 import '../utils/debug_call_logger/debug_call_logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
@@ -30,14 +30,16 @@ abstract class AIService {
     String? imageMimeType,
     bool enableImageGeneration = false,
   }) async {
-    model = model ?? dotenv.env['DEFAULT_TEXT_MODEL'] ?? '';
-    String fallbackModel = 'gpt-4.1-mini';
-
-    // Si en tests se ha inyectado una implementación, usarla
-    AIService? aiService = AIService.testOverride ?? AIService.select(model);
+  model = model ?? runtime_factory.getDefaultModelId();
+    // Si en tests se ha inyectado una implementación, usarla; si no, resolver vía runtime_factory.
+    AIService? aiService = AIService.testOverride;
     if (aiService == null) {
-      debugPrint('[AIService.sendMessage] No se pudo encontrar el servicio IA para el modelo: $model');
-      return AIResponse(text: '');
+      try {
+        aiService = runtime_factory.getRuntimeAIServiceForModel(model);
+      } catch (e) {
+        debugPrint('[AIService.sendMessage] No se pudo resolver el runtime para el modelo: $model -> $e');
+        return AIResponse(text: '');
+      }
     }
 
     // Guardar logs usando debugLogCallPrompt (solo en debug/profile y escritorio)
@@ -117,53 +119,17 @@ abstract class AIService {
       'model': model,
       'timestamp': DateTime.now().toIso8601String(),
     });
-    bool hasQuotaError(String text) {
-      return text.contains('RESOURCE_EXHAUSTED') ||
-          text.contains('quota') ||
-          text.contains('429') ||
-          text.contains('You exceeded your current quota') ||
-          text.contains('Error: Falta la API key');
-    }
 
-    if (hasQuotaError(response.text) && model != fallbackModel) {
-      debugPrint('[AIService.sendMessage] Modelo $model falló por cuota, reintentando con $fallbackModel...');
-      aiService = AIService.select(fallbackModel);
-      if (aiService == null) {
-        debugPrint('[AIService.sendMessage] No se pudo encontrar el servicio IA para el modelo: $fallbackModel');
-        return AIResponse(text: '');
-      }
-      response = await aiService.sendMessageImpl(
-        history,
-        systemPrompt,
-        model: fallbackModel,
-        imageBase64: imageBase64,
-        imageMimeType: imageMimeType,
-        enableImageGeneration: enableImageGeneration,
-      );
-    }
+  // Nota: no se reintenta con modelos de fallback automáticamente: la resolución de runtimes
+  // debe ser explícita vía DI/fábrica. Si hay un error por cuota, devolvemos la respuesta tal cual
+  // y es responsabilidad del caller o la capa superior decidir reintentar con otro modelo.
     return response;
   }
 
   Future<List<String>> getAvailableModels();
 
   /// Selecciona el servicio IA adecuado según el modelo
-  static AIService? select(String modelId) {
-    // Log para depuración
-    debugPrint('[AIService.select] Modelo recibido: "$modelId"');
-    if (modelId.trim().isEmpty) {
-      debugPrint('[AIService.select] El modelo recibido está vacío.');
-      return null;
-    }
-    // Delegar la creación/selección del runtime al factory centralizado.
-    try {
-      final impl = runtime_factory.getRuntimeAIServiceForModel(modelId);
-      return impl;
-    } catch (e) {
-  debugPrint('[AIService.select] Error al delegar en runtime_factory: $e');
-  debugPrint('[AIService.select] Modelo "$modelId" no reconocido.');
-      return null;
-    }
-  }
+  // Note: AIService.select removed — runtime resolution must use runtime_factory.getRuntimeAIServiceForModel
 }
 
 /// Devuelve la lista combinada de modelos de todos los servicios IA

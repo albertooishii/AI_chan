@@ -1,4 +1,4 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ai_chan/core/config.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_chan/constants/voices.dart';
@@ -407,7 +407,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                     Builder(
                       builder: (context) {
-                        final defaultModel = dotenv.env['DEFAULT_TEXT_MODEL'] ?? '';
+                        final defaultModel = Config.getDefaultTextModel();
                         final selected = chatProvider.selectedModel ?? defaultModel;
                         return Padding(
                           padding: const EdgeInsets.only(left: 8.0),
@@ -673,7 +673,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 final ctx = context;
                 if (!ctx.mounted) return;
                 final current = chatProvider.selectedModel;
-                final defaultModel = dotenv.env['DEFAULT_TEXT_MODEL'] ?? '';
+                    final defaultModel = Config.getDefaultTextModel();
                 final initialModel =
                     current ??
                     (models.contains(defaultModel) ? defaultModel : (models.isNotEmpty ? models.first : null));
@@ -1081,7 +1081,7 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final saved = prefs.getString('selected_audio_provider');
-      final envValue = dotenv.env['AUDIO_PROVIDER']?.toLowerCase();
+      final envValue = Config.getAudioProvider().toLowerCase();
 
       // Mapear 'gemini' a 'google' para compatibilidad hacia atrás
       String defaultValue = 'google';
@@ -1107,10 +1107,8 @@ class _ChatScreenState extends State<ChatScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('selected_audio_provider', provider);
 
-      // También actualizar la variable de entorno para que el sistema la use
-      // Mapear 'google' a 'gemini' para el RealtimeProvider interno
-      final envValue = provider == 'google' ? 'gemini' : provider;
-      dotenv.env['AUDIO_PROVIDER'] = envValue;
+  // También persistir mapping legacy (mapear google->gemini) en prefs y no tocar dotenv global directamente
+  // No escribimos en dotenv.env, persistimos solo en SharedPreferences (ya hecho arriba)
     } catch (_) {}
   }
 }

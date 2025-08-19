@@ -5,7 +5,7 @@ import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../utils/audio_utils.dart';
 import 'package:ai_chan/core/di.dart' as di;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ai_chan/core/config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'google_speech_service.dart';
 import 'android_native_tts_service.dart';
@@ -270,12 +270,12 @@ class AudioChatService {
         if (saved != null) {
           provider = (saved == 'gemini') ? 'google' : saved.toLowerCase();
         } else {
-          final env = dotenv.env['AUDIO_PROVIDER']?.toLowerCase();
-          if (env != null) provider = (env == 'gemini') ? 'google' : env;
+          final env = Config.getAudioProvider().toLowerCase();
+          if (env.isNotEmpty) provider = (env == 'gemini') ? 'google' : env;
         }
       } catch (_) {
-        final env = dotenv.env['AUDIO_PROVIDER']?.toLowerCase();
-        if (env != null) provider = (env == 'gemini') ? 'google' : env;
+        final env = Config.getAudioProvider().toLowerCase();
+        if (env.isNotEmpty) provider = (env == 'gemini') ? 'google' : env;
       }
 
       // Probar TTS nativo de Android primero si está disponible
@@ -339,7 +339,7 @@ class AudioChatService {
         // voice is expected to be a Google voice name like 'es-ES-Neural2-A'
         if (GoogleSpeechService.isConfigured) {
           try {
-            final lang = languageCode ?? dotenv.env['GOOGLE_LANGUAGE_CODE'] ?? 'es-ES';
+            final lang = languageCode ?? 'es-ES';
             final file = await GoogleSpeechService.textToSpeechFile(text: text, voiceName: voice, languageCode: lang);
             if (file != null) return file;
             debugPrint('[Audio][TTS] Google TTS returned null file, falling back to OpenAI');
@@ -356,7 +356,7 @@ class AudioChatService {
         final tts = di.getTtsService();
         final path = await tts.synthesizeToFile(
           text: text,
-          options: {'voice': voice, 'languageCode': languageCode ?? dotenv.env['GOOGLE_LANGUAGE_CODE'] ?? 'es-ES'},
+          options: {'voice': voice, 'languageCode': languageCode ?? 'es-ES'},
         );
         if (path == null) return null;
         final f = File(path);

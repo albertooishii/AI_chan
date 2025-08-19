@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ai_chan/core/config.dart';
+// import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:path_provider/path_provider.dart';
 
 /// Devuelve el directorio local de caché según plataforma
@@ -10,7 +11,7 @@ Future<Directory> getLocalCacheDir() async {
   // Solo permitir configuración personalizada en plataformas desktop
   if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
     // Desktop: try env first, otherwise fallback to $HOME/AI_chan/cache
-    String configured = dotenv.env['CACHE_DIR_DESKTOP'] ?? '~/AI_chan/cache';
+  String configured = Config.get('CACHE_DIR_DESKTOP', '~/AI_chan/cache');
 
     var cfg = configured.trim();
     final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '';

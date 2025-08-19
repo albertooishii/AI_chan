@@ -18,7 +18,7 @@ import 'package:ai_chan/services/gemini_realtime_client.dart';
 import 'package:ai_chan/services/openai_service.dart';
 import 'package:ai_chan/services/gemini_service.dart';
 import 'package:ai_chan/core/interfaces/i_profile_service.dart';
-import 'package:ai_chan/services/adapters/google_profile_adapter.dart';
+import 'package:ai_chan/services/adapters/profile_adapter.dart';
 import 'package:ai_chan/core/config.dart';
 // ...existing code...
 import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
@@ -113,9 +113,9 @@ IProfileService getProfileServiceForProvider([String? provider]) {
   // If caller passes provider explicitly, use it.
   if (provider != null && provider.trim().isNotEmpty) {
     final p = provider.toLowerCase();
-  if (p == 'google' || p == 'gemini') return GoogleProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gemini-2.5-flash'));
-  if (p == 'openai') return GoogleProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gpt-4o'));
-    return GoogleProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gemini-2.5-flash'));
+  if (p == 'google' || p == 'gemini') return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gemini-2.5-flash'));
+  if (p == 'openai') return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gpt-4o'));
+    return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gemini-2.5-flash'));
   }
 
   // Otherwise, prefer the DEFAULT_TEXT_MODEL from config to infer the provider.
@@ -132,7 +132,7 @@ IProfileService getProfileServiceForProvider([String? provider]) {
   // This corresponds to using 'gemini-2.5-flash' as the default text model.
   if (resolved.isEmpty) resolved = 'google';
 
-  if (resolved == 'google' || resolved == 'gemini') return GoogleProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gemini-2.5-flash'));
-  if (resolved == 'openai') return GoogleProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gpt-4o'));
-  return GoogleProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gemini-2.5-flash'));
+  if (resolved == 'google' || resolved == 'gemini') return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gemini-2.5-flash'));
+  if (resolved == 'openai') return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gpt-4o'));
+  return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel('gemini-2.5-flash'));
 }

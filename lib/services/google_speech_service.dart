@@ -1,13 +1,14 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ai_chan/core/config.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import '../core/cache/cache_service.dart';
+import '../utils/locale_utils.dart';
 
 class GoogleSpeechService {
-  static String get _apiKey => dotenv.env['GOOGLE_CLOUD_API_KEY']?.trim() ?? '';
+  static String get _apiKey => Config.get('GOOGLE_CLOUD_API_KEY', '').trim();
 
   /// Convierte texto a voz usando Google Cloud Text-to-Speech con caché
   static Future<Uint8List?> textToSpeech({
@@ -371,12 +372,36 @@ class GoogleSpeechService {
 
   /// Obtiene configuración de voz desde variables de entorno
   static Map<String, dynamic> getVoiceConfig() {
-    final voiceName = dotenv.env['GOOGLE_VOICE_NAME'] ?? 'es-ES-Neural2-A';
-    final languageCode = dotenv.env['GOOGLE_LANGUAGE_CODE'] ?? 'es-ES';
-    final speakingRate = double.tryParse(dotenv.env['GOOGLE_SPEAKING_RATE'] ?? '1.0') ?? 1.0;
-    final pitch = double.tryParse(dotenv.env['GOOGLE_PITCH'] ?? '0.0') ?? 0.0;
+  // Voice name may be configurable, but language, speaking rate and pitch are
+  // intentionally hardcoded per project policy (do not use env to override).
+  final voiceName = Config.get('GOOGLE_VOICE_NAME', 'es-ES-Neural2-A');
+  final languageCode = resolveDefaultLanguageCode();
+  final speakingRate = 1.0;
+  final pitch = 0.0;
 
     return {'voiceName': voiceName, 'languageCode': languageCode, 'speakingRate': speakingRate, 'pitch': pitch};
+  }
+
+  /// Resolve a sensible default language code for Google TTS.
+  /// Priority: provided country ISO2 -> LocaleUtils mapping -> system locale -> fallback 'es-ES'.
+  static String resolveDefaultLanguageCode([String? countryIso2]) {
+    try {
+      if (countryIso2 != null && countryIso2.trim().isNotEmpty) {
+        final codes = LocaleUtils.officialLanguageCodesForCountry(countryIso2.trim().toUpperCase());
+        if (codes.isNotEmpty) return codes.first;
+      }
+    } catch (_) {}
+    try {
+      // Platform.localeName often looks like 'es_ES' or 'en_US'. Convert to 'es-ES'.
+      final locale = Platform.localeName.replaceAll('_', '-');
+      final parts = locale.split('-');
+      if (parts.isNotEmpty) {
+        final lang = parts[0].toLowerCase();
+        final region = parts.length > 1 ? parts[1].toUpperCase() : '';
+        return region.isNotEmpty ? '\${lang}-\$region' : lang;
+      }
+    } catch (_) {}
+    return 'es-ES';
   }
 
   /// Verifica si el servicio está configurado correctamente

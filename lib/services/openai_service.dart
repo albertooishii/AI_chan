@@ -1,4 +1,4 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ai_chan/core/config.dart';
 import 'dart:convert';
 // import 'package:flutter/foundation.dart';
 import '../utils/log_utils.dart';
@@ -146,7 +146,7 @@ class OpenAIService implements AIService {
       );
     }
     final Map<String, dynamic> bodyMap = {
-      "model": model ?? dotenv.env['DEFAULT_IMAGE_MODEL'] ?? '', // default OpenAI cuando se fuerza imagen
+      "model": model ?? Config.getDefaultImageModel(), // default OpenAI cuando se fuerza imagen
       "input": input,
       if (tools.isNotEmpty) "tools": tools,
       // Nota: No incluir 'modalities' aquí; algunos modelos del endpoint /responses no lo soportan
@@ -233,7 +233,7 @@ class OpenAIService implements AIService {
     }
   }
 
-  String get apiKey => dotenv.env['OPENAI_API_KEY'] ?? '';
+  String get apiKey => Config.getOpenAIKey();
 
   /// Transcribe un archivo de audio usando OpenAI Whisper
   Future<String?> transcribeAudio(String filePath, {String? language}) async {

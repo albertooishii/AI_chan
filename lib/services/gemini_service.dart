@@ -3,12 +3,12 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'ai_service.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ai_chan/core/config.dart';
 // duplicate import removed
 
 class GeminiService implements AIService {
-  static String get _primaryKey => dotenv.env['GEMINI_API_KEY']?.trim() ?? '';
-  static String get _fallbackKey => dotenv.env['GEMINI_API_KEY_FALLBACK']?.trim() ?? '';
+  static String get _primaryKey => Config.getGeminiKey().trim();
+  static String get _fallbackKey => Config.get('GEMINI_API_KEY_FALLBACK', '').trim();
   // Recuerda qué clave funcionó la última vez para priorizarla en siguientes llamadas
   static bool _preferFallback = false;
 

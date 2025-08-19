@@ -28,3 +28,6 @@ runtime_ai.AIService getRuntimeAIServiceForModel(String modelId) {
   _runtimeAiSingletons[key] = impl;
   return impl;
 }
+
+/// Devuelve el modelId por defecto configurado en `Config`.
+String getDefaultModelId() => Config.getDefaultTextModel();

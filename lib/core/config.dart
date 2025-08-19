@@ -16,7 +16,6 @@ class Config {
   static String getGeminiKey() => _get('GEMINI_API_KEY', '');
   static String getAudioProvider() => _get('AUDIO_PROVIDER', 'gemini');
   static String getOpenaiVoice() => _get('OPENAI_VOICE', '');
-  static String getGoogleLanguageCode() => _get('GOOGLE_LANGUAGE_CODE', 'es-ES');
 
   static String _get(String key, String fallback) {
     try {
@@ -24,6 +23,35 @@ class Config {
       return dotenv.env[key] ?? fallback;
     } catch (_) {
       return fallback;
+    }
+  }
+
+  /// Acceso genérico para claves no previstas por getters específicos.
+  static String get(String key, String fallback) => _get(key, fallback);
+
+  /// Getter para el modo TTS (google/openai)
+  static String getAudioTtsMode() => _get('AUDIO_TTS_MODE', 'google');
+
+  /// Inicializa la configuración cargando `.env`.
+  ///
+  /// Si `dotenvContents` se proporciona, carga los valores desde la cadena
+  /// (útil para tests). Devuelve cuando la carga ha terminado.
+  static Future<void> initialize({String? dotenvContents}) async {
+    if (dotenvContents != null) {
+      // testLoad es sincrónico pero mantenemos la paridad con el helper de tests
+      dotenv.testLoad(fileInput: dotenvContents);
+      return;
+    }
+    try {
+      await dotenv.load();
+    } catch (_) {
+      // Si no hay .env, no fallamos: se pueden usar overrides en tests
+      const defaultContents = '''
+DEFAULT_TEXT_MODEL=gemini-2.5-flash
+DEFAULT_IMAGE_MODEL=gpt-4.1-mini
+APP_LOG_LEVEL=trace
+''';
+      dotenv.testLoad(fileInput: defaultContents);
     }
   }
 }

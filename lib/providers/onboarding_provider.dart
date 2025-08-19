@@ -1,4 +1,4 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/utils/storage_utils.dart';
 import 'package:flutter/material.dart';
@@ -268,7 +268,7 @@ class OnboardingProvider extends ChangeNotifier {
             {"role": "user", "content": prompt, "datetime": DateTime.now().toIso8601String()},
           ],
           systemPromptObj,
-          model: dotenv.env['DEFAULT_TEXT_MODEL'] ?? '',
+    model: Config.getDefaultTextModel(),
         );
         if (!context.mounted) return;
         final storyText = story.text;

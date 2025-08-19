@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ai_chan/services/adapters/google_profile_adapter.dart';
+import 'package:ai_chan/services/adapters/profile_adapter.dart';
 import 'package:ai_chan/services/ai_service.dart';
 import 'package:ai_chan/core/models.dart';
 import '../test_setup.dart';
@@ -32,7 +32,7 @@ void main() {
   test('GoogleProfileAdapter returns a basic profile and appearance', () async {
     await initializeTestEnvironment();
     AIService.testOverride = FakeAIService();
-    final adapter = GoogleProfileAdapter(aiService: AIService.testOverride!);
+  final adapter = ProfileAdapter(aiService: AIService.testOverride!);
 
     final now = DateTime(1990, 1, 1);
     final profile = await adapter.generateBiography(

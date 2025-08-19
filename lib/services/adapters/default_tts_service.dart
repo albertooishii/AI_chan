@@ -5,7 +5,7 @@ import 'package:ai_chan/services/google_speech_service.dart';
 import 'package:ai_chan/services/android_native_tts_service.dart';
 import 'package:ai_chan/services/adapters/openai_adapter.dart';
 import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+// dotenv usage removed — use Config getters instead
 import 'package:ai_chan/services/openai_service.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -32,7 +32,7 @@ class DefaultTtsService implements ITtsService {
   @override
   Future<String?> synthesizeToFile({required String text, Map<String, dynamic>? options}) async {
   final voice = options?['voice'] as String? ?? 'sage';
-  final languageCode = options?['languageCode'] as String? ?? Config.getGoogleLanguageCode();
+  final languageCode = options?['languageCode'] as String? ?? 'es-ES';
 
     // Resolve preferred provider from prefs/env (attempt to preserve previous behaviour)
     String provider = 'openai';
@@ -42,12 +42,12 @@ class DefaultTtsService implements ITtsService {
       if (saved != null) {
         provider = (saved == 'gemini') ? 'google' : saved.toLowerCase();
       } else {
-        final env = dotenv.env['AUDIO_PROVIDER']?.toLowerCase();
-        if (env != null) provider = (env == 'gemini') ? 'google' : env;
+        final env = Config.getAudioProvider().toLowerCase();
+        if (env.isNotEmpty) provider = (env == 'gemini') ? 'google' : env;
       }
     } catch (_) {
-      final env = dotenv.env['AUDIO_PROVIDER']?.toLowerCase();
-      if (env != null) provider = (env == 'gemini') ? 'google' : env;
+      final env = Config.getAudioProvider().toLowerCase();
+      if (env.isNotEmpty) provider = (env == 'gemini') ? 'google' : env;
     }
 
     // 1) Try Android native TTS when available (mobile-first behaviour kept)

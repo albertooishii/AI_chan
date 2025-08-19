@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import '../test_setup.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/services/adapters/google_profile_adapter.dart';
+import 'package:ai_chan/services/adapters/profile_adapter.dart';
 import 'package:ai_chan/services/ai_service.dart';
 
 class FakeAIService implements AIService {
@@ -43,7 +43,7 @@ void main() {
   });
 
   test('UniversalProfileServiceAdapter genera biografía y apariencia correctamente', () async {
-  final adapter = GoogleProfileAdapter(aiService: AIService.testOverride!);
+  final adapter = ProfileAdapter(aiService: AIService.testOverride!);
 
     final profile = await adapter.generateBiography(
       userName: 'UserTest',

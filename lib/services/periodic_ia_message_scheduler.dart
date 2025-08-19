@@ -1,7 +1,8 @@
 import 'dart:async';
 import '../utils/log_utils.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ai_chan/core/config.dart';
+// dotenv replaced by Config central helper
 import '../utils/schedule_utils.dart';
 
 /// Servicio que gestiona el envío periódico de mensajes IA automáticos
@@ -43,7 +44,7 @@ class PeriodicIaMessageScheduler {
             final prompts = _autoPrompts();
             final idx = nowMs % prompts.length;
             final callPrompt = prompts[idx];
-            final textModel = dotenv.env['DEFAULT_TEXT_MODEL'] ?? '';
+            final textModel = Config.getDefaultTextModel();
             triggerSend(callPrompt, textModel);
             _lastAutoIa = now;
             _autoStreak = (_autoStreak + 1).clamp(0, 20);

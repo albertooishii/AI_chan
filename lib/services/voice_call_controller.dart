@@ -8,7 +8,7 @@ import 'dart:math' as math;
 import 'package:record/record.dart';
 
 import 'package:ai_chan/core/interfaces/ai_service.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ai_chan/core/config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/voices.dart';
 import '../services/google_speech_service.dart';
@@ -69,7 +69,7 @@ class VoiceCallController {
   dynamic _client;
   bool _isConnected = false;
   bool _isMuted = false; // estado actual de mute (usuario)
-  String _currentVoice = resolveDefaultVoice(dotenv.env['OPENAI_VOICE']);
+  String _currentVoice = resolveDefaultVoice(Config.getOpenaiVoice());
   bool _micStarted = false; // micrófono aún no iniciado (diferido hasta start_call o audio IA)
   bool _startingMic = false; // previene arranques concurrentes
   DateTime? _lastMicStartAt;
@@ -485,14 +485,14 @@ class VoiceCallController {
         effectiveVoice = saved;
       }
     } catch (_) {}
-    final envDefault = dotenv.env['OPENAI_VOICE'];
+    final envDefault = Config.getOpenaiVoice();
     if (!validVoices.contains(effectiveVoice)) {
       effectiveVoice = validVoices.isNotEmpty ? validVoices.first : resolveDefaultVoice(envDefault);
     }
     _currentVoice = effectiveVoice;
 
     // Mostrar configuración de audio
-    final ttsMode = dotenv.env['AUDIO_TTS_MODE']?.toLowerCase() ?? 'google';
+  final ttsMode = Config.getAudioTtsMode().toLowerCase();
     final useGoogleVoice = _shouldUseGoogleVoiceSystem();
 
     if (useGoogleVoice) {
@@ -914,7 +914,7 @@ class VoiceCallController {
 
   /// Obtiene el proveedor de realtime desde las variables de entorno
   RealtimeProvider _getRealtimeProvider() {
-    final audioProvider = dotenv.env['AUDIO_PROVIDER']?.toLowerCase() ?? 'gemini';
+  final audioProvider = Config.getAudioProvider().toLowerCase();
     return RealtimeProviderHelper.fromString(audioProvider);
   }
 
@@ -1549,7 +1549,7 @@ class VoiceCallController {
   /// Determina si debe usar el sistema de Google Voice (Gemini AI + Google Cloud TTS/STT)
   bool _shouldUseGoogleVoiceSystem() {
     final provider = _getRealtimeProvider();
-    final ttsMode = dotenv.env['AUDIO_TTS_MODE']?.toLowerCase() ?? 'google';
+  final ttsMode = Config.getAudioTtsMode().toLowerCase();
     return provider == RealtimeProvider.gemini && ttsMode == 'google';
   }
 }
