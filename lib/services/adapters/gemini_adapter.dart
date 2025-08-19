@@ -3,9 +3,11 @@ import 'package:ai_chan/core/interfaces/ai_service.dart';
 
 class GeminiAdapter implements IAIService {
   final String modelId;
-  const GeminiAdapter({this.modelId = 'gemini-2.5-flash'});
+  final dynamic runtime;
 
-  dynamic get _impl => runtime_factory.getRuntimeAIServiceForModel(modelId);
+  const GeminiAdapter({this.modelId = 'gemini-2.5-flash', this.runtime});
+
+  dynamic get _impl => runtime ?? runtime_factory.getRuntimeAIServiceForModel(modelId);
 
   @override
   Future<List<String>> getAvailableModels() async {

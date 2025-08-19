@@ -8,6 +8,7 @@ import 'package:ai_chan/services/adapters/openai_adapter.dart';
 // removed unused runtime/openai imports: use OpenAIAdapter wrapper instead
 import 'package:ai_chan/core/config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
 
 /// Default TTS service that tries native -> Google -> OpenAI in that order.
 class DefaultTtsService implements ITtsService {
@@ -80,9 +81,10 @@ class DefaultTtsService implements ITtsService {
       }
     } catch (_) {}
 
-    // 3) Fallback to OpenAI adapter (default)
+    // 3) Fallback to OpenAI adapter (default) using centralized runtime factory
     try {
-      final adapter = OpenAIAdapter(modelId: 'gpt-4o');
+      final runtime = runtime_factory.getRuntimeAIServiceForModel('gpt-4o');
+      final adapter = OpenAIAdapter(modelId: 'gpt-4o', runtime: runtime);
       final path = await adapter.textToSpeech(text, voice: voice);
       if (path != null) return path;
     } catch (_) {}

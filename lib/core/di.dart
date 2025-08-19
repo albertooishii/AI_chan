@@ -41,15 +41,19 @@ IAIService getAIServiceForModel(String modelId) {
 
   IAIService impl;
   if (normalized.startsWith('gpt-')) {
-    impl = OpenAIAdapter(modelId: normalized);
+    final runtime = runtime_factory.getRuntimeAIServiceForModel(normalized);
+    impl = OpenAIAdapter(modelId: normalized, runtime: runtime);
   } else if (normalized.startsWith('gemini-') || normalized.startsWith('imagen-')) {
-    impl = GeminiAdapter(modelId: normalized);
+    final runtime = runtime_factory.getRuntimeAIServiceForModel(normalized);
+    impl = GeminiAdapter(modelId: normalized, runtime: runtime);
   } else if (normalized.isEmpty) {
     // Default behavior: prefer Gemini for empty/unspecified
-    impl = GeminiAdapter(modelId: 'gemini-2.5-flash');
+    final runtime = runtime_factory.getRuntimeAIServiceForModel('gemini-2.5-flash');
+    impl = GeminiAdapter(modelId: 'gemini-2.5-flash', runtime: runtime);
   } else {
     // Fallback: default to OpenAI runtime
-    impl = OpenAIAdapter(modelId: 'gpt-4o');
+    final runtime = runtime_factory.getRuntimeAIServiceForModel('gpt-4o');
+    impl = OpenAIAdapter(modelId: 'gpt-4o', runtime: runtime);
   }
   _aiServiceSingletons[key] = impl;
   return impl;

@@ -6,9 +6,15 @@ import 'package:ai_chan/core/interfaces/ai_service.dart';
 /// while allowing runtimes to be created centrally.
 class OpenAIAdapter implements IAIService {
   final String modelId;
-  OpenAIAdapter({this.modelId = 'gpt-4o'});
+  final dynamic runtime;
 
-  dynamic get _impl => runtime_factory.getRuntimeAIServiceForModel(modelId);
+  /// Optional [runtime] allows tests or the DI layer to inject a concrete
+  /// runtime instance (OpenAIService) instead of relying on the internal
+  /// factory. If not provided, the adapter falls back to the centralized
+  /// runtime factory.
+  OpenAIAdapter({this.modelId = 'gpt-4o', this.runtime});
+
+  dynamic get _impl => runtime ?? runtime_factory.getRuntimeAIServiceForModel(modelId);
 
   @override
   Future<List<String>> getAvailableModels() async {
