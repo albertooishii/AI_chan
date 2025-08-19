@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../utils/log_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ai_chan/core/config.dart';
 import '../services/android_native_tts_service.dart';
 import '../services/google_speech_service.dart';
 import '../services/cache_service.dart';
@@ -37,7 +38,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _selectedProvider = prefs.getString('selected_audio_provider') ?? 'google';
+      _selectedProvider = prefs.getString('selected_audio_provider') ?? Config.getAudioProvider().toLowerCase();
       _selectedVoice = prefs.getString('selected_voice');
       _showOnlySpanishVoices = prefs.getBool('show_only_spanish_voices') ?? true;
     });

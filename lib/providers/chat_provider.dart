@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/interfaces/i_chat_repository.dart';
 import 'package:ai_chan/core/interfaces/i_chat_response_service.dart';
 import 'package:ai_chan/core/interfaces/ai_service.dart';
@@ -199,7 +200,7 @@ class ChatProvider extends ChangeNotifier {
       final s = _selectedModel!.trim();
       selected = s;
     } else {
-      selected = 'gemini-2.5-flash';
+      selected = Config.getDefaultTextModel();
     }
 
     // Detección de petición de imagen (solo si no es prompt automático)
