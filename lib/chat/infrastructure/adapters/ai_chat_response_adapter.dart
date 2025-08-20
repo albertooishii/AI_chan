@@ -1,6 +1,6 @@
 import 'package:ai_chan/core/interfaces/i_chat_response_service.dart';
 import 'package:ai_chan/core/models.dart';
-import '../services/ai_chat_response_service.dart';
+import 'ai_chat_response_service.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/services/ai_service.dart' show getAllAIModels;
 

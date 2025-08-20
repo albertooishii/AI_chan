@@ -13,7 +13,6 @@ export 'package:ai_chan/chat/domain/models/message.dart';
 export 'models/realtime_provider.dart';
 export 'models/system_prompt.dart';
 export 'models/timeline_entry.dart';
-export 'models/unified_audio_config.dart';
 
 // Shared enums from kernel
 export 'package:ai_chan/shared/domain/shared_enums.dart';

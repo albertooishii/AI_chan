@@ -19,7 +19,7 @@ void main() {
       // Verify that certain services maintain state across calls
       final service1 = di.getProfileServiceForProvider();
       final service2 = di.getProfileServiceForProvider();
-      
+
       // Both should be the same instance for consistency
       expect(service1.runtimeType, service2.runtimeType);
     });
@@ -35,7 +35,7 @@ void main() {
       // Test that factories handle configuration dependencies properly
       final profileService = di.getProfileServiceForProvider();
       expect(profileService, isNotNull);
-      
+
       final chatService = di.getChatResponseService();
       expect(chatService, isNotNull);
     });
