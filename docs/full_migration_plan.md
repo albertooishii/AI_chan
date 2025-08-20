@@ -254,11 +254,12 @@ flutter test test/core/config_test.dart test/core/runtime_factory_test.dart <tes
 ---
 
 ## Definición de done (para Batch 4 / cierre)
-- [ ] Ninguna instanciación de `OpenAIService()`/`GeminiService()` fuera de `lib/core/runtime_factory.dart`.
-- [ ] Lecturas de `dotenv.env` únicamente en `lib/core/config.dart`.
-- [ ] Providers/widgets críticos usan `Config` o reciben valores por DI.
-- [ ] `flutter analyze` limpio y tests relevantes verdes.
+- [x] Ninguna instanciación de `OpenAIService()`/`GeminiService()` fuera de `lib/core/runtime_factory.dart`.
+- [x] Lecturas de `dotenv.env` únicamente en `lib/core/config.dart`.
+- [x] Providers/widgets críticos usan `Config` o reciben valores por DI.
+- [x] `flutter analyze` limpio y tests relevantes verdes.
 - [ ] Test de regresión CI añadido para detectar instanciaciones directas.
+
 
 ---
 
