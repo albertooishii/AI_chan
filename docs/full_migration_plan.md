@@ -12,9 +12,9 @@
 1. **Chat** - Conversaciones y mensajes
 2. **Onboarding** - Registro de usuario y generación de perfil  
 3. **Voice/Calls** - Llamadas de voz y audio en tiempo real
-4. **Core** - Shared ke**Estado:** FASE 1 ✅ COMPLETADA | FASE 2 🎉 85% COMPLETADA (Chat ✅ + Onboarding ✅ + Voice ✅) | FASE 3 ⏳ PENDIENTE
+4. **Core** - Shared ke**Estado:** FASE 1 ✅ COMPLETADA | FASE 2 🎉 95% COMPLETADA (Chat ✅ + Onboarding ✅ + Voice ✅ + Shared 🔄) | FASE 3 ⏳ PREPARANDO
 
-Bounded Contexts completados: **3 de 4** (Chat ✅, Onboarding ✅, Voice ✅ - Presentation Layer migrada) - Siguientes: Core refinementl e infraestructura compartida
+Bounded Contexts completados: **3.5 de 4** (Chat ✅, Onboarding ✅, Voice ✅, Shared 🔄 iniciado) - Siguientes: Core cleanup final
 
 ### Objetivos de la migración:
 - ✅ **Fase 1:** Infraestructura DDD básica (Config, DI, Runtime Factory)
@@ -251,12 +251,14 @@ lib/
   - [x] Funcionalidad 100% preservada durante migración
   - [x] Re-exports funcionando correctamente
 ### 2.5 Shared/Core refinamiento
-- [ ] **Shared components (`lib/shared/`)**
-  - [ ] Migrar `lib/constants/` → `lib/shared/constants/`
-  - [ ] Migrar `lib/utils/` → `lib/shared/utils/`
-  - [ ] Migrar widgets UI generales → `lib/shared/widgets/`
+- [x] **Shared components (`lib/shared/`)** ✅
+  - [x] Migrar `lib/constants/` → `lib/shared/constants/` ✅
+  - [x] Migrar `lib/utils/` → `lib/shared/utils/` ✅
+  - [x] Crear estructura base para widgets compartidos → `lib/shared/widgets/` ✅
+  - [x] Crear barrel exports para acceso limpio ✅
+  - [x] Crear re-exports para backward compatibility ✅
 
-- [ ] **Core cleanup (`lib/core/`)**
+- [ ] **Core cleanup (`lib/core/`)** 🔄
   - [ ] Mantener solo infraestructura compartida
   - [ ] Interfaces que sean verdaderamente compartidas
   - [ ] Modelos de dominio compartidos entre contexts
@@ -314,18 +316,20 @@ lib/
 
 ## 📊 ESTADO ACTUAL DETALLADO
 
-### ✅ Completado (Fases 1-2 parcial)
+### ✅ Completado (Fases 1-2 casi completa)
 - **Infraestructura básica:** Config, DI, RuntimeFactory funcionando ✅
 - **Quality gates:** CI/CD, tests de regresión, análisis estático ✅
 - **Chat Bounded Context:** Migración completa con DDD + Hexagonal ✅
 - **Onboarding Bounded Context:** Migración completa con DDD + Hexagonal ✅
-- **Voice Domain + Infrastructure:** Modelos de dominio, interfaces, clientes realtime, adaptadores, repositorio ✅
-- **Foundation sólida:** 40/40 tests passing, flutter analyze sin warnings ✅
+- **Voice Bounded Context:** Migración completa con DDD + Hexagonal ✅
+- **Shared Kernel:** Constants + Utils migrados, estructura preparada ✅
+- **Foundation sólida:** 40/40 tests passing, flutter analyze limpio ✅
+- **Legacy cleanup:** 8 archivos legacy eliminados, deprecaciones resueltas ✅
 
-### 🔄 En Progreso (Fase 2 continuación)  
-- **Próximo objetivo:** Voice/Calls Application Layer (Use Cases, Providers)
-- **Estructura actual:** 2.5 de 4 bounded contexts completados (75% progreso Domain/Infrastructure)
-- **Testing:** Tests funcionando al 100%, sin regresiones durante migración Voice
+### 🔄 En Progreso (Fase 2 finalizando)  
+- **Último objetivo:** Core cleanup final y refinamiento de interfaces
+- **Estructura actual:** 3.5 de 4 bounded contexts completados (90% progreso general)
+- **Testing:** 40/40 tests funcionando perfectamente, sin regresiones
 
 ### ⏳ Pendiente (Fases 2-3)
 - **Reorganización completa:** Mover archivos a estructura DDD completa
@@ -337,21 +341,22 @@ lib/
 
 ## 🚀 PLAN DE EJECUCIÓN
 
-### Próximo sprint (Fase 2.2)
-1. **Voice Context Application Layer** (estimado: 1-2 días)
-   - Crear use cases para llamadas de voz
-   - Migrar voice_call_controller.dart a providers/controllers
-   - Integrar con domain e infrastructure layers
+### Próximo sprint (Fase 2 final + Fase 3)
+1. **Core Infrastructure Cleanup** (estimado: 1-2 días)
+   - Revisar y limpiar lib/core/ para mantener solo shared infrastructure
+   - Consolidar interfaces realmente compartidas
+   - Verificar que domain models estén en el lugar correcto
 
-2. **Voice Context Presentation Layer** (estimado: 1-2 días)
-   - Migrar voice_call_chat.dart y componentes UI
-   - Separar presentation layer del application layer
-   - Crear barrel exports y backward compatibility
-
-3. **Core Shared Kernel Migration** (estimado: 1-2 días)
-   - Reorganizar lib/constants/, lib/utils/ a lib/shared/
-   - Finalizar core cleanup
+2. **Final Testing & Documentation** (estimado: 1-2 días)
+   - Verificar cobertura de tests >90% en domain layers
+   - Crear ADRs (Architecture Decision Records)
+   - Guidelines para el equipo
    - Verificar funcionamiento end-to-end completo
+
+3. **Performance & Optimization Review** (estimado: 1-2 días)
+   - DI container optimization review
+   - Memory leaks audit
+   - Cross-context communication patterns review
 
 ### Criterios de éxito por fase
 - **Post Fase 2:** Estructura clara por contexts, tests pasando, código funcional

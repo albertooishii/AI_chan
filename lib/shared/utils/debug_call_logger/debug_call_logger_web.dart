@@ -1,0 +1,9 @@
+import 'package:flutter/foundation.dart';
+import 'package:ai_chan/utils/log_utils.dart';
+
+/// No-op en web para evitar errores de IO.
+Future<void> debugLogCallPrompt(String fileBaseName, Map<String, dynamic> jsonObj) async {
+  if (kReleaseMode) return;
+  // Mostrar en consola del navegador
+  Log.d('[debugLogCallPrompt][$fileBaseName]: $jsonObj');
+}
