@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../constants/app_colors.dart';
+import 'package:ai_chan/shared/constants/app_colors.dart';
 
 class CyberpunkButton extends StatelessWidget {
   final String text;

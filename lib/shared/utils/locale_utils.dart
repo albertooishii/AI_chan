@@ -1,4 +1,4 @@
-import 'package:ai_chan/constants/countries_es.dart';
+import 'package:ai_chan/shared/constants/countries_es.dart';
 
 class LocaleUtils {
   // Nombre del país en español (simplificado)
@@ -8,7 +8,10 @@ class LocaleUtils {
   }
 
   // Idioma principal del país (en español)
-  static String languageNameEsForCountry(String? iso2, {String fallback = 'Español'}) {
+  static String languageNameEsForCountry(
+    String? iso2, {
+    String fallback = 'Español',
+  }) {
     if (iso2 == null || iso2.trim().isEmpty) return fallback;
     switch (iso2.toUpperCase()) {
       // Europa occidental y central
@@ -226,7 +229,10 @@ class LocaleUtils {
   }
 
   // Construye una lista de idiomas razonable para la IA según su país y el del usuario
-  static String languagesListForPair({String? aiCountryCode, String? userCountryCode}) {
+  static String languagesListForPair({
+    String? aiCountryCode,
+    String? userCountryCode,
+  }) {
     final Set<String> langs = {};
     final aiLang = languageNameEsForCountry(aiCountryCode);
     final userLang = languageNameEsForCountry(userCountryCode);

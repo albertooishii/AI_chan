@@ -1,4 +1,5 @@
-import 'package:ai_chan/utils/storage_utils.dart';
+import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
+import 'package:ai_chan/shared/utils/storage_utils.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -8,21 +9,20 @@ import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/interfaces/i_chat_repository.dart';
 import 'package:ai_chan/core/interfaces/i_chat_response_service.dart';
 import 'package:ai_chan/core/interfaces/ai_service.dart';
-import 'package:ai_chan/utils/chat_json_utils.dart' as chat_json_utils;
 import 'package:ai_chan/core/services/memory_summary_service.dart';
 import 'dart:io';
 import 'package:ai_chan/core/services/ia_appearance_generator.dart';
-import 'package:ai_chan/services/ai_service.dart';
-import 'package:ai_chan/services/event_service.dart';
-import 'package:ai_chan/services/promise_service.dart';
+import 'package:ai_chan/shared/services/ai_service.dart';
+import 'package:ai_chan/shared/services/event_service.dart';
+import 'package:ai_chan/shared/services/promise_service.dart';
 import 'package:ai_chan/core/services/image_request_service.dart';
-import 'package:ai_chan/services/audio_chat_service.dart';
-import 'package:ai_chan/services/google_speech_service.dart';
-import 'package:ai_chan/services/periodic_ia_message_scheduler.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
+import 'package:ai_chan/chat/domain/models/chat_result.dart';
+import 'package:ai_chan/voice.dart';
+import 'package:ai_chan/chat/domain/services/periodic_ia_message_scheduler.dart';
 import 'package:ai_chan/core/services/prompt_builder.dart';
-import 'package:ai_chan/services/ai_chat_response_service.dart';
 import 'package:ai_chan/core/di.dart' as di;
-import 'package:ai_chan/utils/log_utils.dart';
+import 'package:ai_chan/shared/utils/log_utils.dart';
 
 class ChatProvider extends ChangeNotifier {
   final IChatRepository? repository;
@@ -278,7 +278,7 @@ class ChatProvider extends ChangeNotifier {
     }
 
     // Enviar vía servicio modularizado (maneja reintentos y base64)
-    AIChatResult result;
+    ChatResult result;
     try {
       if (chatResponseService != null) {
         // Convert recentMessages -> List<Map> expected por la interfaz
@@ -303,8 +303,8 @@ class ChatProvider extends ChangeNotifier {
             'enableImageGeneration': solicitaImagen,
           },
         );
-        // Map -> AIChatResult
-        result = AIChatResult(
+        // Map -> ChatResult
+        result = ChatResult(
           text: mapResult['text'] as String? ?? '',
           isImage: mapResult['isImage'] as bool? ?? false,
           imagePath: mapResult['imagePath'] as String?,
@@ -336,7 +336,7 @@ class ChatProvider extends ChangeNotifier {
             'enableImageGeneration': solicitaImagen,
           },
         );
-        result = AIChatResult(
+        result = ChatResult(
           text: mapResult['text'] as String? ?? '',
           isImage: mapResult['isImage'] as bool? ?? false,
           imagePath: mapResult['imagePath'] as String?,
@@ -552,12 +552,13 @@ class ChatProvider extends ChangeNotifier {
   }
 
   // ================= NUEVO BLOQUE AUDIO =================
-  AudioChatService? _audioService;
+  IAudioChatService? _audioService;
 
-  AudioChatService get audioService => _audioService ??= AudioChatService(
-    onStateChanged: () => notifyListeners(),
-    onWaveform: (_) => notifyListeners(),
-  );
+  IAudioChatService get audioService =>
+      _audioService ??= di.getAudioChatService(
+        onStateChanged: () => notifyListeners(),
+        onWaveform: (_) => notifyListeners(),
+      );
 
   bool get isRecording => audioService.isRecording;
   List<int> get currentWaveform => audioService.currentWaveform;

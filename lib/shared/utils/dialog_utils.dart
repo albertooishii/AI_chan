@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:ai_chan/utils/log_utils.dart';
+import 'package:ai_chan/shared/utils/log_utils.dart';
 import '../constants/app_colors.dart';
 
 import 'package:ai_chan/main.dart';
 
-Future<void> showSuccessDialog(BuildContext context, String title, String message) async {
+Future<void> showSuccessDialog(
+  BuildContext context,
+  String title,
+  String message,
+) async {
   final ctx = (context.mounted) ? context : navigatorKey.currentContext;
   if (ctx == null) return;
   return showDialog<void>(
@@ -30,11 +34,16 @@ Future<void> showErrorDialog(BuildContext context, String error) async {
   final ctx = (context.mounted) ? context : navigatorKey.currentContext;
   if (ctx == null) {
     // Fallback: mostrar SnackBar si no hay contexto válido
-    Log.w('No hay contexto válido para mostrar el diálogo de error: $error', tag: 'DIALOG_UTILS');
+    Log.w(
+      'No hay contexto válido para mostrar el diálogo de error: $error',
+      tag: 'DIALOG_UTILS',
+    );
     // Si hay un ScaffoldMessenger disponible, mostrar SnackBar
     final navState = navigatorKey.currentState;
     final navContext = navState?.context;
-    final scaffoldMessenger = navContext != null ? ScaffoldMessenger.maybeOf(navContext) : null;
+    final scaffoldMessenger = navContext != null
+        ? ScaffoldMessenger.maybeOf(navContext)
+        : null;
     if (scaffoldMessenger != null) {
       scaffoldMessenger.showSnackBar(
         SnackBar(
@@ -53,7 +62,10 @@ Future<void> showErrorDialog(BuildContext context, String error) async {
       content: Text(error, style: const TextStyle(color: AppColors.primary)),
       actions: [
         TextButton(
-          child: const Text('Cerrar', style: TextStyle(color: AppColors.primary)),
+          child: const Text(
+            'Cerrar',
+            style: TextStyle(color: AppColors.primary),
+          ),
           onPressed: () => Navigator.of(ctx2).pop(),
         ),
       ],

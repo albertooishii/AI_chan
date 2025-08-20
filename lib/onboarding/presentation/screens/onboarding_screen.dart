@@ -1,14 +1,14 @@
 import 'package:ai_chan/core/presentation/widgets/cyberpunk_button.dart';
+import 'package:ai_chan/shared/constants/countries_es.dart';
+import 'package:ai_chan/shared/constants/female_names.dart';
 import 'package:flutter/material.dart';
-import 'package:ai_chan/constants/app_colors.dart';
-import 'package:ai_chan/utils/chat_json_utils.dart' as chat_json_utils;
+import 'package:ai_chan/shared/constants/app_colors.dart';
+import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import '../widgets/birth_date_field.dart';
 import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/utils/locale_utils.dart';
-import 'package:ai_chan/constants/countries_es.dart';
-import 'package:ai_chan/constants/female_names.dart';
+import 'package:ai_chan/shared/utils/locale_utils.dart';
 
 class OnboardingScreen extends StatelessWidget {
   final Future<void> Function({

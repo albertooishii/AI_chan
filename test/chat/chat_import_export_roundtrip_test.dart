@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ai_chan/providers/chat_provider.dart';
+import 'package:ai_chan/chat/application/providers/chat_provider.dart';
 import 'package:ai_chan/core/models.dart';
 import '../test_setup.dart';
 
@@ -19,9 +19,25 @@ void main() async {
     );
 
     provider.messages = [
-      Message(text: 'hello', sender: MessageSender.user, dateTime: DateTime.now(), status: MessageStatus.read),
-      Message(text: 'resp', sender: MessageSender.assistant, dateTime: DateTime.now(), status: MessageStatus.read),
-      Message(text: 'image msg', sender: MessageSender.user, dateTime: DateTime.now(), isImage: true, image: AiImage(url: 'https://img.test/1.png', seed: 's')),
+      Message(
+        text: 'hello',
+        sender: MessageSender.user,
+        dateTime: DateTime.now(),
+        status: MessageStatus.read,
+      ),
+      Message(
+        text: 'resp',
+        sender: MessageSender.assistant,
+        dateTime: DateTime.now(),
+        status: MessageStatus.read,
+      ),
+      Message(
+        text: 'image msg',
+        sender: MessageSender.user,
+        dateTime: DateTime.now(),
+        isImage: true,
+        image: AiImage(url: 'https://img.test/1.png', seed: 's'),
+      ),
     ];
 
     final jsonStr = await provider.exportAllToJson();

@@ -1,11 +1,12 @@
+import 'package:ai_chan/shared/utils/onboarding_utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/utils/onboarding_utils.dart';
-import 'fakes/fake_appearance_generator.dart';
-import 'package:ai_chan/services/ai_service.dart';
+import '../fakes/fake_appearance_generator.dart';
+import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'package:ai_chan/providers/onboarding_provider.dart';
+import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dart';
+import '../test_setup.dart';
 
 // Local fake AI service for this test to avoid shared fixture coupling
 class FakeAIServiceImpl extends AIService {
@@ -93,6 +94,7 @@ void main() {
     test(
       'generateFullBiographyFlexible + provider loads saved prefs',
       () async {
+        await initializeTestEnvironment();
         SharedPreferences.setMockInitialValues({});
 
         final bio = await generateFullBiographyFlexible(
@@ -119,6 +121,7 @@ void main() {
   });
 
   test('generateFullBiographyFlexible + provider loads saved prefs', () async {
+    await initializeTestEnvironment();
     SharedPreferences.setMockInitialValues({});
     AIService.testOverride = FakeAIServiceImpl();
 

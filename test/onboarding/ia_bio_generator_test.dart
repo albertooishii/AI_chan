@@ -1,43 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/core/services/ia_bio_generator.dart';
 import 'package:ai_chan/core/models.dart';
-import 'dart:convert';
-import 'package:ai_chan/services/ai_service.dart';
-
-// Local fake for this test: returns a minimal valid biography JSON.
-class FakeAIServiceImpl extends AIService {
-  @override
-  Future<AIResponse> sendMessageImpl(
-    List<Map<String, String>> history,
-    SystemPrompt systemPrompt, {
-    String? model,
-    String? imageBase64,
-    String? imageMimeType,
-    bool enableImageGeneration = false,
-  }) async {
-    final json = {
-      'datos_personales': {'nombre_completo': 'Ai Test'},
-      'personalidad': {
-        'valores': {'Sociabilidad': '5'},
-      },
-      'resumen_breve': 'Resumen de prueba',
-    };
-    final text = jsonEncode(json);
-    return AIResponse(text: text, base64: '', seed: '', prompt: '');
-  }
-
-  @override
-  Future<List<String>> getAvailableModels() async {
-    return ['fake-model'];
-  }
-}
+import 'package:ai_chan/shared/services/ai_service.dart';
+import '../fakes/fake_ai_service.dart';
 
 void main() {
   test(
     'generateAIBiographyWithAI returns AiChanProfile given fake AIService',
     () async {
       // Inject the shared fake
-      AIService.testOverride = FakeAIServiceImpl();
+      AIService.testOverride = FakeAIService.forBiography();
 
       final profile = await generateAIBiographyWithAI(
         userName: 'UserTest',
@@ -50,7 +22,7 @@ void main() {
       );
 
       expect(profile, isA<AiChanProfile>());
-      expect(profile.biography, contains('resumen_breve'));
+      expect(profile.biography, contains('datos_personales'));
 
       // Clear override
       AIService.testOverride = null;

@@ -1,3 +1,4 @@
+import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'expandable_image_dialog.dart';
 import 'audio_message_player_with_subs.dart';
 import 'package:provider/provider.dart';
@@ -5,7 +6,6 @@ import '../../application/providers/chat_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 import 'dart:io';
-import '../../../constants/app_colors.dart';
 import 'package:ai_chan/core/models.dart';
 
 class ChatBubble extends StatelessWidget {
@@ -69,6 +69,16 @@ class ChatBubble extends StatelessWidget {
         title = isUser ? 'Llamando…' : 'Llamada entrante';
         icon = isUser ? Icons.call_made : Icons.call_received;
         break;
+      case CallStatus.active:
+        title = 'Llamada en curso';
+        icon = Icons.call;
+        color = Colors.green;
+        break;
+      case CallStatus.paused:
+        title = 'Llamada pausada';
+        icon = Icons.pause_circle;
+        color = Colors.amber;
+        break;
       case CallStatus.completed:
         title = isUser ? 'Llamada realizada' : 'Llamada recibida';
         icon = isUser ? Icons.call_made : Icons.call_received;
@@ -82,6 +92,11 @@ class ChatBubble extends StatelessWidget {
         title = 'Llamada no contestada';
         icon = Icons.call_missed;
         color = Colors.orangeAccent;
+        break;
+      case CallStatus.failed:
+        title = 'Llamada falló';
+        icon = Icons.error;
+        color = Colors.red;
         break;
       case CallStatus.canceled:
         title = 'Llamada cancelada';

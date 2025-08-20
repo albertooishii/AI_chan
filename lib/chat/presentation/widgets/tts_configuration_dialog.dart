@@ -1,12 +1,7 @@
-// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
-import '../../../utils/log_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_chan/core/config.dart';
-import '../../../services/android_native_tts_service.dart';
-import '../../../services/google_speech_service.dart';
-import '../../../services/cache_service.dart';
-import '../../../utils/voice_display_utils.dart';
+import 'package:ai_chan/shared.dart'; // Using centralized shared exports
 
 class TtsConfigurationDialog extends StatefulWidget {
   const TtsConfigurationDialog({super.key});
@@ -259,44 +254,45 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
               ),
               const SizedBox(height: 8),
 
-              // Android Nativo (si está disponible)
+              // Selector de proveedor: usamos ListTile con iconos para evitar APIs deprecadas
               if (_androidNativeAvailable) ...[
-                RadioListTile<String>(
+                ListTile(
+                  leading: _selectedProvider == 'android_native'
+                      ? const Icon(Icons.radio_button_checked)
+                      : const Icon(Icons.radio_button_unchecked),
                   title: const Text('TTS Nativo Android (Gratuito)'),
                   subtitle: Text(
                     '${_androidNativeVoices.length} voces instaladas',
                   ),
-                  value: 'android_native',
-                  groupValue: _selectedProvider,
-                  onChanged: (value) =>
-                      setState(() => _selectedProvider = value!),
+                  onTap: () =>
+                      setState(() => _selectedProvider = 'android_native'),
                 ),
                 const Divider(),
               ],
 
-              // Google Cloud TTS
-              RadioListTile<String>(
+              ListTile(
+                leading: _selectedProvider == 'google'
+                    ? const Icon(Icons.radio_button_checked)
+                    : const Icon(Icons.radio_button_unchecked),
                 title: const Text('Google Cloud TTS'),
                 subtitle: Text(
                   GoogleSpeechService.isConfigured
                       ? '${_googleVoices.length} voces disponibles'
                       : 'No configurado',
                 ),
-                value: 'google',
-                groupValue: _selectedProvider,
-                onChanged: GoogleSpeechService.isConfigured
-                    ? (value) => setState(() => _selectedProvider = value!)
+                enabled: GoogleSpeechService.isConfigured,
+                onTap: GoogleSpeechService.isConfigured
+                    ? () => setState(() => _selectedProvider = 'google')
                     : null,
               ),
 
-              // OpenAI TTS
-              RadioListTile<String>(
+              ListTile(
+                leading: _selectedProvider == 'openai'
+                    ? const Icon(Icons.radio_button_checked)
+                    : const Icon(Icons.radio_button_unchecked),
                 title: const Text('OpenAI TTS'),
                 subtitle: Text('${_openaiVoices.length} voces disponibles'),
-                value: 'openai',
-                groupValue: _selectedProvider,
-                onChanged: (value) =>
-                    setState(() => _selectedProvider = value!),
+                onTap: () => setState(() => _selectedProvider = 'openai'),
               ),
 
               const SizedBox(height: 16),
@@ -460,13 +456,14 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
             subtitle = voice['description'] as String? ?? '';
           }
 
-          return RadioListTile<String>(
+          return ListTile(
             dense: true,
+            leading: _selectedVoice == voiceName
+                ? const Icon(Icons.radio_button_checked, size: 20)
+                : const Icon(Icons.radio_button_unchecked, size: 20),
             title: Text(displayName),
             subtitle: Text(subtitle, style: const TextStyle(fontSize: 11)),
-            value: voiceName, // Mantener el nombre técnico como valor
-            groupValue: _selectedVoice,
-            onChanged: (value) => setState(() => _selectedVoice = value),
+            onTap: () => setState(() => _selectedVoice = voiceName),
           );
         },
       ),

@@ -1,17 +1,14 @@
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/screens/initializing_screen.dart';
+import 'package:ai_chan/onboarding.dart';
 import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:io' show Platform;
-import 'utils/log_utils.dart';
 
-import 'screens/chat_screen.dart';
-import 'screens/onboarding_screen.dart';
+import 'package:ai_chan/chat.dart';
 import 'dart:convert';
-import 'providers/onboarding_provider.dart';
-import 'providers/chat_provider.dart';
 import 'core/di.dart' as di;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -44,7 +41,10 @@ class RootApp extends StatelessWidget {
         title: 'ＡＩチャン',
         theme: ThemeData(
           brightness: Brightness.dark,
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.pinkAccent, brightness: Brightness.dark),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.pinkAccent,
+            brightness: Brightness.dark,
+          ),
           scaffoldBackgroundColor: Colors.black,
           useMaterial3: true,
         ),
@@ -75,7 +75,10 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     await clearAppData();
     Log.i('resetApp completado', tag: 'APP');
     if (mounted) {
-      final onboardingProvider = Provider.of<OnboardingProvider>(context, listen: false);
+      final onboardingProvider = Provider.of<OnboardingProvider>(
+        context,
+        listen: false,
+      );
       onboardingProvider.reset();
       setState(() {}); // El build ya muestra onboarding limpio
     }
@@ -93,11 +96,17 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       try {
         // Usar defaultTargetPlatform en lugar de Theme.of(context) en initState
         if (!kIsWeb && Platform.isAndroid) {
-          await Future.delayed(Duration(milliseconds: 500)); // Espera a que el contexto esté listo
+          await Future.delayed(
+            Duration(milliseconds: 500),
+          ); // Espera a que el contexto esté listo
           await Permission.storage.request();
         }
       } catch (e) {
-        Log.e('Error solicitando permisos de almacenamiento', tag: 'PERM', error: e);
+        Log.e(
+          'Error solicitando permisos de almacenamiento',
+          tag: 'PERM',
+          error: e,
+        );
       }
       setState(() {
         _initialized = true;
@@ -187,7 +196,10 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       create: (_) {
         final repo = di.getChatRepository();
         final chatAdapter = di.getChatResponseService();
-        final provider = ChatProvider(repository: repo, chatResponseService: chatAdapter);
+        final provider = ChatProvider(
+          repository: repo,
+          chatResponseService: chatAdapter,
+        );
         provider.onboardingData = onboardingProvider.generatedBiography!;
         provider.loadAll();
         return provider;

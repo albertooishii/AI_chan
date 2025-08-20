@@ -1,28 +1,20 @@
 import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:ai_chan/constants/voices.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:provider/provider.dart';
 import '../../application/providers/chat_provider.dart';
-import '../../../utils/locale_utils.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/message_input.dart';
 import 'package:ai_chan/voice/presentation/screens/voice_call_screen.dart';
 import '../widgets/typing_animation.dart';
 import '../widgets/expandable_image_dialog.dart';
-import '../../../constants/app_colors.dart';
-import '../../../utils/dialog_utils.dart';
-// model imports covered by core barrel
 import 'package:ai_chan/core/models.dart';
-import '../../../utils/chat_json_utils.dart' as chat_json_utils;
-import '../../../screens/gallery_screen.dart';
-import '../../../utils/image_utils.dart';
-import '../../../screens/calendar_screen.dart';
-import '../../../services/google_speech_service.dart';
-import '../../../utils/log_utils.dart';
+import 'gallery_screen.dart';
+import 'package:ai_chan/shared.dart'; // Using centralized shared exports
 
 class ChatScreen extends StatefulWidget {
   final AiChanProfile bio;

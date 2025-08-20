@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'dart:math';
+import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/constants/app_colors.dart';
 import '../../application/providers/chat_provider.dart';
 
 /// Reproductor compacto de mensajes de audio.

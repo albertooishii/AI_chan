@@ -3,11 +3,14 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/providers/onboarding_provider.dart';
+import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../test_setup.dart';
 
 void main() {
   test('OnboardingProvider loads profile from SharedPreferences', () async {
+    await initializeTestEnvironment();
+
     final profile = AiChanProfile(
       biography: {'resumen_breve': 'Perfil desde prefs.'},
       userName: 'UserPref',
@@ -18,7 +21,9 @@ void main() {
       timeline: [],
     );
 
-    SharedPreferences.setMockInitialValues({'onboarding_data': jsonEncode(profile.toJson())});
+    SharedPreferences.setMockInitialValues({
+      'onboarding_data': jsonEncode(profile.toJson()),
+    });
 
     final provider = OnboardingProvider();
 

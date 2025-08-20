@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ai_chan/services/adapters/profile_adapter.dart';
-import 'package:ai_chan/services/ai_service.dart';
+import 'package:ai_chan/onboarding/infrastructure/adapters/profile_adapter.dart';
+import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/services/ia_appearance_generator.dart';
 import '../test_setup.dart';

@@ -1,11 +1,6 @@
 import 'package:ai_chan/core/models.dart';
 
-enum MessageSender { user, assistant, system }
-
 enum MessageStatus { sending, sent, read, failed }
-
-/// Estado de una llamada (placeholder, completada con resumen, rechazada, perdida, cancelada)
-enum CallStatus { placeholder, completed, rejected, missed, canceled }
 
 /// Mensaje de voz dentro de una llamada
 class VoiceCallMessage {

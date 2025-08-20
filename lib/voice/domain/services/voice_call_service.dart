@@ -1,6 +1,7 @@
 import 'package:ai_chan/voice/domain/models/voice_call.dart';
 import 'package:ai_chan/voice/domain/models/voice_message.dart';
 import 'package:ai_chan/voice/domain/models/voice_provider.dart';
+import 'package:ai_chan/core/models.dart';
 
 /// Servicio de dominio para validaciones de llamadas de voz
 class VoiceCallValidationService {
@@ -178,7 +179,7 @@ class VoiceCallOrchestrationService {
       throw StateError('Cannot cancel a call that is already completed');
     }
 
-    return call.copyWith(status: CallStatus.cancelled, endTime: DateTime.now());
+    return call.copyWith(status: CallStatus.canceled, endTime: DateTime.now());
   }
 
   /// Marca una llamada como fallida

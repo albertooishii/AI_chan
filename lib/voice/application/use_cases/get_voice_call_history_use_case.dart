@@ -1,4 +1,5 @@
 import 'package:ai_chan/voice/domain/domain.dart';
+import 'package:ai_chan/core/models.dart';
 
 /// Caso de uso para obtener el historial de llamadas
 class GetVoiceCallHistoryUseCase {
@@ -67,7 +68,7 @@ class GetVoiceCallHistoryUseCase {
         .where((c) => c.status == CallStatus.failed)
         .length;
     final cancelledCalls = allCalls
-        .where((c) => c.status == CallStatus.cancelled)
+        .where((c) => c.status == CallStatus.canceled)
         .length;
 
     final totalDuration = allCalls.fold<Duration>(

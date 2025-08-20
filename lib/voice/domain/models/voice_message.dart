@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:ai_chan/core/models.dart';
 
 /// Mensaje de voz dentro de una llamada
 class VoiceMessage {
@@ -230,36 +231,6 @@ extension MessageTypeExtension on MessageType {
         return MessageType.mixed;
       default:
         return MessageType.text;
-    }
-  }
-}
-
-/// Remitente del mensaje
-enum MessageSender { user, assistant, system }
-
-/// Extensión para MessageSender
-extension MessageSenderExtension on MessageSender {
-  String get name {
-    switch (this) {
-      case MessageSender.user:
-        return 'user';
-      case MessageSender.assistant:
-        return 'assistant';
-      case MessageSender.system:
-        return 'system';
-    }
-  }
-
-  static MessageSender fromString(String value) {
-    switch (value.toLowerCase()) {
-      case 'user':
-        return MessageSender.user;
-      case 'assistant':
-        return MessageSender.assistant;
-      case 'system':
-        return MessageSender.system;
-      default:
-        return MessageSender.user;
     }
   }
 }

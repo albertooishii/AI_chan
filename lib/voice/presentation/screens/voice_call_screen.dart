@@ -9,13 +9,9 @@ import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/core/interfaces/ai_service.dart';
 import 'package:ai_chan/core/config.dart';
-import 'package:ai_chan/constants/voices.dart';
-import 'package:ai_chan/services/voice_call_controller.dart';
-import 'package:ai_chan/services/voice_call_summary_service.dart';
-import 'package:ai_chan/services/google_speech_service.dart';
-import 'package:ai_chan/services/subtitle_controller.dart';
-import 'package:ai_chan/providers/chat_provider.dart';
-import 'package:ai_chan/utils/log_utils.dart';
+import '../../domain/services/voice_call_summary_service.dart';
+import 'package:ai_chan/shared.dart'; // Using centralized shared exports
+import 'package:ai_chan/chat/application/providers/chat_provider.dart';
 import '../widgets/voice_call_painters.dart';
 import '../widgets/cyberpunk_subtitle.dart';
 

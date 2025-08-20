@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ai_chan/constants/app_colors.dart';
+import 'package:ai_chan/shared/constants/app_colors.dart';
 
 class TypingAnimation extends StatefulWidget {
   const TypingAnimation({super.key});

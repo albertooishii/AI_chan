@@ -1,24 +1,26 @@
 import 'package:ai_chan/chat/infrastructure/repositories/local_chat_repository.dart';
 import 'package:ai_chan/chat/infrastructure/adapters/ai_chat_response_adapter.dart';
+import 'package:ai_chan/chat/infrastructure/adapters/audio_chat_service.dart';
 import 'package:ai_chan/core/interfaces/i_chat_response_service.dart';
 import 'package:ai_chan/core/interfaces/i_chat_repository.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
 import 'package:ai_chan/core/interfaces/ai_service.dart';
-// Use canonical adapters present in lib/services/adapters
-import 'package:ai_chan/services/adapters/profile_adapter.dart';
+import 'package:ai_chan/core/interfaces/i_profile_service.dart';
+// Use canonical adapters present in bounded contexts
+import 'package:ai_chan/onboarding/infrastructure/adapters/profile_adapter.dart';
 import 'package:ai_chan/core/interfaces/i_stt_service.dart';
 // OpenAI-specific STT adapter removed from active code; prefer Google STT or runtime-based STT
 import 'package:ai_chan/core/interfaces/tts_service.dart';
-import 'package:ai_chan/services/adapters/default_tts_service.dart';
-import 'package:ai_chan/services/adapters/google_stt_adapter.dart';
-import 'package:ai_chan/services/adapters/google_tts_adapter.dart';
+import 'package:ai_chan/voice/infrastructure/adapters/default_tts_service.dart';
+import 'package:ai_chan/voice/infrastructure/adapters/google_stt_adapter.dart';
+import 'package:ai_chan/voice/infrastructure/adapters/google_tts_adapter.dart';
 import 'dart:typed_data';
 
-import 'package:ai_chan/services/openai_realtime_client.dart';
-import 'package:ai_chan/services/gemini_realtime_client.dart';
+import 'package:ai_chan/voice/infrastructure/clients/openai_realtime_client.dart';
+import 'package:ai_chan/voice/infrastructure/clients/gemini_realtime_client.dart';
 // Use adapter wrappers that implement the legacy IAIService port
-import 'package:ai_chan/services/adapters/openai_adapter.dart';
-import 'package:ai_chan/services/adapters/gemini_adapter.dart';
-import 'package:ai_chan/core/interfaces/i_profile_service.dart';
+import 'package:ai_chan/core/infrastructure/adapters/openai_adapter.dart';
+import 'package:ai_chan/core/infrastructure/adapters/gemini_adapter.dart';
 import 'package:ai_chan/core/config.dart';
 // ...existing code...
 import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
@@ -28,6 +30,12 @@ import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
 IChatRepository getChatRepository() => LocalChatRepository();
 
 IChatResponseService getChatResponseService() => const AiChatResponseAdapter();
+
+/// Factory for audio chat service with required callbacks
+IAudioChatService getAudioChatService({
+  required void Function() onStateChanged,
+  required void Function(List<int>) onWaveform,
+}) => AudioChatService(onStateChanged: onStateChanged, onWaveform: onWaveform);
 
 /// Fábrica centralizada para obtener instancias de `IAIService` por modelo.
 /// Mantiene singletons por proveedor para reutilizar estado interno (caches, preferencias de clave, etc.).

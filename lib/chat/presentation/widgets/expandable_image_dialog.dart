@@ -1,8 +1,9 @@
 import 'dart:io';
+import 'dart:ui';
+import 'package:ai_chan/shared/utils/download_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:vector_math/vector_math_64.dart' show Vector3;
 import 'package:ai_chan/core/models.dart';
+import 'package:flutter/services.dart';
 
 class ExpandableImageDialog {
   /// images: lista de mensajes con imagePath válido
@@ -41,285 +42,316 @@ class _GalleryImageViewerDialog extends StatefulWidget {
 }
 
 class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
-  late PageController _pageController;
-  int _currentIndex = 0;
-  bool _isZoomed = false;
-  bool _uiVisible = true;
-  final _transformKey = GlobalKey();
-
-  @override
-  void initState() {
-    super.initState();
-    _currentIndex = widget.initialIndex.clamp(0, widget.images.length - 1);
-    _pageController = PageController(initialPage: _currentIndex);
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  void _toggleUI() {
-    if (mounted) setState(() => _uiVisible = !_uiVisible);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final canNavigate = widget.images.length > 1;
-    final currentMsg = widget.images[_currentIndex];
-    return PopScope(
-      canPop: !_isZoomed,
-      child: Material(
-        color: Colors.black,
-        child: SafeArea(
-          child: Stack(
-            children: [
-              // Visor de imágenes con PageView
-              Center(
-                child: canNavigate
-                    ? PageView.builder(
-                        controller: _pageController,
-                        itemCount: widget.images.length,
-                        onPageChanged: (index) =>
-                            setState(() => _currentIndex = index),
-                        itemBuilder: (context, index) => _ImageViewPage(
-                          message: widget.images[index],
-                          onZoomChanged: (zoomed) =>
-                              setState(() => _isZoomed = zoomed),
-                          onTap: _toggleUI,
-                          transformKey: _transformKey,
-                        ),
-                      )
-                    : _ImageViewPage(
-                        message: currentMsg,
-                        onZoomChanged: (zoomed) =>
-                            setState(() => _isZoomed = zoomed),
-                        onTap: _toggleUI,
-                        transformKey: _transformKey,
-                      ),
-              ),
-
-              // Barra superior (contador y botón cerrar)
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 300),
-                top: _uiVisible ? 0 : -80,
-                left: 0,
-                right: 0,
-                child: Container(
-                  height: 80,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.7),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        canNavigate
-                            ? Text(
-                                '${_currentIndex + 1} / ${widget.images.length}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              )
-                            : const SizedBox.shrink(),
-                        Row(
-                          children: [
-                            if (currentMsg.image?.url != null &&
-                                File(currentMsg.image!.url!).existsSync()) ...[
-                              IconButton(
-                                onPressed: () async {
-                                  // TODO: Implement download functionality if needed
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Función de descarga no implementada',
-                                        ),
-                                        duration: Duration(seconds: 2),
-                                      ),
-                                    );
-                                  }
-                                },
-                                icon: const Icon(
-                                  Icons.download,
-                                  color: Colors.white,
-                                  size: 28,
-                                ),
-                              ),
-                            ],
-                            IconButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              icon: const Icon(
-                                Icons.close,
-                                color: Colors.white,
-                                size: 28,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // Indicador de página (solo si hay múltiples imágenes)
-              if (canNavigate)
-                AnimatedPositioned(
-                  duration: const Duration(milliseconds: 300),
-                  bottom: _uiVisible ? 20 : -60,
-                  left: 0,
-                  right: 0,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      widget.images.length,
-                      (index) => Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: index == _currentIndex
-                              ? Colors.white
-                              : Colors.white.withValues(alpha: 0.5),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+  bool _showText = true;
+  void _showImageDescriptionDialog(String? description) {
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      useRootNavigator: true,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.black,
+        title: const Text(
+          'Descripción de la imagen',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: SingleChildScrollView(
+          child: Text(
+            description ?? 'Sin descripción.',
+            style: const TextStyle(color: Colors.white),
           ),
         ),
+        actions: [
+          TextButton(
+            child: const Text('Copiar', style: TextStyle(color: Colors.white)),
+            onPressed: () async {
+              final text = description ?? '';
+              if (text.isEmpty) {
+                Navigator.of(ctx).pop();
+                return;
+              }
+              // Capturar referencias antes del await para evitar usar context tras el gap
+              final messenger = ScaffoldMessenger.of(context);
+              final navigator = Navigator.of(ctx);
+              await Clipboard.setData(ClipboardData(text: text));
+              // Usar referencias capturadas
+              messenger.showSnackBar(
+                const SnackBar(
+                  content: Text('Descripción copiada al portapapeles'),
+                ),
+              );
+              navigator.pop();
+            },
+          ),
+          TextButton(
+            child: const Text('Cerrar', style: TextStyle(color: Colors.white)),
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+        ],
       ),
     );
   }
-}
 
-class _ImageViewPage extends StatefulWidget {
-  final Message message;
-  final ValueChanged<bool> onZoomChanged;
-  final VoidCallback onTap;
-  final GlobalKey transformKey;
-
-  const _ImageViewPage({
-    required this.message,
-    required this.onZoomChanged,
-    required this.onTap,
-    required this.transformKey,
-  });
-
-  @override
-  State<_ImageViewPage> createState() => _ImageViewPageState();
-}
-
-class _ImageViewPageState extends State<_ImageViewPage> {
-  final _transformController = TransformationController();
-  bool _isZoomed = false;
+  late PageController _controller;
+  late int _currentIndex;
+  // Eliminada variable _showDownload (ya no se usa)
+  final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _transformController.addListener(_onTransformChanged);
+    _currentIndex = widget.initialIndex;
+    _controller = PageController(initialPage: _currentIndex);
+    // Asegura el foco al abrir el diálogo
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+    });
   }
 
-  @override
-  void dispose() {
-    _transformController.removeListener(_onTransformChanged);
-    _transformController.dispose();
-    super.dispose();
+  void _onPageChanged(int idx) {
+    setState(() => _currentIndex = idx);
   }
 
-  void _onTransformChanged() {
-    final scale = _transformController.value.getMaxScaleOnAxis();
-    final nowZoomed = scale > 1.05; // pequeño umbral para evitar flickering
-    if (nowZoomed != _isZoomed) {
-      _isZoomed = nowZoomed;
-      widget.onZoomChanged(nowZoomed);
+  DateTime? _lastKeyTime;
+  void _onKey(KeyEvent event) {
+    // Ignorar eventos duplicados en menos de 100ms
+    if (event is KeyDownEvent) {
+      final now = DateTime.now();
+      if (_lastKeyTime != null &&
+          now.difference(_lastKeyTime!).inMilliseconds < 100) {
+        return;
+      }
+      _lastKeyTime = now;
+      if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
+          _currentIndex < widget.images.length - 1) {
+        _controller.nextPage(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+        );
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
+          _currentIndex > 0) {
+        _controller.previousPage(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+        );
+      }
     }
   }
 
-  void _resetZoom() {
-    _transformController.value = Matrix4.identity();
-  }
+  // Métodos _showIcon y _hideIcon eliminados (ya no se usan)
 
   @override
   Widget build(BuildContext context) {
-    final imgPath = widget.message.image?.url;
-    if (imgPath == null || !File(imgPath).existsSync()) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: EdgeInsets.zero,
+      child: KeyboardListener(
+        autofocus: true,
+        focusNode: _focusNode,
+        onKeyEvent: (event) => _onKey(event),
+        child: Stack(
           children: [
-            Icon(Icons.broken_image, color: Colors.grey, size: 64),
-            SizedBox(height: 16),
-            Text(
-              'Imagen no encontrada',
-              style: TextStyle(color: Colors.grey, fontSize: 16),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return InteractiveViewer(
-      key: widget.transformKey,
-      transformationController: _transformController,
-      minScale: 1.0,
-      maxScale: 4.0,
-      onInteractionEnd: (details) {
-        // Si termina la interacción con un solo tap y no hay zoom, toggle UI
-        if (!_isZoomed &&
-            details.pointerCount == 0 &&
-            details.velocity.pixelsPerSecond.distance < 300) {
-          widget.onTap();
-        }
-      },
-      child: GestureDetector(
-        onDoubleTap: () {
-          if (_isZoomed) {
-            _resetZoom();
-          } else {
-            // Zoom 2x en el centro
-            final matrix = Matrix4.identity()
-              ..scaleByVector3(Vector3(2.0, 2.0, 1.0));
-            _transformController.value = matrix;
-          }
-          HapticFeedback.lightImpact();
-        },
-        child: Center(
-          child: Hero(
-            tag: 'image_${widget.message.image?.url}',
-            child: Image.file(
-              File(imgPath),
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, color: Colors.redAccent, size: 64),
-                  SizedBox(height: 16),
-                  Text(
-                    'Error cargando imagen',
-                    style: TextStyle(color: Colors.redAccent, fontSize: 16),
+            // Fondo con blur suave cuando se muestran los controles
+            if (_showText)
+              Positioned.fill(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 3.0, sigmaY: 3.0),
+                  child: Container(color: Colors.black.withValues(alpha: 0.2)),
+                ),
+              ),
+            // Imagen y navegación (pantalla completa, esquinas redondeadas siempre)
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Container(
+                  color: _showText ? Colors.transparent : Colors.black,
+                  width: double.infinity,
+                  height: double.infinity,
+                  child: PageView.builder(
+                    controller: _controller,
+                    onPageChanged: _onPageChanged,
+                    itemCount: widget.images.length,
+                    itemBuilder: (context, idx) {
+                      final msg = widget.images[idx];
+                      final relPath = msg.image?.url;
+                      if (widget.imageDir == null ||
+                          relPath == null ||
+                          relPath.isEmpty) {
+                        return GestureDetector(
+                          behavior: HitTestBehavior.translucent,
+                          onTap: () => Navigator.of(context).pop(),
+                          child: Center(
+                            child: Container(
+                              color: Colors.grey[900],
+                              width: 200,
+                              height: 200,
+                              child: const Icon(
+                                Icons.broken_image,
+                                color: Colors.grey,
+                                size: 80,
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                      final absPath =
+                          '${widget.imageDir!.path}/${relPath.split('/').last}';
+                      final file = File(absPath);
+                      final exists = file.existsSync();
+                      if (exists) {
+                        return Stack(
+                          children: [
+                            // Área de cierre al hacer tap fuera de la imagen
+                            Positioned.fill(
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.translucent,
+                                onTap: () => Navigator.of(context).pop(),
+                                child: Container(),
+                              ),
+                            ),
+                            // La imagen en sí
+                            Center(
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () {
+                                  setState(() {
+                                    _showText = !_showText;
+                                  });
+                                },
+                                child: InteractiveViewer(
+                                  minScale: 1.0,
+                                  maxScale: 6.0,
+                                  panEnabled: true,
+                                  clipBehavior: Clip.none,
+                                  child: Image.file(file, fit: BoxFit.contain),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+                      return GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Center(
+                          child: Container(
+                            color: Colors.grey[900],
+                            width: 200,
+                            height: 200,
+                            child: const Icon(
+                              Icons.broken_image,
+                              color: Colors.grey,
+                              size: 80,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                ],
+                ),
               ),
             ),
-          ),
+            // Controles y texto (encima de la imagen)
+            if (_showText) ...[
+              Positioned(
+                top: 8,
+                left: 8,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 32),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+              // Botón de descarga y menú juntos en la esquina superior derecha
+              Positioned(
+                top: 16,
+                right: 16,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        Icons.download,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                      tooltip: 'Descargar imagen',
+                      onPressed: () async {
+                        final file = widget.images[_currentIndex].image?.url;
+                        if (file != null && file.isNotEmpty) {
+                          final result = await downloadImage(file);
+                          if (!result.$1 && result.$2 != null) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Error al descargar: ${result.$2}',
+                                  ),
+                                ),
+                              );
+                            }
+                          } else {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Imagen guardada en Descargas'),
+                                ),
+                              );
+                            }
+                          }
+                        }
+                      },
+                    ),
+                    PopupMenuButton<String>(
+                      icon: const Icon(
+                        Icons.more_vert,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                      tooltip: 'Opciones',
+                      onSelected: (value) {
+                        if (value == 'description') {
+                          _showImageDescriptionDialog(
+                            widget.images[_currentIndex].image?.prompt,
+                          );
+                        }
+                      },
+                      itemBuilder: (context) {
+                        return [
+                          const PopupMenuItem<String>(
+                            value: 'description',
+                            child: Text('Ver descripción'),
+                          ),
+                        ];
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            // Mostrar el texto solo si no es vacío y si _showText está activo
+            if (_showText &&
+                widget.images[_currentIndex].text.isNotEmpty &&
+                widget.images[_currentIndex].text.trim() != '')
+              Positioned(
+                bottom: 24,
+                left: 24,
+                right: 24,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 18,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color.fromRGBO(0, 0, 0, 0.7),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    widget.images[_currentIndex].text,
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

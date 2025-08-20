@@ -1,6 +1,6 @@
-import 'package:ai_chan/services/gemini_service.dart';
-import 'package:ai_chan/services/openai_service.dart';
-import 'package:ai_chan/services/ai_service.dart' as runtime_ai;
+import '../shared/services/gemini_service.dart';
+import '../shared/services/openai_service.dart';
+import '../shared/services/ai_service.dart' as runtime_ai;
 import 'package:ai_chan/core/config.dart';
 
 /// Fábrica centralizada para obtener instancias runtime de AI (OpenAI/Gemini).
@@ -10,7 +10,9 @@ final Map<String, runtime_ai.AIService> _runtimeAiSingletons = {};
 runtime_ai.AIService getRuntimeAIServiceForModel(String modelId) {
   final normalized = modelId.trim().toLowerCase();
   final defaultModel = Config.getDefaultTextModel().trim().toLowerCase();
-  final key = normalized.isEmpty ? (defaultModel.isEmpty ? 'default' : defaultModel) : normalized;
+  final key = normalized.isEmpty
+      ? (defaultModel.isEmpty ? 'default' : defaultModel)
+      : normalized;
   if (_runtimeAiSingletons.containsKey(key)) return _runtimeAiSingletons[key]!;
 
   runtime_ai.AIService impl;

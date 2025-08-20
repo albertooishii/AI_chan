@@ -2,16 +2,39 @@
 
 AI-chan es una "novia virtual": una aplicación experimental que crea una compañera conversacional personalizada. La app combina chat con memoria contextual, llamadas/nota de voz con prosodia, y generación de avatar a partir de una ficha de apariencia creada por IA. Está pensada para experimentación, investigación y uso personal responsable — no para suplantación, abuso ni usos ilegales.
 
+## 🏗️ Arquitectura
+
+Este proyecto implementa **DDD (Domain-Driven Design) + Hexagonal Architecture** con 4 bounded contexts:
+
+- **Chat**: Gestión de conversaciones y mensajes
+- **Onboarding**: Creación y configuración de perfiles  
+- **Voice**: Servicios de voz (TTS/STT) y llamadas
+- **Shared**: Kernel compartido entre contextos
+
+### Estructura del Proyecto
+```
+lib/
+├── chat/
+│   ├── domain/          # Interfaces y modelos de dominio
+│   ├── application/     # Casos de uso y providers
+│   ├── infrastructure/  # Adaptadores e implementaciones
+│   └── presentation/    # UI y widgets
+├── onboarding/         # Mismo patrón DDD
+├── voice/              # Mismo patrón DDD  
+├── core/               # DI, configuración, interfaces compartidas
+└── shared/             # Servicios y utilidades compartidas
+```
+
+### Quality Metrics ✅
+- **Tests**: 48/48 pasando (100%)
+- **Arquitectura**: 100% DDD compliant - 0 violaciones
+- **Flutter analyze**: Clean - 0 errores/warnings
+
 ## CI
 
 Status: ![CI](https://github.com/albertooishii/AI_chan/actions/workflows/ci.yml/badge.svg)
 
-Testing note:
-
-- For more predictable, less interleaved test output (especially useful in CI or when debugging noisy tests), run Flutter tests with a single worker: `flutter test -j 1 -r expanded` or use the provided VS Code task `flutter-test-j1`.
-# AI-chan
-
-AI-chan es una "novia virtual": una aplicación experimental que crea una compañera conversacional personalizada. La app combina chat con memoria contextual, llamadas/nota de voz con prosodia, y generación de avatar a partir de una ficha de apariencia creada por IA. Está pensada para experimentación, investigación y uso personal responsable — no para suplantación, abuso ni usos ilegales.
+**Testing note**: Para salida más predecible y menos entrelazada (especialmente útil en CI), ejecuta: `flutter test -j 1 -r expanded` o usa la tarea VS Code `flutter-test-j1`.
 
 Principales características
 

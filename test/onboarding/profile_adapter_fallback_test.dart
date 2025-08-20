@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ai_chan/services/adapters/profile_adapter.dart';
-import 'package:ai_chan/services/ai_service.dart';
+import 'package:ai_chan/onboarding/infrastructure/adapters/profile_adapter.dart';
+import 'package:ai_chan/shared/services/ai_service.dart';
 
 class ThrowingAIService implements AIService {
   @override
@@ -8,17 +8,20 @@ class ThrowingAIService implements AIService {
 }
 
 void main() {
-  test('ProfileAdapter returns fallback profile when AI service throws', () async {
-    final adapter = ProfileAdapter(aiService: ThrowingAIService());
-    final p = await adapter.generateBiography(
-      userName: 'User',
-      aiName: 'Ai',
-      userBirthday: DateTime(1990),
-      meetStory: 'meet',
-    );
+  test(
+    'ProfileAdapter returns fallback profile when AI service throws',
+    () async {
+      final adapter = ProfileAdapter(aiService: ThrowingAIService());
+      final p = await adapter.generateBiography(
+        userName: 'User',
+        aiName: 'Ai',
+        userBirthday: DateTime(1990),
+        meetStory: 'meet',
+      );
 
-    expect(p, isNotNull);
-    expect(p.biography, isA<Map<String, dynamic>>());
-    expect(p.biography['summary'], contains('fallback'));
-  });
+      expect(p, isNotNull);
+      expect(p.biography, isA<Map<String, dynamic>>());
+      expect(p.biography['summary'], contains('fallback'));
+    },
+  );
 }

@@ -1,8 +1,7 @@
-// import 'package:flutter/foundation.dart';
-import 'package:ai_chan/utils/log_utils.dart';
+import 'package:ai_chan/shared/services/ai_service.dart';
+import 'package:ai_chan/shared/utils/image_utils.dart';
+import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/services/ai_service.dart';
-import 'package:ai_chan/utils/image_utils.dart';
 import 'package:ai_chan/core/config.dart';
 
 class AIChatResult {

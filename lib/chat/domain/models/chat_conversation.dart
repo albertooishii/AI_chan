@@ -1,5 +1,4 @@
-import 'package:ai_chan/chat/domain/models/message.dart';
-import 'package:ai_chan/chat/domain/models/chat_event.dart';
+import 'package:ai_chan/core/models.dart';
 
 /// Chat Conversation - Domain Aggregate
 /// Representa una conversación de chat completa con sus mensajes y eventos

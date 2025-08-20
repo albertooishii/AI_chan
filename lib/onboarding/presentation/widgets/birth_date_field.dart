@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../constants/app_colors.dart';
-import '../../../providers/onboarding_provider.dart';
+import 'package:ai_chan/shared/constants/app_colors.dart';
+import '../../application/providers/onboarding_provider.dart';
 import 'package:provider/provider.dart';
 
 class BirthDateField extends StatelessWidget {

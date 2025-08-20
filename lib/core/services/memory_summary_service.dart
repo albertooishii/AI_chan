@@ -2,9 +2,9 @@ import 'package:ai_chan/core/config.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:async';
 // Replaced legacy barrel import with canonical barrel
-import 'package:ai_chan/services/ai_service.dart';
+import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/utils/json_utils.dart';
+import 'package:ai_chan/shared/utils/json_utils.dart';
 
 class MemorySuperblockResult {
   final List<TimelineEntry> timeline;

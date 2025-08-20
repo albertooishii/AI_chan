@@ -1,6 +1,7 @@
 import 'package:ai_chan/chat/domain/models.dart';
 import 'package:ai_chan/chat/domain/interfaces.dart';
 import 'package:ai_chan/chat/domain/services.dart';
+import 'package:ai_chan/core/models.dart';
 
 /// Send Message Use Case - Chat Application Layer
 /// Orquesta el proceso completo de envío de mensaje incluyendo:

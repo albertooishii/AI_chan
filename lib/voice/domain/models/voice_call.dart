@@ -1,5 +1,6 @@
 import 'package:ai_chan/voice/domain/models/voice_provider.dart';
 import 'package:ai_chan/voice/domain/models/voice_message.dart';
+import 'package:ai_chan/core/models.dart';
 
 /// Agregado de dominio que representa una llamada de voz completa
 class VoiceCall {
@@ -145,44 +146,6 @@ class VoiceCall {
 
   @override
   int get hashCode => id.hashCode;
-}
-
-/// Estados posibles de una llamada de voz
-enum CallStatus { active, paused, completed, failed, cancelled }
-
-/// Extensión para CallStatus
-extension CallStatusExtension on CallStatus {
-  String get name {
-    switch (this) {
-      case CallStatus.active:
-        return 'active';
-      case CallStatus.paused:
-        return 'paused';
-      case CallStatus.completed:
-        return 'completed';
-      case CallStatus.failed:
-        return 'failed';
-      case CallStatus.cancelled:
-        return 'cancelled';
-    }
-  }
-
-  static CallStatus fromString(String value) {
-    switch (value.toLowerCase()) {
-      case 'active':
-        return CallStatus.active;
-      case 'paused':
-        return CallStatus.paused;
-      case 'completed':
-        return CallStatus.completed;
-      case 'failed':
-        return CallStatus.failed;
-      case 'cancelled':
-        return CallStatus.cancelled;
-      default:
-        return CallStatus.active;
-    }
-  }
 }
 
 /// Configuración de una llamada de voz

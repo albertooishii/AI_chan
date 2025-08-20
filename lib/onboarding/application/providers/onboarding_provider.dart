@@ -1,35 +1,26 @@
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/utils/storage_utils.dart';
+import 'package:ai_chan/shared/utils/dialog_utils.dart';
+import 'package:ai_chan/shared/utils/storage_utils.dart';
 import 'package:flutter/material.dart';
-import 'package:ai_chan/main.dart' show navigatorKey;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'package:ai_chan/services/ai_service.dart' as ai_service_legacy;
 import 'package:ai_chan/core/services/ia_appearance_generator.dart';
-import 'package:ai_chan/onboarding/domain/interfaces/i_profile_service.dart';
-import 'package:ai_chan/onboarding/infrastructure/adapters/profile_adapter.dart';
-import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
-import 'package:ai_chan/utils/dialog_utils.dart';
-import 'package:ai_chan/utils/chat_json_utils.dart' as chat_json_utils;
-import 'package:ai_chan/utils/locale_utils.dart';
-import 'package:ai_chan/utils/log_utils.dart';
+import 'package:ai_chan/core/interfaces/i_profile_service.dart';
+import 'package:ai_chan/core/di.dart' as di;
+import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
+import 'package:ai_chan/shared/utils/locale_utils.dart';
+import 'package:ai_chan/shared/utils/log_utils.dart';
 
 class OnboardingProvider extends ChangeNotifier {
   bool loadingStory = false;
   DateTime? userBirthday;
-  final IProfileService _profileService;
-  final Future<String?> Function(String base64, {String prefix})? saveImageFunc;
+  final IProfileService _profileService = di.getProfileServiceForProvider();
+  final Future<String?> Function(String base64, {String prefix})?
+  saveImageFunc = null;
 
-  // Permite inyectar el servicio en tests, por defecto usa DI
-  OnboardingProvider({IProfileService? profileService, this.saveImageFunc})
-    : _profileService =
-          profileService ??
-          ProfileAdapter(
-            aiService: runtime_factory.getRuntimeAIServiceForModel(
-              Config.getDefaultTextModel(),
-            ),
-          ) {
+  OnboardingProvider() {
+    // Inicialización asíncrona que carga datos guardados y actualiza `loading`
     _loadBiographyFromPrefs();
   }
   bool loading = true;
@@ -58,11 +49,12 @@ class OnboardingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Carga inicial desde SharedPreferences (sin UI) para tests y arranque
   Future<void> _loadBiographyFromPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonStr = prefs.getString('onboarding_data');
-    if (jsonStr != null && jsonStr.trim().isNotEmpty) {
-      try {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString('onboarding_data');
+      if (jsonStr != null && jsonStr.trim().isNotEmpty) {
         final Map<String, dynamic> json = jsonDecode(jsonStr);
         final profile = await AiChanProfile.tryFromJson(json);
         if (profile != null) {
@@ -72,33 +64,23 @@ class OnboardingProvider extends ChangeNotifier {
           _generatedBiography = null;
           _biographySaved = false;
         }
-      } catch (e) {
+      } else {
         _generatedBiography = null;
         _biographySaved = false;
+      }
+    } catch (e) {
+      // En tests/entorno sin UI no mostramos diálogos; limpiamos prefs si hay corrupción
+      try {
+        final prefs = await SharedPreferences.getInstance();
         await prefs.remove('onboarding_data');
         await prefs.remove('chat_history');
-        if (navigatorKey.currentContext != null) {
-          await showDialog(
-            context: navigatorKey.currentContext!,
-            builder: (ctx) => AlertDialog(
-              title: const Text('Error al cargar biografía'),
-              content: Text(e.toString()),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('OK'),
-                ),
-              ],
-            ),
-          );
-        }
-      }
-    } else {
+      } catch (_) {}
       _generatedBiography = null;
       _biographySaved = false;
+    } finally {
+      loading = false;
+      notifyListeners();
     }
-    loading = false;
-    notifyListeners();
   }
 
   AiChanProfile? _generatedBiography;
@@ -288,7 +270,9 @@ class OnboardingProvider extends ChangeNotifier {
         instructions: {'raw': instrucciones},
       );
       try {
-        final story = await ai_service_legacy.AIService.sendMessage(
+        // Usar el servicio de chat response para generar la historia
+        final chatService = di.getChatResponseService();
+        final response = await chatService.sendChat(
           [
             {
               "role": "user",
@@ -296,11 +280,13 @@ class OnboardingProvider extends ChangeNotifier {
               "datetime": DateTime.now().toIso8601String(),
             },
           ],
-          systemPromptObj,
-          model: Config.getDefaultTextModel(),
+          options: {
+            'systemPromptObj': systemPromptObj.toJson(),
+            'model': Config.getDefaultTextModel(),
+          },
         );
         if (!context.mounted) return;
-        final storyText = story.text;
+        final storyText = response['text'] as String? ?? '';
         if (storyText.toLowerCase().contains('error al conectar con la ia') ||
             storyText.toLowerCase().contains('"error"')) {
           await showErrorDialog(context, storyText);

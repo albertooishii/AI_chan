@@ -1,6 +1,6 @@
-import 'package:ai_chan/onboarding/domain/interfaces/i_profile_service.dart';
+import 'package:ai_chan/core/interfaces/i_profile_service.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/services/ai_service.dart';
+import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/core/services/ia_bio_generator.dart';
 import 'package:ai_chan/core/services/ia_appearance_generator.dart';
 

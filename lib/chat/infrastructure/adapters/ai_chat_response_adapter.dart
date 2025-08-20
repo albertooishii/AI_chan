@@ -1,8 +1,8 @@
 import 'package:ai_chan/core/interfaces/i_chat_response_service.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/services/ai_chat_response_service.dart';
+import '../services/ai_chat_response_service.dart';
 import 'package:ai_chan/core/config.dart';
-import 'package:ai_chan/services/ai_service.dart' show getAllAIModels;
+import 'package:ai_chan/shared/services/ai_service.dart' show getAllAIModels;
 
 /// Adaptador que implementa IChatResponseService delegando en AiChatResponseService.
 /// Convierte el shape genérico de mensajes (Map) a objetos de dominio y devuelve

@@ -1,3 +1,4 @@
+import 'package:ai_chan/shared/utils/image_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -8,10 +9,9 @@ import 'package:flutter/foundation.dart'
 import 'dart:io';
 import 'dart:convert';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
-import '../../../constants/app_colors.dart';
+import 'package:ai_chan/shared/constants/app_colors.dart';
 import '../../application/providers/chat_provider.dart';
 import 'package:ai_chan/core/models.dart';
-import '../../../utils/image_utils.dart';
 
 // Intents para atajos de teclado en escritorio
 class SendMessageIntent extends Intent {

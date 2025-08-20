@@ -9,9 +9,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ai_chan/main.dart';
+import 'test_setup.dart';
 
 void main() {
   testWidgets('App builds smoke test', (WidgetTester tester) async {
+    await initializeTestEnvironment();
+
     // Construir la app raíz (incluye MaterialApp y Providers)
     await tester.pumpWidget(const RootApp());
     // Dejar pasar el delay de initState (500ms) y tareas asíncronas mínimas
