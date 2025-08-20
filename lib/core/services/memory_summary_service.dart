@@ -9,7 +9,10 @@ import 'package:ai_chan/utils/json_utils.dart';
 class MemorySuperblockResult {
   final List<TimelineEntry> timeline;
   final TimelineEntry? superbloqueEntry;
-  MemorySuperblockResult({required this.timeline, required this.superbloqueEntry});
+  MemorySuperblockResult({
+    required this.timeline,
+    required this.superbloqueEntry,
+  });
 }
 
 class MemorySummaryService {
@@ -35,7 +38,11 @@ class MemorySummaryService {
       recentMessages: recentMessages,
       instructions: {'raw': instrucciones},
     );
-    final response = await AIService.sendMessage([], systemPrompt, model: superblockModel);
+    final response = await AIService.sendMessage(
+      [],
+      systemPrompt,
+      model: superblockModel,
+    );
     final resumenJson = extractJsonBlock(response.text.trim());
     if (resumenJson.toString().isNotEmpty && resumenJson.toString() != '') {
       return resumenJson;
@@ -50,7 +57,8 @@ class MemorySummaryService {
     'eventos': [],
     'emociones': [],
     'resumen': '',
-    'detalles_unicos': [], // Frases, nombres, bromas internas, datos triviales relevantes
+    'detalles_unicos':
+        [], // Frases, nombres, bromas internas, datos triviales relevantes
   };
   // Prompt unificado para todos los niveles de resumen
   // Listas estticas reutilizables
@@ -183,7 +191,9 @@ class MemorySummaryService {
 
   // Funcifn para construir etiquetas
   static String _buildEtiquetas(String textoBloque) {
-    final eventosDetectados = _eventosClave.where((e) => textoBloque.toLowerCase().contains(e)).toList();
+    final eventosDetectados = _eventosClave
+        .where((e) => textoBloque.toLowerCase().contains(e))
+        .toList();
     final emociones = _emocionesDetectadas(textoBloque);
     List<String> etiquetas = [];
     if (eventosDetectados.isNotEmpty) {
@@ -215,8 +225,8 @@ class MemorySummaryService {
   static String get superblockModel => Config.getDefaultTextModel();
   final AiChanProfile profile;
   static int? get _maxHistory {
-    final value = int.tryParse(Config.get('SUMMARY_BLOCK_SIZE', ''));
-    return (value != null && value > 0) ? value : null;
+    final value = Config.getSummaryBlockSize();
+    return (value > 0) ? value : null;
   }
 
   /// Getter público para acceder a SUMMARY_BLOCK_SIZE desde fuera
@@ -232,9 +242,16 @@ class MemorySummaryService {
     void Function(String? blockDate)? onSummaryError,
   }) async {
     // 1. Generar resúmenes de bloques si corresponde
-    final updatedTimeline = await updateConversationSummary(messages, timeline, onSummaryError: onSummaryError);
+    final updatedTimeline = await updateConversationSummary(
+      messages,
+      timeline,
+      onSummaryError: onSummaryError,
+    );
     if (updatedTimeline == null) {
-      return MemorySuperblockResult(timeline: timeline, superbloqueEntry: superbloqueEntry);
+      return MemorySuperblockResult(
+        timeline: timeline,
+        superbloqueEntry: superbloqueEntry,
+      );
     }
 
     // 2. Procesar superbloque si corresponde
@@ -253,7 +270,9 @@ class MemorySummaryService {
     final blocksLevel0 = updatedTimeline.where((b) => b.level == 0).toList();
     // Para superbloques de nivel superior
     for (int level = 1; level < 10; level++) {
-      final blocksLevelN = updatedTimeline.where((b) => b.level == level).toList();
+      final blocksLevelN = updatedTimeline
+          .where((b) => b.level == level)
+          .toList();
       if (blocksLevelN.length >= maxHistory * 2) {
         final blocksToSummarize = blocksLevelN.take(maxHistory).toList();
         if (blocksToSummarize.isNotEmpty) {
@@ -263,7 +282,9 @@ class MemorySummaryService {
               .map((b) {
                 final fechaIni = b.startDate ?? '';
                 final fechaFin = b.endDate ?? '';
-                String texto = b.resume is String ? b.resume : b.resume.toString();
+                String texto = b.resume is String
+                    ? b.resume
+                    : b.resume.toString();
                 final etiquetas = _buildEtiquetas(texto);
                 if (etiquetas.isNotEmpty) {
                   texto = "$etiquetas$texto";
@@ -297,7 +318,9 @@ class MemorySummaryService {
               level: newLevel,
             );
             updatedTimeline.removeWhere((e) => blocksToSummarize.contains(e));
-            int insertIndex = updatedTimeline.indexWhere((e) => e.level > level);
+            int insertIndex = updatedTimeline.indexWhere(
+              (e) => e.level > level,
+            );
             if (insertIndex == -1) {
               updatedTimeline.add(superbloque);
             } else {
@@ -319,7 +342,9 @@ class MemorySummaryService {
             .map((b) {
               final fechaIni = b.startDate ?? '';
               final fechaFin = b.endDate ?? '';
-              String texto = b.resume is String ? b.resume : b.resume.toString();
+              String texto = b.resume is String
+                  ? b.resume
+                  : b.resume.toString();
               return "[$fechaIni a $fechaFin]\n$texto";
             })
             .join('\n');
@@ -342,7 +367,10 @@ class MemorySummaryService {
         );
         if (resumenJson != null) {
           final int newLevel =
-              (blocksToSummarize.map((b) => b.level).fold<int>(0, (prev, l) => l > prev ? l : prev)) + 1;
+              (blocksToSummarize
+                  .map((b) => b.level)
+                  .fold<int>(0, (prev, l) => l > prev ? l : prev)) +
+              1;
           final superbloque = TimelineEntry(
             resume: resumenJson,
             startDate: superbloqueStart, // ISO8601 con hora
@@ -361,8 +389,13 @@ class MemorySummaryService {
       }
     }
     // Ordenar timeline por startDate antes de devolver
-    updatedTimeline.sort((a, b) => (a.startDate ?? '').compareTo(b.startDate ?? ''));
-    return MemorySuperblockResult(timeline: updatedTimeline, superbloqueEntry: updatedSuperbloque);
+    updatedTimeline.sort(
+      (a, b) => (a.startDate ?? '').compareTo(b.startDate ?? ''),
+    );
+    return MemorySuperblockResult(
+      timeline: updatedTimeline,
+      superbloqueEntry: updatedSuperbloque,
+    );
   }
 
   /// Genera resúmenes de bloques de mensajes y los añade al timeline si corresponde
@@ -373,9 +406,13 @@ class MemorySummaryService {
   }) async {
     // Lock de concurrencia optimizado: solo una ejecución a la vez
     while (_lock != null) {
-      debugPrint('[MemorySummaryService] Resumen ya en curso, esperando a que termine...');
+      debugPrint(
+        '[MemorySummaryService] Resumen ya en curso, esperando a que termine...',
+      );
       await _lock!.future;
-      debugPrint('[MemorySummaryService] Resumen anterior finalizado, no se relanza.');
+      debugPrint(
+        '[MemorySummaryService] Resumen anterior finalizado, no se relanza.',
+      );
       return null;
     }
     debugPrint('[MemorySummaryService] Iniciando proceso de resumen...');
@@ -387,10 +424,16 @@ class MemorySummaryService {
       final superbloques = timeline.where((t) => t.level > 0).toList();
       if (superbloques.isNotEmpty) {
         // Tomar el superbloque más reciente por endDate
-        superbloques.sort((a, b) => (b.endDate ?? '').compareTo(a.endDate ?? ''));
+        superbloques.sort(
+          (a, b) => (b.endDate ?? '').compareTo(a.endDate ?? ''),
+        );
         final lastSuperbloqueEnd = superbloques.first.endDate;
         if (lastSuperbloqueEnd != null && lastSuperbloqueEnd.isNotEmpty) {
-          messages = messages.where((m) => (m.dateTime).isAfter(DateTime.parse(lastSuperbloqueEnd))).toList();
+          messages = messages
+              .where(
+                (m) => (m.dateTime).isAfter(DateTime.parse(lastSuperbloqueEnd)),
+              )
+              .toList();
         }
       }
       final maxHistory = _maxHistory;
@@ -401,7 +444,9 @@ class MemorySummaryService {
         return timeline;
       }
       if (messages.length <= maxHistory) {
-        debugPrint('[MemorySummaryService] No hay suficientes mensajes para resumir.');
+        debugPrint(
+          '[MemorySummaryService] No hay suficientes mensajes para resumir.',
+        );
         return timeline;
       }
 
@@ -414,21 +459,32 @@ class MemorySummaryService {
           final blockStartDate = block.first.dateTime.toIso8601String();
           final blockEndDate = block.last.dateTime.toIso8601String();
           final exists = timeline.any(
-            (t) => t.startDate == blockStartDate && t.endDate == blockEndDate && t.level == 0,
+            (t) =>
+                t.startDate == blockStartDate &&
+                t.endDate == blockEndDate &&
+                t.level == 0,
           );
           if (!exists) {
             bloquesPendientes.add(block);
           }
         }
-        debugPrint('[MemorySummaryService] Bloques pendientes de resumen: ${bloquesPendientes.length}');
+        debugPrint(
+          '[MemorySummaryService] Bloques pendientes de resumen: ${bloquesPendientes.length}',
+        );
         for (final block in bloquesPendientes) {
           final blockStartDate = block.first.dateTime.toIso8601String();
           final blockEndDate = block.last.dateTime.toIso8601String();
-          debugPrint('[MemorySummaryService] Resumiendo bloque: $blockStartDate a $blockEndDate');
-          _summaryQueue = _summaryQueue.then((_) => _summarizeBlock(block, timeline, onSummaryError));
+          debugPrint(
+            '[MemorySummaryService] Resumiendo bloque: $blockStartDate a $blockEndDate',
+          );
+          _summaryQueue = _summaryQueue.then(
+            (_) => _summarizeBlock(block, timeline, onSummaryError),
+          );
           await _summaryQueue;
         }
-        timeline.sort((a, b) => (a.startDate ?? '').compareTo(b.startDate ?? ''));
+        timeline.sort(
+          (a, b) => (a.startDate ?? '').compareTo(b.startDate ?? ''),
+        );
         debugPrint('[MemorySummaryService] Proceso de resumen finalizado.');
         return timeline;
       }
@@ -438,7 +494,9 @@ class MemorySummaryService {
       debugPrint('[MemorySummaryService] Proceso de resumen finalizado.');
       return timeline;
     } catch (e, stack) {
-      debugPrint('[MemorySummaryService] Error inesperado en resumen: $e\n$stack');
+      debugPrint(
+        '[MemorySummaryService] Error inesperado en resumen: $e\n$stack',
+      );
       rethrow;
     } finally {
       _lock?.complete();
@@ -455,12 +513,16 @@ class MemorySummaryService {
     final blockEndDate = block.last.dateTime.toIso8601String();
     int retryCount = 0;
     // Unir todos los textos del bloque para análisis semántico
-    final fechasUnicas = block.map((m) => (m.dateTime).toIso8601String().substring(0, 10)).toSet();
+    final fechasUnicas = block
+        .map((m) => (m.dateTime).toIso8601String().substring(0, 10))
+        .toSet();
     String instruccionesBloque =
         "${_instruccionesFechas(fechasUnicas)}\n\nDEVUELVE \u00daNICAMENTE EL BLOQUE JSON, SIN TEXTO EXTRA, EXPLICACIONES NI INTRODUCCI\u00d3N. El formato debe ser:\n$resumenJsonSchema";
     final recentMessages = block.map((m) {
       String content = m.text.trim();
-      final imgPrompt = (m.isImage && m.image != null) ? (m.image!.prompt?.trim() ?? '') : '';
+      final imgPrompt = (m.isImage && m.image != null)
+          ? (m.image!.prompt?.trim() ?? '')
+          : '';
       if (imgPrompt.isNotEmpty) {
         final caption = '[img_caption]$imgPrompt[/img_caption]';
         content = content.isEmpty ? caption : '$caption\n\n$content';
@@ -472,8 +534,14 @@ class MemorySummaryService {
           : m.sender == MessageSender.system
           ? 'system'
           : 'unknown';
-      final map = <String, dynamic>{'role': role, 'content': content, 'datetime': m.dateTime.toIso8601String()};
-      if (m.isImage && m.image != null && (m.image!.seed != null && m.image!.seed!.isNotEmpty)) {
+      final map = <String, dynamic>{
+        'role': role,
+        'content': content,
+        'datetime': m.dateTime.toIso8601String(),
+      };
+      if (m.isImage &&
+          m.image != null &&
+          (m.image!.seed != null && m.image!.seed!.isNotEmpty)) {
         map['seed'] = m.image!.seed;
       }
       return map;
@@ -481,14 +549,22 @@ class MemorySummaryService {
     // Intentar obtener el resumen JSON con reintentos
     Map<String, dynamic>? resumenJson;
     do {
-      resumenJson = await _getJsonSummary(instrucciones: instruccionesBloque, recentMessages: recentMessages);
+      resumenJson = await _getJsonSummary(
+        instrucciones: instruccionesBloque,
+        recentMessages: recentMessages,
+      );
       if (resumenJson != null) break;
       await Future.delayed(Duration(seconds: 8));
       retryCount++;
     } while (retryCount < 8);
     if (resumenJson != null) {
       // Evitar duplicados: no añadir si ya existe un bloque con mismo rango y nivel
-      final exists = timeline.any((t) => t.startDate == blockStartDate && t.endDate == blockEndDate && t.level == 0);
+      final exists = timeline.any(
+        (t) =>
+            t.startDate == blockStartDate &&
+            t.endDate == blockEndDate &&
+            t.level == 0,
+      );
       if (!exists) {
         timeline.add(
           TimelineEntry(
@@ -499,14 +575,18 @@ class MemorySummaryService {
           ),
         );
       } else {
-        debugPrint('[MemorySummaryService] Ya existe un bloque con mismo rango y nivel, no se añade.');
+        debugPrint(
+          '[MemorySummaryService] Ya existe un bloque con mismo rango y nivel, no se añade.',
+        );
       }
     } else {
       if (onSummaryError != null) {
         try {
           onSummaryError(blockStartDate);
         } catch (e, stack) {
-          debugPrint('[MemorySummaryService] Error en onSummaryError callback: $e\n$stack');
+          debugPrint(
+            '[MemorySummaryService] Error en onSummaryError callback: $e\n$stack',
+          );
         }
       }
       debugPrint(

@@ -11,8 +11,12 @@ class IaPromiseService {
     final now = DateTime.now();
     for (final e in events) {
       if (e.type == 'promesa' && e.date != null && e.date!.isAfter(now)) {
-        final motivo = e.extra != null ? (e.extra!['motivo']?.toString() ?? 'promesa') : 'promesa';
-        final original = e.extra != null ? (e.extra!['originalText']?.toString() ?? e.description) : e.description;
+        final motivo = e.extra != null
+            ? (e.extra!['motivo']?.toString() ?? 'promesa')
+            : 'promesa';
+        final original = e.extra != null
+            ? (e.extra!['originalText']?.toString() ?? e.description)
+            : e.description;
         scheduleIaPromise(e.date!, motivo, original);
       }
     }
@@ -72,17 +76,26 @@ class IaPromiseService {
       if (event.type != 'promesa') continue;
       final date = event.date;
       if (date == null || !date.isAfter(now)) continue;
-      final eventMotivo = event.extra?['motivo']?.toString().toLowerCase() ?? '';
-      final eventOriginal = event.extra?['originalText']?.toString().toLowerCase().trim();
+      final eventMotivo =
+          event.extra?['motivo']?.toString().toLowerCase() ?? '';
+      final eventOriginal = event.extra?['originalText']
+          ?.toString()
+          .toLowerCase()
+          .trim();
       // 1) Mismo originalText y hora cercana
-      if (originalLower != null && eventOriginal != null && originalLower == eventOriginal) {
-        if (target != null && (date.difference(target).inMinutes).abs() <= window.inMinutes) {
+      if (originalLower != null &&
+          eventOriginal != null &&
+          originalLower == eventOriginal) {
+        if (target != null &&
+            (date.difference(target).inMinutes).abs() <= window.inMinutes) {
           return true;
         }
       }
       // 2) Motivo similar según keywords y hora cercana (si se pasa target)
       if (motivoLower.isNotEmpty) {
-        final motivoOverlap = iaKeywords.any((kw) => motivoLower.contains(kw) && eventMotivo.contains(kw));
+        final motivoOverlap = iaKeywords.any(
+          (kw) => motivoLower.contains(kw) && eventMotivo.contains(kw),
+        );
         if (motivoOverlap) {
           if (target == null) {
             return true; // mismo motivo futuro sin comparar hora
@@ -99,22 +112,32 @@ class IaPromiseService {
   static void analyzeIaPromises({
     required List<Message> messages,
     required List<EventEntry> events,
-    required void Function(DateTime target, String motivo, String originalText) scheduleIaPromise,
+    required void Function(DateTime target, String motivo, String originalText)
+    scheduleIaPromise,
   }) {
-    if (messages.isEmpty) return;
+    if (messages.isEmpty) {
+      return;
+    }
     final lastMsg = messages.last;
-    if (lastMsg.sender != MessageSender.assistant) return;
+    if (lastMsg.sender != MessageSender.assistant) {
+      return;
+    }
     final text = lastMsg.text.toLowerCase();
-    final regexHora = RegExp(r'(?:a las|sobre las|cuando sean las)\s*(\d{1,2})(?::(\d{2}))?');
+    final regexHora = RegExp(
+      r'(?:a las|sobre las|cuando sean las)\s*(\d{1,2})(?::(\d{2}))?',
+    );
     final matchHora = regexHora.firstMatch(text);
-    final sleepWords = r'sueño|dormir|duermo|duerma|duermes|duerme|duermen|dormido|dormida|dormidas|dormidos|sleep';
+    final sleepWords =
+        r'sueño|dormir|duermo|duerma|duermes|duerme|duermen|dormido|dormida|dormidas|dormidos|sleep';
     final rangoRegex = RegExp(
       r'(de\s*|entre\s*)?(\d{1,2})(?:[:h](\d{2}))?\s*(de la mañana|am|a\.m\.|de la tarde|pm|p\.m\.|tarde|mañana)?\s*(a|y)\s*(las\s*)?(\d{1,2})(?:[:h](\d{2}))?\s*(de la mañana|am|a\.m\.|de la tarde|pm|p\.m\.|tarde|mañana)?',
       caseSensitive: false,
     );
     final isSleepHorario =
-        (text.contains(RegExp(sleepWords, caseSensitive: false)) && rangoRegex.hasMatch(text)) ||
-        (rangoRegex.hasMatch(text) && text.contains(RegExp(sleepWords, caseSensitive: false)));
+        (text.contains(RegExp(sleepWords, caseSensitive: false)) &&
+            rangoRegex.hasMatch(text)) ||
+        (rangoRegex.hasMatch(text) &&
+            text.contains(RegExp(sleepWords, caseSensitive: false)));
     if (matchHora != null && !isSleepHorario) {
       final hour = int.tryParse(matchHora.group(1) ?? '0') ?? 0;
       final minute = int.tryParse(matchHora.group(2) ?? '0') ?? 0;
@@ -123,18 +146,33 @@ class IaPromiseService {
       // Ajuste simple AM/PM a partir del texto
       final lower = text.toLowerCase();
       final hasPm =
-          lower.contains('de la tarde') || lower.contains('pm') || lower.contains('p.m.') || lower.contains('noche');
-      final hasAm = lower.contains('de la mañana') || lower.contains('am') || lower.contains('a.m.');
+          lower.contains('de la tarde') ||
+          lower.contains('pm') ||
+          lower.contains('p.m.') ||
+          lower.contains('noche');
+      final hasAm =
+          lower.contains('de la mañana') ||
+          lower.contains('am') ||
+          lower.contains('a.m.');
       if (hasPm && h < 12) h += 12;
       if (hasAm && h == 12) h = 0;
       DateTime target = DateTime(now.year, now.month, now.day, h, minute);
       if (target.isBefore(now)) target = target.add(const Duration(days: 1));
       final motivo = 'descanso';
-      if (isIaPromiseDuplicated(events, motivo: motivo, target: target, originalText: lastMsg.text)) {
-        Log.w('[PROMESA IA] Evento duplicado detectado para motivo "$motivo". No se programa de nuevo.');
+      if (isIaPromiseDuplicated(
+        events,
+        motivo: motivo,
+        target: target,
+        originalText: lastMsg.text,
+      )) {
+        Log.w(
+          '[PROMESA IA] Evento duplicado detectado para motivo "$motivo". No se programa de nuevo.',
+        );
         return;
       }
-      Log.i('[PROMESA IA] Detectada promesa de hora: "${lastMsg.text}" para las $hour:$minute ($target)');
+      Log.i(
+        '[PROMESA IA] Detectada promesa de hora: "${lastMsg.text}" para las $hour:$minute ($target)',
+      );
       events.add(
         EventEntry(
           type: 'promesa',
@@ -159,8 +197,15 @@ class IaPromiseService {
         final now = DateTime.now();
         final target = now.add(const Duration(hours: 1));
         final motivo = key;
-        if (isIaPromiseDuplicated(events, motivo: motivo, target: target, originalText: lastMsg.text)) {
-          Log.w('[PROMESA IA] Evento duplicado detectado para motivo "$motivo". No se programa de nuevo.');
+        if (isIaPromiseDuplicated(
+          events,
+          motivo: motivo,
+          target: target,
+          originalText: lastMsg.text,
+        )) {
+          Log.w(
+            '[PROMESA IA] Evento duplicado detectado para motivo "$motivo". No se programa de nuevo.',
+          );
           return;
         }
         Log.i(
@@ -221,12 +266,24 @@ class IaPromiseService {
       final now = DateTime.now();
       final minutosRestantes = 60 - now.minute;
       final minMinutos = 5;
-      final maxMinutos = minutosRestantes > minMinutos ? minutosRestantes : minMinutos;
-      final randomMinutes = minMinutos + (DateTime.now().millisecondsSinceEpoch % (maxMinutos - minMinutos + 1));
+      final maxMinutos = minutosRestantes > minMinutos
+          ? minutosRestantes
+          : minMinutos;
+      final randomMinutes =
+          minMinutos +
+          (DateTime.now().millisecondsSinceEpoch %
+              (maxMinutos - minMinutos + 1));
       final target = now.add(Duration(minutes: randomMinutes));
       final motivo = matchVago.group(0) ?? 'evento_vago';
-      if (isIaPromiseDuplicated(events, motivo: motivo, target: target, originalText: lastMsg.text)) {
-        Log.w('[PROMESA IA] Evento duplicado detectado para motivo "$motivo". No se programa de nuevo.');
+      if (isIaPromiseDuplicated(
+        events,
+        motivo: motivo,
+        target: target,
+        originalText: lastMsg.text,
+      )) {
+        Log.w(
+          '[PROMESA IA] Evento duplicado detectado para motivo "$motivo". No se programa de nuevo.',
+        );
         return;
       }
       Log.i(

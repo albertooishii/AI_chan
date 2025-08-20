@@ -9,6 +9,7 @@ Future<AiChanProfile> generateFullBiographyFlexible({
   required DateTime userBirthday,
   required String meetStory,
   required IAAppearanceGenerator appearanceGenerator,
+  Future<String?> Function(String base64, {String prefix})? saveImageFunc,
   String? userCountryCode,
   String? aiCountryCode,
 }) async {
@@ -20,7 +21,12 @@ Future<AiChanProfile> generateFullBiographyFlexible({
     userCountryCode: userCountryCode,
     aiCountryCode: aiCountryCode,
   );
-  final appearanceResult = await appearanceGenerator.generateAppearancePromptWithImage(bio, aiService: null);
+  final appearanceResult = await appearanceGenerator
+      .generateAppearancePromptWithImage(
+        bio,
+        aiService: null,
+        saveImageFunc: saveImageFunc,
+      );
   // Extraer avatar: el generador devuelve 'avatar' como Image
   final AiImage? avatar = appearanceResult['avatar'] as AiImage?;
   final biography = AiChanProfile(
@@ -29,7 +35,9 @@ Future<AiChanProfile> generateFullBiographyFlexible({
     aiName: bio.aiName,
     userBirthday: bio.userBirthday,
     aiBirthday: bio.aiBirthday,
-    appearance: appearanceResult['appearance'] as Map<String, dynamic>? ?? <String, dynamic>{},
+    appearance:
+        appearanceResult['appearance'] as Map<String, dynamic>? ??
+        <String, dynamic>{},
     userCountryCode: userCountryCode ?? bio.userCountryCode,
     aiCountryCode: aiCountryCode ?? bio.aiCountryCode,
     avatar: avatar,

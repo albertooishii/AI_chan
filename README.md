@@ -5,6 +5,10 @@ AI-chan es una "novia virtual": una aplicación experimental que crea una compa�
 ## CI
 
 Status: ![CI](https://github.com/albertooishii/AI_chan/actions/workflows/ci.yml/badge.svg)
+
+Testing note:
+
+- For more predictable, less interleaved test output (especially useful in CI or when debugging noisy tests), run Flutter tests with a single worker: `flutter test -j 1 -r expanded` or use the provided VS Code task `flutter-test-j1`.
 # AI-chan
 
 AI-chan es una "novia virtual": una aplicación experimental que crea una compañera conversacional personalizada. La app combina chat con memoria contextual, llamadas/nota de voz con prosodia, y generación de avatar a partir de una ficha de apariencia creada por IA. Está pensada para experimentación, investigación y uso personal responsable — no para suplantación, abuso ni usos ilegales.

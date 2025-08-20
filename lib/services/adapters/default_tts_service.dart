@@ -4,6 +4,7 @@ import 'package:ai_chan/core/interfaces/tts_service.dart';
 import 'package:ai_chan/services/google_speech_service.dart';
 import 'package:ai_chan/services/android_native_tts_service.dart';
 import 'package:ai_chan/services/adapters/openai_adapter.dart';
+import 'package:ai_chan/services/adapters/gemini_adapter.dart';
 // dotenv usage removed — use Config getters instead
 // removed unused runtime/openai imports: use OpenAIAdapter wrapper instead
 import 'package:ai_chan/core/config.dart';
@@ -30,7 +31,10 @@ class DefaultTtsService implements ITtsService {
   }
 
   @override
-  Future<String?> synthesizeToFile({required String text, Map<String, dynamic>? options}) async {
+  Future<String?> synthesizeToFile({
+    required String text,
+    Map<String, dynamic>? options,
+  }) async {
     final voice = options?['voice'] as String? ?? 'sage';
     final languageCode = options?['languageCode'] as String? ?? 'es-ES';
 
@@ -53,10 +57,12 @@ class DefaultTtsService implements ITtsService {
     // 1) Try Android native TTS when available (mobile-first behaviour kept)
     try {
       if (AndroidNativeTtsService.isAndroid) {
-        final isNativeAvailable = await AndroidNativeTtsService.isNativeTtsAvailable();
+        final isNativeAvailable =
+            await AndroidNativeTtsService.isNativeTtsAvailable();
         if (isNativeAvailable) {
           try {
-            final outputPath = '${Directory.systemTemp.path}/ai_chan_tts_${DateTime.now().millisecondsSinceEpoch}.mp3';
+            final outputPath =
+                '${Directory.systemTemp.path}/ai_chan_tts_${DateTime.now().millisecondsSinceEpoch}.mp3';
             final res = await AndroidNativeTtsService.synthesizeToFile(
               text: text,
               outputPath: outputPath,
@@ -86,17 +92,26 @@ class DefaultTtsService implements ITtsService {
     // we prefer 'gpt-5-mini'. Otherwise use DEFAULT_TEXT_MODEL when configured.
     try {
       final defaultModel = Config.getDefaultTextModel();
-      String modelToUse;
-      if (provider == 'openai') {
-        modelToUse = defaultModel.isNotEmpty ? defaultModel : 'gpt-5-mini';
-      } else {
-        modelToUse = defaultModel.isNotEmpty ? defaultModel : 'gemini-2.5-flash';
-      }
+      String modelToUse = defaultModel.isNotEmpty
+          ? defaultModel
+          : (provider == 'openai'
+                ? (Config.getDefaultTextModel().isNotEmpty
+                      ? Config.getDefaultTextModel()
+                      : 'gpt-5-mini')
+                : (Config.getDefaultTextModel().isNotEmpty
+                      ? Config.getDefaultTextModel()
+                      : 'gemini-2.5-flash'));
       final runtime = runtime_factory.getRuntimeAIServiceForModel(modelToUse);
-      // Choose adapter wrapper according to model prefix (runtime factory will return correct impl)
-      final adapter = modelToUse.startsWith('gpt-') ? OpenAIAdapter(modelId: modelToUse, runtime: runtime) : OpenAIAdapter(modelId: modelToUse, runtime: runtime);
-      final path = await adapter.textToSpeech(text, voice: voice);
-      if (path != null) return path;
+      // Choose adapter wrapper according to model prefix
+      if (modelToUse.startsWith('gpt-')) {
+        final adapter = OpenAIAdapter(modelId: modelToUse, runtime: runtime);
+        final path = await adapter.textToSpeech(text, voice: voice);
+        if (path != null) return path;
+      } else {
+        final adapter = GeminiAdapter(modelId: modelToUse, runtime: runtime);
+        final path = await adapter.textToSpeech(text, voice: voice);
+        if (path != null) return path;
+      }
     } catch (_) {}
 
     return null;

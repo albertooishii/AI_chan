@@ -1,14 +1,20 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/core/config.dart';
 
 /// Servicio unificado de promesas IA: detección, duplicados, restauración y scheduling.
 class PromiseService {
   final List<EventEntry> events; // referencia viva a la lista de eventos global
   final VoidCallback onEventsChanged;
-  final Future<void> Function(String text, {String? callPrompt, String? model}) sendSystemPrompt;
+  final Future<void> Function(String text, {String? callPrompt, String? model})
+  sendSystemPrompt;
 
-  PromiseService({required this.events, required this.onEventsChanged, required this.sendSystemPrompt});
+  PromiseService({
+    required this.events,
+    required this.onEventsChanged,
+    required this.sendSystemPrompt,
+  });
 
   final List<Timer> _timers = [];
 
@@ -17,8 +23,12 @@ class PromiseService {
     final now = DateTime.now();
     for (final e in events) {
       if (e.type == 'promesa' && e.date != null && e.date!.isAfter(now)) {
-        final motivo = e.extra != null ? (e.extra!['motivo']?.toString() ?? 'promesa') : 'promesa';
-        final original = e.extra != null ? (e.extra!['originalText']?.toString() ?? e.description) : e.description;
+        final motivo = e.extra != null
+            ? (e.extra!['motivo']?.toString() ?? 'promesa')
+            : 'promesa';
+        final original = e.extra != null
+            ? (e.extra!['originalText']?.toString() ?? e.description)
+            : e.description;
         _scheduleTimer(e.date!, motivo, original);
       }
     }
@@ -32,15 +42,22 @@ class PromiseService {
     final t = Timer(delay, () async {
       final prompt =
           'Recuerda que prometiste: "$originalText". Ya ha pasado el evento, así que cumple tu promesa ahora mismo, sin excusas. Saluda con naturalidad, menciona el motivo "$motivo" y retoma el contexto.';
-      await sendSystemPrompt('', callPrompt: prompt, model: 'gemini-2.5-flash');
+      final model = Config.requireDefaultTextModel();
+      await sendSystemPrompt('', callPrompt: prompt, model: model);
     });
     _timers.add(t);
   }
 
   void schedulePromiseEvent(EventEntry e) {
-    if (e.type == 'promesa' && e.date != null && e.date!.isAfter(DateTime.now())) {
-      final motivo = e.extra != null ? (e.extra!['motivo']?.toString() ?? 'promesa') : 'promesa';
-      final original = e.extra != null ? (e.extra!['originalText']?.toString() ?? e.description) : e.description;
+    if (e.type == 'promesa' &&
+        e.date != null &&
+        e.date!.isAfter(DateTime.now())) {
+      final motivo = e.extra != null
+          ? (e.extra!['motivo']?.toString() ?? 'promesa')
+          : 'promesa';
+      final original = e.extra != null
+          ? (e.extra!['originalText']?.toString() ?? e.description)
+          : e.description;
       _scheduleTimer(e.date!, motivo, original);
     }
   }
@@ -89,16 +106,31 @@ class PromiseService {
       if (event.type != 'promesa') continue;
       final date = event.date;
       if (date == null || !date.isAfter(now)) continue;
-      final eventMotivo = event.extra?['motivo']?.toString().toLowerCase() ?? '';
-      final eventOriginal = event.extra?['originalText']?.toString().toLowerCase().trim();
-      if (originalLower != null && eventOriginal != null && originalLower == eventOriginal) {
-        if (target != null && (date.difference(target).inMinutes).abs() <= window.inMinutes) return true;
+      final eventMotivo =
+          event.extra?['motivo']?.toString().toLowerCase() ?? '';
+      final eventOriginal = event.extra?['originalText']
+          ?.toString()
+          .toLowerCase()
+          .trim();
+      if (originalLower != null &&
+          eventOriginal != null &&
+          originalLower == eventOriginal) {
+        if (target != null &&
+            (date.difference(target).inMinutes).abs() <= window.inMinutes) {
+          return true;
+        }
       }
       if (motivoLower.isNotEmpty) {
-        final overlap = _keywords.any((kw) => motivoLower.contains(kw) && eventMotivo.contains(kw));
+        final overlap = _keywords.any(
+          (kw) => motivoLower.contains(kw) && eventMotivo.contains(kw),
+        );
         if (overlap) {
-          if (target == null) return true;
-          if ((date.difference(target).inMinutes).abs() <= window.inMinutes) return true;
+          if (target == null) {
+            return true;
+          }
+          if ((date.difference(target).inMinutes).abs() <= window.inMinutes) {
+            return true;
+          }
         }
       }
     }
@@ -112,27 +144,44 @@ class PromiseService {
     final text = last.text.toLowerCase();
 
     // 1. Hora explícita
-    final regexHora = RegExp(r'(?:a las|sobre las|cuando sean las)\s*(\d{1,2})(?::(\d{2}))?');
+    final regexHora = RegExp(
+      r'(?:a las|sobre las|cuando sean las)\s*(\d{1,2})(?::(\d{2}))?',
+    );
     final matchHora = regexHora.firstMatch(text);
-    final sleepWords = r'sueño|dormir|duermo|duerma|duermes|duerme|duermen|dormido|dormida|dormidas|dormidos|sleep';
+    final sleepWords =
+        r'sueño|dormir|duermo|duerma|duermes|duerme|duermen|dormido|dormida|dormidas|dormidos|sleep';
     final rangoRegex = RegExp(r'(de\s*|entre\s*)(\d{1,2})(?:[:h](\d{2}))?');
     final isSleepHorario =
-        (text.contains(RegExp(sleepWords, caseSensitive: false)) && rangoRegex.hasMatch(text)) ||
-        (rangoRegex.hasMatch(text) && text.contains(RegExp(sleepWords, caseSensitive: false)));
+        (text.contains(RegExp(sleepWords, caseSensitive: false)) &&
+            rangoRegex.hasMatch(text)) ||
+        (rangoRegex.hasMatch(text) &&
+            text.contains(RegExp(sleepWords, caseSensitive: false)));
     if (matchHora != null && !isSleepHorario) {
       final hour = int.tryParse(matchHora.group(1) ?? '0') ?? 0;
       final minute = int.tryParse(matchHora.group(2) ?? '0') ?? 0;
       final now = DateTime.now();
       int h = hour;
       final hasPm =
-          text.contains('de la tarde') || text.contains('pm') || text.contains('p.m.') || text.contains('noche');
-      final hasAm = text.contains('de la mañana') || text.contains('am') || text.contains('a.m.');
+          text.contains('de la tarde') ||
+          text.contains('pm') ||
+          text.contains('p.m.') ||
+          text.contains('noche');
+      final hasAm =
+          text.contains('de la mañana') ||
+          text.contains('am') ||
+          text.contains('a.m.');
       if (hasPm && h < 12) h += 12;
       if (hasAm && h == 12) h = 0;
       DateTime target = DateTime(now.year, now.month, now.day, h, minute);
       if (target.isBefore(now)) target = target.add(const Duration(days: 1));
       const motivo = 'descanso';
-      if (_isDuplicated(motivo: motivo, target: target, originalText: last.text)) return;
+      if (_isDuplicated(
+        motivo: motivo,
+        target: target,
+        originalText: last.text,
+      )) {
+        return;
+      }
       events.add(
         EventEntry(
           type: 'promesa',
@@ -160,7 +209,13 @@ class PromiseService {
         final now = DateTime.now();
         final target = now.add(const Duration(hours: 1));
         final motivo = key;
-        if (_isDuplicated(motivo: motivo, target: target, originalText: last.text)) return;
+        if (_isDuplicated(
+          motivo: motivo,
+          target: target,
+          originalText: last.text,
+        )) {
+          return;
+        }
         events.add(
           EventEntry(
             type: 'promesa',
@@ -218,10 +273,18 @@ class PromiseService {
       final minutosRestantes = 60 - now.minute;
       final minMin = 5;
       final maxMin = minutosRestantes > minMin ? minutosRestantes : minMin;
-      final randomMinutes = minMin + (DateTime.now().millisecondsSinceEpoch % (maxMin - minMin + 1));
+      final randomMinutes =
+          minMin +
+          (DateTime.now().millisecondsSinceEpoch % (maxMin - minMin + 1));
       final target = now.add(Duration(minutes: randomMinutes));
       final motivo = matchVago.group(0) ?? 'evento_vago';
-      if (_isDuplicated(motivo: motivo, target: target, originalText: last.text)) return;
+      if (_isDuplicated(
+        motivo: motivo,
+        target: target,
+        originalText: last.text,
+      )) {
+        return;
+      }
       events.add(
         EventEntry(
           type: 'promesa',

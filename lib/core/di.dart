@@ -43,7 +43,8 @@ IAIService getAIServiceForModel(String modelId) {
   if (normalized.startsWith('gpt-')) {
     final runtime = runtime_factory.getRuntimeAIServiceForModel(normalized);
     impl = OpenAIAdapter(modelId: normalized, runtime: runtime);
-  } else if (normalized.startsWith('gemini-') || normalized.startsWith('imagen-')) {
+  } else if (normalized.startsWith('gemini-') ||
+      normalized.startsWith('imagen-')) {
     final runtime = runtime_factory.getRuntimeAIServiceForModel(normalized);
     impl = GeminiAdapter(modelId: normalized, runtime: runtime);
   } else if (normalized.isEmpty) {
@@ -57,7 +58,7 @@ IAIService getAIServiceForModel(String modelId) {
     }
   } else {
     // Fallback: prefer configured DEFAULT_TEXT_MODEL, otherwise fall back to Gemini as project-wide default
-  final fallbackModel = Config.requireDefaultTextModel();
+    final fallbackModel = Config.requireDefaultTextModel();
     final runtime = runtime_factory.getRuntimeAIServiceForModel(fallbackModel);
     // Choose adapter based on resolved runtime (runtime factory inspects prefix)
     if (fallbackModel.startsWith('gpt-')) {
@@ -73,20 +74,32 @@ IAIService getAIServiceForModel(String modelId) {
 /// Fábrica para obtener las implementaciones runtime de `AIService` (OpenAIService/GeminiService)
 // Use centralized runtime factory from `lib/core/runtime_factory.dart`
 
-ISttService getSttService() => const GoogleSttAdapter();
+ISttService getSttService() => _testSttOverride ?? const GoogleSttAdapter();
 
 ITtsService getTtsService() => const DefaultTtsService();
+
+// Test-time overrides (used by tests to inject fakes without touching DI calls)
+ISttService? _testSttOverride;
+
+/// Permite a los tests inyectar un ISttService falso globalmente.
+void setTestSttOverride(ISttService? impl) {
+  _testSttOverride = impl;
+}
 
 /// Provider-specific factories (useful for calls where we want Google-backed STT/TTS)
 ISttService getSttServiceForProvider(String provider) {
   final p = provider.toLowerCase();
-  if (p == 'google') return const GoogleSttAdapter();
+  if (p == 'google') {
+    return _testSttOverride ?? const GoogleSttAdapter();
+  }
   return getSttService();
 }
 
 ITtsService getTtsServiceForProvider(String provider) {
   final p = provider.toLowerCase();
-  if (p == 'google') return const GoogleTtsAdapter();
+  if (p == 'google') {
+    return const GoogleTtsAdapter();
+  }
   return getTtsService();
 }
 
@@ -128,32 +141,75 @@ IProfileService getProfileServiceForProvider([String? provider]) {
   if (provider != null && provider.trim().isNotEmpty) {
     final p = provider.toLowerCase();
     if (p == 'google' || p == 'gemini') {
-      final imgModel = Config.getDefaultImageModel().isNotEmpty ? Config.getDefaultImageModel() : 'gpt-4.1-mini';
-      return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(imgModel));
+      final imgModel = Config.getDefaultImageModel().isNotEmpty
+          ? Config.getDefaultImageModel()
+          : Config.getDefaultImageModel();
+      // If still empty, fall back to a reasonable image-capable model
+      final resolvedImg = imgModel.isNotEmpty ? imgModel : 'gpt-4.1-mini';
+      return ProfileAdapter(
+        aiService: runtime_factory.getRuntimeAIServiceForModel(resolvedImg),
+      );
     }
     if (p == 'openai') {
-      final txtModel = Config.getDefaultTextModel().isNotEmpty ? Config.getDefaultTextModel() : 'gpt-5-mini';
-      return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(txtModel));
+      final txtModel = Config.getDefaultTextModel().isNotEmpty
+          ? Config.getDefaultTextModel()
+          : Config.getDefaultTextModel();
+      final resolvedTxt = txtModel.isNotEmpty ? txtModel : 'gpt-5-mini';
+      return ProfileAdapter(
+        aiService: runtime_factory.getRuntimeAIServiceForModel(resolvedTxt),
+      );
     }
-    final fallbackImg = Config.getDefaultImageModel().isNotEmpty ? Config.getDefaultImageModel() : 'gpt-4.1-mini';
-    return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(fallbackImg));
+    final fallbackImg = Config.getDefaultImageModel().isNotEmpty
+        ? Config.getDefaultImageModel()
+        : Config.getDefaultImageModel();
+    final resolvedFallbackImg = fallbackImg.isNotEmpty
+        ? fallbackImg
+        : 'gpt-4.1-mini';
+    return ProfileAdapter(
+      aiService: runtime_factory.getRuntimeAIServiceForModel(
+        resolvedFallbackImg,
+      ),
+    );
   }
 
   // Otherwise, prefer the DEFAULT_TEXT_MODEL from config to infer the provider.
   final defaultTextModel = Config.getDefaultTextModel();
   final defaultImageModel = Config.getDefaultImageModel();
   String resolved = '';
-  final modelToCheck = (defaultTextModel.isNotEmpty ? defaultTextModel : defaultImageModel).toLowerCase();
+  final modelToCheck =
+      (defaultTextModel.isNotEmpty ? defaultTextModel : defaultImageModel)
+          .toLowerCase();
   if (modelToCheck.isNotEmpty) {
     if (modelToCheck.startsWith('gpt-')) resolved = 'openai';
-    if (modelToCheck.startsWith('gemini-') || modelToCheck.startsWith('imagen-')) resolved = 'google';
+    if (modelToCheck.startsWith('gemini-') ||
+        modelToCheck.startsWith('imagen-')) {
+      resolved = 'google';
+    }
   }
 
   // If we couldn't infer from DEFAULT_TEXT_MODEL/DEFAULT_IMAGE_MODEL, default to Gemini ('google').
   // This corresponds to using 'gemini-2.5-flash' as the default text model.
-  if (resolved.isEmpty) resolved = 'google';
+  if (resolved.isEmpty) {
+    resolved = 'google';
+  }
 
-  if (resolved == 'google' || resolved == 'gemini') return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(Config.requireDefaultImageModel()));
-  if (resolved == 'openai') return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(Config.requireDefaultTextModel()));
-  return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(Config.requireDefaultImageModel()));
+  if (resolved == 'google' || resolved == 'gemini') {
+    return ProfileAdapter(
+      aiService: runtime_factory.getRuntimeAIServiceForModel(
+        Config.requireDefaultImageModel(),
+      ),
+    );
+  }
+  if (resolved == 'openai') {
+    return ProfileAdapter(
+      aiService: runtime_factory.getRuntimeAIServiceForModel(
+        Config.requireDefaultTextModel(),
+      ),
+    );
+  }
+  return ProfileAdapter(
+    aiService: runtime_factory.getRuntimeAIServiceForModel(
+      Config.requireDefaultImageModel(),
+    ),
+  );
 }

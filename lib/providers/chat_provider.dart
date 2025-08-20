@@ -29,16 +29,30 @@ class ChatProvider extends ChangeNotifier {
   final IAIService? aiService;
   final IChatResponseService? chatResponseService;
 
-  ChatProvider({this.repository, this.aiService, this.chatResponseService}) {
+  // Allow injecting a scheduler for tests or different runtime behavior. If not
+  // provided, create a default one.
+  final PeriodicIaMessageScheduler _periodicScheduler;
+
+  // Debounce timer to avoid excessive saveAll() calls when notifyListeners()
+  // is triggered many times in quick succession.
+  Timer? _saveDebounceTimer;
+  final Duration _saveDebounceDuration = const Duration(milliseconds: 300);
+
+  ChatProvider({
+    this.repository,
+    this.aiService,
+    this.chatResponseService,
+    PeriodicIaMessageScheduler? periodicScheduler,
+  }) : _periodicScheduler = periodicScheduler ?? PeriodicIaMessageScheduler() {
     // AudioService se inicializa perezosamente en la primera llamada (evita inicializar plugins en tests)
   }
-  final PeriodicIaMessageScheduler _periodicScheduler = PeriodicIaMessageScheduler();
 
   void startPeriodicIaMessages() {
     _periodicScheduler.start(
       profileGetter: () => onboardingData,
       messagesGetter: () => messages,
-      triggerSend: (prompt, model) => sendMessage('', callPrompt: prompt, model: model),
+      triggerSend: (prompt, model) =>
+          sendMessage('', callPrompt: prompt, model: model),
     );
   }
 
@@ -50,7 +64,11 @@ class ChatProvider extends ChangeNotifier {
   final PromptBuilder _promptBuilder = PromptBuilder();
 
   String buildRealtimeSystemPromptJson({int maxRecent = 32}) =>
-      _promptBuilder.buildRealtimeSystemPromptJson(profile: onboardingData, messages: messages, maxRecent: maxRecent);
+      _promptBuilder.buildRealtimeSystemPromptJson(
+        profile: onboardingData,
+        messages: messages,
+        maxRecent: maxRecent,
+      );
 
   /// Construye un SystemPrompt (JSON) específico para llamadas de voz.
   /// Reutiliza el mismo perfil, timeline y últimos [maxRecent] mensajes,
@@ -59,13 +77,15 @@ class ChatProvider extends ChangeNotifier {
   /// - No usar enlaces/URLs, clics, Markdown, ni hablar de herramientas.
   /// - Estilo oral: frases cortas (2–8 s), pausas naturales, sin monólogos.
   /// - No presentarse como "asistente" o "IA"; mantener la misma persona del chat.
-  String buildCallSystemPromptJson({int maxRecent = 32, required bool aiInitiatedCall}) =>
-      _promptBuilder.buildCallSystemPromptJson(
-        profile: onboardingData,
-        messages: messages,
-        maxRecent: maxRecent,
-        aiInitiatedCall: aiInitiatedCall,
-      );
+  String buildCallSystemPromptJson({
+    int maxRecent = 32,
+    required bool aiInitiatedCall,
+  }) => _promptBuilder.buildCallSystemPromptJson(
+    profile: onboardingData,
+    messages: messages,
+    maxRecent: maxRecent,
+    aiInitiatedCall: aiInitiatedCall,
+  );
 
   // Sanitización y construcción de prompts movidos a PromptBuilder
   // ...existing code...
@@ -84,7 +104,8 @@ class ChatProvider extends ChangeNotifier {
     sendSystemPrompt: (text, {String? callPrompt, String? model}) =>
         sendMessage(text, callPrompt: callPrompt, model: model),
   );
-  void schedulePromiseEvent(EventEntry e) => _promiseService.schedulePromiseEvent(e);
+  void schedulePromiseEvent(EventEntry e) =>
+      _promiseService.schedulePromiseEvent(e);
   void onIaMessageSent() => _promiseService.analyzeAfterIaMessage(messages);
 
   void _setLastUserMessageStatus(MessageStatus status) {
@@ -119,14 +140,21 @@ class ChatProvider extends ChangeNotifier {
     // Reset racha si hay actividad real del usuario (texto no vacío o imagen) y no es prompt automático
     // Racha de autos ahora gestionada dentro de PeriodicIaMessageScheduler; no se requiere flag local aquí
     // Detectar si es mensaje con imagen
-    final bool hasImage = image != null && (((image.base64 ?? '').isNotEmpty) || ((image.url ?? '').isNotEmpty));
+    final bool hasImage =
+        image != null &&
+        (((image.base64 ?? '').isNotEmpty) || ((image.url ?? '').isNotEmpty));
     // Solo añadir el mensaje si no es vacío (o si tiene imagen)
     // Si es mensaje automático (callPrompt, texto vacío), NO añadir a la lista de mensajes enviados
-    final isAutomaticPrompt = text.trim().isEmpty && (callPrompt != null && callPrompt.isNotEmpty);
+    final isAutomaticPrompt =
+        text.trim().isEmpty && (callPrompt != null && callPrompt.isNotEmpty);
     // Si el mensaje tiene imagen, NO guardar el base64 en el historial, solo la URL local
     AiImage? imageForHistory;
     if (hasImage) {
-      imageForHistory = AiImage(url: image.url, seed: image.seed, prompt: image.prompt);
+      imageForHistory = AiImage(
+        url: image.url,
+        seed: image.seed,
+        prompt: image.prompt,
+      );
     }
     // Guardar siempre el texto (incluida transcripción) para contexto IA; la UI decide mostrarlo (audio oculto).
     String displayText;
@@ -146,16 +174,22 @@ class ChatProvider extends ChangeNotifier {
       audioPath: userAudioPath,
       status: MessageStatus.sending,
     );
-    if (text.trim().isNotEmpty || hasImage || isAutomaticPrompt || userAudioPath != null) {
-      if (existingMessageIndex != null && existingMessageIndex >= 0 && existingMessageIndex < messages.length) {
+    if (text.trim().isNotEmpty ||
+        hasImage ||
+        isAutomaticPrompt ||
+        userAudioPath != null) {
+      if (existingMessageIndex != null &&
+          existingMessageIndex >= 0 &&
+          existingMessageIndex < messages.length) {
         // Reintento: sobrescribir estado del mensaje existente en lugar de añadir uno nuevo
-        messages[existingMessageIndex] = messages[existingMessageIndex].copyWith(
-          status: MessageStatus.sending,
-          text: msg.text,
-          image: msg.image,
-          isAudio: msg.isAudio,
-          audioPath: msg.audioPath,
-        );
+        messages[existingMessageIndex] = messages[existingMessageIndex]
+            .copyWith(
+              status: MessageStatus.sending,
+              text: msg.text,
+              image: msg.image,
+              isAudio: msg.isAudio,
+              audioPath: msg.audioPath,
+            );
       } else {
         messages.add(msg);
       }
@@ -217,20 +251,29 @@ class ChatProvider extends ChangeNotifier {
           recentUserHistory.add(m.text);
         }
       }
-      solicitaImagen = ImageRequestService.isImageRequested(text: text, history: recentUserHistory);
+      solicitaImagen = ImageRequestService.isImageRequested(
+        text: text,
+        history: recentUserHistory,
+      );
     }
     // Si el usuario adjuntó una imagen, NO considerarlo como petición para que la IA genere
     // una nueva imagen: estamos enviando la imagen del usuario para analizarla.
     if (hasImage) {
       solicitaImagen = false;
-      Log.i('Imagen adjunta por el usuario: omitiendo detección de solicitud de imagen.', tag: 'CHAT');
+      Log.i(
+        'Imagen adjunta por el usuario: omitiendo detección de solicitud de imagen.',
+        tag: 'CHAT',
+      );
     }
     if (solicitaImagen) {
       final lower = selected.toLowerCase();
       if (!lower.startsWith('gpt-')) {
-  final cfgModel = Config.requireDefaultImageModel();
-  Log.i('Solicitud de imagen detectada. Forzando modelo desde Config', tag: 'CHAT');
-  selected = cfgModel;
+        final cfgModel = Config.requireDefaultImageModel();
+        Log.i(
+          'Solicitud de imagen detectada. Forzando modelo desde Config',
+          tag: 'CHAT',
+        );
+        selected = cfgModel;
       }
     }
 
@@ -309,7 +352,9 @@ class ChatProvider extends ChangeNotifier {
       // Marcar último mensaje de usuario como failed
       // Preferir existingMessageIndex si se proporcionó
       int idx = -1;
-      if (existingMessageIndex != null && existingMessageIndex >= 0 && existingMessageIndex < messages.length) {
+      if (existingMessageIndex != null &&
+          existingMessageIndex >= 0 &&
+          existingMessageIndex < messages.length) {
         idx = existingMessageIndex;
       } else {
         idx = messages.lastIndexWhere((m) => m.sender == MessageSender.user);
@@ -323,9 +368,13 @@ class ChatProvider extends ChangeNotifier {
     }
 
     // Manejo de errores reportados por el servicio (texto de error)
-    if (result.text.toLowerCase().contains('error al conectar con la ia') && !result.isImage) {
+    if (result.text.toLowerCase().contains('error al conectar con la ia') &&
+        !result.isImage) {
       // Marcar mensaje como failed para permitir reintento manual
-      int idx = (existingMessageIndex != null && existingMessageIndex >= 0 && existingMessageIndex < messages.length)
+      int idx =
+          (existingMessageIndex != null &&
+              existingMessageIndex >= 0 &&
+              existingMessageIndex < messages.length)
           ? existingMessageIndex
           : messages.lastIndexWhere((m) => m.sender == MessageSender.user);
       if (idx != -1) {
@@ -339,11 +388,15 @@ class ChatProvider extends ChangeNotifier {
     // Persistir prompt extraído en imagen del usuario (si aplica)
     if (hasImage && (result.prompt?.trim().isNotEmpty ?? false)) {
       // El mensaje de imagen es el que acabamos de añadir: tomar el último mensaje de usuario con imagen.
-      final idx = messages.lastIndexWhere((m) => m.sender == MessageSender.user && m.isImage);
+      final idx = messages.lastIndexWhere(
+        (m) => m.sender == MessageSender.user && m.isImage,
+      );
       if (idx != -1) {
         final prevImage = messages[idx].image;
         if (prevImage != null) {
-          messages[idx] = messages[idx].copyWith(image: prevImage.copyWith(prompt: result.prompt));
+          messages[idx] = messages[idx].copyWith(
+            image: prevImage.copyWith(prompt: result.prompt),
+          );
           notifyListeners();
         }
       } else {
@@ -363,7 +416,8 @@ class ChatProvider extends ChangeNotifier {
     // Si la IA marca su respuesta como nota de voz ([audio]...[/audio]) activamos el indicador
     final lowerResultText = result.text.toLowerCase();
     if (lowerResultText.contains('[audio]')) {
-      isSendingAudio = true; // Se desactiva al final del flujo cuando termina la síntesis TTS
+      isSendingAudio =
+          true; // Se desactiva al final del flujo cuando termina la síntesis TTS
     }
     Log.d(
       'isTyping=$isTyping, isSendingImage=$isSendingImage, isSendingAudio=$isSendingAudio (sendMessage)',
@@ -410,14 +464,23 @@ class ChatProvider extends ChangeNotifier {
       sender: MessageSender.assistant,
       dateTime: DateTime.now(),
       isImage: result.isImage,
-      image: result.isImage ? AiImage(url: result.imagePath ?? '', seed: result.seed, prompt: result.prompt) : null,
+      image: result.isImage
+          ? AiImage(
+              url: result.imagePath ?? '',
+              seed: result.seed,
+              prompt: result.prompt,
+            )
+          : null,
       status: MessageStatus.read,
     );
     messages.add(assistantMessage);
     // Detección de llamada entrante cuando el modelo responde con el placeholder exacto
     if (assistantMessage.text.trim() == '[call][/call]') {
       pendingIncomingCallMsgIndex = messages.length - 1;
-      Log.i('[Call] Placeholder de llamada entrante detectado (index=$pendingIncomingCallMsgIndex)', tag: 'CHAT');
+      Log.i(
+        '[Call] Placeholder de llamada entrante detectado (index=$pendingIncomingCallMsgIndex)',
+        tag: 'CHAT',
+      );
       // Notificar ya para que la UI abra la pantalla de llamada sin esperar al resto del post-procesado
       notifyListeners();
     }
@@ -445,12 +508,13 @@ class ChatProvider extends ChangeNotifier {
 
     // --- DETECCIÓN Y GUARDADO AUTOMÁTICO DE EVENTOS/CITAS Y HORARIOS ---
     // Modularizado: solo llamadas a servicios externos
-    final updatedProfile = await EventTimelineService.detectAndSaveEventAndSchedule(
-      text: text,
-      textResponse: result.text,
-      onboardingData: onboardingData,
-      saveAll: saveAll,
-    );
+    final updatedProfile =
+        await EventTimelineService.detectAndSaveEventAndSchedule(
+          text: text,
+          textResponse: result.text,
+          onboardingData: onboardingData,
+          saveAll: saveAll,
+        );
     if (updatedProfile != null) {
       onboardingData = updatedProfile;
       _events
@@ -468,7 +532,9 @@ class ChatProvider extends ChangeNotifier {
 
     final textResp = result.text;
     if (textResp.trim() != '' &&
-        !textResp.trim().toLowerCase().contains('error al conectar con la ia') &&
+        !textResp.trim().toLowerCase().contains(
+          'error al conectar con la ia',
+        ) &&
         !textResp.trim().toLowerCase().contains('"error"')) {
       final memoryService = MemorySummaryService(profile: onboardingData);
       final result = await memoryService.processAllSummariesAndSuperblock(
@@ -488,8 +554,10 @@ class ChatProvider extends ChangeNotifier {
   // ================= NUEVO BLOQUE AUDIO =================
   AudioChatService? _audioService;
 
-  AudioChatService get audioService =>
-      _audioService ??= AudioChatService(onStateChanged: () => notifyListeners(), onWaveform: (_) => notifyListeners());
+  AudioChatService get audioService => _audioService ??= AudioChatService(
+    onStateChanged: () => notifyListeners(),
+    onWaveform: (_) => notifyListeners(),
+  );
 
   bool get isRecording => audioService.isRecording;
   List<int> get currentWaveform => audioService.currentWaveform;
@@ -518,20 +586,31 @@ class ChatProvider extends ChangeNotifier {
         final stt = di.getSttService();
         transcript = await stt.transcribeAudio(path);
         if (transcript != null && transcript.trim().isNotEmpty) {
-          Log.i('Transcripción exitosa en intento ${retries + 1}', tag: 'AUDIO');
+          Log.i(
+            'Transcripción exitosa en intento ${retries + 1}',
+            tag: 'AUDIO',
+          );
           break;
         }
       } catch (e) {
         retries++;
-        Log.e('Error transcribiendo (intento $retries/$maxRetries)', tag: 'AUDIO', error: e);
+        Log.e(
+          'Error transcribiendo (intento $retries/$maxRetries)',
+          tag: 'AUDIO',
+          error: e,
+        );
         if (retries <= maxRetries) {
-          await Future.delayed(Duration(milliseconds: 500 * retries)); // backoff progresivo
+          await Future.delayed(
+            Duration(milliseconds: 500 * retries),
+          ); // backoff progresivo
         }
       }
     }
 
     // Fallback: usar transcripción en vivo si la final falló o es muy corta
-    if ((transcript == null || transcript.trim().length < liveTranscript.trim().length) && liveTranscript.isNotEmpty) {
+    if ((transcript == null ||
+            transcript.trim().length < liveTranscript.trim().length) &&
+        liveTranscript.isNotEmpty) {
       transcript = liveTranscript.trim();
       Log.w('Usando transcripción en vivo como fallback', tag: 'AUDIO');
     }
@@ -550,7 +629,12 @@ class ChatProvider extends ChangeNotifier {
     // Envolver la transcripción en etiquetas emparejadas [audio]texto[/audio]
     final tagged = '[audio]${transcript.trim()}[/audio]';
 
-    await sendMessage(tagged, model: model, userAudioPath: path, preTranscribedText: tagged);
+    await sendMessage(
+      tagged,
+      model: model,
+      userAudioPath: path,
+      preTranscribedText: tagged,
+    );
 
     // Desactivar indicador de envío de audio
     Log.d('isUploadingUserAudio = false (stopAndSendRecording)', tag: 'AUDIO');
@@ -560,31 +644,47 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> cancelRecording() => audioService.cancelRecording();
 
-  Future<void> togglePlayAudio(Message msg) => audioService.togglePlay(msg, () => notifyListeners());
+  Future<void> togglePlayAudio(Message msg) =>
+      audioService.togglePlay(msg, () => notifyListeners());
 
   bool isPlaying(Message msg) => audioService.isPlayingMessage(msg);
   Duration get playingPosition => audioService.currentPosition;
   Duration get playingDuration => audioService.currentDuration;
 
-  Future<void> generateTtsForMessage(Message msg, {String voice = 'nova'}) async {
+  Future<void> generateTtsForMessage(
+    Message msg, {
+    String voice = 'nova',
+  }) async {
     if (msg.sender != MessageSender.assistant || msg.isAudio) return;
     String? lang;
     // Heurística: si la voz parece una voz de Google (contiene guion y dos letras al inicio), intentar resolver languageCode
     if (voice.contains('-') && RegExp(r'^[a-zA-Z]{2}-').hasMatch(voice)) {
       try {
         final all = await GoogleSpeechService.fetchGoogleVoices();
-        final found = all.firstWhere((v) => (v['name'] as String?) == voice, orElse: () => {});
+        final found = all.firstWhere(
+          (v) => (v['name'] as String?) == voice,
+          orElse: () => {},
+        );
         if (found.isNotEmpty) {
-          final lcodes = (found['languageCodes'] as List<dynamic>?)?.cast<String>() ?? [];
+          final lcodes =
+              (found['languageCodes'] as List<dynamic>?)?.cast<String>() ?? [];
           if (lcodes.isNotEmpty) lang = lcodes.first;
         }
       } catch (_) {}
     }
-    final file = await audioService.synthesizeTts(msg.text, voice: voice, languageCode: lang);
+    final file = await audioService.synthesizeTts(
+      msg.text,
+      voice: voice,
+      languageCode: lang,
+    );
     if (file != null) {
       final idx = messages.indexOf(msg);
       if (idx != -1) {
-        messages[idx] = messages[idx].copyWith(isAudio: true, audioPath: file.path, autoTts: true);
+        messages[idx] = messages[idx].copyWith(
+          isAudio: true,
+          audioPath: file.path,
+          autoTts: true,
+        );
         notifyListeners();
       }
     }
@@ -641,10 +741,14 @@ class ChatProvider extends ChangeNotifier {
     int? placeholderIndex,
   }) async {
     // Determinar sender deseado
-    final MessageSender sender = incoming ? MessageSender.assistant : MessageSender.user;
+    final MessageSender sender = incoming
+        ? MessageSender.assistant
+        : MessageSender.user;
 
     // Si hay placeholder entrante y se pasa índice, reemplazarlo conservando fecha original si existe
-    if (placeholderIndex != null && placeholderIndex >= 0 && placeholderIndex < messages.length) {
+    if (placeholderIndex != null &&
+        placeholderIndex >= 0 &&
+        placeholderIndex < messages.length) {
       final original = messages[placeholderIndex];
       messages[placeholderIndex] = Message(
         text: text,
@@ -653,7 +757,9 @@ class ChatProvider extends ChangeNotifier {
         status: MessageStatus.read,
         callStatus: callStatus,
       );
-      if (pendingIncomingCallMsgIndex == placeholderIndex) pendingIncomingCallMsgIndex = null;
+      if (pendingIncomingCallMsgIndex == placeholderIndex) {
+        pendingIncomingCallMsgIndex = null;
+      }
     } else {
       // Añadir nuevo mensaje de estado
       messages.add(
@@ -678,7 +784,9 @@ class ChatProvider extends ChangeNotifier {
       superbloqueEntry = result.superbloqueEntry;
       notifyListeners();
     } catch (e) {
-      Log.w('[AI-chan][WARN] Falló actualización de memoria post-updateCallStatus: $e');
+      Log.w(
+        '[AI-chan][WARN] Falló actualización de memoria post-updateCallStatus: $e',
+      );
     }
   }
 
@@ -707,7 +815,8 @@ class ChatProvider extends ChangeNotifier {
   }
 
   // ======== Soporte llamada entrante ========
-  int? pendingIncomingCallMsgIndex; // índice del mensaje [call][/call] pendiente de contestar
+  int?
+  pendingIncomingCallMsgIndex; // índice del mensaje [call][/call] pendiente de contestar
 
   bool get hasPendingIncomingCall => pendingIncomingCallMsgIndex != null;
 
@@ -750,13 +859,18 @@ class ChatProvider extends ChangeNotifier {
         superbloqueEntry = result.superbloqueEntry;
         notifyListeners();
       } catch (e) {
-        Log.w('[AI-chan][WARN] Falló actualización de memoria post-replace-call: $e');
+        Log.w(
+          '[AI-chan][WARN] Falló actualización de memoria post-replace-call: $e',
+        );
       }
     }();
   }
 
   /// Marca una llamada entrante como rechazada antes de que hubiera conversación.
-  void rejectIncomingCallPlaceholder({required int index, String text = 'Llamada rechazada'}) {
+  void rejectIncomingCallPlaceholder({
+    required int index,
+    String text = 'Llamada rechazada',
+  }) {
     if (index < 0 || index >= messages.length) return;
     final original = messages[index];
     if (!original.text.contains('[call]')) return;
@@ -766,7 +880,9 @@ class ChatProvider extends ChangeNotifier {
       sender: original.sender,
       dateTime: DateTime.now(),
       status: MessageStatus.read,
-      callStatus: text.toLowerCase().contains('no contestada') ? CallStatus.missed : CallStatus.rejected,
+      callStatus: text.toLowerCase().contains('no contestada')
+          ? CallStatus.missed
+          : CallStatus.rejected,
     );
     pendingIncomingCallMsgIndex = null;
     notifyListeners();
@@ -782,7 +898,9 @@ class ChatProvider extends ChangeNotifier {
         superbloqueEntry = result.superbloqueEntry;
         notifyListeners();
       } catch (e) {
-        Log.w('[AI-chan][WARN] Falló actualización de memoria post-reject-call: $e');
+        Log.w(
+          '[AI-chan][WARN] Falló actualización de memoria post-reject-call: $e',
+        );
       }
     }();
   }
@@ -854,7 +972,11 @@ class ChatProvider extends ChangeNotifier {
   late AiChanProfile onboardingData;
 
   Future<String> exportAllToJson() async {
-    final export = ChatExport(profile: onboardingData, messages: messages, events: _events);
+    final export = ChatExport(
+      profile: onboardingData,
+      messages: messages,
+      events: _events,
+    );
     final map = export.toJson();
     if (repository != null) {
       try {
@@ -892,14 +1014,21 @@ class ChatProvider extends ChangeNotifier {
   }
 
   Future<void> saveAll() async {
-    final exported = ImportedChat(profile: onboardingData, messages: messages, events: _events);
+    final exported = ImportedChat(
+      profile: onboardingData,
+      messages: messages,
+      events: _events,
+    );
     // Prefer repository if provided
     if (repository != null) {
       try {
         await repository!.saveAll(exported.toJson());
         return;
       } catch (e) {
-        Log.w('IChatRepository.saveAll failed, falling back to StorageUtils: $e', tag: 'PERSIST');
+        Log.w(
+          'IChatRepository.saveAll failed, falling back to StorageUtils: $e',
+          tag: 'PERSIST',
+        );
       }
     }
     // Fallback: legacy StorageUtils
@@ -925,14 +1054,19 @@ class ChatProvider extends ChangeNotifier {
             await loadSelectedModel();
             _promiseService.restoreFromEvents();
             notifyListeners();
-            startPeriodicIaMessages();
             return;
           } catch (e) {
-            Log.w('Failed to parse repository.loadAll result: $e', tag: 'PERSIST');
+            Log.w(
+              'Failed to parse repository.loadAll result: $e',
+              tag: 'PERSIST',
+            );
           }
         }
       } catch (e) {
-        Log.w('IChatRepository.loadAll failed, falling back to SharedPreferences: $e', tag: 'PERSIST');
+        Log.w(
+          'IChatRepository.loadAll failed, falling back to SharedPreferences: $e',
+          tag: 'PERSIST',
+        );
       }
     }
 
@@ -970,8 +1104,9 @@ class ChatProvider extends ChangeNotifier {
     // Reprogramar promesas IA futuras desde events
     _promiseService.restoreFromEvents();
     notifyListeners();
-    // Iniciar el envío automático de mensajes IA al cargar el chat
-    startPeriodicIaMessages();
+    // Nota: no arrancar el scheduler automáticamente al cargar; el caller/UI
+    // debe decidir cuándo iniciar el envío periódico. Esto mejora testeo y
+    // evita side-effects durante carga.
   }
 
   Future<void> clearAll() async {
@@ -980,7 +1115,10 @@ class ChatProvider extends ChangeNotifier {
       try {
         await repository!.clearAll();
       } catch (e) {
-        Log.w('IChatRepository.clearAll failed, falling back: $e', tag: 'PERSIST');
+        Log.w(
+          'IChatRepository.clearAll failed, falling back: $e',
+          tag: 'PERSIST',
+        );
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('chat_history');
         await prefs.remove('onboarding_data');
@@ -999,8 +1137,13 @@ class ChatProvider extends ChangeNotifier {
 
   @override
   void notifyListeners() {
+    // Debounce persistence to avoid excessive disk writes when many state
+    // updates happen quickly (e.g., during message streaming).
     saveAllEvents();
-    saveAll();
+    _saveDebounceTimer?.cancel();
+    _saveDebounceTimer = Timer(_saveDebounceDuration, () {
+      saveAll();
+    });
     super.notifyListeners();
   }
 
@@ -1013,13 +1156,19 @@ class ChatProvider extends ChangeNotifier {
   @override
   void dispose() {
     audioService.dispose();
+    _saveDebounceTimer?.cancel();
+    try {
+      _periodicScheduler.stop();
+    } catch (_) {}
     super.dispose();
   }
 
   /// Reintenta enviar el último mensaje marcado como failed.
   /// Devuelve true si arrancó un reintento, false si no había mensajes failed.
   Future<bool> retryLastFailedMessage({void Function(String)? onError}) async {
-    final idx = messages.lastIndexWhere((m) => m.sender == MessageSender.user && m.status == MessageStatus.failed);
+    final idx = messages.lastIndexWhere(
+      (m) => m.sender == MessageSender.user && m.status == MessageStatus.failed,
+    );
     if (idx == -1) return false;
     final msg = messages[idx];
     // Reintentar reusando la lógica de sendMessage, pasando existingMessageIndex
