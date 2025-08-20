@@ -1,4 +1,4 @@
-import '../../../widgets/expandable_image_dialog.dart';
+import 'expandable_image_dialog.dart';
 import 'package:provider/provider.dart';
 import '../../application/providers/chat_provider.dart';
 import 'package:flutter/material.dart';
@@ -7,7 +7,7 @@ import 'dart:io';
 import '../../../constants/app_colors.dart';
 import 'package:ai_chan/core/models.dart';
 // import 'audio_message_player.dart'; // reemplazado por versión con subtítulos
-import '../../../widgets/audio_message_player_with_subs.dart';
+import 'audio_message_player_with_subs.dart';
 
 class ChatBubble extends StatelessWidget {
   // ===== Helpers de UI reutilizables para reducir duplicación =====

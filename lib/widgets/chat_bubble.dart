@@ -1,2 +1,1 @@
-// Compatibility re-export
-export '../chat/presentation/widgets/chat_bubble.dart';
+// Re-exportación para compatibilidad hacia atrás\nexport '../chat/presentation/widgets/chat_bubble.dart';
