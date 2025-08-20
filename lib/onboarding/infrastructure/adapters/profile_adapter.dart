@@ -42,7 +42,8 @@ class ProfileAdapter implements IProfileService {
         userBirthday: userBirthday,
         aiBirthday: DateTime.now(),
         biography: {
-          'summary': 'Generated fallback biography for $aiName due to unavailable remote service.',
+          'summary':
+              'Generated fallback biography for $aiName due to unavailable remote service.',
           'note': e.toString(),
         },
         appearance: {'style': 'fallback'},
@@ -61,7 +62,11 @@ class ProfileAdapter implements IProfileService {
       );
       return result['avatar'] as AiImage?;
     } catch (e) {
-      return AiImage(url: 'https://example.com/avatar_placeholder.png', seed: 'fallback-seed', prompt: 'fallback');
+      return AiImage(
+        url: 'https://example.com/avatar_placeholder.png',
+        seed: 'fallback-seed',
+        prompt: 'fallback',
+      );
     }
   }
 

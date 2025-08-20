@@ -24,7 +24,8 @@ class OnboardingProvider extends ChangeNotifier {
   // Permite inyectar el servicio en tests, por defecto usa DI
   OnboardingProvider({IProfileService? profileService, this.saveImageFunc})
     : _profileService =
-          profileService ?? ProfileAdapter(
+          profileService ??
+          ProfileAdapter(
             aiService: runtime_factory.getRuntimeAIServiceForModel(
               Config.getDefaultTextModel(),
             ),

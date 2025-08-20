@@ -24,13 +24,22 @@ class OnboardingScreen extends StatelessWidget {
   final void Function()? onClearAllDebug;
   final Future<void> Function(ImportedChat importedChat)? onImportJson;
 
-  const OnboardingScreen({super.key, required this.onFinish, this.onClearAllDebug, this.onImportJson});
+  const OnboardingScreen({
+    super.key,
+    required this.onFinish,
+    this.onClearAllDebug,
+    this.onImportJson,
+  });
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => OnboardingProvider(),
-      child: _OnboardingScreenContent(onFinish: onFinish, onClearAllDebug: onClearAllDebug, onImportJson: onImportJson),
+      child: _OnboardingScreenContent(
+        onFinish: onFinish,
+        onClearAllDebug: onClearAllDebug,
+        onImportJson: onImportJson,
+      ),
     );
   }
 }
@@ -49,10 +58,15 @@ class _OnboardingScreenContent extends StatefulWidget {
   final void Function()? onClearAllDebug;
   final Future<void> Function(ImportedChat importedChat)? onImportJson;
 
-  const _OnboardingScreenContent({required this.onFinish, this.onClearAllDebug, this.onImportJson});
+  const _OnboardingScreenContent({
+    required this.onFinish,
+    this.onClearAllDebug,
+    this.onImportJson,
+  });
 
   @override
-  State<_OnboardingScreenContent> createState() => _OnboardingScreenContentState();
+  State<_OnboardingScreenContent> createState() =>
+      _OnboardingScreenContentState();
 }
 
 class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
@@ -73,10 +87,14 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
       if (focusNode.hasFocus) {
         final original = controller.text;
         controller.text = ' ';
-        controller.selection = TextSelection.collapsed(offset: controller.text.length);
+        controller.selection = TextSelection.collapsed(
+          offset: controller.text.length,
+        );
         Future.microtask(() {
           controller.text = original;
-          controller.selection = TextSelection.collapsed(offset: controller.text.length);
+          controller.selection = TextSelection.collapsed(
+            offset: controller.text.length,
+          );
         });
       }
     });
@@ -93,10 +111,18 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (icon != null) ...[Icon(icon, size: 14, color: subtleColor), const SizedBox(width: 6)],
+              if (icon != null) ...[
+                Icon(icon, size: 14, color: subtleColor),
+                const SizedBox(width: 6),
+              ],
               Text(
                 title,
-                style: TextStyle(color: subtleColor, fontWeight: FontWeight.w600, fontSize: 17, letterSpacing: 0.3),
+                style: TextStyle(
+                  color: subtleColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 17,
+                  letterSpacing: 0.3,
+                ),
               ),
             ],
           ),
@@ -118,12 +144,19 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
         builder: (ctx) => AlertDialog(
           title: const Text('Error al leer archivo'),
           content: Text(error),
-          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK'),
+            ),
+          ],
         ),
       );
       return;
     }
-    if (jsonStr != null && jsonStr.trim().isNotEmpty && widget.onImportJson != null) {
+    if (jsonStr != null &&
+        jsonStr.trim().isNotEmpty &&
+        widget.onImportJson != null) {
       String? importError;
       final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
         jsonStr,
@@ -138,7 +171,12 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
             content: Text(
               'No se pudo importar la biografía: campo problemático: ${importError ?? 'Error desconocido'}',
             ),
-            actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('OK'),
+              ),
+            ],
           ),
         );
         return;
@@ -163,7 +201,10 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
   void initState() {
     super.initState();
     _userNameController = TextEditingController(
-      text: Provider.of<OnboardingProvider>(context, listen: false).userNameController.text,
+      text: Provider.of<OnboardingProvider>(
+        context,
+        listen: false,
+      ).userNameController.text,
     );
   }
 
@@ -201,11 +242,17 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
             itemBuilder: (context) => [
               PopupMenuItem<String>(
                 value: 'import',
-                child: Text('Importar chat', style: TextStyle(color: AppColors.primary)),
+                child: Text(
+                  'Importar chat',
+                  style: TextStyle(color: AppColors.primary),
+                ),
               ),
               PopupMenuItem<String>(
                 value: 'clear',
-                child: Text('Borrar todo (debug)', style: TextStyle(color: AppColors.secondary)),
+                child: Text(
+                  'Borrar todo (debug)',
+                  style: TextStyle(color: AppColors.secondary),
+                ),
               ),
             ],
             onSelected: (value) async {
@@ -247,11 +294,14 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                 fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
                   // Inicializa el texto si ya hay código guardado
                   final code = provider.userCountryCode;
-                  if ((controller.text.isEmpty) && code != null && code.isNotEmpty) {
+                  if ((controller.text.isEmpty) &&
+                      code != null &&
+                      code.isNotEmpty) {
                     final name = CountriesEs.codeToName[code.toUpperCase()];
                     if (name != null) {
                       final flag = LocaleUtils.flagEmojiForCountry(code);
-                      controller.text = '${flag.isNotEmpty ? '$flag ' : ''}$name ($code)';
+                      controller.text =
+                          '${flag.isNotEmpty ? '$flag ' : ''}$name ($code)';
                     }
                   }
                   // Abrir opciones al enfocar (inserta un espacio temporal y lo revierte)
@@ -259,13 +309,26 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                   return TextFormField(
                     controller: controller,
                     focusNode: focusNode,
-                    style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontFamily: 'FiraMono',
+                    ),
                     decoration: InputDecoration(
                       labelText: 'Tu país',
                       labelStyle: const TextStyle(color: AppColors.secondary),
-                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
-                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
-                      prefixIcon: const Icon(Icons.flag, color: AppColors.secondary),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: AppColors.secondary),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: AppColors.primary,
+                          width: 2,
+                        ),
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.flag,
+                        color: AppColors.secondary,
+                      ),
                       helperText: provider.userCountryCode?.isNotEmpty == true
                           ? 'Idioma: ${LocaleUtils.languageNameEsForCountry(provider.userCountryCode!)}'
                           : null,
@@ -273,7 +336,10 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                       fillColor: Colors.black,
                       filled: true,
                     ),
-                    validator: (_) => provider.userCountryCode?.isNotEmpty == true ? null : 'Obligatorio',
+                    validator: (_) =>
+                        provider.userCountryCode?.isNotEmpty == true
+                        ? null
+                        : 'Obligatorio',
                     onEditingComplete: onEditingComplete,
                   );
                 },
@@ -292,13 +358,23 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                 onChanged: (value) {
                   provider.setUserName(value);
                 },
-                style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontFamily: 'FiraMono',
+                ),
                 decoration: InputDecoration(
                   labelText: "Tu nombre",
                   labelStyle: const TextStyle(color: AppColors.secondary),
-                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
-                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
-                  prefixIcon: const Icon(Icons.person, color: AppColors.secondary),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.secondary),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.person,
+                    color: AppColors.secondary,
+                  ),
                   fillColor: Colors.black,
                   filled: true,
                 ),
@@ -327,11 +403,14 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                 fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
                   // Inicializa el texto si ya hay código guardado
                   final code = provider.aiCountryCode;
-                  if ((controller.text.isEmpty) && code != null && code.isNotEmpty) {
+                  if ((controller.text.isEmpty) &&
+                      code != null &&
+                      code.isNotEmpty) {
                     final name = CountriesEs.codeToName[code.toUpperCase()];
                     if (name != null) {
                       final flag = LocaleUtils.flagEmojiForCountry(code);
-                      controller.text = '${flag.isNotEmpty ? '$flag ' : ''}$name ($code)';
+                      controller.text =
+                          '${flag.isNotEmpty ? '$flag ' : ''}$name ($code)';
                     }
                   }
                   // Abrir opciones al enfocar (inserta un espacio temporal y lo revierte)
@@ -339,13 +418,26 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                   return TextFormField(
                     controller: controller,
                     focusNode: focusNode,
-                    style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontFamily: 'FiraMono',
+                    ),
                     decoration: InputDecoration(
                       labelText: 'País de la AI-Chan',
                       labelStyle: const TextStyle(color: AppColors.secondary),
-                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
-                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
-                      prefixIcon: const Icon(Icons.flag, color: AppColors.secondary),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: AppColors.secondary),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: AppColors.primary,
+                          width: 2,
+                        ),
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.flag,
+                        color: AppColors.secondary,
+                      ),
                       helperText: provider.aiCountryCode?.isNotEmpty == true
                           ? 'Idioma: ${LocaleUtils.languageNameEsForCountry(provider.aiCountryCode!)}'
                           : null,
@@ -353,7 +445,9 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                       fillColor: Colors.black,
                       filled: true,
                     ),
-                    validator: (_) => provider.aiCountryCode?.isNotEmpty == true ? null : 'Obligatorio',
+                    validator: (_) => provider.aiCountryCode?.isNotEmpty == true
+                        ? null
+                        : 'Obligatorio',
                     onEditingComplete: onEditingComplete,
                   );
                 },
@@ -371,41 +465,68 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                 optionsBuilder: (TextEditingValue textEditingValue) {
                   if (textEditingValue.text == '') {
                     // Sugerencias base por país de la IA si no hay texto
-                    final base = FemaleNamesRepo.forCountry(provider.aiCountryCode);
+                    final base = FemaleNamesRepo.forCountry(
+                      provider.aiCountryCode,
+                    );
                     return base.take(20);
                   }
-                  final source = FemaleNamesRepo.forCountry(provider.aiCountryCode);
+                  final source = FemaleNamesRepo.forCountry(
+                    provider.aiCountryCode,
+                  );
                   return source
-                      .where((option) => option.toLowerCase().contains(textEditingValue.text.toLowerCase()))
+                      .where(
+                        (option) => option.toLowerCase().contains(
+                          textEditingValue.text.toLowerCase(),
+                        ),
+                      )
                       .take(50);
                 },
-                fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-                  // Enlaza el controller al provider para que nunca sea null
-                  provider.setAiNameController(controller);
-                  // Sincroniza el valor inicial solo si está vacío
-                  if (controller.text.isEmpty && (provider.aiNameController?.text.isNotEmpty ?? false)) {
-                    controller.text = provider.aiNameController!.text;
-                  }
-                  return TextFormField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    onChanged: (value) {
-                      provider.setAiName(value);
+                fieldViewBuilder:
+                    (context, controller, focusNode, onEditingComplete) {
+                      // Enlaza el controller al provider para que nunca sea null
+                      provider.setAiNameController(controller);
+                      // Sincroniza el valor inicial solo si está vacío
+                      if (controller.text.isEmpty &&
+                          (provider.aiNameController?.text.isNotEmpty ??
+                              false)) {
+                        controller.text = provider.aiNameController!.text;
+                      }
+                      return TextFormField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        onChanged: (value) {
+                          provider.setAiName(value);
+                        },
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontFamily: 'FiraMono',
+                        ),
+                        decoration: InputDecoration(
+                          labelText: "Nombre de la AI-Chan",
+                          labelStyle: const TextStyle(
+                            color: AppColors.secondary,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: AppColors.secondary),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: AppColors.primary,
+                              width: 2,
+                            ),
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.smart_toy,
+                            color: AppColors.secondary,
+                          ),
+                          fillColor: Colors.black,
+                          filled: true,
+                        ),
+                        validator: (v) =>
+                            v == null || v.isEmpty ? "Obligatorio" : null,
+                        onEditingComplete: onEditingComplete,
+                      );
                     },
-                    style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
-                    decoration: InputDecoration(
-                      labelText: "Nombre de la AI-Chan",
-                      labelStyle: const TextStyle(color: AppColors.secondary),
-                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
-                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
-                      prefixIcon: const Icon(Icons.smart_toy, color: AppColors.secondary),
-                      fillColor: Colors.black,
-                      filled: true,
-                    ),
-                    validator: (v) => v == null || v.isEmpty ? "Obligatorio" : null,
-                    onEditingComplete: onEditingComplete,
-                  );
-                },
                 onSelected: (selection) {
                   provider.setAiName(selection);
                 },
@@ -416,14 +537,24 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               TextFormField(
                 controller: provider.meetStoryController,
                 onChanged: onMeetStoryChanged,
-                style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontFamily: 'FiraMono',
+                ),
                 decoration: InputDecoration(
                   labelText: "¿Cómo os conocísteis?",
                   hintText: "Escribe o pulsa sugerir",
                   labelStyle: const TextStyle(color: AppColors.secondary),
-                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
-                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
-                  prefixIcon: const Icon(Icons.favorite, color: AppColors.secondary),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.secondary),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.favorite,
+                    color: AppColors.secondary,
+                  ),
                   fillColor: Colors.black,
                   filled: true,
                 ),
@@ -432,13 +563,18 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               ),
               const SizedBox(height: 8),
               CyberpunkButton(
-                onPressed: provider.loadingStory ? null : () => provider.suggestStory(context),
+                onPressed: provider.loadingStory
+                    ? null
+                    : () => provider.suggestStory(context),
                 text: "Sugerir historia",
                 icon: provider.loadingStory
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(color: AppColors.secondary, strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          color: AppColors.secondary,
+                          strokeWidth: 2,
+                        ),
                       )
                     : null,
               ),
@@ -448,13 +584,21 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                     ? () async {
                         // Forzar sincronización de todos los valores del formulario
                         provider.setUserName(provider.userNameController.text);
-                        provider.setAiName(provider.aiNameController?.text ?? '');
-                        provider.setMeetStory(provider.meetStoryController.text);
+                        provider.setAiName(
+                          provider.aiNameController?.text ?? '',
+                        );
+                        provider.setMeetStory(
+                          provider.meetStoryController.text,
+                        );
                         final birthText = provider.birthDateController.text;
                         if (birthText.isNotEmpty) {
                           final parts = birthText.split('/');
                           if (parts.length == 3) {
-                            final parsed = DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+                            final parsed = DateTime(
+                              int.parse(parts[2]),
+                              int.parse(parts[1]),
+                              int.parse(parts[0]),
+                            );
                             provider.setUserBirthday(parsed);
                           }
                         }

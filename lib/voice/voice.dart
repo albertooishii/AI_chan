@@ -1,5 +1,5 @@
-// Onboarding Bounded Context - Main Barrel Export
-// Following DDD + Hexagonal Architecture
+// Voice Bounded Context - Main Export
+// Following DDD + Hexagonal Architecture patterns
 
 // Domain Layer
 export 'domain/domain.dart';

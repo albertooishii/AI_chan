@@ -10,7 +10,7 @@ import '../../application/providers/chat_provider.dart';
 import '../../../utils/locale_utils.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/message_input.dart';
-import '../../../widgets/voice_call_chat.dart';
+import 'package:ai_chan/voice/presentation/screens/voice_call_screen.dart';
 import '../../../widgets/typing_animation.dart';
 import '../../../constants/app_colors.dart';
 import '../../../utils/dialog_utils.dart';
