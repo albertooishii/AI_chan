@@ -118,6 +118,10 @@ Batch 5 — CI y regresión (pendiente)
 - [ ] Añadir job PR: `flutter analyze` + `flutter test`.
 - [ ] Añadir test de regresión estática que detecte `OpenAIService(`/`GeminiService(` fuera de `runtime_factory`.
 
+Batch 5 — CI y regresión (COMPLETADO)
+- [x] Añadir job PR: `flutter analyze` + `flutter test`.
+- [x] Añadir test de regresión estática que detecte `OpenAIService(`/`GeminiService(` fuera de `runtime_factory`.
+
 ---
 
 ## Lote A — estado y sub-batch ampliado propuesto
@@ -258,7 +262,7 @@ flutter test test/core/config_test.dart test/core/runtime_factory_test.dart <tes
 - [x] Lecturas de `dotenv.env` únicamente en `lib/core/config.dart`.
 - [x] Providers/widgets críticos usan `Config` o reciben valores por DI.
 - [x] `flutter analyze` limpio y tests relevantes verdes.
-- [ ] Test de regresión CI añadido para detectar instanciaciones directas.
+- [x] Test de regresión CI añadido para detectar instanciaciones directas.
 
 
 ---
