@@ -1,5 +1,5 @@
-import 'package:ai_chan/chat/repositories/local_chat_repository.dart';
-import 'package:ai_chan/chat/services/adapters/ai_chat_response_adapter.dart';
+import 'package:ai_chan/chat/infrastructure/repositories/local_chat_repository.dart';
+import 'package:ai_chan/chat/infrastructure/adapters/ai_chat_response_adapter.dart';
 import 'package:ai_chan/core/interfaces/i_chat_response_service.dart';
 import 'package:ai_chan/core/interfaces/i_chat_repository.dart';
 import 'package:ai_chan/core/interfaces/ai_service.dart';

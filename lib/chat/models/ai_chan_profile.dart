@@ -1,2 +1,0 @@
-// Shim: re-export canonical models to avoid duplicated AiChanProfile definitions
-export 'package:ai_chan/core/models.dart';

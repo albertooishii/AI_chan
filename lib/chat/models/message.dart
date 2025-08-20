@@ -1,3 +1,0 @@
-// Este archivo existía como copia local del modelo `Message`.
-// Para evitar definiciones duplicadas mantenemos un shim que re-exporta los modelos canónicos.
-export 'package:ai_chan/core/models.dart';
