@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:vector_math/vector_math_64.dart' show Vector3;
 import 'package:ai_chan/core/models.dart';
 
 class ExpandableImageDialog {
@@ -65,7 +66,6 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
     final canNavigate = widget.images.length > 1;
     final currentMsg = widget.images[_currentIndex];
     return PopScope(
@@ -295,7 +295,9 @@ class _ImageViewPageState extends State<_ImageViewPage> {
             _resetZoom();
           } else {
             // Zoom 2x en el centro
-            _transformController.value = Matrix4.identity()..scale(2.0, 2.0);
+            final matrix = Matrix4.identity()
+              ..scaleByVector3(Vector3(2.0, 2.0, 1.0));
+            _transformController.value = matrix;
           }
           HapticFeedback.lightImpact();
         },

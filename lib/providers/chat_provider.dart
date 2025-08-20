@@ -1,2 +1,2 @@
-// Compatibility re-export - usar el provider original temporalmente
-export '../providers/chat_provider_old.dart';
+// Compatibility re-export - usar el provider migrado
+export '../chat/application/providers/chat_provider.dart';

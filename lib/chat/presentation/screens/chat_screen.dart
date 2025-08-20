@@ -12,9 +12,9 @@ import '../widgets/chat_bubble.dart';
 import '../widgets/message_input.dart';
 import 'package:ai_chan/voice/presentation/screens/voice_call_screen.dart';
 import '../widgets/typing_animation.dart';
+import '../widgets/expandable_image_dialog.dart';
 import '../../../constants/app_colors.dart';
 import '../../../utils/dialog_utils.dart';
-import '../widgets/expandable_image_dialog.dart';
 // model imports covered by core barrel
 import 'package:ai_chan/core/models.dart';
 import '../../../utils/chat_json_utils.dart' as chat_json_utils;

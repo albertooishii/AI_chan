@@ -14,7 +14,9 @@ class GalleryScreen extends StatelessWidget {
       future: getLocalImageDir(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
         final absDir = snapshot.data!;
         final existingImages = images.where((msg) {
@@ -25,7 +27,11 @@ class GalleryScreen extends StatelessWidget {
           return file.existsSync();
         }).toList();
         return Scaffold(
-          appBar: AppBar(backgroundColor: Colors.black, elevation: 0, title: const Text('Galería de fotos')),
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            elevation: 0,
+            title: const Text('Galería de fotos'),
+          ),
           body: existingImages.isEmpty
               ? const Center(child: Text('No hay imágenes en este chat'))
               : GridView.builder(
@@ -43,7 +49,12 @@ class GalleryScreen extends StatelessWidget {
                     final file = File(absPath);
                     return GestureDetector(
                       onTap: () {
-                        ExpandableImageDialog.show(context, existingImages, index, imageDir: absDir);
+                        ExpandableImageDialog.show(
+                          context,
+                          existingImages,
+                          index,
+                          imageDir: absDir,
+                        );
                       },
                       child: Image.file(file, fit: BoxFit.cover),
                     );
