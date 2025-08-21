@@ -1,0 +1,22 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Flutter Linux Debug",
+			"request": "launch",
+			"type": "dart",
+			"program": "lib/main.dart",
+			"deviceId": "linux",
+			"console": "terminal"
+		},
+		{
+			"name": "Flutter Linux Release",
+			"request": "launch",
+			"type": "dart",
+			"program": "lib/main.dart",
+			"deviceId": "linux",
+			"flutterMode": "release",
+			"console": "terminal"
+		}
+	]
+}

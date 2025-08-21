@@ -38,7 +38,7 @@ prompt_key() {
   local key="$1"
   local prompt_text="$2"
   local default="$3"
-  local hidden="$4"
+  local hidden="${4:-false}"
 
   if [ "$hidden" = "true" ]; then
     read -s -p "$prompt_text" value
@@ -46,44 +46,87 @@ prompt_key() {
   else
     read -p "$prompt_text" value
   fi
+  
+  # Use default if value is empty
   value=${value:-$default}
+  
+  # Always set the key, even if empty (for API keys that might be optional)
+  set_key "$key" "$value"
+  
   if [ -n "$value" ]; then
-    set_key "$key" "$value"
-    echo "Set $key"
+    echo "✅ Set $key"
+  else
+    echo "⏭️  Skipped $key (empty)"
   fi
 }
 
-# Ask for main API keys
-prompt_key "GEMINI_API_KEY" "GEMINI_API_KEY (press Enter to leave empty): " ""
-prompt_key "GEMINI_API_KEY_FALLBACK" "GEMINI_API_KEY_FALLBACK (optional): " ""
-prompt_key "OPENAI_API_KEY" "OPENAI_API_KEY (press Enter to leave empty): " "" true
+# Ask for API keys (required)
+echo ""
+echo "🔐 API Keys (required for app to work):"
+echo "   Note: API keys will be visible while typing for easier input"
+prompt_key "GEMINI_API_KEY" "Enter GEMINI_API_KEY: " "" false
+prompt_key "OPENAI_API_KEY" "Enter OPENAI_API_KEY: " "" false
 
-# Confirm default models if not set
-if ! grep -qE "^DEFAULT_TEXT_MODEL=" "$ENV_FILE"; then
-  set_key "DEFAULT_TEXT_MODEL" "gemini-2.5-flash"
-fi
-if ! grep -qE "^DEFAULT_IMAGE_MODEL=" "$ENV_FILE"; then
-  set_key "DEFAULT_IMAGE_MODEL" "gpt-4.1-mini"
-fi
+echo ""
+echo "🔐 Additional API Keys (optional):"
+prompt_key "GEMINI_API_KEY_FALLBACK" "GEMINI_API_KEY_FALLBACK [Enter to skip]: " "" false
+prompt_key "GOOGLE_CLOUD_API_KEY" "GOOGLE_CLOUD_API_KEY [Enter to skip]: " "" false
+
+echo ""
+echo "🎵 Audio/Voice Configuration:"
+prompt_key "AUDIO_PROVIDER" "Audio provider (openai|gemini) [gemini]: " "gemini" false
+prompt_key "AUDIO_TTS_MODE" "TTS mode (google|local) [google]: " "google" false
+prompt_key "OPENAI_VOICE" "OpenAI voice [sage]: " "sage" false
+prompt_key "GOOGLE_VOICE_NAME" "Google voice name [es-ES-Neural2-A]: " "es-ES-Neural2-A" false
+
+echo ""
+echo "🤖 AI Models:"
+prompt_key "DEFAULT_TEXT_MODEL" "Default text model [gemini-2.5-flash]: " "gemini-2.5-flash" false
+prompt_key "DEFAULT_IMAGE_MODEL" "Default image model [gpt-4.1-mini]: " "gpt-4.1-mini" false  
+prompt_key "OPENAI_REALTIME_MODEL" "OpenAI realtime model [gpt-4o-realtime-preview]: " "gpt-4o-realtime-preview" false
+prompt_key "GOOGLE_REALTIME_MODEL" "Google realtime model [gemini-2.5-flash]: " "gemini-2.5-flash" false
+
+# Set default directories and log level without prompting
+echo ""
+echo "📁 Setting default directories and configuration..."
+set_key "IMAGE_DIR_ANDROID" "/storage/emulated/0/Pictures/AI_chan"
+set_key "IMAGE_DIR_IOS" "DCIM/AI_chan"
+set_key "IMAGE_DIR_DESKTOP" "~/AI_chan/images"
+set_key "IMAGE_DIR_WEB" "AI_chan"
+
+set_key "AUDIO_DIR_ANDROID" "/data/user/0/com.example.ai_chan/cache"
+set_key "AUDIO_DIR_IOS" "Library/Caches"
+set_key "AUDIO_DIR_DESKTOP" "~/AI_chan/audio"
+set_key "AUDIO_DIR_WEB" "AI_chan_audio"
+
+set_key "CACHE_DIR_ANDROID" ""
+set_key "CACHE_DIR_IOS" ""
+set_key "CACHE_DIR_DESKTOP" "~/AI_chan/cache"
+set_key "CACHE_DIR_WEB" "AI_chan_cache"
+
+set_key "APP_LOG_LEVEL" "debug"
 
 # Show summary (mask keys partially)
-echo "\nCreated/updated .env with the following keys:"
-for k in GEMINI_API_KEY GEMINI_API_KEY_FALLBACK OPENAI_API_KEY DEFAULT_TEXT_MODEL DEFAULT_IMAGE_MODEL; do
+echo ""
+echo "✅ Environment setup completed!"
+echo ""
+echo "🔐 API Keys:"
+for k in GEMINI_API_KEY GEMINI_API_KEY_FALLBACK OPENAI_API_KEY GOOGLE_CLOUD_API_KEY; do
   if grep -qE "^${k}=" "$ENV_FILE"; then
     v=$(grep -E "^${k}=" "$ENV_FILE" | sed -E "s/^${k}=(.*)$/\1/")
-    if [[ "$k" =~ _KEY ]]; then
-      # mask the key
-      if [ -z "$v" ]; then
-        echo "$k = <empty>"
-      else
-        echo "$k = ${v:0:4}...${v: -4}" || true
-      fi
+    if [ -z "$v" ] || [ "$v" = "PUT_YOUR_GEMINI_KEY_HERE" ] || [ "$v" = "PUT_YOUR_OPENAI_KEY_HERE" ] || [ "$v" = "PUT_YOUR_GOOGLE_CLOUD_KEY_HERE" ]; then
+      echo "  $k = ❌ <not configured>"
     else
-      echo "$k = $v"
+      echo "  $k = ✅ ${v:0:4}...${v: -4}" || true
     fi
-  else
-    echo "$k = <not set>"
   fi
 done
 
-echo "\nRun './scripts/setup.sh' next to install dependencies and hooks, or use 'make setup' from repo root."
+echo ""
+echo "🤖 Models & Audio configured with your preferences"
+echo "📁 Default directories set for all platforms" 
+echo "📝 Log level: debug"
+
+echo ""
+
+echo "Run './scripts/setup.sh' next to install dependencies and hooks, or use 'make setup' from repo root."

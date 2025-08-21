@@ -16,6 +16,23 @@
 			"command": "flutter test -j 1 -r expanded",
 			"group": "test",
 			"presentation": {"reveal": "always", "panel": "shared"}
+		},
+		{
+			"label": "flutter-run-linux",
+			"type": "shell",
+			"command": "flutter",
+			"args": ["run", "-d", "linux"],
+			"isBackground": true,
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "new",
+				"showReuseMessage": true,
+				"clear": false
+			},
+			"problemMatcher": []
 		}
 	]
 }
