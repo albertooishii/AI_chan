@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'dart:ui';
-import 'dart:async';
 import 'package:ai_chan/shared/utils/download_image.dart';
 import 'package:flutter/material.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:flutter/services.dart';
+import 'package:ai_chan/shared/constants/app_colors.dart';
 
 class ExpandableImageDialog {
   /// images: lista de mensajes con imagePath válido
@@ -44,56 +44,6 @@ class _GalleryImageViewerDialog extends StatefulWidget {
 
 class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
   bool _showText = true;
-
-  /// Muestra un mensaje overlay que aparece encima del dialog de imagen
-  void _showOverlayMessage(
-    BuildContext context,
-    String message, {
-    required bool isError,
-  }) {
-    final overlay = Overlay.of(context);
-    late OverlayEntry overlayEntry;
-
-    overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: 100,
-        left: 20,
-        right: 20,
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: isError ? Colors.red.shade700 : Colors.green.shade700,
-              borderRadius: BorderRadius.circular(8),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-      ),
-    );
-
-    overlay.insert(overlayEntry);
-
-    // Remover automáticamente después de 3 segundos
-    Timer(const Duration(seconds: 3), () {
-      overlayEntry.remove();
-    });
-  }
 
   void _showImageDescriptionDialog(String? description) {
     if (!context.mounted) return;
@@ -338,28 +288,45 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                           final result = await downloadImage(absPath);
 
                           if (!result.$1 && result.$2 != null) {
+                            // Hay error específico
                             if (context.mounted) {
-                              _showOverlayMessage(
-                                context,
-                                'Error al descargar: ${result.$2}',
-                                isError: true,
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Error al descargar: ${result.$2}',
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  backgroundColor: Colors.redAccent,
+                                ),
                               );
                             }
                           } else if (result.$1) {
+                            // Éxito
                             if (context.mounted) {
-                              _showOverlayMessage(
-                                context,
-                                '✅ Imagen guardada correctamente',
-                                isError: false,
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text(
+                                    '✅ Imagen guardada correctamente',
+                                    style: TextStyle(color: AppColors.primary),
+                                  ),
+                                  backgroundColor: AppColors.cyberpunkYellow,
+                                ),
                               );
                             }
                           }
+                          // Si !result.$1 && result.$2 == null significa que el usuario canceló - no hacer nada
                         } else {
                           if (context.mounted) {
-                            _showOverlayMessage(
-                              context,
-                              'Error: No se encontró la imagen',
-                              isError: true,
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text(
+                                  'Error: No se encontró la imagen',
+                                  style: TextStyle(color: AppColors.primary),
+                                ),
+                                backgroundColor: Colors.redAccent,
+                              ),
                             );
                           }
                         }

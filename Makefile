@@ -65,7 +65,11 @@ test:
 clean:
 	@flutter clean
 
-run: ## 🚀 Start development environment with colors (Ctrl+C to stop)
+run: ## 🚀 Start development environment (interactive with logs)
+	@echo "🚀 Starting AI_chan development environment..."
+	@./scripts/run_dev.sh
+
+run-foreground: ## 🚀 Start development environment in foreground (useful for debugging)
 	@./scripts/run_dev.sh
 
 run-release:
@@ -74,12 +78,18 @@ run-release:
 
 stop:
 	@echo "🛑 Stopping Flutter app..."
-	@pkill -f flutter || echo "No Flutter process found"
+	@if [ -f .flutter_run_pid ]; then \
+		PID=`cat .flutter_run_pid`; \
+		if kill -0 $$PID >/dev/null 2>&1; then \
+			echo "Killing flutter PID $$PID"; kill $$PID || true; sleep 1; fi; \
+		rm -f .flutter_run_pid || true; \
+	fi
+	@pkill -f flutter || echo "No flutter processes found"
 
 logs: ## 📝 View verbose debug logs (for troubleshooting)
 	@echo "📝 Showing debug logs (Ctrl+C to exit):"
 	@if [ -f flutter_run.log ]; then \
-		tail -f flutter_run.log; \
+		tail -n 200 -f flutter_run.log; \
 	else \
 		echo "❌ No log file found. Run 'make run' first."; \
 	fi
