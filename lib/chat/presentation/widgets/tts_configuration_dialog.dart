@@ -14,8 +14,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
   String _selectedProvider = 'google';
   bool _isLoading = false;
   bool _androidNativeAvailable = false;
-  bool _showOnlySpanishVoices =
-      true; // Filtro para mostrar solo voces de español España
+  bool _showOnlySpanishVoices = true; // Filtro para mostrar solo voces de español España
   List<Map<String, dynamic>> _googleVoices = [];
   final List<Map<String, dynamic>> _openaiVoices = [];
   List<Map<String, dynamic>> _androidNativeVoices = [];
@@ -34,12 +33,9 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _selectedProvider =
-          prefs.getString('selected_audio_provider') ??
-          Config.getAudioProvider().toLowerCase();
+      _selectedProvider = prefs.getString('selected_audio_provider') ?? Config.getAudioProvider().toLowerCase();
       _selectedVoice = prefs.getString('selected_voice');
-      _showOnlySpanishVoices =
-          prefs.getBool('show_only_spanish_voices') ?? true;
+      _showOnlySpanishVoices = prefs.getBool('show_only_spanish_voices') ?? true;
     });
   }
 
@@ -53,50 +49,31 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
   }
 
   void _loadVoices() async {
-    Log.d(
-      'DEBUG TTS: _loadVoices iniciado - _showOnlySpanishVoices: $_showOnlySpanishVoices',
-      tag: 'TTS_DIALOG',
-    );
+    Log.d('DEBUG TTS: _loadVoices iniciado - _showOnlySpanishVoices: $_showOnlySpanishVoices', tag: 'TTS_DIALOG');
     try {
       List<Map<String, dynamic>> voices;
       if (_showOnlySpanishVoices) {
-        voices = await GoogleSpeechService.voicesForUserAndAi(
-          ['es-ES'],
-          ['es-ES'],
-        );
-        Log.d(
-          'DEBUG TTS: Spanish Spain voices loaded: ${voices.length}',
-          tag: 'TTS_DIALOG',
-        );
+        voices = await GoogleSpeechService.voicesForUserAndAi(['es-ES'], ['es-ES']);
+        Log.d('DEBUG TTS: Spanish Spain voices loaded: ${voices.length}', tag: 'TTS_DIALOG');
         // Imprimir los primeros 5 para debug
         for (int i = 0; i < voices.length && i < 5; i++) {
           final voice = voices[i];
           final name = voice['name'] ?? 'Sin nombre';
           final langCodes = voice['languageCodes'] ?? [];
-          Log.d(
-            'DEBUG TTS: Voice $i: $name - Languages: $langCodes',
-            tag: 'TTS_DIALOG',
-          );
+          Log.d('DEBUG TTS: Voice $i: $name - Languages: $langCodes', tag: 'TTS_DIALOG');
         }
       } else {
         voices = await GoogleSpeechService.fetchGoogleVoices();
-        Log.d(
-          'DEBUG TTS: All voices loaded: ${voices.length}',
-          tag: 'TTS_DIALOG',
-        );
+        Log.d('DEBUG TTS: All voices loaded: ${voices.length}', tag: 'TTS_DIALOG');
         // Contar voces españolas para debug
         int spanishCount = 0;
         for (final voice in voices) {
-          final langCodes =
-              (voice['languageCodes'] as List?)?.cast<String>() ?? [];
+          final langCodes = (voice['languageCodes'] as List?)?.cast<String>() ?? [];
           if (langCodes.any((code) => code.toLowerCase().startsWith('es'))) {
             spanishCount++;
           }
         }
-        Log.d(
-          'DEBUG TTS: Total Spanish voices in all: $spanishCount',
-          tag: 'TTS_DIALOG',
-        );
+        Log.d('DEBUG TTS: Total Spanish voices in all: $spanishCount', tag: 'TTS_DIALOG');
       }
 
       if (mounted) {
@@ -104,10 +81,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
           _googleVoices = voices;
           _isLoading = false;
         });
-        Log.d(
-          'DEBUG TTS: setState completado con ${_googleVoices.length} voces',
-          tag: 'TTS_DIALOG',
-        );
+        Log.d('DEBUG TTS: setState completado con ${_googleVoices.length} voces', tag: 'TTS_DIALOG');
       }
     } catch (e) {
       Log.d('DEBUG TTS: Error loading voices: $e', tag: 'TTS_DIALOG');
@@ -137,10 +111,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
     setState(() => _isLoading = true);
 
     try {
-      Log.d(
-        '[TTS Dialog] Refrescando voces, filtro activo: $_showOnlySpanishVoices',
-        tag: 'TTS_DIALOG',
-      );
+      Log.d('[TTS Dialog] Refrescando voces, filtro activo: $_showOnlySpanishVoices', tag: 'TTS_DIALOG');
 
       if (GoogleSpeechService.isConfigured) {
         await GoogleSpeechService.clearVoicesCache();
@@ -148,50 +119,30 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
 
         if (_showOnlySpanishVoices) {
           // Usar voces filtradas para español de España con refresh forzado
-          _googleVoices = await GoogleSpeechService.voicesForUserAndAi(
-            ['es-ES'],
-            ['es-ES'],
-            forceRefresh: true,
-          );
-          Log.d(
-            '[TTS Dialog] Voces filtradas refrescadas: ${_googleVoices.length}',
-            tag: 'TTS_DIALOG',
-          );
+          _googleVoices = await GoogleSpeechService.voicesForUserAndAi(['es-ES'], ['es-ES'], forceRefresh: true);
+          Log.d('[TTS Dialog] Voces filtradas refrescadas: ${_googleVoices.length}', tag: 'TTS_DIALOG');
         } else {
           // Usar todas las voces disponibles con refresh forzado
-          _googleVoices = await GoogleSpeechService.fetchGoogleVoices(
-            forceRefresh: true,
-          );
-          Log.d(
-            '[TTS Dialog] Todas las voces refrescadas: ${_googleVoices.length}',
-            tag: 'TTS_DIALOG',
-          );
+          _googleVoices = await GoogleSpeechService.fetchGoogleVoices(forceRefresh: true);
+          Log.d('[TTS Dialog] Todas las voces refrescadas: ${_googleVoices.length}', tag: 'TTS_DIALOG');
         }
 
         // Debug: mostrar algunas voces después del refresh
-        for (
-          int i = 0;
-          i < (_googleVoices.length > 3 ? 3 : _googleVoices.length);
-          i++
-        ) {
+        for (int i = 0; i < (_googleVoices.length > 3 ? 3 : _googleVoices.length); i++) {
           final voice = _googleVoices[i];
           final name = voice['name'];
           final langs = voice['languageCodes'];
-          Log.d(
-            '[TTS Dialog] Después del refresh, voz $i: $name -> $langs',
-            tag: 'TTS_DIALOG',
-          );
+          Log.d('[TTS Dialog] Después del refresh, voz $i: $name -> $langs', tag: 'TTS_DIALOG');
         }
       }
 
       if (_androidNativeAvailable) {
-        _androidNativeVoices =
-            await AndroidNativeTtsService.getAvailableVoices();
+        _androidNativeVoices = await AndroidNativeTtsService.getAvailableVoices();
       }
     } catch (e) {
       Log.d('[TTS Dialog] Error refrescando voces: $e', tag: 'TTS_DIALOG');
       if (mounted) {
-        showAppSnackBar(context, 'Error actualizando voces: $e', isError: true);
+        showAppSnackBar('Error actualizando voces: $e', isError: true, preferRootMessenger: true);
       }
     }
 
@@ -204,18 +155,10 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Limpiar Caché'),
-        content: Text(
-          '¿Eliminar ${CacheService.formatCacheSize(_cacheSize)} de audio en caché?',
-        ),
+        content: Text('¿Eliminar ${CacheService.formatCacheSize(_cacheSize)} de audio en caché?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Limpiar'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Limpiar')),
         ],
       ),
     );
@@ -226,7 +169,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
       await _loadCacheSize();
 
       if (mounted) {
-        showAppSnackBar(context, 'Caché limpiado exitosamente');
+        showAppSnackBar('Caché limpiado exitosamente', preferRootMessenger: true);
       }
     }
   }
@@ -242,10 +185,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Proveedor:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+              const Text('Proveedor:', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
 
               // Selector de proveedor: usamos ListTile con iconos para evitar APIs deprecadas
@@ -255,11 +195,8 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
                       ? const Icon(Icons.radio_button_checked)
                       : const Icon(Icons.radio_button_unchecked),
                   title: const Text('TTS Nativo Android (Gratuito)'),
-                  subtitle: Text(
-                    '${_androidNativeVoices.length} voces instaladas',
-                  ),
-                  onTap: () =>
-                      setState(() => _selectedProvider = 'android_native'),
+                  subtitle: Text('${_androidNativeVoices.length} voces instaladas'),
+                  onTap: () => setState(() => _selectedProvider = 'android_native'),
                 ),
                 const Divider(),
               ],
@@ -270,14 +207,10 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
                     : const Icon(Icons.radio_button_unchecked),
                 title: const Text('Google Cloud TTS'),
                 subtitle: Text(
-                  GoogleSpeechService.isConfigured
-                      ? '${_googleVoices.length} voces disponibles'
-                      : 'No configurado',
+                  GoogleSpeechService.isConfigured ? '${_googleVoices.length} voces disponibles' : 'No configurado',
                 ),
                 enabled: GoogleSpeechService.isConfigured,
-                onTap: GoogleSpeechService.isConfigured
-                    ? () => setState(() => _selectedProvider = 'google')
-                    : null,
+                onTap: GoogleSpeechService.isConfigured ? () => setState(() => _selectedProvider = 'google') : null,
               ),
 
               ListTile(
@@ -301,18 +234,12 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Solo voces de Español (España)',
-                            style: TextStyle(fontWeight: FontWeight.w500),
-                          ),
+                          const Text('Solo voces de Español (España)', style: TextStyle(fontWeight: FontWeight.w500)),
                           Text(
                             _showOnlySpanishVoices
                                 ? 'Mostrando ${_googleVoices.length} voces filtradas'
                                 : 'Mostrando ${_googleVoices.length} voces (todas)',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
-                            ),
+                            style: const TextStyle(fontSize: 12, color: Colors.grey),
                           ),
                         ],
                       ),
@@ -337,10 +264,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Voces:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  const Text('Voces:', style: TextStyle(fontWeight: FontWeight.bold)),
                   IconButton(
                     icon: const Icon(Icons.refresh),
                     onPressed: _isLoading ? null : _refreshVoices,
@@ -349,10 +273,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
                 ],
               ),
 
-              if (_isLoading)
-                const Center(child: CircularProgressIndicator())
-              else
-                _buildVoiceList(),
+              if (_isLoading) const Center(child: CircularProgressIndicator()) else _buildVoiceList(),
 
               const SizedBox(height: 16),
               const Divider(),
@@ -364,14 +285,8 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Caché:',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'Tamaño: ${CacheService.formatCacheSize(_cacheSize)}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
+                      const Text('Caché:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text('Tamaño: ${CacheService.formatCacheSize(_cacheSize)}', style: const TextStyle(fontSize: 12)),
                     ],
                   ),
                   ElevatedButton.icon(
@@ -386,10 +301,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
         ElevatedButton(
           onPressed: () async {
             final navCtx = context;
@@ -419,10 +331,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
     }
 
     if (voices.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Text('No hay voces disponibles para este proveedor'),
-      );
+      return const Padding(padding: EdgeInsets.all(16.0), child: Text('No hay voces disponibles para este proveedor'));
     }
 
     return Container(

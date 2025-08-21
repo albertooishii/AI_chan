@@ -6,10 +6,8 @@
         "editor.formatOnSave": false,
         "editor.autoIndent": "none"
     },
-    "github-actions.workflows.pinned.workflows": [],
     "dart.lineLength": 120,
     "dart.runPubGetOnPubspecChanges": "never",
-    "flutter.createFilesWithAnalysisOptions": false,
     "files.watcherExclude": {
         "**/.git/objects/**": true,
         "**/.git/subtree-cache/**": true,
@@ -21,5 +19,6 @@
     "gitlens.codeLens.enabled": false,
     "git.autofetch": false,
     "git.autorefresh": false,
-    "files.autoSave": "off"
+    "files.autoSave": "off",
+    "dart.flutterHotReloadOnSave": "all",
 }

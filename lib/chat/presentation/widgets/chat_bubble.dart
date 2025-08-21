@@ -22,10 +22,7 @@ class ChatBubble extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         const SizedBox(width: 8),
-        Text(
-          _formatTime(message.dateTime),
-          style: TextStyle(color: Colors.grey[400], fontSize: 12),
-        ),
+        Text(_formatTime(message.dateTime), style: TextStyle(color: Colors.grey[400], fontSize: 12)),
         if (isUser) ...[
           const SizedBox(width: 4),
           statusWidget,
@@ -38,9 +35,7 @@ class ChatBubble extends StatelessWidget {
               tooltip: 'Reintentar',
               onPressed: () {
                 try {
-                  context.read<ChatProvider>().retryLastFailedMessage(
-                    onError: (e) {},
-                  );
+                  context.read<ChatProvider>().retryLastFailedMessage(onError: (e) {});
                 } catch (_) {}
               },
             ),
@@ -119,11 +114,7 @@ class ChatBubble extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           title,
-          style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
+          style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 14),
         ),
       ],
     );
@@ -170,12 +161,7 @@ class ChatBubble extends StatelessWidget {
   final Message message;
   final bool isLastUserMessage;
   final Directory? imageDir;
-  const ChatBubble({
-    required this.message,
-    this.isLastUserMessage = false,
-    this.imageDir,
-    super.key,
-  });
+  const ChatBubble({required this.message, this.isLastUserMessage = false, this.imageDir, super.key});
 
   String cleanText(String text) {
     String cleaned = text.replaceAll(r'\n', '\n').replaceAll(r'\"', '"');
@@ -184,10 +170,7 @@ class ChatBubble extends StatelessWidget {
 
     // Remover contenido entre [call] y [/call] si existe
     if (cleaned.contains('[call]') && cleaned.contains('[/call]')) {
-      cleaned = cleaned.replaceAll(
-        RegExp(r'\[call\].*?\[\/call\]', dotAll: true),
-        '',
-      );
+      cleaned = cleaned.replaceAll(RegExp(r'\[call\].*?\[\/call\]', dotAll: true), '');
     }
 
     return cleaned;
@@ -211,34 +194,16 @@ class ChatBubble extends StatelessWidget {
                 onTap: () {
                   final chatProvider = context.read<ChatProvider>();
                   final images = chatProvider.messages
-                      .where(
-                        (m) =>
-                            m.isImage &&
-                            m.image != null &&
-                            m.image!.url != null &&
-                            m.image!.url!.isNotEmpty,
-                      )
+                      .where((m) => m.isImage && m.image != null && m.image!.url != null && m.image!.url!.isNotEmpty)
                       .toList();
-                  final idx = images.indexWhere(
-                    (m) => m.image?.url == imageUrl,
-                  );
+                  final idx = images.indexWhere((m) => m.image?.url == imageUrl);
                   if (idx != -1) {
-                    ExpandableImageDialog.show(
-                      context,
-                      images,
-                      idx,
-                      imageDir: imageDir,
-                    );
+                    ExpandableImageDialog.show(images, idx, imageDir: imageDir);
                   }
                 },
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.file(
-                    file,
-                    fit: BoxFit.cover,
-                    width: 256,
-                    height: 256,
-                  ),
+                  child: Image.file(file, fit: BoxFit.cover, width: 256, height: 256),
                 ),
               );
             },
@@ -259,18 +224,12 @@ class ChatBubble extends StatelessWidget {
     final openTag = '[audio]';
     final closeTag = '[/audio]';
     int openIdx = txtLower.indexOf(openTag);
-    int closeIdx = openIdx >= 0
-        ? txtLower.indexOf(closeTag, openIdx + openTag.length)
-        : -1;
+    int closeIdx = openIdx >= 0 ? txtLower.indexOf(closeTag, openIdx + openTag.length) : -1;
     // Solo consideramos placeholder de nota de voz pendiente para mensajes del asistente.
     // Si el usuario escribe manualmente [audio]...[/audio] se mostrará como texto normal (NO barra de carga).
     bool isVoiceNoteTag = false;
-    if (message.sender == MessageSender.assistant &&
-        openIdx >= 0 &&
-        closeIdx > openIdx) {
-      final inner = message.text
-          .substring(openIdx + openTag.length, closeIdx)
-          .trim();
+    if (message.sender == MessageSender.assistant && openIdx >= 0 && closeIdx > openIdx) {
+      final inner = message.text.substring(openIdx + openTag.length, closeIdx).trim();
       if (inner.isNotEmpty) isVoiceNoteTag = true;
     }
 
@@ -300,19 +259,12 @@ class ChatBubble extends StatelessWidget {
     }
 
     // Ocultar texto si es audio o si está marcado como nota de voz (etiqueta previa a generación de TTS)
-    final shouldShowText =
-        !message.isAudio && message.text.trim().isNotEmpty && !isVoiceNoteTag;
-    final hasImage =
-        message.image != null &&
-        message.image!.url != null &&
-        message.image!.url!.isNotEmpty;
-    final hasAudio =
-        message.isAudio &&
-        (message.audioPath != null && message.audioPath!.isNotEmpty);
+    final shouldShowText = !message.isAudio && message.text.trim().isNotEmpty && !isVoiceNoteTag;
+    final hasImage = message.image != null && message.image!.url != null && message.image!.url!.isNotEmpty;
+    final hasAudio = message.isAudio && (message.audioPath != null && message.audioPath!.isNotEmpty);
     final isVoiceCallSummary = message.isVoiceCallSummary;
     final bool isCallPlaceholder =
-        message.callStatus == CallStatus.placeholder ||
-        message.text.trim() == '[call][/call]';
+        message.callStatus == CallStatus.placeholder || message.text.trim() == '[call][/call]';
     final callStatus = message.callStatus;
 
     Widget bubbleContent;
@@ -320,19 +272,12 @@ class ChatBubble extends StatelessWidget {
     EdgeInsetsGeometry padding = const EdgeInsets.all(14);
     if (hasImage && hasAudio) {
       // Caso combinado: imagen + nota de voz
-      final showCaption =
-          message.text.trim().isNotEmpty &&
-          !isVoiceNoteTag; // ignorar isAudio para caption
-      final isShortCaption =
-          !showCaption || (showCaption && message.text.length < 80);
+      final showCaption = message.text.trim().isNotEmpty && !isVoiceNoteTag; // ignorar isAudio para caption
+      final isShortCaption = !showCaption || (showCaption && message.text.length < 80);
       useIntrinsicWidth = isShortCaption;
-      padding = isShortCaption
-          ? const EdgeInsets.all(6)
-          : const EdgeInsets.all(14);
+      padding = isShortCaption ? const EdgeInsets.all(6) : const EdgeInsets.all(14);
       bubbleContent = Column(
-        crossAxisAlignment: isUser
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
+        crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildImageContent(message, glowColor),
@@ -355,8 +300,7 @@ class ChatBubble extends StatelessWidget {
                           child: CircularProgressIndicator(
                             strokeWidth: 2.2,
                             valueColor: AlwaysStoppedAnimation(
-                              (isUser ? AppColors.primary : AppColors.secondary)
-                                  .withValues(alpha: 0.9),
+                              (isUser ? AppColors.primary : AppColors.secondary).withValues(alpha: 0.9),
                             ),
                           ),
                         ),
@@ -366,42 +310,21 @@ class ChatBubble extends StatelessWidget {
                 ),
             ],
           ),
-          if (showCaption) ...[
-            const SizedBox(height: 8),
-            ...MarkdownGenerator().buildWidgets(cleanText(message.text)),
-          ],
-          _footerRow(
-            context: context,
-            message: message,
-            isUser: isUser,
-            statusWidget: statusWidget,
-          ),
+          if (showCaption) ...[const SizedBox(height: 8), ...MarkdownGenerator().buildWidgets(cleanText(message.text))],
+          _footerRow(context: context, message: message, isUser: isUser, statusWidget: statusWidget),
         ],
       );
     } else if (hasImage) {
-      final isShortText =
-          !shouldShowText || (shouldShowText && message.text.length < 80);
+      final isShortText = !shouldShowText || (shouldShowText && message.text.length < 80);
       useIntrinsicWidth = isShortText;
-      padding = isShortText
-          ? const EdgeInsets.all(6)
-          : const EdgeInsets.all(14);
+      padding = isShortText ? const EdgeInsets.all(6) : const EdgeInsets.all(14);
       bubbleContent = Column(
-        crossAxisAlignment: isUser
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
+        crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildImageContent(message, glowColor),
-          if (shouldShowText) ...[
-            const SizedBox(height: 8),
-            ..._buildMarkdownBlocks(message.text),
-          ],
-          _footerRow(
-            context: context,
-            message: message,
-            isUser: isUser,
-            statusWidget: statusWidget,
-          ),
+          if (shouldShowText) ...[const SizedBox(height: 8), ..._buildMarkdownBlocks(message.text)],
+          _footerRow(context: context, message: message, isUser: isUser, statusWidget: statusWidget),
         ],
       );
     } else if (hasAudio) {
@@ -428,8 +351,7 @@ class ChatBubble extends StatelessWidget {
                           child: CircularProgressIndicator(
                             strokeWidth: 2.2,
                             valueColor: AlwaysStoppedAnimation(
-                              (isUser ? AppColors.primary : AppColors.secondary)
-                                  .withValues(alpha: 0.9),
+                              (isUser ? AppColors.primary : AppColors.secondary).withValues(alpha: 0.9),
                             ),
                           ),
                         ),
@@ -444,18 +366,11 @@ class ChatBubble extends StatelessWidget {
             Flexible(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ...MarkdownGenerator().buildWidgets(cleanText(message.text)),
-                ],
+                children: [...MarkdownGenerator().buildWidgets(cleanText(message.text))],
               ),
             ),
           ],
-          _footerRow(
-            context: context,
-            message: message,
-            isUser: isUser,
-            statusWidget: statusWidget,
-          ),
+          _footerRow(context: context, message: message, isUser: isUser, statusWidget: statusWidget),
         ],
       );
     } else if (isVoiceNoteTag) {
@@ -481,21 +396,14 @@ class ChatBubble extends StatelessWidget {
                     height: 12,
                     child: LinearProgressIndicator(
                       backgroundColor: Colors.grey[850],
-                      valueColor: AlwaysStoppedAnimation(
-                        glowColor.withValues(alpha: 0.55),
-                      ),
+                      valueColor: AlwaysStoppedAnimation(glowColor.withValues(alpha: 0.55)),
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          _footerRow(
-            context: context,
-            message: message,
-            isUser: isUser,
-            statusWidget: statusWidget,
-          ),
+          _footerRow(context: context, message: message, isUser: isUser, statusWidget: statusWidget),
         ],
       );
     } else if (isVoiceCallSummary) {
@@ -504,19 +412,11 @@ class ChatBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _callHeader(
-            isUser: isUser,
-            isSummary: true,
-            isPlaceholder: false,
-            callStatus: callStatus,
-          ),
+          _callHeader(isUser: isUser, isSummary: true, isPlaceholder: false, callStatus: callStatus),
           const SizedBox(height: 6),
           // Duración
           if (message.callDuration != null)
-            Text(
-              'Duración: ${message.formattedCallDuration}',
-              style: TextStyle(color: Colors.grey[400], fontSize: 13),
-            ),
+            Text('Duración: ${message.formattedCallDuration}', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
           const SizedBox(height: 8),
           // Contenido del resumen
           if (shouldShowText && message.text.isNotEmpty) ...[
@@ -528,12 +428,7 @@ class ChatBubble extends StatelessWidget {
             ),
             const SizedBox(height: 8),
           ],
-          _footerRow(
-            context: context,
-            message: message,
-            isUser: isUser,
-            statusWidget: statusWidget,
-          ),
+          _footerRow(context: context, message: message, isUser: isUser, statusWidget: statusWidget),
         ],
       );
     } else if (isCallPlaceholder ||
@@ -549,18 +444,10 @@ class ChatBubble extends StatelessWidget {
             isUser: isUser,
             isSummary: false,
             isPlaceholder: isCallPlaceholder,
-            callStatus:
-                callStatus ??
-                (isCallPlaceholder ? CallStatus.placeholder : null),
+            callStatus: callStatus ?? (isCallPlaceholder ? CallStatus.placeholder : null),
           ),
           const SizedBox(height: 6),
-          _footerRow(
-            context: context,
-            message: message,
-            isUser: isUser,
-            statusWidget: statusWidget,
-            showRetry: false,
-          ),
+          _footerRow(context: context, message: message, isUser: isUser, statusWidget: statusWidget, showRetry: false),
         ],
       );
     } else {
@@ -571,19 +458,10 @@ class ChatBubble extends StatelessWidget {
           Flexible(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ..._buildMarkdownBlocks(
-                  message.text.isNotEmpty ? message.text : '',
-                ),
-              ],
+              children: [..._buildMarkdownBlocks(message.text.isNotEmpty ? message.text : '')],
             ),
           ),
-          _footerRow(
-            context: context,
-            message: message,
-            isUser: isUser,
-            statusWidget: statusWidget,
-          ),
+          _footerRow(context: context, message: message, isUser: isUser, statusWidget: statusWidget),
         ],
       );
     }

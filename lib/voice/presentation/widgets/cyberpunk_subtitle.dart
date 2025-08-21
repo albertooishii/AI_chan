@@ -152,8 +152,6 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle> w
   final List<_CharAnim> _chars = [];
   List<String> _lastUnits = [];
   // último texto (por ahora no utilizado externamente, se mantiene por si se amplía diff)
-  // ignore: unused_field
-  String _lastText = '';
 
   @override
   void initState() {
@@ -177,7 +175,6 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle> w
     for (final u in units) {
       _chars.add(_CharAnim(target: u, current: u, start: now, locked: true));
     }
-    _lastText = text;
     _lastUnits = units;
   }
 
@@ -249,7 +246,6 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle> w
     _chars
       ..clear()
       ..addAll(updated);
-    _lastText = newText;
     _lastUnits = newUnits;
   }
 

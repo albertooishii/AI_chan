@@ -1,6 +1,7 @@
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:convert';
@@ -22,13 +23,7 @@ class ChatScreen extends StatefulWidget {
   final Future<void> Function()? onClearAllDebug;
   final Future<void> Function(ImportedChat importedChat)? onImportJson;
 
-  const ChatScreen({
-    super.key,
-    required this.bio,
-    required this.aiName,
-    this.onClearAllDebug,
-    this.onImportJson,
-  });
+  const ChatScreen({super.key, required this.bio, required this.aiName, this.onClearAllDebug, this.onImportJson});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -38,8 +33,7 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   Directory? _imageDir;
-  bool _isRegeneratingAppearance =
-      false; // Muestra spinner en avatar durante la regeneración
+  bool _isRegeneratingAppearance = false; // Muestra spinner en avatar durante la regeneración
   List<Map<String, dynamic>> _fetchedGoogleVoices = [];
   bool _loadingGoogleVoices = false;
 
@@ -61,23 +55,16 @@ class _ChatScreenState extends State<ChatScreen> {
       final userCountry = widget.bio.userCountryCode;
       List<String> userLangCodes = [];
       if (userCountry != null && userCountry.trim().isNotEmpty) {
-        userLangCodes = LocaleUtils.officialLanguageCodesForCountry(
-          userCountry.trim().toUpperCase(),
-        );
+        userLangCodes = LocaleUtils.officialLanguageCodesForCountry(userCountry.trim().toUpperCase());
       }
 
       final aiCountry = widget.bio.aiCountryCode;
       List<String> aiLangCodes = [];
       if (aiCountry != null && aiCountry.trim().isNotEmpty) {
-        aiLangCodes = LocaleUtils.officialLanguageCodesForCountry(
-          aiCountry.trim().toUpperCase(),
-        );
+        aiLangCodes = LocaleUtils.officialLanguageCodesForCountry(aiCountry.trim().toUpperCase());
       }
 
-      final voices = await GoogleSpeechService.voicesForUserAndAi(
-        userLangCodes,
-        aiLangCodes,
-      );
+      final voices = await GoogleSpeechService.voicesForUserAndAi(userLangCodes, aiLangCodes);
       if (mounted) setState(() => _fetchedGoogleVoices = voices);
     } finally {
       if (mounted) setState(() => _loadingGoogleVoices = false);
@@ -87,8 +74,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _showImportDialog(ChatProvider chatProvider) async {
     if (!mounted) return;
     final ctx = context;
-    final (jsonStr, error) =
-        await chat_json_utils.ChatJsonUtils.importJsonFile();
+    final (jsonStr, error) = await chat_json_utils.ChatJsonUtils.importJsonFile();
     if (!ctx.mounted) return;
     if (error != null) {
       _showErrorDialog(error);
@@ -110,25 +96,15 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<String?> _showModelSelectionDialog(
-    BuildContext ctx,
-    List<String> models,
-    String? initialModel,
-  ) async {
+  Future<String?> _showModelSelectionDialog(BuildContext ctx, List<String> models, String? initialModel) async {
     if (!ctx.mounted) return null;
     return await showAppDialog<String>(
       context: ctx,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
-        title: const Text(
-          'Seleccionar modelo',
-          style: TextStyle(color: AppColors.primary),
-        ),
+        title: const Text('Seleccionar modelo', style: TextStyle(color: AppColors.primary)),
         content: models.isEmpty
-            ? const Text(
-                'No se encontraron modelos disponibles.',
-                style: TextStyle(color: AppColors.primary),
-              )
+            ? const Text('No se encontraron modelos disponibles.', style: TextStyle(color: AppColors.primary))
             : SizedBox(
                 width: 350,
                 child: ListView(
@@ -139,71 +115,37 @@ class _ChatScreenState extends State<ChatScreen> {
                       padding: EdgeInsets.symmetric(vertical: 8.0),
                       child: Text(
                         'Google',
-                        style: TextStyle(
-                          color: AppColors.secondary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                        style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                     ),
                     ...models
-                        .where(
-                          (m) =>
-                              m.toLowerCase().contains('gemini') ||
-                              m.toLowerCase().contains('imagen-'),
-                        )
+                        .where((m) => m.toLowerCase().contains('gemini') || m.toLowerCase().contains('imagen-'))
                         .map(
                           (m) => ListTile(
-                            title: Text(
-                              m,
-                              style: const TextStyle(color: AppColors.primary),
-                            ),
+                            title: Text(m, style: const TextStyle(color: AppColors.primary)),
                             trailing: initialModel == m
-                                ? const Icon(
-                                    Icons.radio_button_checked,
-                                    color: AppColors.secondary,
-                                  )
-                                : const Icon(
-                                    Icons.radio_button_off,
-                                    color: AppColors.primary,
-                                  ),
+                                ? const Icon(Icons.radio_button_checked, color: AppColors.secondary)
+                                : const Icon(Icons.radio_button_off, color: AppColors.primary),
                             onTap: () => Navigator.of(ctx).pop(m),
                           ),
                         ),
-                    const Divider(
-                      color: AppColors.secondary,
-                      thickness: 1,
-                      height: 24,
-                    ),
+                    const Divider(color: AppColors.secondary, thickness: 1, height: 24),
                     // Grupo OpenAI
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 8.0),
                       child: Text(
                         'OpenAI',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                        style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                     ),
                     ...models
                         .where((m) => m.toLowerCase().startsWith('gpt-'))
                         .map(
                           (m) => ListTile(
-                            title: Text(
-                              m,
-                              style: const TextStyle(color: AppColors.primary),
-                            ),
+                            title: Text(m, style: const TextStyle(color: AppColors.primary)),
                             trailing: initialModel == m
-                                ? const Icon(
-                                    Icons.radio_button_checked,
-                                    color: AppColors.secondary,
-                                  )
-                                : const Icon(
-                                    Icons.radio_button_off,
-                                    color: AppColors.primary,
-                                  ),
+                                ? const Icon(Icons.radio_button_checked, color: AppColors.secondary)
+                                : const Icon(Icons.radio_button_off, color: AppColors.primary),
                             onTap: () => Navigator.of(ctx).pop(m),
                           ),
                         ),
@@ -212,10 +154,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
         actions: [
           TextButton(
-            child: const Text(
-              'Cancelar',
-              style: TextStyle(color: AppColors.primary),
-            ),
+            child: const Text('Cancelar', style: TextStyle(color: AppColors.primary)),
             onPressed: () => Navigator.of(ctx).pop(),
           ),
         ],
@@ -223,11 +162,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  void _setSelectedModel(
-    String? selected,
-    String? current,
-    ChatProvider chatProvider,
-  ) {
+  void _setSelectedModel(String? selected, String? current, ChatProvider chatProvider) {
     if (!mounted) return;
     if (selected != null && selected != current) {
       chatProvider.selectedModel = selected;
@@ -237,7 +172,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _showImportSuccessSnackBar() {
     if (!mounted) return;
-    showAppSnackBar(context, 'Chat importado correctamente.');
+    showAppSnackBar('Chat importado correctamente.', preferRootMessenger: true);
   }
 
   void _showExportDialog(BuildContext ctx, String jsonStr) {
@@ -251,10 +186,7 @@ class _ChatScreenState extends State<ChatScreen> {
       context: ctx,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
-        title: const Text(
-          'Exportar chat (.json)',
-          style: TextStyle(color: AppColors.secondary),
-        ),
+        title: const Text('Exportar chat (.json)', style: TextStyle(color: AppColors.secondary)),
         content: SizedBox(
           width: 400,
           child: SingleChildScrollView(
@@ -271,10 +203,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         actions: [
           TextButton(
-            child: const Text(
-              'Guardar como...',
-              style: TextStyle(color: AppColors.secondary),
-            ),
+            child: const Text('Guardar como...', style: TextStyle(color: AppColors.secondary)),
             onPressed: () async {
               Navigator.of(ctx).pop();
               final chatProvider = context.read<ChatProvider>();
@@ -283,14 +212,22 @@ class _ChatScreenState extends State<ChatScreen> {
                 messages: chatProvider.messages,
                 events: chatProvider.events,
               );
-              final (success, error) = await chat_json_utils
-                  .ChatJsonUtils.saveJsonFile(importedChat);
+              final (success, error) = await chat_json_utils.ChatJsonUtils.saveJsonFile(importedChat);
               if (!mounted) return;
               if (error != null) {
                 _showErrorDialog(error);
               } else if (success) {
-                showAppSnackBar(context, 'Archivo guardado correctamente.');
+                showAppSnackBar('Archivo guardado correctamente.', preferRootMessenger: true);
               }
+            },
+          ),
+          TextButton(
+            child: const Text('Copiar', style: TextStyle(color: AppColors.primary)),
+            onPressed: () async {
+              // Copiar el JSON formateado al portapapeles
+              await Clipboard.setData(ClipboardData(text: previewJson));
+              if (!mounted) return;
+              showAppSnackBar('JSON copiado al portapapeles', preferRootMessenger: true);
             },
           ),
         ],
@@ -300,7 +237,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _showAppearanceRegeneratedSnackBarWith(BuildContext ctx) {
     if (!mounted) return;
-    showAppSnackBar(ctx, 'Apariencia IA regenerada y reemplazada.');
+    showAppSnackBar('Apariencia IA regenerada y reemplazada.', preferRootMessenger: true);
   }
 
   bool _loadingModels = false;
@@ -325,16 +262,12 @@ class _ChatScreenState extends State<ChatScreen> {
       final navigator = Navigator.of(navCtx);
       if (chatProvider.hasPendingIncomingCall) {
         // Abrir VoiceCallChat en modo incoming solo si no hay ya otra ruta de llamada
-        final alreadyOpen =
-            navigator.widget is VoiceCallChat; // heurístico simple
+        final alreadyOpen = navigator.widget is VoiceCallChat; // heurístico simple
         if (!alreadyOpen) {
           final existing = navCtx.read<ChatProvider>();
           navigator.push(
             MaterialPageRoute(
-              builder: (_) => ChangeNotifierProvider.value(
-                value: existing,
-                child: const VoiceCallChat(incoming: true),
-              ),
+              builder: (_) => ChangeNotifierProvider.value(value: existing, child: const VoiceCallChat(incoming: true)),
             ),
           );
         }
@@ -360,9 +293,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   height: 18,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      AppColors.primary,
-                    ),
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                   ),
                 ),
               )
@@ -372,12 +303,7 @@ class _ChatScreenState extends State<ChatScreen> {
               (_imageDir != null)
                   ? GestureDetector(
                       onTap: () {
-                        final avatarFilename = chatProvider
-                            .onboardingData
-                            .avatar!
-                            .url!
-                            .split('/')
-                            .last;
+                        final avatarFilename = chatProvider.onboardingData.avatar!.url!.split('/').last;
                         final avatarMessage = Message(
                           image: AiImage(
                             url: avatarFilename,
@@ -389,20 +315,13 @@ class _ChatScreenState extends State<ChatScreen> {
                           isImage: true,
                           dateTime: DateTime.now(),
                         );
-                        ExpandableImageDialog.show(
-                          context,
-                          [avatarMessage],
-                          0,
-                          imageDir: _imageDir,
-                        );
+                        ExpandableImageDialog.show([avatarMessage], 0, imageDir: _imageDir);
                       },
                       child: CircleAvatar(
                         radius: 16,
                         backgroundColor: AppColors.secondary,
                         backgroundImage: FileImage(
-                          File(
-                            '${_imageDir!.path}/${chatProvider.onboardingData.avatar!.url!.split('/').last}',
-                          ),
+                          File('${_imageDir!.path}/${chatProvider.onboardingData.avatar!.url!.split('/').last}'),
                         ),
                       ),
                     )
@@ -415,11 +334,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Flexible(
               child: Text(
                 aiName,
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: const TextStyle(color: AppColors.primary, fontSize: 20, fontWeight: FontWeight.w500),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -433,10 +348,7 @@ class _ChatScreenState extends State<ChatScreen> {
               final existing = context.read<ChatProvider>();
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => ChangeNotifierProvider.value(
-                    value: existing,
-                    child: const VoiceCallChat(),
-                  ),
+                  builder: (_) => ChangeNotifierProvider.value(value: existing, child: const VoiceCallChat()),
                 ),
               );
             },
@@ -449,16 +361,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 value: 'gallery',
                 child: Row(
                   children: const [
-                    Icon(
-                      Icons.photo_library,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
+                    Icon(Icons.photo_library, color: AppColors.primary, size: 20),
                     SizedBox(width: 8),
-                    Text(
-                      'Ver galería de fotos',
-                      style: TextStyle(color: AppColors.primary),
-                    ),
+                    Text('Ver galería de fotos', style: TextStyle(color: AppColors.primary)),
                   ],
                 ),
               ),
@@ -467,16 +372,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 value: 'calendar',
                 child: Row(
                   children: const [
-                    Icon(
-                      Icons.calendar_month,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
+                    Icon(Icons.calendar_month, color: AppColors.primary, size: 20),
                     SizedBox(width: 8),
-                    Text(
-                      'Abrir calendario',
-                      style: TextStyle(color: AppColors.primary),
-                    ),
+                    Text('Abrir calendario', style: TextStyle(color: AppColors.primary)),
                   ],
                 ),
               ),
@@ -487,31 +385,21 @@ class _ChatScreenState extends State<ChatScreen> {
                 value: 'select_model',
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.memory,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
+                    const Icon(Icons.memory, color: AppColors.primary, size: 20),
                     const SizedBox(width: 8),
                     Text(
-                      _loadingModels
-                          ? 'Cargando modelos...'
-                          : 'Seleccionar modelo',
+                      _loadingModels ? 'Cargando modelos...' : 'Seleccionar modelo',
                       style: const TextStyle(color: AppColors.primary),
                     ),
                     Builder(
                       builder: (context) {
                         final defaultModel = Config.getDefaultTextModel();
-                        final selected =
-                            chatProvider.selectedModel ?? defaultModel;
+                        final selected = chatProvider.selectedModel ?? defaultModel;
                         return Padding(
                           padding: const EdgeInsets.only(left: 8.0),
                           child: Text(
                             selected,
-                            style: const TextStyle(
-                              color: AppColors.secondary,
-                              fontSize: 11,
-                            ),
+                            style: const TextStyle(color: AppColors.secondary, fontSize: 11),
                             overflow: TextOverflow.ellipsis,
                           ),
                         );
@@ -525,33 +413,19 @@ class _ChatScreenState extends State<ChatScreen> {
                 value: 'select_audio_provider',
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.speaker,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
+                    const Icon(Icons.speaker, color: AppColors.primary, size: 20),
                     const SizedBox(width: 8),
-                    const Text(
-                      'Sistema de voz',
-                      style: TextStyle(color: AppColors.primary),
-                    ),
+                    const Text('Sistema de voz', style: TextStyle(color: AppColors.primary)),
                     FutureBuilder<String>(
                       future: _loadActiveAudioProvider(),
                       builder: (context, snapshot) {
-                        final provider =
-                            snapshot.data ??
-                            Config.getAudioProvider().toLowerCase();
-                        final displayName = provider == 'google'
-                            ? 'GOOGLE'
-                            : provider.toUpperCase();
+                        final provider = snapshot.data ?? Config.getAudioProvider().toLowerCase();
+                        final displayName = provider == 'google' ? 'GOOGLE' : provider.toUpperCase();
                         return Padding(
                           padding: const EdgeInsets.only(left: 8.0),
                           child: Text(
                             displayName,
-                            style: const TextStyle(
-                              color: AppColors.secondary,
-                              fontSize: 11,
-                            ),
+                            style: const TextStyle(color: AppColors.secondary, fontSize: 11),
                             overflow: TextOverflow.ellipsis,
                           ),
                         );
@@ -565,16 +439,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 value: 'select_voice',
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.record_voice_over,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
+                    const Icon(Icons.record_voice_over, color: AppColors.primary, size: 20),
                     const SizedBox(width: 8),
-                    const Text(
-                      'Seleccionar voz',
-                      style: TextStyle(color: AppColors.primary),
-                    ),
+                    const Text('Seleccionar voz', style: TextStyle(color: AppColors.primary)),
                     FutureBuilder<String?>(
                       future: _loadActiveVoice(),
                       builder: (context, snap) {
@@ -584,10 +451,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           padding: const EdgeInsets.only(left: 8.0),
                           child: Text(
                             v,
-                            style: const TextStyle(
-                              color: AppColors.secondary,
-                              fontSize: 11,
-                            ),
+                            style: const TextStyle(color: AppColors.secondary, fontSize: 11),
                             overflow: TextOverflow.ellipsis,
                           ),
                         );
@@ -604,10 +468,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   children: const [
                     Icon(Icons.save_alt, color: AppColors.primary, size: 20),
                     SizedBox(width: 8),
-                    Text(
-                      'Exportar chat (JSON)',
-                      style: TextStyle(color: AppColors.primary),
-                    ),
+                    Text('Exportar chat (JSON)', style: TextStyle(color: AppColors.primary)),
                   ],
                 ),
               ),
@@ -618,10 +479,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   children: const [
                     Icon(Icons.file_open, color: AppColors.primary, size: 20),
                     SizedBox(width: 8),
-                    Text(
-                      'Importar chat (JSON)',
-                      style: TextStyle(color: AppColors.primary),
-                    ),
+                    Text('Importar chat (JSON)', style: TextStyle(color: AppColors.primary)),
                   ],
                 ),
               ),
@@ -633,10 +491,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   children: const [
                     Icon(Icons.refresh, color: Colors.redAccent, size: 20),
                     SizedBox(width: 8),
-                    Text(
-                      'Regenerar apariencia IA (debug)',
-                      style: TextStyle(color: Colors.redAccent),
-                    ),
+                    Text('Regenerar apariencia IA (debug)', style: TextStyle(color: Colors.redAccent)),
                   ],
                 ),
               ),
@@ -645,16 +500,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 value: 'clear_debug',
                 child: Row(
                   children: const [
-                    Icon(
-                      Icons.delete_forever,
-                      color: Colors.redAccent,
-                      size: 20,
-                    ),
+                    Icon(Icons.delete_forever, color: Colors.redAccent, size: 20),
                     SizedBox(width: 8),
-                    Text(
-                      'Borrar todo (debug)',
-                      style: TextStyle(color: Colors.redAccent),
-                    ),
+                    Text('Borrar todo (debug)', style: TextStyle(color: Colors.redAccent)),
                   ],
                 ),
               ),
@@ -663,28 +511,15 @@ class _ChatScreenState extends State<ChatScreen> {
               final ctx = context;
               if (value == 'gallery') {
                 final images = chatProvider.messages
-                    .where(
-                      (m) =>
-                          m.isImage &&
-                          m.image != null &&
-                          m.image!.url != null &&
-                          m.image!.url!.isNotEmpty,
-                    )
+                    .where((m) => m.isImage && m.image != null && m.image!.url != null && m.image!.url!.isNotEmpty)
                     .toList();
                 if (!ctx.mounted) return;
-                Navigator.of(ctx).push(
-                  MaterialPageRoute(
-                    builder: (_) => GalleryScreen(images: images),
-                  ),
-                );
+                Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => GalleryScreen(images: images)));
               } else if (value == 'calendar') {
                 final existing = ctx.read<ChatProvider>();
                 Navigator.of(ctx).push(
                   MaterialPageRoute(
-                    builder: (_) => ChangeNotifierProvider.value(
-                      value: existing,
-                      child: const CalendarScreen(),
-                    ),
+                    builder: (_) => ChangeNotifierProvider.value(value: existing, child: const CalendarScreen()),
                   ),
                 );
               } else if (value == 'export_json') {
@@ -694,11 +529,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   if (!ctx.mounted) return;
                   _showExportDialog(ctx, jsonStr);
                 } catch (e) {
-                  Log.e(
-                    'Error al exportar biografía',
-                    tag: 'CHAT_SCREEN',
-                    error: e,
-                  );
+                  Log.e('Error al exportar biografía', tag: 'CHAT_SCREEN', error: e);
                   if (!ctx.mounted) return;
                   _showErrorDialogWith(ctx, e.toString());
                 }
@@ -709,8 +540,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 final bio = chatProvider.onboardingData;
                 if (mounted) setState(() => _isRegeneratingAppearance = true);
                 try {
-                  final result = await chatProvider.iaAppearanceGenerator
-                      .generateAppearancePromptWithImage(bio);
+                  final result = await chatProvider.iaAppearanceGenerator.generateAppearancePromptWithImage(bio);
                   if (!ctx.mounted) return;
                   final newBio = AiChanProfile(
                     biography: bio.biography,
@@ -718,9 +548,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     aiName: bio.aiName,
                     userBirthday: bio.userBirthday,
                     aiBirthday: bio.aiBirthday,
-                    appearance:
-                        result['appearance'] as Map<String, dynamic>? ??
-                        <String, dynamic>{},
+                    appearance: result['appearance'] as Map<String, dynamic>? ?? <String, dynamic>{},
                     avatar: result['avatar'] as AiImage?,
                     timeline: bio.timeline, // timeline SIEMPRE al final
                   );
@@ -739,25 +567,16 @@ class _ChatScreenState extends State<ChatScreen> {
                         style: TextStyle(color: AppColors.secondary),
                       ),
                       content: SingleChildScrollView(
-                        child: Text(
-                          e.toString(),
-                          style: const TextStyle(color: AppColors.primary),
-                        ),
+                        child: Text(e.toString(), style: const TextStyle(color: AppColors.primary)),
                       ),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.of(ctx).pop('cancel'),
-                          child: const Text(
-                            'Cerrar',
-                            style: TextStyle(color: AppColors.primary),
-                          ),
+                          child: const Text('Cerrar', style: TextStyle(color: AppColors.primary)),
                         ),
                         TextButton(
                           onPressed: () => Navigator.of(ctx).pop('retry'),
-                          child: const Text(
-                            'Reintentar',
-                            style: TextStyle(color: AppColors.secondary),
-                          ),
+                          child: const Text('Reintentar', style: TextStyle(color: AppColors.secondary)),
                         ),
                       ],
                     ),
@@ -766,8 +585,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   if (choice == 'retry') {
                     // Un reintento directo
                     try {
-                      final result = await chatProvider.iaAppearanceGenerator
-                          .generateAppearancePromptWithImage(bio);
+                      final result = await chatProvider.iaAppearanceGenerator.generateAppearancePromptWithImage(bio);
                       if (!ctx.mounted) return;
                       final newBio = AiChanProfile(
                         biography: bio.biography,
@@ -775,9 +593,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         aiName: bio.aiName,
                         userBirthday: bio.userBirthday,
                         aiBirthday: bio.aiBirthday,
-                        appearance:
-                            result['appearance'] as Map<String, dynamic>? ??
-                            <String, dynamic>{},
+                        appearance: result['appearance'] as Map<String, dynamic>? ?? <String, dynamic>{},
                         avatar: result['avatar'] as AiImage?,
                         timeline: bio.timeline,
                       );
@@ -787,10 +603,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       _showAppearanceRegeneratedSnackBarWith(ctx);
                     } catch (e2) {
                       if (!mounted) return;
-                      _showErrorDialogWith(
-                        ctx,
-                        'Error al regenerar apariencia (reintento):\n$e2',
-                      );
+                      _showErrorDialogWith(ctx, 'Error al regenerar apariencia (reintento):\n$e2');
                     }
                   }
                 } finally {
@@ -803,27 +616,18 @@ class _ChatScreenState extends State<ChatScreen> {
                   context: context,
                   builder: (ctx) => AlertDialog(
                     backgroundColor: Colors.black,
-                    title: const Text(
-                      'Borrar todo (debug)',
-                      style: TextStyle(color: Colors.redAccent),
-                    ),
+                    title: const Text('Borrar todo (debug)', style: TextStyle(color: Colors.redAccent)),
                     content: const Text(
                       '¿Seguro que quieres borrar absolutamente todos los datos de la app? Esta acción no se puede deshacer.',
                       style: TextStyle(color: AppColors.primary),
                     ),
                     actions: [
                       TextButton(
-                        child: const Text(
-                          'Cancelar',
-                          style: TextStyle(color: AppColors.primary),
-                        ),
+                        child: const Text('Cancelar', style: TextStyle(color: AppColors.primary)),
                         onPressed: () => Navigator.of(ctx).pop(false),
                       ),
                       TextButton(
-                        child: const Text(
-                          'Borrar todo (debug)',
-                          style: TextStyle(color: Colors.redAccent),
-                        ),
+                        child: const Text('Borrar todo (debug)', style: TextStyle(color: Colors.redAccent)),
                         onPressed: () => Navigator.of(ctx).pop(true),
                       ),
                     ],
@@ -860,15 +664,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 final defaultModel = Config.getDefaultTextModel();
                 final initialModel =
                     current ??
-                    (models.contains(defaultModel)
-                        ? defaultModel
-                        : (models.isNotEmpty ? models.first : null));
-                // ignore: use_build_context_synchronously
-                final selected = await _showModelSelectionDialog(
-                  ctx,
-                  models,
-                  initialModel,
-                );
+                    (models.contains(defaultModel) ? defaultModel : (models.isNotEmpty ? models.first : null));
+                final selected = await _showModelSelectionDialog(ctx, models, initialModel);
                 if (!ctx.mounted) return;
                 _setSelectedModel(selected, current, chatProvider);
               } else if (value == 'select_audio_provider') {
@@ -881,10 +678,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   builder: (ctx) {
                     return AlertDialog(
                       backgroundColor: Colors.black,
-                      title: const Text(
-                        'Seleccionar sistema de voz',
-                        style: TextStyle(color: AppColors.secondary),
-                      ),
+                      title: const Text('Seleccionar sistema de voz', style: TextStyle(color: AppColors.secondary)),
                       content: SizedBox(
                         width: 300,
                         child: Column(
@@ -894,30 +688,19 @@ class _ChatScreenState extends State<ChatScreen> {
                               title: Text(
                                 provider.toUpperCase(),
                                 style: TextStyle(
-                                  color: current == provider
-                                      ? AppColors.primary
-                                      : AppColors.secondary,
-                                  fontWeight: current == provider
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
+                                  color: current == provider ? AppColors.primary : AppColors.secondary,
+                                  fontWeight: current == provider ? FontWeight.bold : FontWeight.normal,
                                 ),
                               ),
                               subtitle: Text(
                                 provider == 'openai'
                                     ? 'OpenAI Realtime API - Rápido y integrado'
                                     : 'Google Voice - Gemini AI + Cloud TTS/STT',
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 12,
-                                ),
+                                style: const TextStyle(color: Colors.grey, fontSize: 12),
                               ),
                               leading: Icon(
-                                provider == 'openai'
-                                    ? Icons.speed
-                                    : Icons.graphic_eq,
-                                color: current == provider
-                                    ? AppColors.primary
-                                    : AppColors.secondary,
+                                provider == 'openai' ? Icons.speed : Icons.graphic_eq,
+                                color: current == provider ? AppColors.primary : AppColors.secondary,
                               ),
                               onTap: () => Navigator.of(ctx).pop(provider),
                             );
@@ -929,14 +712,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 );
                 if (!ctx.mounted) return;
                 if (selected != null && selected != current) {
-                  // ignore: use_build_context_synchronously
                   await _saveActiveAudioProvider(selected);
                   if (!ctx.mounted) return;
                   setState(() {});
-                  showAppSnackBar(
-                    ctx,
-                    'Proveedor de audio cambiado a ${selected.toUpperCase()}',
-                  );
+                  showAppSnackBar('Proveedor de audio cambiado a ${selected.toUpperCase()}');
                 }
               } else if (value == 'select_voice') {
                 final provider = await _loadActiveAudioProvider();
@@ -944,15 +723,12 @@ class _ChatScreenState extends State<ChatScreen> {
                 List<dynamic> voices;
                 bool isGoogle = provider == 'google';
                 if (isGoogle) {
-                  voices = _fetchedGoogleVoices.isNotEmpty
-                      ? _fetchedGoogleVoices
-                      : [];
+                  voices = _fetchedGoogleVoices.isNotEmpty ? _fetchedGoogleVoices : [];
                 } else {
                   voices = kOpenAIVoices;
                 }
                 final ctx = context;
                 if (!ctx.mounted) return;
-                // ignore: use_build_context_synchronously
                 final selected = await showAppDialog<String>(
                   context: ctx,
                   builder: (ctx) {
@@ -973,55 +749,37 @@ class _ChatScreenState extends State<ChatScreen> {
                                 child: TextButton.icon(
                                   icon: const Icon(Icons.refresh, size: 16),
                                   label: Text(
-                                    _loadingGoogleVoices
-                                        ? 'Actualizando...'
-                                        : 'Actualizar voces',
-                                    style: const TextStyle(
-                                      color: AppColors.secondary,
-                                    ),
+                                    _loadingGoogleVoices ? 'Actualizando...' : 'Actualizar voces',
+                                    style: const TextStyle(color: AppColors.secondary),
                                   ),
                                   onPressed: _loadingGoogleVoices
                                       ? null
                                       : () async {
                                           final ctx = context;
                                           if (!ctx.mounted) return;
-                                          setState(
-                                            () => _loadingGoogleVoices = true,
-                                          );
+                                          setState(() => _loadingGoogleVoices = true);
                                           try {
-                                            final aiCountry =
-                                                widget.bio.aiCountryCode;
+                                            final aiCountry = widget.bio.aiCountryCode;
                                             String? aiLangCode;
-                                            if (aiCountry != null &&
-                                                aiCountry.trim().isNotEmpty) {
-                                              final codes =
-                                                  LocaleUtils.officialLanguageCodesForCountry(
-                                                    aiCountry
-                                                        .trim()
-                                                        .toUpperCase(),
-                                                  );
+                                            if (aiCountry != null && aiCountry.trim().isNotEmpty) {
+                                              final codes = LocaleUtils.officialLanguageCodesForCountry(
+                                                aiCountry.trim().toUpperCase(),
+                                              );
                                               if (codes.isNotEmpty) {
                                                 aiLangCode = codes.first;
                                               }
                                             }
-                                            final voices =
-                                                await GoogleSpeechService.voicesForUserAndAi(
-                                                  ['es-ES'],
-                                                  [aiLangCode ?? 'es-ES'],
-                                                  forceRefresh: true,
-                                                );
+                                            final voices = await GoogleSpeechService.voicesForUserAndAi(
+                                              ['es-ES'],
+                                              [aiLangCode ?? 'es-ES'],
+                                              forceRefresh: true,
+                                            );
                                             if (ctx.mounted) {
-                                              setState(
-                                                () => _fetchedGoogleVoices =
-                                                    voices,
-                                              );
+                                              setState(() => _fetchedGoogleVoices = voices);
                                             }
                                           } finally {
                                             if (ctx.mounted) {
-                                              setState(
-                                                () => _loadingGoogleVoices =
-                                                    false,
-                                              );
+                                              setState(() => _loadingGoogleVoices = false);
                                             }
                                           }
                                         },
@@ -1033,49 +791,25 @@ class _ChatScreenState extends State<ChatScreen> {
                                 children: [
                                   ...voices.map<Widget>((v) {
                                     final isMap = v is Map<String, dynamic>;
-                                    final name = isMap
-                                        ? (v['name'] as String? ?? '')
-                                        : (v as String);
-                                    final lcodes =
-                                        (isMap && v['languageCodes'] is List)
-                                        ? (v['languageCodes'] as List)
-                                              .cast<String>()
+                                    final name = isMap ? (v['name'] as String? ?? '') : (v as String);
+                                    final lcodes = (isMap && v['languageCodes'] is List)
+                                        ? (v['languageCodes'] as List).cast<String>()
                                         : <String>[];
                                     final descRaw = isMap
-                                        ? (v['description'] ??
-                                              v['gender'] ??
-                                              v['ssmlGender'] ??
-                                              '')
+                                        ? (v['description'] ?? v['gender'] ?? v['ssmlGender'] ?? '')
                                         : '';
-                                    final desc = descRaw is String
-                                        ? descRaw
-                                        : descRaw?.toString() ?? '';
-                                    final isNeural = RegExp(
-                                      r'neural|wavenet',
-                                      caseSensitive: false,
-                                    ).hasMatch(name);
+                                    final desc = descRaw is String ? descRaw : descRaw?.toString() ?? '';
+                                    final isNeural = RegExp(r'neural|wavenet', caseSensitive: false).hasMatch(name);
 
                                     final List<Widget> subtitleWidgets = [];
                                     if (desc.isNotEmpty) {
                                       subtitleWidgets.add(
-                                        Text(
-                                          desc,
-                                          style: const TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 12,
-                                          ),
-                                        ),
+                                        Text(desc, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                                       );
                                     }
                                     if (isNeural) {
                                       subtitleWidgets.add(
-                                        Text(
-                                          'Neural',
-                                          style: const TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 12,
-                                          ),
-                                        ),
+                                        Text('Neural', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                                       );
                                     }
 
@@ -1091,43 +825,25 @@ class _ChatScreenState extends State<ChatScreen> {
                                       title: isGoogle
                                           ? Text(
                                               '$name (${lcodes.join(',')})',
-                                              style: const TextStyle(
-                                                color: AppColors.primary,
-                                              ),
+                                              style: const TextStyle(color: AppColors.primary),
                                             )
-                                          : Text(
-                                              v,
-                                              style: const TextStyle(
-                                                color: AppColors.primary,
-                                              ),
-                                            ),
+                                          : Text(v, style: const TextStyle(color: AppColors.primary)),
                                       subtitle: subtitleWidgets.isEmpty
                                           ? null
                                           : Row(
                                               children: [
-                                                for (
-                                                  int i = 0;
-                                                  i < subtitleWidgets.length;
-                                                  i++
-                                                ) ...[
+                                                for (int i = 0; i < subtitleWidgets.length; i++) ...[
                                                   subtitleWidgets[i],
-                                                  if (i !=
-                                                      subtitleWidgets.length -
-                                                          1)
-                                                    const SizedBox(width: 8),
+                                                  if (i != subtitleWidgets.length - 1) const SizedBox(width: 8),
                                                 ],
                                               ],
                                             ),
                                       trailing: IconButton(
-                                        icon: const Icon(
-                                          Icons.play_arrow,
-                                          color: AppColors.secondary,
-                                        ),
+                                        icon: const Icon(Icons.play_arrow, color: AppColors.secondary),
                                         tooltip: 'Escuchar demo',
                                         onPressed: () async {
                                           final ctx = context;
-                                          final chatProv = ctx
-                                              .read<ChatProvider>();
+                                          final chatProv = ctx.read<ChatProvider>();
                                           final phrase = isGoogle
                                               ? 'Hola, soy tu asistente con la voz $name'
                                               : 'Hola, soy tu asistente con la voz $v';
@@ -1138,30 +854,21 @@ class _ChatScreenState extends State<ChatScreen> {
                                                 lang = lcodes.first;
                                               }
                                             }
-                                            final file = await chatProv
-                                                .audioService
-                                                .synthesizeTts(
-                                                  phrase,
-                                                  voice: isGoogle ? name : v,
-                                                  languageCode: lang,
-                                                );
+                                            final file = await chatProv.audioService.synthesizeTts(
+                                              phrase,
+                                              voice: isGoogle ? name : v,
+                                              languageCode: lang,
+                                            );
                                             if (file != null) {
                                               final player = AudioPlayer();
-                                              await player.play(
-                                                DeviceFileSource(file.path),
-                                              );
+                                              await player.play(DeviceFileSource(file.path));
                                             }
                                           } catch (e) {
-                                            Log.d(
-                                              'Error during voice demo playback: $e',
-                                              tag: 'CHAT_SCREEN',
-                                            );
+                                            Log.d('Error during voice demo playback: $e', tag: 'CHAT_SCREEN');
                                           }
                                         },
                                       ),
-                                      onTap: () => Navigator.of(
-                                        ctx,
-                                      ).pop(isGoogle ? name : v),
+                                      onTap: () => Navigator.of(ctx).pop(isGoogle ? name : v),
                                     );
                                   }),
                                 ],
@@ -1189,16 +896,12 @@ class _ChatScreenState extends State<ChatScreen> {
             Expanded(
               child: ListView.builder(
                 reverse: true,
-                padding: const EdgeInsets.symmetric(
-                  vertical: 16,
-                  horizontal: 8,
-                ),
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
                 itemCount: chatProvider.messages
                     .where(
                       (m) =>
                           m.sender != MessageSender.system ||
-                          (m.sender == MessageSender.system &&
-                              m.text.contains('[call]')),
+                          (m.sender == MessageSender.system && m.text.contains('[call]')),
                     )
                     .length,
                 itemBuilder: (context, index) {
@@ -1206,8 +909,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       .where(
                         (m) =>
                             m.sender != MessageSender.system ||
-                            (m.sender == MessageSender.system &&
-                                m.text.contains('[call]')),
+                            (m.sender == MessageSender.system && m.text.contains('[call]')),
                       )
                       .toList();
                   if (filteredMessages.isEmpty) {
@@ -1217,15 +919,9 @@ class _ChatScreenState extends State<ChatScreen> {
                   final message = reversedMessages[index];
                   bool isLastUserMessage = false;
                   if (message.sender == MessageSender.user) {
-                    isLastUserMessage = !reversedMessages
-                        .skip(index + 1)
-                        .any((m) => m.sender == MessageSender.user);
+                    isLastUserMessage = !reversedMessages.skip(index + 1).any((m) => m.sender == MessageSender.user);
                   }
-                  return ChatBubble(
-                    message: message,
-                    isLastUserMessage: isLastUserMessage,
-                    imageDir: _imageDir,
-                  );
+                  return ChatBubble(message: message, isLastUserMessage: isLastUserMessage, imageDir: _imageDir);
                 },
               ),
             ),
@@ -1236,20 +932,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 6,
-                        horizontal: 14,
-                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 14),
                       decoration: BoxDecoration(
-                        color: AppColors.secondary.withAlpha(
-                          (0.18 * 255).round(),
-                        ),
+                        color: AppColors.secondary.withAlpha((0.18 * 255).round()),
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.secondary.withAlpha(
-                              (0.12 * 255).round(),
-                            ),
+                            color: AppColors.secondary.withAlpha((0.12 * 255).round()),
                             blurRadius: 8.0,
                             offset: Offset(0, 2),
                           ),
@@ -1257,19 +946,11 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.photo_camera,
-                            color: AppColors.secondary,
-                            size: 22,
-                          ),
+                          const Icon(Icons.photo_camera, color: AppColors.secondary, size: 22),
                           const SizedBox(width: 10),
                           Text(
                             'Enviando imagen...',
-                            style: TextStyle(
-                              color: AppColors.secondary,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 15,
-                            ),
+                            style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w500, fontSize: 15),
                           ),
                         ],
                       ),
@@ -1284,20 +965,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 6,
-                        horizontal: 14,
-                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 14),
                       decoration: BoxDecoration(
-                        color: AppColors.secondary.withAlpha(
-                          (0.18 * 255).round(),
-                        ),
+                        color: AppColors.secondary.withAlpha((0.18 * 255).round()),
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.secondary.withAlpha(
-                              (0.12 * 255).round(),
-                            ),
+                            color: AppColors.secondary.withAlpha((0.12 * 255).round()),
                             blurRadius: 8.0,
                             offset: const Offset(0, 2),
                           ),
@@ -1305,17 +979,11 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.mic_external_on,
-                            color: AppColors.secondary,
-                            size: 22,
-                          ),
+                          const Icon(Icons.mic_external_on, color: AppColors.secondary, size: 22),
                           const SizedBox(width: 10),
                           Row(
                             children: [
-                              const ThreeDotsIndicator(
-                                color: AppColors.secondary,
-                              ),
+                              const ThreeDotsIndicator(color: AppColors.secondary),
                               const SizedBox(width: 8),
                               Text(
                                 'Grabando nota de voz...',
@@ -1340,20 +1008,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 6,
-                        horizontal: 14,
-                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 14),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withAlpha(
-                          (0.18 * 255).round(),
-                        ),
+                        color: AppColors.primary.withAlpha((0.18 * 255).round()),
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withAlpha(
-                              (0.12 * 255).round(),
-                            ),
+                            color: AppColors.primary.withAlpha((0.12 * 255).round()),
                             blurRadius: 8.0,
                             offset: Offset(0, 2),
                           ),
@@ -1361,11 +1022,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.keyboard_alt,
-                            color: AppColors.primary,
-                            size: 22,
-                          ),
+                          const Icon(Icons.keyboard_alt, color: AppColors.primary, size: 22),
                           const SizedBox(width: 10),
                           const TypingAnimation(),
                         ],
@@ -1376,10 +1033,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             MessageInput(
               onSend: (text) {
-                chatProvider.sendMessage(
-                  text,
-                  onError: (error) => _showErrorDialog(error),
-                );
+                chatProvider.sendMessage(text, onError: (error) => _showErrorDialog(error));
               },
             ),
           ],
@@ -1450,16 +1104,12 @@ class ThreeDotsIndicator extends StatefulWidget {
   State<ThreeDotsIndicator> createState() => _ThreeDotsIndicatorState();
 }
 
-class _ThreeDotsIndicatorState extends State<ThreeDotsIndicator>
-    with SingleTickerProviderStateMixin {
+class _ThreeDotsIndicatorState extends State<ThreeDotsIndicator> with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat();
   }
 
   @override

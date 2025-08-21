@@ -16,6 +16,8 @@ import 'package:permission_handler/permission_handler.dart';
 
 // Clave global para navegación
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+// Clave global para el ScaffoldMessenger (mostrar SnackBars desde cualquier sitio)
+final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 // Función global para borrar toda la cache y datos locales
 Future<void> clearAppData() async {
@@ -38,13 +40,11 @@ class RootApp extends StatelessWidget {
       create: (_) => OnboardingProvider(),
       child: MaterialApp(
         navigatorKey: navigatorKey,
+        scaffoldMessengerKey: scaffoldMessengerKey,
         title: 'ＡＩチャン',
         theme: ThemeData(
           brightness: Brightness.dark,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.pinkAccent,
-            brightness: Brightness.dark,
-          ),
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.pinkAccent, brightness: Brightness.dark),
           scaffoldBackgroundColor: Colors.black,
           useMaterial3: true,
         ),
@@ -75,10 +75,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     await clearAppData();
     Log.i('resetApp completado', tag: 'APP');
     if (mounted) {
-      final onboardingProvider = Provider.of<OnboardingProvider>(
-        context,
-        listen: false,
-      );
+      final onboardingProvider = Provider.of<OnboardingProvider>(context, listen: false);
       onboardingProvider.reset();
       setState(() {}); // El build ya muestra onboarding limpio
     }
@@ -96,17 +93,11 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       try {
         // Usar defaultTargetPlatform en lugar de Theme.of(context) en initState
         if (!kIsWeb && Platform.isAndroid) {
-          await Future.delayed(
-            Duration(milliseconds: 500),
-          ); // Espera a que el contexto esté listo
+          await Future.delayed(Duration(milliseconds: 500)); // Espera a que el contexto esté listo
           await Permission.storage.request();
         }
       } catch (e) {
-        Log.e(
-          'Error solicitando permisos de almacenamiento',
-          tag: 'PERM',
-          error: e,
-        );
+        Log.e('Error solicitando permisos de almacenamiento', tag: 'PERM', error: e);
       }
       setState(() {
         _initialized = true;
@@ -196,10 +187,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       create: (_) {
         final repo = di.getChatRepository();
         final chatAdapter = di.getChatResponseService();
-        final provider = ChatProvider(
-          repository: repo,
-          chatResponseService: chatAdapter,
-        );
+        final provider = ChatProvider(repository: repo, chatResponseService: chatAdapter);
         provider.onboardingData = onboardingProvider.generatedBiography!;
         provider.loadAll();
         return provider;

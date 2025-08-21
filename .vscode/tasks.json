@@ -67,6 +67,22 @@
 				"clear": true
 			},
 			"problemMatcher": []
+		},
+		{
+			"label": "make-run-hot-reload",
+			"type": "shell",
+			"command": "echo",
+			"args": ["🚀 Para hot reload automático, usa F5 o busca 'Flutter: Launch' en Command Palette"],
+			"isBackground": false,
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": false,
+				"clear": true
+			}
 		}
 	]
 }

@@ -3,6 +3,8 @@ SHELL := /bin/bash
 .PHONY: setup setup-env install-hooks deps test analyze clean run run-release install build start stop logs help
 
 # Default target - show help
+.DEFAULT_GOAL := help
+
 help:
 	@echo "AI_chan Flutter App - Available Commands:"
 	@echo ""
@@ -12,7 +14,7 @@ help:
 	@echo "  deps         - Install Flutter dependencies"
 	@echo ""
 	@echo "🚀 Running the App:"
-	@echo "  run          - Complete dev environment (bg + debug + hot reload) ⭐"
+	@echo "  run          - Hot reload AUTOMÁTICO al guardar archivos .dart 🔥"
 	@echo "  start        - Alias for run (common convention)"
 	@echo "  run-release  - Start app in release mode (optimized)"
 	@echo "  stop         - Stop app"
@@ -43,14 +45,40 @@ setup: setup-env install-hooks deps
 	@echo "Project setup complete. Run 'make run' to start the app."
 
 setup-env:
-	@echo "Running interactive environment setup..."
-	@chmod +x scripts/setup_env.sh
-	@./scripts/setup_env.sh
+	@echo "🔧 Setting up development environment..."
+	@echo "📦 Installing required Ubuntu packages..."
+	@if ! command -v inotifywait >/dev/null 2>&1; then \
+		echo "Installing inotify-tools for hot reload..."; \
+		sudo apt update && sudo apt install -y inotify-tools; \
+	else \
+		echo "✅ inotify-tools already installed"; \
+	fi
+	@if ! command -v curl >/dev/null 2>&1; then \
+		echo "Installing curl..."; \
+		sudo apt install -y curl; \
+	else \
+		echo "✅ curl already installed"; \
+	fi
+	@if ! command -v git >/dev/null 2>&1; then \
+		echo "Installing git..."; \
+		sudo apt install -y git; \
+	else \
+		echo "✅ git already installed"; \
+	fi
+	@echo "✅ System dependencies installed"
+	@if [ -f scripts/setup_env.sh ]; then \
+		chmod +x scripts/setup_env.sh && ./scripts/setup_env.sh; \
+	else \
+		echo "⚠️ scripts/setup_env.sh not found, skipping..."; \
+	fi
 
 install-hooks:
 	@echo "Installing git hooks..."
-	@chmod +x scripts/install-hooks.sh
-	@./scripts/install-hooks.sh
+	@if [ -f scripts/install-hooks.sh ]; then \
+		chmod +x scripts/install-hooks.sh && ./scripts/install-hooks.sh; \
+	else \
+		echo "⚠️ scripts/install-hooks.sh not found, skipping..."; \
+	fi
 
 deps:
 	@echo "Installing dependencies (flutter pub get)..."
@@ -65,11 +93,8 @@ test:
 clean:
 	@flutter clean
 
-run: ## 🚀 Start development environment (interactive with logs)
-	@echo "🚀 Starting AI_chan development environment..."
-	@./scripts/run_dev.sh
-
-run-foreground: ## 🚀 Start development environment in foreground (useful for debugging)
+run:
+	@echo "🚀 Starting AI_chan con Hot Reload AUTOMÁTICO..."
 	@./scripts/run_dev.sh
 
 run-release:
@@ -77,16 +102,10 @@ run-release:
 	@flutter run -d linux --release
 
 stop:
-	@echo "🛑 Stopping Flutter app..."
-	@if [ -f .flutter_run_pid ]; then \
-		PID=`cat .flutter_run_pid`; \
-		if kill -0 $$PID >/dev/null 2>&1; then \
-			echo "Killing flutter PID $$PID"; kill $$PID || true; sleep 1; fi; \
-		rm -f .flutter_run_pid || true; \
-	fi
 	@pkill -f flutter || echo "No flutter processes found"
+	@rm -f /tmp/flutter_input_pipe 2>/dev/null || true
 
-logs: ## 📝 View verbose debug logs (for troubleshooting)
+logs:
 	@echo "📝 Showing debug logs (Ctrl+C to exit):"
 	@if [ -f flutter_run.log ]; then \
 		tail -n 200 -f flutter_run.log; \

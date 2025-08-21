@@ -4,11 +4,10 @@ import '../constants/app_colors.dart';
 
 import 'package:ai_chan/main.dart';
 
-Future<void> showSuccessDialog(
-  BuildContext context,
-  String title,
-  String message,
-) async {
+// Tracks the currently visible overlay snack so we keep only one at a time.
+OverlayEntry? _currentOverlaySnackBarEntry;
+
+Future<void> showSuccessDialog(BuildContext context, String title, String message) async {
   // Reuse unified showdialog wrapper to keep behavior consistent across app.
   final ctx = (context.mounted) ? context : navigatorKey.currentContext;
   if (ctx == null) return;
@@ -35,16 +34,11 @@ Future<void> showErrorDialog(BuildContext context, String error) async {
   final ctx = (context.mounted) ? context : navigatorKey.currentContext;
   if (ctx == null) {
     // Fallback: mostrar SnackBar si no hay contexto válido
-    Log.w(
-      'No hay contexto válido para mostrar el diálogo de error: $error',
-      tag: 'DIALOG_UTILS',
-    );
+    Log.w('No hay contexto válido para mostrar el diálogo de error: $error', tag: 'DIALOG_UTILS');
     // Si hay un ScaffoldMessenger disponible, mostrar SnackBar
     final navState = navigatorKey.currentState;
     final navContext = navState?.context;
-    final scaffoldMessenger = navContext != null
-        ? ScaffoldMessenger.maybeOf(navContext)
-        : null;
+    final scaffoldMessenger = navContext != null ? ScaffoldMessenger.maybeOf(navContext) : null;
     if (scaffoldMessenger != null) {
       scaffoldMessenger.showSnackBar(
         SnackBar(
@@ -64,10 +58,7 @@ Future<void> showErrorDialog(BuildContext context, String error) async {
       content: Text(error, style: const TextStyle(color: AppColors.primary)),
       actions: [
         TextButton(
-          child: const Text(
-            'Cerrar',
-            style: TextStyle(color: AppColors.primary),
-          ),
+          child: const Text('Cerrar', style: TextStyle(color: AppColors.primary)),
           onPressed: () => Navigator.of(ctx2).pop(),
         ),
       ],
@@ -79,32 +70,131 @@ Future<void> showErrorDialog(BuildContext context, String error) async {
 /// - Si `isError` es false: fondo amarillo (`AppColors.cyberpunkYellow`) y texto negro.
 /// - Si `isError` es true: fondo `AppColors.secondary` (pinkAccent) y texto blanco.
 void showAppSnackBar(
-  BuildContext context,
+  String message, {
+  bool isError = false,
+  Duration duration = const Duration(seconds: 3),
+  SnackBarAction? action,
+
+  /// Si true, usar el ScaffoldMessenger raíz si existe; por defecto false
+  /// para usar la implementación basada en [Overlay] (más visible sobre dialogs).
+  bool preferRootMessenger = false,
+}) {
+  // Resolve a safe context via the global navigator key.
+  final navState = navigatorKey.currentState;
+  if (navState == null) return;
+  final ctx = navState.overlay?.context ?? navState.context;
+
+  if (preferRootMessenger) {
+    // Remove overlay snack if any
+    try {
+      _currentOverlaySnackBarEntry?.remove();
+    } catch (_) {}
+    _currentOverlaySnackBarEntry = null;
+    final messenger = ScaffoldMessenger.of(ctx);
+
+    final resolvedBackground = isError ? AppColors.secondary : AppColors.cyberpunkYellow;
+    final resolvedText = isError ? Colors.white : Colors.black;
+
+    final snack = SnackBar(
+      content: Text(message, style: TextStyle(color: resolvedText)),
+      backgroundColor: resolvedBackground,
+      duration: duration,
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      action: action,
+    );
+
+    messenger.showSnackBar(snack);
+  } else {
+    showOverlaySnackBar(message, isError: isError, duration: duration, action: action);
+  }
+}
+
+/// Muestra un mensaje tipo SnackBar directamente en el [Overlay] de la app.
+/// Esto asegura que el mensaje se renderiza por encima de cualquier diálogo
+/// modal que pudiera estar presente.
+void showOverlaySnackBar(
   String message, {
   bool isError = false,
   Duration duration = const Duration(seconds: 3),
   SnackBarAction? action,
 }) {
-  final ctx = (context.mounted) ? context : navigatorKey.currentContext;
-  if (ctx == null) return;
+  // Resolve a safe overlay context using the global navigator key so callers
+  // don't need to pass a BuildContext (prevents use_build_context_synchronously).
+  final navState = navigatorKey.currentState;
+  if (navState == null) return;
+  final overlay = navState.overlay;
+  if (overlay == null) return;
 
-  final messenger = ScaffoldMessenger.of(ctx);
+  // Remove any existing overlay snack before inserting a new one (single instance)
+  try {
+    _currentOverlaySnackBarEntry?.remove();
+  } catch (_) {}
+  _currentOverlaySnackBarEntry = null;
 
-  final resolvedBackground = isError
-      ? AppColors.secondary
-      : AppColors.cyberpunkYellow;
-  final resolvedText = isError ? Colors.white : Colors.black;
-
-  final snack = SnackBar(
-    content: Text(message, style: TextStyle(color: resolvedText)),
-    backgroundColor: resolvedBackground,
-    duration: duration,
-    behavior: SnackBarBehavior.floating,
-    margin: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-    action: action,
+  late final OverlayEntry entry;
+  entry = OverlayEntry(
+    builder: (ctx) {
+      return Positioned(
+        bottom: 24,
+        left: 24,
+        right: 24,
+        child: SafeArea(
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
+              decoration: BoxDecoration(
+                color: isError ? AppColors.secondary : AppColors.cyberpunkYellow,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 8, offset: const Offset(0, 2)),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: TextStyle(color: isError ? Colors.white : Colors.black),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  if (action != null)
+                    TextButton(
+                      onPressed: () {
+                        try {
+                          action.onPressed();
+                        } catch (_) {}
+                        try {
+                          entry.remove();
+                        } catch (_) {}
+                        if (_currentOverlaySnackBarEntry == entry) {
+                          _currentOverlaySnackBarEntry = null;
+                        }
+                      },
+                      child: Text(action.label, style: TextStyle(color: isError ? Colors.white : Colors.black)),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    },
   );
 
-  messenger.showSnackBar(snack);
+  _currentOverlaySnackBarEntry = entry;
+  overlay.insert(entry);
+  Future.delayed(duration, () {
+    try {
+      entry.remove();
+    } catch (_) {}
+    if (_currentOverlaySnackBarEntry == entry) {
+      _currentOverlaySnackBarEntry = null;
+    }
+  });
 }
 
 /// Wrapper around Flutter's `showDialog` that uses the app's `navigatorKey`
