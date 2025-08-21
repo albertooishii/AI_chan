@@ -2,7 +2,16 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "Flutter Linux Debug",
+			"name": "Flutter Linux Debug (Console)",
+			"request": "launch",
+			"type": "dart",
+			"program": "lib/main.dart",
+			"deviceId": "linux",
+			"console": "debugConsole",
+			"args": ["--verbose"]
+		},
+		{
+			"name": "Flutter Linux Debug (Terminal)",
 			"request": "launch",
 			"type": "dart",
 			"program": "lib/main.dart",
@@ -16,7 +25,7 @@
 			"program": "lib/main.dart",
 			"deviceId": "linux",
 			"flutterMode": "release",
-			"console": "terminal"
+			"console": "debugConsole"
 		}
 	]
 }

@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: setup setup-env install-hooks deps test analyze clean run run-fg run-debug run-release install build start help
+.PHONY: setup setup-env install-hooks deps test analyze clean run run-release install build start stop logs help
 
 # Default target - show help
 help:
@@ -12,11 +12,11 @@ help:
 	@echo "  deps         - Install Flutter dependencies"
 	@echo ""
 	@echo "🚀 Running the App:"
-	@echo "  run          - Start app in background (non-blocking) ⭐"
+	@echo "  run          - Complete dev environment (bg + debug + hot reload) ⭐"
 	@echo "  start        - Alias for run (common convention)"
-	@echo "  run-fg       - Start app in foreground (blocks terminal)"
-	@echo "  run-debug    - Start app with hot reload (development)"
 	@echo "  run-release  - Start app in release mode (optimized)"
+	@echo "  stop         - Stop app"
+	@echo "  logs         - View debug logs in real-time"
 	@echo ""
 	@echo "🔍 Development Tools:"
 	@echo "  test         - Run all tests with coverage"
@@ -65,19 +65,22 @@ test:
 clean:
 	@flutter clean
 
-run:
-	@echo "Starting AI_chan app in background..."
-	@nohup flutter run -d linux > /dev/null 2>&1 &
-	@echo "App started in background. Use 'pkill -f flutter' to stop."
-
-run-fg:
-	@echo "Starting AI_chan app in foreground..."
-	@flutter run -d linux
-
-run-debug:
-	@echo "Starting AI_chan app in debug mode with hot reload..."
-	@flutter run -d linux --debug
+run: ## 🚀 Start development environment with colors (Ctrl+C to stop)
+	@./scripts/run_dev.sh
 
 run-release:
-	@echo "Starting AI_chan app in release mode..."
+	@echo "🚀 Starting AI_chan app in release mode..."
 	@flutter run -d linux --release
+
+stop:
+	@echo "🛑 Stopping Flutter app..."
+	@pkill -f flutter || echo "No Flutter process found"
+
+logs:
+	logs: ## 📝 View verbose debug logs (for troubleshooting)
+	@echo "📝 Showing verbose debug logs (Ctrl+C to exit):"
+	@if [ -f flutter_debug.log ]; then \
+		tail -f flutter_debug.log; \
+	else \
+		echo "❌ No debug log file found. Run 'make run' first."; \
+	fi
