@@ -116,7 +116,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     String type = existing?.type ?? 'evento';
     String motivo = existing?.extra?['motivo']?.toString() ?? '';
 
-    final saved = await showDialog<bool>(
+    final saved = await showAppDialog<bool>(
       context: context,
       builder: (ctx) {
         return AlertDialog(
@@ -352,7 +352,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   void _deleteEvent(BuildContext context, EventEntry e) async {
     final chatProvider = context.read<ChatProvider>();
-    final confirm = await showDialog<bool>(
+    final confirm = await showAppDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,

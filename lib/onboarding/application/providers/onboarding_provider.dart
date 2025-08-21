@@ -130,7 +130,7 @@ class OnboardingProvider extends ChangeNotifier {
     } catch (e) {
       _biographySaved = false;
       if (!context.mounted) return;
-      await showDialog(
+      await showAppDialog(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Error al crear biografía'),
@@ -314,7 +314,7 @@ class OnboardingProvider extends ChangeNotifier {
     String? error = result.$2;
     if (!context.mounted) return;
     if (error != null) {
-      await showDialog(
+      await showAppDialog(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Error al leer archivo'),
@@ -339,7 +339,7 @@ class OnboardingProvider extends ChangeNotifier {
       );
       if (importError != null || imported == null) {
         if (!context.mounted) return;
-        await showDialog(
+        await showAppDialog(
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text('Error al importar'),

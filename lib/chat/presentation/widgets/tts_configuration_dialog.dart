@@ -191,10 +191,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
     } catch (e) {
       Log.d('[TTS Dialog] Error refrescando voces: $e', tag: 'TTS_DIALOG');
       if (mounted) {
-        final messenger = ScaffoldMessenger.of(context);
-        messenger.showSnackBar(
-          SnackBar(content: Text('Error actualizando voces: $e')),
-        );
+        showAppSnackBar(context, 'Error actualizando voces: $e', isError: true);
       }
     }
 
@@ -203,7 +200,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
   }
 
   Future<void> _clearCache() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAppDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Limpiar Caché'),
@@ -229,10 +226,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
       await _loadCacheSize();
 
       if (mounted) {
-        final messenger = ScaffoldMessenger.of(context);
-        messenger.showSnackBar(
-          const SnackBar(content: Text('Caché limpiado exitosamente')),
-        );
+        showAppSnackBar(context, 'Caché limpiado exitosamente');
       }
     }
   }

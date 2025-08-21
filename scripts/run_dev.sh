@@ -3,7 +3,7 @@
 # Everything you want: logs + colors + hot reload + interactive + non-blocking
 
 echo "🚀 Starting AI_chan development environment..."
-echo "✨ Features enabled:"
+echo "✨ Features enabled:" 
 echo "   🐛 Debug mode with colors"
 echo "   🔄 Hot reload con 'r'" 
 echo "   📝 Real-time logs with colors"

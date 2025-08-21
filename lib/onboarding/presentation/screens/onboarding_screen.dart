@@ -9,6 +9,7 @@ import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dar
 import 'package:provider/provider.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/locale_utils.dart';
+import 'package:ai_chan/shared/utils/dialog_utils.dart';
 
 class OnboardingScreen extends StatelessWidget {
   final Future<void> Function({
@@ -139,7 +140,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
     String? error = result.$2;
     if (!mounted) return;
     if (error != null) {
-      await showDialog(
+      await showAppDialog(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Error al leer archivo'),
@@ -164,7 +165,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
       );
       if (importError != null || imported == null) {
         if (!mounted) return;
-        await showDialog(
+        await showAppDialog(
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text('Error al importar'),

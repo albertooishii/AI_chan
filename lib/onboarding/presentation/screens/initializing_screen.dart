@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ai_chan/shared/utils/dialog_utils.dart';
 import 'package:ai_chan/shared/constants.dart';
 import 'package:ai_chan/core/models.dart';
 
@@ -78,7 +79,7 @@ class _InitializingScreenState extends State<InitializingScreen> {
   Future<void> _handleErrorWithOptions(Object e) async {
     if (!mounted) return;
     _cancel = true;
-    final choice = await showDialog<String>(
+    final choice = await showAppDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,

@@ -9,9 +9,10 @@ Future<void> showSuccessDialog(
   String title,
   String message,
 ) async {
+  // Reuse unified showdialog wrapper to keep behavior consistent across app.
   final ctx = (context.mounted) ? context : navigatorKey.currentContext;
   if (ctx == null) return;
-  return showDialog<void>(
+  return showAppDialog<void>(
     context: ctx,
     builder: (ctx2) => AlertDialog(
       backgroundColor: Colors.black,
@@ -54,7 +55,8 @@ Future<void> showErrorDialog(BuildContext context, String error) async {
     }
     return;
   }
-  return showDialog(
+
+  return showAppDialog(
     context: ctx,
     builder: (ctx2) => AlertDialog(
       backgroundColor: Colors.black,
@@ -70,5 +72,64 @@ Future<void> showErrorDialog(BuildContext context, String error) async {
         ),
       ],
     ),
+  );
+}
+
+/// Muestra un SnackBar usando los componentes nativos de Flutter.
+/// - Si `isError` es false: fondo amarillo (`AppColors.cyberpunkYellow`) y texto negro.
+/// - Si `isError` es true: fondo `AppColors.secondary` (pinkAccent) y texto blanco.
+void showAppSnackBar(
+  BuildContext context,
+  String message, {
+  bool isError = false,
+  Duration duration = const Duration(seconds: 3),
+  SnackBarAction? action,
+}) {
+  final ctx = (context.mounted) ? context : navigatorKey.currentContext;
+  if (ctx == null) return;
+
+  final messenger = ScaffoldMessenger.of(ctx);
+
+  final resolvedBackground = isError
+      ? AppColors.secondary
+      : AppColors.cyberpunkYellow;
+  final resolvedText = isError ? Colors.white : Colors.black;
+
+  final snack = SnackBar(
+    content: Text(message, style: TextStyle(color: resolvedText)),
+    backgroundColor: resolvedBackground,
+    duration: duration,
+    behavior: SnackBarBehavior.floating,
+    margin: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+    action: action,
+  );
+
+  messenger.showSnackBar(snack);
+}
+
+/// Wrapper around Flutter's `showDialog` that uses the app's `navigatorKey`
+/// as a fallback for `context` so dialogs can be triggered from anywhere.
+/// Signature mirrors Flutter's `showDialog` to keep compatibility.
+Future<T?> showAppDialog<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+  bool barrierDismissible = true,
+  Color? barrierColor,
+  String? barrierLabel,
+  bool useRootNavigator = true,
+  bool useSafeArea = true,
+  RouteSettings? routeSettings,
+}) {
+  final ctx = (context.mounted) ? context : navigatorKey.currentContext;
+  if (ctx == null) return Future.value(null);
+  return showDialog<T>(
+    context: ctx,
+    builder: builder,
+    barrierDismissible: barrierDismissible,
+    barrierColor: barrierColor,
+    barrierLabel: barrierLabel,
+    useRootNavigator: useRootNavigator,
+    useSafeArea: useSafeArea,
+    routeSettings: routeSettings,
   );
 }

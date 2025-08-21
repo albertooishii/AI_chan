@@ -4,7 +4,9 @@ import 'package:ai_chan/shared/utils/download_image.dart';
 import 'package:flutter/material.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:flutter/services.dart';
-import 'package:ai_chan/shared/constants/app_colors.dart';
+// ...existing code...
+import 'package:ai_chan/main.dart';
+import 'package:ai_chan/shared/utils/dialog_utils.dart';
 
 class ExpandableImageDialog {
   /// images: lista de mensajes con imagePath válido
@@ -15,7 +17,7 @@ class ExpandableImageDialog {
     int initialIndex, {
     Directory? imageDir,
   }) {
-    showDialog(
+    showAppDialog(
       context: context,
       barrierDismissible: true,
       builder: (context) => _GalleryImageViewerDialog(
@@ -47,7 +49,7 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
 
   void _showImageDescriptionDialog(String? description) {
     if (!context.mounted) return;
-    showDialog(
+    showAppDialog(
       context: context,
       useRootNavigator:
           true, // ✅ Asegurar que aparece encima del dialog de imagen
@@ -73,14 +75,12 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                 return;
               }
               // Capturar referencias antes del await para evitar usar context tras el gap
-              final messenger = ScaffoldMessenger.of(context);
               final navigator = Navigator.of(ctx);
               await Clipboard.setData(ClipboardData(text: text));
-              // Usar referencias capturadas
-              messenger.showSnackBar(
-                const SnackBar(
-                  content: Text('Descripción copiada al portapapeles'),
-                ),
+              // Usar referencias capturadas -> mostrar snack con helper
+              showAppSnackBar(
+                navigatorKey.currentContext ?? context,
+                'Descripción copiada al portapapeles',
               );
               navigator.pop();
             },
@@ -290,43 +290,35 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                           if (!result.$1 && result.$2 != null) {
                             // Hay error específico
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Error al descargar: ${result.$2}',
-                                    style: const TextStyle(
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                  backgroundColor: Colors.redAccent,
-                                ),
+                              final rootCtx =
+                                  navigatorKey.currentContext ?? context;
+                              showAppSnackBar(
+                                rootCtx,
+                                'Error al descargar: ${result.$2}',
+                                isError: true,
                               );
                             }
                           } else if (result.$1) {
                             // Éxito
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text(
-                                    '✅ Imagen guardada correctamente',
-                                    style: TextStyle(color: AppColors.primary),
-                                  ),
-                                  backgroundColor: AppColors.cyberpunkYellow,
-                                ),
+                              final rootCtx =
+                                  navigatorKey.currentContext ?? context;
+                              showAppSnackBar(
+                                rootCtx,
+                                '✅ Imagen guardada correctamente',
+                                isError: false,
                               );
                             }
                           }
                           // Si !result.$1 && result.$2 == null significa que el usuario canceló - no hacer nada
                         } else {
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Text(
-                                  'Error: No se encontró la imagen',
-                                  style: TextStyle(color: AppColors.primary),
-                                ),
-                                backgroundColor: Colors.redAccent,
-                              ),
+                            final rootCtx =
+                                navigatorKey.currentContext ?? context;
+                            showAppSnackBar(
+                              rootCtx,
+                              'Error: No se encontró la imagen',
+                              isError: true,
                             );
                           }
                         }

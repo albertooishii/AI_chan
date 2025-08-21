@@ -116,7 +116,7 @@ class _ChatScreenState extends State<ChatScreen> {
     String? initialModel,
   ) async {
     if (!ctx.mounted) return null;
-    return await showDialog<String>(
+    return await showAppDialog<String>(
       context: ctx,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
@@ -237,16 +237,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _showImportSuccessSnackBar() {
     if (!mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(
-      SnackBar(
-        content: const Text(
-          'Chat importado correctamente.',
-          style: TextStyle(color: AppColors.primary),
-        ),
-        backgroundColor: AppColors.cyberpunkYellow,
-      ),
-    );
+    showAppSnackBar(context, 'Chat importado correctamente.');
   }
 
   void _showExportDialog(BuildContext ctx, String jsonStr) {
@@ -256,7 +247,7 @@ class _ChatScreenState extends State<ChatScreen> {
       final decoded = json.decode(jsonStr);
       previewJson = const JsonEncoder.withIndent('  ').convert(decoded);
     } catch (_) {}
-    showDialog(
+    showAppDialog(
       context: ctx,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
@@ -298,12 +289,7 @@ class _ChatScreenState extends State<ChatScreen> {
               if (error != null) {
                 _showErrorDialog(error);
               } else if (success) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Archivo guardado correctamente.'),
-                    backgroundColor: AppColors.cyberpunkYellow,
-                  ),
-                );
+                showAppSnackBar(context, 'Archivo guardado correctamente.');
               }
             },
           ),
@@ -314,15 +300,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _showAppearanceRegeneratedSnackBarWith(BuildContext ctx) {
     if (!mounted) return;
-    ScaffoldMessenger.of(ctx).showSnackBar(
-      SnackBar(
-        content: const Text(
-          'Apariencia IA regenerada y reemplazada.',
-          style: TextStyle(color: Colors.black87),
-        ),
-        backgroundColor: AppColors.cyberpunkYellow,
-      ),
-    );
+    showAppSnackBar(ctx, 'Apariencia IA regenerada y reemplazada.');
   }
 
   bool _loadingModels = false;
@@ -752,7 +730,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   _showAppearanceRegeneratedSnackBarWith(ctx);
                 } catch (e) {
                   if (!ctx.mounted) return;
-                  final choice = await showDialog<String>(
+                  final choice = await showAppDialog<String>(
                     context: ctx,
                     builder: (ctx) => AlertDialog(
                       backgroundColor: Colors.black,
@@ -821,7 +799,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   }
                 }
               } else if (value == 'clear_debug') {
-                final confirm = await showDialog<bool>(
+                final confirm = await showAppDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
                     backgroundColor: Colors.black,
@@ -898,7 +876,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 final current = await _loadActiveAudioProvider();
                 final ctx = context;
                 if (!ctx.mounted) return;
-                final selected = await showDialog<String>(
+                final selected = await showAppDialog<String>(
                   context: ctx,
                   builder: (ctx) {
                     return AlertDialog(
@@ -955,15 +933,9 @@ class _ChatScreenState extends State<ChatScreen> {
                   await _saveActiveAudioProvider(selected);
                   if (!ctx.mounted) return;
                   setState(() {});
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Proveedor de audio cambiado a ${selected.toUpperCase()}',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      backgroundColor: AppColors.primary,
-                      duration: const Duration(seconds: 2),
-                    ),
+                  showAppSnackBar(
+                    ctx,
+                    'Proveedor de audio cambiado a ${selected.toUpperCase()}',
                   );
                 }
               } else if (value == 'select_voice') {
@@ -981,7 +953,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 final ctx = context;
                 if (!ctx.mounted) return;
                 // ignore: use_build_context_synchronously
-                final selected = await showDialog<String>(
+                final selected = await showAppDialog<String>(
                   context: ctx,
                   builder: (ctx) {
                     return AlertDialog(

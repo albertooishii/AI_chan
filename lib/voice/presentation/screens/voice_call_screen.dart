@@ -1060,50 +1060,40 @@ extension _IncomingLogic on _VoiceCallChatState {
         if (!_hangupNoticeShown && messenger != null) {
           _hangupNoticeShown = true;
           String msg;
-          Color color;
+          bool isError = false;
           switch (reason) {
             case 'policy_violation':
               msg = 'Fin: contenido bloqueado por política.';
-              color = Colors.redAccent;
+              isError = true;
               break;
             case 'rate_limit':
               msg = 'Fin: límite de peticiones alcanzado.';
-              color = Colors.deepOrangeAccent;
+              isError = true;
               break;
             case 'model_server_error':
               msg = 'Fin: error interno del modelo.';
-              color = Colors.orangeAccent;
+              isError = true;
               break;
             case 'connection_error':
               msg = 'Fin: problema de conexión.';
-              color = Colors.amberAccent;
+              isError = true;
               break;
             case 'error_model_response':
               msg = 'Fin: fallo al generar respuesta.';
-              color = Colors.orangeAccent;
+              isError = true;
               break;
             default:
               msg = 'Llamada finalizada.';
-              color = Colors.grey;
+              isError = false;
           }
-          messenger
-            ..clearSnackBars()
-            ..showSnackBar(
-              SnackBar(
-                content: Text(
-                  msg,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                duration: const Duration(seconds: 2),
-                backgroundColor: color,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
+          // Clear existing and show via app helper to ensure consistent styling/position
+          messenger.clearSnackBars();
+          showAppSnackBar(
+            context,
+            msg,
+            isError: isError,
+            duration: const Duration(seconds: 2),
+          );
         }
         try {
           unawaited(controller.playHangupTone());

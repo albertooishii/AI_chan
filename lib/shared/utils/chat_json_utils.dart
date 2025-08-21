@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:ai_chan/shared/utils/dialog_utils.dart';
 
 import 'package:ai_chan/core/models.dart';
 import '../constants/app_colors.dart';
@@ -10,7 +11,9 @@ import '../constants/app_colors.dart';
 
 class ChatJsonUtils {
   /// Guarda un ImportedChat en un archivo seleccionado por el usuario y retorna éxito o error
-  static Future<(bool success, String? error)> saveJsonFile(ImportedChat chat) async {
+  static Future<(bool success, String? error)> saveJsonFile(
+    ImportedChat chat,
+  ) async {
     try {
       final map = chat.toJson();
       final encoder = JsonEncoder.withIndent('  ');
@@ -49,7 +52,10 @@ class ChatJsonUtils {
   }
 
   /// Importa perfil y mensajes desde un JSON plano y devuelve un ImportedChat (async)
-  static Future<ImportedChat?> importAllFromJson(String jsonStr, {void Function(String error)? onError}) async {
+  static Future<ImportedChat?> importAllFromJson(
+    String jsonStr, {
+    void Function(String error)? onError,
+  }) async {
     try {
       final decoded = jsonDecode(jsonStr);
       if (decoded is! Map<String, dynamic> ||
@@ -59,13 +65,19 @@ class ChatJsonUtils {
           !decoded.containsKey('appearance') ||
           !decoded.containsKey('timeline') ||
           !decoded.containsKey('messages')) {
-        onError?.call('Estructura de JSON inválida. Debe tener todos los campos del perfil y mensajes al mismo nivel.');
+        onError?.call(
+          'Estructura de JSON inválida. Debe tener todos los campos del perfil y mensajes al mismo nivel.',
+        );
         return null;
       }
       final imported = ImportedChat.fromJson(decoded);
       final profile = imported.profile;
       AiChanProfile updatedProfile = profile;
-      final result = ImportedChat(profile: updatedProfile, messages: imported.messages, events: imported.events);
+      final result = ImportedChat(
+        profile: updatedProfile,
+        messages: imported.messages,
+        events: imported.events,
+      );
       if (result.profile.userName.isEmpty) {
         onError?.call('userName');
         return null;
@@ -81,12 +93,18 @@ class ChatJsonUtils {
   }
 
   // ...puedes dejar aquí utilidades de UI como pasteJsonDialog y pickJsonFile si las usas en la app...
-  static Future<void> showExportedJsonDialog(BuildContext context, String json) async {
-    return await showDialog<void>(
+  static Future<void> showExportedJsonDialog(
+    BuildContext context,
+    String json,
+  ) async {
+    return await showAppDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
-        title: const Text('Vista previa JSON exportado', style: TextStyle(color: Colors.pinkAccent)),
+        title: const Text(
+          'Vista previa JSON exportado',
+          style: TextStyle(color: Colors.pinkAccent),
+        ),
         content: TextField(
           controller: TextEditingController(text: json),
           maxLines: 20,
@@ -96,7 +114,10 @@ class ChatJsonUtils {
         ),
         actions: [
           TextButton(
-            child: const Text('Cerrar', style: TextStyle(color: AppColors.primary)),
+            child: const Text(
+              'Cerrar',
+              style: TextStyle(color: AppColors.primary),
+            ),
             onPressed: () => Navigator.of(ctx).pop(),
           ),
         ],
