@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # Complete Flutter development runner
-# Direct execution with colors and clean output
+# Everything you want: logs + colors + hot reload + interactive + non-blocking
 
 echo "🚀 Starting AI_chan development environment..."
 echo "✨ Features enabled:"
 echo "   🐛 Debug mode with colors"
-echo "   🔄 Hot reload (edit & save to reload)" 
-echo "   📝 Clean output (no verbose logs)"
+echo "   🔄 Hot reload (press 'r')" 
+echo "   📝 Real-time logs with colors"
+echo "   🖥️ Interactive commands"
+echo "   🎯 Non-blocking VS Code"
 echo ""
 
-# Run Flutter directly with colors and clean output
-flutter run -d linux --debug
+# The secret: use 'script' command to create pseudo-terminal
+# This gives us colors + interactivity but doesn't block VS Code
+script -qf -c "flutter run -d linux --debug" /dev/null

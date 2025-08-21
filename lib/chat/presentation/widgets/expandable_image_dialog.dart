@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:ui';
+import 'dart:async';
 import 'package:ai_chan/shared/utils/download_image.dart';
 import 'package:flutter/material.dart';
 import 'package:ai_chan/core/models.dart';
@@ -43,11 +44,63 @@ class _GalleryImageViewerDialog extends StatefulWidget {
 
 class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
   bool _showText = true;
+
+  /// Muestra un mensaje overlay que aparece encima del dialog de imagen
+  void _showOverlayMessage(
+    BuildContext context,
+    String message, {
+    required bool isError,
+  }) {
+    final overlay = Overlay.of(context);
+    late OverlayEntry overlayEntry;
+
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 100,
+        left: 20,
+        right: 20,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isError ? Colors.red.shade700 : Colors.green.shade700,
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(overlayEntry);
+
+    // Remover automáticamente después de 3 segundos
+    Timer(const Duration(seconds: 3), () {
+      overlayEntry.remove();
+    });
+  }
+
   void _showImageDescriptionDialog(String? description) {
     if (!context.mounted) return;
     showDialog(
       context: context,
-      useRootNavigator: true,
+      useRootNavigator:
+          true, // ✅ Asegurar que aparece encima del dialog de imagen
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
         title: const Text(
@@ -275,27 +328,39 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                       ),
                       tooltip: 'Descargar imagen',
                       onPressed: () async {
-                        final file = widget.images[_currentIndex].image?.url;
-                        if (file != null && file.isNotEmpty) {
-                          final result = await downloadImage(file);
+                        final relPath = widget.images[_currentIndex].image?.url;
+                        if (relPath != null &&
+                            relPath.isNotEmpty &&
+                            widget.imageDir != null) {
+                          // Construir ruta completa
+                          final absPath =
+                              '${widget.imageDir!.path}/${relPath.split('/').last}';
+                          final result = await downloadImage(absPath);
+
                           if (!result.$1 && result.$2 != null) {
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Error al descargar: ${result.$2}',
-                                  ),
-                                ),
+                              _showOverlayMessage(
+                                context,
+                                'Error al descargar: ${result.$2}',
+                                isError: true,
                               );
                             }
-                          } else {
+                          } else if (result.$1) {
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Imagen guardada en Descargas'),
-                                ),
+                              _showOverlayMessage(
+                                context,
+                                '✅ Imagen guardada correctamente',
+                                isError: false,
                               );
                             }
+                          }
+                        } else {
+                          if (context.mounted) {
+                            _showOverlayMessage(
+                              context,
+                              'Error: No se encontró la imagen',
+                              isError: true,
+                            );
                           }
                         }
                       },

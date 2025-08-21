@@ -76,11 +76,10 @@ stop:
 	@echo "🛑 Stopping Flutter app..."
 	@pkill -f flutter || echo "No Flutter process found"
 
-logs:
-	logs: ## 📝 View verbose debug logs (for troubleshooting)
-	@echo "📝 Showing verbose debug logs (Ctrl+C to exit):"
-	@if [ -f flutter_debug.log ]; then \
-		tail -f flutter_debug.log; \
+logs: ## 📝 View verbose debug logs (for troubleshooting)
+	@echo "📝 Showing debug logs (Ctrl+C to exit):"
+	@if [ -f flutter_run.log ]; then \
+		tail -f flutter_run.log; \
 	else \
-		echo "❌ No debug log file found. Run 'make run' first."; \
+		echo "❌ No log file found. Run 'make run' first."; \
 	fi
