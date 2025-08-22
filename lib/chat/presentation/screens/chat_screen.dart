@@ -1,10 +1,7 @@
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:audioplayers/audioplayers.dart';
-import 'dart:convert';
 import 'dart:io';
 import 'package:provider/provider.dart';
 import '../../application/providers/chat_provider.dart';
@@ -16,6 +13,7 @@ import '../widgets/expandable_image_dialog.dart';
 import 'package:ai_chan/core/models.dart';
 import 'gallery_screen.dart';
 import 'package:ai_chan/shared.dart'; // Using centralized shared exports
+import '../widgets/tts_configuration_dialog.dart';
 
 class ChatScreen extends StatefulWidget {
   final AiChanProfile bio;
@@ -34,8 +32,7 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   Directory? _imageDir;
   bool _isRegeneratingAppearance = false; // Muestra spinner en avatar durante la regeneración
-  List<Map<String, dynamic>> _fetchedGoogleVoices = [];
-  bool _loadingGoogleVoices = false;
+  // Estado relacionado con la carga de voces migrado a TtsConfigurationDialog
 
   @override
   void initState() {
@@ -43,32 +40,7 @@ class _ChatScreenState extends State<ChatScreen> {
     getLocalImageDir().then((dir) {
       if (mounted) setState(() => _imageDir = dir);
     });
-    _maybeFetchGoogleVoices();
-  }
-
-  Future<void> _maybeFetchGoogleVoices() async {
-    if (!GoogleSpeechService.isConfigured) return;
-    if (_loadingGoogleVoices) return;
-    setState(() => _loadingGoogleVoices = true);
-    try {
-      // Determinar idiomas del usuario y de la IA
-      final userCountry = widget.bio.userCountryCode;
-      List<String> userLangCodes = [];
-      if (userCountry != null && userCountry.trim().isNotEmpty) {
-        userLangCodes = LocaleUtils.officialLanguageCodesForCountry(userCountry.trim().toUpperCase());
-      }
-
-      final aiCountry = widget.bio.aiCountryCode;
-      List<String> aiLangCodes = [];
-      if (aiCountry != null && aiCountry.trim().isNotEmpty) {
-        aiLangCodes = LocaleUtils.officialLanguageCodesForCountry(aiCountry.trim().toUpperCase());
-      }
-
-      final voices = await GoogleSpeechService.voicesForUserAndAi(userLangCodes, aiLangCodes);
-      if (mounted) setState(() => _fetchedGoogleVoices = voices);
-    } finally {
-      if (mounted) setState(() => _loadingGoogleVoices = false);
-    }
+    // No cargar voces automáticamente - solo cuando se abra el diálogo
   }
 
   Future<void> _showImportDialog(ChatProvider chatProvider) async {
@@ -177,62 +149,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _showExportDialog(BuildContext ctx, String jsonStr) {
     if (!mounted) return;
-    String previewJson = jsonStr;
-    try {
-      final decoded = json.decode(jsonStr);
-      previewJson = const JsonEncoder.withIndent('  ').convert(decoded);
-    } catch (_) {}
-    showAppDialog(
-      context: ctx,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.black,
-        title: const Text('Exportar chat (.json)', style: TextStyle(color: AppColors.secondary)),
-        content: SizedBox(
-          width: 400,
-          child: SingleChildScrollView(
-            child: FocusScope(
-              canRequestFocus: false,
-              child: SelectableText(
-                previewJson,
-                style: const TextStyle(color: AppColors.primary, fontSize: 13),
-                textAlign: TextAlign.left,
-                focusNode: FocusNode(canRequestFocus: false),
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            child: const Text('Guardar como...', style: TextStyle(color: AppColors.secondary)),
-            onPressed: () async {
-              Navigator.of(ctx).pop();
-              final chatProvider = context.read<ChatProvider>();
-              final importedChat = ImportedChat(
-                profile: chatProvider.onboardingData,
-                messages: chatProvider.messages,
-                events: chatProvider.events,
-              );
-              final (success, error) = await chat_json_utils.ChatJsonUtils.saveJsonFile(importedChat);
-              if (!mounted) return;
-              if (error != null) {
-                _showErrorDialog(error);
-              } else if (success) {
-                showAppSnackBar('Archivo guardado correctamente.', preferRootMessenger: true);
-              }
-            },
-          ),
-          TextButton(
-            child: const Text('Copiar', style: TextStyle(color: AppColors.primary)),
-            onPressed: () async {
-              // Copiar el JSON formateado al portapapeles
-              await Clipboard.setData(ClipboardData(text: previewJson));
-              if (!mounted) return;
-              showAppSnackBar('JSON copiado al portapapeles', preferRootMessenger: true);
-            },
-          ),
-        ],
-      ),
+    final chatProvider = context.read<ChatProvider>();
+    final importedChat = ImportedChat(
+      profile: chatProvider.onboardingData,
+      messages: chatProvider.messages,
+      events: chatProvider.events,
     );
+    // Delegate to shared util which shows preview and offers copy/save
+    chat_json_utils.ChatJsonUtils.showExportedJsonDialog(ctx, jsonStr, chat: importedChat);
   }
 
   void _showAppearanceRegeneratedSnackBarWith(BuildContext ctx) {
@@ -244,12 +168,12 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _showErrorDialog(String error) {
     if (!mounted) return;
-    showErrorDialog(context, error);
+    showErrorDialog(error);
   }
 
   void _showErrorDialogWith(BuildContext ctx, String error) {
     if (!mounted) return;
-    showErrorDialog(ctx, error);
+    showErrorDialog(error);
   }
 
   @override
@@ -387,75 +311,95 @@ class _ChatScreenState extends State<ChatScreen> {
                   children: [
                     const Icon(Icons.memory, color: AppColors.primary, size: 20),
                     const SizedBox(width: 8),
-                    Text(
-                      _loadingModels ? 'Cargando modelos...' : 'Seleccionar modelo',
-                      style: const TextStyle(color: AppColors.primary),
-                    ),
-                    Builder(
-                      builder: (context) {
-                        final defaultModel = Config.getDefaultTextModel();
-                        final selected = chatProvider.selectedModel ?? defaultModel;
-                        return Padding(
-                          padding: const EdgeInsets.only(left: 8.0),
-                          child: Text(
-                            selected,
-                            style: const TextStyle(color: AppColors.secondary, fontSize: 11),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              // Seleccionar proveedor de audio
-              PopupMenuItem<String>(
-                value: 'select_audio_provider',
-                child: Row(
-                  children: [
-                    const Icon(Icons.speaker, color: AppColors.primary, size: 20),
-                    const SizedBox(width: 8),
-                    const Text('Sistema de voz', style: TextStyle(color: AppColors.primary)),
-                    FutureBuilder<String>(
-                      future: _loadActiveAudioProvider(),
-                      builder: (context, snapshot) {
-                        final provider = snapshot.data ?? Config.getAudioProvider().toLowerCase();
-                        final displayName = provider == 'google' ? 'GOOGLE' : provider.toUpperCase();
-                        return Padding(
-                          padding: const EdgeInsets.only(left: 8.0),
-                          child: Text(
-                            displayName,
-                            style: const TextStyle(color: AppColors.secondary, fontSize: 11),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      },
+                    Expanded(
+                      child: Builder(
+                        builder: (context) {
+                          final defaultModel = Config.getDefaultTextModel();
+                          final selected = chatProvider.selectedModel ?? defaultModel;
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _loadingModels ? 'Cargando modelos...' : 'Seleccionar modelo',
+                                style: const TextStyle(color: AppColors.primary),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                selected,
+                                style: const TextStyle(color: AppColors.secondary, fontSize: 11),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ],
+                          );
+                        },
+                      ),
                     ),
                   ],
                 ),
               ),
-              // Seleccionar voz para llamadas / TTS
+              // (Sistema de voz eliminado) - delegamos la gestión de proveedor en la pantalla de Configurar voz
+              // Configurar voz (abre diálogo/pantalla de configuración TTS)
               PopupMenuItem<String>(
                 value: 'select_voice',
                 child: Row(
                   children: [
-                    const Icon(Icons.record_voice_over, color: AppColors.primary, size: 20),
+                    const Icon(Icons.settings_voice, color: AppColors.primary, size: 20),
                     const SizedBox(width: 8),
-                    const Text('Seleccionar voz', style: TextStyle(color: AppColors.primary)),
-                    FutureBuilder<String?>(
-                      future: _loadActiveVoice(),
-                      builder: (context, snap) {
-                        final v = snap.data;
-                        if (v == null) return const SizedBox.shrink();
-                        return Padding(
-                          padding: const EdgeInsets.only(left: 8.0),
-                          child: Text(
-                            v,
-                            style: const TextStyle(color: AppColors.secondary, fontSize: 11),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      },
+                    Expanded(
+                      child: Builder(
+                        builder: (ctx) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Configurar voz',
+                                style: const TextStyle(color: AppColors.primary),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  FutureBuilder<String>(
+                                    future: _loadActiveAudioProvider(),
+                                    builder: (context, snap2) {
+                                      final p = snap2.data;
+                                      if (p == null || p.isEmpty) return const SizedBox.shrink();
+                                      return Text(
+                                        p.toUpperCase(),
+                                        style: const TextStyle(color: AppColors.secondary, fontSize: 11),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      );
+                                    },
+                                  ),
+                                  FutureBuilder<String?>(
+                                    future: _loadActiveVoice(),
+                                    builder: (context, snap) {
+                                      final v = snap.data;
+                                      if (v == null) return const SizedBox.shrink();
+                                      return Padding(
+                                        padding: const EdgeInsets.only(left: 8.0),
+                                        child: Text(
+                                          v,
+                                          style: const TextStyle(color: AppColors.secondary, fontSize: 11),
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 1,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
+                          );
+                        },
+                      ),
                     ),
                   ],
                 ),
@@ -668,221 +612,34 @@ class _ChatScreenState extends State<ChatScreen> {
                 final selected = await _showModelSelectionDialog(ctx, models, initialModel);
                 if (!ctx.mounted) return;
                 _setSelectedModel(selected, current, chatProvider);
-              } else if (value == 'select_audio_provider') {
-                final providers = ['openai', 'google'];
-                final current = await _loadActiveAudioProvider();
-                final ctx = context;
-                if (!ctx.mounted) return;
-                final selected = await showAppDialog<String>(
-                  context: ctx,
-                  builder: (ctx) {
-                    return AlertDialog(
-                      backgroundColor: Colors.black,
-                      title: const Text('Seleccionar sistema de voz', style: TextStyle(color: AppColors.secondary)),
-                      content: SizedBox(
-                        width: 300,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: providers.map((provider) {
-                            return ListTile(
-                              title: Text(
-                                provider.toUpperCase(),
-                                style: TextStyle(
-                                  color: current == provider ? AppColors.primary : AppColors.secondary,
-                                  fontWeight: current == provider ? FontWeight.bold : FontWeight.normal,
-                                ),
-                              ),
-                              subtitle: Text(
-                                provider == 'openai'
-                                    ? 'OpenAI Realtime API - Rápido y integrado'
-                                    : 'Google Voice - Gemini AI + Cloud TTS/STT',
-                                style: const TextStyle(color: Colors.grey, fontSize: 12),
-                              ),
-                              leading: Icon(
-                                provider == 'openai' ? Icons.speed : Icons.graphic_eq,
-                                color: current == provider ? AppColors.primary : AppColors.secondary,
-                              ),
-                              onTap: () => Navigator.of(ctx).pop(provider),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    );
-                  },
-                );
-                if (!ctx.mounted) return;
-                if (selected != null && selected != current) {
-                  await _saveActiveAudioProvider(selected);
-                  if (!ctx.mounted) return;
-                  setState(() {});
-                  showAppSnackBar('Proveedor de audio cambiado a ${selected.toUpperCase()}');
-                }
               } else if (value == 'select_voice') {
-                final provider = await _loadActiveAudioProvider();
-                final current = await _loadActiveVoice();
-                List<dynamic> voices;
-                bool isGoogle = provider == 'google';
-                if (isGoogle) {
-                  voices = _fetchedGoogleVoices.isNotEmpty ? _fetchedGoogleVoices : [];
-                } else {
-                  voices = kOpenAIVoices;
+                // Delegar selección de voz al diálogo centralizado y pasar los códigos de idioma
+                final userCountry = widget.bio.userCountryCode;
+                List<String> userLangCodes = [];
+                if (userCountry != null && userCountry.trim().isNotEmpty) {
+                  userLangCodes = LocaleUtils.officialLanguageCodesForCountry(userCountry.trim().toUpperCase());
                 }
-                final ctx = context;
-                if (!ctx.mounted) return;
-                final selected = await showAppDialog<String>(
-                  context: ctx,
-                  builder: (ctx) {
-                    return AlertDialog(
-                      backgroundColor: Colors.black,
-                      title: Text(
-                        'Selecciona voz (${provider.toUpperCase()})',
-                        style: const TextStyle(color: AppColors.secondary),
-                      ),
-                      content: SizedBox(
-                        width: 320,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (isGoogle)
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton.icon(
-                                  icon: const Icon(Icons.refresh, size: 16),
-                                  label: Text(
-                                    _loadingGoogleVoices ? 'Actualizando...' : 'Actualizar voces',
-                                    style: const TextStyle(color: AppColors.secondary),
-                                  ),
-                                  onPressed: _loadingGoogleVoices
-                                      ? null
-                                      : () async {
-                                          final ctx = context;
-                                          if (!ctx.mounted) return;
-                                          setState(() => _loadingGoogleVoices = true);
-                                          try {
-                                            final aiCountry = widget.bio.aiCountryCode;
-                                            String? aiLangCode;
-                                            if (aiCountry != null && aiCountry.trim().isNotEmpty) {
-                                              final codes = LocaleUtils.officialLanguageCodesForCountry(
-                                                aiCountry.trim().toUpperCase(),
-                                              );
-                                              if (codes.isNotEmpty) {
-                                                aiLangCode = codes.first;
-                                              }
-                                            }
-                                            final voices = await GoogleSpeechService.voicesForUserAndAi(
-                                              ['es-ES'],
-                                              [aiLangCode ?? 'es-ES'],
-                                              forceRefresh: true,
-                                            );
-                                            if (ctx.mounted) {
-                                              setState(() => _fetchedGoogleVoices = voices);
-                                            }
-                                          } finally {
-                                            if (ctx.mounted) {
-                                              setState(() => _loadingGoogleVoices = false);
-                                            }
-                                          }
-                                        },
-                                ),
-                              ),
-                            Flexible(
-                              child: ListView(
-                                shrinkWrap: true,
-                                children: [
-                                  ...voices.map<Widget>((v) {
-                                    final isMap = v is Map<String, dynamic>;
-                                    final name = isMap ? (v['name'] as String? ?? '') : (v as String);
-                                    final lcodes = (isMap && v['languageCodes'] is List)
-                                        ? (v['languageCodes'] as List).cast<String>()
-                                        : <String>[];
-                                    final descRaw = isMap
-                                        ? (v['description'] ?? v['gender'] ?? v['ssmlGender'] ?? '')
-                                        : '';
-                                    final desc = descRaw is String ? descRaw : descRaw?.toString() ?? '';
-                                    final isNeural = RegExp(r'neural|wavenet', caseSensitive: false).hasMatch(name);
 
-                                    final List<Widget> subtitleWidgets = [];
-                                    if (desc.isNotEmpty) {
-                                      subtitleWidgets.add(
-                                        Text(desc, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                                      );
-                                    }
-                                    if (isNeural) {
-                                      subtitleWidgets.add(
-                                        Text('Neural', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                                      );
-                                    }
+                final aiCountry = widget.bio.aiCountryCode;
+                List<String> aiLangCodes = [];
+                if (aiCountry != null && aiCountry.trim().isNotEmpty) {
+                  aiLangCodes = LocaleUtils.officialLanguageCodesForCountry(aiCountry.trim().toUpperCase());
+                }
 
-                                    return ListTile(
-                                      contentPadding: EdgeInsets.zero,
-                                      leading: Icon(
-                                        current == (isGoogle ? name : v)
-                                            ? Icons.radio_button_checked
-                                            : Icons.radio_button_off,
-                                        color: AppColors.secondary,
-                                        size: 20,
-                                      ),
-                                      title: isGoogle
-                                          ? Text(
-                                              '$name (${lcodes.join(',')})',
-                                              style: const TextStyle(color: AppColors.primary),
-                                            )
-                                          : Text(v, style: const TextStyle(color: AppColors.primary)),
-                                      subtitle: subtitleWidgets.isEmpty
-                                          ? null
-                                          : Row(
-                                              children: [
-                                                for (int i = 0; i < subtitleWidgets.length; i++) ...[
-                                                  subtitleWidgets[i],
-                                                  if (i != subtitleWidgets.length - 1) const SizedBox(width: 8),
-                                                ],
-                                              ],
-                                            ),
-                                      trailing: IconButton(
-                                        icon: const Icon(Icons.play_arrow, color: AppColors.secondary),
-                                        tooltip: 'Escuchar demo',
-                                        onPressed: () async {
-                                          final ctx = context;
-                                          final chatProv = ctx.read<ChatProvider>();
-                                          final phrase = isGoogle
-                                              ? 'Hola, soy tu asistente con la voz $name'
-                                              : 'Hola, soy tu asistente con la voz $v';
-                                          try {
-                                            String? lang;
-                                            if (isGoogle) {
-                                              if (lcodes.isNotEmpty) {
-                                                lang = lcodes.first;
-                                              }
-                                            }
-                                            final file = await chatProv.audioService.synthesizeTts(
-                                              phrase,
-                                              voice: isGoogle ? name : v,
-                                              languageCode: lang,
-                                            );
-                                            if (file != null) {
-                                              final player = AudioPlayer();
-                                              await player.play(DeviceFileSource(file.path));
-                                            }
-                                          } catch (e) {
-                                            Log.d('Error during voice demo playback: $e', tag: 'CHAT_SCREEN');
-                                          }
-                                        },
-                                      ),
-                                      onTap: () => Navigator.of(ctx).pop(isGoogle ? name : v),
-                                    );
-                                  }),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+                // Abrir configuración de TTS como pantalla completa
+                final result = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(
+                    fullscreenDialog: true,
+                    builder: (ctx) => TtsConfigurationDialog(
+                      userLangCodes: userLangCodes,
+                      aiLangCodes: aiLangCodes,
+                      chatProvider: chatProvider,
+                    ),
+                  ),
                 );
-                if (!ctx.mounted) return;
-                if (selected != null && selected != current) {
-                  await _saveActiveVoice(selected);
+
+                if (result == true && mounted) {
+                  setState(() {});
                 }
               }
             },
@@ -1054,46 +811,21 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<void> _saveActiveVoice(String voice) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('selected_voice', voice);
-    } catch (_) {}
-  }
-
   Future<String> _loadActiveAudioProvider() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final saved = prefs.getString('selected_audio_provider');
       final envValue = Config.getAudioProvider().toLowerCase();
 
-      // Mapear 'gemini' a 'google' para compatibilidad hacia atrás
       String defaultValue = 'google';
-      if (envValue == 'openai') {
-        defaultValue = 'openai';
-      } else if (envValue == 'gemini') {
-        defaultValue = 'google'; // Mapear gemini a google
-      }
+      if (envValue == 'openai') defaultValue = 'openai';
+      if (envValue == 'gemini') defaultValue = 'google';
 
-      // Si el valor guardado es 'gemini', mapearlo a 'google'
-      if (saved == 'gemini') {
-        return 'google';
-      }
-
+      if (saved == 'gemini') return 'google';
       return saved ?? defaultValue;
     } catch (_) {
       return 'google';
     }
-  }
-
-  Future<void> _saveActiveAudioProvider(String provider) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('selected_audio_provider', provider);
-
-      // También persistir mapping legacy (mapear google->gemini) en prefs y no tocar dotenv global directamente
-      // No escribimos en dotenv.env, persistimos solo en SharedPreferences (ya hecho arriba)
-    } catch (_) {}
   }
 }
 

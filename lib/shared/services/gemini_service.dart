@@ -1,9 +1,9 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'ai_service.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/shared/utils/log_utils.dart';
 // duplicate import removed
 
 class GeminiService implements AIService {
@@ -39,7 +39,7 @@ class GeminiService implements AIService {
     String usedKey = firstKey;
     response = await getWithKey(usedKey);
     if (response.statusCode != 200 && secondKey.isNotEmpty && isQuotaLike(response.statusCode, response.body)) {
-      debugPrint('[Gemini] ${response.statusCode} con primera clave; probando la alternativa.');
+      Log.w('[Gemini] ${response.statusCode} con primera clave; probando la alternativa.');
       final r2 = await getWithKey(secondKey);
       if (r2.statusCode == 200) {
         // Éxito con la alternativa => actualizar preferencia
@@ -99,9 +99,9 @@ class GeminiService implements AIService {
       // Al final los que no tienen versión, ordenados alfabéticamente
       noVersion.sort();
       ordered.addAll(noVersion);
-      debugPrint('Listado de modelos Gemini ordenados:');
+      Log.d('Listado de modelos Gemini ordenados: ${ordered.length}');
       for (final model in ordered) {
-        debugPrint(model);
+        Log.d(model);
       }
       return ordered;
     } else {
@@ -209,6 +209,11 @@ class GeminiService implements AIService {
     }
 
     Future<AIResponse> sendToModel(String modelId) async {
+      // Normalizar modelId por si viene con prefijo 'models/' o espacios
+      modelId = modelId.trim();
+      if (modelId.startsWith('models/')) {
+        modelId = modelId.replaceFirst('models/', '');
+      }
       bool isQuotaLike(int code, String body) {
         if (code == 400 || code == 403 || code == 429) return true;
         return false;
@@ -216,6 +221,7 @@ class GeminiService implements AIService {
 
       Future<http.Response> doPost(String key) {
         final mUrl = Uri.parse('$endpointBase$modelId:generateContent?key=$key');
+        Log.d('[Gemini] POST -> $mUrl (bodyPreview=${body.length} chars)');
         return http.post(mUrl, headers: headers, body: body);
       }
 
@@ -226,7 +232,7 @@ class GeminiService implements AIService {
       String keyUsed = firstKey;
       http.Response resp = await doPost(keyUsed);
       if (resp.statusCode != 200 && secondKey.isNotEmpty && isQuotaLike(resp.statusCode, resp.body)) {
-        debugPrint('[Gemini] ${resp.statusCode} con primera clave; reintentando con alternativa.');
+        Log.w('[Gemini] ${resp.statusCode} con primera clave; reintentando con alternativa.');
         final r2 = await doPost(secondKey);
         if (r2.statusCode == 200) {
           _preferFallback = (secondKey == fallback);
@@ -242,10 +248,48 @@ class GeminiService implements AIService {
       if (resp.statusCode == 200) {
         return await parseAndBuild(resp.body);
       }
-      final bodyPreview = resp.body.length > 500 ? resp.body.substring(0, 500) : resp.body;
-      debugPrint(
+      final bodyPreview = resp.body.length > 1000 ? resp.body.substring(0, 1000) : resp.body;
+      Log.e(
         '[Gemini] Error ${resp.statusCode} con modelo $modelId usando ${keyUsed == primary ? 'PRIMARY' : 'FALLBACK'}: $bodyPreview',
       );
+
+      // Si el error indica que el modelo no existe, intentar obtener la lista de modelos
+      // accesibles con la clave y reintentar con el primero disponible.
+      try {
+        final decoded = jsonDecode(resp.body);
+        final errMsg = decoded is Map && decoded['error'] != null ? (decoded['error']['message'] ?? '') : '';
+        if (errMsg != null && errMsg.toString().toLowerCase().contains('does not exist')) {
+          Log.w('[Gemini] Detectado model-not-found para "$modelId". Consultando modelos disponibles...');
+          final available = await getAvailableModels();
+          if (available.isNotEmpty) {
+            final fallbackModel = available.firstWhere(
+              (m) => m.trim().isNotEmpty && m != modelId,
+              orElse: () => available.first,
+            );
+            if (fallbackModel.isNotEmpty && fallbackModel != modelId) {
+              Log.d('[Gemini] Reintentando con modelo alternativo: $fallbackModel');
+              // Intentar con el primer modelo válido encontrado
+              final retryUrl = Uri.parse('$endpointBase${fallbackModel.trim()}:generateContent?key=$keyUsed');
+              final retryResp = await http.post(retryUrl, headers: headers, body: body);
+              if (retryResp.statusCode == 200) {
+                return await parseAndBuild(retryResp.body);
+              }
+              final retryPreview = retryResp.body.length > 500 ? retryResp.body.substring(0, 500) : retryResp.body;
+              Log.w('[Gemini] Reintento con $fallbackModel falló: ${retryResp.statusCode} $retryPreview');
+            }
+          } else {
+            Log.w('[Gemini] getAvailableModels() no devolvió modelos accesibles.');
+          }
+          // Si no hay alternativa o reintento falló, retornar el error original con más contexto
+          return AIResponse(
+            text:
+                'Error al conectar con Gemini: \n$bodyPreview\n\nModel error: $errMsg\nAvailable (probe): ${available.join(', ')}',
+          );
+        }
+      } catch (e) {
+        Log.e('[Gemini] Error al parsear cuerpo de error o intentar fallback: $e');
+      }
+
       return AIResponse(text: 'Error al conectar con Gemini: \n$bodyPreview');
     }
 

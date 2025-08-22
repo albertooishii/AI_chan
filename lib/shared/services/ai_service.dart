@@ -31,17 +31,39 @@ abstract class AIService {
     String? imageMimeType,
     bool enableImageGeneration = false,
   }) async {
-  model = model ?? runtime_factory.getDefaultModelId();
-    // Si en tests se ha inyectado una implementación, usarla; si no, resolver vía runtime_factory.
-    AIService? aiService = AIService.testOverride;
-    if (aiService == null) {
+    model = model ?? runtime_factory.getDefaultModelId();
+    // Resolver runtime: prefer testOverride si está presente, si no usar la fábrica
+    AIService? override = AIService.testOverride;
+    late AIService aiService;
+    if (override != null) {
+      aiService = override;
+    } else {
       try {
         aiService = runtime_factory.getRuntimeAIServiceForModel(model);
       } catch (e) {
-        debugPrint('[AIService.sendMessage] No se pudo resolver el runtime para el modelo: $model -> $e');
+        // Fall back silently: return an empty response on resolution failure.
         return AIResponse(text: '');
       }
     }
+
+    // Sanity: asegurar que el runtime seleccionado coincide con el prefijo del modelo
+    try {
+      final modelNorm = model.trim().toLowerCase();
+      final implType = aiService.runtimeType.toString();
+      // IMPORTANT: If a test override is set, do not replace it. Tests rely on testOverride fakes.
+      if (AIService.testOverride == null) {
+        if (modelNorm.startsWith('gpt-') && implType != 'OpenAIService') {
+          debugPrint('[AIService] Runtime mismatch: recreating OpenAIService for $modelNorm');
+          aiService = runtime_factory.getRuntimeAIServiceForModel(modelNorm);
+        } else if ((modelNorm.startsWith('gemini-') || modelNorm.startsWith('imagen-')) &&
+            implType != 'GeminiService') {
+          debugPrint('[AIService] Runtime mismatch: recreating GeminiService for $modelNorm');
+          aiService = runtime_factory.getRuntimeAIServiceForModel(modelNorm);
+        }
+      } else {
+        // keep test override silently
+      }
+    } catch (_) {}
 
     // Guardar logs usando debugLogCallPrompt (solo en debug/profile y escritorio)
     await debugLogCallPrompt('ai_service_send', {
@@ -121,9 +143,9 @@ abstract class AIService {
       'timestamp': DateTime.now().toIso8601String(),
     });
 
-  // Nota: no se reintenta con modelos de fallback automáticamente: la resolución de runtimes
-  // debe ser explícita vía DI/fábrica. Si hay un error por cuota, devolvemos la respuesta tal cual
-  // y es responsabilidad del caller o la capa superior decidir reintentar con otro modelo.
+    // Nota: no se reintenta con modelos de fallback automáticamente: la resolución de runtimes
+    // debe ser explícita vía DI/fábrica. Si hay un error por cuota, devolvemos la respuesta tal cual
+    // y es responsabilidad del caller o la capa superior decidir reintentar con otro modelo.
     return response;
   }
 

@@ -1,3 +1,4 @@
+import 'package:ai_chan/shared/utils/log_utils.dart';
 import '../shared/services/gemini_service.dart';
 import '../shared/services/openai_service.dart';
 import '../shared/services/ai_service.dart' as runtime_ai;
@@ -10,10 +11,26 @@ final Map<String, runtime_ai.AIService> _runtimeAiSingletons = {};
 runtime_ai.AIService getRuntimeAIServiceForModel(String modelId) {
   final normalized = modelId.trim().toLowerCase();
   final defaultModel = Config.getDefaultTextModel().trim().toLowerCase();
-  final key = normalized.isEmpty
-      ? (defaultModel.isEmpty ? 'default' : defaultModel)
-      : normalized;
-  if (_runtimeAiSingletons.containsKey(key)) return _runtimeAiSingletons[key]!;
+  final key = normalized.isEmpty ? (defaultModel.isEmpty ? 'default' : defaultModel) : normalized;
+  if (_runtimeAiSingletons.containsKey(key)) {
+    final existing = _runtimeAiSingletons[key]!;
+    Log.d('[runtime_factory] Reusing singleton for key="$key" -> ${existing.runtimeType}');
+    // Sanity check: if the cached singleton type doesn't match the model prefix, replace it
+    if (key.startsWith('gpt-') && existing.runtimeType.toString() != 'OpenAIService') {
+      Log.w('[runtime_factory] Warning: singleton type mismatch for $key (expected OpenAIService). Recreating.');
+      final implNew = OpenAIService();
+      _runtimeAiSingletons[key] = implNew;
+      return implNew;
+    }
+    if ((key.startsWith('gemini-') || key.startsWith('imagen-')) &&
+        existing.runtimeType.toString() != 'GeminiService') {
+      Log.w('[runtime_factory] Warning: singleton type mismatch for $key (expected GeminiService). Recreating.');
+      final implNew = GeminiService();
+      _runtimeAiSingletons[key] = implNew;
+      return implNew;
+    }
+    return existing;
+  }
 
   runtime_ai.AIService impl;
   if (key.startsWith('gpt-')) {

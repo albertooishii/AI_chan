@@ -1,10 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:ai_chan/core/interfaces/i_chat_repository.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/storage_utils.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Implementación única y consolidada de IChatRepository.
@@ -33,9 +31,7 @@ class LocalChatRepository implements IChatRepository {
         final Map<String, dynamic> profileMap = bioString != null
             ? (jsonDecode(bioString) as Map<String, dynamic>)
             : <String, dynamic>{};
-        final List<dynamic> messages = jsonString != null
-            ? jsonDecode(jsonString) as List<dynamic>
-            : <dynamic>[];
+        final List<dynamic> messages = jsonString != null ? jsonDecode(jsonString) as List<dynamic> : <dynamic>[];
         // Normalizar la salida para que sea compatible con ImportedChat.fromJson:
         // devolver un mapa con los campos del perfil en el nivel superior y las claves 'messages' y 'events'.
         final Map<String, dynamic> out = Map<String, dynamic>.from(profileMap);
@@ -52,8 +48,7 @@ class LocalChatRepository implements IChatRepository {
     final raw = prefs.getString(_kPrefsKey);
     if (raw == null) return null;
     try {
-      final Map<String, dynamic> parsed =
-          json.decode(raw) as Map<String, dynamic>;
+      final Map<String, dynamic> parsed = json.decode(raw) as Map<String, dynamic>;
       return parsed;
     } catch (_) {
       return null;
@@ -78,19 +73,12 @@ class LocalChatRepository implements IChatRepository {
 
   @override
   Future<String> exportAllToJson(Map<String, dynamic> exportedJson) async {
-    final encoded = json.encode(exportedJson);
-    // Try to write a file in documents directory
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File(
-        '${dir.path}/ai_chan_chat_export_${DateTime.now().toIso8601String()}.json',
-      );
-      await file.writeAsString(encoded);
-      return file.path;
-    } catch (_) {
-      // Fallback to returning the JSON string
-      return encoded;
-    }
+    // Format the JSON with indentation for better readability
+    const encoder = JsonEncoder.withIndent('  ');
+    final encoded = encoder.convert(exportedJson);
+    // Always return the JSON string content, not a file path
+    // The caller (UI) will handle saving to file if needed
+    return encoded;
   }
 
   @override

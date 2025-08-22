@@ -121,6 +121,7 @@ class ChatBubble extends StatelessWidget {
   }
 
   Widget _buildBubbleContent({
+    required BuildContext context,
     required Widget child,
     required bool useIntrinsicWidth,
     required bool isUser,
@@ -152,7 +153,18 @@ class ChatBubble extends StatelessWidget {
       child: child,
     );
     if (useIntrinsicWidth) {
-      return IntrinsicWidth(child: bubble);
+      // Evitar IntrinsicWidth porque puede fallar en algunas cadenas de layout.
+      // En su lugar limitamos el ancho máximo del bubble al porcentaje de la pantalla.
+      try {
+        final maxWidth = MediaQuery.of(context).size.width * 0.78; // 78% del ancho de pantalla
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: bubble,
+        );
+      } catch (_) {
+        // Si por alguna razón MediaQuery no está disponible, caer al comportamiento por defecto
+        return bubble;
+      }
     } else {
       return bubble;
     }
@@ -468,6 +480,7 @@ class ChatBubble extends StatelessWidget {
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: _buildBubbleContent(
+        context: context,
         child: bubbleContent,
         useIntrinsicWidth: useIntrinsicWidth,
         isUser: isUser,

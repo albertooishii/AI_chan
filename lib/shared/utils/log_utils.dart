@@ -44,14 +44,44 @@ class Log {
 
   static void _out(LogLevel level, String tag, String message) {
     if (!_enabledFor(level)) return;
+
+    // Colores ANSI para diferentes niveles
+    String colorCode = '';
+    String emoji = '';
+    switch (level) {
+      case LogLevel.error:
+        colorCode = '\x1B[91m'; // Rojo brillante
+        emoji = '❌';
+        break;
+      case LogLevel.warn:
+        colorCode = '\x1B[93m'; // Amarillo brillante
+        emoji = '⚠️';
+        break;
+      case LogLevel.info:
+        colorCode = '\x1B[94m'; // Azul brillante
+        emoji = 'ℹ️';
+        break;
+      case LogLevel.debug:
+        colorCode = '\x1B[95m'; // Magenta brillante
+        emoji = '🔍';
+        break;
+      case LogLevel.trace:
+        colorCode = '\x1B[90m'; // Gris
+        emoji = '📍';
+        break;
+    }
+    const reset = '\x1B[0m';
+
     final levelStr = level.name.toUpperCase();
-    final line = '[$levelStr][$tag] $message';
-    // dart:developer.log permite tooling
-    dev.log(line, name: tag, level: _levelIndex(level));
-    // fallback visible en consola
-    debugPrint(line); // fallback de consola, no migrar
-    // (métodos estáticos incorrectos eliminados)
-    // Métodos alternativos para compatibilidad con migración
+    final coloredLine = '$colorCode$emoji [$levelStr][$tag] $message$reset';
+
+    // dart:developer.log para herramientas de desarrollo
+    dev.log(message, name: '$emoji $tag', level: _levelIndex(level));
+
+    // debugPrint con colores para consola
+    if (kDebugMode) {
+      debugPrint(coloredLine);
+    }
   }
 
   // Helpers principales

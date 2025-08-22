@@ -11,8 +11,7 @@ import 'package:ai_chan/shared/utils.dart';
 bool _isFlutterTestRuntime() {
   try {
     // Flutter's test runner sets FLUTTER_TEST in the environment for test runs.
-    return Platform.environment.containsKey('FLUTTER_TEST') ||
-        Platform.environment['FLUTTER_TEST'] == 'true';
+    return Platform.environment.containsKey('FLUTTER_TEST') || Platform.environment['FLUTTER_TEST'] == 'true';
   } catch (_) {
     return false;
   }
@@ -34,10 +33,12 @@ class GoogleSpeechService {
     double speakingRate = 1.0,
     double pitch = 0.0,
   }) async {
+    _maybeDebugPrint(
+      '[GoogleTTS] textToSpeech called - text: "${text.length} chars", voice: $voiceName, lang: $languageCode',
+    );
+
     if (_apiKey.isEmpty) {
-      _maybeDebugPrint(
-        '[GoogleTTS] Error: GOOGLE_CLOUD_API_KEY no configurada',
-      );
+      _maybeDebugPrint('[GoogleTTS] Error: GOOGLE_CLOUD_API_KEY no configurada');
       return null;
     }
 
@@ -62,29 +63,19 @@ class GoogleSpeechService {
         return await cachedFile.readAsBytes();
       }
     } catch (e) {
-      _maybeDebugPrint(
-        '[GoogleTTS] Error leyendo caché, continuando con API: $e',
-      );
+      _maybeDebugPrint('[GoogleTTS] Error leyendo caché, continuando con API: $e');
     }
 
-    final url = Uri.parse(
-      'https://texttospeech.googleapis.com/v1/text:synthesize?key=$_apiKey',
-    );
+    final url = Uri.parse('https://texttospeech.googleapis.com/v1/text:synthesize?key=$_apiKey');
 
     final requestBody = {
       'input': {'text': text.trim()},
       'voice': {'languageCode': languageCode, 'name': voiceName},
-      'audioConfig': {
-        'audioEncoding': audioEncoding,
-        'speakingRate': speakingRate,
-        'pitch': pitch,
-      },
+      'audioConfig': {'audioEncoding': audioEncoding, 'speakingRate': speakingRate, 'pitch': pitch},
     };
 
     try {
-      _maybeDebugPrint(
-        '[GoogleTTS] Sintetizando: "${text.length > 100 ? '${text.substring(0, 100)}...' : text}"',
-      );
+      _maybeDebugPrint('[GoogleTTS] Sintetizando: "${text.length > 100 ? '${text.substring(0, 100)}...' : text}"');
 
       final response = await http.post(
         url,
@@ -98,9 +89,7 @@ class GoogleSpeechService {
 
         if (audioContent != null) {
           final audioData = base64Decode(audioContent);
-          _maybeDebugPrint(
-            '[GoogleTTS] Audio generado exitosamente: ${audioData.length} bytes',
-          );
+          _maybeDebugPrint('[GoogleTTS] Audio generado exitosamente: ${audioData.length} bytes');
 
           // Guardar en caché
           try {
@@ -114,21 +103,15 @@ class GoogleSpeechService {
               pitch: pitch,
             );
           } catch (e) {
-            _maybeDebugPrint(
-              '[GoogleTTS] Warning: Error guardando en caché: $e',
-            );
+            _maybeDebugPrint('[GoogleTTS] Warning: Error guardando en caché: $e');
           }
 
           return audioData;
         } else {
-          _maybeDebugPrint(
-            '[GoogleTTS] Error: respuesta sin contenido de audio',
-          );
+          _maybeDebugPrint('[GoogleTTS] Error: respuesta sin contenido de audio');
         }
       } else {
-        _maybeDebugPrint(
-          '[GoogleTTS] Error ${response.statusCode}: ${response.body}',
-        );
+        _maybeDebugPrint('[GoogleTTS] Error ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
       _maybeDebugPrint('[GoogleTTS] Exception: $e');
@@ -160,9 +143,7 @@ class GoogleSpeechService {
 
     try {
       final directory = await getTemporaryDirectory();
-      final fileName =
-          customFileName ??
-          'google_tts_${DateTime.now().millisecondsSinceEpoch}.mp3';
+      final fileName = customFileName ?? 'google_tts_${DateTime.now().millisecondsSinceEpoch}.mp3';
       final file = File('${directory.path}/$fileName');
 
       await file.writeAsBytes(audioData);
@@ -183,9 +164,7 @@ class GoogleSpeechService {
     bool enableAutomaticPunctuation = true,
   }) async {
     if (_apiKey.isEmpty) {
-      _maybeDebugPrint(
-        '[GoogleSTT] Error: GOOGLE_CLOUD_API_KEY no configurada',
-      );
+      _maybeDebugPrint('[GoogleSTT] Error: GOOGLE_CLOUD_API_KEY no configurada');
       return null;
     }
 
@@ -194,9 +173,7 @@ class GoogleSpeechService {
       return null;
     }
 
-    final url = Uri.parse(
-      'https://speech.googleapis.com/v1/speech:recognize?key=$_apiKey',
-    );
+    final url = Uri.parse('https://speech.googleapis.com/v1/speech:recognize?key=$_apiKey');
 
     final audioContentBase64 = base64Encode(audioData);
 
@@ -213,9 +190,7 @@ class GoogleSpeechService {
     };
 
     try {
-      _maybeDebugPrint(
-        '[GoogleSTT] Transcribiendo audio: ${audioData.length} bytes',
-      );
+      _maybeDebugPrint('[GoogleSTT] Transcribiendo audio: ${audioData.length} bytes');
 
       final response = await http.post(
         url,
@@ -242,9 +217,7 @@ class GoogleSpeechService {
           _maybeDebugPrint('[GoogleSTT] No se detectó habla en el audio');
         }
       } else {
-        _maybeDebugPrint(
-          '[GoogleSTT] Error ${response.statusCode}: ${response.body}',
-        );
+        _maybeDebugPrint('[GoogleSTT] Error ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
       _maybeDebugPrint('[GoogleSTT] Exception: $e');
@@ -276,9 +249,9 @@ class GoogleSpeechService {
 
   /// Fetch the official list of Google TTS voices from the API and cache it locally.
   /// Returns a list of maps with keys: name, languageCodes, ssmlGender, naturalSampleRateHertz
-  static Future<List<Map<String, dynamic>>> fetchGoogleVoices({
-    bool forceRefresh = false,
-  }) async {
+  static Future<List<Map<String, dynamic>>> fetchGoogleVoices({bool forceRefresh = false}) async {
+    _maybeDebugPrint('[GoogleTTS] fetchGoogleVoices INICIADO - forceRefresh=$forceRefresh');
+
     if (!isConfigured) {
       _maybeDebugPrint('[GoogleTTS] fetchGoogleVoices: not configured');
       return [];
@@ -287,36 +260,29 @@ class GoogleSpeechService {
     try {
       // Intentar obtener desde caché primero
       if (!forceRefresh) {
-        final cachedVoices = await CacheService.getCachedVoices(
-          provider: 'google',
-        );
+        _maybeDebugPrint('[GoogleTTS] Intentando obtener desde caché...');
+        final cachedVoices = await CacheService.getCachedVoices(provider: 'google');
         if (cachedVoices != null) {
-          _maybeDebugPrint(
-            '[GoogleTTS] Usando ${cachedVoices.length} voces desde caché',
-          );
+          _maybeDebugPrint('[GoogleTTS] Usando ${cachedVoices.length} voces desde caché');
           return cachedVoices;
         }
+        _maybeDebugPrint('[GoogleTTS] No hay caché, procediendo a API...');
+      } else {
+        _maybeDebugPrint('[GoogleTTS] ForceRefresh=true - saltando caché, yendo directo a API');
       }
 
-      final url = Uri.parse(
-        'https://texttospeech.googleapis.com/v1/voices?key=$_apiKey',
-      );
-      final resp = await http.get(url);
+      _maybeDebugPrint('[GoogleTTS] Haciendo llamada HTTP a Google TTS API...');
+      final url = Uri.parse('https://texttospeech.googleapis.com/v1/voices?key=$_apiKey');
+      final resp = await http.get(url).timeout(Duration(seconds: 30));
+      _maybeDebugPrint('[GoogleTTS] Respuesta HTTP recibida: ${resp.statusCode}');
 
       if (resp.statusCode != 200) {
-        _maybeDebugPrint(
-          '[GoogleTTS] fetchGoogleVoices error ${resp.statusCode}: ${resp.body}',
-        );
+        _maybeDebugPrint('[GoogleTTS] fetchGoogleVoices error ${resp.statusCode}: ${resp.body}');
 
         // Si hay error, intentar usar caché como fallback
-        final fallbackVoices = await CacheService.getCachedVoices(
-          provider: 'google',
-          forceRefresh: false,
-        );
+        final fallbackVoices = await CacheService.getCachedVoices(provider: 'google', forceRefresh: false);
         if (fallbackVoices != null) {
-          _maybeDebugPrint(
-            '[GoogleTTS] Usando caché como fallback tras error de API',
-          );
+          _maybeDebugPrint('[GoogleTTS] Usando caché como fallback tras error de API');
           return fallbackVoices;
         }
         return [];
@@ -329,8 +295,7 @@ class GoogleSpeechService {
           .map(
             (v) => {
               'name': v['name'],
-              'languageCodes': (v['languageCodes'] as List<dynamic>)
-                  .cast<String>(),
+              'languageCodes': (v['languageCodes'] as List<dynamic>).cast<String>(),
               'ssmlGender': v['ssmlGender'],
               'naturalSampleRateHertz': v['naturalSampleRateHertz'],
             },
@@ -339,30 +304,20 @@ class GoogleSpeechService {
 
       // Guardar en caché
       try {
-        await CacheService.saveVoicesToCache(
-          voices: processedVoices,
-          provider: 'google',
-        );
+        await CacheService.saveVoicesToCache(voices: processedVoices, provider: 'google');
       } catch (e) {
-        debugPrint('[GoogleTTS] Warning: Error guardando voces en caché: $e');
+        _maybeDebugPrint('[GoogleTTS] Warning: Error guardando voces en caché: $e');
       }
 
-      _maybeDebugPrint(
-        '[GoogleTTS] Obtenidas ${processedVoices.length} voces desde API',
-      );
+      _maybeDebugPrint('[GoogleTTS] Obtenidas ${processedVoices.length} voces desde API');
       return processedVoices;
     } catch (e) {
       _maybeDebugPrint('[GoogleTTS] Exception fetching voices: $e');
 
       // Intentar caché como último recurso
-      final fallbackVoices = await CacheService.getCachedVoices(
-        provider: 'google',
-        forceRefresh: false,
-      );
+      final fallbackVoices = await CacheService.getCachedVoices(provider: 'google', forceRefresh: false);
       if (fallbackVoices != null) {
-        _maybeDebugPrint(
-          '[GoogleTTS] Usando caché como último recurso tras excepción',
-        );
+        _maybeDebugPrint('[GoogleTTS] Usando caché como último recurso tras excepción');
         return fallbackVoices;
       }
       return [];
@@ -398,8 +353,7 @@ class GoogleSpeechService {
     List<Map<String, dynamic>> filtered = [];
 
     for (final v in all) {
-      final languageCodes = (v['languageCodes'] as List<dynamic>)
-          .cast<String>();
+      final languageCodes = (v['languageCodes'] as List<dynamic>).cast<String>();
       final ssmlGender = (v['ssmlGender'] as String? ?? '').toUpperCase();
 
       // Only include female voices
@@ -428,6 +382,137 @@ class GoogleSpeechService {
     return unique;
   }
 
+  /// Cachea los resultados y permite forzar refresh.
+  static Future<List<Map<String, dynamic>>> getNeuralWaveNetVoices(
+    List<String> userLanguageCodes,
+    List<String> aiLanguageCodes, {
+    bool forceRefresh = false,
+  }) async {
+    _maybeDebugPrint('[GoogleTTS] getNeuralWaveNetVoices INICIADO - forceRefresh=$forceRefresh');
+    try {
+      // Generar clave de caché específica
+      final allLanguageCodes = [...userLanguageCodes, ...aiLanguageCodes];
+      final languageKey = allLanguageCodes.isEmpty ? 'es-ES' : allLanguageCodes.join('_');
+      final cacheKey = 'neural_wavenet_$languageKey';
+
+      _maybeDebugPrint('[GoogleTTS] Cache key: $cacheKey, forceRefresh: $forceRefresh');
+
+      // Si no es refresh forzado, intentar obtener desde caché
+      if (!forceRefresh) {
+        final cachedVoices = await CacheService.getCachedVoices(provider: cacheKey);
+        if (cachedVoices != null) {
+          _maybeDebugPrint('[GoogleTTS] Usando ${cachedVoices.length} voces Neural/WaveNet desde caché');
+          return cachedVoices;
+        }
+      } else {
+        _maybeDebugPrint('[GoogleTTS] FORCE REFRESH ACTIVADO - saltando caché');
+      }
+
+      // Obtener todas las voces directamente de la API
+      _maybeDebugPrint('[GoogleTTS] Obteniendo voces Neural desde API con forceRefresh...');
+      final allVoices = await fetchGoogleVoices(forceRefresh: true);
+
+      // Normalizar códigos de idioma para comparación exacta
+      final Set<String> targetCodes = {};
+      for (final code in allLanguageCodes) {
+        if (code.trim().isNotEmpty) {
+          targetCodes.add(code.trim().toLowerCase());
+        }
+      }
+      if (targetCodes.isEmpty) {
+        targetCodes.add('es-es'); // Fallback a español
+      }
+
+      _maybeDebugPrint('[GoogleTTS] Target language codes: $targetCodes');
+
+      // Debug: listar TODAS las voces antes de filtrar
+      _maybeDebugPrint('[GoogleTTS] TOTAL de voces desde API: ${allVoices.length}');
+
+      // Debug: buscar WaveNet específicamente Y TODAS las voces que contengan "Wavenet"
+      final waveNetVoices = allVoices.where((v) {
+        final name = (v['name'] as String? ?? '').toLowerCase();
+        return name.contains('wavenet');
+      }).toList();
+      _maybeDebugPrint('[GoogleTTS] Voces WaveNet encontradas en API (case insensitive): ${waveNetVoices.length}');
+
+      // Debug: buscar específicamente voces españolas WaveNet
+      final spanishWaveNet = allVoices.where((v) {
+        final name = (v['name'] as String? ?? '').toLowerCase();
+        final langs = (v['languageCodes'] as List<dynamic>? ?? []).cast<String>();
+        final hasWaveNet = name.contains('wavenet');
+        final isSpanish = langs.any((lang) => lang.toLowerCase().startsWith('es'));
+        return hasWaveNet && isSpanish;
+      }).toList();
+      _maybeDebugPrint('[GoogleTTS] Voces WaveNet ESPAÑOLAS encontradas: ${spanishWaveNet.length}');
+
+      // Filtrar voces según criterios:
+      // 1. Solo femeninas
+      // 2. Solo Neural o WaveNet
+      // 3. Solo idiomas especificados
+      final filteredVoices = allVoices.where((voice) {
+        final name = voice['name'] as String? ?? '';
+        final gender = (voice['ssmlGender'] as String? ?? '').toUpperCase();
+        final languageCodes = (voice['languageCodes'] as List<dynamic>).cast<String>();
+
+        // Filtro 1: Solo femeninas
+        if (gender != 'FEMALE') {
+          return false;
+        }
+
+        // Filtro 2: Solo Neural o WaveNet (case insensitive)
+        final isNeural = name.toLowerCase().contains('neural');
+        final isWaveNet = name.toLowerCase().contains('wavenet'); // case insensitive
+        if (!isNeural && !isWaveNet) {
+          return false;
+        }
+
+        // Filtro 3: Solo idiomas especificados
+        final matches = languageCodes.any((lc) {
+          final normalized = lc.toLowerCase();
+          return targetCodes.contains(normalized);
+        });
+
+        return matches;
+      }).toList();
+
+      _maybeDebugPrint('[GoogleTTS] Voces después del filtro: ${filteredVoices.length}');
+
+      // Eliminar duplicados por nombre
+      final seen = <String>{};
+      final unique = <Map<String, dynamic>>[];
+      for (final voice in filteredVoices) {
+        final name = voice['name'] as String? ?? '';
+        if (!seen.contains(name)) {
+          seen.add(name);
+          unique.add(voice);
+        }
+      }
+
+      _maybeDebugPrint('[GoogleTTS] Filtradas ${unique.length} voces Neural femeninas');
+
+      // Debug: listar voces encontradas
+      for (final voice in unique) {
+        final name = voice['name'] as String? ?? '';
+        _maybeDebugPrint('[GoogleTTS] $name');
+      }
+
+      // Guardar en caché
+      try {
+        await CacheService.saveVoicesToCache(voices: unique, provider: cacheKey);
+        _maybeDebugPrint('[GoogleTTS] Guardadas ${unique.length} voces en caché ($cacheKey)');
+      } catch (e) {
+        debugPrint('[GoogleTTS] Warning: Error guardando en caché: $e');
+      }
+
+      debugPrint('🚨🚨🚨 [GoogleTTS] RETORNANDO ${unique.length} voces Neural/WaveNet 🚨🚨🚨');
+      return unique;
+    } catch (e) {
+      debugPrint('🚨🚨🚨 [GoogleTTS] ERROR: $e 🚨🚨🚨');
+      debugPrint('[GoogleTTS] Error obteniendo voces Neural/WaveNet: $e');
+      return [];
+    }
+  }
+
   /// Legacy method - kept for backward compatibility
   ///
   /// Deprecated: use `voicesForUserAndAi(List<String> userCodes, List<String> aiCodes, {bool forceRefresh = false})`
@@ -439,11 +524,7 @@ class GoogleSpeechService {
     String? aiLanguageCode, {
     bool forceRefresh = false,
   }) async {
-    return voicesForUserAndAi(
-      ['es-ES'],
-      [aiLanguageCode ?? 'es-ES'],
-      forceRefresh: forceRefresh,
-    );
+    return voicesForUserAndAi(['es-ES'], [aiLanguageCode ?? 'es-ES'], forceRefresh: forceRefresh);
   }
 
   /// Obtiene configuración de voz desde variables de entorno
@@ -455,12 +536,7 @@ class GoogleSpeechService {
     final speakingRate = 1.0;
     final pitch = 0.0;
 
-    return {
-      'voiceName': voiceName,
-      'languageCode': languageCode,
-      'speakingRate': speakingRate,
-      'pitch': pitch,
-    };
+    return {'voiceName': voiceName, 'languageCode': languageCode, 'speakingRate': speakingRate, 'pitch': pitch};
   }
 
   /// Resolve a sensible default language code for Google TTS.
@@ -468,9 +544,7 @@ class GoogleSpeechService {
   static String resolveDefaultLanguageCode([String? countryIso2]) {
     try {
       if (countryIso2 != null && countryIso2.trim().isNotEmpty) {
-        final codes = LocaleUtils.officialLanguageCodesForCountry(
-          countryIso2.trim().toUpperCase(),
-        );
+        final codes = LocaleUtils.officialLanguageCodesForCountry(countryIso2.trim().toUpperCase());
         if (codes.isNotEmpty) return codes.first;
       }
     } catch (_) {}

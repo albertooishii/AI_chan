@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:web_socket_channel/io.dart';
 
@@ -95,20 +96,17 @@ class OpenAIRealtimeClient {
                 type.contains('conversation.item.input_audio') ||
                 type.startsWith('conversation.item.')) {
               if (kDebugMode) {
-                debugPrint('🔍 DEBUG INPUT AUDIO EVENT: $type');
-
-                debugPrint('🔍 DEBUG FULL EVENT: $evt');
+                Log.d('DEBUG INPUT AUDIO EVENT: $type');
+                Log.d('DEBUG FULL EVENT: ${evt.toString().substring(0, 200)}');
               }
             }
             if (kDebugMode) {
               // Suprime tipos muy ruidosos
               final noisy = type.startsWith('response.audio_transcript.') || type == 'response.audio.delta';
-              if (!noisy) {
-                debugPrint('Realtime IN: type=$type');
-              }
+              if (!noisy) Log.d('Realtime IN: type=$type');
               if (type == 'response.created') {
                 final mods = (evt['response'] is Map) ? (evt['response']['modalities']) : null;
-                debugPrint('Realtime IN: response.created modalities=${mods ?? 'unknown'}');
+                Log.d('Realtime IN: response.created modalities=${mods ?? 'unknown'}');
               }
             }
             if (type == 'response.created' || type == 'response.output_item.added') {
@@ -128,9 +126,7 @@ class OpenAIRealtimeClient {
               if (t.isNotEmpty) onText?.call(t);
             }
             if (type == 'session.created' && !sessionReady.isCompleted) {
-              if (kDebugMode) {
-                debugPrint('Realtime: session.created recibido, aplicando voice="$_voice"');
-              }
+              if (kDebugMode) Log.d('Realtime: session.created recibido, aplicando voice="$_voice"');
               // Aplicar configuración de sesión ahora que la sesión existe
               _send(sessionUpdateEvent);
               sessionReady.complete();

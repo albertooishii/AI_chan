@@ -63,10 +63,13 @@ class VoiceDisplayUtils {
     final name = voice['name'] as String? ?? '';
     final gender = voice['ssmlGender'] as String? ?? '';
 
+    // Debug logs removed to reduce console noise in normal runs.
+
     if (name.isEmpty) return 'Voz sin nombre';
 
     // Extraer información del nombre técnico
     final parts = name.split('-');
+    // parts parsed
     if (parts.length < 2) return name; // Si no sigue el formato esperado, devolver como está
 
     final langCode = '${parts[0]}-${parts[1]}'; // ej: 'es-ES'
@@ -77,28 +80,35 @@ class VoiceDisplayUtils {
 
     if (parts.length >= 3) {
       final thirdPart = parts[2];
-      if (thirdPart.startsWith('Neural')) {
+      // third part parsed
+
+      if (thirdPart.toLowerCase().startsWith('neural')) {
         voiceType = 'Neural';
         if (parts.length >= 4) {
           voiceId = parts[3]; // ej: 'A', 'B', 'C'
         }
-      } else if (thirdPart.startsWith('Standard')) {
+        // detected neural
+      } else if (thirdPart.toLowerCase().startsWith('standard')) {
         voiceType = 'Estándar';
         if (parts.length >= 4) {
           voiceId = parts[3];
         }
-      } else if (thirdPart.startsWith('Wavenet')) {
+        // detected standard
+      } else if (thirdPart.toLowerCase().startsWith('wavenet')) {
         voiceType = 'WaveNet';
         if (parts.length >= 4) {
           voiceId = parts[3];
         }
+        // detected wavenet
       } else {
         voiceId = thirdPart;
+        // unknown type
       }
     }
 
     // Generar nombres más amigables basados en el patrón común
     String friendlyName = _generateFriendlyName(langCode, gender, voiceId);
+    // friendly name generated
 
     // Construir el nombre final
     String displayName = friendlyName;
@@ -113,94 +123,15 @@ class VoiceDisplayUtils {
 
   /// Genera nombres amigables basados en patrones comunes
   static String _generateFriendlyName(String langCode, String gender, String voiceId) {
-    // Nombres femeninos españoles
-    if (langCode.startsWith('es-') && gender == 'FEMALE') {
-      switch (voiceId) {
-        case 'A':
-          return 'Elena';
-        case 'B':
-          return 'Carmen';
-        case 'C':
-          return 'Isabel';
-        case 'D':
-          return 'María';
-        case 'E':
-          return 'Ana';
-        case 'F':
-          return 'Laura';
-        default:
-          return 'Voz Femenina $voiceId';
-      }
-    }
-
-    // Nombres masculinos españoles
-    if (langCode.startsWith('es-') && gender == 'MALE') {
-      switch (voiceId) {
-        case 'A':
-          return 'Carlos';
-        case 'B':
-          return 'David';
-        case 'C':
-          return 'Luis';
-        case 'D':
-          return 'Miguel';
-        case 'E':
-          return 'Antonio';
-        case 'F':
-          return 'Fernando';
-        default:
-          return 'Voz Masculina $voiceId';
-      }
-    }
-
-    // Nombres femeninos ingleses
-    if (langCode.startsWith('en-') && gender == 'FEMALE') {
-      switch (voiceId) {
-        case 'A':
-          return 'Emma';
-        case 'B':
-          return 'Sarah';
-        case 'C':
-          return 'Jennifer';
-        case 'D':
-          return 'Lisa';
-        case 'E':
-          return 'Amy';
-        case 'F':
-          return 'Jessica';
-        default:
-          return 'Female Voice $voiceId';
-      }
-    }
-
-    // Nombres masculinos ingleses
-    if (langCode.startsWith('en-') && gender == 'MALE') {
-      switch (voiceId) {
-        case 'A':
-          return 'John';
-        case 'B':
-          return 'David';
-        case 'C':
-          return 'Michael';
-        case 'D':
-          return 'James';
-        case 'E':
-          return 'Robert';
-        case 'F':
-          return 'William';
-        default:
-          return 'Male Voice $voiceId';
-      }
-    }
-
-    // Para otros idiomas, usar un formato genérico
-    final languageName = _languageNames[langCode] ?? langCode;
+    // Para voces de Google, usar el nombre técnico directamente
+    // No inventamos nombres, usamos la nomenclatura oficial
     final genderName = _genderNames[gender] ?? gender;
 
     if (voiceId.isNotEmpty) {
       return '$genderName $voiceId';
     }
 
+    final languageName = _languageNames[langCode] ?? langCode;
     return '$languageName $genderName';
   }
 
@@ -215,18 +146,33 @@ class VoiceDisplayUtils {
     final languageCodes = (voice['languageCodes'] as List<dynamic>?)?.cast<String>() ?? [];
     final name = voice['name'] as String? ?? '';
 
+    // Debug: imprimir el nombre real de la voz para diagnosis
+    // Removed debug prints to reduce runtime noise
+
     final genderName = _genderNames[gender] ?? gender;
     final langs = languageCodes.map((lang) => _languageNames[lang] ?? lang).join(', ');
-    final isNeural = name.contains('Neural');
 
-    String subtitle = genderName;
-    if (isNeural) {
-      subtitle += ' (Neural)';
+    // Detectar tipo de voz con prioridad: WaveNet > Neural > Standard
+    String voiceType = '';
+    if (name.toLowerCase().contains('wavenet')) {
+      voiceType = ' (WaveNet)'; // La tecnología más avanzada
+      // detected wavenet
+    } else if (name.toLowerCase().contains('neural')) {
+      voiceType = ' (Neural)'; // Tecnología neural general (incluye Neural2)
+      // detected neural
+    } else if (name.toLowerCase().contains('standard')) {
+      voiceType = ' (Estándar)'; // Voces tradicionales
+      // detected standard
+    } else {
+      // unknown
     }
+
+    String subtitle = genderName + voiceType;
     if (langs.isNotEmpty) {
       subtitle += ' - $langs';
     }
 
+    // result ready
     return subtitle;
   }
 }

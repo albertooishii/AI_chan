@@ -13,9 +13,8 @@ class ExpandableImageDialog {
   static void show(List<Message> images, int initialIndex, {Directory? imageDir}) {
     // Show the dialog using the app's global navigator so callers don't need
     // to pass a BuildContext (avoids accidental use across async gaps).
-    final navState = navigatorKey.currentState;
-    if (navState == null) return;
-    final ctx = navState.overlay?.context ?? navState.context;
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return;
     showAppDialog(
       context: ctx,
       barrierDismissible: true,
@@ -41,16 +40,11 @@ class _GalleryImageViewerDialog extends StatefulWidget {
 class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
   bool _showText = true;
 
-  void _showImageDescriptionDialog(String? description) {
+  void _showImageDescriptionDialog(String? description) async {
+    // If the widget is no longer mounted (dialog dismissed), skip the description dialog
     if (!mounted) return;
-    // Compute a safe context from the global navigator/overlay so we don't rely
-    // on the dialog's BuildContext across async gaps. If there's no global
-    // navigator, abort showing the description dialog.
-    final globalNav = navigatorKey.currentState;
-    if (globalNav == null) return;
-    final safeContext = globalNav.overlay?.context ?? globalNav.context;
     showAppDialog(
-      context: safeContext,
+      context: context,
       useRootNavigator: true, // ✅ Asegurar que aparece encima del dialog de imagen
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
@@ -65,36 +59,22 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
               final text = description ?? '';
 
               if (text.isEmpty) {
-                // Try to pop using the global navigator
-                navigatorKey.currentState?.maybePop();
+                Navigator.of(ctx).pop();
                 return;
               }
 
               await Clipboard.setData(ClipboardData(text: text));
 
-              // Resolve a fresh navigator/overlay after the async gap and show a snack.
-              final postNav = navigatorKey.currentState;
-              final postOverlayCtx = postNav?.overlay?.context;
-              if (postOverlayCtx != null) {
-                showOverlaySnackBar('Descripción copiada al portapapeles');
-              } else if (postNav != null) {
-                showAppSnackBar('Descripción copiada al portapapeles');
-              }
+              // Usar showAppSnackBar como API unificada
+              showAppSnackBar('Descripción copiada al portapapeles');
 
-              // Close the dialogs via global navigator if possible
-              navigatorKey.currentState?.maybePop();
+              // Close the dialog if context is still mounted
+              if (ctx.mounted) Navigator.of(ctx).pop();
             },
           ),
           TextButton(
             child: const Text('Cerrar', style: TextStyle(color: Colors.white)),
-            onPressed: () {
-              final globalNav = navigatorKey.currentState;
-              if (globalNav != null && globalNav.canPop()) {
-                globalNav.pop();
-              } else {
-                navigatorKey.currentState?.pop();
-              }
-            },
+            onPressed: () => Navigator.of(ctx).pop(),
           ),
         ],
       ),
@@ -269,29 +249,16 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
 
                           if (!mounted) return; // State no longer mounted
 
-                          // Resolve a fresh overlay/context from the global navigator after the async gap.
-                          final postNav = navigatorKey.currentState;
-                          final postOverlayCtx = postNav?.overlay?.context;
-
                           if (!result.$1 && result.$2 != null) {
                             // Hay error específico
-                            if (postOverlayCtx != null) {
-                              showOverlaySnackBar('Error al descargar: ${result.$2}', isError: true);
-                            }
+                            showAppSnackBar('Error al descargar: ${result.$2}', isError: true);
                           } else if (result.$1) {
                             // Éxito
-                            if (postOverlayCtx != null) {
-                              showOverlaySnackBar('✅ Imagen guardada correctamente', isError: false);
-                            }
+                            showAppSnackBar('✅ Imagen guardada correctamente', isError: false);
                           }
                           // Si !result.$1 && result.$2 == null significa que el usuario canceló - no hacer nada
                         } else {
-                          if (!mounted) return;
-                          final globalCtx =
-                              navigatorKey.currentState?.overlay?.context ?? navigatorKey.currentState?.context;
-                          if (globalCtx != null) {
-                            showOverlaySnackBar('Error: No se encontró la imagen', isError: true);
-                          }
+                          showAppSnackBar('Error: No se encontró la imagen', isError: true);
                         }
                       },
                     ),

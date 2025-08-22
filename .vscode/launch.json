@@ -7,8 +7,7 @@
 			"type": "dart",
 			"program": "lib/main.dart",
 			"deviceId": "linux",
-			"console": "debugConsole",
-			"args": ["--verbose"]
+			"console": "debugConsole"
 		},
 		{
 			"name": "Flutter Linux Debug (Terminal)",

@@ -7,10 +7,12 @@ import 'package:ai_chan/main.dart';
 // Tracks the currently visible overlay snack so we keep only one at a time.
 OverlayEntry? _currentOverlaySnackBarEntry;
 
-Future<void> showSuccessDialog(BuildContext context, String title, String message) async {
-  // Reuse unified showdialog wrapper to keep behavior consistent across app.
-  final ctx = (context.mounted) ? context : navigatorKey.currentContext;
-  if (ctx == null) return;
+Future<void> showSuccessDialog(String title, String message) async {
+  // Usar el navigatorKey global para obtener contexto, igual que showAppSnackBar
+  final navState = navigatorKey.currentState;
+  if (navState == null) return;
+  final ctx = navState.overlay?.context ?? navState.context;
+
   return showAppDialog<void>(
     context: ctx,
     builder: (ctx2) => AlertDialog(
@@ -28,27 +30,18 @@ Future<void> showSuccessDialog(BuildContext context, String title, String messag
 }
 
 /// Muestra un diálogo de error centralizado
-Future<void> showErrorDialog(BuildContext context, String error) async {
+Future<void> showErrorDialog(String error) async {
   Log.e('Error mostrado', tag: 'DIALOG_UTILS', error: error);
-  // Si el error contiene 'unmounted', solo loguea pero permite mostrar el diálogo normalmente
-  final ctx = (context.mounted) ? context : navigatorKey.currentContext;
-  if (ctx == null) {
+
+  // Usar el navigatorKey global para obtener contexto, igual que showAppSnackBar
+  final navState = navigatorKey.currentState;
+  if (navState == null) {
     // Fallback: mostrar SnackBar si no hay contexto válido
     Log.w('No hay contexto válido para mostrar el diálogo de error: $error', tag: 'DIALOG_UTILS');
-    // Si hay un ScaffoldMessenger disponible, mostrar SnackBar
-    final navState = navigatorKey.currentState;
-    final navContext = navState?.context;
-    final scaffoldMessenger = navContext != null ? ScaffoldMessenger.maybeOf(navContext) : null;
-    if (scaffoldMessenger != null) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text(error, style: const TextStyle(color: Colors.white)),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    }
+    showAppSnackBar(error, isError: true);
     return;
   }
+  final ctx = navState.overlay?.context ?? navState.context;
 
   return showAppDialog(
     context: ctx,
@@ -106,14 +99,16 @@ void showAppSnackBar(
 
     messenger.showSnackBar(snack);
   } else {
-    showOverlaySnackBar(message, isError: isError, duration: duration, action: action);
+    _showOverlaySnackBar(message, isError: isError, duration: duration, action: action);
   }
 }
 
 /// Muestra un mensaje tipo SnackBar directamente en el [Overlay] de la app.
 /// Esto asegura que el mensaje se renderiza por encima de cualquier diálogo
 /// modal que pudiera estar presente.
-void showOverlaySnackBar(
+///
+/// PRIVADO: Solo debe usarse internamente. La API pública es showAppSnackBar.
+void _showOverlaySnackBar(
   String message, {
   bool isError = false,
   Duration duration = const Duration(seconds: 3),

@@ -2,7 +2,7 @@ import 'package:ai_chan/core/config.dart';
 import 'dart:convert';
 import 'package:ai_chan/shared/utils/image_utils.dart';
 import 'package:ai_chan/shared/utils/json_utils.dart';
-import 'package:flutter/foundation.dart';
+import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/core/ai_runtime_guard.dart';
@@ -33,22 +33,8 @@ class IAAppearanceGenerator {
         "distancia_entre_ojos": "",
         "pestañas": {"longitud": "", "densidad": "", "curvatura": ""},
       },
-      "cejas": {
-        "forma": "",
-        "grosor": "",
-        "color": "",
-        "distancia_entre_cejas": "",
-        "longitud": "",
-      },
-      "nariz": {
-        "forma": "",
-        "tamaño": "",
-        "detalle": "",
-        "puente": "",
-        "ancho": "",
-        "longitud": "",
-        "orificios": "",
-      },
+      "cejas": {"forma": "", "grosor": "", "color": "", "distancia_entre_cejas": "", "longitud": ""},
+      "nariz": {"forma": "", "tamaño": "", "detalle": "", "puente": "", "ancho": "", "longitud": "", "orificios": ""},
       "boca": {
         "forma": "",
         "tamaño": "",
@@ -59,13 +45,7 @@ class IAAppearanceGenerator {
         "distancia_a_nariz": "",
       },
       "dientes": {"color": "", "alineacion": "", "tamaño": "", "detalle": ""},
-      "orejas": {
-        "forma": "",
-        "tamaño": "",
-        "detalle": "",
-        "posicion": "",
-        "lóbulo": "",
-      },
+      "orejas": {"forma": "", "tamaño": "", "detalle": "", "posicion": "", "lóbulo": ""},
       "cabello": {
         "color": "",
         "largo": "",
@@ -84,21 +64,8 @@ class IAAppearanceGenerator {
         "detalle": "",
       },
       "piel": {"textura": "", "brillo": "", "poros": "", "detalle": ""},
-      "pechos": {
-        "tamaño": "",
-        "forma": "",
-        "detalle": "",
-        "separacion": "",
-        "proporción": "",
-      },
-      "genitales": {
-        "tipo": "",
-        "tamaño": "",
-        "forma": "",
-        "detalle": "",
-        "color": "",
-        "vello_pubico": "",
-      },
+      "pechos": {"tamaño": "", "forma": "", "detalle": "", "separacion": "", "proporción": ""},
+      "genitales": {"tipo": "", "tamaño": "", "forma": "", "detalle": "", "color": "", "vello_pubico": ""},
       "piernas": {
         "longitud": "",
         "forma": "",
@@ -121,12 +88,7 @@ class IAAppearanceGenerator {
       "ropa": [],
       "estilo": [],
       "accesorios": [],
-      "paleta_color": {
-        "piel": "",
-        "cabello": "",
-        "labios": "",
-        "base_vestuario": "",
-      },
+      "paleta_color": {"piel": "", "cabello": "", "labios": "", "base_vestuario": ""},
       "maquillaje_base": {"habitual": "", "alternativo": ""},
       "accesorios_firma": [],
       "expresion_general": "",
@@ -184,59 +146,39 @@ Biografía:
     );
 
     // Reintentos con el mismo prompt/modelo para obtener JSON válido
-    debugPrint(
-      '[IAAppearanceGenerator] Apariencia: intentos JSON (max=3) con modelo $usedModel',
-    );
+    Log.d('[IAAppearanceGenerator] Apariencia: intentos JSON (max=3) con modelo $usedModel');
     const int maxJsonAttempts = 3;
     Map<String, dynamic>? appearanceMap;
     for (int attempt = 0; attempt < maxJsonAttempts; attempt++) {
-      debugPrint(
-        '[IAAppearanceGenerator] Apariencia: intento ${attempt + 1}/$maxJsonAttempts (modelo=$usedModel)',
-      );
+      Log.d('[IAAppearanceGenerator] Apariencia: intento ${attempt + 1}/$maxJsonAttempts (modelo=$usedModel)');
       try {
         final AIResponse resp = await (aiService != null
-            ? aiService.sendMessageImpl(
-                [],
-                systemPromptAppearance,
-                model: usedModel,
-              )
-            : AIService.sendMessage(
-                [],
-                systemPromptAppearance,
-                model: usedModel,
-              ));
+            ? aiService.sendMessageImpl([], systemPromptAppearance, model: usedModel)
+            : AIService.sendMessage([], systemPromptAppearance, model: usedModel));
         if ((resp.text).trim().isEmpty) {
-          debugPrint(
-            '[IAAppearanceGenerator] Apariencia: respuesta vacía (posible desconexión), reintentando…',
-          );
+          Log.w('[IAAppearanceGenerator] Apariencia: respuesta vacía (posible desconexión), reintentando…');
           continue;
         }
         final Map<String, dynamic> extracted = extractJsonBlock(resp.text);
         if (!extracted.containsKey('raw')) {
           appearanceMap = Map<String, dynamic>.from(extracted);
-          debugPrint(
+          Log.d(
             '[IAAppearanceGenerator] Apariencia: JSON OK en intento ${attempt + 1} (keys=${appearanceMap.keys.length})',
           );
           break;
         }
-        debugPrint(
-          '[IAAppearanceGenerator] Apariencia: intento ${attempt + 1} sin JSON válido, reintentando…',
-        );
+        Log.w('[IAAppearanceGenerator] Apariencia: intento ${attempt + 1} sin JSON válido, reintentando…');
       } catch (err) {
         if (handleRuntimeError(err, 'IAAppearanceGenerator')) {
           // logged by helper
         } else {
-          debugPrint(
-            '[IAAppearanceGenerator] Apariencia: error de red/timeout en intento ${attempt + 1}: $err',
-          );
+          Log.e('[IAAppearanceGenerator] Apariencia: error de red/timeout en intento ${attempt + 1}: $err');
         }
       }
     }
     // Si tras los intentos no hay JSON válido, cancelar sin fallback
     if (appearanceMap == null || appearanceMap.isEmpty) {
-      throw Exception(
-        'No se pudo generar la apariencia en formato JSON válido.',
-      );
+      throw Exception('No se pudo generar la apariencia en formato JSON válido.');
     }
     // Forzar edad_aparente=25 por consistencia (si el modelo no la puso o puso otro valor)
     try {
@@ -267,75 +209,44 @@ Biografía:
 
     final String forcedImageModel = Config.getDefaultImageModel();
     if (imageModel != forcedImageModel) {
-      debugPrint(
-        '[IAAppearanceGenerator] Avatar: imageModel "$imageModel" ignorado; se fuerza "$forcedImageModel"',
-      );
+      Log.d('[IAAppearanceGenerator] Avatar: imageModel "$imageModel" ignorado; se fuerza "$forcedImageModel"');
     }
-    debugPrint(
-      '[IAAppearanceGenerator] Avatar: generando imagen con modelo $forcedImageModel (intentos por modelo=3)',
-    );
-    AIResponse imageResponse = AIResponse(
-      text: '',
-      base64: '',
-      seed: '',
-      prompt: '',
-    );
+    Log.d('[IAAppearanceGenerator] Avatar: generando imagen con modelo $forcedImageModel (intentos por modelo=3)');
+    AIResponse imageResponse = AIResponse(text: '', base64: '', seed: '', prompt: '');
     const int maxImageAttemptsPerModel = 3;
     for (int attempt = 0; attempt < maxImageAttemptsPerModel; attempt++) {
-      debugPrint(
-        '[IAAppearanceGenerator] Avatar: intento ${attempt + 1}/$maxImageAttemptsPerModel con $forcedImageModel',
-      );
+      Log.d('[IAAppearanceGenerator] Avatar: intento ${attempt + 1}/$maxImageAttemptsPerModel con $forcedImageModel');
       try {
         final resp = await (aiService != null
-            ? aiService.sendMessageImpl(
-                [],
-                systemPromptImage,
-                model: forcedImageModel,
-                enableImageGeneration: true,
-              )
-            : AIService.sendMessage(
-                [],
-                systemPromptImage,
-                model: forcedImageModel,
-                enableImageGeneration: true,
-              ));
+            ? aiService.sendMessageImpl([], systemPromptImage, model: forcedImageModel, enableImageGeneration: true)
+            : AIService.sendMessage([], systemPromptImage, model: forcedImageModel, enableImageGeneration: true));
         if (resp.base64.isNotEmpty) {
           imageResponse = resp;
-          debugPrint(
-            '[IAAppearanceGenerator] Avatar: imagen obtenida con $forcedImageModel en intento ${attempt + 1}',
-          );
+          Log.d('[IAAppearanceGenerator] Avatar: imagen obtenida con $forcedImageModel en intento ${attempt + 1}');
           break;
         }
-        debugPrint(
-          '[IAAppearanceGenerator] Avatar: intento ${attempt + 1} sin imagen',
-        );
+        Log.w('[IAAppearanceGenerator] Avatar: intento ${attempt + 1} sin imagen');
       } catch (err) {
         if (handleRuntimeError(err, 'IAAppearanceGenerator')) {
           // logged by helper
         } else {
-          debugPrint(
-            '[IAAppearanceGenerator] Avatar: error de red/timeout en intento ${attempt + 1}: $err',
-          );
+          Log.e('[IAAppearanceGenerator] Avatar: error de red/timeout en intento ${attempt + 1}: $err');
         }
       }
     }
 
     // Si no se generó imagen tras los reintentos, lanzar excepción para que la UI pregunte al usuario.
     if (imageResponse.base64.isEmpty) {
-      throw Exception(
-        'No se pudo generar el avatar tras $maxImageAttemptsPerModel intentos con $forcedImageModel.',
-      );
+      throw Exception('No se pudo generar el avatar tras $maxImageAttemptsPerModel intentos con $forcedImageModel.');
     }
 
     // Log seguro: no imprimir base64 completo
     final logMap = imageResponse.toJson();
-    if (logMap['imageBase64'] != null &&
-        logMap['imageBase64'].toString().isNotEmpty) {
+    if (logMap['imageBase64'] != null && logMap['imageBase64'].toString().isNotEmpty) {
       final base64Str = logMap['imageBase64'] as String;
-      logMap['imageBase64'] =
-          '[${base64Str.length} chars] ${base64Str.substring(0, 40)}...';
+      logMap['imageBase64'] = '[${base64Str.length} chars] ${base64Str.substring(0, 40)}...';
     }
-    debugPrint('Imagen generada: $logMap');
+    Log.d('Imagen generada: $logMap');
 
     // Guardar imagen en local y obtener la ruta
     String? imageUrl;
@@ -348,21 +259,15 @@ Biografía:
     }
 
     if (imageUrl == null || imageUrl.isEmpty) {
-      throw Exception(
-        'Se generó el avatar pero no se pudo guardar la imagen en el dispositivo.',
-      );
+      throw Exception('Se generó el avatar pero no se pudo guardar la imagen en el dispositivo.');
     }
 
-    debugPrint('Imagen guardada en: $imageUrl');
+    Log.d('Imagen guardada en: $imageUrl');
 
     return {
       'appearance': appearanceMap,
       // Devolver avatar como objeto AiImage (nunca null)
-      'avatar': AiImage(
-        seed: imageResponse.seed,
-        prompt: imageResponse.prompt,
-        url: imageUrl,
-      ),
+      'avatar': AiImage(seed: imageResponse.seed, prompt: imageResponse.prompt, url: imageUrl),
     };
   }
 }

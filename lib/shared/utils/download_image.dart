@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
+import 'package:ai_chan/shared/utils/log_utils.dart';
 
 /// Guarda una imagen en la carpeta Descargas en Android. Devuelve (success, error) y deja el feedback al widget.
 Future<(bool success, String? error)> downloadImage(String imagePath) async {
@@ -9,9 +9,7 @@ Future<(bool success, String? error)> downloadImage(String imagePath) async {
     final bytes = await File(imagePath).readAsBytes();
 
     // Log de depuración
-    debugPrint(
-      '[downloadImage] Preparando para guardar: $fileName, bytes=${bytes.length}',
-    );
+    Log.d('[downloadImage] Preparando para guardar: $fileName, bytes=${bytes.length}');
 
     final result = await FilePicker.platform.saveFile(
       dialogTitle: 'Guardar imagen',
@@ -21,13 +19,13 @@ Future<(bool success, String? error)> downloadImage(String imagePath) async {
       bytes: bytes,
     );
 
-    debugPrint('[downloadImage] FilePicker result: $result');
+    Log.d('[downloadImage] FilePicker result: $result');
 
     if (result != null) {
       final savedFile = File(result);
       // Si ya existe, éxito
       if (await savedFile.exists()) {
-        debugPrint('[downloadImage] Archivo existe en: $result');
+        Log.d('[downloadImage] Archivo existe en: $result');
         return (true, null);
       }
 
@@ -35,17 +33,14 @@ Future<(bool success, String? error)> downloadImage(String imagePath) async {
       try {
         await savedFile.writeAsBytes(bytes);
         if (await savedFile.exists()) {
-          debugPrint('[downloadImage] Archivo creado manualmente en: $result');
+          Log.d('[downloadImage] Archivo creado manualmente en: $result');
           return (true, null);
         } else {
-          debugPrint('[downloadImage] Falló creación manual en: $result');
-          return (
-            false,
-            'No se pudo crear el archivo en la ubicación especificada',
-          );
+          Log.w('[downloadImage] Falló creación manual en: $result');
+          return (false, 'No se pudo crear el archivo en la ubicación especificada');
         }
       } catch (e, st) {
-        debugPrint('[downloadImage] Error al escribir manualmente: $e\n$st');
+        Log.e('[downloadImage] Error al escribir manualmente: $e\n$st');
         return (false, 'Error al guardar imagen: $e');
       }
     } else {
@@ -53,7 +48,7 @@ Future<(bool success, String? error)> downloadImage(String imagePath) async {
       return (false, null); // null error significa cancelación, no error
     }
   } catch (e, st) {
-    debugPrint('[downloadImage] Exception: $e\n$st');
+    Log.e('[downloadImage] Exception: $e\n$st');
     return (false, 'Error al guardar imagen: $e');
   }
 }
