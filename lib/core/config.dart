@@ -45,7 +45,8 @@ class Config {
   }
 
   static String getAudioProvider() => _get('AUDIO_PROVIDER', 'gemini');
-  static String getOpenaiVoice() => _get('OPENAI_VOICE', '');
+  static String getOpenaiVoice() => _get('OPENAI_VOICE_NAME', '');
+  static String getGoogleVoice() => _get('GOOGLE_VOICE_NAME', '');
 
   static String getGoogleRealtimeModel() => _get('GOOGLE_REALTIME_MODEL', '');
 

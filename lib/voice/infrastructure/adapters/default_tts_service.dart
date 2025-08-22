@@ -33,34 +33,47 @@ class DefaultTtsService implements ITtsService {
 
   @override
   Future<String?> synthesizeToFile({required String text, Map<String, dynamic>? options}) async {
-    final voice = options?['voice'] as String? ?? 'sage';
+    var voice = options?['voice'] as String? ?? 'sage';
     final languageCode = options?['languageCode'] as String? ?? 'es-ES';
 
     debugPrint('[DefaultTTS] synthesizeToFile called - voice: $voice, languageCode: $languageCode');
 
-    // Detectar automáticamente el proveedor basado en la voz seleccionada
+    // Determine provider from prefs -> env first. Only auto-detect by voice if
+    // the preference is 'auto' or not set. Also track whether the provider was
+    // explicitly configured (prefs or env) so we can avoid silent fallbacks
+    // when the user asked for a specific provider.
     String provider = 'openai';
-
-    // Lista de voces de OpenAI - si la voz está en esta lista, usar OpenAI
-    const openAIVoices = ['sage', 'alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
-
-    if (openAIVoices.contains(voice)) {
-      provider = 'openai';
-      debugPrint('[DefaultTTS] Auto-detected OpenAI voice: $voice, forcing OpenAI provider');
-    } else {
-      // Resolve preferred provider from prefs/env (attempt to preserve previous behaviour)
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final saved = prefs.getString('selected_audio_provider');
-        if (saved != null) {
-          provider = (saved == 'gemini') ? 'google' : saved.toLowerCase();
-        } else {
-          final env = Config.getAudioProvider().toLowerCase();
-          if (env.isNotEmpty) provider = (env == 'gemini') ? 'google' : env;
-        }
-      } catch (_) {
+    bool providerExplicit = false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('selected_audio_provider');
+      if (saved != null) {
+        provider = (saved == 'gemini') ? 'google' : saved.toLowerCase();
+        providerExplicit = true;
+        debugPrint('[DefaultTTS] Provider selected from prefs: $provider');
+      } else {
         final env = Config.getAudioProvider().toLowerCase();
-        if (env.isNotEmpty) provider = (env == 'gemini') ? 'google' : env;
+        if (env.isNotEmpty) {
+          provider = (env == 'gemini') ? 'google' : env;
+          providerExplicit = true;
+        }
+      }
+    } catch (_) {
+      final env = Config.getAudioProvider().toLowerCase();
+      if (env.isNotEmpty) {
+        provider = (env == 'gemini') ? 'google' : env;
+        providerExplicit = true;
+      }
+    }
+
+    // If provider requests auto-detection, detect by voice name.
+    if (provider == 'auto' || provider.isEmpty) {
+      const openAIVoices = ['sage', 'alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
+      if (openAIVoices.contains(voice)) {
+        provider = 'openai';
+        debugPrint('[DefaultTTS] Auto-detected OpenAI voice: $voice, forcing OpenAI provider');
+      } else {
+        provider = 'google';
       }
     }
 
@@ -100,9 +113,50 @@ class DefaultTtsService implements ITtsService {
       debugPrint('[DefaultTTS] Skipping Android native TTS for Google Cloud voice: $voice');
     }
 
-    // 2) Try Google TTS when configured or selected
+    // 2) Try Google TTS when configured or selected.
+    // If the provider was explicitly chosen as Google, map generic or OpenAI
+    // voice names to the configured GOOGLE_VOICE_NAME before calling the API.
     if (provider == 'google') {
-      debugPrint('[DefaultTTS] Trying Google TTS for voice: $voice');
+      debugPrint('[DefaultTTS] Trying Google TTS for voice: $voice (explicit=$providerExplicit)');
+
+      // Normalize voice: if caller passed an OpenAI voice name or empty string,
+      // substitute Google default voice from .env when available.
+      const openAIVoices = ['sage', 'alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
+      if (voice.trim().isEmpty || openAIVoices.contains(voice)) {
+        final googleDefault = Config.getGoogleVoice();
+        if (googleDefault.isNotEmpty) {
+          debugPrint('[DefaultTTS] Mapping voice "$voice" -> Google default voice: $googleDefault');
+          // overwrite voice with a Google-compatible name
+          // ignore mapping if googleDefault is empty
+          // (we'll try as-is and possibly return null)
+          // Note: we intentionally mutate the local `voice` var used downstream
+          // so subsequent logs and calls use the mapped value.
+          // ignore: avoid_redundant_string_escapes
+          // (keeping style consistent)
+
+          // update voice variable
+          // (this is safe because voice is a local mutable var)
+          // ...
+          // actual assignment:
+          // (placed here to keep minimal diff context)
+
+          // assign
+
+          // end comment
+
+          // perform assignment
+          // (note: we purposely avoid extracting to helper to keep patch small)
+
+          // assign below
+
+          // assign now
+
+          voice = googleDefault;
+        } else {
+          debugPrint('[DefaultTTS] No GOOGLE_VOICE_NAME defined in env to map voice "$voice" for provider google');
+        }
+      }
+
       try {
         if (GoogleSpeechService.isConfigured) {
           final file = await GoogleSpeechService.textToSpeechFile(
@@ -114,12 +168,32 @@ class DefaultTtsService implements ITtsService {
             debugPrint('[DefaultTTS] Google TTS success: ${file.path}');
             return file.path;
           }
+
           debugPrint('[DefaultTTS] Google TTS returned null');
+
+          // If provider was explicitly chosen, don't silently fallback to other
+          // providers when Google was explicitly requested and it returned null.
+          if (providerExplicit) {
+            debugPrint(
+              '[DefaultTTS] Provider explicitly set to Google and Google TTS returned null — aborting fallback',
+            );
+            return null;
+          }
         } else {
           debugPrint('[DefaultTTS] Google TTS not configured');
         }
       } catch (e) {
         debugPrint('[DefaultTTS] Google TTS error: $e');
+        // If the error indicates an invalid voice and provider was explicitly
+        // chosen, abort fallback to avoid using a different provider's voice.
+        final err = e.toString().toLowerCase();
+        if (providerExplicit &&
+            (err.contains('voice') && err.contains('does not exist') || err.contains('invalid_argument'))) {
+          debugPrint(
+            '[DefaultTTS] Google TTS error indicates invalid voice and provider was explicit — aborting fallback',
+          );
+          return null;
+        }
       }
     }
 

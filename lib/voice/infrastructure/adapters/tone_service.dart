@@ -1,14 +1,14 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:convert';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:ai_chan/core/di.dart' as di;
 
 /// Servicio de efectos sonoros compartidos (tono único para colgado y error de conexión)
 class ToneService {
   ToneService._();
   static final ToneService instance = ToneService._();
 
-  final AudioPlayer _player = AudioPlayer();
+  final _player = di.getAudioPlayback();
 
   /// Reproduce el tono único sin bloquear la UI.
   /// preset:
@@ -21,7 +21,7 @@ class ToneService {
       try {
         await _player.stop();
       } catch (_) {}
-      await _player.play(BytesSource(wav));
+      await _player.play(wav);
       // No esperamos a que termine: el llamador decide si bloquear o no
     } catch (_) {}
   }

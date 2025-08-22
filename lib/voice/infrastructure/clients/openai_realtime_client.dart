@@ -5,7 +5,9 @@ import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:web_socket_channel/io.dart';
 
-class OpenAIRealtimeClient {
+import '../../../core/interfaces/i_realtime_client.dart';
+
+class OpenAIRealtimeClient implements IRealtimeClient {
   final String model;
   final void Function(String textDelta)? onText;
   final void Function(Uint8List audioChunk)? onAudio;
@@ -27,6 +29,7 @@ class OpenAIRealtimeClient {
   // Nota: OpenAI realtime debe usar el OPENAI_REALTIME_MODEL configurado; fallar si no está presente.
 
   String get _apiKey => Config.getOpenAIKey();
+  @override
   bool get isConnected => _connected;
   int _bytesSinceCommit = 0;
   bool _hasAppendedSinceConnect = false;
@@ -38,14 +41,21 @@ class OpenAIRealtimeClient {
   String _voice = 'sage'; // se ajustará en connect()
   // Versión simple sin interceptores ni guardias
 
+  @override
   Future<void> connect({
     required String systemPrompt,
-    String inputAudioFormat = 'pcm16',
-    String outputAudioFormat = 'pcm16',
+    String? inputAudioFormat,
+    String? outputAudioFormat,
     String voice = 'sage', // el controlador ya normaliza antes de llamar
-    String turnDetectionType = 'server_vad', // 'server_vad' | 'semantic_vad'
-    int silenceDurationMs = 700,
+    String? turnDetectionType,
+    int? silenceDurationMs,
+    Map<String, dynamic>? options,
   }) async {
+    // Provide defaults for compatibility
+    inputAudioFormat ??= 'pcm16';
+    outputAudioFormat ??= 'pcm16';
+    turnDetectionType ??= 'server_vad';
+    silenceDurationMs ??= 700;
     if (_apiKey.trim().isEmpty) {
       throw Exception('Falta la API key de OpenAI.');
     }
@@ -97,7 +107,9 @@ class OpenAIRealtimeClient {
                 type.startsWith('conversation.item.')) {
               if (kDebugMode) {
                 Log.d('DEBUG INPUT AUDIO EVENT: $type');
-                Log.d('DEBUG FULL EVENT: ${evt.toString().substring(0, 200)}');
+                final ev = evt.toString();
+                final preview = ev.length > 200 ? ev.substring(0, 200) : ev;
+                Log.d('DEBUG FULL EVENT: $preview');
               }
             }
             if (kDebugMode) {
@@ -380,6 +392,7 @@ class OpenAIRealtimeClient {
   }
 
   // Actualiza la voz de la sesión en caliente
+  @override
   void updateVoice(String voice) {
     if (!_connected) return;
     _send({
@@ -388,6 +401,7 @@ class OpenAIRealtimeClient {
     });
   }
 
+  @override
   void sendText(String text) {
     if (!_connected) return;
     _send({
@@ -402,6 +416,7 @@ class OpenAIRealtimeClient {
     });
   }
 
+  @override
   void appendAudio(List<int> bytes) {
     if (!_connected) return;
     _send({'type': 'input_audio_buffer.append', 'audio': base64Encode(bytes)});
@@ -459,11 +474,23 @@ class OpenAIRealtimeClient {
     _bytesSinceCommit = 0;
   }
 
+  /// Adapter for IRealtimeClient: map commitPendingAudio to commitInput
+  @override
+  Future<void> commitPendingAudio() async {
+    // commitInput is synchronous; wrap for interface compatibility
+    try {
+      commitInput();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // Exponer si hay audio suficiente pendiente para commit
   bool hasPendingAudio({int minBytes = 3200}) {
     return _bytesSinceCommit >= minBytes;
   }
 
+  @override
   void requestResponse({bool audio = true, bool text = true}) {
     if (!_connected) return;
     if (_hasActiveResponse) {
@@ -485,6 +512,25 @@ class OpenAIRealtimeClient {
         }
         return;
       }
+      // Si se solicita solo texto en la fase inicial, enviar además un mensaje corto
+      // tipo 'usuario: llamada entrante' para forzar al modelo a emitir la etiqueta.
+      if (text && !audio) {
+        final incoming = {
+          'type': 'conversation.item.create',
+          'item': {
+            'type': 'message',
+            'role': 'user',
+            'content': [
+              {
+                'type': 'input_text',
+                'text':
+                    'El usuario ha iniciado una llamada. Responde SOLO con "[start_call][/start_call]" para aceptar o "[end_call][/end_call]" para rechazar.',
+              },
+            ],
+          },
+        };
+        _send(incoming);
+      }
       _send({
         'type': 'response.create',
         'response': {'modalities': modalities},
@@ -498,6 +544,7 @@ class OpenAIRealtimeClient {
     _send({'type': 'response.cancel'});
   }
 
+  @override
   Future<void> close() async {
     if (_connected) {
       try {

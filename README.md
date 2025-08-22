@@ -87,7 +87,7 @@ GEMINI_API_KEY_FALLBACK=
 OPENAI_API_KEY=pon_aqui_tu_clave_openai
 
 # Voz por defecto (alloy|ash|ballad|coral|echo|sage|shimmer|verse)
-OPENAI_VOICE=sage
+OPENAI_VOICE_NAME=sage
 
 DEFAULT_TEXT_MODEL=gemini-2.5-flash
 DEFAULT_IMAGE_MODEL=gpt-4.1-mini

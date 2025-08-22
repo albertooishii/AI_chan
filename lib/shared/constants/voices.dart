@@ -19,8 +19,8 @@ const List<String> kOpenAIFemaleVoices = ['sage', 'nova', 'shimmer'];
 // dinámicamente mediante GoogleSpeechService.fetchGoogleVoices() con caché local.
 // Mantener esta sección sin lista evita desincronizaciones.
 
-/// Obtiene la voz por defecto efectiva dado el valor opcional de entorno (OPENAI_VOICE).
-/// Si OPENAI_VOICE no está o es inválida, retorna el primer elemento permitido.
+/// Obtiene la voz por defecto efectiva dado el valor opcional de entorno (OPENAI_VOICE_NAME).
+/// Si OPENAI_VOICE_NAME no está o es inválida, retorna el primer elemento permitido.
 String resolveDefaultVoice(String? envVoice) {
   if (envVoice != null && kOpenAIVoices.contains(envVoice)) return envVoice;
   return kOpenAIVoices.first; // 'sage'

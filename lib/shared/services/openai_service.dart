@@ -310,11 +310,14 @@ class OpenAIService implements AIService {
 
     try {
       // Verificar caché primero
+      // Preferir caché solo para demo/dialog TTS — los audios de mensajes se
+      // guardan en el directorio tradicional configurado por AUDIO_DIR.
       final cachedFile = await CacheService.getCachedAudioFile(
         text: text,
         voice: voice,
         languageCode: 'openai-$model', // Usar modelo como "idioma" para OpenAI
         provider: 'openai',
+        extension: 'mp3',
       );
 
       if (cachedFile != null) {
@@ -335,17 +338,24 @@ class OpenAIService implements AIService {
     if (response.statusCode == 200) {
       try {
         // Guardar en caché primero
-        final cachedFile = await CacheService.saveAudioToCache(
-          audioData: response.bodyBytes,
-          text: text,
-          voice: voice,
-          languageCode: 'openai-$model',
-          provider: 'openai',
-        );
+        // Intentar guardar en caché (esto ayuda al diálogo TTS), pero si
+        // falla, persistir en el directorio de audios normal.
+        try {
+          final cachedFile = await CacheService.saveAudioToCache(
+            audioData: response.bodyBytes,
+            text: text,
+            voice: voice,
+            languageCode: 'openai-$model',
+            provider: 'openai',
+            extension: 'mp3',
+          );
 
-        if (cachedFile != null) {
-          Log.d('Audio guardado en caché y devuelto', tag: 'OPENAI_TTS');
-          return cachedFile;
+          if (cachedFile != null) {
+            Log.d('Audio guardado en caché y devuelto', tag: 'OPENAI_TTS');
+            return cachedFile;
+          }
+        } catch (e) {
+          Log.w('Warning: Error guardando en caché: $e', tag: 'OPENAI_TTS');
         }
       } catch (e) {
         Log.w('Warning: Error guardando en caché: $e', tag: 'OPENAI_TTS');

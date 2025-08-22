@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'ai_service.dart';
 import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/utils/debug_call_logger/debug_call_logger.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 // duplicate import removed
@@ -130,6 +131,19 @@ class GeminiService implements AIService {
     final endpointBase = 'https://generativelanguage.googleapis.com/v1beta/models/';
     // Unificar todo el historial en un solo bloque de texto para el content
     List<Map<String, dynamic>> contents = [];
+    // Añadir un bloque de role=system con el SystemPrompt serializado para que Gemini lo reciba
+    try {
+      final sysJson = jsonEncode(systemPrompt.toJson());
+      contents.add({
+        // Gemini API expects roles named 'user' or 'model' — use 'model' for system-level instructions
+        'role': 'model',
+        'parts': [
+          {'text': sysJson},
+        ],
+      });
+    } catch (_) {
+      // silenciar error de serialización; fallback: no system part
+    }
     bool hasImage =
         history.isNotEmpty && history.last['role'] == 'user' && imageBase64 != null && imageBase64.isNotEmpty;
     if (hasImage) {
@@ -179,6 +193,14 @@ class GeminiService implements AIService {
     final body = jsonEncode(requestPayload);
 
     Future<AIResponse> parseAndBuild(String respBody) async {
+      // Guardar la respuesta raw para análisis detallado en debug
+      try {
+        await debugLogCallPrompt('gemini_http_raw_response', {
+          'model': selectedModel,
+          'body_length': respBody.length,
+          'body_preview': respBody.length > 4000 ? respBody.substring(0, 4000) : respBody,
+        });
+      } catch (_) {}
       final data = jsonDecode(respBody);
       String? text;
       String? imagePrompt;
@@ -222,6 +244,15 @@ class GeminiService implements AIService {
       Future<http.Response> doPost(String key) {
         final mUrl = Uri.parse('$endpointBase$modelId:generateContent?key=$key');
         Log.d('[Gemini] POST -> $mUrl (bodyPreview=${body.length} chars)');
+        // Guardar request payload para debug
+        try {
+          debugLogCallPrompt('gemini_http_request', {
+            'model': modelId,
+            'key_used': key == primary ? 'PRIMARY' : 'FALLBACK',
+            'body_length': body.length,
+            'body_preview': body.length > 4000 ? body.substring(0, 4000) : body,
+          });
+        } catch (_) {}
         return http.post(mUrl, headers: headers, body: body);
       }
 

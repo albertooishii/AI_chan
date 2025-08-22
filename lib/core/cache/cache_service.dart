@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/core/config.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -64,6 +65,7 @@ class CacheService {
     String provider = 'google',
     double speakingRate = 1.0,
     double pitch = 0.0,
+    String? extension,
   }) async {
     try {
       final hash = generateTtsHash(
@@ -76,11 +78,36 @@ class CacheService {
       );
 
       final audioDir = await getAudioCacheDirectory();
-      final cachedFile = File('${audioDir.path}/$hash.mp3');
+      final ext = (extension != null && extension.trim().isNotEmpty) ? extension.trim().replaceAll('.', '') : 'mp3';
+      final cachedFile = File('${audioDir.path}/$hash.$ext');
 
       if (await cachedFile.exists()) {
         Log.d('[Cache] Audio encontrado en caché: ${cachedFile.path}');
         return cachedFile;
+      }
+      // If not found and provider is Google, try the configured Google default
+      // voice as an alias. This helps reuse previously cached files created
+      // under the Google default voice when callers passed an OpenAI alias
+      // or empty voice string.
+      if (provider.toLowerCase() == 'google') {
+        try {
+          final googleDefault = Config.getGoogleVoice();
+          if (googleDefault.isNotEmpty && googleDefault != voice) {
+            final altHash = generateTtsHash(
+              text: text,
+              voice: googleDefault,
+              languageCode: languageCode,
+              provider: provider,
+              speakingRate: speakingRate,
+              pitch: pitch,
+            );
+            final altFile = File('${audioDir.path}/$altHash.$ext');
+            if (await altFile.exists()) {
+              Log.d('[Cache] Audio encontrado en caché (alias Google default): ${altFile.path}');
+              return altFile;
+            }
+          }
+        } catch (_) {}
       }
     } catch (e) {
       Log.e('[Cache] Error obteniendo audio cacheado: $e');
@@ -97,6 +124,7 @@ class CacheService {
     String provider = 'google',
     double speakingRate = 1.0,
     double pitch = 0.0,
+    String? extension,
   }) async {
     try {
       final hash = generateTtsHash(
@@ -109,7 +137,8 @@ class CacheService {
       );
 
       final audioDir = await getAudioCacheDirectory();
-      final cachedFile = File('${audioDir.path}/$hash.mp3');
+      final ext = (extension != null && extension.trim().isNotEmpty) ? extension.trim().replaceAll('.', '') : 'mp3';
+      final cachedFile = File('${audioDir.path}/$hash.$ext');
 
       await cachedFile.writeAsBytes(audioData);
       Log.d('[Cache] Audio guardado en caché: ${cachedFile.path}');
@@ -121,24 +150,15 @@ class CacheService {
   }
 
   /// Guarda lista de voces en caché
-  static Future<void> saveVoicesToCache({
-    required List<Map<String, dynamic>> voices,
-    required String provider,
-  }) async {
+  static Future<void> saveVoicesToCache({required List<Map<String, dynamic>> voices, required String provider}) async {
     try {
       final voicesDir = await getVoicesCacheDirectory();
       final cacheFile = File('${voicesDir.path}/${provider}_voices_cache.json');
 
-      final cacheData = {
-        'provider': provider,
-        'timestamp': DateTime.now().millisecondsSinceEpoch,
-        'voices': voices,
-      };
+      final cacheData = {'provider': provider, 'timestamp': DateTime.now().millisecondsSinceEpoch, 'voices': voices};
 
       await cacheFile.writeAsString(jsonEncode(cacheData));
-      Log.d(
-        '[Cache] Voces $provider guardadas en caché: ${voices.length} voces',
-      );
+      Log.d('[Cache] Voces $provider guardadas en caché: ${voices.length} voces');
     } catch (e) {
       Log.e('[Cache] Error guardando voces en caché: $e');
     }
@@ -166,17 +186,13 @@ class CacheService {
         final cacheAge = DateTime.now().millisecondsSinceEpoch - timestamp;
         const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 días en ms
         if (cacheAge > maxAge) {
-          debugPrint(
-            '[Cache] Caché de voces $provider expirado (${cacheAge ~/ (24 * 60 * 60 * 1000)} días)',
-          );
+          debugPrint('[Cache] Caché de voces $provider expirado (${cacheAge ~/ (24 * 60 * 60 * 1000)} días)');
           return null;
         }
       }
 
       final cachedVoices = (cached['voices'] as List<dynamic>?) ?? [];
-      debugPrint(
-        '[Cache] Voces $provider cargadas desde caché: ${cachedVoices.length} voces',
-      );
+      debugPrint('[Cache] Voces $provider cargadas desde caché: ${cachedVoices.length} voces');
 
       return cachedVoices.map((v) => Map<String, dynamic>.from(v)).toList();
     } catch (e) {

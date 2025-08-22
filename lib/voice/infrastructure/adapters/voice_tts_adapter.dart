@@ -1,6 +1,7 @@
 import 'dart:io';
-import 'dart:typed_data';
+// dart:typed_data is available via foundation, avoid duplicate import
 
+import 'package:flutter/foundation.dart';
 import 'package:ai_chan/core/interfaces/tts_service.dart';
 import 'package:ai_chan/voice/domain/interfaces/voice_interfaces.dart';
 
@@ -17,6 +18,12 @@ class VoiceTtsAdapter implements IVoiceTtsService {
     String languageCode = 'es-ES',
     Map<String, dynamic>? options,
   }) async {
+    // Guard: never synthesize pure control tags used for call handshake.
+    final clean = text.trim();
+    if (clean == '[start_call][/start_call]' || clean == '[end_call][/end_call]') {
+      if (kDebugMode) debugPrint('🔕 VoiceTtsAdapter: skipping synth for control tag: "$clean"');
+      return null;
+    }
     return await _ttsService.synthesizeToFile(
       text: text,
       options: {'voice': voice, 'languageCode': languageCode, ...?options},
@@ -30,12 +37,7 @@ class VoiceTtsAdapter implements IVoiceTtsService {
     String languageCode = 'es-ES',
     Map<String, dynamic>? options,
   }) async {
-    final filePath = await synthesizeToFile(
-      text: text,
-      voice: voice,
-      languageCode: languageCode,
-      options: options,
-    );
+    final filePath = await synthesizeToFile(text: text, voice: voice, languageCode: languageCode, options: options);
 
     if (filePath == null) return null;
 
@@ -65,19 +67,6 @@ class VoiceTtsAdapter implements IVoiceTtsService {
   @override
   Future<List<String>> getSupportedLanguages() async {
     // Lista básica de idiomas soportados por los servicios TTS
-    return [
-      'es-ES',
-      'es-MX',
-      'es-AR',
-      'en-US',
-      'en-GB',
-      'fr-FR',
-      'de-DE',
-      'it-IT',
-      'pt-BR',
-      'ja-JP',
-      'ko-KR',
-      'zh-CN',
-    ];
+    return ['es-ES', 'es-MX', 'es-AR', 'en-US', 'en-GB', 'fr-FR', 'de-DE', 'it-IT', 'pt-BR', 'ja-JP', 'ko-KR', 'zh-CN'];
   }
 }

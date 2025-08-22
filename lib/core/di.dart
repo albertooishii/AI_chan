@@ -6,24 +6,21 @@ import 'package:ai_chan/core/interfaces/i_chat_repository.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
 import 'package:ai_chan/core/interfaces/ai_service.dart';
 import 'package:ai_chan/core/interfaces/i_profile_service.dart';
-// Use canonical adapters present in bounded contexts
 import 'package:ai_chan/onboarding/infrastructure/adapters/profile_adapter.dart';
 import 'package:ai_chan/core/interfaces/i_stt_service.dart';
-// OpenAI-specific STT adapter removed from active code; prefer Google STT or runtime-based STT
 import 'package:ai_chan/core/interfaces/tts_service.dart';
 import 'package:ai_chan/voice/infrastructure/adapters/default_tts_service.dart';
 import 'package:ai_chan/voice/infrastructure/adapters/google_stt_adapter.dart';
 import 'package:ai_chan/voice/infrastructure/adapters/google_tts_adapter.dart';
 import 'dart:typed_data';
-
 import 'package:ai_chan/voice/infrastructure/clients/openai_realtime_client.dart';
 import 'package:ai_chan/voice/infrastructure/clients/gemini_realtime_client.dart';
-// Use adapter wrappers that implement the legacy IAIService port
+import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
 import 'package:ai_chan/core/infrastructure/adapters/openai_adapter.dart';
 import 'package:ai_chan/core/infrastructure/adapters/gemini_adapter.dart';
 import 'package:ai_chan/core/config.dart';
-// ...existing code...
 import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
+import 'package:ai_chan/voice/infrastructure/audio/audio_playback.dart';
 
 /// Pequeñas fábricas/funciones de DI para la migración incremental.
 /// Idealmente esto evolucionará a un contenedor/locator más completo.
@@ -51,8 +48,7 @@ IAIService getAIServiceForModel(String modelId) {
   if (normalized.startsWith('gpt-')) {
     final runtime = runtime_factory.getRuntimeAIServiceForModel(normalized);
     impl = OpenAIAdapter(modelId: normalized, runtime: runtime);
-  } else if (normalized.startsWith('gemini-') ||
-      normalized.startsWith('imagen-')) {
+  } else if (normalized.startsWith('gemini-') || normalized.startsWith('imagen-')) {
     final runtime = runtime_factory.getRuntimeAIServiceForModel(normalized);
     impl = GeminiAdapter(modelId: normalized, runtime: runtime);
   } else if (normalized.isEmpty) {
@@ -89,6 +85,20 @@ ITtsService getTtsService() => const DefaultTtsService();
 // Test-time overrides (used by tests to inject fakes without touching DI calls)
 ISttService? _testSttOverride;
 
+/// Audio playback test override (allows tests to inject a fake playback globally).
+AudioPlayback? _testAudioPlaybackOverride;
+
+/// Factory for production code to obtain an AudioPlayback instance. Tests can
+/// override it via [setTestAudioPlaybackOverride].
+AudioPlayback getAudioPlayback([dynamic candidate]) {
+  if (_testAudioPlaybackOverride != null) return _testAudioPlaybackOverride!;
+  return AudioPlayback.adapt(candidate);
+}
+
+void setTestAudioPlaybackOverride(AudioPlayback? impl) {
+  _testAudioPlaybackOverride = impl;
+}
+
 /// Permite a los tests inyectar un ISttService falso globalmente.
 void setTestSttOverride(ISttService? impl) {
   _testSttOverride = impl;
@@ -113,7 +123,7 @@ ITtsService getTtsServiceForProvider(String provider) {
 
 /// Fábrica que devuelve un cliente realtime compatible con la interfaz usada por VoiceCallController.
 /// Para 'openai' devuelve el OpenAIRealtimeClient; para 'google' devuelve el GeminiCallOrchestrator (emulación).
-dynamic getRealtimeClientForProvider(
+IRealtimeClient getRealtimeClientForProvider(
   String provider, {
   String? model,
   void Function(String)? onText,
@@ -154,43 +164,30 @@ IProfileService getProfileServiceForProvider([String? provider]) {
           : Config.getDefaultImageModel();
       // If still empty, fall back to a reasonable image-capable model
       final resolvedImg = imgModel.isNotEmpty ? imgModel : 'gpt-4.1-mini';
-      return ProfileAdapter(
-        aiService: runtime_factory.getRuntimeAIServiceForModel(resolvedImg),
-      );
+      return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(resolvedImg));
     }
     if (p == 'openai') {
       final txtModel = Config.getDefaultTextModel().isNotEmpty
           ? Config.getDefaultTextModel()
           : Config.getDefaultTextModel();
       final resolvedTxt = txtModel.isNotEmpty ? txtModel : 'gpt-5-mini';
-      return ProfileAdapter(
-        aiService: runtime_factory.getRuntimeAIServiceForModel(resolvedTxt),
-      );
+      return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(resolvedTxt));
     }
     final fallbackImg = Config.getDefaultImageModel().isNotEmpty
         ? Config.getDefaultImageModel()
         : Config.getDefaultImageModel();
-    final resolvedFallbackImg = fallbackImg.isNotEmpty
-        ? fallbackImg
-        : 'gpt-4.1-mini';
-    return ProfileAdapter(
-      aiService: runtime_factory.getRuntimeAIServiceForModel(
-        resolvedFallbackImg,
-      ),
-    );
+    final resolvedFallbackImg = fallbackImg.isNotEmpty ? fallbackImg : 'gpt-4.1-mini';
+    return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(resolvedFallbackImg));
   }
 
   // Otherwise, prefer the DEFAULT_TEXT_MODEL from config to infer the provider.
   final defaultTextModel = Config.getDefaultTextModel();
   final defaultImageModel = Config.getDefaultImageModel();
   String resolved = '';
-  final modelToCheck =
-      (defaultTextModel.isNotEmpty ? defaultTextModel : defaultImageModel)
-          .toLowerCase();
+  final modelToCheck = (defaultTextModel.isNotEmpty ? defaultTextModel : defaultImageModel).toLowerCase();
   if (modelToCheck.isNotEmpty) {
     if (modelToCheck.startsWith('gpt-')) resolved = 'openai';
-    if (modelToCheck.startsWith('gemini-') ||
-        modelToCheck.startsWith('imagen-')) {
+    if (modelToCheck.startsWith('gemini-') || modelToCheck.startsWith('imagen-')) {
       resolved = 'google';
     }
   }
@@ -202,22 +199,10 @@ IProfileService getProfileServiceForProvider([String? provider]) {
   }
 
   if (resolved == 'google' || resolved == 'gemini') {
-    return ProfileAdapter(
-      aiService: runtime_factory.getRuntimeAIServiceForModel(
-        Config.requireDefaultImageModel(),
-      ),
-    );
+    return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(Config.requireDefaultImageModel()));
   }
   if (resolved == 'openai') {
-    return ProfileAdapter(
-      aiService: runtime_factory.getRuntimeAIServiceForModel(
-        Config.requireDefaultTextModel(),
-      ),
-    );
+    return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(Config.requireDefaultTextModel()));
   }
-  return ProfileAdapter(
-    aiService: runtime_factory.getRuntimeAIServiceForModel(
-      Config.requireDefaultImageModel(),
-    ),
-  );
+  return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(Config.requireDefaultImageModel()));
 }

@@ -74,7 +74,7 @@ class _ChatScreenState extends State<ChatScreen> {
       context: ctx,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
-        title: const Text('Seleccionar modelo', style: TextStyle(color: AppColors.primary)),
+        title: const Text('Modelo de texto', style: TextStyle(color: AppColors.primary)),
         content: models.isEmpty
             ? const Text('No se encontraron modelos disponibles.', style: TextStyle(color: AppColors.primary))
             : SizedBox(
@@ -321,7 +321,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                _loadingModels ? 'Cargando modelos...' : 'Seleccionar modelo',
+                                _loadingModels ? 'Cargando modelos...' : 'Modelo de texto',
                                 style: const TextStyle(color: AppColors.primary),
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
@@ -357,7 +357,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                'Configurar voz',
+                                'Modelo de voz',
                                 style: const TextStyle(color: AppColors.primary),
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,

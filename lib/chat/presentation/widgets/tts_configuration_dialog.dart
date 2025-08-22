@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 // provider import removed; dialog receives ChatProvider from caller
-import 'package:audioplayers/audioplayers.dart';
+import 'package:ai_chan/core/di.dart' as di;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared.dart'; // Using centralized shared exports
@@ -41,9 +41,14 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    final savedProvider = prefs.getString('selected_audio_provider') ?? Config.getAudioProvider().toLowerCase();
+    // Prefer provider-specific saved voice, fall back to legacy 'selected_voice'
+    final providerVoiceKey = 'selected_voice_$savedProvider';
+    final providerVoice = prefs.getString(providerVoiceKey);
+    final legacyVoice = prefs.getString('selected_voice');
     setState(() {
-      _selectedProvider = prefs.getString('selected_audio_provider') ?? Config.getAudioProvider().toLowerCase();
-      _selectedVoice = prefs.getString('selected_voice');
+      _selectedProvider = savedProvider;
+      _selectedVoice = providerVoice ?? legacyVoice;
       // Cargar modelo seleccionado guardado o usar el por defecto
       _selectedModel = prefs.getString('selected_model') ?? Config.getDefaultTextModel();
     });
@@ -126,7 +131,10 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('selected_audio_provider', _selectedProvider);
     if (_selectedVoice != null) {
+      // Save both provider-specific and legacy key for backward compatibility
       await prefs.setString('selected_voice', _selectedVoice!);
+      final providerKey = 'selected_voice_$_selectedProvider';
+      await prefs.setString(providerKey, _selectedVoice!);
     }
     if (_selectedModel != null) {
       await prefs.setString('selected_model', _selectedModel!);
@@ -372,16 +380,23 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
                             : (_selectedProvider == 'android_native' ? 'android_native' : 'google');
 
                         // Comprobar caché primero
+                        // For dialog demos, prefer cache (dialog-scoped). Use a
+                        // specific provider key to avoid mixing with message cache.
                         final cachedFile = await CacheService.getCachedAudioFile(
                           text: phrase,
                           voice: voiceName,
                           languageCode: lang,
-                          provider: providerKey,
+                          provider: '${providerKey}_tts_dialog',
                         );
 
                         if (cachedFile != null) {
-                          final player = AudioPlayer();
-                          await player.play(DeviceFileSource(cachedFile.path));
+                          final player = di.getAudioPlayback();
+                          await player.play(cachedFile.path);
+                          // Esperar a la finalización antes de liberar el player para que se oiga el audio
+                          try {
+                            await player.onPlayerComplete.first;
+                          } catch (_) {}
+                          await player.dispose();
                           showAppSnackBar('Audio reproducido desde caché', isError: false);
                           return;
                         }
@@ -392,10 +407,16 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
                           phrase,
                           voice: voiceName,
                           languageCode: lang,
+                          forDialogDemo: true,
                         );
                         if (file != null) {
-                          final player = AudioPlayer();
-                          await player.play(DeviceFileSource(file.path));
+                          final player = di.getAudioPlayback();
+                          await player.play(file.path);
+                          // Esperar a que termine la reproducción antes de liberar recursos
+                          try {
+                            await player.onPlayerComplete.first;
+                          } catch (_) {}
+                          await player.dispose();
                           showAppSnackBar('¡Audio reproducido!', isError: false);
                         } else {
                           showAppSnackBar('No se pudo generar el audio', isError: true);
@@ -414,7 +435,11 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
                       setState(() => _selectedVoice = voiceName);
                       try {
                         final prefs = await SharedPreferences.getInstance();
+                        // Save both legacy key and provider-specific key to avoid mismatch between
+                        // the UI selection and the active provider used by TTS at runtime.
                         await prefs.setString('selected_voice', voiceName);
+                        final providerKey = 'selected_voice_$_selectedProvider';
+                        await prefs.setString(providerKey, voiceName);
                         if (widget.chatProvider != null) widget.chatProvider!.notifyListeners();
                         showAppSnackBar('Voz seleccionada: $voiceName', isError: false);
                       } catch (e) {
@@ -430,6 +455,8 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> {
               try {
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.setString('selected_voice', voiceName);
+                final providerKey = 'selected_voice_$_selectedProvider';
+                await prefs.setString(providerKey, voiceName);
                 if (widget.chatProvider != null) widget.chatProvider!.notifyListeners();
                 showAppSnackBar('Voz seleccionada: $voiceName', isError: false);
               } catch (e) {

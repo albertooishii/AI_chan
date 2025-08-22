@@ -731,8 +731,41 @@ extension _IncomingLogic on _VoiceCallChatState {
     }
 
     if (!mounted) return;
+    // Determine provider/model from user's selection (prefs) overriding .env default
+    String? selectedProvider;
+    String? selectedModel;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      selectedProvider = prefs.getString('selected_audio_provider');
+      selectedModel = prefs.getString('selected_audio_model');
+    } catch (_) {}
+    final envProvider = Config.getAudioProvider().toLowerCase();
+    String providerToUse;
+    if (selectedProvider != null && selectedProvider.isNotEmpty) {
+      providerToUse = (selectedProvider == 'gemini') ? 'google' : selectedProvider.toLowerCase();
+    } else if (envProvider.isNotEmpty) {
+      providerToUse = (envProvider == 'gemini') ? 'google' : envProvider;
+    } else {
+      providerToUse = 'google';
+    }
+
+    // Determine voice selected by user (prefs) or fallback
+    String? selectedVoice;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      selectedVoice = prefs.getString('selected_voice');
+    } catch (_) {}
+    final voiceToUse = selectedVoice ?? resolveDefaultVoice(Config.getOpenaiVoice());
+
     await controller.startContinuousCall(
       systemPrompt: systemPrompt,
+      // Propagar provider/model/voice elegidos por el usuario en la UI
+      providerNameOverride: providerToUse,
+      // If user selected a model, pass it. Otherwise let the controller/DI
+      // choose a provider-appropriate default (prevents passing a Gemini model
+      // into an OpenAI realtime client when provider==openai).
+      model: selectedModel,
+      voice: voiceToUse,
       onText: (chunk) {
         // Detección temprana de etiqueta de rechazo IA
         if (!_endCallTagHandled) {
@@ -968,7 +1001,6 @@ extension _IncomingLogic on _VoiceCallChatState {
         }
       },
       recorder: _recorder,
-      model: Config.getDefaultTextModel(),
       // Si es entrante pero ya fue aceptada, permitir arranque inicial (no suprimir)
       suppressInitialAiRequest: widget.incoming && !_incomingAccepted,
       playRingback: !widget.incoming, // si era entrante ya sonó antes aceptar

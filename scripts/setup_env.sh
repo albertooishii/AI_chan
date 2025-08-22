@@ -76,7 +76,7 @@ echo ""
 echo "🎵 Audio/Voice Configuration:"
 prompt_key "AUDIO_PROVIDER" "Audio provider (openai|gemini) [gemini]: " "gemini" false
 prompt_key "AUDIO_TTS_MODE" "TTS mode (google|local) [google]: " "google" false
-prompt_key "OPENAI_VOICE" "OpenAI voice [sage]: " "sage" false
+prompt_key "OPENAI_VOICE_NAME" "OpenAI voice [sage]: " "sage" false
 prompt_key "GOOGLE_VOICE_NAME" "Google voice name [es-ES-Neural2-A]: " "es-ES-Neural2-A" false
 
 echo ""

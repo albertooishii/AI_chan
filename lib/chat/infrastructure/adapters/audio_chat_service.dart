@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:record/record.dart';
-import 'package:audioplayers/audioplayers.dart';
-import 'package:ai_chan/shared/utils/audio_utils.dart' as audio_utils;
 import 'package:ai_chan/core/di.dart' as di;
+import 'package:ai_chan/voice/infrastructure/audio/audio_playback.dart';
+import 'package:ai_chan/shared/utils/audio_utils.dart' as audio_utils;
 import 'package:ai_chan/core/config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../voice/infrastructure/adapters/google_speech_service.dart';
@@ -34,7 +34,7 @@ class AudioChatService implements IAudioChatService {
   Timer? _partialTxTimer;
   bool _isPartialTranscribing = false;
 
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayback _audioPlayer = di.getAudioPlayback();
   String? _currentPlayingId;
   @override
   bool isPlayingMessage(Message m) => _currentPlayingId == m.audioPath;
@@ -237,7 +237,7 @@ class AudioChatService implements IAudioChatService {
       _currentDuration = Duration.zero;
       await _posSub?.cancel();
       await _durSub?.cancel();
-      await _audioPlayer.play(DeviceFileSource(msg.audioPath!));
+      await _audioPlayer.play(msg.audioPath!);
       _durSub = _audioPlayer.onDurationChanged.listen((d) {
         _currentDuration = d;
         onState();
@@ -270,33 +270,89 @@ class AudioChatService implements IAudioChatService {
   }
 
   @override
-  Future<File?> synthesizeTts(String text, {String voice = 'sage', String? languageCode}) async {
+  /// If `forDialogDemo` is true, the service will prefer cached audio (used
+  /// by `tts_configuration_dialog` demos). For normal message TTS, files are
+  /// persisted to the configured `AUDIO_DIR_*` directory. For calls, caller
+  /// should use temporary-only output.
+  Future<File?> synthesizeTts(
+    String text, {
+    String voice = 'sage',
+    String? languageCode,
+    bool forDialogDemo = false,
+  }) async {
     debugPrint('[Audio][TTS] synthesizeTts called - voice: $voice, languageCode: $languageCode');
 
+    // Prepare the actual text that will be sent to the TTS providers.
+    // - For assistant message TTS (not dialog demos), if the text is wrapped
+    //   in paired [audio]...[/audio] tags we should synthesize only the
+    //   inner content (strip the tags). This preserves tags for storage/UI
+    //   but avoids reading them aloud.
+    // - Also, control tags used for calls ([start_call], [end_call]) must
+    //   never be synthesized. If after removing those tags there is no
+    //   remaining printable text, skip TTS and return null.
+    String synthText = text;
     try {
-      // Detectar automáticamente el proveedor basado en la voz seleccionada
-      String provider = 'google';
-
-      // Lista de voces de OpenAI - si la voz está en esta lista, usar OpenAI
-      const openAIVoices = ['sage', 'alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
-
-      if (openAIVoices.contains(voice)) {
-        provider = 'openai';
-        debugPrint('[Audio][TTS] Auto-detected OpenAI voice: $voice, using OpenAI provider');
-      } else {
-        // Determinar provider activo: prefs -> env (compatibilidad gemini->google)
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          final saved = prefs.getString('selected_audio_provider');
-          if (saved != null) {
-            provider = (saved == 'gemini') ? 'google' : saved.toLowerCase();
-          } else {
-            final env = Config.getAudioProvider().toLowerCase();
-            if (env.isNotEmpty) provider = (env == 'gemini') ? 'google' : env;
+      if (!forDialogDemo) {
+        // Strip paired [audio]...[/audio] and use inner content when present
+        final openTag = '[audio]';
+        final closeTag = '[/audio]';
+        final low = text.toLowerCase();
+        final start = low.indexOf(openTag);
+        if (start != -1) {
+          final after = text.substring(start + openTag.length);
+          final lowerAfter = after.toLowerCase();
+          final end = lowerAfter.indexOf(closeTag);
+          if (end != -1) {
+            final inner = after.substring(0, end).trim();
+            if (inner.isNotEmpty) {
+              synthText = inner;
+              debugPrint('[Audio][TTS] Stripped [audio] tags for synthesis, len=${synthText.length}');
+            }
           }
-        } catch (_) {
+        }
+
+        // Remove any call control tags and if nothing remains, skip TTS.
+        try {
+          final withoutCalls = synthText
+              .replaceAll(RegExp(r'\[\/?start_call\]', caseSensitive: false), '')
+              .replaceAll(RegExp(r'\[\/?end_call\]', caseSensitive: false), '')
+              .trim();
+          if (withoutCalls.isEmpty) {
+            debugPrint('[Audio][TTS] Message contains only call control tags; skipping synthesis');
+            return null;
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+
+    try {
+      // Determinar provider activo: prefs -> env (compatibilidad gemini->google).
+      // Si el usuario configuró explícitamente el provider (p.ej. 'google' o 'openai'), lo respetamos.
+      // Solo haremos auto-detección por nombre de voz si la preferencia es 'auto' o no está configurada.
+      String provider = 'google';
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final saved = prefs.getString('selected_audio_provider');
+        if (saved != null) {
+          provider = (saved == 'gemini') ? 'google' : saved.toLowerCase();
+          debugPrint('[Audio][TTS] Provider selected from prefs: $provider');
+        } else {
           final env = Config.getAudioProvider().toLowerCase();
           if (env.isNotEmpty) provider = (env == 'gemini') ? 'google' : env;
+        }
+      } catch (_) {
+        final env = Config.getAudioProvider().toLowerCase();
+        if (env.isNotEmpty) provider = (env == 'gemini') ? 'google' : env;
+      }
+
+      // Si la preferencia pide detección automática o no se especificó, detectar por voz.
+      if (provider == 'auto' || provider.isEmpty) {
+        const openAIVoices = ['sage', 'alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
+        if (openAIVoices.contains(voice)) {
+          provider = 'openai';
+          debugPrint('[Audio][TTS] Auto-detected OpenAI voice: $voice, using OpenAI provider');
+        } else {
+          provider = 'google';
         }
       }
 
@@ -313,6 +369,7 @@ class AudioChatService implements IAudioChatService {
             voice: voice,
             languageCode: languageCode ?? 'es-ES',
             provider: 'android_native',
+            extension: 'mp3',
           );
 
           if (cachedFile != null) {
@@ -326,7 +383,7 @@ class AudioChatService implements IAudioChatService {
             final outputPath = '${cacheDir.path}/android_native_${DateTime.now().millisecondsSinceEpoch}.mp3';
 
             final result = await AndroidNativeTtsService.synthesizeToFile(
-              text: text,
+              text: synthText,
               outputPath: outputPath,
               voiceName: voice,
               languageCode: languageCode ?? 'es-ES',
@@ -346,6 +403,7 @@ class AudioChatService implements IAudioChatService {
                     voice: voice,
                     languageCode: languageCode ?? 'es-ES',
                     provider: 'android_native',
+                    extension: 'mp3',
                   );
                 } catch (e) {
                   debugPrint('[Audio][TTS] Warning: Error guardando TTS nativo en caché: $e');
@@ -366,12 +424,76 @@ class AudioChatService implements IAudioChatService {
 
       if (provider == 'google') {
         // voice is expected to be a Google voice name like 'es-ES-Neural2-A'
+        // If caller passed an OpenAI voice name or empty string, map to
+        // configured Google default so the cache lookup uses the Google
+        // voice name (avoids regenerating audio that was cached under the
+        // Google voice name).
+        var voiceToUse = voice;
+        const openAIVoices = ['sage', 'alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
+        if (voiceToUse.trim().isEmpty || openAIVoices.contains(voiceToUse)) {
+          final googleDefault = Config.getGoogleVoice();
+          if (googleDefault.isNotEmpty) {
+            debugPrint('[Audio][TTS] Mapping voice "$voice" -> Google default voice: $googleDefault');
+            voiceToUse = googleDefault;
+          }
+        }
+
         if (GoogleSpeechService.isConfigured) {
           try {
             final lang = languageCode ?? 'es-ES';
-            final file = await GoogleSpeechService.textToSpeechFile(text: text, voiceName: voice, languageCode: lang);
+            final file = await GoogleSpeechService.textToSpeechFile(
+              text: synthText,
+              voiceName: voiceToUse,
+              languageCode: lang,
+              useCache: forDialogDemo,
+            );
             if (file != null) {
               debugPrint('[Audio][TTS] Google TTS success');
+
+              // If this is a regular message (not a dialog demo), persist
+              // the file into the configured local audio directory so the
+              // user can access it later instead of leaving it in /tmp.
+              if (!forDialogDemo) {
+                try {
+                  final localDir = await audio_utils.getLocalAudioDir();
+                  final oldFile = file;
+                  final fileName = oldFile.path.split('/').last;
+                  final destPath = '${localDir.path}/$fileName';
+
+                  try {
+                    await oldFile.rename(destPath);
+                    debugPrint('[Audio][TTS] Moved Google TTS file to $destPath');
+                    return File(destPath);
+                  } catch (e) {
+                    debugPrint('[Audio][TTS] rename failed: $e; trying copy');
+                    try {
+                      await oldFile.copy(destPath);
+                      // Verify sizes before removing original
+                      try {
+                        final srcLen = await oldFile.length();
+                        final dstLen = await File(destPath).length();
+                        if (srcLen == dstLen) {
+                          try {
+                            await oldFile.delete();
+                          } catch (_) {}
+                        } else {
+                          debugPrint('[Audio][TTS] copy size mismatch src=$srcLen dst=$dstLen; keeping original');
+                        }
+                      } catch (e2) {
+                        debugPrint('[Audio][TTS] verify error after copy: $e2');
+                      }
+                      return File(destPath);
+                    } catch (e2) {
+                      debugPrint('[Audio][TTS] copy failed: $e2; returning original file');
+                      return oldFile;
+                    }
+                  }
+                } catch (e) {
+                  debugPrint('[Audio][TTS] Error moving Google TTS file to audio dir: $e; returning original file');
+                  return file;
+                }
+              }
+
               return file;
             }
             debugPrint('[Audio][TTS] Google TTS returned null file, falling back to DI service');
@@ -387,7 +509,7 @@ class AudioChatService implements IAudioChatService {
         try {
           // Usar el adapter de OpenAI que ya está configurado
           final aiService = di.getAIServiceForModel('gpt-4o-mini'); // Usar un modelo GPT para forzar OpenAI
-          final filePath = await aiService.textToSpeech(text, voice: voice);
+          final filePath = await aiService.textToSpeech(synthText, voice: voice);
           if (filePath != null) {
             final file = File(filePath);
             if (await file.exists()) {
@@ -403,15 +525,34 @@ class AudioChatService implements IAudioChatService {
 
       // Fallback / default: delegate to the configured ITtsService (registered in DI)
       try {
-        final tts = di.getTtsService();
-        final path = await tts.synthesizeToFile(
-          text: text,
-          options: {'voice': voice, 'languageCode': languageCode ?? 'es-ES'},
-        );
-        if (path == null) return null;
-        final f = File(path);
-        if (await f.exists()) return f;
-        return null;
+        // For regular message TTS, prefer saving under the configured audio dir
+        // so the user can access sent/received audios. For dialog demos, the
+        // TTS services may return cached files.
+        if (!forDialogDemo) {
+          final tts = di.getTtsService();
+          final path = await tts.synthesizeToFile(
+            text: synthText,
+            options: {
+              'voice': voice,
+              'languageCode': languageCode ?? 'es-ES',
+              'outputDir': (await audio_utils.getLocalAudioDir()).path,
+            },
+          );
+          if (path == null) return null;
+          final f = File(path);
+          if (await f.exists()) return f;
+          return null;
+        } else {
+          final tts = di.getTtsService();
+          final path = await tts.synthesizeToFile(
+            text: synthText,
+            options: {'voice': voice, 'languageCode': languageCode ?? 'es-ES'},
+          );
+          if (path == null) return null;
+          final f = File(path);
+          if (await f.exists()) return f;
+          return null;
+        }
       } catch (e) {
         debugPrint('[Audio][TTS] DI fallback error: $e');
         return null;

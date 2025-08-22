@@ -30,6 +30,9 @@ class GoogleSpeechService {
     String languageCode = 'es-ES',
     String voiceName = 'es-ES-Neural2-A', // Voz femenina neural
     String audioEncoding = 'MP3',
+    int sampleRateHertz = 24000,
+    bool noCache = false,
+    bool useCache = false,
     double speakingRate = 1.0,
     double pitch = 0.0,
   }) async {
@@ -47,23 +50,46 @@ class GoogleSpeechService {
       return null;
     }
 
-    // Verificar caché primero
+    // Normalize voiceName: if caller passed an OpenAI voice name or empty,
+    // replace with configured Google default so cache keys and API calls
+    // are consistent.
     try {
-      final cachedFile = await CacheService.getCachedAudioFile(
-        text: text,
-        voice: voiceName,
-        languageCode: languageCode,
-        provider: 'google',
-        speakingRate: speakingRate,
-        pitch: pitch,
-      );
-
-      if (cachedFile != null) {
-        _maybeDebugPrint('[GoogleTTS] Usando audio desde caché');
-        return await cachedFile.readAsBytes();
+      const openAIVoices = ['sage', 'alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
+      if (voiceName.trim().isEmpty || openAIVoices.contains(voiceName)) {
+        final googleDefault = Config.getGoogleVoice();
+        if (googleDefault.isNotEmpty) {
+          _maybeDebugPrint('[GoogleTTS] Normalizing voiceName "$voiceName" -> Google default: $googleDefault');
+          voiceName = googleDefault;
+        }
       }
-    } catch (e) {
-      _maybeDebugPrint('[GoogleTTS] Error leyendo caché, continuando con API: $e');
+    } catch (_) {}
+
+    // Determine likely extension from requested encoding (used for cache keys)
+    String ext = 'mp3';
+    final fmtCheck = audioEncoding.toLowerCase();
+    if (fmtCheck.contains('linear16') || fmtCheck.contains('wav')) ext = 'wav';
+    if (fmtCheck.contains('ogg') || fmtCheck.contains('opus')) ext = 'ogg';
+
+    // Verificar caché primero solo si useCache=true
+    if (useCache) {
+      try {
+        final cachedFile = await CacheService.getCachedAudioFile(
+          text: text,
+          voice: voiceName,
+          languageCode: languageCode,
+          provider: 'google',
+          speakingRate: speakingRate,
+          pitch: pitch,
+          extension: ext,
+        );
+
+        if (cachedFile != null) {
+          _maybeDebugPrint('[GoogleTTS] Usando audio desde caché');
+          return await cachedFile.readAsBytes();
+        }
+      } catch (e) {
+        _maybeDebugPrint('[GoogleTTS] Error leyendo caché, continuando con API: $e');
+      }
     }
 
     final url = Uri.parse('https://texttospeech.googleapis.com/v1/text:synthesize?key=$_apiKey');
@@ -91,19 +117,22 @@ class GoogleSpeechService {
           final audioData = base64Decode(audioContent);
           _maybeDebugPrint('[GoogleTTS] Audio generado exitosamente: ${audioData.length} bytes');
 
-          // Guardar en caché
-          try {
-            await CacheService.saveAudioToCache(
-              audioData: audioData,
-              text: text,
-              voice: voiceName,
-              languageCode: languageCode,
-              provider: 'google',
-              speakingRate: speakingRate,
-              pitch: pitch,
-            );
-          } catch (e) {
-            _maybeDebugPrint('[GoogleTTS] Warning: Error guardando en caché: $e');
+          // Guardar en caché solo si useCache=true y noCache==false
+          if (useCache && !noCache) {
+            try {
+              await CacheService.saveAudioToCache(
+                audioData: audioData,
+                text: text,
+                voice: voiceName,
+                languageCode: languageCode,
+                provider: 'google',
+                speakingRate: speakingRate,
+                pitch: pitch,
+                extension: ext,
+              );
+            } catch (e) {
+              _maybeDebugPrint('[GoogleTTS] Warning: Error guardando en caché: $e');
+            }
           }
 
           return audioData;
@@ -127,14 +156,56 @@ class GoogleSpeechService {
     String languageCode = 'es-ES',
     String voiceName = 'es-ES-Neural2-A',
     String audioEncoding = 'MP3',
+    int sampleRateHertz = 24000,
+    bool noCache = false,
+    bool useCache = false,
     double speakingRate = 1.0,
     double pitch = 0.0,
   }) async {
+    // Normalize voiceName early so cache lookup uses the Google voice name
+    // (avoids regenerating audio that was cached under the Google default).
+    try {
+      const openAIVoices = ['sage', 'alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
+      if (voiceName.trim().isEmpty || openAIVoices.contains(voiceName)) {
+        final googleDefault = Config.getGoogleVoice();
+        if (googleDefault.isNotEmpty) {
+          _maybeDebugPrint('[GoogleTTS] Normalizing voiceName in file flow "$voiceName" -> $googleDefault');
+          voiceName = googleDefault;
+        }
+      }
+    } catch (_) {}
+
+    // First, check if there's a cached file for this exact request and return it
+    // directly to avoid creating a temporary copy and to ensure callers use
+    // the cached path.
+    if (useCache) {
+      try {
+        final cachedFile = await CacheService.getCachedAudioFile(
+          text: text,
+          voice: voiceName,
+          languageCode: languageCode,
+          provider: 'google',
+          speakingRate: speakingRate,
+          pitch: pitch,
+          extension: audioEncoding.toLowerCase().contains('wav') ? 'wav' : 'mp3',
+        );
+        if (cachedFile != null) {
+          _maybeDebugPrint('[GoogleTTS] Returning cached file path directly: ${cachedFile.path}');
+          return cachedFile;
+        }
+      } catch (e) {
+        _maybeDebugPrint('[GoogleTTS] Error checking cache before file creation: $e');
+      }
+    }
+
     final audioData = await textToSpeech(
       text: text,
       languageCode: languageCode,
       voiceName: voiceName,
       audioEncoding: audioEncoding,
+      sampleRateHertz: sampleRateHertz,
+      noCache: noCache,
+      useCache: useCache,
       speakingRate: speakingRate,
       pitch: pitch,
     );
@@ -143,7 +214,19 @@ class GoogleSpeechService {
 
     try {
       final directory = await getTemporaryDirectory();
-      final fileName = customFileName ?? 'google_tts_${DateTime.now().millisecondsSinceEpoch}.mp3';
+      // Decide extension based on requested encoding/format
+      String ext = 'mp3';
+      final fmt = audioEncoding.toLowerCase();
+      if (fmt.contains('linear16') ||
+          fmt.contains('wav') ||
+          (customFileName?.toLowerCase().endsWith('.wav') ?? false)) {
+        ext = 'wav';
+      } else if (fmt.contains('ogg') || fmt.contains('opus')) {
+        ext = 'ogg';
+      } else if (fmt.contains('mp3')) {
+        ext = 'mp3';
+      }
+      final fileName = customFileName ?? 'google_tts_${DateTime.now().millisecondsSinceEpoch}.$ext';
       final file = File('${directory.path}/$fileName');
 
       await file.writeAsBytes(audioData);
@@ -235,11 +318,50 @@ class GoogleSpeechService {
   }) async {
     try {
       final audioData = await audioFile.readAsBytes();
+
+      // Detect WAV header (RIFF) and extract PCM chunk and sample rate if present.
+      try {
+        if (audioData.length > 12) {
+          final header = String.fromCharCodes(audioData.sublist(0, 4));
+          if (header == 'RIFF') {
+            // read sampleRate from fmt chunk (offset 24..27 little endian)
+            int sr = sampleRateHertz;
+            try {
+              sr = audioData[24] | (audioData[25] << 8) | (audioData[26] << 16) | (audioData[27] << 24);
+            } catch (_) {}
+            // Extract pcm data chunk (look for 'data')
+            int dataStart = -1;
+            for (int i = 0; i < audioData.length - 4; i++) {
+              if (audioData[i] == 0x64 &&
+                  audioData[i + 1] == 0x61 &&
+                  audioData[i + 2] == 0x74 &&
+                  audioData[i + 3] == 0x61) {
+                dataStart = i + 8; // skip 'data' + size (4 bytes)
+                break;
+              }
+            }
+            if (dataStart > 0) {
+              final pcm = audioData.sublist(dataStart);
+              return await speechToText(
+                audioData: pcm,
+                languageCode: languageCode,
+                audioEncoding: 'LINEAR16',
+                sampleRateHertz: sr,
+              );
+            }
+          }
+        }
+      } catch (e) {
+        _maybeDebugPrint('[GoogleSTT] Warning parsing WAV header: $e');
+      }
+
+      // Fallback: assume raw PCM16 captured by recorder (sampleRate 16000)
+      // Many recorder streams provide raw 16-bit PCM without WAV header.
       return await speechToText(
         audioData: audioData,
         languageCode: languageCode,
-        audioEncoding: audioEncoding,
-        sampleRateHertz: sampleRateHertz,
+        audioEncoding: 'LINEAR16',
+        sampleRateHertz: 16000,
       );
     } catch (e) {
       _maybeDebugPrint('[GoogleSTT] Error leyendo archivo: $e');

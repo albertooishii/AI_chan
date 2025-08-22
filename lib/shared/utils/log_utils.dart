@@ -75,10 +75,15 @@ class Log {
     final levelStr = level.name.toUpperCase();
     final coloredLine = '$colorCode$emoji [$levelStr][$tag] $message$reset';
 
-    // dart:developer.log para herramientas de desarrollo
-    dev.log(message, name: '$emoji $tag', level: _levelIndex(level));
+    // En modo debug preferimos debugPrint (con colores) para consola.
+    // Evitar llamar a dart:developer.log en debug porque muchas herramientas
+    // muestran ambos (dev.log + stdout) y provoca líneas duplicadas.
+    if (!kDebugMode) {
+      // dart:developer.log para herramientas de desarrollo/entornos no-debug
+      dev.log(message, name: '$emoji $tag', level: _levelIndex(level));
+    }
 
-    // debugPrint con colores para consola
+    // debugPrint con colores para consola en modo debug
     if (kDebugMode) {
       debugPrint(coloredLine);
     }
