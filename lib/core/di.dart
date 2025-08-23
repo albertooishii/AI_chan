@@ -132,6 +132,20 @@ IRealtimeClient getRealtimeClientForProvider(
   void Function(Object)? onError,
   void Function(String)? onUserTranscription,
 }) {
+  // Test override: if tests provided a factory, use it so tests can inject
+  // a fake realtime client wired with the same callbacks the production
+  // code would receive. This avoids touching network stacks in tests.
+  if (_testRealtimeClientFactory != null) {
+    return _testRealtimeClientFactory!(
+      provider,
+      model: model,
+      onText: onText,
+      onAudio: onAudio,
+      onCompleted: onCompleted,
+      onError: onError,
+      onUserTranscription: onUserTranscription,
+    );
+  }
   final p = provider.toLowerCase();
   if (p == 'openai') {
     return OpenAIRealtimeClient(
@@ -153,6 +167,27 @@ IRealtimeClient getRealtimeClientForProvider(
     onUserTranscription: onUserTranscription,
   );
 }
+
+// ---------------- Test overrides for realtime client ----------------
+/// Type of factory used by tests to create a fake IRealtimeClient that
+/// mirrors the production constructor signature.
+typedef RealtimeClientFactory = IRealtimeClient Function(
+  String provider, {
+  String? model,
+  void Function(String)? onText,
+  void Function(Uint8List)? onAudio,
+  void Function()? onCompleted,
+  void Function(Object)? onError,
+  void Function(String)? onUserTranscription,
+});
+
+RealtimeClientFactory? _testRealtimeClientFactory;
+
+/// Allow tests to install a factory to create a fake realtime client.
+void setTestRealtimeClientFactory(RealtimeClientFactory? factory) {
+  _testRealtimeClientFactory = factory;
+}
+
 
 IProfileService getProfileServiceForProvider([String? provider]) {
   // If caller passes provider explicitly, use it.
