@@ -14,7 +14,6 @@ import 'package:ai_chan/voice/infrastructure/adapters/google_stt_adapter.dart';
 import 'package:ai_chan/voice/infrastructure/adapters/google_tts_adapter.dart';
 import 'dart:typed_data';
 import 'package:ai_chan/voice/infrastructure/clients/openai_realtime_client.dart';
-import 'package:ai_chan/voice/infrastructure/clients/gemini_realtime_client.dart';
 import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
 import 'package:ai_chan/core/infrastructure/adapters/openai_adapter.dart';
 import 'package:ai_chan/core/infrastructure/adapters/gemini_adapter.dart';
@@ -157,9 +156,11 @@ IRealtimeClient getRealtimeClientForProvider(
       onUserTranscription: onUserTranscription,
     );
   }
-  // default to Gemini orchestrator for providers like 'google' that need emulation
-  return GeminiCallOrchestrator(
-    model: model ?? Config.requireGoogleRealtimeModel(),
+  // Calls using Gemini/Google are disabled by project decision. Return a
+  // lightweight stub so callers can still construct a client but any call
+  // orchestration features will surface a clear unsupported error or no-op.
+  return OpenAIRealtimeClient(
+    model: model ?? 'disabled',
     onText: onText,
     onAudio: onAudio,
     onCompleted: onCompleted,
@@ -171,15 +172,16 @@ IRealtimeClient getRealtimeClientForProvider(
 // ---------------- Test overrides for realtime client ----------------
 /// Type of factory used by tests to create a fake IRealtimeClient that
 /// mirrors the production constructor signature.
-typedef RealtimeClientFactory = IRealtimeClient Function(
-  String provider, {
-  String? model,
-  void Function(String)? onText,
-  void Function(Uint8List)? onAudio,
-  void Function()? onCompleted,
-  void Function(Object)? onError,
-  void Function(String)? onUserTranscription,
-});
+typedef RealtimeClientFactory =
+    IRealtimeClient Function(
+      String provider, {
+      String? model,
+      void Function(String)? onText,
+      void Function(Uint8List)? onAudio,
+      void Function()? onCompleted,
+      void Function(Object)? onError,
+      void Function(String)? onUserTranscription,
+    });
 
 RealtimeClientFactory? _testRealtimeClientFactory;
 
@@ -187,7 +189,6 @@ RealtimeClientFactory? _testRealtimeClientFactory;
 void setTestRealtimeClientFactory(RealtimeClientFactory? factory) {
   _testRealtimeClientFactory = factory;
 }
-
 
 IProfileService getProfileServiceForProvider([String? provider]) {
   // If caller passes provider explicitly, use it.

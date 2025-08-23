@@ -17,4 +17,3 @@ export 'adapters/audio_playback_strategy_factory.dart';
 
 // Clients
 export 'clients/openai_realtime_voice_client.dart';
-export 'clients/gemini_realtime_voice_client.dart';
