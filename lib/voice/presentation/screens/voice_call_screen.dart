@@ -94,7 +94,7 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
     // Reglas actualizadas:
     // - Rejected: solo si _forceReject (end_call temprano, rechazo explícito, implícito, timeout forzado)
     // - Missed: (a) no hubo conversación y no se recibió fin, o (b) silentNoAudio
-    bool markRejected = _forceReject;
+    final bool markRejected = _forceReject;
     bool markMissed = false;
     if (!markRejected && (silentNoAudio || !hadConversation)) {
       markMissed = true;

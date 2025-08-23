@@ -295,7 +295,7 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle> w
     if (replaceWith != null && replaceWith.isNotEmpty) {
       final lower = replaceWith.toLowerCase();
       final norm = _normalize(lower);
-      String? mapped = _syllableToKana[lower] ?? _syllableToKana[norm];
+      final String? mapped = _syllableToKana[lower] ?? _syllableToKana[norm];
       if (mapped == null && norm.length > 1) {
         // Descomponer greedy en sub-sílabas ya normalizadas
         final pool = <int>[];

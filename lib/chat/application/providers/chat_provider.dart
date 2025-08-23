@@ -257,7 +257,7 @@ class ChatProvider extends ChangeNotifier {
     ChatResult result;
     try {
       // Antes de iniciar la petición, comprobar si hay red.
-      bool online = await hasInternetConnection();
+      final bool online = await hasInternetConnection();
       if (!online) {
         // Dejar el mensaje en 'sending' hasta que la conexión vuelva.
         Log.i('No hay conexión. Esperando reconexión para enviar mensaje...', tag: 'CHAT');
@@ -478,7 +478,8 @@ class ChatProvider extends ChangeNotifier {
     // Manejo de errores reportados por el servicio (texto de error)
     if (result.text.toLowerCase().contains('error al conectar con la ia') && !result.isImage) {
       // Marcar mensaje como failed para permitir reintento manual
-      int idx = (existingMessageIndex != null && existingMessageIndex >= 0 && existingMessageIndex < messages.length)
+      final int idx =
+          (existingMessageIndex != null && existingMessageIndex >= 0 && existingMessageIndex < messages.length)
           ? existingMessageIndex
           : messages.lastIndexWhere((m) => m.sender == MessageSender.user);
       if (idx != -1) {

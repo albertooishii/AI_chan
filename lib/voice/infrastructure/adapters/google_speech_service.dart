@@ -368,7 +368,7 @@ class GoogleSpeechService {
       // Decide extension and try a direct transcription with a guessed encoding
       final ext = audioFile.path.split('.').last.toLowerCase();
 
-      Uint8List audioData = await audioFile.readAsBytes();
+      final Uint8List audioData = await audioFile.readAsBytes();
 
       // Helper: try direct transcription with guessed encoding
       Future<String?> tryDirect(String guessedEncoding, int guessedSR) async {

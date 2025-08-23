@@ -22,6 +22,19 @@ Future<(bool success, String? error)> downloadImage(String imagePath) async {
     Log.d('[downloadImage] FilePicker result: $result');
 
     if (result != null) {
+      Log.d('[downloadImage] FilePicker result: $result');
+
+      // En Android FilePicker puede devolver rutas SAF/content (p.ej. '/document/primary:...')
+      // No debemos usar dart:io File en esos casos.
+      if (Platform.isAndroid) {
+        final lower = result.toLowerCase();
+        if (lower.startsWith('/document') || lower.startsWith('content://') || lower.contains('primary:')) {
+          // Confiar en que FilePicker escribió los bytes correctamente
+          Log.d('[downloadImage] Ruta SAF/content detectada; confiar en FilePicker para guardar los bytes');
+          return (true, null);
+        }
+      }
+
       final savedFile = File(result);
       // Si ya existe, éxito
       if (await savedFile.exists()) {

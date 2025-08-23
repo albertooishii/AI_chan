@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:permission_handler/permission_handler.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -31,8 +33,41 @@ class ChatJsonUtils {
       if (!path.toLowerCase().endsWith('.json')) {
         path = '$path.json';
       }
+
+      // En Android, FilePicker puede devolver rutas SAF/content (p.ej. '/document/primary:Download/...')
+      // Esas rutas no son accesibles mediante dart:io File. Si detectamos ese caso, asumimos que
+      // FilePicker ya escribió los bytes correctamente y retornamos éxito.
+      if (!kIsWeb && Platform.isAndroid) {
+        final lower = path.toLowerCase();
+        if (lower.startsWith('/document') || lower.startsWith('content://') || lower.contains('primary:')) {
+          // No intentar abrir con File(path) porque fallará con PathNotFoundException.
+          return (true, null);
+        }
+      }
+
       // Algunos entornos (Linux / desktop) pueden ignorar 'bytes'; escribimos manualmente
       try {
+        // En Android moderno puede ser necesario solicitar permisos adicionales para rutas filesystem
+        if (!kIsWeb && Platform.isAndroid) {
+          try {
+            final status = await Permission.manageExternalStorage.status;
+            if (!status.isGranted) {
+              final req = await Permission.manageExternalStorage.request();
+              if (!req.isGranted) {
+                final storageReq = await Permission.storage.request();
+                if (!storageReq.isGranted) {
+                  return (false, 'Permiso de almacenamiento denegado. Habilítalo en ajustes para guardar archivos.');
+                }
+              }
+            }
+          } catch (_) {
+            final storageReq = await Permission.storage.request();
+            if (!storageReq.isGranted) {
+              return (false, 'Permiso de almacenamiento denegado. Habilítalo en ajustes para guardar archivos.');
+            }
+          }
+        }
+
         final file = File(path);
         await file.writeAsString(exportStr);
         final exists = await file.exists();
@@ -40,6 +75,10 @@ class ChatJsonUtils {
         final length = await file.length();
         if (length == 0) return (false, 'Archivo creado vacío en: $path');
       } catch (e) {
+        // Proveer mensaje más útil en Android
+        if (!kIsWeb && Platform.isAndroid) {
+          return (false, 'Error escribiendo archivo en Android. Comprueba permisos y el almacenamiento:\n$e');
+        }
         return (false, 'Error escribiendo archivo en disco:\n$e');
       }
       return (true, null);
@@ -172,13 +211,30 @@ class ChatJsonUtils {
                     if (result == null) return; // cancelado
                     var path = result;
                     if (!path.toLowerCase().endsWith('.json')) path = '$path.json';
-                    final file = File(path);
-                    await file.writeAsString(preview);
-                    final exists = await file.exists();
-                    if (!exists) {
-                      showErrorDialog('No se pudo crear el archivo en: $path');
-                    } else {
-                      showAppSnackBar('Archivo guardado correctamente.', preferRootMessenger: true);
+
+                    // Si estamos en Android y la ruta parece ser SAF/content URI, no intentar usar File(path)
+                    if (!kIsWeb && Platform.isAndroid) {
+                      final lower = path.toLowerCase();
+                      if (lower.startsWith('/document') ||
+                          lower.startsWith('content://') ||
+                          lower.contains('primary:')) {
+                        // Confiar en que FilePicker guardó los bytes correctamente
+                        showAppSnackBar('Archivo guardado correctamente.', preferRootMessenger: true);
+                        return;
+                      }
+                    }
+
+                    try {
+                      final file = File(path);
+                      await file.writeAsString(preview);
+                      final exists = await file.exists();
+                      if (!exists) {
+                        showErrorDialog('No se pudo crear el archivo en: $path');
+                      } else {
+                        showAppSnackBar('Archivo guardado correctamente.', preferRootMessenger: true);
+                      }
+                    } catch (e) {
+                      showErrorDialog('Error guardando archivo:\n${e.toString()}');
                     }
                   } catch (e) {
                     showErrorDialog('Error guardando archivo:\n${e.toString()}');

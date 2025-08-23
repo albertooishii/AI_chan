@@ -433,7 +433,7 @@ class ToneService {
         final double lead = (math.sin(p0) + 0.9 * math.sin(p1) + 0.9 * math.sin(p2)) / 2.8;
         final double h3 = 0.25 * math.sin(3 * p0);
         final double ring = 0.2 * math.sin(2 * math.pi * 28.0 * time);
-        double v = (lead + h3) * (0.8 + ring);
+        final double v = (lead + h3) * (0.8 + ring);
         dry[t] += a * v;
       }
     }

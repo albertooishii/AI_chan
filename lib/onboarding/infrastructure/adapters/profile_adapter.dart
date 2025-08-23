@@ -65,6 +65,14 @@ class ProfileAdapter implements IProfileService {
       final generator = IAAppearanceGenerator();
       final appearanceMap = await generator.generateAppearancePrompt(profile);
       final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(profile, appearanceMap);
+      // Si se generó correctamente, añadir al histórico de avatars del perfil.
+      try {
+        final List<AiImage> newAvatars = List<AiImage>.from(profile.avatars ?? <AiImage>[]);
+        newAvatars.add(avatar);
+        // Nota: aquí sólo actualizamos la copia local; el guardado persistente del perfil
+        // debe realizarse en la capa superior que gestione almacenamiento/estado.
+        // Podrías llamar a un servicio de perfil para persistir `profile.copyWith(avatars: newAvatars)`.
+      } catch (_) {}
       return avatar;
     } catch (e) {
       return AiImage(url: 'https://example.com/avatar_placeholder.png', seed: 'fallback-seed', prompt: 'fallback');

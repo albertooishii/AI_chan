@@ -545,14 +545,14 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                 ),
               ),
-              // Debug: generar nuevo avatar (elimina anteriores y crea uno nuevo sin usar la misma semilla)
+              // Debug: añadir un nuevo avatar (añade al array de avatars)
               PopupMenuItem<String>(
-                value: 'generate_new_avatar',
+                value: 'add_new_avatar',
                 child: Row(
                   children: const [
                     Icon(Icons.add_a_photo, color: Colors.redAccent, size: 20),
                     SizedBox(width: 8),
-                    Text('Generar nuevo avatar (debug)', style: TextStyle(color: Colors.redAccent)),
+                    Text('Añadir un nuevo avatar (debug)', style: TextStyle(color: Colors.redAccent)),
                   ],
                 ),
               ),
@@ -602,15 +602,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 if (mounted) setState(() => _isRegeneratingAppearance = true);
                 try {
                   final appearanceMap = await chatProvider.iaAppearanceGenerator.generateAppearancePrompt(bio);
-                  // Regenerar usando la misma semilla (si existe) y AÑADIR al histórico, no reemplazar
-                  final seed = bio.avatar?.seed;
-                  final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(
-                    bio,
-                    appearanceMap,
-                    seedOverride: seed,
-                  );
+                  // Generar una nueva apariencia y avatares completamente nuevos
+                  final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(bio, appearanceMap);
                   if (!ctx.mounted) return;
-                  final existing = bio.avatars ?? <AiImage>[];
                   final newBio = AiChanProfile(
                     biography: bio.biography,
                     userName: bio.userName,
@@ -618,7 +612,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     userBirthday: bio.userBirthday,
                     aiBirthday: bio.aiBirthday,
                     appearance: appearanceMap as Map<String, dynamic>? ?? <String, dynamic>{},
-                    avatars: [...existing, avatar],
+                    avatars: [avatar],
                     timeline: bio.timeline, // timeline SIEMPRE al final
                   );
                   chatProvider.onboardingData = newBio;
@@ -655,6 +649,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     // Un reintento directo
                     try {
                       final appearanceMap = await chatProvider.iaAppearanceGenerator.generateAppearancePrompt(bio);
+                      // Reintento enviando seedOverride (misma lógica que arriba)
                       final seed = bio.avatar?.seed;
                       final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(
                         bio,
@@ -687,16 +682,22 @@ class _ChatScreenState extends State<ChatScreen> {
                     setState(() => _isRegeneratingAppearance = false);
                   }
                 }
-              } else if (value == 'generate_new_avatar') {
+              } else if (value == 'add_new_avatar') {
                 final ctx = context;
                 final bio = chatProvider.onboardingData;
                 if (mounted) setState(() => _isRegeneratingAppearance = true);
                 try {
                   // No regenerar la apariencia: usar la apariencia existente del perfil.
                   final appearanceMap = bio.appearance as Map<String, dynamic>? ?? <String, dynamic>{};
-                  // Generación completamente nueva: NO usar seed existente. Reemplaza todos los avatars.
-                  final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(bio, appearanceMap);
+                  // Generación de un avatar adicional: ENVIAR seedOverride para forzar override, y AÑADIR al array
+                  final seed = bio.avatar?.seed;
+                  final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(
+                    bio,
+                    appearanceMap,
+                    seedOverride: seed,
+                  );
                   if (!ctx.mounted) return;
+                  final existing = bio.avatars ?? <AiImage>[];
                   final newBio = AiChanProfile(
                     biography: bio.biography,
                     userName: bio.userName,
@@ -704,13 +705,13 @@ class _ChatScreenState extends State<ChatScreen> {
                     userBirthday: bio.userBirthday,
                     aiBirthday: bio.aiBirthday,
                     appearance: appearanceMap as Map<String, dynamic>? ?? <String, dynamic>{},
-                    avatars: [avatar],
+                    avatars: [...existing, avatar],
                     timeline: bio.timeline,
                   );
                   chatProvider.onboardingData = newBio;
                   chatProvider.saveAll();
                   setState(() {});
-                  showAppSnackBar('Avatar completamente nuevo generado y reemplazado.', preferRootMessenger: true);
+                  showAppSnackBar('Nuevo avatar añadido al historial.', preferRootMessenger: true);
                 } catch (e) {
                   if (!ctx.mounted) return;
                   _showErrorDialogWith(ctx, e.toString());

@@ -19,19 +19,19 @@ class IAAvatarGenerator {
     final String forcedImageModel = Config.getDefaultImageModel();
     Log.d('[IAAvatarGenerator] Avatar: generando imagen con modelo $forcedImageModel');
 
-    final imagePrompt =
+    var imagePrompt =
         '''Usa la herramienta de generación de imágenes y devuelve únicamente la imagen en base64.
-Genera una imagen hiperrealista cuadrada (1:1) centrada en la cara y torso superior, coherente con este JSON de apariencia:
-${jsonEncode(appearance)}
-Recuerda: la imagen debe representar a una mujer joven de 25 años (edad aparente = 25). SOLO devuelve la imagen en base64 en la respuesta.''';
+        Genera una imagen hiperrealista cuadrada (1:1) centrada en la cara y torso superior, coherente con este JSON de apariencia:
+        ${jsonEncode(appearance)}
+        La imagen debe mostrar a la IA realizando una actividad que le guste (elige la actividad a partir de 'biography'. La pose y la expresión deben transmitir que está disfrutando de esa actividad (sonrisa natural, mirada enfocada, gestos suaves).
+        Viste ropa coherente con los campos de `appearance` (usa prendas, estilo, colores y accesorios especificados allí).
+        Recuerda: la imagen debe representar a una mujer joven de 25 años (edad aparente = 25). Evita texto, marcas de agua y elementos anacrónicos. SOLO devuelve la imagen en base64 en la respuesta.''';
 
     AIResponse imageResponse = AIResponse(text: '', base64: '', seed: '', prompt: '');
     const int maxImageAttemptsPerModel = 3;
     for (int attempt = 0; attempt < maxImageAttemptsPerModel; attempt++) {
       Log.d('[IAAvatarGenerator] Avatar: intento ${attempt + 1}/$maxImageAttemptsPerModel con $forcedImageModel');
       try {
-        // Build SystemPrompt with optional avatar seed to allow regenerations that
-        // re-use the same image id (seed) when requested.
         final profileForPrompt = AiChanProfile(
           biography: bio.biography,
           userName: bio.userName,
@@ -39,9 +39,16 @@ Recuerda: la imagen debe representar a una mujer joven de 25 años (edad aparent
           userBirthday: null,
           aiBirthday: null,
           appearance: appearance,
-          avatars: seedOverride != null ? [AiImage(seed: seedOverride)] : null,
+          avatars: seedOverride != null ? bio.avatars : null,
           timeline: [],
         );
+
+        // Si se pasó seedOverride añadimos instrucciones para regenerar usando
+        // ese seed como referencia de identidad facial, pero permitiendo
+        // variaciones en ropa, pose y entorno.
+        imagePrompt = seedOverride != null
+            ? '$imagePrompt\nRegenera una NUEVA imagen manteniendo la identidad facial pero variando la ropa, cabello, la pose y el entorno según las que hay disponibles en appearance. SOLO devuelve la imagen en base64 en la respuesta.'
+            : imagePrompt;
 
         final systemPromptImage = SystemPrompt(
           profile: profileForPrompt,
@@ -87,7 +94,14 @@ Recuerda: la imagen debe representar a una mujer joven de 25 años (edad aparent
     }
 
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final usedSeed = seedOverride ?? imageResponse.seed;
+    // Prefer the seed returned by the image service when available. Si la
+    // API devolvió una nueva seed, usarla; si no, usar seedOverride si existe.
+    final String usedSeed = (imageResponse.seed.isNotEmpty) ? imageResponse.seed : (seedOverride ?? '');
+
+    Log.d('[IAAvatarGenerator] Avatar: usada seed final: $usedSeed');
+
+    // Devolver AiImage con la seed real usada para que el llamador pueda
+    // añadirla al perfil (append) si así lo desea.
     return AiImage(seed: usedSeed, prompt: imageResponse.prompt, url: imageUrl, createdAtMs: nowMs);
   }
 }
