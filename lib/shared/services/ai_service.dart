@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/core/cache/cache_service.dart';
 
 abstract class AIService {
   /// Test hook: permite inyectar una implementación fake durante tests.
@@ -156,20 +157,49 @@ abstract class AIService {
 }
 
 /// Devuelve la lista combinada de modelos de todos los servicios IA
-Future<List<String>> getAllAIModels() async {
+Future<List<String>> getAllAIModels({bool forceRefresh = false}) async {
   // Pedimos instancias a la fábrica centralizada para evitar instanciaciones dispersas
   final services = [
     runtime_factory.getRuntimeAIServiceForModel(Config.requireDefaultImageModel()),
     runtime_factory.getRuntimeAIServiceForModel(Config.requireDefaultTextModel()),
   ];
+
   final allModels = <String>[];
+
+  // Attempt to read per-service cache first (unless forceRefresh)
+  if (!forceRefresh) {
+    try {
+      for (final service in services) {
+        final providerName = service.runtimeType.toString().toLowerCase();
+        final cached = await CacheService.getCachedModels(provider: providerName);
+        if (cached != null && cached.isNotEmpty) {
+          allModels.addAll(cached);
+        }
+      }
+      if (allModels.isNotEmpty) {
+        return allModels;
+      }
+    } catch (_) {
+      // ignore cache errors and proceed to fetch
+    }
+  }
+
+  // If we reach here, fetch from services and save to cache
   for (final service in services) {
     try {
       final models = await service.getAvailableModels();
-      allModels.addAll(models);
+      if (models.isNotEmpty) {
+        allModels.addAll(models);
+        // Save per-service cache
+        try {
+          final providerName = service.runtimeType.toString().toLowerCase();
+          await CacheService.saveModelsToCache(models: models, provider: providerName);
+        } catch (_) {}
+      }
     } catch (_) {
       // Si falla un servicio, ignora y sigue
     }
   }
+
   return allModels;
 }

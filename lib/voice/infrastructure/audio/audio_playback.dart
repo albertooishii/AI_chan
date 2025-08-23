@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:audioplayers/audioplayers.dart' as ap;
+import 'package:flutter/services.dart';
 
 /// Abstraction over audio playback so production code can use the real
 /// audioplayers implementation while tests inject a lightweight fake.
@@ -43,7 +46,71 @@ class RealAudioPlayback implements AudioPlayback {
     // existing ap.Source, or any object that can be converted to string (fallback).
     ap.Source src;
     if (source is String) {
-      src = ap.DeviceFileSource(source);
+      // Prefer DeviceFileSource for local files. Some devices/Android versions
+      // report IO errors when the plugin uses file-descriptors. As a robust
+      // fallback, try reading the file bytes and play via BytesSource.
+      final path = source;
+      // If path points to an existing file, attempt DeviceFileSource first.
+      try {
+        final f = File(path);
+        if (await f.exists()) {
+          try {
+            src = ap.DeviceFileSource(path);
+            await _player.play(src);
+            return;
+          } catch (e) {
+            // DeviceFileSource failed for this device; fall through to bytes option.
+            try {
+              debugPrint('[AudioPlayback] DeviceFileSource failed, will try BytesSource for $path: $e');
+            } catch (_) {}
+          }
+
+          // Try bytes fallback
+          try {
+            final bytes = await f.readAsBytes();
+            final bytesSrc = ap.BytesSource(bytes);
+            await _player.play(bytesSrc);
+            return;
+          } catch (e) {
+            try {
+              debugPrint('[AudioPlayback] BytesSource fallback failed for $path: $e');
+            } catch (_) {}
+            // final fallback: try DeviceFileSource again (best-effort)
+            src = ap.DeviceFileSource(path);
+            // If both DeviceFileSource and BytesSource failed, attempt to obtain a
+            // content:// URI via platform FileProvider and play via UrlSource.
+            try {
+              final channel = MethodChannel('ai_chan/file_provider');
+              final contentUri = await channel.invokeMethod<String>('getContentUriForFile', {'path': path});
+              if (contentUri != null && contentUri.isNotEmpty) {
+                try {
+                  final urlSrc = ap.UrlSource(contentUri);
+                  await _player.play(urlSrc);
+                  return;
+                } catch (e) {
+                  try {
+                    debugPrint('[AudioPlayback] UrlSource(FileProvider) failed for $contentUri: $e');
+                  } catch (_) {}
+                }
+              }
+            } catch (e) {
+              try {
+                debugPrint('[AudioPlayback] FileProvider content URI step failed for $path: $e');
+              } catch (_) {}
+            }
+          }
+        } else {
+          // Path doesn't exist - treat as generic string and let plugin decide
+          src = ap.DeviceFileSource(path);
+        }
+      } catch (e) {
+        // If any unexpected error happens, fallback to converting to string
+        // and trying DeviceFileSource.
+        try {
+          debugPrint('[AudioPlayback] Error preparing local file source: $e');
+        } catch (_) {}
+        src = ap.DeviceFileSource(source.toString());
+      }
     } else if (source is ap.Source) {
       src = source;
     } else {
@@ -51,7 +118,17 @@ class RealAudioPlayback implements AudioPlayback {
       src = ap.DeviceFileSource(source.toString());
     }
 
-    await _player.play(src);
+    try {
+      await _player.play(src);
+    } catch (e) {
+      // Avoid crashing the app when the audio resource doesn't exist or the
+      // platform player fails to set the source. Log a friendly message and
+      // let the caller continue (UI should reflect playback failure).
+      try {
+        // ignore: avoid_print
+        debugPrint('[AudioPlayback] play failed for source=$source: $e');
+      } catch (_) {}
+    }
   }
 
   @override

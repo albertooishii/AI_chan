@@ -17,7 +17,7 @@ class AiChanProfile {
   final String? aiCountryCode; // p.ej., JP, ES, US
 
   /// Datos de avatar: seed, url, prompt, etc.
-  final AiImage? avatar;
+  final List<AiImage>? avatars;
 
   AiChanProfile({
     this.events,
@@ -30,21 +30,21 @@ class AiChanProfile {
     required this.timeline,
     this.userCountryCode,
     this.aiCountryCode,
-    this.avatar,
+    this.avatars,
   });
+
+  AiImage? get avatar => (avatars != null && avatars!.isNotEmpty) ? avatars!.last : null;
 
   factory AiChanProfile.fromJson(Map<String, dynamic> json) {
     final events = (json['events'] as List<dynamic>? ?? [])
         .map((e) => EventEntry.fromJson(e as Map<String, dynamic>))
         .toList();
     DateTime? birth;
-    if (json['userBirthday'] is String &&
-        (json['userBirthday'] as String).isNotEmpty) {
+    if (json['userBirthday'] is String && (json['userBirthday'] as String).isNotEmpty) {
       birth = DateTime.tryParse(json['userBirthday']);
     }
     DateTime? aiBirth;
-    if (json['aiBirthday'] is String &&
-        (json['aiBirthday'] as String).isNotEmpty) {
+    if (json['aiBirthday'] is String && (json['aiBirthday'] as String).isNotEmpty) {
       aiBirth = DateTime.tryParse(json['aiBirthday']);
     }
     return AiChanProfile(
@@ -64,22 +64,25 @@ class AiChanProfile {
       timeline: (json['timeline'] as List<dynamic>? ?? [])
           .map((e) => TimelineEntry.fromJson(e as Map<String, dynamic>))
           .toList(),
-      avatar: json['avatar'] != null
-          ? AiImage.fromJson(json['avatar'] as Map<String, dynamic>)
-          : null,
+      avatars: (() {
+        try {
+          if (json['avatars'] is List) {
+            final list = (json['avatars'] as List).cast<Map<String, dynamic>>();
+            return list.map((m) => AiImage.fromJson(m)).toList();
+          }
+          if (json['avatar'] != null) {
+            return [AiImage.fromJson(json['avatar'] as Map<String, dynamic>)];
+          }
+        } catch (_) {}
+        return null;
+      })(),
     );
   }
 
   /// Versión segura: devuelve null y borra datos corruptos si el perfil no es válido (estructura plana)
   static Future<AiChanProfile?> tryFromJson(Map<String, dynamic> json) async {
     // Estructura esperada: todos los campos al mismo nivel
-    final expectedKeys = [
-      'userName',
-      'aiName',
-      'biography',
-      'appearance',
-      'timeline',
-    ];
+    final expectedKeys = ['userName', 'aiName', 'biography', 'appearance', 'timeline'];
     bool valid = true;
     for (final key in expectedKeys) {
       if (!json.containsKey(key)) {
@@ -122,7 +125,7 @@ class AiChanProfile {
     'appearance': appearance,
     if (userCountryCode != null) 'userCountryCode': userCountryCode,
     if (aiCountryCode != null) 'aiCountryCode': aiCountryCode,
-    if (avatar != null) 'avatar': avatar!.toJson(),
+    if (avatars != null) 'avatars': avatars!.map((a) => a.toJson()).toList(),
     if (events != null) 'events': events!.map((e) => e.toJson()).toList(),
     // timeline SIEMPRE debe ir al final para mantener el orden y evitar problemas de import/export
     'timeline': timeline.map((e) => e.toJson()).toList(),
@@ -139,7 +142,7 @@ class AiChanProfile {
     List<TimelineEntry>? timeline,
     String? userCountryCode,
     String? aiCountryCode,
-    AiImage? avatar,
+    List<AiImage>? avatars,
   }) {
     return AiChanProfile(
       events: events ?? this.events,
@@ -152,7 +155,7 @@ class AiChanProfile {
       timeline: timeline ?? this.timeline,
       userCountryCode: userCountryCode ?? this.userCountryCode,
       aiCountryCode: aiCountryCode ?? this.aiCountryCode,
-      avatar: avatar ?? this.avatar,
+      avatars: avatars ?? this.avatars,
     );
   }
 }

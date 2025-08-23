@@ -61,8 +61,12 @@ class AudioChatService implements IAudioChatService {
       debugPrint('[Audio] Permiso micrófono denegado');
       return;
     }
-    final dir = await audio_utils.getLocalAudioDir();
-    final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    // Record directly into the configured local audio directory so we avoid
+    // cross-filesystem rename issues (writing into /tmp then moving to
+    // AUDIO_DIR can fail with EXDEV). The filename uses the start timestamp
+    // so it stays stable for logs and later correlation.
+    final localDir = await audio_utils.getLocalAudioDir();
+    final path = '${localDir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
     await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 96000), path: path);
     isRecording = true;
     _recordCancelled = false;
@@ -104,46 +108,56 @@ class AudioChatService implements IAudioChatService {
         onStateChanged();
         return null;
       }
-      // Copiar a directorio local persistente para evitar que el archivo temporal sea eliminado
+      // Since we now record directly into the persistent audio dir, if the
+      // returned path is already inside that dir we can short-circuit and
+      // return it without renaming/copying. This avoids EXDEV errors and
+      // preserves atomicity when the recorder already wrote into the same
+      // filesystem.
       String result = path;
       try {
         final dir = await audio_utils.getLocalAudioDir();
-        final dest = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-        final f = File(path);
-        if (await f.exists()) {
-          // Intentar mover (rename) primero — es atómico si está en el mismo filesystem
-          try {
-            await f.rename(dest);
-            debugPrint('[Audio] stopRecording moved file to $dest');
-            result = dest;
-          } catch (e) {
-            // Si falla (p.ej. distinto filesystem), caer a copy+verify+delete
-            debugPrint('[Audio] stopRecording rename failed: $e; falling back to copy');
-            try {
-              await f.copy(dest);
-              debugPrint('[Audio] stopRecording copied file to $dest');
-              // Verificar tamaños antes de eliminar el original
-              try {
-                final srcLen = await f.length();
-                final dstLen = await File(dest).length();
-                if (srcLen == dstLen) {
-                  try {
-                    await f.delete();
-                    debugPrint('[Audio] stopRecording deleted original file $path after verify');
-                  } catch (_) {}
-                } else {
-                  debugPrint('[Audio] stopRecording copy size mismatch src=$srcLen dst=$dstLen; keeping original');
-                }
-              } catch (e2) {
-                debugPrint('[Audio] stopRecording verify error: $e2');
-              }
-              result = dest;
-            } catch (e2) {
-              debugPrint('[Audio] stopRecording copy error: $e2');
-            }
-          }
+        if (path.startsWith(dir.path)) {
+          debugPrint('[Audio] stopRecording: recording already in audio dir: $path');
+          result = path;
         } else {
-          debugPrint('[Audio] stopRecording: original file not found for copy: $path');
+          // Fallback: try to move into audio dir (rare, kept for safety)
+          final ts = _recordStart?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch;
+          final dest = '${dir.path}/voice_$ts.m4a';
+          final f = File(path);
+          if (await f.exists()) {
+            try {
+              await f.rename(dest);
+              final newLen = await File(dest).length();
+              debugPrint('[Audio] stopRecording moved file to $dest (size=$newLen bytes)');
+              result = dest;
+            } catch (e) {
+              debugPrint('[Audio] stopRecording rename failed: $e; falling back to copy');
+              try {
+                await f.copy(dest);
+                final newLen = await File(dest).length();
+                debugPrint('[Audio] stopRecording copied file to $dest (size=$newLen bytes)');
+                try {
+                  final srcLen = await f.length();
+                  final dstLen = await File(dest).length();
+                  if (srcLen == dstLen) {
+                    try {
+                      await f.delete();
+                      debugPrint('[Audio] stopRecording deleted original file $path after verify');
+                    } catch (_) {}
+                  } else {
+                    debugPrint('[Audio] stopRecording copy size mismatch src=$srcLen dst=$dstLen; keeping original');
+                  }
+                } catch (e2) {
+                  debugPrint('[Audio] stopRecording verify error: $e2');
+                }
+                result = dest;
+              } catch (e2) {
+                debugPrint('[Audio] stopRecording copy error: $e2');
+              }
+            }
+          } else {
+            debugPrint('[Audio] stopRecording: original file not found for copy: $path');
+          }
         }
       } catch (e) {
         debugPrint('[Audio] stopRecording copy error: $e');
@@ -423,7 +437,7 @@ class AudioChatService implements IAudioChatService {
       }
 
       if (provider == 'google') {
-        // voice is expected to be a Google voice name like 'es-ES-Neural2-A'
+        // voice is expected to be a Google voice name like 'es-ES-Wavenet-F'
         // If caller passed an OpenAI voice name or empty string, map to
         // configured Google default so the cache lookup uses the Google
         // voice name (avoids regenerating audio that was cached under the

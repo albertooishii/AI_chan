@@ -16,8 +16,10 @@ class AiChanProfile {
   final String? userCountryCode; // p.ej., ES, US, MX
   final String? aiCountryCode; // p.ej., JP, ES, US
 
-  /// Datos de avatar: seed, url, prompt, etc.
-  final AiImage? avatar;
+  /// Datos de avatar: ahora soportamos múltiples versiones/variantes.
+  /// `avatars` contiene el histórico (orden cronológico). Para compatibilidad
+  /// con código existente hay un getter `avatar` que devuelve la última.
+  final List<AiImage>? avatars;
 
   AiChanProfile({
     this.events,
@@ -30,8 +32,11 @@ class AiChanProfile {
     required this.timeline,
     this.userCountryCode,
     this.aiCountryCode,
-    this.avatar,
+    this.avatars,
   });
+
+  /// Backwards-compat getter: última avatar si existe.
+  AiImage? get avatar => (avatars != null && avatars!.isNotEmpty) ? avatars!.last : null;
 
   factory AiChanProfile.fromJson(Map<String, dynamic> json) {
     final events = (json['events'] as List<dynamic>? ?? [])
@@ -62,7 +67,19 @@ class AiChanProfile {
       timeline: (json['timeline'] as List<dynamic>? ?? [])
           .map((e) => TimelineEntry.fromJson(e as Map<String, dynamic>))
           .toList(),
-      avatar: json['avatar'] != null ? AiImage.fromJson(json['avatar'] as Map<String, dynamic>) : null,
+      // Compatibilidad: soportar tanto 'avatars' (lista) como el campo legacy 'avatar'.
+      avatars: (() {
+        try {
+          if (json['avatars'] is List) {
+            final list = (json['avatars'] as List).cast<Map<String, dynamic>>();
+            return list.map((m) => AiImage.fromJson(m)).toList();
+          }
+          if (json['avatar'] != null) {
+            return [AiImage.fromJson(json['avatar'] as Map<String, dynamic>)];
+          }
+        } catch (_) {}
+        return null;
+      })(),
     );
   }
 
@@ -112,7 +129,7 @@ class AiChanProfile {
     'appearance': appearance,
     if (userCountryCode != null) 'userCountryCode': userCountryCode,
     if (aiCountryCode != null) 'aiCountryCode': aiCountryCode,
-    if (avatar != null) 'avatar': avatar!.toJson(),
+    if (avatars != null) 'avatars': avatars!.map((a) => a.toJson()).toList(),
     if (events != null) 'events': events!.map((e) => e.toJson()).toList(),
     // timeline SIEMPRE debe ir al final para mantener el orden y evitar problemas de import/export
     'timeline': timeline.map((e) => e.toJson()).toList(),
@@ -129,7 +146,7 @@ class AiChanProfile {
     List<TimelineEntry>? timeline,
     String? userCountryCode,
     String? aiCountryCode,
-    AiImage? avatar,
+    List<AiImage>? avatars,
   }) {
     return AiChanProfile(
       events: events ?? this.events,
@@ -142,7 +159,7 @@ class AiChanProfile {
       timeline: timeline ?? this.timeline,
       userCountryCode: userCountryCode ?? this.userCountryCode,
       aiCountryCode: aiCountryCode ?? this.aiCountryCode,
-      avatar: avatar ?? this.avatar,
+      avatars: avatars ?? this.avatars,
     );
   }
 }

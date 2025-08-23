@@ -1,6 +1,5 @@
 import 'package:ai_chan/core/config.dart';
 import 'dart:convert';
-import 'package:ai_chan/shared/utils/image_utils.dart';
 import 'package:ai_chan/shared/utils/json_utils.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/core/models.dart';
@@ -8,13 +7,12 @@ import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/core/ai_runtime_guard.dart';
 
 class IAAppearanceGenerator {
-  Future<Map<String, dynamic>> generateAppearancePromptWithImage(
+  Future<Map<String, dynamic>> generateAppearancePrompt(
     AiChanProfile bio, {
     AIService? aiService,
     Future<String?> Function(String base64, {String prefix})? saveImageFunc,
   }) async {
     final usedModel = Config.getDefaultTextModel();
-    final imageModel = Config.getDefaultImageModel();
 
     // Bloque de formato JSON para la apariencia física
     final appearanceJsonFormat = jsonEncode({
@@ -138,7 +136,7 @@ Biografía:
         userBirthday: bio.userBirthday,
         aiBirthday: bio.aiBirthday,
         appearance: <String, dynamic>{},
-        avatar: null,
+        avatars: null,
         timeline: [],
       ),
       dateTime: DateTime.now(),
@@ -185,89 +183,6 @@ Biografía:
       appearanceMap['edad_aparente'] = 25;
     } catch (_) {}
     // Sin campo de versión: no se requiere completar timestamp
-
-    // Generar imagen de perfil con AIService
-    String imagePrompt =
-        "Usa la herramienta de generación de imágenes (tools: [{type: image_generation}]) y devuelve únicamente la imagen generada, sin ningún texto extra, sin pie de foto, sin explicaciones, sin comentarios, sin ningún tipo de descripción adicional. No añadas ningún texto antes ni después de la imagen.\n\n"
-        "Genera una imagen hiperrealista en formato cuadrado (1:1) con encuadre limpio y recortado (sin cortar cabeza, frente, barbilla ni hombros principales), pensada como avatar para redes sociales. Muestra la parte superior del cuerpo (de la cintura hacia arriba), centrando la atención en la cara y el torso. La apariencia DEBE reflejar claramente a una mujer joven de 25 años (edad aparente exacta = 25) independientemente de la edad biográfica. Utiliza todos los datos del JSON de apariencia para reflejar rasgos físicos, proporciones, ojos, peinado, ropa, accesorios, postura, expresión, fondo y detalles relevantes. El fondo debe ser coherente con su estilo y gustos y la expresión natural y cercana. Para la ropa, elige uno de los conjuntos existentes en el array 'ropa' (que no sea el de trabajo ni el pijama). No inventes ni mezcles prendas nuevas: usa el conjunto exactamente como está descrito en el JSON. Evita poses rígidas y fondos totalmente planos.\n\nAñade un toque divertido y espontáneo coherente con los intereses/hobbies mencionados en la biografía (por ejemplo un gesto, una micro‑expresión, la interacción casual con un objeto del fondo o un detalle ambiental), siempre sutil y natural, sin introducir texto, logos, marcas ni elementos que contradigan el JSON y sin añadir prendas o accesorios no listados. El resultado debe transmitir cercanía, energía positiva y personalidad propia sin volverse caricatura.\n\n"
-        "Apariencia generada (JSON):\n${jsonEncode(appearanceMap)}\n\nRecuerda: SOLO la imagen, sin texto ni explicaciones.";
-
-    final systemPromptImage = SystemPrompt(
-      profile: AiChanProfile(
-        biography: bio.biography,
-        userName: bio.userName,
-        aiName: bio.aiName,
-        userBirthday: null,
-        aiBirthday: null,
-        appearance: appearanceMap,
-        avatar: null,
-        timeline: [],
-      ),
-      dateTime: DateTime.now(),
-      instructions: {'raw': imagePrompt},
-    );
-
-    final String forcedImageModel = Config.getDefaultImageModel();
-    if (imageModel != forcedImageModel) {
-      Log.d('[IAAppearanceGenerator] Avatar: imageModel "$imageModel" ignorado; se fuerza "$forcedImageModel"');
-    }
-    Log.d('[IAAppearanceGenerator] Avatar: generando imagen con modelo $forcedImageModel (intentos por modelo=3)');
-    AIResponse imageResponse = AIResponse(text: '', base64: '', seed: '', prompt: '');
-    const int maxImageAttemptsPerModel = 3;
-    for (int attempt = 0; attempt < maxImageAttemptsPerModel; attempt++) {
-      Log.d('[IAAppearanceGenerator] Avatar: intento ${attempt + 1}/$maxImageAttemptsPerModel con $forcedImageModel');
-      try {
-        final resp = await (aiService != null
-            ? aiService.sendMessageImpl([], systemPromptImage, model: forcedImageModel, enableImageGeneration: true)
-            : AIService.sendMessage([], systemPromptImage, model: forcedImageModel, enableImageGeneration: true));
-        if (resp.base64.isNotEmpty) {
-          imageResponse = resp;
-          Log.d('[IAAppearanceGenerator] Avatar: imagen obtenida con $forcedImageModel en intento ${attempt + 1}');
-          break;
-        }
-        Log.w('[IAAppearanceGenerator] Avatar: intento ${attempt + 1} sin imagen');
-      } catch (err) {
-        if (handleRuntimeError(err, 'IAAppearanceGenerator')) {
-          // logged by helper
-        } else {
-          Log.e('[IAAppearanceGenerator] Avatar: error de red/timeout en intento ${attempt + 1}: $err');
-        }
-      }
-    }
-
-    // Si no se generó imagen tras los reintentos, lanzar excepción para que la UI pregunte al usuario.
-    if (imageResponse.base64.isEmpty) {
-      throw Exception('No se pudo generar el avatar tras $maxImageAttemptsPerModel intentos con $forcedImageModel.');
-    }
-
-    // Log seguro: no imprimir base64 completo
-    final logMap = imageResponse.toJson();
-    if (logMap['imageBase64'] != null && logMap['imageBase64'].toString().isNotEmpty) {
-      final base64Str = logMap['imageBase64'] as String;
-      logMap['imageBase64'] = '[${base64Str.length} chars] ${base64Str.substring(0, 40)}...';
-    }
-    Log.d('Imagen generada: $logMap');
-
-    // Guardar imagen en local y obtener la ruta
-    String? imageUrl;
-    try {
-      imageUrl = await (saveImageFunc != null
-          ? saveImageFunc(imageResponse.base64, prefix: 'ai_avatar')
-          : saveBase64ImageToFile(imageResponse.base64, prefix: 'ai_avatar'));
-    } catch (e) {
-      imageUrl = null;
-    }
-
-    if (imageUrl == null || imageUrl.isEmpty) {
-      throw Exception('Se generó el avatar pero no se pudo guardar la imagen en el dispositivo.');
-    }
-
-    Log.d('Imagen guardada en: $imageUrl');
-
-    return {
-      'appearance': appearanceMap,
-      // Devolver avatar como objeto AiImage (nunca null)
-      'avatar': AiImage(seed: imageResponse.seed, prompt: imageResponse.prompt, url: imageUrl),
-    };
+    return appearanceMap;
   }
 }

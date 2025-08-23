@@ -35,6 +35,30 @@ class Config {
   static String getGeminiKey() => _get('GEMINI_API_KEY', '');
   static String getOpenAIRealtimeModel() => _get('OPENAI_REALTIME_MODEL', '');
 
+  /// Modelo TTS para OpenAI (usado para síntesis de mensajes, no realtime calls).
+  /// Valor por defecto alineado con la documentación: 'gpt-4o-mini-tts'.
+  static String getOpenAITtsModel() => _get('OPENAI_TTS_MODEL', 'gpt-4o-mini-tts');
+
+  static String requireOpenAITtsModel() {
+    final v = getOpenAITtsModel();
+    if (v.trim().isEmpty) {
+      throw Exception('OPENAI_TTS_MODEL no está configurado');
+    }
+    return v;
+  }
+
+  /// Modelo STT para OpenAI (usado en transcripción).
+  /// Valor por defecto alineado con la documentación: 'gpt-4o-mini-transcribe'.
+  static String getOpenAISttModel() => _get('OPENAI_STT_MODEL', 'gpt-4o-mini-transcribe');
+
+  static String requireOpenAISttModel() {
+    final v = getOpenAISttModel();
+    if (v.trim().isEmpty) {
+      throw Exception('OPENAI_STT_MODEL no está configurado');
+    }
+    return v;
+  }
+
   /// Devuelve el OPENAI_REALTIME_MODEL y lanza si no está configurado.
   static String requireOpenAIRealtimeModel() {
     final v = getOpenAIRealtimeModel();

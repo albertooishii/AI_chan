@@ -14,15 +14,18 @@ import 'dart:io';
 import 'package:ai_chan/core/services/ia_appearance_generator.dart';
 import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/shared/services/event_service.dart';
+import 'package:ai_chan/core/services/ia_avatar_generator.dart';
 import 'package:ai_chan/shared/services/promise_service.dart';
 import 'package:ai_chan/core/services/image_request_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
 import 'package:ai_chan/chat/domain/models/chat_result.dart';
 import 'package:ai_chan/voice.dart';
+import 'package:ai_chan/shared/utils/audio_utils.dart' as audio_utils;
 import 'package:ai_chan/chat/domain/services/periodic_ia_message_scheduler.dart';
 import 'package:ai_chan/core/services/prompt_builder.dart';
 import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared/utils/network_utils.dart';
 
 class ChatProvider extends ChangeNotifier {
   final IChatRepository? repository;
@@ -37,6 +40,9 @@ class ChatProvider extends ChangeNotifier {
   // is triggered many times in quick succession.
   Timer? _saveDebounceTimer;
   final Duration _saveDebounceDuration = const Duration(milliseconds: 300);
+
+  // Flag para evitar loops tras dispose
+  bool _isDisposed = false;
 
   ChatProvider({
     this.repository,
@@ -250,6 +256,126 @@ class ChatProvider extends ChangeNotifier {
     // Enviar vía servicio modularizado (maneja reintentos y base64)
     ChatResult result;
     try {
+      // Antes de iniciar la petición, comprobar si hay red.
+      bool online = await hasInternetConnection();
+      if (!online) {
+        // Dejar el mensaje en 'sending' hasta que la conexión vuelva.
+        Log.i('No hay conexión. Esperando reconexión para enviar mensaje...', tag: 'CHAT');
+        // Escuchar / reintentar en background sin bloquear el UI thread.
+        () async {
+          while (!_isDisposed) {
+            final nowOnline = await hasInternetConnection();
+            if (nowOnline) break;
+            await Future.delayed(const Duration(seconds: 2));
+          }
+          if (_isDisposed) return;
+          // Cuando vuelva la conexión, iniciar el envío real (marca sent justo antes)
+          _setLastUserMessageStatus(MessageStatus.sent);
+          try {
+            if (chatResponseService != null) {
+              final msgs = recentMessages
+                  .map(
+                    (m) => {
+                      'role': m.sender == MessageSender.user
+                          ? 'user'
+                          : (m.sender == MessageSender.assistant ? 'ia' : 'system'),
+                      'content': m.text,
+                      'datetime': m.dateTime.toIso8601String(),
+                    },
+                  )
+                  .toList();
+              final mapResult = await chatResponseService!.sendChat(
+                msgs,
+                options: {
+                  'systemPromptObj': systemPromptObj.toJson(),
+                  'model': selected,
+                  'imageBase64': image?.base64,
+                  'imageMimeType': imageMimeType,
+                  'enableImageGeneration': solicitaImagen,
+                },
+              );
+              final tmpResult = ChatResult(
+                text: mapResult['text'] as String? ?? '',
+                isImage: mapResult['isImage'] as bool? ?? false,
+                imagePath: mapResult['imagePath'] as String?,
+                prompt: mapResult['prompt'] as String?,
+                seed: mapResult['seed'] as String?,
+                finalModelUsed: mapResult['finalModelUsed'] as String? ?? selected,
+              );
+              // Marcar como read inmediatamente al recibir la respuesta de la IA
+              _setLastUserMessageStatus(MessageStatus.read);
+              // Añadir resultado asistente en el hilo principal
+              final assistantMessage = Message(
+                text: tmpResult.text,
+                sender: MessageSender.assistant,
+                dateTime: DateTime.now(),
+                isImage: tmpResult.isImage,
+                image: tmpResult.isImage
+                    ? AiImage(url: tmpResult.imagePath ?? '', seed: tmpResult.seed, prompt: tmpResult.prompt)
+                    : null,
+                status: MessageStatus.read,
+              );
+              messages.add(assistantMessage);
+              notifyListeners();
+            } else {
+              // Fallback a impl vía DI
+              final impl = di.getChatResponseService();
+              final msgs = recentMessages
+                  .map(
+                    (m) => {
+                      'role': m.sender == MessageSender.user
+                          ? 'user'
+                          : (m.sender == MessageSender.assistant ? 'ia' : 'system'),
+                      'content': m.text,
+                      'datetime': m.dateTime.toIso8601String(),
+                    },
+                  )
+                  .toList();
+              final mapResult = await impl.sendChat(
+                msgs,
+                options: {
+                  'systemPromptObj': systemPromptObj.toJson(),
+                  'model': selected,
+                  'imageBase64': image?.base64,
+                  'imageMimeType': imageMimeType,
+                  'enableImageGeneration': solicitaImagen,
+                },
+              );
+              final tmpResult = ChatResult(
+                text: mapResult['text'] as String? ?? '',
+                isImage: mapResult['isImage'] as bool? ?? false,
+                imagePath: mapResult['imagePath'] as String?,
+                prompt: mapResult['prompt'] as String?,
+                seed: mapResult['seed'] as String?,
+                finalModelUsed: mapResult['finalModelUsed'] as String? ?? selected,
+              );
+              _setLastUserMessageStatus(MessageStatus.read);
+              final assistantMessage = Message(
+                text: tmpResult.text,
+                sender: MessageSender.assistant,
+                dateTime: DateTime.now(),
+                isImage: tmpResult.isImage,
+                image: tmpResult.isImage
+                    ? AiImage(url: tmpResult.imagePath ?? '', seed: tmpResult.seed, prompt: tmpResult.prompt)
+                    : null,
+                status: MessageStatus.read,
+              );
+              messages.add(assistantMessage);
+              notifyListeners();
+            }
+          } catch (e) {
+            Log.e('Error enviando mensaje tras reconexión', tag: 'CHAT', error: e);
+            final idx = messages.lastIndexWhere((m) => m.sender == MessageSender.user);
+            if (idx != -1) {
+              messages[idx] = messages[idx].copyWith(status: MessageStatus.failed);
+              notifyListeners();
+            }
+          }
+        }();
+        // Salir del flujo principal: el envío se gestionará en background al reconectar
+        return;
+      }
+
       if (chatResponseService != null) {
         // Convert recentMessages -> List<Map> expected por la interfaz
         final msgs = recentMessages
@@ -263,6 +389,11 @@ class ChatProvider extends ChangeNotifier {
               },
             )
             .toList();
+        // Marcar inmediatamente como 'sent' al iniciar la petición para evitar
+        // que la UI muestre el mensaje del usuario permanentemente como 'sending'
+        // (especialmente cuando la IA va a devolver una imagen y la generación tarda).
+        _setLastUserMessageStatus(MessageStatus.sent);
+
         final mapResult = await chatResponseService!.sendChat(
           msgs,
           options: {
@@ -282,6 +413,8 @@ class ChatProvider extends ChangeNotifier {
           seed: mapResult['seed'] as String?,
           finalModelUsed: mapResult['finalModelUsed'] as String? ?? selected,
         );
+        // Marcar como read inmediatamente al recibir la respuesta de la IA
+        _setLastUserMessageStatus(MessageStatus.read);
       } else {
         // Resolver una implementación por medio de la fábrica DI y usar la interfaz
         final impl = di.getChatResponseService();
@@ -296,6 +429,11 @@ class ChatProvider extends ChangeNotifier {
               },
             )
             .toList();
+        // Marcar inmediatamente como 'sent' antes del await para que el mensaje
+        // del usuario no quede en estado 'sending' mientras la operación
+        // de generación de imágenes (o procesamiento largo) se completa.
+        _setLastUserMessageStatus(MessageStatus.sent);
+
         final mapResult = await impl.sendChat(
           msgs,
           options: {
@@ -314,6 +452,8 @@ class ChatProvider extends ChangeNotifier {
           seed: mapResult['seed'] as String?,
           finalModelUsed: mapResult['finalModelUsed'] as String? ?? selected,
         );
+        // Marcar como read inmediatamente al recibir la respuesta de la IA
+        _setLastUserMessageStatus(MessageStatus.read);
       }
       // Éxito de red: marcar último mensaje usuario como 'sent'
       _setLastUserMessageStatus(MessageStatus.sent);
@@ -620,10 +760,46 @@ class ChatProvider extends ChangeNotifier {
 
     final file = await audioService.synthesizeTts(msg.text, voice: preferredVoice, languageCode: lang);
     if (file != null) {
-      final idx = messages.indexOf(msg);
-      if (idx != -1) {
-        messages[idx] = messages[idx].copyWith(isAudio: true, audioPath: file.path, autoTts: true);
-        notifyListeners();
+      // Ensure the synthesized file is persisted to the configured local audio dir
+      try {
+        final localDir = await audio_utils.getLocalAudioDir();
+        String finalPath = file.path;
+        if (!file.path.startsWith(localDir.path)) {
+          final ext = file.path.split('.').last;
+          final dest = '${localDir.path}/assistant_tts_${DateTime.now().millisecondsSinceEpoch}.$ext';
+          try {
+            await file.rename(dest);
+            finalPath = dest;
+          } catch (e) {
+            try {
+              await file.copy(dest);
+              final srcLen = await file.length();
+              final dstLen = await File(dest).length();
+              if (srcLen == dstLen) {
+                try {
+                  await file.delete();
+                } catch (_) {}
+              }
+              finalPath = dest;
+            } catch (e2) {
+              // If copy also fails, keep original file path
+              debugPrint('[Audio][TTS] Could not move synthesized file to local audio dir: $e2');
+            }
+          }
+        }
+
+        final idx = messages.indexOf(msg);
+        if (idx != -1) {
+          messages[idx] = messages[idx].copyWith(isAudio: true, audioPath: finalPath, autoTts: true);
+          notifyListeners();
+        }
+      } catch (e) {
+        debugPrint('[Audio][TTS] Error persisting synthesized file: $e');
+        final idx = messages.indexOf(msg);
+        if (idx != -1) {
+          messages[idx] = messages[idx].copyWith(isAudio: true, audioPath: file.path, autoTts: true);
+          notifyListeners();
+        }
       }
     }
   }
@@ -829,8 +1005,8 @@ class ChatProvider extends ChangeNotifier {
 
   int _imageRequestId = 0;
   // Listado combinado de modelos IA
-  Future<List<String>> getAllModels() async {
-    return await getAllAIModels();
+  Future<List<String>> getAllModels({bool forceRefresh = false}) async {
+    return await getAllAIModels(forceRefresh: forceRefresh);
   }
 
   // Devuelve el servicio IA desacoplado según el modelo
@@ -1005,6 +1181,43 @@ class ChatProvider extends ChangeNotifier {
         _events.add(EventEntry.fromJson(e));
       }
     }
+    // Chequear generación semanal de avatar en background: si el último avatar tiene más de 7 días
+    try {
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final sevenDays = Duration(days: 7).inMilliseconds;
+      final lastAvatarCreatedMs = onboardingData.avatar?.createdAtMs;
+      final seed = onboardingData.avatar?.seed;
+      if (seed != null && seed.isNotEmpty && lastAvatarCreatedMs != null && (nowMs - lastAvatarCreatedMs) > sevenDays) {
+        // Ejecutar generación asíncrona sin bloquear el loadAll() final
+        () async {
+          try {
+            final appearanceMap = await iaAppearanceGenerator.generateAppearancePrompt(onboardingData);
+            final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(
+              onboardingData,
+              appearanceMap,
+              seedOverride: seed,
+            );
+            final existing = onboardingData.avatars ?? <AiImage>[];
+            onboardingData = onboardingData.copyWith(avatars: [...existing, avatar]);
+            // Insertar un mensaje system para que la IA tenga consciencia de la actualización
+            try {
+              final sysMsg = Message(
+                text:
+                    'Tu avatar se ha actualizado. Usa la nueva imagen como referencia en futuras respuestas (seed=${avatar.seed}).',
+                sender: MessageSender.system,
+                dateTime: DateTime.now(),
+                status: MessageStatus.read,
+              );
+              messages.add(sysMsg);
+            } catch (_) {}
+            await saveAll();
+            notifyListeners();
+          } catch (e) {
+            Log.w('Error generando avatar semanal en background: $e', tag: 'CHAT');
+          }
+        }();
+      }
+    } catch (_) {}
     await loadSelectedModel();
     // Reprogramar promesas IA futuras desde events
     _promiseService.restoreFromEvents();
@@ -1057,7 +1270,10 @@ class ChatProvider extends ChangeNotifier {
 
   @override
   void dispose() {
-    audioService.dispose();
+    _isDisposed = true;
+    try {
+      audioService.dispose();
+    } catch (_) {}
     _saveDebounceTimer?.cancel();
     try {
       _periodicScheduler.stop();

@@ -1,6 +1,7 @@
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/services/ia_bio_generator.dart';
 import 'package:ai_chan/core/services/ia_appearance_generator.dart';
+import 'package:ai_chan/core/services/ia_avatar_generator.dart';
 
 /// Utilidad flexible para crear la biografía completa (con apariencia), permitiendo elegir el generador
 Future<AiChanProfile> generateFullBiographyFlexible({
@@ -21,26 +22,27 @@ Future<AiChanProfile> generateFullBiographyFlexible({
     userCountryCode: userCountryCode,
     aiCountryCode: aiCountryCode,
   );
-  final appearanceResult = await appearanceGenerator
-      .generateAppearancePromptWithImage(
-        bio,
-        aiService: null,
-        saveImageFunc: saveImageFunc,
-      );
-  // Extraer avatar: el generador devuelve 'avatar' como Image
-  final AiImage? avatar = appearanceResult['avatar'] as AiImage?;
+  final appearanceMap = await appearanceGenerator.generateAppearancePrompt(
+    bio,
+    aiService: null,
+    saveImageFunc: saveImageFunc,
+  );
+  final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(
+    bio,
+    appearanceMap,
+    aiService: null,
+    saveImageFunc: saveImageFunc,
+  );
   final biography = AiChanProfile(
     biography: bio.biography,
     userName: bio.userName,
     aiName: bio.aiName,
     userBirthday: bio.userBirthday,
     aiBirthday: bio.aiBirthday,
-    appearance:
-        appearanceResult['appearance'] as Map<String, dynamic>? ??
-        <String, dynamic>{},
+    appearance: appearanceMap as Map<String, dynamic>? ?? <String, dynamic>{},
     userCountryCode: userCountryCode ?? bio.userCountryCode,
     aiCountryCode: aiCountryCode ?? bio.aiCountryCode,
-    avatar: avatar,
+    avatars: [avatar],
     timeline: bio.timeline, // timeline SIEMPRE al final
   );
   return biography;

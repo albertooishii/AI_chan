@@ -14,6 +14,7 @@ import 'package:ai_chan/core/models.dart';
 import 'gallery_screen.dart';
 import 'package:ai_chan/shared.dart'; // Using centralized shared exports
 import '../widgets/tts_configuration_dialog.dart';
+import 'package:ai_chan/core/services/ia_avatar_generator.dart';
 
 class ChatScreen extends StatefulWidget {
   final AiChanProfile bio;
@@ -32,6 +33,12 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   Directory? _imageDir;
   bool _isRegeneratingAppearance = false; // Muestra spinner en avatar durante la regeneración
+  // Pagination / lazy loading for messages
+  late final ScrollController _scrollController;
+  int _displayedCount = 100; // inicial: últimos 100 mensajes
+  bool _isLoadingMore = false;
+  static const int _pageSize = 100;
+  bool _showScrollToBottomButton = false;
   // Estado relacionado con la carga de voces migrado a TtsConfigurationDialog
 
   @override
@@ -40,7 +47,66 @@ class _ChatScreenState extends State<ChatScreen> {
     getLocalImageDir().then((dir) {
       if (mounted) setState(() => _imageDir = dir);
     });
+    _scrollController = ScrollController();
+    _scrollController.addListener(() {
+      try {
+        final pos = _scrollController.position;
+        // En reverse:true, el tope (scroll hacia arriba) es maxScrollExtent
+        if (pos.pixels >= (pos.maxScrollExtent - 200)) {
+          _tryLoadMore();
+        }
+        // Mostrar botón solo cuando el usuario ha scrolleado lo suficiente
+        // como para que los últimos mensajes probablemente ya no estén visibles.
+        // Usamos un umbral relativo: establecerlo a 200% del viewport como solicitó el usuario.
+        final threshold = (pos.viewportDimension * 2.0);
+        final shouldShow = pos.pixels > threshold;
+        if (shouldShow != _showScrollToBottomButton) {
+          setState(() => _showScrollToBottomButton = shouldShow);
+        }
+      } catch (_) {}
+    });
     // No cargar voces automáticamente - solo cuando se abra el diálogo
+  }
+
+  Future<void> _tryLoadMore() async {
+    if (_isLoadingMore) return;
+    final chatProvider = context.read<ChatProvider>();
+    final filtered = chatProvider.messages
+        .where(
+          (m) => m.sender != MessageSender.system || (m.sender == MessageSender.system && m.text.contains('[call]')),
+        )
+        .toList();
+    if (filtered.length <= _displayedCount) return;
+    setState(() => _isLoadingMore = true);
+    // Preserve scroll position: measure offset from top of list in pixels
+    // In reverse:true the top is maxScrollExtent. We'll compute distance to top.
+    final beforeMax = _scrollController.position.maxScrollExtent;
+    final beforePixels = _scrollController.position.pixels;
+    final distanceToTop = beforeMax - beforePixels;
+
+    // pequeña espera para agrupar múltiples eventos de scroll
+    await Future.delayed(const Duration(milliseconds: 120));
+    if (!mounted) return;
+    setState(() {
+      _displayedCount = (_displayedCount + _pageSize).clamp(0, filtered.length);
+    });
+
+    // Allow a frame to render the newly added items and then adjust scroll
+    await Future.delayed(const Duration(milliseconds: 50));
+    if (!mounted) return;
+    try {
+      final afterMax = _scrollController.position.maxScrollExtent;
+      final target = afterMax - distanceToTop;
+      // Clamp target within scroll extents
+      final clamped = target.clamp(
+        _scrollController.position.minScrollExtent,
+        _scrollController.position.maxScrollExtent,
+      );
+      _scrollController.jumpTo(clamped);
+    } catch (_) {}
+
+    if (!mounted) return;
+    setState(() => _isLoadingMore = false);
   }
 
   Future<void> _showImportDialog(ChatProvider chatProvider) async {
@@ -70,66 +136,104 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<String?> _showModelSelectionDialog(BuildContext ctx, List<String> models, String? initialModel) async {
     if (!ctx.mounted) return null;
+    // Use StatefulBuilder to allow in-dialog refresh of models
+    bool localLoading = false;
+    List<String> localModels = List.from(models);
+
     return await showAppDialog<String>(
       context: ctx,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.black,
-        title: const Text('Modelo de texto', style: TextStyle(color: AppColors.primary)),
-        content: models.isEmpty
-            ? const Text('No se encontraron modelos disponibles.', style: TextStyle(color: AppColors.primary))
-            : SizedBox(
-                width: 350,
-                child: ListView(
-                  shrinkWrap: true,
-                  children: [
-                    // Grupo Gemini
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8.0),
-                      child: Text(
-                        'Google',
-                        style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                    ),
-                    ...models
-                        .where((m) => m.toLowerCase().contains('gemini') || m.toLowerCase().contains('imagen-'))
-                        .map(
-                          (m) => ListTile(
-                            title: Text(m, style: const TextStyle(color: AppColors.primary)),
-                            trailing: initialModel == m
-                                ? const Icon(Icons.radio_button_checked, color: AppColors.secondary)
-                                : const Icon(Icons.radio_button_off, color: AppColors.primary),
-                            onTap: () => Navigator.of(ctx).pop(m),
-                          ),
-                        ),
-                    const Divider(color: AppColors.secondary, thickness: 1, height: 24),
-                    // Grupo OpenAI
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8.0),
-                      child: Text(
-                        'OpenAI',
-                        style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                    ),
-                    ...models
-                        .where((m) => m.toLowerCase().startsWith('gpt-'))
-                        .map(
-                          (m) => ListTile(
-                            title: Text(m, style: const TextStyle(color: AppColors.primary)),
-                            trailing: initialModel == m
-                                ? const Icon(Icons.radio_button_checked, color: AppColors.secondary)
-                                : const Icon(Icons.radio_button_off, color: AppColors.primary),
-                            onTap: () => Navigator.of(ctx).pop(m),
-                          ),
-                        ),
-                  ],
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (dialogCtxInner, setStateDialog) {
+          Future<void> refreshModels() async {
+            if (localLoading) return;
+            setStateDialog(() => localLoading = true);
+            try {
+              final chatProvider = ctx.read<ChatProvider>();
+              final fetched = await chatProvider.getAllModels(forceRefresh: true);
+              setStateDialog(() => localModels = fetched);
+            } catch (e) {
+              // show error inside dialog
+              showAppSnackBar('Error al actualizar modelos: $e', preferRootMessenger: true);
+            } finally {
+              setStateDialog(() => localLoading = false);
+            }
+          }
+
+          return AlertDialog(
+            backgroundColor: Colors.black,
+            title: Row(
+              children: [
+                const Expanded(
+                  child: Text('Modelo de texto', style: TextStyle(color: AppColors.primary)),
                 ),
+                IconButton(
+                  icon: localLoading
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.refresh, color: AppColors.primary),
+                  tooltip: 'Actualizar modelos',
+                  onPressed: () {
+                    refreshModels();
+                  },
+                ),
+              ],
+            ),
+            content: localModels.isEmpty
+                ? const Text('No se encontraron modelos disponibles.', style: TextStyle(color: AppColors.primary))
+                : SizedBox(
+                    width: 350,
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        // Grupo Gemini
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text(
+                            'Google',
+                            style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                        ),
+                        ...localModels
+                            .where((m) => m.toLowerCase().contains('gemini') || m.toLowerCase().contains('imagen-'))
+                            .map(
+                              (m) => ListTile(
+                                title: Text(m, style: const TextStyle(color: AppColors.primary)),
+                                trailing: initialModel == m
+                                    ? const Icon(Icons.radio_button_checked, color: AppColors.secondary)
+                                    : const Icon(Icons.radio_button_off, color: AppColors.primary),
+                                onTap: () => Navigator.of(ctx).pop(m),
+                              ),
+                            ),
+                        const Divider(color: AppColors.secondary, thickness: 1, height: 24),
+                        // Grupo OpenAI
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text(
+                            'OpenAI',
+                            style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                        ),
+                        ...localModels
+                            .where((m) => m.toLowerCase().startsWith('gpt-'))
+                            .map(
+                              (m) => ListTile(
+                                title: Text(m, style: const TextStyle(color: AppColors.primary)),
+                                trailing: initialModel == m
+                                    ? const Icon(Icons.radio_button_checked, color: AppColors.secondary)
+                                    : const Icon(Icons.radio_button_off, color: AppColors.primary),
+                                onTap: () => Navigator.of(ctx).pop(m),
+                              ),
+                            ),
+                      ],
+                    ),
+                  ),
+            actions: [
+              TextButton(
+                child: const Text('Cancelar', style: TextStyle(color: AppColors.primary)),
+                onPressed: () => Navigator.of(ctx).pop(),
               ),
-        actions: [
-          TextButton(
-            child: const Text('Cancelar', style: TextStyle(color: AppColors.primary)),
-            onPressed: () => Navigator.of(ctx).pop(),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -221,31 +325,33 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
               )
-            else if (chatProvider.onboardingData.avatar != null &&
-                chatProvider.onboardingData.avatar!.url != null &&
-                chatProvider.onboardingData.avatar!.url!.isNotEmpty)
+            else if (chatProvider.onboardingData.avatars != null &&
+                chatProvider.onboardingData.avatars!.isNotEmpty &&
+                chatProvider.onboardingData.avatars!.last.url != null &&
+                chatProvider.onboardingData.avatars!.last.url!.isNotEmpty)
               (_imageDir != null)
                   ? GestureDetector(
                       onTap: () {
-                        final avatarFilename = chatProvider.onboardingData.avatar!.url!.split('/').last;
-                        final avatarMessage = Message(
-                          image: AiImage(
-                            url: avatarFilename,
-                            seed: chatProvider.onboardingData.avatar?.seed,
-                            prompt: chatProvider.onboardingData.avatar?.prompt,
-                          ),
-                          text: '',
-                          sender: MessageSender.assistant,
-                          isImage: true,
-                          dateTime: DateTime.now(),
-                        );
-                        ExpandableImageDialog.show([avatarMessage], 0, imageDir: _imageDir);
+                        // Construir lista de Message para ExpandableImageDialog a partir de avatars
+                        final avatars = chatProvider.onboardingData.avatars!;
+                        final messages = avatars.map((a) {
+                          final filename = a.url?.split('/').last ?? '';
+                          return Message(
+                            image: AiImage(url: filename, seed: a.seed, prompt: a.prompt),
+                            text: '',
+                            sender: MessageSender.assistant,
+                            isImage: true,
+                            dateTime: DateTime.now(),
+                          );
+                        }).toList();
+                        // Mostrar último (index = last)
+                        ExpandableImageDialog.show(messages, messages.length - 1, imageDir: _imageDir);
                       },
                       child: CircleAvatar(
                         radius: 16,
                         backgroundColor: AppColors.secondary,
                         backgroundImage: FileImage(
-                          File('${_imageDir!.path}/${chatProvider.onboardingData.avatar!.url!.split('/').last}'),
+                          File('${_imageDir!.path}/${chatProvider.onboardingData.avatars!.last.url!.split('/').last}'),
                         ),
                       ),
                     )
@@ -439,6 +545,17 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                 ),
               ),
+              // Debug: generar nuevo avatar (elimina anteriores y crea uno nuevo sin usar la misma semilla)
+              PopupMenuItem<String>(
+                value: 'generate_new_avatar',
+                child: Row(
+                  children: const [
+                    Icon(Icons.add_a_photo, color: Colors.redAccent, size: 20),
+                    SizedBox(width: 8),
+                    Text('Generar nuevo avatar (debug)', style: TextStyle(color: Colors.redAccent)),
+                  ],
+                ),
+              ),
               // Debug: borrar todo
               PopupMenuItem<String>(
                 value: 'clear_debug',
@@ -484,16 +601,24 @@ class _ChatScreenState extends State<ChatScreen> {
                 final bio = chatProvider.onboardingData;
                 if (mounted) setState(() => _isRegeneratingAppearance = true);
                 try {
-                  final result = await chatProvider.iaAppearanceGenerator.generateAppearancePromptWithImage(bio);
+                  final appearanceMap = await chatProvider.iaAppearanceGenerator.generateAppearancePrompt(bio);
+                  // Regenerar usando la misma semilla (si existe) y AÑADIR al histórico, no reemplazar
+                  final seed = bio.avatar?.seed;
+                  final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(
+                    bio,
+                    appearanceMap,
+                    seedOverride: seed,
+                  );
                   if (!ctx.mounted) return;
+                  final existing = bio.avatars ?? <AiImage>[];
                   final newBio = AiChanProfile(
                     biography: bio.biography,
                     userName: bio.userName,
                     aiName: bio.aiName,
                     userBirthday: bio.userBirthday,
                     aiBirthday: bio.aiBirthday,
-                    appearance: result['appearance'] as Map<String, dynamic>? ?? <String, dynamic>{},
-                    avatar: result['avatar'] as AiImage?,
+                    appearance: appearanceMap as Map<String, dynamic>? ?? <String, dynamic>{},
+                    avatars: [...existing, avatar],
                     timeline: bio.timeline, // timeline SIEMPRE al final
                   );
                   chatProvider.onboardingData = newBio;
@@ -529,16 +654,23 @@ class _ChatScreenState extends State<ChatScreen> {
                   if (choice == 'retry') {
                     // Un reintento directo
                     try {
-                      final result = await chatProvider.iaAppearanceGenerator.generateAppearancePromptWithImage(bio);
+                      final appearanceMap = await chatProvider.iaAppearanceGenerator.generateAppearancePrompt(bio);
+                      final seed = bio.avatar?.seed;
+                      final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(
+                        bio,
+                        appearanceMap,
+                        seedOverride: seed,
+                      );
                       if (!ctx.mounted) return;
+                      final existing = bio.avatars ?? <AiImage>[];
                       final newBio = AiChanProfile(
                         biography: bio.biography,
                         userName: bio.userName,
                         aiName: bio.aiName,
                         userBirthday: bio.userBirthday,
                         aiBirthday: bio.aiBirthday,
-                        appearance: result['appearance'] as Map<String, dynamic>? ?? <String, dynamic>{},
-                        avatar: result['avatar'] as AiImage?,
+                        appearance: appearanceMap as Map<String, dynamic>? ?? <String, dynamic>{},
+                        avatars: [...existing, avatar],
                         timeline: bio.timeline,
                       );
                       chatProvider.onboardingData = newBio;
@@ -554,6 +686,36 @@ class _ChatScreenState extends State<ChatScreen> {
                   if (mounted) {
                     setState(() => _isRegeneratingAppearance = false);
                   }
+                }
+              } else if (value == 'generate_new_avatar') {
+                final ctx = context;
+                final bio = chatProvider.onboardingData;
+                if (mounted) setState(() => _isRegeneratingAppearance = true);
+                try {
+                  // No regenerar la apariencia: usar la apariencia existente del perfil.
+                  final appearanceMap = bio.appearance as Map<String, dynamic>? ?? <String, dynamic>{};
+                  // Generación completamente nueva: NO usar seed existente. Reemplaza todos los avatars.
+                  final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(bio, appearanceMap);
+                  if (!ctx.mounted) return;
+                  final newBio = AiChanProfile(
+                    biography: bio.biography,
+                    userName: bio.userName,
+                    aiName: bio.aiName,
+                    userBirthday: bio.userBirthday,
+                    aiBirthday: bio.aiBirthday,
+                    appearance: appearanceMap as Map<String, dynamic>? ?? <String, dynamic>{},
+                    avatars: [avatar],
+                    timeline: bio.timeline,
+                  );
+                  chatProvider.onboardingData = newBio;
+                  chatProvider.saveAll();
+                  setState(() {});
+                  showAppSnackBar('Avatar completamente nuevo generado y reemplazado.', preferRootMessenger: true);
+                } catch (e) {
+                  if (!ctx.mounted) return;
+                  _showErrorDialogWith(ctx, e.toString());
+                } finally {
+                  if (mounted) setState(() => _isRegeneratingAppearance = false);
                 }
               } else if (value == 'clear_debug') {
                 final confirm = await showAppDialog<bool>(
@@ -651,17 +813,8 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Column(
           children: [
             Expanded(
-              child: ListView.builder(
-                reverse: true,
-                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-                itemCount: chatProvider.messages
-                    .where(
-                      (m) =>
-                          m.sender != MessageSender.system ||
-                          (m.sender == MessageSender.system && m.text.contains('[call]')),
-                    )
-                    .length,
-                itemBuilder: (context, index) {
+              child: Builder(
+                builder: (ctx) {
                   final filteredMessages = chatProvider.messages
                       .where(
                         (m) =>
@@ -669,16 +822,47 @@ class _ChatScreenState extends State<ChatScreen> {
                             (m.sender == MessageSender.system && m.text.contains('[call]')),
                       )
                       .toList();
-                  if (filteredMessages.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
-                  final reversedMessages = filteredMessages.reversed.toList();
-                  final message = reversedMessages[index];
-                  bool isLastUserMessage = false;
-                  if (message.sender == MessageSender.user) {
-                    isLastUserMessage = !reversedMessages.skip(index + 1).any((m) => m.sender == MessageSender.user);
-                  }
-                  return ChatBubble(message: message, isLastUserMessage: isLastUserMessage, imageDir: _imageDir);
+                  if (filteredMessages.isEmpty) return const SizedBox.shrink();
+
+                  final int take = filteredMessages.length <= _displayedCount
+                      ? filteredMessages.length
+                      : _displayedCount;
+                  final shown = filteredMessages.sublist(filteredMessages.length - take);
+                  final reversedShown = shown.reversed.toList();
+                  final hasMore = filteredMessages.length > shown.length;
+                  final totalCount = reversedShown.length + (hasMore ? 1 : 0);
+
+                  return ListView.builder(
+                    controller: _scrollController,
+                    reverse: true,
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                    itemCount: totalCount,
+                    itemBuilder: (context, index) {
+                      if (index == reversedShown.length && hasMore) {
+                        // slot para indicador de carga (mensajes antiguos)
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Center(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                                SizedBox(width: 8),
+                                Text('Cargando mensajes antiguos...', style: TextStyle(color: AppColors.primary)),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+
+                      final message = reversedShown[index];
+                      bool isLastUserMessage = false;
+                      if (message.sender == MessageSender.user) {
+                        isLastUserMessage = !reversedShown.skip(index + 1).any((m) => m.sender == MessageSender.user);
+                      }
+                      return ChatBubble(message: message, isLastUserMessage: isLastUserMessage, imageDir: _imageDir);
+                    },
+                  );
                 },
               ),
             ),
@@ -796,6 +980,30 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: _showScrollToBottomButton
+          ? Padding(
+              padding: const EdgeInsets.only(bottom: 70.0), // bajar un poco el FAB
+              child: FloatingActionButton(
+                backgroundColor: AppColors.primary,
+                child: const Icon(Icons.arrow_downward, color: Colors.black),
+                onPressed: () {
+                  try {
+                    _scrollController.animateTo(
+                      0.0,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOut,
+                    );
+                  } catch (_) {
+                    try {
+                      _scrollController.jumpTo(0.0);
+                    } catch (_) {}
+                  }
+                  setState(() => _showScrollToBottomButton = false);
+                },
+              ),
+            )
+          : null,
     );
   }
 
@@ -818,10 +1026,17 @@ class _ChatScreenState extends State<ChatScreen> {
       final envValue = Config.getAudioProvider().toLowerCase();
 
       String defaultValue = 'google';
-      if (envValue == 'openai') defaultValue = 'openai';
-      if (envValue == 'gemini') defaultValue = 'google';
+      if (envValue == 'openai') {
+        defaultValue = 'openai';
+      }
+      if (envValue == 'gemini') {
+        defaultValue = 'google';
+      }
 
-      if (saved == 'gemini') return 'google';
+      if (saved == 'gemini') {
+        return 'google';
+      }
+
       return saved ?? defaultValue;
     } catch (_) {
       return 'google';
@@ -838,6 +1053,7 @@ class ThreeDotsIndicator extends StatefulWidget {
 
 class _ThreeDotsIndicatorState extends State<ThreeDotsIndicator> with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
+
   @override
   void initState() {
     super.initState();
@@ -856,7 +1072,7 @@ class _ThreeDotsIndicatorState extends State<ThreeDotsIndicator> with SingleTick
       animation: _ctrl,
       builder: (context, _) {
         final phase = _ctrl.value;
-        int active = (phase * 3).floor().clamp(0, 2);
+        final int active = (phase * 3).floor().clamp(0, 2);
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(3, (i) {
@@ -867,7 +1083,7 @@ class _ThreeDotsIndicatorState extends State<ThreeDotsIndicator> with SingleTick
                 width: 6,
                 height: 6,
                 decoration: BoxDecoration(
-                  color: widget.color.withValues(alpha: on ? 1 : 0.25),
+                  color: widget.color.withAlpha(on ? 255 : (0.25 * 255).round()),
                   shape: BoxShape.circle,
                 ),
               ),

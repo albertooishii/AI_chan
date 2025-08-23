@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:ai_chan/core/services/ia_appearance_generator.dart';
+import 'package:ai_chan/core/services/ia_avatar_generator.dart';
 import 'package:ai_chan/core/interfaces/i_profile_service.dart';
 import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
@@ -88,6 +89,7 @@ class OnboardingProvider extends ChangeNotifier {
   AiChanProfile? get generatedBiography => _generatedBiography;
 
   /// Genera la biografía, la guarda en caché y notifica a la UI
+  /// [onProgress] recibe claves de progreso que pueden mapearse a pasos UI.
   Future<void> generateAndSaveBiography({
     required BuildContext context,
     required String userName,
@@ -97,9 +99,11 @@ class OnboardingProvider extends ChangeNotifier {
     String? userCountryCode,
     String? aiCountryCode,
     Map<String, dynamic>? appearance,
+    void Function(String)? onProgress,
   }) async {
     _biographySaved = false;
     try {
+      onProgress?.call('start');
       final biography = await _profileService.generateBiography(
         userName: userName,
         aiName: aiName,
@@ -108,15 +112,31 @@ class OnboardingProvider extends ChangeNotifier {
         userCountryCode: userCountryCode,
         aiCountryCode: aiCountryCode,
       );
+      onProgress?.call('generating_basic');
       // Generar apariencia y avatar
-      final appearanceResult = await IAAppearanceGenerator().generateAppearancePromptWithImage(
+      // Señalizamos el inicio de la generación de apariencia (índice 12)
+      onProgress?.call('appearance');
+      final appearanceMap = await IAAppearanceGenerator().generateAppearancePrompt(biography);
+      // Señalizamos la fase de estilo de apariencia (índice 13)
+      onProgress?.call('style');
+      // Preparar fases de generación de avatar: 'avatar' (índice 14)
+      // y 'finish' (índice 15) se emitirán antes de la llamada al generador
+      // para que ambos pasos se muestren durante la generación del avatar.
+      onProgress?.call('avatar');
+      onProgress?.call('finish');
+      final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(
         biography,
+        appearanceMap,
+        aiService: null,
         saveImageFunc: saveImageFunc,
       );
-      final biographyWithAvatar = biography.copyWith(
-        avatar: appearanceResult['avatar'] as AiImage?,
-        appearance: appearanceResult['appearance'] as Map<String, dynamic>?,
-      );
+      final biographyWithAvatar = biography.copyWith(avatars: [avatar], appearance: appearanceMap);
+      // Tras completarse la creación del avatar, emitir 'finalize' (índice 16)
+      // y mantener ese estado visible unos segundos para la transición UX.
+      onProgress?.call('finalize');
+      // Dejar la pantalla en el estado final unos segundos para que el usuario
+      // aprecie el paso 16 antes de persistir/navegar.
+      await Future.delayed(const Duration(seconds: 3));
       // Persistir siempre en SharedPreferences aunque el contexto UI haya sido desmontado.
       final prefs = await SharedPreferences.getInstance();
       final jsonBio = jsonEncode(biographyWithAvatar.toJson());

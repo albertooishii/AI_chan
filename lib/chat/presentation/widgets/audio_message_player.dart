@@ -78,121 +78,131 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> with SingleTick
     final isPlaying = chat.isPlaying(widget.message);
     final glowColor = widget.message.sender == MessageSender.user ? AppColors.primary : AppColors.secondary;
     final durationText = _durationSeconds != null ? _fmt(_durationSeconds!) : '--:--';
-    final screenWidth = MediaQuery.of(context).size.width;
-    double adaptiveWidth;
-    if (screenWidth < 480) {
-      adaptiveWidth = screenWidth - 32; // móvil casi completo
-    } else if (screenWidth < 900) {
-      adaptiveWidth = screenWidth * 0.7;
-    } else {
-      adaptiveWidth = screenWidth * 0.5; // escritorio medio ancho
-    }
-    adaptiveWidth = adaptiveWidth.clamp(220, 720);
+    // Use LayoutBuilder so the player expands to the bubble's available width.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        double finalWidth;
+        if (constraints.hasBoundedWidth && constraints.maxWidth.isFinite && constraints.maxWidth > 0) {
+          finalWidth = constraints.maxWidth;
+        } else {
+          // Fallback to previous adaptive logic when not constrained by parent.
+          final screenWidth = MediaQuery.of(context).size.width;
+          if (screenWidth < 480) {
+            finalWidth = screenWidth - 32; // móvil casi completo
+          } else if (screenWidth < 900) {
+            finalWidth = screenWidth * 0.7;
+          } else {
+            finalWidth = screenWidth * 0.5; // escritorio medio ancho
+          }
+          finalWidth = finalWidth.clamp(220, 720);
+        }
 
-    // Animar un leve cambio de alpha en las barras cuando está reproduciendo
-    final t = _pulse.value; // 0..1
-    return Semantics(
-      label: 'Nota de voz, duración $durationText, ${isPlaying ? 'reproduciendo' : 'pausada'}',
-      button: true,
-      child: GestureDetector(
-        onTap: () => chat.togglePlayAudio(widget.message),
-        child: Container(
-          width: adaptiveWidth,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.black,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: glowColor, width: 1.2),
-          ),
-          child: Row(
-            children: [
-              Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill, color: glowColor, size: 32),
-              const SizedBox(width: 8),
-              Expanded(
-                child: SizedBox(
-                  height: 28,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      const double barWidth = 6.0;
-                      const double gap = 2.0;
+        // Animar un leve cambio de alpha en las barras cuando está reproduciendo
+        final t = _pulse.value; // 0..1
+        return Semantics(
+          label: 'Nota de voz, duración $durationText, ${isPlaying ? 'reproduciendo' : 'pausada'}',
+          button: true,
+          child: GestureDetector(
+            onTap: () => chat.togglePlayAudio(widget.message),
+            child: Container(
+              width: finalWidth,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: glowColor, width: 1.2),
+              ),
+              child: Row(
+                children: [
+                  Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill, color: glowColor, size: 32),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: SizedBox(
+                      height: 28,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          const double barWidth = 6.0;
+                          const double gap = 2.0;
 
-                      // Cuántas barras caben manteniendo ancho fijo por barra+gap
-                      final int maxFit = ((constraints.maxWidth + gap) / (barWidth + gap)).floor().clamp(1, 256);
-                      final int showCount = maxFit;
+                          // Cuántas barras caben manteniendo ancho fijo por barra+gap
+                          final int maxFit = ((constraints.maxWidth + gap) / (barWidth + gap)).floor().clamp(1, 256);
+                          final int showCount = maxFit;
 
-                      // Muestrear `_waveform` para producir exactamente `showCount` valores
-                      List<int> display;
-                      if (_waveform.isEmpty) {
-                        display = List<int>.filled(showCount, 0);
-                      } else if (_waveform.length >= showCount) {
-                        display = _waveform.sublist(_waveform.length - showCount);
-                      } else {
-                        display = List<int>.generate(showCount, (i) {
-                          final idx = (i * _waveform.length / showCount).floor();
-                          return _waveform[idx.clamp(0, _waveform.length - 1)];
-                        });
-                      }
+                          // Muestrear `_waveform` para producir exactamente `showCount` valores
+                          List<int> display;
+                          if (_waveform.isEmpty) {
+                            display = List<int>.filled(showCount, 0);
+                          } else if (_waveform.length >= showCount) {
+                            display = _waveform.sublist(_waveform.length - showCount);
+                          } else {
+                            display = List<int>.generate(showCount, (i) {
+                              final idx = (i * _waveform.length / showCount).floor();
+                              return _waveform[idx.clamp(0, _waveform.length - 1)];
+                            });
+                          }
 
-                      if (display.length <= 1) {
-                        final v = display.isEmpty ? 0 : display.first;
-                        return Align(
-                          alignment: Alignment.center,
-                          child: SizedBox(
-                            width: barWidth,
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 240),
-                              height: 4 + (v / 100) * 22,
-                              decoration: BoxDecoration(
-                                color: isPlaying
-                                    ? glowColor.withValues(
-                                        alpha: ((0.55 + 0.35 * sin((t * 2 * pi) + v)).clamp(0, 1)).toDouble(),
-                                      )
-                                    : glowColor.withValues(alpha: 0.45),
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                          ),
-                        );
-                      }
-
-                      final toShow = display;
-                      // Alinear a la derecha para que se vean las barras más recientes
-                      return Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: List<Widget>.generate(toShow.length * 2 - 1, (i) {
-                          if (i.isEven) {
-                            final val = toShow[i ~/ 2];
-                            final a = isPlaying ? ((0.55 + 0.35 * sin((t * 2 * pi) + val)).clamp(0, 1)) : 0.45;
-                            return SizedBox(
-                              width: barWidth,
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 240),
-                                height: 4 + (val / 100) * 22,
-                                decoration: BoxDecoration(
-                                  color: glowColor.withValues(alpha: a.toDouble()),
-                                  borderRadius: BorderRadius.circular(2),
+                          if (display.length <= 1) {
+                            final v = display.isEmpty ? 0 : display.first;
+                            return Align(
+                              alignment: Alignment.center,
+                              child: SizedBox(
+                                width: barWidth,
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 240),
+                                  height: 4 + (v / 100) * 22,
+                                  decoration: BoxDecoration(
+                                    color: isPlaying
+                                        ? glowColor.withValues(
+                                            alpha: ((0.55 + 0.35 * sin((t * 2 * pi) + v)).clamp(0, 1)).toDouble(),
+                                          )
+                                        : glowColor.withValues(alpha: 0.45),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
                                 ),
                               ),
                             );
                           }
-                          return const SizedBox(width: gap);
-                        }),
-                      );
-                    },
+
+                          final toShow = display;
+                          // Alinear a la derecha para que se vean las barras más recientes
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: List<Widget>.generate(toShow.length * 2 - 1, (i) {
+                              if (i.isEven) {
+                                final val = toShow[i ~/ 2];
+                                final a = isPlaying ? ((0.55 + 0.35 * sin((t * 2 * pi) + val)).clamp(0, 1)) : 0.45;
+                                return SizedBox(
+                                  width: barWidth,
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 240),
+                                    height: 4 + (val / 100) * 22,
+                                    decoration: BoxDecoration(
+                                      color: glowColor.withValues(alpha: a.toDouble()),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                );
+                              }
+                              return const SizedBox(width: gap);
+                            }),
+                          );
+                        },
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  Text(durationText, style: TextStyle(color: Colors.grey[300], fontSize: 12)),
+                  if (widget.message.autoTts && widget.message.sender != MessageSender.assistant) ...[
+                    const SizedBox(width: 6),
+                    const Icon(Icons.auto_mode, size: 14, color: Colors.orangeAccent),
+                  ],
+                ],
               ),
-              const SizedBox(width: 10),
-              Text(durationText, style: TextStyle(color: Colors.grey[300], fontSize: 12)),
-              if (widget.message.autoTts) ...[
-                const SizedBox(width: 6),
-                const Icon(Icons.auto_mode, size: 14, color: Colors.orangeAccent),
-              ],
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

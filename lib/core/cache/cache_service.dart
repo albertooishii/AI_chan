@@ -10,6 +10,7 @@ import '../../shared/utils/cache_utils.dart' as cache_utils;
 class CacheService {
   static const String _audioSubDir = 'audio';
   static const String _voicesSubDir = 'voices';
+  static const String _modelsSubDir = 'models';
 
   /// Obtiene el directorio de caché base
   static Future<Directory> getCacheDirectory() async {
@@ -82,8 +83,22 @@ class CacheService {
       final cachedFile = File('${audioDir.path}/$hash.$ext');
 
       if (await cachedFile.exists()) {
-        Log.d('[Cache] Audio encontrado en caché: ${cachedFile.path}');
-        return cachedFile;
+        try {
+          final len = await cachedFile.length();
+          if (len > 0) {
+            Log.d('[Cache] Audio encontrado en caché: ${cachedFile.path} (size=$len)');
+            return cachedFile;
+          } else {
+            // Remove zero-length files to avoid playback errors and treat as cache miss
+            Log.d('[Cache] Found zero-length cached audio, deleting: ${cachedFile.path}');
+            try {
+              await cachedFile.delete();
+            } catch (_) {}
+          }
+        } catch (e) {
+          Log.e('[Cache] Error checking cached file length: $e');
+          return null;
+        }
       }
       // If not found and provider is Google, try the configured Google default
       // voice as an alias. This helps reuse previously cached files created
@@ -141,8 +156,22 @@ class CacheService {
       final cachedFile = File('${audioDir.path}/$hash.$ext');
 
       await cachedFile.writeAsBytes(audioData);
-      Log.d('[Cache] Audio guardado en caché: ${cachedFile.path}');
-      return cachedFile;
+      try {
+        final len = await cachedFile.length();
+        if (len > 0) {
+          Log.d('[Cache] Audio guardado en caché: ${cachedFile.path} (size=$len)');
+          return cachedFile;
+        } else {
+          Log.e('[Cache] Audio saved but file is zero-length: ${cachedFile.path}');
+          try {
+            await cachedFile.delete();
+          } catch (_) {}
+          return null;
+        }
+      } catch (e) {
+        Log.e('[Cache] Error verifying cached file: $e');
+        return null;
+      }
     } catch (e) {
       Log.e('[Cache] Error guardando audio en caché: $e');
       return null;
@@ -198,6 +227,74 @@ class CacheService {
     } catch (e) {
       debugPrint('[Cache] Error leyendo voces desde caché: $e');
       return null;
+    }
+  }
+
+  /// Guarda lista de modelos en caché
+  static Future<void> saveModelsToCache({required List<String> models, required String provider}) async {
+    try {
+      final cacheDir = await getCacheDirectory();
+      final modelsDir = Directory('${cacheDir.path}/$_modelsSubDir');
+      if (!await modelsDir.exists()) await modelsDir.create(recursive: true);
+      final cacheFile = File('${modelsDir.path}/${provider}_models_cache.json');
+
+      final cacheData = {'provider': provider, 'timestamp': DateTime.now().millisecondsSinceEpoch, 'models': models};
+
+      await cacheFile.writeAsString(jsonEncode(cacheData));
+      Log.d('[Cache] Modelos $provider guardados en caché: ${models.length} modelos');
+    } catch (e) {
+      Log.e('[Cache] Error guardando modelos en caché: $e');
+    }
+  }
+
+  /// Obtiene lista de modelos desde caché por proveedor
+  static Future<List<String>?> getCachedModels({required String provider, bool forceRefresh = false}) async {
+    if (forceRefresh) return null;
+
+    try {
+      final cacheDir = await getCacheDirectory();
+      final modelsDir = Directory('${cacheDir.path}/$_modelsSubDir');
+      final cacheFile = File('${modelsDir.path}/${provider}_models_cache.json');
+
+      if (!await cacheFile.exists()) return null;
+
+      final raw = await cacheFile.readAsString();
+      final cached = jsonDecode(raw) as Map<String, dynamic>;
+
+      // Validar que el cache no sea muy viejo (7 días)
+      final timestamp = cached['timestamp'] as int?;
+      if (timestamp != null) {
+        final cacheAge = DateTime.now().millisecondsSinceEpoch - timestamp;
+        const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 días en ms
+        if (cacheAge > maxAge) {
+          debugPrint('[Cache] Caché de modelos $provider expirado (${cacheAge ~/ (24 * 60 * 60 * 1000)} días)');
+          return null;
+        }
+      }
+
+      final cachedModels = (cached['models'] as List<dynamic>?) ?? [];
+      debugPrint('[Cache] Modelos $provider cargados desde caché: ${cachedModels.length} modelos');
+
+      return cachedModels.map((m) => m.toString()).toList();
+    } catch (e) {
+      debugPrint('[Cache] Error leyendo modelos desde caché: $e');
+      return null;
+    }
+  }
+
+  /// Elimina caché de modelos de un proveedor específico
+  static Future<void> clearModelsCache({required String provider}) async {
+    try {
+      final cacheDir = await getCacheDirectory();
+      final modelsDir = Directory('${cacheDir.path}/$_modelsSubDir');
+      final cacheFile = File('${modelsDir.path}/${provider}_models_cache.json');
+
+      if (await cacheFile.exists()) {
+        await cacheFile.delete();
+        debugPrint('[Cache] Caché de modelos $provider eliminado');
+      }
+    } catch (e) {
+      debugPrint('[Cache] Error eliminando caché de modelos $provider: $e');
     }
   }
 

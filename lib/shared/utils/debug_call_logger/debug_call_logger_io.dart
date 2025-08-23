@@ -9,8 +9,11 @@ Future<void> debugLogCallPrompt(String fileBaseName, Map<String, dynamic> jsonOb
   if (kReleaseMode) return; // solo en debug/profile
   // Evitar crear logs durante flutter test (entorno de pruebas) o si se desactiva explícitamente.
   try {
-    final disableFlag = Config.get('DISABLE_DEBUG_JSON_LOGS', 'false').toLowerCase();
-    if (disableFlag == 'true') return;
+    final raw = Config.get('DISABLE_DEBUG_JSON_LOGS', 'false');
+    final disableFlag = raw.toString().toLowerCase().trim();
+    // Accept common truthy values so users can set 1/true/yes/on in .env
+    const truthy = {'1', 'true', 'yes', 'y', 'on'};
+    if (truthy.contains(disableFlag)) return;
   } catch (_) {
     // ignore
   }

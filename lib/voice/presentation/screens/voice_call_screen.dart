@@ -268,6 +268,13 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
       }
     }
     Log.d('🧹 Limpieza en background finalizada', tag: 'VOICE_CALL');
+    // Dump lightweight telemetry to help tuning thresholds during tests
+    try {
+      Log.d(
+        '[AI-chan][VoiceCall][Telemetry] accepted_direct=$_telemetryAcceptedDirect accepted_duplicate=$_telemetryAcceptedDuplicate rejected_pending=$_telemetryRejectedPending',
+        tag: 'VOICE_CALL',
+      );
+    } catch (_) {}
   }
 
   Future<void> _hangUpNoAnswer() async {
@@ -435,11 +442,38 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
       }
     });
 
-    // Escuchar nivel normalizado del micrófono
+    // Escuchar nivel normalizado del micrófono con estimación adaptativa del noise floor
     try {
       _levelSub = controller.micLevelStream.listen((level) {
         final l = (level.isNaN ? 0.0 : level).clamp(0.0, 1.0);
+        // Smooth sound meter for UI
         _soundLevel = (_soundLevel * 0.6) + (l * 0.4);
+
+        // Update noise floor using EMA when level is below a relaxed threshold
+        // Esto evita que voz alta eleve el noise floor rápidamente.
+        if (l < 0.5 * (_noiseFloor + _voiceThresholdMargin)) {
+          _noiseFloor = (_noiseFloor * (1 - _noiseFloorAlpha)) + (l * _noiseFloorAlpha);
+        }
+
+        // Determine dynamic threshold
+        final dynamicThreshold = (_noiseFloor + _voiceThresholdMargin).clamp(0.01, 1.0);
+        // Keep last computed threshold for transcription heuristics
+        _lastDynamicThreshold = dynamicThreshold;
+
+        final now = DateTime.now();
+        if (l >= dynamicThreshold) {
+          // Candidate voice start
+          _lastMicPeakAt = now; // record any brief crossing as a recent peak
+          _voiceCandidateStartAt ??= now;
+          // If sustained beyond required duration, confirm voice activity
+          if (_voiceCandidateStartAt != null && now.difference(_voiceCandidateStartAt!) >= _voiceSustainDuration) {
+            _lastVoiceActivityAt = now;
+          }
+        } else {
+          // Reset candidate if level falls below
+          _voiceCandidateStartAt = null;
+        }
+
         if (mounted) setState(() {});
       });
     } catch (_) {}
@@ -453,6 +487,10 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
     try {
       _levelSub?.cancel();
     } catch (_) {}
+    // Cancel any pending transcription timers to avoid callbacks after dispose
+    try {
+      _pendingTranscriptionTimer?.cancel();
+    } catch (_) {}
     _controller.dispose();
     controller.stop();
     super.dispose();
@@ -460,7 +498,42 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
 
   late AnimationController _controller;
   double _soundLevel = 0.0;
+  // Voice activity gating: avoid showing/transmitting user transcriptions
+  // when microphone level is low (noise) to reduce false positives.
+  // Tune these constants if needed.
+  // Slightmente más tolerante para capturar actividad breve del usuario
+  final Duration _voiceActivityWindow = Duration(milliseconds: 1200);
+  DateTime? _lastVoiceActivityAt;
+  // Pending transcription stabilization: when there's no recent mic activity
+  // require a repeated/stable transcription within this window to accept it.
+  String? _lastPendingTranscription;
+  Timer? _pendingTranscriptionTimer;
+  final Duration _pendingDuplicateWindow = Duration(milliseconds: 1200);
+
+  void _clearPendingTranscription() {
+    _lastPendingTranscription = null;
+    try {
+      _pendingTranscriptionTimer?.cancel();
+    } catch (_) {}
+    _pendingTranscriptionTimer = null;
+  }
   // Selector de voz migrado al chat principal.
+
+  // Adaptive noise gating fields
+  double _noiseFloor = 0.02; // estimated ambient noise level [0..1]
+  final double _noiseFloorAlpha = 0.02; // EMA smoothing for noise floor
+  final double _voiceThresholdMargin = 0.12; // margin above noise floor to consider voice
+  // Last computed dynamic threshold based on noiseFloor + margin
+  double? _lastDynamicThreshold;
+  // Track a recent mic-level peak (any brief crossing of dynamic threshold)
+  DateTime? _lastMicPeakAt;
+
+  // Simple in-memory telemetry counters to help tuning during tests
+  int _telemetryAcceptedDirect = 0;
+  int _telemetryAcceptedDuplicate = 0;
+  int _telemetryRejectedPending = 0;
+  DateTime? _voiceCandidateStartAt; // when a potential voice segment started
+  final Duration _voiceSustainDuration = Duration(milliseconds: 200); // required sustained duration to confirm voice
 
   @override
   Widget build(BuildContext context) {
@@ -930,7 +1003,71 @@ extension _IncomingLogic on _VoiceCallChatState {
         }
         _showAiSubtitle(chunk);
       },
-      onUserTranscription: (transcription) => _showUserSubtitle(transcription),
+      onUserTranscription: (transcription) {
+        try {
+          final now = DateTime.now();
+          final hadRecentActivity =
+              _lastVoiceActivityAt != null && now.difference(_lastVoiceActivityAt!) <= _voiceActivityWindow;
+          // Consider a mic peak recent if we saw any crossing in the last 1500ms
+          final micRecentPeak = _lastMicPeakAt != null && now.difference(_lastMicPeakAt!).inMilliseconds <= 1500;
+          final trimmed = transcription.trim();
+
+          // If no recent mic activity, be stricter to avoid false positives.
+          if (!hadRecentActivity) {
+            final wordCount = trimmed.isEmpty ? 0 : trimmed.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
+
+            // Stricter blind-accept: require a longer, more likely real utterance AND
+            // evidence of a recent mic peak near the dynamic threshold (to avoid ambient noise).
+            // This reduces cases where ASR returns a plausible long sentence from noise.
+            final bool longEnough = trimmed.length >= 18 && wordCount >= 4;
+            final bool micSuggestsSpeech = _soundLevel >= (_lastDynamicThreshold ?? 0.0);
+            // Accept if it's long OR microphone shows a recent peak near threshold.
+            if (longEnough || micSuggestsSpeech || micRecentPeak) {
+              Log.d(
+                '[AI-chan][VoiceCall] Transcripción aceptada por longitud/pico sin activity: "$trimmed"',
+                tag: 'VOICE_CALL',
+              );
+              _telemetryAcceptedDirect++;
+              _clearPendingTranscription();
+              _showUserSubtitle(transcription);
+              return;
+            }
+
+            // If the same (normalized) short transcription appears twice within the pending window, accept it.
+            String normalizeForMatch(String s) =>
+                s.toLowerCase().replaceAll(RegExp(r'[^\w\s]'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+            final normalized = normalizeForMatch(trimmed);
+            if (_lastPendingTranscription != null && _lastPendingTranscription == normalized) {
+              Log.d(
+                '[AI-chan][VoiceCall] Transcripción duplicada establecida -> aceptar: "$trimmed"',
+                tag: 'VOICE_CALL',
+              );
+              _telemetryAcceptedDuplicate++;
+              _clearPendingTranscription();
+              _showUserSubtitle(transcription);
+              return;
+            }
+
+            // Otherwise mark as pending (store normalized form) and wait for a stable duplicate.
+            _lastPendingTranscription = normalized;
+            _pendingTranscriptionTimer?.cancel();
+            _pendingTranscriptionTimer = Timer(_pendingDuplicateWindow, () {
+              Log.d(
+                '[AI-chan][VoiceCall] Transcripción pendiente caducó: "${_lastPendingTranscription ?? ''}"',
+                tag: 'VOICE_CALL',
+              );
+              _telemetryRejectedPending++;
+              _clearPendingTranscription();
+            });
+            Log.d('[AI-chan][VoiceCall] Transcripción marcada como pendiente: "$trimmed"', tag: 'VOICE_CALL');
+            return;
+          }
+        } catch (e) {
+          Log.e('[AI-chan][VoiceCall] Error en filtro de transcripción', tag: 'VOICE_CALL', error: e);
+          // En caso de error defensivo, mostrar la transcripción en vez de bloquear
+        }
+        _showUserSubtitle(transcription);
+      },
       onHangupReason: (reason) async {
         if (!mounted) return;
         // Capturar messenger antes de cualquier await para cumplir regla use_build_context_synchronously

@@ -1,9 +1,9 @@
 /// Mapa de género por token de voz. Las etiquetas están en español y pueden
 /// usarse para mostrar "Masculina" / "Femenina" en la UI.
-/// Mantener sincronizado con `kOpenAIVoices`.
+/// Mantener sincronizado con cualquier lugar que consuma estos tokens.
 const Map<String, String> kOpenAIVoiceGender = {
   'sage': 'Femenina',
-  'alloy': 'Masculina',
+  'alloy': 'Femenina',
   'ash': 'Masculina',
   'ballad': 'Femenina',
   'coral': 'Femenina',
@@ -15,12 +15,14 @@ const Map<String, String> kOpenAIVoiceGender = {
   'verse': 'Masculina',
 };
 
-/// Lista derivada (en tiempo de ejecución) a partir de las claves del mapa.
+/// Lista derivada (en tiempo de compilación se construye a partir de las claves
+/// del mapa). Usar `kOpenAIVoiceGender.keys.toList()` en código nuevo y preferir
+/// `kOpenAIVoiceGender` como fuente de verdad.
 List<String> get kOpenAIVoices => kOpenAIVoiceGender.keys.toList();
 
 /// Devuelve la voz por defecto efectiva dado el valor opcional de entorno
-/// (OPENAI_VOICE_NAME). Si OPENAI_VOICE_NAME no está o es inválida, retorna
-/// 'sage' si existe en el mapa, o la primera clave disponible.
+/// (OPENAI_VOICE_NAME). Si el valor no está o es inválido, retorna 'sage' si
+/// existe en el mapa, o la primera clave disponible.
 String resolveDefaultVoice(String? envVoice) {
   final keys = kOpenAIVoices;
   if (envVoice != null && keys.contains(envVoice)) return envVoice;

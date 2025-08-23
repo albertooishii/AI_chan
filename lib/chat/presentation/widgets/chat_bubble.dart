@@ -18,9 +18,11 @@ class ChatBubble extends StatelessWidget {
     bool showRetry = true,
   }) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: MainAxisSize.max,
+      mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
+        // Mantener un pequeño espacio a la izquierda dentro del row
         const SizedBox(width: 8),
         Text(_formatTime(message.dateTime), style: TextStyle(color: Colors.grey[400], fontSize: 12)),
         if (isUser) ...[
@@ -128,6 +130,7 @@ class ChatBubble extends StatelessWidget {
     required Color borderColor,
     required Color glowColor,
     EdgeInsetsGeometry? padding,
+    bool forceFullWidth = false,
   }) {
     final bubble = Container(
       margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
@@ -152,20 +155,36 @@ class ChatBubble extends StatelessWidget {
       ),
       child: child,
     );
-    if (useIntrinsicWidth) {
-      // Evitar IntrinsicWidth porque puede fallar en algunas cadenas de layout.
-      // En su lugar limitamos el ancho máximo del bubble al porcentaje de la pantalla.
+    // If requested, force the bubble to occupy the available width (used for
+    // images in portrait mode so they appear side-to-side).
+    if (forceFullWidth) {
       try {
-        final maxWidth = MediaQuery.of(context).size.width * 0.78; // 78% del ancho de pantalla
-        return ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maxWidth),
-          child: bubble,
-        );
+        final mediaWidth = MediaQuery.of(context).size.width;
+        final fullWidth = mediaWidth - 20; // tomar en cuenta margen horizontal del container
+        return SizedBox(width: fullWidth, child: bubble);
       } catch (_) {
-        // Si por alguna razón MediaQuery no está disponible, caer al comportamiento por defecto
         return bubble;
       }
-    } else {
+    }
+
+    // Forzar un ancho visual consistente para todos los bubbles independientemente
+    // de si el mensaje es corto o largo: aplicamos un minWidth y maxWidth relativos
+    // al ancho de la pantalla. Esto mantiene la apariencia uniforme.
+    try {
+      final mediaWidth = MediaQuery.of(context).size.width;
+      final maxWidth = mediaWidth * 0.78; // 78% del ancho de pantalla
+      double minWidth = mediaWidth * 0.32; // 32% del ancho de pantalla como mínimo
+      if (minWidth < 120) minWidth = 120; // no dejar demasiado pequeño en pantallas pequeñas
+      if (minWidth > 220) minWidth = 220; // tope razonable para burbujas pequeñas en pantallas grandes
+
+      // Si el bubble contiene elementos que ya controlan su ancho (useIntrinsicWidth)
+      // respetamos el maxWidth pero seguimos aplicando minWidth para consistencia.
+      return ConstrainedBox(
+        constraints: BoxConstraints(minWidth: minWidth, maxWidth: maxWidth),
+        child: bubble,
+      );
+    } catch (_) {
+      // Si por alguna razón MediaQuery no está disponible, caer al comportamiento por defecto
       return bubble;
     }
   }
@@ -199,10 +218,27 @@ class ChatBubble extends StatelessWidget {
       final absPath = '${imageDir!.path}/$fileName';
       final file = File(absPath);
       if (file.existsSync()) {
-        return Center(
-          child: Builder(
-            builder: (context) {
-              return GestureDetector(
+        final isUser = message.sender == MessageSender.user;
+        return Builder(
+          builder: (context) {
+            // Calcular ancho máximo disponible y orientación, pero respetar breakpoint
+            final media = MediaQuery.of(context);
+            final mediaWidth = media.size.width;
+            const double desktopBreakpoint = 768; // >= 768px tratamos como desktop/tablet
+            final isPortrait = media.orientation == Orientation.portrait;
+            final isSmallPortrait = isPortrait && mediaWidth < desktopBreakpoint;
+            final fullWidth = mediaWidth - 20; // coincidencia con fullWidth usado en bubble
+            final maxWidth = mediaWidth * 0.78; // coincide con el límite del bubble en landscape
+            final targetSize = 256.0;
+            // Si estamos en portrait y la pantalla es pequeña queremos que la imagen ocupe todo el ancho disponible
+            final imageSize = isSmallPortrait ? fullWidth : (targetSize > maxWidth ? maxWidth : targetSize);
+            final alignment = isSmallPortrait
+                ? Alignment.center
+                : (isUser ? Alignment.centerRight : Alignment.centerLeft);
+
+            return Align(
+              alignment: alignment,
+              child: GestureDetector(
                 onTap: () {
                   final chatProvider = context.read<ChatProvider>();
                   final images = chatProvider.messages
@@ -215,11 +251,11 @@ class ChatBubble extends StatelessWidget {
                 },
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.file(file, fit: BoxFit.cover, width: 256, height: 256),
+                  child: Image.file(file, fit: BoxFit.cover, width: imageSize, height: imageSize),
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         );
       }
     }
@@ -286,7 +322,8 @@ class ChatBubble extends StatelessWidget {
       // Caso combinado: imagen + nota de voz
       final showCaption = message.text.trim().isNotEmpty && !isVoiceNoteTag; // ignorar isAudio para caption
       final isShortCaption = !showCaption || (showCaption && message.text.length < 80);
-      useIntrinsicWidth = isShortCaption;
+      // Forzar tamaño reducido cuando hay imagen para que el bubble no ocupe ancho completo
+      useIntrinsicWidth = true;
       padding = isShortCaption ? const EdgeInsets.all(6) : const EdgeInsets.all(14);
       bubbleContent = Column(
         crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -296,7 +333,7 @@ class ChatBubble extends StatelessWidget {
           const SizedBox(height: 8),
           Stack(
             children: [
-              AudioMessagePlayerWithSubs(message: message, width: 200),
+              AudioMessagePlayerWithSubs(message: message, width: 200, globalOverlay: true),
               if (isUser && message.status == MessageStatus.sending)
                 Positioned.fill(
                   child: IgnorePointer(
@@ -323,12 +360,19 @@ class ChatBubble extends StatelessWidget {
             ],
           ),
           if (showCaption) ...[const SizedBox(height: 8), ...MarkdownGenerator().buildWidgets(cleanText(message.text))],
-          _footerRow(context: context, message: message, isUser: isUser, statusWidget: statusWidget),
+          SizedBox(
+            width: double.infinity,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: _footerRow(context: context, message: message, isUser: isUser, statusWidget: statusWidget),
+            ),
+          ),
         ],
       );
     } else if (hasImage) {
+      // Siempre limitar ancho del bubble si contiene una imagen
+      useIntrinsicWidth = true;
       final isShortText = !shouldShowText || (shouldShowText && message.text.length < 80);
-      useIntrinsicWidth = isShortText;
       padding = isShortText ? const EdgeInsets.all(6) : const EdgeInsets.all(14);
       bubbleContent = Column(
         crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -336,7 +380,13 @@ class ChatBubble extends StatelessWidget {
         children: [
           _buildImageContent(message, glowColor),
           if (shouldShowText) ...[const SizedBox(height: 8), ..._buildMarkdownBlocks(message.text)],
-          _footerRow(context: context, message: message, isUser: isUser, statusWidget: statusWidget),
+          SizedBox(
+            width: double.infinity,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: _footerRow(context: context, message: message, isUser: isUser, statusWidget: statusWidget),
+            ),
+          ),
         ],
       );
     } else if (hasAudio) {
@@ -347,7 +397,7 @@ class ChatBubble extends StatelessWidget {
           Stack(
             children: [
               // Usar reproductor con subtítulos flotantes reutilizando efecto cyberpunk
-              AudioMessagePlayerWithSubs(message: message, width: 180),
+              AudioMessagePlayerWithSubs(message: message, width: 180, globalOverlay: true),
               if (isUser && message.status == MessageStatus.sending)
                 Positioned.fill(
                   child: IgnorePointer(
@@ -477,8 +527,20 @@ class ChatBubble extends StatelessWidget {
         ],
       );
     }
+    // Detectar orientación y tamaño para permitir que imágenes en portrait
+    // ocupen ancho completo SOLO en pantallas pequeñas (móvil). En tablets/desktop
+    // mantenemos el comportamiento de 'desktop'. Usamos un breakpoint razonable.
+    final media = MediaQuery.of(context);
+    final mediaWidth = media.size.width;
+    const double desktopBreakpoint = 768; // >= 768px tratamos como desktop/tablet
+    final isPortrait = media.orientation == Orientation.portrait;
+    final isSmallPortrait = isPortrait && mediaWidth < desktopBreakpoint;
+    final forceFullWidth = isSmallPortrait && hasImage;
+
+    final outerAlignment = forceFullWidth ? Alignment.center : (isUser ? Alignment.centerRight : Alignment.centerLeft);
+
     return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: outerAlignment,
       child: _buildBubbleContent(
         context: context,
         child: bubbleContent,
@@ -487,6 +549,7 @@ class ChatBubble extends StatelessWidget {
         borderColor: borderColor,
         glowColor: glowColor,
         padding: padding,
+        forceFullWidth: forceFullWidth,
       ),
     );
   }

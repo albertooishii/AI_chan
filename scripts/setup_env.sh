@@ -77,7 +77,7 @@ echo "🎵 Audio/Voice Configuration:"
 prompt_key "AUDIO_PROVIDER" "Audio provider (openai|gemini) [gemini]: " "gemini" false
 prompt_key "AUDIO_TTS_MODE" "TTS mode (google|local) [google]: " "google" false
 prompt_key "OPENAI_VOICE_NAME" "OpenAI voice [sage]: " "sage" false
-prompt_key "GOOGLE_VOICE_NAME" "Google voice name [es-ES-Neural2-A]: " "es-ES-Neural2-A" false
+prompt_key "GOOGLE_VOICE_NAME" "Google voice name [es-ES-Wavenet-F]: " "es-ES-Wavenet-F" false
 
 echo ""
 echo "🤖 AI Models:"
@@ -85,6 +85,10 @@ prompt_key "DEFAULT_TEXT_MODEL" "Default text model [gemini-2.5-flash]: " "gemin
 prompt_key "DEFAULT_IMAGE_MODEL" "Default image model [gpt-4.1-mini]: " "gpt-4.1-mini" false  
 prompt_key "OPENAI_REALTIME_MODEL" "OpenAI realtime model [gpt-4o-realtime-preview]: " "gpt-4o-realtime-preview" false
 prompt_key "GOOGLE_REALTIME_MODEL" "Google realtime model [gemini-2.5-flash]: " "gemini-2.5-flash" false
+
+# OpenAI TTS/STT models (defaults aligned with documentation)
+prompt_key "OPENAI_TTS_MODEL" "OpenAI TTS model [gpt-4o-mini-tts]: " "gpt-4o-mini-tts" false
+prompt_key "OPENAI_STT_MODEL" "OpenAI STT model [gpt-4o-mini-transcribe]: " "gpt-4o-mini-transcribe" false
 
 # Set default directories and log level without prompting
 echo ""
@@ -105,6 +109,12 @@ set_key "CACHE_DIR_DESKTOP" "~/AI_chan/cache"
 set_key "CACHE_DIR_WEB" "AI_chan_cache"
 
 set_key "APP_LOG_LEVEL" "debug"
+
+# Whether to disable structured debug JSON logs (1 = disable, 0 = allow)
+set_key "DISABLE_DEBUG_JSON_LOGS" "1"
+
+# Preferred audio format for storage and STT fallbacks
+set_key "PREFERRED_AUDIO_FORMAT" "mp3"
 
 # Show summary (mask keys partially)
 echo ""

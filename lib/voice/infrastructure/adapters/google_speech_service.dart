@@ -3,9 +3,11 @@ import 'package:http/http.dart' as http;
 import 'package:ai_chan/core/config.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'package:ai_chan/shared/utils/audio_utils.dart' as audio_utils;
 import 'package:ai_chan/core/cache/cache_service.dart';
 import 'package:ai_chan/shared/utils.dart';
+import 'package:ai_chan/shared/utils/audio_conversion.dart';
+import 'dart:async';
 
 // During tests we want to avoid noisy debug printing that looks like errors in CI logs.
 bool _isFlutterTestRuntime() {
@@ -28,7 +30,7 @@ class GoogleSpeechService {
   static Future<Uint8List?> textToSpeech({
     required String text,
     String languageCode = 'es-ES',
-    String voiceName = 'es-ES-Neural2-A', // Voz femenina neural
+    String voiceName = 'es-ES-Wavenet-F', // Voz femenina neural
     String audioEncoding = 'MP3',
     int sampleRateHertz = 24000,
     bool noCache = false,
@@ -65,7 +67,10 @@ class GoogleSpeechService {
     } catch (_) {}
 
     // Determine likely extension from requested encoding (used for cache keys)
-    String ext = 'mp3';
+    // Respect configured preferred audio format for storage/cache naming
+    final preferredRaw = Config.get('PREFERRED_AUDIO_FORMAT', 'mp3');
+    final preferredFmt = preferredRaw.trim().toLowerCase();
+    String ext = preferredFmt == 'm4a' ? 'm4a' : 'mp3';
     final fmtCheck = audioEncoding.toLowerCase();
     if (fmtCheck.contains('linear16') || fmtCheck.contains('wav')) ext = 'wav';
     if (fmtCheck.contains('ogg') || fmtCheck.contains('opus')) ext = 'ogg';
@@ -117,6 +122,37 @@ class GoogleSpeechService {
           final audioData = base64Decode(audioContent);
           _maybeDebugPrint('[GoogleTTS] Audio generado exitosamente: ${audioData.length} bytes');
 
+          // If the user prefers m4a, attempt to convert the received bytes to m4a
+          // using ffmpeg. Fallback to original bytes on any error.
+          if (preferredFmt == 'm4a') {
+            try {
+              final converted = await AudioConversion.convertBytesToPreferredCompressed(audioData, 'm4a');
+              if (converted != null && converted.isNotEmpty) {
+                _maybeDebugPrint('[GoogleTTS] Converted TTS bytes to m4a (size=${converted.length} bytes)');
+                final audioDataConverted = converted;
+                if (useCache && !noCache) {
+                  try {
+                    await CacheService.saveAudioToCache(
+                      audioData: audioDataConverted,
+                      text: text,
+                      voice: voiceName,
+                      languageCode: languageCode,
+                      provider: 'google',
+                      speakingRate: speakingRate,
+                      pitch: pitch,
+                      extension: 'm4a',
+                    );
+                  } catch (e) {
+                    _maybeDebugPrint('[GoogleTTS] Warning: Error guardando en caché (m4a): $e');
+                  }
+                }
+                return audioDataConverted;
+              }
+            } catch (e) {
+              _maybeDebugPrint('[GoogleTTS] Warning: failed converting TTS bytes to m4a: $e');
+            }
+          }
+
           // Guardar en caché solo si useCache=true y noCache==false
           if (useCache && !noCache) {
             try {
@@ -154,7 +190,7 @@ class GoogleSpeechService {
     required String text,
     String? customFileName,
     String languageCode = 'es-ES',
-    String voiceName = 'es-ES-Neural2-A',
+    String voiceName = 'es-ES-Wavenet-F',
     String audioEncoding = 'MP3',
     int sampleRateHertz = 24000,
     bool noCache = false,
@@ -213,7 +249,10 @@ class GoogleSpeechService {
     if (audioData == null) return null;
 
     try {
-      final directory = await getTemporaryDirectory();
+      // Save directly into the configured local audio dir to persist TTS
+      // outputs and avoid cross-filesystem rename errors when callers move
+      // files into AUDIO_DIR.
+      final directory = await audio_utils.getLocalAudioDir();
       // Decide extension based on requested encoding/format
       String ext = 'mp3';
       final fmt = audioEncoding.toLowerCase();
@@ -317,31 +356,128 @@ class GoogleSpeechService {
     int sampleRateHertz = 24000,
   }) async {
     try {
-      final audioData = await audioFile.readAsBytes();
+      _maybeDebugPrint('[GoogleSTT] speechToTextFromFile called with: ${audioFile.path}');
 
-      // Detect WAV header (RIFF) and extract PCM chunk and sample rate if present.
+      // Read user preferred audio format from config. This lets the
+      // pipeline adapt ordering of conversion attempts based on the
+      // developer/user preference (e.g. prefer WAV conversion first).
+      final preferredRaw = Config.get('PREFERRED_AUDIO_FORMAT', 'mp3');
+      final preferred = preferredRaw.trim().toLowerCase();
+      _maybeDebugPrint('[GoogleSTT] Preferred audio format from config: $preferred');
+
+      // Decide extension and try a direct transcription with a guessed encoding
+      final ext = audioFile.path.split('.').last.toLowerCase();
+
+      Uint8List audioData = await audioFile.readAsBytes();
+
+      // Helper: try direct transcription with guessed encoding
+      Future<String?> tryDirect(String guessedEncoding, int guessedSR) async {
+        try {
+          _maybeDebugPrint(
+            '[GoogleSTT] Trying direct STT with encoding=$guessedEncoding sr=$guessedSR for ${audioFile.path}',
+          );
+          final res = await speechToText(
+            audioData: audioData,
+            languageCode: languageCode,
+            audioEncoding: guessedEncoding,
+            sampleRateHertz: guessedSR,
+          );
+          return res;
+        } catch (e) {
+          _maybeDebugPrint('[GoogleSTT] direct STT attempt error: $e');
+          return null;
+        }
+      }
+
+      // Map common extensions to Google encodings
+      if (ext == 'wav') {
+        // Let WAV parsing logic below handle this file (we'll parse PCM chunk)
+      } else if (ext == 'ogg' || ext == 'opus') {
+        final direct = await tryDirect('OGG_OPUS', 16000);
+        if (direct != null && direct.trim().isNotEmpty) return direct;
+      } else if (ext == 'webm') {
+        final direct = await tryDirect('WEBM_OPUS', 16000);
+        if (direct != null && direct.trim().isNotEmpty) return direct;
+      } else if (ext == 'mp3' || ext == 'm4a' || ext == 'aac') {
+        // MP3/M4A often work, try MP3 first (Google accepts MP3)
+        final direct = await tryDirect('MP3', sampleRateHertz);
+        if (direct != null && direct.trim().isNotEmpty) return direct;
+      }
+
+      // If direct attempts failed or file is a WAV, try conversions.
+      // If user explicitly prefers 'wav' we try WAV conversion first,
+      // otherwise we try a smaller compressed conversion (MP3) as a
+      // lightweight fallback.
       try {
-        if (audioData.length > 12) {
-          final header = String.fromCharCodes(audioData.sublist(0, 4));
+        if (preferred == 'wav') {
+          try {
+            final wavConverted = await _convertToWavIfPossible(audioFile);
+            if (wavConverted != null) {
+              final wavData = await wavConverted.readAsBytes();
+              _maybeDebugPrint('[GoogleSTT] Retrying STT with WAV (preferred) ${wavConverted.path}');
+              final res = await speechToText(
+                audioData: wavData,
+                languageCode: languageCode,
+                audioEncoding: 'LINEAR16',
+                sampleRateHertz: 16000,
+              );
+              if (res != null && res.trim().isNotEmpty) return res;
+            }
+          } catch (e) {
+            _maybeDebugPrint('[GoogleSTT] preferred WAV conversion attempt failed: $e');
+          }
+        }
+
+        final compressed = await _convertToCompressedIfPossible(audioFile, preferred);
+        if (compressed != null) {
+          final compData = await compressed.readAsBytes();
+          _maybeDebugPrint(
+            '[GoogleSTT] Retrying STT with converted MP3 ${compressed.path} (size=${compData.length} bytes)',
+          );
+          final res = await speechToText(
+            audioData: compData,
+            languageCode: languageCode,
+            audioEncoding: 'MP3',
+            sampleRateHertz: 16000,
+          );
+          if (res != null && res.trim().isNotEmpty) return res;
+        }
+      } catch (e) {
+        _maybeDebugPrint('[GoogleSTT] compressed MP3 conversion attempt failed: $e');
+      }
+
+      // As a last resort, try converting to WAV PCM16 and extract PCM for LINEAR16
+      try {
+        File fileToUse = audioFile;
+        if (ext != 'wav' && ext != 'pcm' && ext != 'raw') {
+          final converted = await _convertToWavIfPossible(audioFile);
+          if (converted != null) fileToUse = converted;
+        }
+
+        try {
+          final len = await fileToUse.length();
+          _maybeDebugPrint('[GoogleSTT] Using file for WAV/STT: ${fileToUse.path} (size=$len bytes)');
+        } catch (_) {}
+
+        final wavData = await fileToUse.readAsBytes();
+
+        // Detect WAV header (RIFF) and extract PCM chunk and sample rate if present.
+        if (wavData.length > 12) {
+          final header = String.fromCharCodes(wavData.sublist(0, 4));
           if (header == 'RIFF') {
-            // read sampleRate from fmt chunk (offset 24..27 little endian)
             int sr = sampleRateHertz;
             try {
-              sr = audioData[24] | (audioData[25] << 8) | (audioData[26] << 16) | (audioData[27] << 24);
+              sr = wavData[24] | (wavData[25] << 8) | (wavData[26] << 16) | (wavData[27] << 24);
             } catch (_) {}
-            // Extract pcm data chunk (look for 'data')
             int dataStart = -1;
-            for (int i = 0; i < audioData.length - 4; i++) {
-              if (audioData[i] == 0x64 &&
-                  audioData[i + 1] == 0x61 &&
-                  audioData[i + 2] == 0x74 &&
-                  audioData[i + 3] == 0x61) {
-                dataStart = i + 8; // skip 'data' + size (4 bytes)
+            for (int i = 0; i < wavData.length - 4; i++) {
+              if (wavData[i] == 0x64 && wavData[i + 1] == 0x61 && wavData[i + 2] == 0x74 && wavData[i + 3] == 0x61) {
+                dataStart = i + 8;
                 break;
               }
             }
             if (dataStart > 0) {
-              final pcm = audioData.sublist(dataStart);
+              final pcm = wavData.sublist(dataStart);
               return await speechToText(
                 audioData: pcm,
                 languageCode: languageCode,
@@ -351,23 +487,59 @@ class GoogleSpeechService {
             }
           }
         }
-      } catch (e) {
-        _maybeDebugPrint('[GoogleSTT] Warning parsing WAV header: $e');
-      }
 
-      // Fallback: assume raw PCM16 captured by recorder (sampleRate 16000)
-      // Many recorder streams provide raw 16-bit PCM without WAV header.
-      return await speechToText(
-        audioData: audioData,
-        languageCode: languageCode,
-        audioEncoding: 'LINEAR16',
-        sampleRateHertz: 16000,
-      );
+        // Fallback: assume raw PCM16 captured by recorder (sampleRate 16000)
+        return await speechToText(
+          audioData: wavData,
+          languageCode: languageCode,
+          audioEncoding: 'LINEAR16',
+          sampleRateHertz: 16000,
+        );
+      } catch (e) {
+        _maybeDebugPrint('[GoogleSTT] Error procesando WAV fallback: $e');
+        return null;
+      }
     } catch (e) {
       _maybeDebugPrint('[GoogleSTT] Error leyendo archivo: $e');
       return null;
     }
   }
+
+  /// Try to convert to a compact MP3 file using ffmpeg if available.
+  /// MP3 is smaller than WAV and widely supported by Google STT.
+  static Future<File?> _convertToCompressedIfPossible(File src, [String preferredFormat = 'mp3']) async {
+    // Delegate to AudioConversion helper. If preferredFormat is 'm4a', try
+    // converting to m4a using AAC encoder; otherwise default to mp3.
+    try {
+      if (preferredFormat == 'm4a') {
+        // extra args for AAC m4a: use aac codec and small bitrate
+        return await AudioConversion.convertFileToFormat(
+          src,
+          'm4a',
+          extraArgs: ['-ac', '1', '-ar', '16000', '-b:a', '64k', '-c:a', 'aac'],
+        );
+      }
+      return await AudioConversion.convertToMp3IfPossible(src);
+    } catch (e) {
+      _maybeDebugPrint('[GoogleSTT] compressed conversion delegation failed: $e');
+      return null;
+    }
+  }
+
+  /// Try to convert common compressed audio files to WAV PCM16 using ffmpeg
+  /// if ffmpeg is available in PATH. Returns the converted File or null.
+  static Future<File?> _convertToWavIfPossible(File src) async {
+    try {
+      return await AudioConversion.convertToWavIfPossible(src);
+    } catch (e) {
+      _maybeDebugPrint('[GoogleSTT] wav conversion delegation failed: $e');
+      return null;
+    }
+  }
+
+  /// Convert raw audio bytes to a target container/format using ffmpeg.
+  /// Returns converted bytes or null on failure.
+  // Byte conversion is handled centrally by AudioConversion.
 
   /// Fetch the official list of Google TTS voices from the API and cache it locally.
   /// Returns a list of maps with keys: name, languageCodes, ssmlGender, naturalSampleRateHertz
@@ -446,7 +618,7 @@ class GoogleSpeechService {
     }
   }
 
-  /// Return female voices that match the provided language codes (AI country and user country).
+  /// Return voices that match the provided language codes (AI country and user country).
   /// Each languageCode can be a 2-letter code ('ja') or a region code ('ja-JP').
   /// If both lists are empty, defaults to Spanish (Spain) voices.
   static Future<List<Map<String, dynamic>>> voicesForUserAndAi(
@@ -476,10 +648,9 @@ class GoogleSpeechService {
 
     for (final v in all) {
       final languageCodes = (v['languageCodes'] as List<dynamic>).cast<String>();
-      final ssmlGender = (v['ssmlGender'] as String? ?? '').toUpperCase();
+      // final ssmlGender = (v['ssmlGender'] as String? ?? '').toUpperCase();
 
-      // Only include female voices
-      if (ssmlGender != 'FEMALE') continue;
+      // Do not filter by gender here; include voices of any gender
 
       // Check if any voice language code matches our target codes EXACTLY
       final matches = languageCodes.any((lc) {
@@ -568,18 +739,12 @@ class GoogleSpeechService {
       _maybeDebugPrint('[GoogleTTS] Voces WaveNet ESPAÑOLAS encontradas: ${spanishWaveNet.length}');
 
       // Filtrar voces según criterios:
-      // 1. Solo femeninas
+      // 1. Cualquier género (no filtrar por ssmlGender)
       // 2. Solo Neural o WaveNet
       // 3. Solo idiomas especificados
       final filteredVoices = allVoices.where((voice) {
         final name = voice['name'] as String? ?? '';
-        final gender = (voice['ssmlGender'] as String? ?? '').toUpperCase();
         final languageCodes = (voice['languageCodes'] as List<dynamic>).cast<String>();
-
-        // Filtro 1: Solo femeninas
-        if (gender != 'FEMALE') {
-          return false;
-        }
 
         // Filtro 2: Solo Neural o WaveNet (case insensitive)
         final isNeural = name.toLowerCase().contains('neural');
@@ -610,7 +775,7 @@ class GoogleSpeechService {
         }
       }
 
-      _maybeDebugPrint('[GoogleTTS] Filtradas ${unique.length} voces Neural femeninas');
+      _maybeDebugPrint('[GoogleTTS] Filtradas ${unique.length} voces Neural/WaveNet');
 
       // Debug: listar voces encontradas
       for (final voice in unique) {
@@ -653,7 +818,7 @@ class GoogleSpeechService {
   static Map<String, dynamic> getVoiceConfig() {
     // Voice name may be configurable, but language, speaking rate and pitch are
     // intentionally hardcoded per project policy (do not use env to override).
-    final voiceName = Config.get('GOOGLE_VOICE_NAME', 'es-ES-Neural2-A');
+    final voiceName = Config.get('GOOGLE_VOICE_NAME', 'es-ES-Wavenet-F');
     final languageCode = resolveDefaultLanguageCode();
     final speakingRate = 1.0;
     final pitch = 0.0;

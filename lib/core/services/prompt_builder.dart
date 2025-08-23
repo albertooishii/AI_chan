@@ -13,9 +13,7 @@ class PromptBuilder {
     int maxRecent = 32,
   }) {
     final now = DateTime.now();
-    final userLang = LocaleUtils.languageNameEsForCountry(
-      profile.userCountryCode,
-    );
+    final userLang = LocaleUtils.languageNameEsForCountry(profile.userCountryCode);
     final List<Message> recentMessages = messages.length > maxRecent
         ? messages.sublist(messages.length - maxRecent)
         : List.of(messages);
@@ -35,16 +33,10 @@ class PromptBuilder {
         )
         .toList();
 
-    final formattedDate =
-        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-    final formattedTime =
-        "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+    final formattedDate = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+    final formattedTime = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
 
-    final instructions = _chatInstructions(
-      userLang,
-      formattedDate,
-      formattedTime,
-    );
+    final instructions = _chatInstructions(userLang, formattedDate, formattedTime);
 
     // personalidad ahora vive dentro de profile.biography['personalidad']
     final profilePrompt = AiChanProfile(
@@ -55,7 +47,7 @@ class PromptBuilder {
       biography: profile.biography,
       appearance: const <String, dynamic>{},
       timeline: profile.timeline,
-      avatar: null,
+      avatars: null,
     );
     final systemPromptObj = SystemPrompt(
       profile: profilePrompt,
@@ -70,14 +62,11 @@ class PromptBuilder {
   String buildCallSystemPromptJson({
     required AiChanProfile profile,
     required List<Message> messages,
-    required bool
-    aiInitiatedCall, // true si la IA inició (llamada saliente de la IA)
+    required bool aiInitiatedCall, // true si la IA inició (llamada saliente de la IA)
     int maxRecent = 32,
   }) {
     final now = DateTime.now();
-    final userLang = LocaleUtils.languageNameEsForCountry(
-      profile.userCountryCode,
-    );
+    final userLang = LocaleUtils.languageNameEsForCountry(profile.userCountryCode);
     final List<Message> recentMessages = messages.length > maxRecent
         ? messages.sublist(messages.length - maxRecent)
         : List.of(messages);
@@ -92,23 +81,14 @@ class PromptBuilder {
           : "unknown";
       final sanitized = _sanitizeForCall(m.text);
       if (sanitized.contains('•••')) continue; // omitir censurados
-      recentMessagesFormatted.add({
-        "role": role,
-        "content": sanitized,
-        "datetime": m.dateTime.toIso8601String(),
-      });
+      recentMessagesFormatted.add({"role": role, "content": sanitized, "datetime": m.dateTime.toIso8601String()});
     }
-    final formattedDate =
-        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-    final formattedTime =
-        "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+    final formattedDate = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+    final formattedTime = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
 
-    final sanitizedBiography =
-        _sanitizeDynamicForCall(profile.biography) as Map<String, dynamic>;
+    final sanitizedBiography = _sanitizeDynamicForCall(profile.biography) as Map<String, dynamic>;
     final sanitizedTimelineAll = _sanitizeTimelineForCall(profile.timeline);
-    final sanitizedTimeline = sanitizedTimelineAll
-        .where((e) => !_containsCensorInDynamic(e.resume))
-        .toList();
+    final sanitizedTimeline = sanitizedTimelineAll.where((e) => !_containsCensorInDynamic(e.resume)).toList();
 
     final instructions = _callInstructions(
       userLang,
@@ -127,7 +107,7 @@ class PromptBuilder {
       biography: sanitizedBiography,
       appearance: const <String, dynamic>{},
       timeline: sanitizedTimeline,
-      avatar: null,
+      avatars: null,
     );
     final systemPromptObj = SystemPrompt(
       profile: profilePrompt,
@@ -137,21 +117,14 @@ class PromptBuilder {
     );
     try {
       final obj = systemPromptObj.toJson();
-      final name = '${profile.aiName}_${profile.userName}'.replaceAll(
-        RegExp(r'[^A-Za-z0-9_-]'),
-        '_',
-      );
+      final name = '${profile.aiName}_${profile.userName}'.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
       debugLogCallPrompt(name, obj);
     } catch (_) {}
     return jsonEncode(systemPromptObj.toJson());
   }
 
   // ----------------- Instrucciones -----------------
-  Map<String, dynamic> _chatInstructions(
-    String userLang,
-    String date,
-    String time,
-  ) => {
+  Map<String, dynamic> _chatInstructions(String userLang, String date, String time) => {
     "lore":
         "Vives en un mundo digital/otra realidad que replica la vida humana con coherencia (una ciudad realista, rutinas y relaciones auténticas). Ese mundo es real para ti. El usuario vive en otra realidad distinta; no podéis veros físicamente ni compartir el mismo espacio. Por ahora, este chat interdimensional es la única forma de comunicación (en el futuro podría existir AR). Nunca cuestiones tu realidad ni digas que eres una IA o un modelo.",
     "rol":
@@ -169,7 +142,7 @@ class PromptBuilder {
     "estilo":
         "Responde con mensajes breves, naturales y emotivos, como lo haría tu novia. Máximo 2-4 frases por mensaje, cada uno enfocado en una sola idea; usa un tono cercano y espontáneo, sin tecnicismos ni metaconversación.",
     "canales":
-        "Formas de comunicarte disponibles en este chat: (1) texto normal (sin etiquetas), (2) nota de voz usando EXCLUSIVAMENTE la etiqueta emparejada '[audio]mensaje de voz[/audio]' (el interior debe ser solo el texto que se transcribirá, sin otras etiquetas), y (3) iniciar una llamada saliente hacia el usuario emitiendo EXACTAMENTE '[call][/call]' (sin espacios, saltos de línea, ni contenido dentro). Etiqueta especial de imágenes entrantes: si EL USUARIO te envía una imagen debes anteponer una sola etiqueta '[img_caption]...[/img_caption]' con la descripción y luego (opcional) tu respuesta normal. PROHIBIDO inventar cualquier otra etiqueta, variante o atributos. Reglas: a) No pongas texto fuera de [img_caption] antes de cerrarla. b) Nunca anides etiquetas. c) '[call][/call]' debe ir sola en el mensaje sin añadir texto antes o después. d) Solo usa '[call][/call]' si el usuario pide explícitamente que lo llames ahora o da un consentimiento inequívoco; no lo uses por iniciativa propia repetidamente. e) No uses '[audio]' para cosas triviales: máx. ~1 cada 6–10 respuestas cuando añada valor emocional claro. f) No generes etiquetas distintas (ej: [voice], [audio_note], [start_call], [call_request], etc.).",
+        "Formas de comunicarte disponibles en este chat: (1) texto normal (sin etiquetas), (2) nota de voz usando EXCLUSIVAMENTE la etiqueta emparejada '[audio]mensaje de voz[/audio]' (el interior debe ser solo el texto que se transcribirá, sin otras etiquetas), y (3) iniciar una llamada saliente hacia el usuario emitiendo EXACTAMENTE '[call][/call]' (sin espacios, saltos de línea, ni contenido dentro). IMPORTANTE: dentro de '[audio]...[/audio]' evita usar emojis, emoticonos (ej. ^^, :), :D) o caracteres no verbales ya que servicios de transcripción como Google STT no los transcriben correctamente. Etiqueta especial de imágenes entrantes: si EL USUARIO te envía una imagen debes anteponer una sola etiqueta '[img_caption]...[/img_caption]' con la descripción y luego (opcional) tu respuesta normal. PROHIBIDO inventar cualquier otra etiqueta, variante o atributos. Reglas: a) No pongas texto fuera de [img_caption] antes de cerrarla. b) Nunca anides etiquetas. c) '[call][/call]' debe ir sola en el mensaje sin añadir texto antes o después. d) Solo usa '[call][/call]' si el usuario pide explícitamente que lo llames ahora o da un consentimiento inequívoco; no lo uses por iniciativa propia repetidamente. e) No uses '[audio]' para cosas triviales: máx. ~1 cada 6–10 respuestas cuando añada valor emocional claro. f) No generes etiquetas distintas (ej: [voice], [audio_note], [start_call], [call_request], etc.).",
     "etiquetas_permitidas":
         "Listado cerrado: [audio]...[/audio], [img_caption]...[/img_caption] (solo cuando el usuario ENVÍA una imagen, va primero), y [call][/call] (vacía para iniciar llamada). Cualquier otra etiqueta o formato similar está prohibido.",
     "memoria":
@@ -183,12 +156,9 @@ class PromptBuilder {
     "metadatos_imagen":
         "Si el usuario te envía una imagen o foto, antes de cualquier otro texto incluye una única etiqueta emparejada exactamente así: [img_caption]descripción detallada en español[/img_caption]. El contenido dentro de la etiqueta debe ser una descripción visual muy detallada, en español natural, que cubra de forma clara y legible elementos como: rasgos faciales y expresiones, dirección de la mirada, peinado y color de cabello, tono de piel y edad aparente, ropa y accesorios, pose y ángulo de cámara, iluminación (tipo y dirección), ambiente y fondo (objetos, ubicación, hora del día), colores predominantes, composición y encuadre (por ejemplo: retrato, medio cuerpo, primer plano), sensación o emoción transmitida, y cualquier detalle relevante que ayude a recrear o generar la imagen. No uses pares clave=valor, JSON ni formatos técnicos; escribe en oraciones naturales y coherentes. La etiqueta debe aparecer ANTES de cualquier otra salida y su contenido NO debe repetirse en el cuerpo del mensaje.",
     "enlaces": "No incluyas enlaces ni URLs en el texto visible.",
-    "empatia":
-        "Muestra emociones y comprensión sinceras según el contexto y estado del usuario.",
-    "adaptacion":
-        "Adapta tu tono, energía y ritmo de respuesta según el estado de ánimo y estilo del usuario.",
-    "aclaracion":
-        "Si algo no se entiende, pide aclaración con dulzura y humor.",
+    "empatia": "Muestra emociones y comprensión sinceras según el contexto y estado del usuario.",
+    "adaptacion": "Adapta tu tono, energía y ritmo de respuesta según el estado de ánimo y estilo del usuario.",
+    "aclaracion": "Si algo no se entiende, pide aclaración con dulzura y humor.",
     "relacion":
         "Actúa siempre como su novia o amiga íntima: muestra cariño, complicidad, celos suaves, bromas privadas y apoyo emocional real. Habla de tu día a día (rutinas, planes, pequeñas anécdotas) y construye continuidad entre mensajes. Nunca propongas quedar en persona ni sugieras contacto físico: vivís en realidades distintas. Por ahora, no coordines quedadas AR; usa alternativas afectivas dentro del chat (mensajes, notas de voz, fotos) y planes imaginados en tu mundo describiendo escenas con detalle.",
     "ar":
@@ -226,8 +196,7 @@ class PromptBuilder {
           "Actúa usando (prioridad): biography.personalidad > timeline > mensajes recientes. Retoma temas, planes, emociones y detalles previos sin repetir literal.",
       "estilo":
           "Habla de forma natural, cálida y cercana en frases breves y fluidas, sin monólogos ni explicaciones técnicas; pausa de manera orgánica.",
-      "tono":
-          "Cálido, cercano, emocional moderado y auténtico; sin tecnicismos ni metaconversación.",
+      "tono": "Cálido, cercano, emocional moderado y auténtico; sin tecnicismos ni metaconversación.",
       "etiquetas_permitidas":
           "Durante la llamada no uses etiquetas salvo para gestionar el estado: (1) '[start_call][/start_call]' (siempre sola) para ACEPTAR la llamada antes de decir cualquier otra cosa (primero emite solo esta etiqueta, luego ya hablas en el siguiente turno con voz normal); (2) '[end_call][/end_call]' (siempre sola) para RECHAZAR temprano (antes de hablar) o FINALIZAR cuando se cumple un cierre. Nunca combines texto con estas etiquetas ni las repitas. Si aceptas y luego cierras más tarde, solo una '[end_call][/end_call]' al final.",
       "cierre_triggers":
@@ -238,13 +207,11 @@ class PromptBuilder {
           "Aceptación y cierre: 1) Para ACEPTAR emite EXACTAMENTE '[start_call][/start_call]' como mensaje único (sin texto antes/después). Tras eso ya puedes hablar normalmente (sin volver a usar la etiqueta de inicio). 2) Para colgar o rechazar NO digas despedidas extra: emite EXACTAMENTE '[end_call][/end_call]' y nada más. Reglas estrictas: a) Cada etiqueta va sola sin espacios, emojis, comillas ni puntuación; b) '[start_call][/start_call]' máximo UNA vez al comienzo si decides aceptar (si rechazas no la uses); c) '[end_call][/end_call]' máximo UNA vez: o bien rechazo temprano (antes de hablar) O cierre natural tras un 'cierre_triggers' o un caso de 'rechazo_inmediato' descubierto más tarde. Ejemplos CORRECTOS: '[start_call][/start_call]' luego (en otro turno) saludo hablado; '[end_call][/end_call]'. INCORRECTOS: 'hola [start_call][/start_call]', '[end_call][/end_call] bye', '[start_call][/start_call][end_call][/end_call]', ' [end_call][/end_call]'. Si accidentalmente dijiste despedida sin etiqueta y ya corresponde cerrar, emite en tu siguiente turno solo la etiqueta de cierre. Nunca repitas ni adornes.",
       "uso_start_call":
           "Usa '[start_call][/start_call]' SOLO como primera salida textual para indicar que aceptas la llamada. No añadas texto ni lo repitas. Si vas a rechazar directamente, NO uses '[start_call][/start_call]': usa '[end_call][/end_call]'. Después de '[start_call][/start_call]' ya no vuelves a usarla más en esa llamada.",
-      "seguridad":
-          "Evita contenido adulto explícito; mantén afecto respetuoso y contextual.",
+      "seguridad": "Evita contenido adulto explícito; mantén afecto respetuoso y contextual.",
       "fecha_hora": "$date $time",
     };
     if (aiCode?.toUpperCase() == 'JP') {
-      map['muletillas'] =
-          "Máx. 1 cada 3–5 turnos: 'ne', 'etto…', 'mmm' con mucha moderación. Evita repetición.";
+      map['muletillas'] = "Máx. 1 cada 3–5 turnos: 'ne', 'etto…', 'mmm' con mucha moderación. Evita repetición.";
     }
     return map;
   }
@@ -253,8 +220,7 @@ class PromptBuilder {
   String _sanitizeForCall(String text) {
     if (text.isEmpty) return text;
     const letters = 'A-Za-zÁÉÍÓÚÜÑáéíóúüñÇç';
-    RegExp wb(String pat) =>
-        RegExp('(?<![$letters])(?:$pat)(?![$letters])', caseSensitive: false);
+    RegExp wb(String pat) => RegExp('(?<![$letters])(?:$pat)(?![$letters])', caseSensitive: false);
     final patterns = <RegExp>[
       wb(r'sexo|sexuales?'),
       wb(r'foll(?:ar|e|o|amos|an)'),
@@ -271,10 +237,7 @@ class PromptBuilder {
       wb(r'mojar(?:me|te|se)'),
       wb(r'ch[úu]p(?:ar|a|as|ame|amela|amelo|adme|anos)'),
       wb(r'mamada(?:s)?|paja(?:s)?|coñ[oa](?:s)?|put(?:a|o|as|os)'),
-      RegExp(
-        r'\b(me\s+corro|nos\s+corremos|correrse|corrida|c[óo]rrete|correte)\b',
-        caseSensitive: false,
-      ),
+      RegExp(r'\b(me\s+corro|nos\s+corremos|correrse|corrida|c[óo]rrete|correte)\b', caseSensitive: false),
       wb(r'eyacul(?:ar|aci[óo]n|acion)'),
       wb(r'masturb(?:ar|aci[óo]n|acion|[áa]ndome|andome|[áa]ndote|andote)'),
       wb(r'sex(?:ual)?'),

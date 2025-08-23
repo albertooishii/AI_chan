@@ -28,6 +28,57 @@ Future<void> clearAppData() async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Necesario para registrar plugins antes de usarlos
   await Config.initialize();
+  // Precargar valores por defecto de TTS en SharedPreferences si faltan.
+  // Esto asegura que la configuración de audio esté disponible en toda la app
+  // desde el arranque (en lugar de hacerlo en una pantalla concreta).
+  try {
+    final prefs = await SharedPreferences.getInstance();
+
+    // selected_audio_provider
+    final savedProvider = prefs.getString('selected_audio_provider');
+    if (savedProvider == null || savedProvider.isEmpty) {
+      final env = Config.getAudioProvider().toLowerCase();
+      String defaultProvider = 'google';
+      if (env == 'openai') {
+        defaultProvider = 'openai';
+      }
+      if (env == 'gemini') {
+        defaultProvider = 'google';
+      }
+      await prefs.setString('selected_audio_provider', defaultProvider);
+    }
+
+    final provider = prefs.getString('selected_audio_provider') ?? Config.getAudioProvider().toLowerCase();
+
+    // selected_model
+    final savedModel = prefs.getString('selected_model');
+    if (savedModel == null || savedModel.isEmpty) {
+      final defModel = Config.getDefaultTextModel();
+      if (defModel.isNotEmpty) {
+        await prefs.setString('selected_model', defModel);
+      }
+    }
+
+    // selected_voice and provider-specific key
+    final savedVoice = prefs.getString('selected_voice');
+    final providerKey = 'selected_voice_$provider';
+    final providerVoice = prefs.getString(providerKey);
+    if ((savedVoice == null || savedVoice.isEmpty) && (providerVoice == null || providerVoice.isEmpty)) {
+      String defaultVoice = '';
+      if (provider == 'google') {
+        defaultVoice = Config.getGoogleVoice();
+      } else if (provider == 'openai') {
+        defaultVoice = Config.getOpenaiVoice();
+      }
+
+      if (defaultVoice.isNotEmpty) {
+        await prefs.setString('selected_voice', defaultVoice);
+        await prefs.setString(providerKey, defaultVoice);
+      }
+    }
+  } catch (_) {
+    // no bloquear el arranque si hay problemas con SharedPreferences
+  }
   runApp(const RootApp());
 }
 
@@ -153,7 +204,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 MaterialPageRoute(
                   fullscreenDialog: true,
                   builder: (_) => InitializingScreen(
-                    bioFutureFactory: () async {
+                    bioFutureFactory: ([void Function(String)? onProgress]) async {
                       await onboardingProvider.generateAndSaveBiography(
                         context: context,
                         userName: userName,
@@ -163,6 +214,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
                         userCountryCode: userCountryCode,
                         aiCountryCode: aiCountryCode,
                         appearance: appearance,
+                        onProgress: onProgress,
                       );
                       if (onboardingProvider.generatedBiography == null) {
                         throw Exception('No se pudo generar la biografía');

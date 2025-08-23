@@ -10,22 +10,14 @@ import 'floating_audio_subtitle.dart';
 class AudioMessagePlayerWithSubs extends StatefulWidget {
   final Message message;
   final double width;
-  final bool
-  globalOverlay; // muestra subtítulos estilo video ocupando ancho pantalla
-  const AudioMessagePlayerWithSubs({
-    super.key,
-    required this.message,
-    this.width = 180,
-    this.globalOverlay = true,
-  });
+  final bool globalOverlay; // muestra subtítulos estilo video ocupando ancho pantalla
+  const AudioMessagePlayerWithSubs({super.key, required this.message, this.width = 180, this.globalOverlay = true});
 
   @override
-  State<AudioMessagePlayerWithSubs> createState() =>
-      _AudioMessagePlayerWithSubsState();
+  State<AudioMessagePlayerWithSubs> createState() => _AudioMessagePlayerWithSubsState();
 }
 
-class _AudioMessagePlayerWithSubsState
-    extends State<AudioMessagePlayerWithSubs> {
+class _AudioMessagePlayerWithSubsState extends State<AudioMessagePlayerWithSubs> {
   late final AudioSubtitleController _subsCtrl;
   String _baseText = '';
   OverlayEntry? _overlayEntry;
@@ -35,12 +27,8 @@ class _AudioMessagePlayerWithSubsState
   Timer? _overlayFadeTimer; // timer que inicia el fade-out
   double _overlayOpacity = 1.0; // opacidad animada del overlay
 
-  static const Duration _lingerTotal = Duration(
-    seconds: 2,
-  ); // tiempo visible tras terminar
-  static const Duration _fadeOutDuration = Duration(
-    milliseconds: 450,
-  ); // duración del desvanecido final
+  static const Duration _lingerTotal = Duration(seconds: 2); // tiempo visible tras terminar
+  static const Duration _fadeOutDuration = Duration(milliseconds: 450); // duración del desvanecido final
 
   @override
   void initState() {
@@ -90,8 +78,7 @@ class _AudioMessagePlayerWithSubsState
   @override
   void didUpdateWidget(covariant AudioMessagePlayerWithSubs oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.message.audioPath != widget.message.audioPath ||
-        oldWidget.message.text != widget.message.text) {
+    if (oldWidget.message.audioPath != widget.message.audioPath || oldWidget.message.text != widget.message.text) {
       _prepareTimeline();
     }
   }
@@ -213,38 +200,45 @@ class _AudioMessagePlayerWithSubsState
     final hasRealDuration = rawDur.inMilliseconds > 0;
     final dur = hasRealDuration ? rawDur : const Duration(milliseconds: 1);
 
-    // Gestionar overlay global estilo video
-    if (widget.globalOverlay) {
-      if (isPlaying && !_wasPlaying) {
-        // Empezó: asegurar overlay visible y cancelar cualquier pending removal
+    // Gestionar overlay/global o subtítulo embebido estilo video
+    final prevWasPlaying = _wasPlaying;
+    if (isPlaying && !prevWasPlaying) {
+      // Empezó: limpiar subtítulos previos y mostrar overlay global si aplica
+      _subsCtrl.clear();
+      _overlayRemovalTimer?.cancel();
+      _overlayFadeTimer?.cancel();
+      _setOverlayOpacity(1.0);
+      if (widget.globalOverlay) {
         _showGlobalOverlay();
-      } else if (!isPlaying && _wasPlaying) {
-        // Acaba de terminar: garantizar que se vea el texto completo (puede que la
-        // última actualización proporcional no haya llegado si el reproductor
-        // emite STOP unos ms antes de la duración total) y mantener visible un par de segundos
-        if (_baseText.isNotEmpty) {
-          _subsCtrl.showFullTextInstant(_baseText);
-        }
+      }
+    } else if (!isPlaying && prevWasPlaying) {
+      // Acaba de terminar: mostrar texto completo (si existe) y programar limpieza
+      if (_baseText.isNotEmpty) {
+        _subsCtrl.showFullTextInstant(_baseText);
+      }
+      if (widget.globalOverlay) {
+        // comportamiento previo: fade + removal del overlay global
         _scheduleOverlayRemoval();
+      } else {
+        // Para subtítulos embebidos (sin overlay global) programar limpieza automática
+        _overlayRemovalTimer?.cancel();
+        _overlayFadeTimer?.cancel();
+        _overlayRemovalTimer = Timer(_lingerTotal, () {
+          if (!mounted) return;
+          final chat = context.read<ChatProvider>();
+          // si volvió a reproducir, cancelar la limpieza
+          if (chat.isPlaying(widget.message)) return;
+          _subsCtrl.clear();
+        });
       }
     }
 
     _wasPlaying = isPlaying;
 
     if (isPlaying) {
-      // Al momento justo de empezar (transición wasPlaying->isPlaying), limpiar para no mostrar completo
-      if (!_wasPlaying) {
-        _subsCtrl.clear();
-        // Cancelar fade y restaurar opacidad completa por si venía de un linger anterior
-        _overlayRemovalTimer?.cancel();
-        _overlayFadeTimer?.cancel();
-        _setOverlayOpacity(1.0);
-      }
       // Solo actualizar cuando tengamos duración real y posición > 0 (evita flash de texto completo)
       if (hasRealDuration) {
-        const revealDelay = Duration(
-          milliseconds: 1000,
-        ); // delay de arranque si no hay timestamps
+        const revealDelay = Duration(milliseconds: 1000); // delay de arranque si no hay timestamps
         final bool hasTimeline = false; // por ahora siempre proporcional
         if (!hasTimeline && rawDur > revealDelay) {
           if (pos <= revealDelay) {
@@ -282,24 +276,8 @@ class _AudioMessagePlayerWithSubsState
       return AudioMessagePlayer(message: widget.message, width: widget.width);
     }
 
-    // Modo antiguo (subtítulo dentro del bubble)
-    return Stack(
-      alignment: Alignment.bottomCenter,
-      children: [
-        AudioMessagePlayer(message: widget.message, width: widget.width),
-        if (isPlaying)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: -54,
-            child: FloatingAudioSubtitle(
-              controller: _subsCtrl,
-              alignment: Alignment.topCenter,
-              glassBackground: true,
-              maxWidth: widget.width + 120,
-            ),
-          ),
-      ],
-    );
+    // Con overlay global activado, solo renderizamos el reproductor. El overlay
+    // global se encarga de mostrar los subtítulos estilizados al arrancar la reproducción.
+    return AudioMessagePlayer(message: widget.message, width: widget.width);
   }
 }

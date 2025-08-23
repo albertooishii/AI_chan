@@ -57,83 +57,17 @@ class VoiceDisplayUtils {
   /// Convierte géneros a nombres legibles
   static final Map<String, String> _genderNames = {'MALE': 'Masculina', 'FEMALE': 'Femenina', 'NEUTRAL': 'Neutral'};
 
-  /// Genera un nombre amigable para una voz de Google TTS
-  /// Ejemplo: 'es-ES-Neural2-A' -> 'Elena (Neural)'
+  /// Devuelve el nombre real tal como lo proporciona la API.
+  /// Prioridad: `displayName` / `display_name` (si existe) -> `name`.
+  /// NO recorta ni elimina partes del nombre: se presenta exactamente como viene.
   static String getGoogleVoiceFriendlyName(Map<String, dynamic> voice) {
-    final name = voice['name'] as String? ?? '';
-    final gender = voice['ssmlGender'] as String? ?? '';
-
-    // Debug logs removed to reduce console noise in normal runs.
-
-    if (name.isEmpty) return 'Voz sin nombre';
-
-    // Extraer información del nombre técnico
-    final parts = name.split('-');
-    // parts parsed
-    if (parts.length < 2) return name; // Si no sigue el formato esperado, devolver como está
-
-    final langCode = '${parts[0]}-${parts[1]}'; // ej: 'es-ES'
-
-    // Determinar tipo de voz
-    String voiceType = '';
-    String voiceId = '';
-
-    if (parts.length >= 3) {
-      final thirdPart = parts[2];
-      // third part parsed
-
-      if (thirdPart.toLowerCase().startsWith('neural')) {
-        voiceType = 'Neural';
-        if (parts.length >= 4) {
-          voiceId = parts[3]; // ej: 'A', 'B', 'C'
-        }
-        // detected neural
-      } else if (thirdPart.toLowerCase().startsWith('standard')) {
-        voiceType = 'Estándar';
-        if (parts.length >= 4) {
-          voiceId = parts[3];
-        }
-        // detected standard
-      } else if (thirdPart.toLowerCase().startsWith('wavenet')) {
-        voiceType = 'WaveNet';
-        if (parts.length >= 4) {
-          voiceId = parts[3];
-        }
-        // detected wavenet
-      } else {
-        voiceId = thirdPart;
-        // unknown type
-      }
-    }
-
-    // Generar nombres más amigables basados en el patrón común
-    String friendlyName = _generateFriendlyName(langCode, gender, voiceId);
-    // friendly name generated
-
-    // Construir el nombre final
-    String displayName = friendlyName;
-
-    // Añadir tipo de voz si es relevante
-    if (voiceType.isNotEmpty) {
-      displayName += ' ($voiceType)';
-    }
-
-    return displayName;
+    final display =
+        voice['displayName'] as String? ?? voice['display_name'] as String? ?? voice['name'] as String? ?? '';
+    if (display.isEmpty) return 'Voz sin nombre';
+    return display;
   }
 
-  /// Genera nombres amigables basados en patrones comunes
-  static String _generateFriendlyName(String langCode, String gender, String voiceId) {
-    // Para voces de Google, usar el nombre técnico directamente
-    // No inventamos nombres, usamos la nomenclatura oficial
-    final genderName = _genderNames[gender] ?? gender;
-
-    if (voiceId.isNotEmpty) {
-      return '$genderName $voiceId';
-    }
-
-    final languageName = _languageNames[langCode] ?? langCode;
-    return '$languageName $genderName';
-  }
+  // ...existing code...
 
   /// Obtiene el nombre técnico original de la voz (para usar en la API)
   static String getVoiceTechnicalName(Map<String, dynamic> voice) {
@@ -146,33 +80,38 @@ class VoiceDisplayUtils {
     final languageCodes = (voice['languageCodes'] as List<dynamic>?)?.cast<String>() ?? [];
     final name = voice['name'] as String? ?? '';
 
-    // Debug: imprimir el nombre real de la voz para diagnosis
-    // Removed debug prints to reduce runtime noise
-
     final genderName = _genderNames[gender] ?? gender;
-    final langs = languageCodes.map((lang) => _languageNames[lang] ?? lang).join(', ');
 
-    // Detectar tipo de voz con prioridad: WaveNet > Neural > Standard
-    String voiceType = '';
-    if (name.toLowerCase().contains('wavenet')) {
-      voiceType = ' (WaveNet)'; // La tecnología más avanzada
-      // detected wavenet
-    } else if (name.toLowerCase().contains('neural')) {
-      voiceType = ' (Neural)'; // Tecnología neural general (incluye Neural2)
-      // detected neural
-    } else if (name.toLowerCase().contains('standard')) {
-      voiceType = ' (Estándar)'; // Voces tradicionales
-      // detected standard
+    // Determinar nombre de idioma preferido
+    String languageName = '';
+    if (languageCodes.isNotEmpty) {
+      languageName = _languageNames[languageCodes.first] ?? languageCodes.first;
     } else {
-      // unknown
+      // intentar extraer de 'name' formato 'xx-YY-...'
+      final parts = name.split('-');
+      if (parts.length >= 2) {
+        final code = '${parts[0]}-${parts[1]}';
+        languageName = _languageNames[code] ?? code;
+      }
     }
 
-    String subtitle = genderName + voiceType;
-    if (langs.isNotEmpty) {
-      subtitle += ' - $langs';
+    // Detectar tipo de voz: preferir 'Neural' si aparece
+    String voiceType = '';
+    final lower = name.toLowerCase();
+    if (lower.contains('neural')) {
+      voiceType = 'Neural';
+    } else if (lower.contains('wavenet')) {
+      voiceType = 'WaveNet';
+    } else if (lower.contains('standard')) {
+      voiceType = 'Estándar';
     }
 
-    // result ready
-    return subtitle;
+    // Construir partes y unir con ' · '
+    final parts = <String>[];
+    if (genderName.isNotEmpty) parts.add(genderName);
+    if (languageName.isNotEmpty) parts.add(languageName);
+    if (voiceType.isNotEmpty) parts.add(voiceType);
+
+    return parts.join(' · ');
   }
 }

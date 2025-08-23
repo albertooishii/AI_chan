@@ -3,6 +3,7 @@ import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/core/services/ia_bio_generator.dart';
 import 'package:ai_chan/core/services/ia_appearance_generator.dart';
+import 'package:ai_chan/core/services/ia_avatar_generator.dart';
 import 'package:ai_chan/core/config.dart';
 
 /// Adaptador canónico de perfil: delega la generación de biografía y apariencia
@@ -62,8 +63,9 @@ class ProfileAdapter implements IProfileService {
   Future<AiImage?> generateAppearance(AiChanProfile profile) async {
     try {
       final generator = IAAppearanceGenerator();
-      final result = await generator.generateAppearancePromptWithImage(profile);
-      return result['avatar'] as AiImage?;
+      final appearanceMap = await generator.generateAppearancePrompt(profile);
+      final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(profile, appearanceMap);
+      return avatar;
     } catch (e) {
       return AiImage(url: 'https://example.com/avatar_placeholder.png', seed: 'fallback-seed', prompt: 'fallback');
     }

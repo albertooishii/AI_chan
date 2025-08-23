@@ -5,6 +5,7 @@ import '../utils/log_utils.dart';
 import 'dart:async';
 import 'dart:io';
 import '../utils/audio_utils.dart';
+import 'package:ai_chan/shared/utils/audio_conversion.dart';
 
 import 'ai_service.dart';
 import 'package:ai_chan/core/models.dart';
@@ -252,18 +253,26 @@ class OpenAIService implements AIService {
   String get apiKey => Config.getOpenAIKey();
 
   /// Transcribe un archivo de audio usando OpenAI Whisper
-  Future<String?> transcribeAudio(String filePath, {String? language}) async {
+  Future<String?> transcribeAudio(String filePath, {String? language, Map<String, String>? extraFields}) async {
     if (apiKey.trim().isEmpty) {
       throw Exception('Falta la API key de OpenAI. Por favor, configúrala en la app.');
     }
-
     final url = Uri.parse('https://api.openai.com/v1/audio/transcriptions');
     final request = http.MultipartRequest('POST', url)
       ..headers['Authorization'] = 'Bearer $apiKey'
-      ..fields['model'] = 'whisper-1'
+      ..fields['model'] = Config.getOpenAISttModel()
       ..files.add(await http.MultipartFile.fromPath('file', filePath));
     if (language != null && language.trim().isNotEmpty) {
       request.fields['language'] = language.trim();
+    }
+
+    // Añadir cualquier campo extra permitido por la API (p.ej. prompt, response_format)
+    if (extraFields != null) {
+      extraFields.forEach((k, v) {
+        try {
+          request.fields[k] = v;
+        } catch (_) {}
+      });
     }
 
     try {
@@ -291,12 +300,7 @@ class OpenAIService implements AIService {
   }
 
   /// Genera un archivo de voz usando OpenAI TTS con caché
-  Future<File?> textToSpeech({
-    required String text,
-    String voice = 'sage',
-    String model = 'tts-1',
-    String? outputDir,
-  }) async {
+  Future<File?> textToSpeech({required String text, String voice = 'sage', String? model, String? outputDir}) async {
     Log.d('textToSpeech called - text: "${text.length} chars", voice: $voice, model: $model', tag: 'OPENAI_TTS');
 
     if (apiKey.trim().isEmpty) {
@@ -312,10 +316,12 @@ class OpenAIService implements AIService {
       // Verificar caché primero
       // Preferir caché solo para demo/dialog TTS — los audios de mensajes se
       // guardan en el directorio tradicional configurado por AUDIO_DIR.
+      final effectiveModel = model ?? Config.getOpenAITtsModel();
+
       final cachedFile = await CacheService.getCachedAudioFile(
         text: text,
         voice: voice,
-        languageCode: 'openai-$model', // Usar modelo como "idioma" para OpenAI
+        languageCode: 'openai-$effectiveModel', // Usar modelo como "idioma" para OpenAI
         provider: 'openai',
         extension: 'mp3',
       );
@@ -328,11 +334,13 @@ class OpenAIService implements AIService {
       Log.w('Error leyendo caché, continuando con API: $e', tag: 'OPENAI_TTS');
     }
 
+    final effectiveModel = model ?? Config.getOpenAITtsModel();
+
     final url = Uri.parse('https://api.openai.com/v1/audio/speech');
     final response = await http.post(
       url,
       headers: {'Authorization': 'Bearer $apiKey', 'Content-Type': 'application/json'},
-      body: jsonEncode({'model': model, 'input': text, 'voice': voice, 'response_format': 'mp3'}),
+      body: jsonEncode({'model': effectiveModel, 'input': text, 'voice': voice, 'response_format': 'mp3'}),
     );
 
     if (response.statusCode == 200) {
@@ -341,13 +349,27 @@ class OpenAIService implements AIService {
         // Intentar guardar en caché (esto ayuda al diálogo TTS), pero si
         // falla, persistir en el directorio de audios normal.
         try {
+          // Respect configured preferred audio format when saving/caching.
+          final preferredRaw = Config.get('PREFERRED_AUDIO_FORMAT', 'mp3');
+          final preferred = preferredRaw.trim().toLowerCase();
+          String ext = preferred == 'm4a' ? 'm4a' : 'mp3';
+          var dataToSave = response.bodyBytes;
+          try {
+            final converted = await AudioConversion.convertBytesToPreferredCompressed(dataToSave, preferred);
+            if (converted != null && converted.isNotEmpty) {
+              dataToSave = converted;
+            }
+          } catch (e) {
+            Log.w('Warning: Could not convert OpenAI TTS to preferred format: $e', tag: 'OPENAI_TTS');
+          }
+
           final cachedFile = await CacheService.saveAudioToCache(
-            audioData: response.bodyBytes,
+            audioData: dataToSave,
             text: text,
             voice: voice,
             languageCode: 'openai-$model',
             provider: 'openai',
-            extension: 'mp3',
+            extension: ext,
           );
 
           if (cachedFile != null) {

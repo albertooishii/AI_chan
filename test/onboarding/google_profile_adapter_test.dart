@@ -3,6 +3,7 @@ import 'package:ai_chan/onboarding/infrastructure/adapters/profile_adapter.dart'
 import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/services/ia_appearance_generator.dart';
+import 'package:ai_chan/core/services/ia_avatar_generator.dart';
 import '../test_setup.dart';
 
 // Local minimal base fake for image-capable tests
@@ -19,16 +20,10 @@ class BaseFakeAIService implements AIService {
     if (enableImageGeneration) {
       const onePixelPngBase64 =
           'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAAWgmWQ0AAAAASUVORK5CYII=';
-      return AIResponse(
-        text: '',
-        base64: onePixelPngBase64,
-        seed: 'fake-seed',
-        prompt: 'fake-prompt',
-      );
+      return AIResponse(text: '', base64: onePixelPngBase64, seed: 'fake-seed', prompt: 'fake-prompt');
     }
     // Default simple JSON response for profile/appearance generation
-    final json =
-        '{"resumen_breve":"Resumen de prueba","datos_personales":{"nombre_completo":"Ai Test"}}';
+    final json = '{"resumen_breve":"Resumen de prueba","datos_personales":{"nombre_completo":"Ai Test"}}';
     return AIResponse(text: json, base64: '', seed: '', prompt: '');
   }
 
@@ -51,12 +46,7 @@ class LocalImageFake extends BaseFakeAIService {
     if (enableImageGeneration) {
       const onePixelPngBase64 =
           'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAAWgmWQ0AAAAASUVORK5CYII=';
-      return AIResponse(
-        text: '',
-        base64: onePixelPngBase64,
-        seed: 'fake-seed',
-        prompt: 'fake-prompt',
-      );
+      return AIResponse(text: '', base64: onePixelPngBase64, seed: 'fake-seed', prompt: 'fake-prompt');
     }
     return super.sendMessageImpl(
       history,
@@ -90,17 +80,18 @@ void main() {
     // filesystem dependencies and adapter fallback to placeholder. This makes the test
     // fail if the generator didn't produce an image (avoids false positives).
     final generator = IAAppearanceGenerator();
-    final res = await generator.generateAppearancePromptWithImage(
+    final appearance = await generator.generateAppearancePrompt(profile, aiService: AIService.testOverride!);
+    final image = await IAAvatarGenerator().generateAvatarFromAppearance(
       profile,
+      appearance,
       aiService: AIService.testOverride!,
       saveImageFunc: (String base64, {String prefix = 'ai_avatar'}) async {
         // Do not write to disk in unit tests; return a deterministic filename.
         return 'fake_image.png';
       },
     );
-    final image = res['avatar'] as AiImage?;
     expect(image, isA<AiImage>());
-    expect(image!.url, equals('fake_image.png'));
+    expect(image.url, equals('fake_image.png'));
     // Clear override
     AIService.testOverride = null;
   });

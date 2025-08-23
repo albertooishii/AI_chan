@@ -83,7 +83,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
         'modalities': ['audio', 'text'],
         'input_audio_format': 'pcm16',
         'output_audio_format': 'pcm16',
-        'input_audio_transcription': {'model': 'whisper-1', 'language': 'es'},
+        'input_audio_transcription': {'model': Config.getOpenAISttModel(), 'language': 'es'},
         'voice': voice,
         'turn_detection': {
           'type': turnDetectionType,

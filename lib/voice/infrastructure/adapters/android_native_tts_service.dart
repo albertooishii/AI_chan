@@ -2,21 +2,30 @@ import 'dart:io';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+
+// NOTE: We are deprecating the native MethodChannel-based Android TTS shim.
+// Internally the app now prefers the Dart plugin `flutter_tts`. This file
+// preserves the public API used by the app but delegates to FlutterTts when
+// possible. Methods that required native-only behaviors (synthesizeToFile)
+// will return null and callers should use cloud services or the
+// GoogleSpeechService.textToSpeechFile for persisted audio.
 
 class AndroidNativeTtsService {
   static const MethodChannel _channel = MethodChannel('ai_chan/native_tts');
 
   static bool get isAndroid => Platform.isAndroid;
 
+  static final FlutterTts _flutterTts = FlutterTts();
+
   /// Verifica si el TTS nativo de Android está disponible
   static Future<bool> isNativeTtsAvailable() async {
     if (!isAndroid) return false;
-
     try {
-      final result = await _channel.invokeMethod<bool>('isAvailable');
-      return result ?? false;
+      // The Dart plugin is always available when running on Android.
+      return true;
     } catch (e) {
-      Log.e('[AndroidTTS] Error verificando disponibilidad: $e');
+      Log.e('[AndroidTTS] Error verificando disponibilidad (flutter_tts): $e');
       return false;
     }
   }
@@ -24,22 +33,18 @@ class AndroidNativeTtsService {
   /// Obtiene la lista de voces disponibles en el sistema Android
   static Future<List<Map<String, dynamic>>> getAvailableVoices() async {
     if (!isAndroid) return [];
-
     try {
-      final result = await _channel.invokeMethod<List<dynamic>>('getVoices');
-      if (result == null) return [];
-
-      return result.map((voice) => Map<String, dynamic>.from(voice)).toList();
+      final voices = await _flutterTts.getVoices;
+      if (voices == null) return [];
+      return (voices as List<dynamic>).map((v) => Map<String, dynamic>.from(v as Map)).toList();
     } catch (e) {
-      Log.e('[AndroidTTS] Error obteniendo voces: $e');
+      Log.e('[AndroidTTS] Error obteniendo voces (flutter_tts): $e');
       return [];
     }
   }
 
   /// Obtiene voces filtradas por idioma
-  static Future<List<Map<String, dynamic>>> getVoicesForLanguage(
-    String languageCode,
-  ) async {
+  static Future<List<Map<String, dynamic>>> getVoicesForLanguage(String languageCode) async {
     final allVoices = await getAvailableVoices();
 
     return allVoices.where((voice) {
@@ -60,22 +65,29 @@ class AndroidNativeTtsService {
     String? voiceName,
     String languageCode = 'es-ES',
     double pitch = 1.0,
-    double speechRate = 1.0,
+    double speechRate = 0.5,
   }) async {
     if (!isAndroid) return false;
-
     try {
-      final result = await _channel.invokeMethod<bool>('speak', {
-        'text': text,
-        'voiceName': voiceName,
-        'languageCode': languageCode,
-        'pitch': pitch,
-        'speechRate': speechRate,
-      });
-
-      return result ?? false;
+      await _flutterTts.setLanguage(languageCode);
+      if (voiceName != null) await _flutterTts.setVoice({'name': voiceName});
+      await _flutterTts.setPitch(pitch);
+      // Normalize/clamp speech rate to platform valid range (fallback to a
+      // conservative default to avoid accelerated audio on some engines).
+      try {
+        final normalized = await _normalizeSpeechRate(speechRate);
+        await _flutterTts.setSpeechRate(normalized);
+        Log.d('[AndroidTTS] using speechRate=$normalized for synthesizeText');
+      } catch (e) {
+        await _flutterTts.setSpeechRate(speechRate);
+      }
+      try {
+        await _flutterTts.awaitSpeakCompletion(true);
+      } catch (_) {}
+      final res = await _flutterTts.speak(text);
+      return res == 1 || res == '1' || res == null;
     } catch (e) {
-      Log.e('[AndroidTTS] Error sintetizando texto: $e');
+      Log.e('[AndroidTTS] Error sintetizando texto (flutter_tts): $e');
       return false;
     }
   }
@@ -87,23 +99,62 @@ class AndroidNativeTtsService {
     String? voiceName,
     String languageCode = 'es-ES',
     double pitch = 1.0,
-    double speechRate = 1.0,
+    double speechRate = 0.5,
   }) async {
     if (!isAndroid) return null;
-
     try {
-      final result = await _channel.invokeMethod<String>('synthesizeToFile', {
-        'text': text,
-        'outputPath': outputPath,
-        'voiceName': voiceName,
-        'languageCode': languageCode,
-        'pitch': pitch,
-        'speechRate': speechRate,
-      });
+      await _flutterTts.setLanguage(languageCode);
+      if (voiceName != null) await _flutterTts.setVoice({'name': voiceName, 'locale': languageCode});
+      await _flutterTts.setPitch(pitch);
+      try {
+        final normalized = await _normalizeSpeechRate(speechRate);
+        await _flutterTts.setSpeechRate(normalized);
+        Log.d('[AndroidTTS] using speechRate=$normalized for synthesizeToFile');
+      } catch (e) {
+        await _flutterTts.setSpeechRate(speechRate);
+      }
 
-      return result;
+      // Ask plugin to await completion so we can verify file
+      try {
+        await _flutterTts.awaitSynthCompletion(true);
+      } catch (_) {}
+
+      final isFullPath = outputPath.startsWith('/');
+      final fileName = outputPath;
+
+      final res = await _flutterTts.synthesizeToFile(text, fileName, isFullPath);
+
+      // If plugin wrote to the given path, verify size
+      try {
+        final f = File(outputPath);
+        if (await f.exists()) {
+          final len = await f.length();
+          if (len > 0) {
+            Log.d('[AndroidTTS] synthesizeToFile produced file: $outputPath (size=$len)');
+            return outputPath;
+          } else {
+            Log.e('[AndroidTTS] synthesizeToFile produced zero-length file: $outputPath');
+            try {
+              await f.delete();
+            } catch (_) {}
+            return null;
+          }
+        }
+      } catch (e) {
+        // ignore file check errors
+      }
+
+      // Plugin may return an alternative path
+      if (res is String && res.isNotEmpty) {
+        try {
+          final alt = File(res);
+          if (await alt.exists() && await alt.length() > 0) return res;
+        } catch (_) {}
+      }
+
+      return null;
     } catch (e) {
-      Log.e('[AndroidTTS] Error sintetizando a archivo: $e');
+      Log.e('[AndroidTTS] Error synthesizeToFile (flutter_tts): $e');
       return null;
     }
   }
@@ -132,9 +183,7 @@ class AndroidNativeTtsService {
     if (!isAndroid) return [];
 
     try {
-      final result = await _channel.invokeMethod<List<dynamic>>(
-        'getDownloadableLanguages',
-      );
+      final result = await _channel.invokeMethod<List<dynamic>>('getDownloadableLanguages');
       if (result == null) return [];
 
       return result.map((lang) => Map<String, dynamic>.from(lang)).toList();
@@ -149,9 +198,7 @@ class AndroidNativeTtsService {
     if (!isAndroid) return false;
 
     try {
-      final result = await _channel.invokeMethod<bool>('requestDownload', {
-        'languageCode': languageCode,
-      });
+      final result = await _channel.invokeMethod<bool>('requestDownload', {'languageCode': languageCode});
 
       return result ?? false;
     } catch (e) {
@@ -165,9 +212,7 @@ class AndroidNativeTtsService {
     if (!isAndroid) return 'not_supported';
 
     try {
-      final result = await _channel.invokeMethod<String>('getDownloadStatus', {
-        'languageCode': languageCode,
-      });
+      final result = await _channel.invokeMethod<String>('getDownloadStatus', {'languageCode': languageCode});
 
       return result ?? 'unknown';
     } catch (e) {
@@ -181,8 +226,7 @@ class AndroidNativeTtsService {
     final name = voice['name'] as String? ?? 'Sin nombre';
     final locale = voice['locale'] as String? ?? 'Sin idioma';
     final quality = voice['quality'] as String? ?? 'normal';
-    final isNetworkRequired =
-        voice['requiresNetworkConnection'] as bool? ?? false;
+    final isNetworkRequired = voice['requiresNetworkConnection'] as bool? ?? false;
 
     final qualityText = quality == 'very_high'
         ? 'Neural'
@@ -192,5 +236,24 @@ class AndroidNativeTtsService {
     final networkText = isNetworkRequired ? ' (Red)' : '';
 
     return '$name - $locale ($qualityText$networkText)';
+  }
+
+  /// Normaliza/limita el valor de speechRate al rango válido del plugin.
+  static Future<double> _normalizeSpeechRate(double requested) async {
+    try {
+      // The plugin exposes a getter for the valid range. Use it if present.
+      final range = await _flutterTts.getSpeechRateValidRange;
+      final min = range.min;
+      final normal = range.normal;
+      final max = range.max;
+      // Clamp
+      if (requested.isNaN) return normal;
+      if (requested < min) return min;
+      if (requested > max) return max;
+      return requested;
+    } catch (e) {
+      // Fallback conservative value
+      return requested.clamp(0.3, 0.7);
+    }
   }
 }

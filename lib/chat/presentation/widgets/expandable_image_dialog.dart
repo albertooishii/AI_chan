@@ -4,6 +4,7 @@ import 'package:ai_chan/shared/utils/download_image.dart';
 import 'package:flutter/material.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:ai_chan/main.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
 
@@ -200,6 +201,44 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                                 ),
                               ),
                             ),
+                            // Etiqueta pequeña en la esquina inferior izquierda: "Avatar i/n · dd/MM/yyyy HH:mm"
+                            // Mostrar siempre el contador; añadir la fecha si está disponible
+                            if (_showText)
+                              Builder(
+                                builder: (ctx) {
+                                  final msg = widget.images[_currentIndex];
+                                  final img = msg.image;
+                                  // Considerar avatar solo si tiene createdAtMs; muchas imágenes normales
+                                  // pueden tener seed pero no createdAtMs.
+                                  final bool isAvatar = img?.createdAtMs != null;
+                                  final total = widget.images.length;
+                                  final index = (_currentIndex + 1).clamp(1, total);
+
+                                  // decidir prefijo
+                                  String label = isAvatar ? 'Avatar $index/$total' : 'Foto $index/$total';
+
+                                  // fecha: para avatar preferir createdAtMs, para imágenes normales usar message.dateTime
+                                  int? ms = isAvatar ? img?.createdAtMs : msg.dateTime.millisecondsSinceEpoch;
+                                  if (ms != null) {
+                                    final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+                                    final formatted = DateFormat('dd/MM/yyyy HH:mm').format(dt);
+                                    label = '$label · $formatted';
+                                  }
+
+                                  return Positioned(
+                                    left: 12,
+                                    bottom: 12,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(alpha: (0.45 * 255).round().toDouble()),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                                    ),
+                                  );
+                                },
+                              ),
                           ],
                         );
                       }
@@ -283,7 +322,9 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                 widget.images[_currentIndex].text.isNotEmpty &&
                 widget.images[_currentIndex].text.trim() != '')
               Positioned(
-                bottom: 24,
+                // Elevar el pie de foto para que no se solape con la etiqueta inferior
+                // (la etiqueta se muestra en bottom:12). Usamos un offset mayor.
+                bottom: 72,
                 left: 24,
                 right: 24,
                 child: Container(

@@ -6,8 +6,10 @@ list(APPEND FLUTTER_PLUGIN_LIST
   audioplayers_windows
   emoji_picker_flutter
   file_selector_windows
+  flutter_tts
   permission_handler_windows
   record_windows
+  speech_to_text_windows
   url_launcher_windows
 )
 
