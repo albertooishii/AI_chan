@@ -1,18 +1,20 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:web_socket_channel/io.dart';
 
 import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/core/di.dart';
+import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
 import 'package:ai_chan/voice/domain/interfaces/voice_interfaces.dart';
 
 /// Cliente OpenAI Realtime adaptado para la interfaz del dominio
 class OpenAIRealtimeVoiceClient implements IRealtimeVoiceClient {
   final String model;
+  IRealtimeClient? _client;
 
-  IOWebSocketChannel? _channel;
   bool _connected = false;
+  // Kept for parity with previous implementation and forwarded to provider.
+  // ignore: unused_field
   String _voice = 'sage';
   bool _hasActiveResponse = false;
   Timer? _responseCreateTimer;
@@ -26,16 +28,13 @@ class OpenAIRealtimeVoiceClient implements IRealtimeVoiceClient {
   late final StreamController<Object> _errorController;
   late final StreamController<void> _completionController;
 
-  OpenAIRealtimeVoiceClient({String? model})
-    : model = model ?? Config.requireOpenAIRealtimeModel() {
+  OpenAIRealtimeVoiceClient({String? model}) : model = model ?? Config.requireOpenAIRealtimeModel() {
     _textController = StreamController<String>.broadcast();
     _audioController = StreamController<Uint8List>.broadcast();
     _userTranscriptionController = StreamController<String>.broadcast();
     _errorController = StreamController<Object>.broadcast();
     _completionController = StreamController<void>.broadcast();
   }
-
-  String get _apiKey => Config.getOpenAIKey();
 
   @override
   bool get isConnected => _connected;
@@ -47,8 +46,7 @@ class OpenAIRealtimeVoiceClient implements IRealtimeVoiceClient {
   Stream<Uint8List> get audioStream => _audioController.stream;
 
   @override
-  Stream<String> get userTranscriptionStream =>
-      _userTranscriptionController.stream;
+  Stream<String> get userTranscriptionStream => _userTranscriptionController.stream;
 
   @override
   Stream<Object> get errorStream => _errorController.stream;
@@ -57,147 +55,44 @@ class OpenAIRealtimeVoiceClient implements IRealtimeVoiceClient {
   Stream<void> get completionStream => _completionController.stream;
 
   @override
-  Future<void> connect({
-    required String systemPrompt,
-    String voice = 'default',
-    Map<String, dynamic>? options,
-  }) async {
-    if (_apiKey.trim().isEmpty) {
-      throw Exception('Falta la API key de OpenAI.');
-    }
+  Future<void> connect({required String systemPrompt, String voice = 'default', Map<String, dynamic>? options}) async {
+    // API key check is performed by provider-specific clients (eg. OpenAIRealtimeClient).
+    // The voice-level client should allow test-time factories to be injected via DI
+    // without requiring a configured API key here.
 
-    final uri = Uri.parse('wss://api.openai.com/v1/realtime?model=$model');
-
-    if (kDebugMode) {
-      debugPrint('Realtime: conectando con modelo=$model');
-    }
-
-    _channel = IOWebSocketChannel.connect(
-      uri,
-      headers: {
-        'Authorization': 'Bearer $_apiKey',
-        'OpenAI-Beta': 'realtime=v1',
+    // Create provider-specific realtime client via DI registry.
+    _client = getRealtimeClientForProvider(
+      'openai',
+      model: model,
+      onText: (t) {
+        if (t.trim().isNotEmpty) _textController.add(t.trim());
       },
-    );
-    _connected = true;
-    _bytesSinceCommit = 0;
-    _voice = voice;
-
-    final sessionReady = Completer<void>();
-
-    // Escuchar mensajes
-    _channel!.stream.listen(
-      (data) {
+      onAudio: (b) {
         try {
-          final evt = jsonDecode(data as String) as Map<String, dynamic>;
-          _handleEvent(evt, sessionReady);
+          _audioController.add(Uint8List.fromList(b));
         } catch (e) {
-          _errorController.add(e);
+          if (kDebugMode) debugPrint('Error handling audio bytes: $e');
         }
       },
-      onError: (e) {
-        _errorController.add(e);
-        _connected = false;
-      },
-      onDone: () {
-        _connected = false;
+      onCompleted: () => _completionController.add(null),
+      onError: (e) => _errorController.add(e),
+      onUserTranscription: (s) {
+        if (s.trim().isNotEmpty) _userTranscriptionController.add(s.trim());
       },
     );
 
-    // Esperar a que la sesión esté creada
-    try {
-      await sessionReady.future.timeout(const Duration(seconds: 5));
-    } catch (_) {
-      if (kDebugMode) {
-        debugPrint('Realtime: timeout esperando session.created');
-      }
-    }
+    _voice = voice;
+    _bytesSinceCommit = 0;
+
+    await _client!.connect(systemPrompt: systemPrompt, voice: voice, options: options);
+
+    _connected = _client?.isConnected ?? false;
   }
 
-  void _handleEvent(Map<String, dynamic> evt, Completer<void> sessionReady) {
-    final type = evt['type'] as String? ?? '';
+  // Event handling is delegated to the provider-specific IRealtimeClient via
+  // callbacks provided when creating the client in `connect`.
 
-    // Manejar texto recibido
-    if (type.startsWith('response.text.') && evt['text'] is String) {
-      final text = (evt['text'] as String).trim();
-      if (text.isNotEmpty) _textController.add(text);
-    }
-
-    if (type.startsWith('response.audio_transcript.') &&
-        evt['delta'] is String) {
-      final tx = (evt['delta'] as String).trim();
-      if (tx.isNotEmpty) _textController.add(tx);
-    }
-
-    if (type == 'response.audio_transcript.done') {
-      final t = (evt['transcript'] ?? '').toString();
-      if (t.isNotEmpty) _textController.add(t);
-    }
-
-    // Manejar audio recibido
-    if (type.startsWith('response.audio.') && evt['delta'] is String) {
-      try {
-        final audioData = base64Decode(evt['delta'] as String);
-        _audioController.add(Uint8List.fromList(audioData));
-      } catch (e) {
-        if (kDebugMode) debugPrint('Error decodificando audio: $e');
-      }
-    }
-
-    // Manejar transcripciones del usuario
-    if (type.startsWith('conversation.item.input_audio_transcription.')) {
-      final transcript = evt['transcript'] as String? ?? '';
-      if (transcript.trim().isNotEmpty) {
-        _userTranscriptionController.add(transcript.trim());
-      }
-    }
-
-    // Manejar eventos de sesión
-    if (type == 'session.created' && !sessionReady.isCompleted) {
-      if (kDebugMode) {
-        debugPrint(
-          'Realtime: session.created recibido, aplicando voice="$_voice"',
-        );
-      }
-      _send({
-        'type': 'session.update',
-        'session': {
-          'instructions': '',
-          'modalities': ['audio', 'text'],
-          'voice': _voice,
-        },
-      });
-      sessionReady.complete();
-    }
-
-    // Manejar finalización de respuesta
-    if (type == 'response.done') {
-      _hasActiveResponse = false;
-      _completionController.add(null);
-    }
-
-    // Manejar errores
-    if (type == 'error') {
-      final error = evt['error'] ?? {};
-      final message = error['message'] ?? 'Unknown error';
-      _errorController.add(Exception('OpenAI Realtime Error: $message'));
-    }
-  }
-
-  void _send(Map<String, dynamic> event) {
-    if (!_connected || _channel == null) return;
-
-    try {
-      final jsonData = jsonEncode(event);
-      _channel!.sink.add(jsonData);
-
-      if (kDebugMode && event['type'] != 'input_audio_buffer.append') {
-        debugPrint('Realtime -> ${event['type']}');
-      }
-    } catch (e) {
-      if (kDebugMode) debugPrint('Error enviando evento: $e');
-    }
-  }
+  // Low-level send is handled by the provider client.
 
   @override
   Future<void> disconnect() async {
@@ -205,21 +100,19 @@ class OpenAIRealtimeVoiceClient implements IRealtimeVoiceClient {
     _responseCreateTimer?.cancel();
 
     try {
-      await _channel?.sink.close();
+      await _client?.close();
     } catch (e) {
-      if (kDebugMode) debugPrint('Error cerrando canal: $e');
+      if (kDebugMode) debugPrint('Error cerrando cliente realtime: $e');
     }
 
-    _channel = null;
+    _client = null;
   }
 
   @override
   void sendAudio(List<int> audioBytes) {
     if (!_connected) return;
 
-    final audioBase64 = base64Encode(audioBytes);
-    _send({'type': 'input_audio_buffer.append', 'audio': audioBase64});
-
+    _client?.appendAudio(audioBytes);
     _bytesSinceCommit += audioBytes.length;
 
     // Auto-commit si hay muchos bytes pendientes
@@ -231,16 +124,7 @@ class OpenAIRealtimeVoiceClient implements IRealtimeVoiceClient {
   @override
   void sendText(String text) {
     if (!_connected) return;
-    _send({
-      'type': 'conversation.item.create',
-      'item': {
-        'type': 'message',
-        'role': 'user',
-        'content': [
-          {'type': 'input_text', 'text': text},
-        ],
-      },
-    });
+    _client?.sendText(text);
     requestResponse();
   }
 
@@ -248,10 +132,7 @@ class OpenAIRealtimeVoiceClient implements IRealtimeVoiceClient {
   void updateVoice(String voice) {
     if (!_connected) return;
     _voice = voice;
-    _send({
-      'type': 'session.update',
-      'session': {'voice': voice},
-    });
+    _client?.updateVoice(voice);
   }
 
   @override
@@ -260,13 +141,7 @@ class OpenAIRealtimeVoiceClient implements IRealtimeVoiceClient {
 
     _commitAudioBuffer();
     _hasActiveResponse = true;
-
-    _send({
-      'type': 'response.create',
-      'response': {
-        'modalities': [if (audio) 'audio', if (text) 'text'],
-      },
-    });
+    _client?.requestResponse(audio: audio, text: text);
   }
 
   void _scheduleCommit() {
@@ -282,7 +157,7 @@ class OpenAIRealtimeVoiceClient implements IRealtimeVoiceClient {
   void _commitAudioBuffer() {
     if (!_connected || _bytesSinceCommit == 0) return;
 
-    _send({'type': 'input_audio_buffer.commit'});
+    _client?.commitPendingAudio();
     _bytesSinceCommit = 0;
   }
 

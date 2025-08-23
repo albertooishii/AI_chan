@@ -10,6 +10,7 @@ import 'dart:io' show Platform;
 import 'package:ai_chan/chat.dart';
 import 'dart:convert';
 import 'core/di.dart' as di;
+import 'package:ai_chan/voice/infrastructure/clients/openai_realtime_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -28,6 +29,18 @@ Future<void> clearAppData() async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Necesario para registrar plugins antes de usarlos
   await Config.initialize();
+  // Register default realtime providers for DI registry.
+  // OpenAI factory: creates an OpenAIRealtimeClient wired with callbacks.
+  di.registerRealtimeClientFactory('openai', ({model, onText, onAudio, onCompleted, onError, onUserTranscription}) {
+    return OpenAIRealtimeClient(
+      model: model ?? Config.requireOpenAIRealtimeModel(),
+      onText: onText,
+      onAudio: onAudio,
+      onCompleted: onCompleted,
+      onError: onError,
+      onUserTranscription: onUserTranscription,
+    );
+  });
   // Precargar valores por defecto de TTS en SharedPreferences si faltan.
   // Esto asegura que la configuración de audio esté disponible en toda la app
   // desde el arranque (en lugar de hacerlo en una pantalla concreta).

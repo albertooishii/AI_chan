@@ -13,7 +13,6 @@ import 'package:ai_chan/voice/infrastructure/adapters/default_tts_service.dart';
 import 'package:ai_chan/voice/infrastructure/adapters/google_stt_adapter.dart';
 import 'package:ai_chan/voice/infrastructure/adapters/google_tts_adapter.dart';
 import 'dart:typed_data';
-import 'package:ai_chan/voice/infrastructure/clients/openai_realtime_client.dart';
 import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
 import 'package:ai_chan/core/infrastructure/adapters/openai_adapter.dart';
 import 'package:ai_chan/core/infrastructure/adapters/gemini_adapter.dart';
@@ -122,6 +121,103 @@ ITtsService getTtsServiceForProvider(String provider) {
 
 /// Fábrica que devuelve un cliente realtime compatible con la interfaz usada por VoiceCallController.
 /// Para 'openai' devuelve el OpenAIRealtimeClient; para 'google' devuelve el GeminiCallOrchestrator (emulación).
+// ---------------- Realtime client registry ----------------
+/// Factory signature for provider-specific realtime client creators.
+typedef RealtimeClientCreator =
+    IRealtimeClient Function({
+      String? model,
+      void Function(String)? onText,
+      void Function(Uint8List)? onAudio,
+      void Function()? onCompleted,
+      void Function(Object)? onError,
+      void Function(String)? onUserTranscription,
+    });
+
+final Map<String, RealtimeClientCreator> _realtimeClientRegistry = {};
+
+/// Register a realtime client factory for a provider key (e.g. 'openai', 'google').
+void registerRealtimeClientFactory(String provider, RealtimeClientCreator creator) {
+  _realtimeClientRegistry[provider.trim().toLowerCase()] = creator;
+}
+
+// Note: creators for specific providers should be registered at bootstrap
+// using `registerRealtimeClientFactory(provider, creator)` so the app can
+// choose which providers to enable at runtime.
+
+/// A fallback client returned when a provider has not been registered.
+class NotSupportedRealtimeClient implements IRealtimeClient {
+  final String provider;
+  NotSupportedRealtimeClient(this.provider);
+
+  @override
+  bool get isConnected => false;
+
+  @override
+  void appendAudio(List<int> bytes) {
+    // no-op
+  }
+
+  @override
+  Future<void> close() async {
+    // no-op
+  }
+
+  @override
+  Future<void> connect({
+    required String systemPrompt,
+    String? voice,
+    String? inputAudioFormat,
+    String? outputAudioFormat,
+    String? turnDetectionType,
+    int? silenceDurationMs,
+    Map<String, dynamic>? options,
+  }) {
+    throw UnsupportedError('Realtime provider not registered: $provider');
+  }
+
+  @override
+  void requestResponse({bool audio = true, bool text = true}) {
+    // no-op
+  }
+
+  @override
+  void sendText(String text) {
+    // no-op
+  }
+
+  @override
+  void updateVoice(String voice) {
+    // no-op
+  }
+
+  @override
+  Future<void> commitPendingAudio() async {
+    // no-op
+  }
+}
+
+// ---------------- Test overrides for realtime client ----------------
+/// Type of factory used by tests to create a fake IRealtimeClient that
+/// mirrors the production constructor signature.
+typedef RealtimeClientFactory =
+    IRealtimeClient Function(
+      String provider, {
+      String? model,
+      void Function(String)? onText,
+      void Function(Uint8List)? onAudio,
+      void Function()? onCompleted,
+      void Function(Object)? onError,
+      void Function(String)? onUserTranscription,
+    });
+
+RealtimeClientFactory? _testRealtimeClientFactory;
+
+/// Allow tests to install a factory to create a fake realtime client.
+void setTestRealtimeClientFactory(RealtimeClientFactory? factory) {
+  _testRealtimeClientFactory = factory;
+}
+
+/// Factory that uses the registry (or the test override) to create a realtime client.
 IRealtimeClient getRealtimeClientForProvider(
   String provider, {
   String? model,
@@ -145,10 +241,12 @@ IRealtimeClient getRealtimeClientForProvider(
       onUserTranscription: onUserTranscription,
     );
   }
-  final p = provider.toLowerCase();
-  if (p == 'openai') {
-    return OpenAIRealtimeClient(
-      model: model ?? Config.requireOpenAIRealtimeModel(),
+
+  final p = provider.trim().toLowerCase();
+  final creator = _realtimeClientRegistry[p];
+  if (creator != null) {
+    return creator(
+      model: model,
       onText: onText,
       onAudio: onAudio,
       onCompleted: onCompleted,
@@ -156,38 +254,11 @@ IRealtimeClient getRealtimeClientForProvider(
       onUserTranscription: onUserTranscription,
     );
   }
-  // Calls using Gemini/Google are disabled by project decision. Return a
-  // lightweight stub so callers can still construct a client but any call
-  // orchestration features will surface a clear unsupported error or no-op.
-  return OpenAIRealtimeClient(
-    model: model ?? 'disabled',
-    onText: onText,
-    onAudio: onAudio,
-    onCompleted: onCompleted,
-    onError: onError,
-    onUserTranscription: onUserTranscription,
-  );
-}
 
-// ---------------- Test overrides for realtime client ----------------
-/// Type of factory used by tests to create a fake IRealtimeClient that
-/// mirrors the production constructor signature.
-typedef RealtimeClientFactory =
-    IRealtimeClient Function(
-      String provider, {
-      String? model,
-      void Function(String)? onText,
-      void Function(Uint8List)? onAudio,
-      void Function()? onCompleted,
-      void Function(Object)? onError,
-      void Function(String)? onUserTranscription,
-    });
-
-RealtimeClientFactory? _testRealtimeClientFactory;
-
-/// Allow tests to install a factory to create a fake realtime client.
-void setTestRealtimeClientFactory(RealtimeClientFactory? factory) {
-  _testRealtimeClientFactory = factory;
+  // If the provider isn't registered we return a clear fallback that will
+  // throw on connect. This forces callers to register new providers (eg. Gemini)
+  // via `registerRealtimeClientFactory` rather than sprinkling provider checks.
+  return NotSupportedRealtimeClient(provider);
 }
 
 IProfileService getProfileServiceForProvider([String? provider]) {
