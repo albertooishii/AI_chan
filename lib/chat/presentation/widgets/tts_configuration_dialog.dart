@@ -44,8 +44,6 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
     _loadVoices();
     // Preload OpenAI voices (will fallback to static list if API not configured)
     _loadOpenAiVoices();
-    // Inicializar voces OpenAI desde la lista derivada del mapa de genero
-    _openaiVoices.addAll(kOpenAIVoices.map((v) => {'name': v, 'description': v, 'languageCodes': <String>[]}).toList());
     _loadCacheSize();
   }
 
@@ -321,7 +319,6 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
 
   Future<void> _clearCache() async {
     final confirmed = await showAppDialog<bool>(
-      context: context,
       builder: (context) => AlertDialog(
         title: const Text('Limpiar Caché'),
         content: Text('¿Eliminar ${CacheService.formatCacheSize(_cacheSize)} de audio en caché?'),

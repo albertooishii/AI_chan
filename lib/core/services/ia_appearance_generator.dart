@@ -7,11 +7,7 @@ import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/core/ai_runtime_guard.dart';
 
 class IAAppearanceGenerator {
-  Future<Map<String, dynamic>> generateAppearancePrompt(
-    AiChanProfile bio, {
-    AIService? aiService,
-    Future<String?> Function(String base64, {String prefix})? saveImageFunc,
-  }) async {
+  Future<Map<String, dynamic>> generateAppearancePrompt(AiChanProfile bio, {AIService? aiService}) async {
     final usedModel = Config.getDefaultTextModel();
 
     // Bloque de formato JSON para la apariencia física

@@ -202,7 +202,6 @@ class _InitializingScreenState extends State<InitializingScreen> {
     if (!mounted) return;
     _cancel = true;
     final choice = await showAppDialog<String>(
-      context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
         title: const Text('No se pudo completar la configuración', style: TextStyle(color: AppColors.secondary)),
@@ -260,7 +259,7 @@ class _InitializingScreenState extends State<InitializingScreen> {
             Text(
               steps[currentStep][0],
               style: const TextStyle(
-                color: AppColors.primary,
+                color: AppColors.cyberpunkYellow,
                 fontSize: 22,
                 fontFamily: 'FiraMono',
                 letterSpacing: 2,
@@ -279,6 +278,14 @@ class _InitializingScreenState extends State<InitializingScreen> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 40),
+            // Spinner visual bajo los textos para indicar actividad.
+            const SizedBox(height: 8),
+            SizedBox(
+              width: 36,
+              height: 36,
+              child: CircularProgressIndicator(color: AppColors.secondary, strokeWidth: 4),
+            ),
+            const SizedBox(height: 24),
           ],
         ),
       ),

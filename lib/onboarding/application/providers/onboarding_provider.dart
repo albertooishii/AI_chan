@@ -124,13 +124,10 @@ class OnboardingProvider extends ChangeNotifier {
       // para que ambos pasos se muestren durante la generación del avatar.
       onProgress?.call('avatar');
       onProgress?.call('finish');
-      final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(
-        biography,
-        appearanceMap,
-        aiService: null,
-        saveImageFunc: saveImageFunc,
-      );
-      final biographyWithAvatar = biography.copyWith(avatars: [avatar], appearance: appearanceMap);
+      // Generate avatar (replace existing) and attach to biography
+      final updatedBiography = biography.copyWith(appearance: appearanceMap);
+      final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(updatedBiography, appendAvatar: false);
+      final biographyWithAvatar = updatedBiography.copyWith(avatars: [avatar]);
       // Tras completarse la creación del avatar, emitir 'finalize' (índice 16)
       // y mantener ese estado visible unos segundos para la transición UX.
       onProgress?.call('finalize');
@@ -149,7 +146,6 @@ class OnboardingProvider extends ChangeNotifier {
       _biographySaved = false;
       if (!context.mounted) return;
       await showAppDialog(
-        context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Error al crear biografía'),
           content: Text(e.toString()),
@@ -314,7 +310,6 @@ class OnboardingProvider extends ChangeNotifier {
     if (!context.mounted) return;
     if (error != null) {
       await showAppDialog(
-        context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Error al leer archivo'),
           content: Text(error),
@@ -334,7 +329,6 @@ class OnboardingProvider extends ChangeNotifier {
       if (importError != null || imported == null) {
         if (!context.mounted) return;
         await showAppDialog(
-          context: context,
           builder: (ctx) => AlertDialog(
             title: const Text('Error al importar'),
             content: Text(importError ?? 'Error desconocido al importar JSON'),

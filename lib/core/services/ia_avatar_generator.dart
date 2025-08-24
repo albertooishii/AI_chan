@@ -9,26 +9,43 @@ import 'package:ai_chan/core/ai_runtime_guard.dart';
 class IAAvatarGenerator {
   /// Genera una imagen (avatar) a partir del JSON de apariencia y la guarda.
   /// Devuelve un objeto AiImage con seed/prompt/url.
+  ///
+  /// Parámetros:
+  /// - [appendAvatar]: si es true, reutiliza la seed del primer avatar (si existe)
+  ///   para mantener identidad y añade el nuevo avatar al histórico.
+  ///   Si es false, se genera un avatar completamente nuevo y reemplaza el histórico.
   Future<AiImage> generateAvatarFromAppearance(
-    AiChanProfile bio,
-    Map<String, dynamic> appearance, {
+    AiChanProfile bio, {
     AIService? aiService,
-    Future<String?> Function(String base64, {String prefix})? saveImageFunc,
-    String? seedOverride,
+    bool appendAvatar = false,
   }) async {
     final String forcedImageModel = Config.getDefaultImageModel();
     Log.d('[IAAvatarGenerator] Avatar: generando imagen con modelo $forcedImageModel');
 
+    // Obtener la apariencia desde el perfil; los llamadores deben actualizar
+    // el perfil (bio) con la nueva appearance antes de llamar a esta función
+    final Map<String, dynamic> appearance = bio.appearance;
+
     var imagePrompt =
         '''Usa la herramienta de generación de imágenes y devuelve únicamente la imagen en base64.
-        Genera una imagen hiperrealista cuadrada (1:1) centrada en la cara y torso superior, coherente con este JSON de apariencia:
-        ${jsonEncode(appearance)}
+    Genera una imagen hiperrealista cuadrada (1:1) centrada en la cara y torso superior, coherente con este JSON de apariencia:
+    ${jsonEncode(appearance)}
         La imagen debe mostrar a la IA realizando una actividad que le guste (elige la actividad a partir de 'biography'. La pose y la expresión deben transmitir que está disfrutando de esa actividad (sonrisa natural, mirada enfocada, gestos suaves).
         Viste ropa coherente con los campos de `appearance` (usa prendas, estilo, colores y accesorios especificados allí).
         Recuerda: la imagen debe representar a una mujer joven de 25 años (edad aparente = 25). Evita texto, marcas de agua y elementos anacrónicos. SOLO devuelve la imagen en base64 en la respuesta.''';
 
     AIResponse imageResponse = AIResponse(text: '', base64: '', seed: '', prompt: '');
     const int maxImageAttemptsPerModel = 3;
+
+    // Decide seed internamente: si appendAvatar==true y el perfil tiene avatars,
+    // usamos la seed del primer avatar para mantener identidad. Si no, generamos fresh.
+    String? seedToUse;
+    if (appendAvatar && bio.avatars != null && bio.avatars!.isNotEmpty && (bio.avatars!.first.seed ?? '').isNotEmpty) {
+      seedToUse = bio.avatars!.first.seed;
+    } else {
+      seedToUse = null;
+    }
+
     for (int attempt = 0; attempt < maxImageAttemptsPerModel; attempt++) {
       Log.d('[IAAvatarGenerator] Avatar: intento ${attempt + 1}/$maxImageAttemptsPerModel con $forcedImageModel');
       try {
@@ -39,21 +56,20 @@ class IAAvatarGenerator {
           userBirthday: null,
           aiBirthday: null,
           appearance: appearance,
-          avatars: seedOverride != null ? bio.avatars : null,
+          avatars: seedToUse != null ? bio.avatars : null,
           timeline: [],
         );
 
-        // Si se pasó seedOverride añadimos instrucciones para regenerar usando
-        // ese seed como referencia de identidad facial, pero permitiendo
-        // variaciones en ropa, pose y entorno.
-        imagePrompt = seedOverride != null
+        // Si decidimos reutilizar una seed, añadimos instrucciones para regenerar
+        // manteniendo la identidad facial.
+        final promptToSend = seedToUse != null
             ? '$imagePrompt\nRegenera una NUEVA imagen manteniendo la identidad facial pero variando la ropa, cabello, la pose y el entorno según las que hay disponibles en appearance. SOLO devuelve la imagen en base64 en la respuesta.'
             : imagePrompt;
 
         final systemPromptImage = SystemPrompt(
           profile: profileForPrompt,
           dateTime: DateTime.now(),
-          instructions: {'raw': imagePrompt},
+          instructions: {'raw': promptToSend},
         );
 
         final resp = await (aiService != null
@@ -82,9 +98,7 @@ class IAAvatarGenerator {
     // Guardar imagen
     String? imageUrl;
     try {
-      imageUrl = await (saveImageFunc != null
-          ? saveImageFunc(imageResponse.base64, prefix: 'ai_avatar')
-          : saveBase64ImageToFile(imageResponse.base64, prefix: 'ai_avatar'));
+      imageUrl = await saveBase64ImageToFile(imageResponse.base64, prefix: 'ai_avatar');
     } catch (e) {
       imageUrl = null;
     }
@@ -94,14 +108,16 @@ class IAAvatarGenerator {
     }
 
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    // Prefer the seed returned by the image service when available. Si la
-    // API devolvió una nueva seed, usarla; si no, usar seedOverride si existe.
-    final String usedSeed = (imageResponse.seed.isNotEmpty) ? imageResponse.seed : (seedOverride ?? '');
+    // Prefer the seed returned by the image service when available. Si la API
+    // devolvió una nueva seed, usarla; si no, usar la seed interna decidida.
+    final String usedSeed = (imageResponse.seed.isNotEmpty) ? imageResponse.seed : (seedToUse ?? '');
 
     Log.d('[IAAvatarGenerator] Avatar: usada seed final: $usedSeed');
 
-    // Devolver AiImage con la seed real usada para que el llamador pueda
-    // añadirla al perfil (append) si así lo desea.
-    return AiImage(seed: usedSeed, prompt: imageResponse.prompt, url: imageUrl, createdAtMs: nowMs);
+    final avatar = AiImage(seed: usedSeed, prompt: imageResponse.prompt, url: imageUrl, createdAtMs: nowMs);
+
+    // Nota: no modificamos ni persistimos onboardingData aquí. El llamador
+    // deberá incorporar el avatar a su `AiChanProfile` y persistir si procede.
+    return avatar;
   }
 }

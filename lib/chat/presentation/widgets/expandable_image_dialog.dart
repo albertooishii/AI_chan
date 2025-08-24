@@ -17,7 +17,6 @@ class ExpandableImageDialog {
     final ctx = navigatorKey.currentContext;
     if (ctx == null) return;
     showAppDialog(
-      context: ctx,
       barrierDismissible: true,
       // Importante: abrir el diálogo en el navigator local (no en el root)
       // para que el ScaffoldMessenger raíz (scaffoldMessengerKey) pueda
@@ -45,7 +44,6 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
     // If the widget is no longer mounted (dialog dismissed), skip the description dialog
     if (!mounted) return;
     showAppDialog(
-      context: context,
       useRootNavigator: true, // ✅ Asegurar que aparece encima del dialog de imagen
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,

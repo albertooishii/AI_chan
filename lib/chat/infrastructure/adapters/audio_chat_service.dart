@@ -234,6 +234,22 @@ class AudioChatService implements IAudioChatService {
         '[Audio] togglePlay file exists=${fcheck.existsSync()}, size=${fcheck.existsSync() ? fcheck.lengthSync() : 0}',
       );
     } catch (_) {}
+    // If the audio file does not actually exist, fail fast and let the caller
+    // (ChatProvider) handle the error and show a SnackBar. This avoids
+    // invoking platform audio APIs with non-existent paths which can emit
+    // uncaught PlatformExceptions from the plugin.
+    try {
+      final path = msg.audioPath;
+      if (path == null) return;
+      final f = File(path);
+      if (!await f.exists()) {
+        debugPrint('[Audio] togglePlay aborting - file not found: $path');
+        throw Exception('Audio file not found: $path');
+      }
+    } catch (e) {
+      // Rethrow so the provider can catch and show a user-friendly message.
+      rethrow;
+    }
     if (_currentPlayingId == msg.audioPath) {
       await _audioPlayer.stop();
       _currentPlayingId = null;

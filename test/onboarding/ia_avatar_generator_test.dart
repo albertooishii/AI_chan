@@ -26,7 +26,10 @@ class FakeImageAIService extends AIService {
 
 void main() {
   test('IAAvatarGenerator genera y guarda imagen correctamente', () async {
-    await initializeTestEnvironment();
+    await initializeTestEnvironment(
+      dotenvContents:
+          'DEFAULT_TEXT_MODEL=fake\nDEFAULT_IMAGE_MODEL=fake\nIMAGE_DIR_DESKTOP=/tmp/ai_chan_test_images\nGEMINI_API_KEY=test_key\n',
+    );
 
     final profile = AiChanProfile(
       userName: 'User',
@@ -41,24 +44,14 @@ void main() {
     final fake = FakeImageAIService();
     final generator = IAAvatarGenerator();
 
-    // Fake saver that verifies base64 prefix and returns filename
-    Future<String?> fakeSaver(String base64, {String prefix = 'ai_avatar'}) async {
-      expect(base64.startsWith('iVBORw0KGgo'), isTrue);
-      return '${prefix}_test.png';
-    }
-
     final appearance = <String, dynamic>{'edad_aparente': 25};
+    final updatedProfile = profile.copyWith(appearance: appearance);
 
-    final image = await generator.generateAvatarFromAppearance(
-      profile,
-      appearance,
-      aiService: fake,
-      saveImageFunc: fakeSaver,
-    );
+    final image = await generator.generateAvatarFromAppearance(updatedProfile, aiService: fake);
 
     expect(image, isA<AiImage>());
     expect(image.seed, equals('seed-123'));
     expect(image.prompt, equals('prompt-xyz'));
-    expect(image.url, equals('ai_avatar_test.png'));
+    expect(image.url, contains('ai_avatar'));
   });
 }

@@ -14,7 +14,7 @@ import 'package:ai_chan/core/models.dart';
 import 'gallery_screen.dart';
 import 'package:ai_chan/shared.dart'; // Using centralized shared exports
 import '../widgets/tts_configuration_dialog.dart';
-import 'package:ai_chan/core/services/ia_avatar_generator.dart';
+import 'package:ai_chan/main.dart';
 
 class ChatScreen extends StatefulWidget {
   final AiChanProfile bio;
@@ -110,14 +110,12 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _showImportDialog(ChatProvider chatProvider) async {
-    if (!mounted) return;
-    final ctx = context;
     final (jsonStr, error) = await chat_json_utils.ChatJsonUtils.importJsonFile();
-    if (!ctx.mounted) return;
     if (error != null) {
-      _showErrorDialog(error);
+      showErrorDialog(error);
       return;
     }
+
     if (jsonStr != null && jsonStr.trim().isNotEmpty) {
       try {
         final imported = await chatProvider.importAllFromJsonAsync(jsonStr);
@@ -125,30 +123,30 @@ class _ChatScreenState extends State<ChatScreen> {
           await widget.onImportJson!.call(imported);
         } else {
           if (mounted) setState(() {});
+          // Snackbar helper resolves its own messenger.
           _showImportSuccessSnackBar();
         }
       } catch (e) {
-        if (!mounted) return;
-        _showErrorDialog('Error al importar:\n$e');
+        showErrorDialog('Error al importar:\n$e');
       }
     }
   }
 
-  Future<String?> _showModelSelectionDialog(BuildContext ctx, List<String> models, String? initialModel) async {
-    if (!ctx.mounted) return null;
+  Future<String?> _showModelSelectionDialog(List<String> models, String? initialModel) async {
+    final navCtx = navigatorKey.currentContext;
+    if (navCtx == null) return null;
     // Use StatefulBuilder to allow in-dialog refresh of models
     bool localLoading = false;
     List<String> localModels = List.from(models);
 
     return await showAppDialog<String>(
-      context: ctx,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (dialogCtxInner, setStateDialog) {
           Future<void> refreshModels() async {
             if (localLoading) return;
             setStateDialog(() => localLoading = true);
             try {
-              final chatProvider = ctx.read<ChatProvider>();
+              final chatProvider = dialogCtxInner.read<ChatProvider>();
               final fetched = await chatProvider.getAllModels(forceRefresh: true);
               setStateDialog(() => localModels = fetched);
             } catch (e) {
@@ -200,7 +198,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 trailing: initialModel == m
                                     ? const Icon(Icons.radio_button_checked, color: AppColors.secondary)
                                     : const Icon(Icons.radio_button_off, color: AppColors.primary),
-                                onTap: () => Navigator.of(ctx).pop(m),
+                                onTap: () => Navigator.of(dialogCtxInner).pop(m),
                               ),
                             ),
                         const Divider(color: AppColors.secondary, thickness: 1, height: 24),
@@ -220,7 +218,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 trailing: initialModel == m
                                     ? const Icon(Icons.radio_button_checked, color: AppColors.secondary)
                                     : const Icon(Icons.radio_button_off, color: AppColors.primary),
-                                onTap: () => Navigator.of(ctx).pop(m),
+                                onTap: () => Navigator.of(dialogCtxInner).pop(m),
                               ),
                             ),
                       ],
@@ -229,7 +227,7 @@ class _ChatScreenState extends State<ChatScreen> {
             actions: [
               TextButton(
                 child: const Text('Cancelar', style: TextStyle(color: AppColors.primary)),
-                onPressed: () => Navigator.of(ctx).pop(),
+                onPressed: () => Navigator.of(dialogCtxInner).pop(),
               ),
             ],
           );
@@ -251,22 +249,17 @@ class _ChatScreenState extends State<ChatScreen> {
     showAppSnackBar('Chat importado correctamente.', preferRootMessenger: true);
   }
 
-  void _showExportDialog(BuildContext ctx, String jsonStr) {
-    if (!mounted) return;
-    final chatProvider = context.read<ChatProvider>();
+  void _showExportDialog(String jsonStr, ChatProvider chatProvider) {
     final importedChat = ImportedChat(
       profile: chatProvider.onboardingData,
       messages: chatProvider.messages,
       events: chatProvider.events,
     );
     // Delegate to shared util which shows preview and offers copy/save
-    chat_json_utils.ChatJsonUtils.showExportedJsonDialog(ctx, jsonStr, chat: importedChat);
+    chat_json_utils.ChatJsonUtils.showExportedJsonDialog(jsonStr, chat: importedChat);
   }
 
-  void _showAppearanceRegeneratedSnackBarWith(BuildContext ctx) {
-    if (!mounted) return;
-    showAppSnackBar('Apariencia IA regenerada y reemplazada.', preferRootMessenger: true);
-  }
+  // Snackbar helper removed: provider handles message insertion; UI will react to provider notifications.
 
   bool _loadingModels = false;
 
@@ -275,10 +268,7 @@ class _ChatScreenState extends State<ChatScreen> {
     showErrorDialog(error);
   }
 
-  void _showErrorDialogWith(BuildContext ctx, String error) {
-    if (!mounted) return;
-    showErrorDialog(error);
-  }
+  // Removed local _regenerateAppearanceOnce; use ChatProvider.regenerateAppearanceOnce instead.
 
   @override
   Widget build(BuildContext context) {
@@ -337,7 +327,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         final messages = avatars.map((a) {
                           final filename = a.url?.split('/').last ?? '';
                           return Message(
-                            image: AiImage(url: filename, seed: a.seed, prompt: a.prompt),
+                            image: AiImage(url: filename, seed: a.seed, prompt: a.prompt, createdAtMs: a.createdAtMs),
                             text: '',
                             sender: MessageSender.assistant,
                             isImage: true,
@@ -569,60 +559,43 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ],
             onSelected: (value) async {
-              final ctx = context;
               if (value == 'gallery') {
                 final images = chatProvider.messages
                     .where((m) => m.isImage && m.image != null && m.image!.url != null && m.image!.url!.isNotEmpty)
                     .toList();
-                if (!ctx.mounted) return;
-                Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => GalleryScreen(images: images)));
+                final navCtx = navigatorKey.currentContext;
+                if (navCtx == null) return;
+                Navigator.of(navCtx).push(MaterialPageRoute(builder: (_) => GalleryScreen(images: images)));
               } else if (value == 'calendar') {
-                final existing = ctx.read<ChatProvider>();
-                Navigator.of(ctx).push(
+                final navCtx = navigatorKey.currentContext;
+                if (navCtx == null) return;
+                final existing = navCtx.read<ChatProvider>();
+                Navigator.of(navCtx).push(
                   MaterialPageRoute(
                     builder: (_) => ChangeNotifierProvider.value(value: existing, child: const CalendarScreen()),
                   ),
                 );
               } else if (value == 'export_json') {
-                final ctx = context; // capturar contexto antes de await
                 try {
                   final jsonStr = await chatProvider.exportAllToJson();
-                  if (!ctx.mounted) return;
-                  _showExportDialog(ctx, jsonStr);
+                  final navCtx = navigatorKey.currentContext;
+                  if (navCtx == null) return;
+                  _showExportDialog(jsonStr, chatProvider);
                 } catch (e) {
                   Log.e('Error al exportar biografía', tag: 'CHAT_SCREEN', error: e);
-                  if (!ctx.mounted) return;
-                  _showErrorDialogWith(ctx, e.toString());
+                  // showErrorDialog resolves context via navigatorKey internally
+                  showErrorDialog(e.toString());
                 }
               } else if (value == 'import_json') {
                 await _showImportDialog(chatProvider);
               } else if (value == 'regenAppearance') {
-                final ctx = context; // capturar contexto antes de awaits
-                final bio = chatProvider.onboardingData;
-                if (mounted) setState(() => _isRegeneratingAppearance = true);
+                setState(() => _isRegeneratingAppearance = true);
                 try {
-                  final appearanceMap = await chatProvider.iaAppearanceGenerator.generateAppearancePrompt(bio);
-                  // Generar una nueva apariencia y avatares completamente nuevos
-                  final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(bio, appearanceMap);
-                  if (!ctx.mounted) return;
-                  final newBio = AiChanProfile(
-                    biography: bio.biography,
-                    userName: bio.userName,
-                    aiName: bio.aiName,
-                    userBirthday: bio.userBirthday,
-                    aiBirthday: bio.aiBirthday,
-                    appearance: appearanceMap as Map<String, dynamic>? ?? <String, dynamic>{},
-                    avatars: [avatar],
-                    timeline: bio.timeline, // timeline SIEMPRE al final
-                  );
-                  chatProvider.onboardingData = newBio;
-                  chatProvider.saveAll();
-                  setState(() {});
-                  _showAppearanceRegeneratedSnackBarWith(ctx);
+                  await chatProvider.regenerateAppearanceOnce(replace: true);
                 } catch (e) {
-                  if (!ctx.mounted) return;
+                  final navCtx = navigatorKey.currentContext;
+                  if (navCtx == null) return;
                   final choice = await showAppDialog<String>(
-                    context: ctx,
                     builder: (ctx) => AlertDialog(
                       backgroundColor: Colors.black,
                       title: const Text(
@@ -634,47 +607,23 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       actions: [
                         TextButton(
-                          onPressed: () => Navigator.of(ctx).pop('cancel'),
+                          onPressed: () => Navigator.of(navCtx).pop('cancel'),
                           child: const Text('Cerrar', style: TextStyle(color: AppColors.primary)),
                         ),
                         TextButton(
-                          onPressed: () => Navigator.of(ctx).pop('retry'),
+                          onPressed: () => Navigator.of(navCtx).pop('retry'),
                           child: const Text('Reintentar', style: TextStyle(color: AppColors.secondary)),
                         ),
                       ],
                     ),
                   );
-                  if (!ctx.mounted) return;
+                  if (!mounted) return;
                   if (choice == 'retry') {
-                    // Un reintento directo
+                    // Re-resolve nav context before doing UI after await
                     try {
-                      final appearanceMap = await chatProvider.iaAppearanceGenerator.generateAppearancePrompt(bio);
-                      // Reintento enviando seedOverride (misma lógica que arriba)
-                      final seed = bio.avatar?.seed;
-                      final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(
-                        bio,
-                        appearanceMap,
-                        seedOverride: seed,
-                      );
-                      if (!ctx.mounted) return;
-                      final existing = bio.avatars ?? <AiImage>[];
-                      final newBio = AiChanProfile(
-                        biography: bio.biography,
-                        userName: bio.userName,
-                        aiName: bio.aiName,
-                        userBirthday: bio.userBirthday,
-                        aiBirthday: bio.aiBirthday,
-                        appearance: appearanceMap as Map<String, dynamic>? ?? <String, dynamic>{},
-                        avatars: [...existing, avatar],
-                        timeline: bio.timeline,
-                      );
-                      chatProvider.onboardingData = newBio;
-                      chatProvider.saveAll();
-                      setState(() {});
-                      _showAppearanceRegeneratedSnackBarWith(ctx);
+                      await chatProvider.regenerateAppearanceOnce(replace: true);
                     } catch (e2) {
-                      if (!mounted) return;
-                      _showErrorDialogWith(ctx, 'Error al regenerar apariencia (reintento):\n$e2');
+                      showErrorDialog('Error al regenerar apariencia (reintento):\n$e2');
                     }
                   }
                 } finally {
@@ -683,44 +632,19 @@ class _ChatScreenState extends State<ChatScreen> {
                   }
                 }
               } else if (value == 'add_new_avatar') {
-                final ctx = context;
-                final bio = chatProvider.onboardingData;
-                if (mounted) setState(() => _isRegeneratingAppearance = true);
+                setState(() => _isRegeneratingAppearance = true);
                 try {
-                  // No regenerar la apariencia: usar la apariencia existente del perfil.
-                  final appearanceMap = bio.appearance as Map<String, dynamic>? ?? <String, dynamic>{};
-                  // Generación de un avatar adicional: ENVIAR seedOverride para forzar override, y AÑADIR al array
-                  final seed = bio.avatar?.seed;
-                  final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(
-                    bio,
-                    appearanceMap,
-                    seedOverride: seed,
-                  );
-                  if (!ctx.mounted) return;
-                  final existing = bio.avatars ?? <AiImage>[];
-                  final newBio = AiChanProfile(
-                    biography: bio.biography,
-                    userName: bio.userName,
-                    aiName: bio.aiName,
-                    userBirthday: bio.userBirthday,
-                    aiBirthday: bio.aiBirthday,
-                    appearance: appearanceMap as Map<String, dynamic>? ?? <String, dynamic>{},
-                    avatars: [...existing, avatar],
-                    timeline: bio.timeline,
-                  );
-                  chatProvider.onboardingData = newBio;
-                  chatProvider.saveAll();
-                  setState(() {});
-                  showAppSnackBar('Nuevo avatar añadido al historial.', preferRootMessenger: true);
+                  // Añadir un nuevo avatar usando la apariencia existente si está presente
+                  await chatProvider.regenerateAppearanceOnce(replace: false);
                 } catch (e) {
-                  if (!ctx.mounted) return;
-                  _showErrorDialogWith(ctx, e.toString());
+                  showErrorDialog(e.toString());
                 } finally {
                   if (mounted) setState(() => _isRegeneratingAppearance = false);
                 }
               } else if (value == 'clear_debug') {
+                final navCtx = navigatorKey.currentContext;
+                if (navCtx == null) return;
                 final confirm = await showAppDialog<bool>(
-                  context: context,
                   builder: (ctx) => AlertDialog(
                     backgroundColor: Colors.black,
                     title: const Text('Borrar todo (debug)', style: TextStyle(color: Colors.redAccent)),
@@ -731,11 +655,11 @@ class _ChatScreenState extends State<ChatScreen> {
                     actions: [
                       TextButton(
                         child: const Text('Cancelar', style: TextStyle(color: AppColors.primary)),
-                        onPressed: () => Navigator.of(ctx).pop(false),
+                        onPressed: () => Navigator.of(navCtx).pop(false),
                       ),
                       TextButton(
                         child: const Text('Borrar todo (debug)', style: TextStyle(color: Colors.redAccent)),
-                        onPressed: () => Navigator.of(ctx).pop(true),
+                        onPressed: () => Navigator.of(navCtx).pop(true),
                       ),
                     ],
                   ),
@@ -745,10 +669,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   try {
                     if (widget.onClearAllDebug != null) {
                       await widget.onClearAllDebug?.call();
-                      if (!ctx.mounted) return;
+                      if (!mounted) return;
                     }
                   } catch (e) {
-                    if (!ctx.mounted) return;
+                    if (!mounted) return;
                     _showErrorDialog(e.toString());
                   }
                 }
@@ -765,15 +689,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   return;
                 }
                 setState(() => _loadingModels = false);
-                final ctx = context;
-                if (!ctx.mounted) return;
                 final current = chatProvider.selectedModel;
                 final defaultModel = Config.getDefaultTextModel();
                 final initialModel =
                     current ??
                     (models.contains(defaultModel) ? defaultModel : (models.isNotEmpty ? models.first : null));
-                final selected = await _showModelSelectionDialog(ctx, models, initialModel);
-                if (!ctx.mounted) return;
+                final selected = await _showModelSelectionDialog(models, initialModel);
+                if (!mounted) return;
                 _setSelectedModel(selected, current, chatProvider);
               } else if (value == 'select_voice') {
                 // Delegar selección de voz al diálogo centralizado y pasar los códigos de idioma
@@ -790,7 +712,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 }
 
                 // Abrir configuración de TTS como pantalla completa
-                final result = await Navigator.of(context).push<bool>(
+                final navCtx = navigatorKey.currentContext;
+                if (navCtx == null) return;
+                final result = await Navigator.of(navCtx).push<bool>(
                   MaterialPageRoute(
                     fullscreenDialog: true,
                     builder: (ctx) => TtsConfigurationDialog(

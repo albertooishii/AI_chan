@@ -44,11 +44,11 @@ void main() {
     });
 
     test('integrates appearance generator and saves image via saveImageFunc', () async {
-      // Deterministic saveImageFunc for test
-      Future<String?> deterministicSaver(String base64, {String prefix = 'ai_avatar'}) async {
-        // return a deterministic filename based on prefix to assert later
-        return '/tmp/${prefix}_deterministic.png';
-      }
+      // Ensure image dir configured to allow saveBase64ImageToFile to work in tests
+      await initializeTestEnvironment(
+        dotenvContents:
+            'DEFAULT_TEXT_MODEL=gemini-1.5-flash-latest\nDEFAULT_IMAGE_MODEL=gemini-1.5-flash-latest\nIMAGE_DIR_DESKTOP=/tmp/ai_chan_test_images\nGEMINI_API_KEY=test_key\n',
+      );
 
       final bio = await generateFullBiographyFlexible(
         userName: 'UserX',
@@ -56,7 +56,7 @@ void main() {
         userBirthday: DateTime(1990, 1, 1),
         meetStory: 'Nos conocimos en un foro',
         appearanceGenerator: FakeAppearanceGenerator(),
-        saveImageFunc: deterministicSaver,
+
         userCountryCode: 'ES',
         aiCountryCode: 'JP',
       );
@@ -65,16 +65,7 @@ void main() {
       expect(bio.avatar, isNotNull);
       // Assert that the avatar url equals the deterministic saver return or fake values
       // FakeAppearanceGenerator returns a fixed url; if saveImageFunc used, the generator should set url accordingly.
-      expect(
-        bio.avatar!.url,
-        anyOf(
-          equals('https://example.com/avatar.png'),
-          equals('/tmp/ai_avatar_deterministic.png'),
-          equals('/tmp/ai_avatar_deteministic.png'),
-          equals('/tmp/ai_avatar_deterministic.png'),
-          contains('/tmp/'),
-        ),
-      );
+      expect(bio.avatar!.url, anyOf(startsWith('http'), contains('ai_avatar'), contains('.png')));
       expect(bio.avatar!.seed, equals('fake-seed'));
       expect(bio.avatar!.prompt, equals('fake-prompt'));
       expect(bio.appearance, isA<Map<String, dynamic>>());
@@ -85,9 +76,10 @@ void main() {
       SharedPreferences.setMockInitialValues({});
 
       // Deterministic saver for tests to avoid filesystem env dependency
-      Future<String?> deterministicSaver(String base64, {String prefix = 'ai_avatar'}) async {
-        return '/tmp/${prefix}_deterministic.png';
-      }
+      await initializeTestEnvironment(
+        dotenvContents:
+            'DEFAULT_TEXT_MODEL=gemini-1.5-flash-latest\nDEFAULT_IMAGE_MODEL=gemini-1.5-flash-latest\nIMAGE_DIR_DESKTOP=/tmp/ai_chan_test_images\nGEMINI_API_KEY=test_key\n',
+      );
 
       final bio = await generateFullBiographyFlexible(
         userName: 'UserX',
@@ -95,7 +87,7 @@ void main() {
         userBirthday: DateTime(1990, 1, 1),
         meetStory: 'Historia',
         appearanceGenerator: FakeAppearanceGenerator(),
-        saveImageFunc: deterministicSaver,
+
         userCountryCode: 'ES',
         aiCountryCode: 'JP',
       );
@@ -117,10 +109,10 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     AIService.testOverride = FakeAIServiceImpl();
 
-    // Deterministic saver for tests to avoid filesystem env dependency
-    Future<String?> deterministicSaver(String base64, {String prefix = 'ai_avatar'}) async {
-      return '/tmp/${prefix}_deterministic.png';
-    }
+    await initializeTestEnvironment(
+      dotenvContents:
+          'DEFAULT_TEXT_MODEL=gemini-1.5-flash-latest\nDEFAULT_IMAGE_MODEL=gemini-1.5-flash-latest\nIMAGE_DIR_DESKTOP=/tmp/ai_chan_test_images\nGEMINI_API_KEY=test_key\n',
+    );
 
     final bio = await generateFullBiographyFlexible(
       userName: 'UserX',
@@ -128,7 +120,7 @@ void main() {
       userBirthday: DateTime(1990, 1, 1),
       meetStory: 'Historia',
       appearanceGenerator: FakeAppearanceGenerator(),
-      saveImageFunc: deterministicSaver,
+
       userCountryCode: 'ES',
       aiCountryCode: 'JP',
     );

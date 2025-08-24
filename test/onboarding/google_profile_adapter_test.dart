@@ -61,7 +61,10 @@ class LocalImageFake extends BaseFakeAIService {
 
 void main() {
   test('GoogleProfileAdapter returns a basic profile and appearance', () async {
-    await initializeTestEnvironment();
+    await initializeTestEnvironment(
+      dotenvContents:
+          'DEFAULT_TEXT_MODEL=gemini-1.5-flash-latest\nDEFAULT_IMAGE_MODEL=gemini-1.5-flash-latest\nIMAGE_DIR_DESKTOP=/tmp/ai_chan_test_images\nGEMINI_API_KEY=test_key\n',
+    );
     // Use the top-level LocalImageFake declared above.
     AIService.testOverride = LocalImageFake();
     final adapter = ProfileAdapter(aiService: AIService.testOverride!);
@@ -81,17 +84,13 @@ void main() {
     // fail if the generator didn't produce an image (avoids false positives).
     final generator = IAAppearanceGenerator();
     final appearance = await generator.generateAppearancePrompt(profile, aiService: AIService.testOverride!);
+    final updatedProfile = profile.copyWith(appearance: appearance);
     final image = await IAAvatarGenerator().generateAvatarFromAppearance(
-      profile,
-      appearance,
+      updatedProfile,
       aiService: AIService.testOverride!,
-      saveImageFunc: (String base64, {String prefix = 'ai_avatar'}) async {
-        // Do not write to disk in unit tests; return a deterministic filename.
-        return 'fake_image.png';
-      },
     );
     expect(image, isA<AiImage>());
-    expect(image.url, equals('fake_image.png'));
+    expect(image.url, contains('.png'));
     // Clear override
     AIService.testOverride = null;
   });

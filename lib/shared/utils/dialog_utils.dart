@@ -11,10 +11,8 @@ Future<void> showSuccessDialog(String title, String message) async {
   // Usar el navigatorKey global para obtener contexto, igual que showAppSnackBar
   final navState = navigatorKey.currentState;
   if (navState == null) return;
-  final ctx = navState.overlay?.context ?? navState.context;
 
   return showAppDialog<void>(
-    context: ctx,
     builder: (ctx2) => AlertDialog(
       backgroundColor: Colors.black,
       title: Text(title, style: const TextStyle(color: Colors.cyanAccent)),
@@ -41,10 +39,8 @@ Future<void> showErrorDialog(String error) async {
     showAppSnackBar(error, isError: true);
     return;
   }
-  final ctx = navState.overlay?.context ?? navState.context;
 
   return showAppDialog(
-    context: ctx,
     builder: (ctx2) => AlertDialog(
       backgroundColor: Colors.black,
       title: const Text('Error', style: TextStyle(color: AppColors.secondary)),
@@ -196,7 +192,6 @@ void _showOverlaySnackBar(
 /// as a fallback for `context` so dialogs can be triggered from anywhere.
 /// Signature mirrors Flutter's `showDialog` to keep compatibility.
 Future<T?> showAppDialog<T>({
-  required BuildContext context,
   required WidgetBuilder builder,
   bool barrierDismissible = true,
   Color? barrierColor,
@@ -205,8 +200,12 @@ Future<T?> showAppDialog<T>({
   bool useSafeArea = true,
   RouteSettings? routeSettings,
 }) {
-  final ctx = (context.mounted) ? context : navigatorKey.currentContext;
-  if (ctx == null) return Future.value(null);
+  // Resolve a safe context via the global navigator key so callers don't
+  // need to pass a BuildContext. This avoids accidental capture of
+  // widget contexts across async gaps.
+  final navState = navigatorKey.currentState;
+  if (navState == null) return Future.value(null);
+  final ctx = navState.overlay?.context ?? navState.context;
   return showDialog<T>(
     context: ctx,
     builder: builder,

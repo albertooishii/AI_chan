@@ -103,7 +103,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> with SingleTick
           label: 'Nota de voz, duración $durationText, ${isPlaying ? 'reproduciendo' : 'pausada'}',
           button: true,
           child: GestureDetector(
-            onTap: () => chat.togglePlayAudio(widget.message),
+            onTap: () => chat.togglePlayAudio(widget.message, context),
             child: Container(
               width: finalWidth,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

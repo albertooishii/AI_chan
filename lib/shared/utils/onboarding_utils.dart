@@ -2,6 +2,7 @@ import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/services/ia_bio_generator.dart';
 import 'package:ai_chan/core/services/ia_appearance_generator.dart';
 import 'package:ai_chan/core/services/ia_avatar_generator.dart';
+// IAAvatarGenerator usage moved to shared avatar_utils helper
 
 /// Utilidad flexible para crear la biografía completa (con apariencia), permitiendo elegir el generador
 Future<AiChanProfile> generateFullBiographyFlexible({
@@ -10,7 +11,6 @@ Future<AiChanProfile> generateFullBiographyFlexible({
   required DateTime userBirthday,
   required String meetStory,
   required IAAppearanceGenerator appearanceGenerator,
-  Future<String?> Function(String base64, {String prefix})? saveImageFunc,
   String? userCountryCode,
   String? aiCountryCode,
 }) async {
@@ -22,17 +22,11 @@ Future<AiChanProfile> generateFullBiographyFlexible({
     userCountryCode: userCountryCode,
     aiCountryCode: aiCountryCode,
   );
-  final appearanceMap = await appearanceGenerator.generateAppearancePrompt(
-    bio,
-    aiService: null,
-    saveImageFunc: saveImageFunc,
-  );
-  final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(
-    bio,
-    appearanceMap,
-    aiService: null,
-    saveImageFunc: saveImageFunc,
-  );
+  final appearanceMap = await appearanceGenerator.generateAppearancePrompt(bio, aiService: null);
+  // Generate avatar (replace existing) and return it
+  // Ensure the profile contains the new appearance before generating
+  final updatedBio = bio.copyWith(appearance: appearanceMap);
+  final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(updatedBio, appendAvatar: false);
   final biography = AiChanProfile(
     biography: bio.biography,
     userName: bio.userName,

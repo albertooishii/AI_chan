@@ -101,11 +101,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
-  Future<void> _openEventEditor(
-    BuildContext context, {
-    EventEntry? existing,
-    DateTime? defaultDay,
-  }) async {
+  Future<void> _openEventEditor(BuildContext context, {EventEntry? existing, DateTime? defaultDay}) async {
     final chatProvider = context.read<ChatProvider>();
     final formKey = GlobalKey<FormState>();
     final descCtrl = TextEditingController(text: existing?.description ?? '');
@@ -117,7 +113,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     String motivo = existing?.extra?['motivo']?.toString() ?? '';
 
     final saved = await showAppDialog<bool>(
-      context: context,
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: Colors.black,
@@ -137,18 +132,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Descripción',
                       labelStyle: TextStyle(color: AppColors.secondary),
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: AppColors.secondary),
-                      ),
-                      focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(
-                          color: AppColors.cyberpunkYellow,
-                        ),
-                      ),
+                      enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
+                      focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.cyberpunkYellow)),
                     ),
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Añade una descripción'
-                        : null,
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Añade una descripción' : null,
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -157,55 +144,34 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         child: DropdownButtonFormField<String>(
                           initialValue: type,
                           items: const [
-                            DropdownMenuItem(
-                              value: 'evento',
-                              child: Text('Evento'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'promesa',
-                              child: Text('Promesa'),
-                            ),
+                            DropdownMenuItem(value: 'evento', child: Text('Evento')),
+                            DropdownMenuItem(value: 'promesa', child: Text('Promesa')),
                           ],
                           dropdownColor: Colors.black,
                           style: const TextStyle(color: AppColors.primary),
                           decoration: const InputDecoration(
                             labelText: 'Tipo',
                             labelStyle: TextStyle(color: AppColors.secondary),
-                            enabledBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(
-                                color: AppColors.secondary,
-                              ),
-                            ),
+                            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
                             focusedBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(
-                                color: AppColors.cyberpunkYellow,
-                              ),
+                              borderSide: BorderSide(color: AppColors.cyberpunkYellow),
                             ),
                           ),
-                          onChanged: (v) =>
-                              setState(() => type = v ?? 'evento'),
+                          onChanged: (v) => setState(() => type = v ?? 'evento'),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: TextFormField(
                           readOnly: true,
-                          controller: TextEditingController(
-                            text: DateFormat('yyyy-MM-dd').format(date),
-                          ),
+                          controller: TextEditingController(text: DateFormat('yyyy-MM-dd').format(date)),
                           style: const TextStyle(color: AppColors.primary),
                           decoration: const InputDecoration(
                             labelText: 'Fecha',
                             labelStyle: TextStyle(color: AppColors.secondary),
-                            enabledBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(
-                                color: AppColors.secondary,
-                              ),
-                            ),
+                            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
                             focusedBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(
-                                color: AppColors.cyberpunkYellow,
-                              ),
+                              borderSide: BorderSide(color: AppColors.cyberpunkYellow),
                             ),
                           ),
                           onTap: () async {
@@ -228,29 +194,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       Expanded(
                         child: TextFormField(
                           readOnly: true,
-                          controller: TextEditingController(
-                            text: time.format(ctx),
-                          ),
+                          controller: TextEditingController(text: time.format(ctx)),
                           style: const TextStyle(color: AppColors.primary),
                           decoration: const InputDecoration(
                             labelText: 'Hora',
                             labelStyle: TextStyle(color: AppColors.secondary),
-                            enabledBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(
-                                color: AppColors.secondary,
-                              ),
-                            ),
+                            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
                             focusedBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(
-                                color: AppColors.cyberpunkYellow,
-                              ),
+                              borderSide: BorderSide(color: AppColors.cyberpunkYellow),
                             ),
                           ),
                           onTap: () async {
-                            final picked = await showTimePicker(
-                              context: ctx,
-                              initialTime: time,
-                            );
+                            final picked = await showTimePicker(context: ctx, initialTime: time);
                             if (picked != null) setState(() => time = picked);
                           },
                         ),
@@ -265,15 +220,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             decoration: const InputDecoration(
                               labelText: 'Motivo (opcional)',
                               labelStyle: TextStyle(color: AppColors.secondary),
-                              enabledBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: AppColors.secondary,
-                                ),
-                              ),
+                              enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
                               focusedBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: AppColors.cyberpunkYellow,
-                                ),
+                                borderSide: BorderSide(color: AppColors.cyberpunkYellow),
                               ),
                             ),
                           ),
@@ -287,20 +236,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text(
-                'Cancelar',
-                style: TextStyle(color: AppColors.primary),
-              ),
+              child: const Text('Cancelar', style: TextStyle(color: AppColors.primary)),
             ),
             TextButton(
               onPressed: () {
                 if (formKey.currentState?.validate() != true) return;
                 Navigator.of(ctx).pop(true);
               },
-              child: const Text(
-                'Guardar',
-                style: TextStyle(color: AppColors.cyberpunkYellow),
-              ),
+              child: const Text('Guardar', style: TextStyle(color: AppColors.cyberpunkYellow)),
             ),
           ],
         );
@@ -308,32 +251,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
 
     if (saved == true) {
-      final fullDate = DateTime(
-        date.year,
-        date.month,
-        date.day,
-        time.hour,
-        time.minute,
-      );
+      final fullDate = DateTime(date.year, date.month, date.day, time.hour, time.minute);
       final newEvent = EventEntry(
         type: type,
         description: descCtrl.text.trim(),
         date: fullDate,
-        extra: type == 'promesa'
-            ? {'motivo': motivo, 'originalText': descCtrl.text.trim()}
-            : null,
+        extra: type == 'promesa' ? {'motivo': motivo, 'originalText': descCtrl.text.trim()} : null,
       );
       // Añadir o reemplazar en el perfil
-      final events = List<EventEntry>.from(
-        chatProvider.onboardingData.events ?? [],
-      );
+      final events = List<EventEntry>.from(chatProvider.onboardingData.events ?? []);
       int? replaceIdx;
       if (existing != null) {
         replaceIdx = events.indexWhere(
-          (e) =>
-              e.type == existing.type &&
-              e.description == existing.description &&
-              e.date == existing.date,
+          (e) => e.type == existing.type && e.description == existing.description && e.date == existing.date,
         );
       }
       if (replaceIdx != null && replaceIdx >= 0) {
@@ -353,48 +283,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
   void _deleteEvent(BuildContext context, EventEntry e) async {
     final chatProvider = context.read<ChatProvider>();
     final confirm = await showAppDialog<bool>(
-      context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
-        title: const Text(
-          'Eliminar evento',
-          style: TextStyle(color: Colors.redAccent),
-        ),
-        content: const Text(
-          '¿Seguro que quieres eliminar este evento?',
-          style: TextStyle(color: AppColors.primary),
-        ),
+        title: const Text('Eliminar evento', style: TextStyle(color: Colors.redAccent)),
+        content: const Text('¿Seguro que quieres eliminar este evento?', style: TextStyle(color: AppColors.primary)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text(
-              'Cancelar',
-              style: TextStyle(color: AppColors.primary),
-            ),
+            child: const Text('Cancelar', style: TextStyle(color: AppColors.primary)),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text(
-              'Eliminar',
-              style: TextStyle(color: Colors.redAccent),
-            ),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
           ),
         ],
       ),
     );
     if (confirm != true) return;
-    final events = List<EventEntry>.from(
-      chatProvider.onboardingData.events ?? [],
-    );
-    events.removeWhere(
-      (x) =>
-          x.type == e.type &&
-          x.description == e.description &&
-          x.date == e.date,
-    );
-    chatProvider.onboardingData = chatProvider.onboardingData.copyWith(
-      events: events,
-    );
+    final events = List<EventEntry>.from(chatProvider.onboardingData.events ?? []);
+    events.removeWhere((x) => x.type == e.type && x.description == e.description && x.date == e.date);
+    chatProvider.onboardingData = chatProvider.onboardingData.copyWith(events: events);
     await chatProvider.saveAll();
     if (mounted) setState(() {});
   }
@@ -425,8 +333,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         // Rango cruza medianoche: end pertenece al día siguiente
         return now.isAfter(start) || now.isBefore(end);
       }
-      return (now.isAfter(start) || now.isAtSameMomentAs(start)) &&
-          now.isBefore(end);
+      return (now.isAfter(start) || now.isAtSameMomentAs(start)) && now.isBefore(end);
     }
 
     List<Map<String, String>> rawSchedules() {
@@ -455,9 +362,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           final from = '${m['from'] ?? ''}';
           final to = '${m['to'] ?? ''}';
           final days = '${m['dias'] ?? ''}';
-          if (from.trim().isNotEmpty ||
-              to.trim().isNotEmpty ||
-              days.trim().isNotEmpty) {
+          if (from.trim().isNotEmpty || to.trim().isNotEmpty || days.trim().isNotEmpty) {
             list.add({'type': 'study', 'from': from, 'to': to, 'days': days});
           }
         }
@@ -482,107 +387,47 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final DateTime selected = _selectedDay ?? DateTime.now();
     final now = DateTime.now();
     final schedulesForDay = <Map<String, String>>[];
-    for (final s in rawSchedules().where(
-      (s) => dayMatches(s['days'] ?? '', selected),
-    )) {
+    for (final s in rawSchedules().where((s) => dayMatches(s['days'] ?? '', selected))) {
       final fromStr = (s['from'] ?? '').trim();
       final toStr = (s['to'] ?? '').trim();
       final start = parseTime(selected, fromStr);
       DateTime? end = parseTime(selected, toStr);
       if (start != null && end != null && end.isBefore(start)) {
         // Cruza medianoche: dividir en dos segmentos
-        final endOfDay = DateTime(
-          selected.year,
-          selected.month,
-          selected.day,
-          23,
-          59,
-          59,
-          999,
-        );
+        final endOfDay = DateTime(selected.year, selected.month, selected.day, 23, 59, 59, 999);
         final segment1End = endOfDay;
-        final segment2Start = DateTime(
-          selected.year,
-          selected.month,
-          selected.day,
-          0,
-          0,
-        );
+        final segment2Start = DateTime(selected.year, selected.month, selected.day, 0, 0);
         // Segmento del día seleccionado si la parte inicial cae ese día
-        final isToday =
-            selected.year == now.year &&
-            selected.month == now.month &&
-            selected.day == now.day;
+        final isToday = selected.year == now.year && selected.month == now.month && selected.day == now.day;
         final active1 = isToday && rangeContains(now, start, segment1End);
-        schedulesForDay.add({
-          ...s,
-          'from': fromStr,
-          'to': '24:00',
-          'active': active1 ? '1' : '0',
-        });
+        schedulesForDay.add({...s, 'from': fromStr, 'to': '24:00', 'active': active1 ? '1' : '0'});
         // La parte post medianoche pertenece al día siguiente; solo mostrarla si el día seleccionado es el siguiente
-        final nextDay = DateTime(
-          selected.year,
-          selected.month,
-          selected.day,
-        ).add(const Duration(days: 1));
+        final nextDay = DateTime(selected.year, selected.month, selected.day).add(const Duration(days: 1));
         if (_selectedDay != null && selected.isAtSameMomentAs(nextDay)) {
           final segment2End = end; // real end time next day
-          final isToday2 =
-              nextDay.year == now.year &&
-              nextDay.month == now.month &&
-              nextDay.day == now.day;
-          final active2 =
-              isToday2 && rangeContains(now, segment2Start, segment2End);
-          schedulesForDay.add({
-            ...s,
-            'from': '00:00',
-            'to': toStr,
-            'active': active2 ? '1' : '0',
-          });
+          final isToday2 = nextDay.year == now.year && nextDay.month == now.month && nextDay.day == now.day;
+          final active2 = isToday2 && rangeContains(now, segment2Start, segment2End);
+          schedulesForDay.add({...s, 'from': '00:00', 'to': toStr, 'active': active2 ? '1' : '0'});
         }
       } else {
-        final isToday =
-            selected.year == now.year &&
-            selected.month == now.month &&
-            selected.day == now.day;
-        final active =
-            start != null &&
-            end != null &&
-            isToday &&
-            rangeContains(now, start, end);
-        schedulesForDay.add({
-          ...s,
-          'from': fromStr,
-          'to': toStr,
-          'active': active ? '1' : '0',
-        });
+        final isToday = selected.year == now.year && selected.month == now.month && selected.day == now.day;
+        final active = start != null && end != null && isToday && rangeContains(now, start, end);
+        schedulesForDay.add({...s, 'from': fromStr, 'to': toStr, 'active': active ? '1' : '0'});
       }
     }
-    schedulesForDay.sort(
-      (a, b) => (a['from'] ?? '').compareTo(b['from'] ?? ''),
-    );
+    schedulesForDay.sort((a, b) => (a['from'] ?? '').compareTo(b['from'] ?? ''));
     final grouped = _groupEventsByDay(events);
 
     List<EventEntry> getEventsForDay(DateTime day) {
       final key = DateTime(day.year, day.month, day.day);
       final list = grouped[key] ?? [];
-      return list
-          .where(
-            (e) =>
-                (e.type == 'evento' && _showEvents) ||
-                (e.type == 'promesa' && _showPromises),
-          )
-          .toList();
+      return list.where((e) => (e.type == 'evento' && _showEvents) || (e.type == 'promesa' && _showPromises)).toList();
     }
 
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text(
-          'Calendario',
-          style: TextStyle(color: AppColors.primary),
-        ),
+        title: const Text('Calendario', style: TextStyle(color: AppColors.primary)),
         backgroundColor: Colors.black,
         foregroundColor: AppColors.primary,
         elevation: 0,
@@ -590,10 +435,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           IconButton(
             tooltip: 'Nuevo evento',
             icon: const Icon(Icons.add, color: AppColors.cyberpunkYellow),
-            onPressed: () => _openEventEditor(
-              context,
-              defaultDay: _selectedDay ?? DateTime.now(),
-            ),
+            onPressed: () => _openEventEditor(context, defaultDay: _selectedDay ?? DateTime.now()),
           ),
         ],
       ),
@@ -616,9 +458,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   selected: _showPromises,
                   label: const Text('Promesas'),
                   onSelected: (v) => setState(() => _showPromises = v),
-                  selectedColor: AppColors.cyberpunkYellow.withValues(
-                    alpha: 0.2,
-                  ),
+                  selectedColor: AppColors.cyberpunkYellow.withValues(alpha: 0.2),
                   checkmarkColor: AppColors.cyberpunkYellow,
                   labelStyle: const TextStyle(color: AppColors.primary),
                 ),
@@ -641,32 +481,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
             calendarStyle: const CalendarStyle(
               defaultTextStyle: TextStyle(color: AppColors.primary),
               weekendTextStyle: TextStyle(color: AppColors.secondary),
-              todayDecoration: BoxDecoration(
-                color: AppColors.secondary,
-                shape: BoxShape.circle,
-              ),
-              selectedDecoration: BoxDecoration(
-                color: AppColors.cyberpunkYellow,
-                shape: BoxShape.circle,
-              ),
+              todayDecoration: BoxDecoration(color: AppColors.secondary, shape: BoxShape.circle),
+              selectedDecoration: BoxDecoration(color: AppColors.cyberpunkYellow, shape: BoxShape.circle),
               outsideDaysVisible: false,
               markersAutoAligned: true,
             ),
             headerStyle: const HeaderStyle(
-              titleTextStyle: TextStyle(
-                color: AppColors.primary,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              titleTextStyle: TextStyle(color: AppColors.primary, fontSize: 16, fontWeight: FontWeight.bold),
               formatButtonVisible: false,
-              leftChevronIcon: Icon(
-                Icons.chevron_left,
-                color: AppColors.primary,
-              ),
-              rightChevronIcon: Icon(
-                Icons.chevron_right,
-                color: AppColors.primary,
-              ),
+              leftChevronIcon: Icon(Icons.chevron_left, color: AppColors.primary),
+              rightChevronIcon: Icon(Icons.chevron_right, color: AppColors.primary),
             ),
             eventLoader: getEventsForDay,
             calendarBuilders: CalendarBuilders<EventEntry>(
@@ -674,13 +498,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 if (events.isEmpty) return null;
                 return Wrap(
                   spacing: 2,
-                  children: events
-                      .take(4)
-                      .map(
-                        (e) =>
-                            Icon(Icons.circle, size: 6, color: _dotColorFor(e)),
-                      )
-                      .toList(),
+                  children: events.take(4).map((e) => Icon(Icons.circle, size: 6, color: _dotColorFor(e))).toList(),
                 );
               },
             ),
@@ -692,19 +510,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  _selectedDay != null
-                      ? DateFormat('EEEE d MMMM y', 'es').format(_selectedDay!)
-                      : '',
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  _selectedDay != null ? DateFormat('EEEE d MMMM y', 'es').format(_selectedDay!) : '',
+                  style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
                 ),
                 if (schedulesForDay.isNotEmpty)
-                  const Text(
-                    'Horarios activos',
-                    style: TextStyle(color: AppColors.secondary, fontSize: 12),
-                  ),
+                  const Text('Horarios activos', style: TextStyle(color: AppColors.secondary, fontSize: 12)),
               ],
             ),
           ),
@@ -713,10 +523,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               children: [
                 if (schedulesForDay.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     child: Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -729,9 +536,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         final from = s['from'] ?? '';
                         final to = s['to'] ?? '';
                         final actividad = (s['actividad'] ?? '').trim();
-                        final timePart = (from.isNotEmpty || to.isNotEmpty)
-                            ? '$from–$to'
-                            : '';
+                        final timePart = (from.isNotEmpty || to.isNotEmpty) ? '$from–$to' : '';
                         String stateVerb;
                         switch (type) {
                           case 'sleep':
@@ -751,24 +556,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           default:
                             stateVerb = label;
                         }
-                        final text = [
-                          stateVerb,
-                          if (timePart.isNotEmpty) timePart,
-                        ].join(' ');
+                        final text = [stateVerb, if (timePart.isNotEmpty) timePart].join(' ');
                         final bgBase = _chipBg(type);
-                        final bg = active
-                            ? bgBase.withValues(alpha: 0.9)
-                            : bgBase.withValues(alpha: 0.6);
+                        final bg = active ? bgBase.withValues(alpha: 0.9) : bgBase.withValues(alpha: 0.6);
                         return Chip(
                           avatar: Icon(icon, size: 18, color: fg),
                           label: Text(text, style: TextStyle(color: fg)),
                           backgroundColor: bg,
                           shape: StadiumBorder(
                             side: active
-                                ? const BorderSide(
-                                    color: AppColors.cyberpunkYellow,
-                                    width: 1.3,
-                                  )
+                                ? const BorderSide(color: AppColors.cyberpunkYellow, width: 1.3)
                                 : BorderSide.none,
                           ),
                         );
@@ -777,35 +574,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                 ...getEventsForDay(_selectedDay ?? DateTime.now()).map(
                   (e) => ListTile(
-                    onTap: () => _openEventEditor(
-                      context,
-                      existing: e,
-                      defaultDay: _selectedDay,
-                    ),
+                    onTap: () => _openEventEditor(context, existing: e, defaultDay: _selectedDay),
                     onLongPress: () => _deleteEvent(context, e),
-                    title: Text(
-                      e.description,
-                      style: const TextStyle(color: AppColors.primary),
-                    ),
+                    title: Text(e.description, style: const TextStyle(color: AppColors.primary)),
                     subtitle: Text(
-                      e.date != null
-                          ? DateFormat('HH:mm', 'es').format(e.date!)
-                          : '',
+                      e.date != null ? DateFormat('HH:mm', 'es').format(e.date!) : '',
                       style: const TextStyle(color: AppColors.secondary),
                     ),
-                    leading: Icon(
-                      e.type == 'promesa' ? Icons.alarm : Icons.event,
-                      color: _dotColorFor(e),
-                    ),
+                    leading: Icon(e.type == 'promesa' ? Icons.alarm : Icons.event, color: _dotColorFor(e)),
                   ),
                 ),
                 if (getEventsForDay(_selectedDay ?? DateTime.now()).isEmpty)
                   const Padding(
                     padding: EdgeInsets.all(16.0),
-                    child: Text(
-                      'No hay eventos para este día.',
-                      style: TextStyle(color: AppColors.secondary),
-                    ),
+                    child: Text('No hay eventos para este día.', style: TextStyle(color: AppColors.secondary)),
                   ),
               ],
             ),

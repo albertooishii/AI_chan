@@ -121,7 +121,7 @@ class ChatJsonUtils {
 
   /// Muestra un diálogo con la vista previa del JSON (formateado). Permite copiar o guardar.
   /// Si se pasa [chat], el guardado usará la representación de modelo (evita reserializar en el caller).
-  static Future<void> showExportedJsonDialog(BuildContext context, String json, {ImportedChat? chat}) async {
+  static Future<void> showExportedJsonDialog(String json, {ImportedChat? chat}) async {
     String preview = json;
     try {
       final decoded = jsonDecode(json);
@@ -132,7 +132,6 @@ class ChatJsonUtils {
     }
 
     return await showAppDialog<void>(
-      context: context,
       builder: (ctx) {
         final previewScrollController = ScrollController();
         return AlertDialog(

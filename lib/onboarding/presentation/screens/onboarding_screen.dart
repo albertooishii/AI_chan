@@ -115,7 +115,6 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
     if (!mounted) return;
     if (error != null) {
       await showAppDialog(
-        context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Error al leer archivo'),
           content: Text(error),
@@ -133,7 +132,6 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
       if (importError != null || imported == null) {
         if (!mounted) return;
         await showAppDialog(
-          context: context,
           builder: (ctx) => AlertDialog(
             title: const Text('Error al importar'),
             content: Text(
@@ -237,16 +235,6 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               Autocomplete<String>(
                 optionsBuilder: (TextEditingValue textEditingValue) {
                   final items = List<CountryItem>.from(CountriesEs.items);
-                  // Si estamos construyendo la lista para el país de la IA y el usuario
-                  // quiere que Japón aparezca primero, reordenar temporalmente para la UI
-                  // sin modificar la constante global.
-                  if (true) {
-                    final idx = items.indexWhere((c) => c.iso2 == 'JP');
-                    if (idx != -1) {
-                      final jp = items.removeAt(idx);
-                      items.insert(0, jp);
-                    }
-                  }
                   final q = _normalize(textEditingValue.text.trim());
                   final opts = items.map((c) {
                     final flag = LocaleUtils.flagEmojiForCountry(c.iso2);
@@ -326,7 +314,38 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               Autocomplete<String>(
                 key: ValueKey('ai-country-${provider.aiCountryCode ?? 'none'}'),
                 optionsBuilder: (TextEditingValue textEditingValue) {
-                  final items = CountriesEs.items;
+                  final items = List<CountryItem>.from(CountriesEs.items);
+                  // Poner una lista de países preferidos al inicio en el orden deseado.
+                  // Orden elegido (prioridad por cultura "friki", industria y hubs regionales):
+                  // Japón, Corea del Sur, Estados Unidos, México, Brasil, China,
+                  // Reino Unido, Suecia, Finlandia, Polonia, Alemania, Países Bajos,
+                  // Canadá, Australia, Singapur, Noruega
+                  const preferredIsoOrder = [
+                    'JP', // Japón
+                    'KR', // Corea del Sur
+                    'US', // Estados Unidos
+                    'MX', // México
+                    'BR', // Brasil
+                    'CN', // China
+                    'GB', // Reino Unido
+                    'SE', // Suecia
+                    'FI', // Finlandia
+                    'PL', // Polonia
+                    'DE', // Alemania
+                    'NL', // Países Bajos
+                    'CA', // Canadá
+                    'AU', // Australia
+                    'SG', // Singapur
+                    'NO', // Noruega
+                  ];
+                  for (var i = preferredIsoOrder.length - 1; i >= 0; i--) {
+                    final iso = preferredIsoOrder[i];
+                    final idx = items.indexWhere((c) => c.iso2 == iso);
+                    if (idx != -1) {
+                      final it = items.removeAt(idx);
+                      items.insert(0, it);
+                    }
+                  }
                   final q = _normalize(textEditingValue.text.trim());
                   final opts = items.map((c) {
                     final flag = LocaleUtils.flagEmojiForCountry(c.iso2);

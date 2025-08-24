@@ -18,6 +18,7 @@ import 'package:ai_chan/core/services/ia_avatar_generator.dart';
 import 'package:ai_chan/shared/services/promise_service.dart';
 import 'package:ai_chan/core/services/image_request_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
+import 'package:ai_chan/shared/utils/dialog_utils.dart' show showAppSnackBar;
 import 'package:ai_chan/chat/domain/models/chat_result.dart';
 import 'package:ai_chan/voice.dart';
 import 'package:ai_chan/shared/utils/audio_utils.dart' as audio_utils;
@@ -724,7 +725,21 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> cancelRecording() => audioService.cancelRecording();
 
-  Future<void> togglePlayAudio(Message msg) => audioService.togglePlay(msg, () => notifyListeners());
+  Future<void> togglePlayAudio(Message msg, [BuildContext? context]) async {
+    // Prefer using the app-wide snack helper so tests / conventions rely on
+    // the centralized implementation (Overlay or root messenger).
+    try {
+      await audioService.togglePlay(msg, () => notifyListeners());
+    } catch (e, st) {
+      try {
+        debugPrint('[Audio] togglePlayAudio error: $e\n$st');
+      } catch (_) {}
+      try {
+        // Use the centralized helper which resolves a safe context internally.
+        showAppSnackBar('Error: no se pudo reproducir el audio. Recurso no encontrado.', isError: true);
+      } catch (_) {}
+    }
+  }
 
   bool isPlaying(Message msg) => audioService.isPlayingMessage(msg);
   Duration get playingPosition => audioService.currentPosition;
@@ -1030,6 +1045,40 @@ class ChatProvider extends ChangeNotifier {
   // Generador de apariencia desacoplado
   final IAAppearanceGenerator iaAppearanceGenerator = IAAppearanceGenerator();
 
+  /// Ejecuta un único intento del flujo: generar appearance -> generar avatar -> persistir
+  /// Si [replace] es false, añade el avatar al historial y crea un mensaje system notificándolo.
+  /// No realiza reintentos adicionales: los generadores internos ya aplican retry.
+  Future<void> regenerateAppearanceOnce({required bool replace}) async {
+    final bio = onboardingData;
+    Map<String, dynamic> appearanceMap;
+    if (!replace && bio.appearance.isNotEmpty) {
+      appearanceMap = Map<String, dynamic>.from(bio.appearance);
+    } else {
+      appearanceMap = await iaAppearanceGenerator.generateAppearancePrompt(bio);
+    }
+    final updatedBio = bio.copyWith(appearance: appearanceMap);
+
+    final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(updatedBio, appendAvatar: !replace);
+
+    if (replace) {
+      onboardingData = updatedBio.copyWith(avatars: [avatar]);
+    } else {
+      onboardingData = updatedBio.copyWith(avatars: [...(updatedBio.avatars ?? []), avatar]);
+      // Añadir mensaje system para notificar al usuario que se añadió un nuevo avatar
+      try {
+        final sysMsg = Message(
+          text: 'Se ha añadido un nuevo avatar al historial.',
+          sender: MessageSender.system,
+          dateTime: DateTime.now(),
+          status: MessageStatus.read,
+        );
+        messages.add(sysMsg);
+      } catch (_) {}
+    }
+    await saveAll();
+    notifyListeners();
+  }
+
   String? _selectedModel;
 
   String? get selectedModel => _selectedModel;
@@ -1193,18 +1242,16 @@ class ChatProvider extends ChangeNotifier {
         () async {
           try {
             final appearanceMap = await iaAppearanceGenerator.generateAppearancePrompt(onboardingData);
-            final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(
-              onboardingData,
-              appearanceMap,
-              seedOverride: seed,
-            );
-            final existing = onboardingData.avatars ?? <AiImage>[];
-            onboardingData = onboardingData.copyWith(avatars: [...existing, avatar]);
+            // Generate a new avatar using the same seed (append), but for weekly regen we want
+            // to make it the current avatar; we append then set avatars to the new one.
+            // Generate using same seed but replace the current avatars (weekly regeneration)
+            final updatedProfile = onboardingData.copyWith(appearance: appearanceMap);
+            final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(updatedProfile, appendAvatar: true);
+            onboardingData = onboardingData.copyWith(avatars: [avatar]);
             // Insertar un mensaje system para que la IA tenga consciencia de la actualización
             try {
               final sysMsg = Message(
-                text:
-                    'Tu avatar se ha actualizado. Usa la nueva imagen como referencia en futuras respuestas (seed=${avatar.seed}).',
+                text: 'Tu avatar se ha actualizado. Usa la nueva imagen como referencia en futuras respuestas.',
                 sender: MessageSender.system,
                 dateTime: DateTime.now(),
                 status: MessageStatus.read,
