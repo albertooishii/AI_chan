@@ -268,8 +268,8 @@ class _ChatScreenState extends State<ChatScreen> {
     showErrorDialog(error);
   }
 
-  // Removed local _regenerateAppearanceOnce; use ChatProvider.generateAvatarFromExistingAppearance instead.
-  // Removed local _regenerateAppearanceOnce; use ChatProvider.generateAvatarFromExistingAppearance instead.
+  // Removed local _regenerateAppearanceOnce; use ChatProvider.createAvatarFromAppearance instead.
+  // Removed local _regenerateAppearanceOnce; use ChatProvider.createAvatarFromAppearance instead.
 
   @override
   Widget build(BuildContext context) {
@@ -592,7 +592,10 @@ class _ChatScreenState extends State<ChatScreen> {
               } else if (value == 'regenAppearance') {
                 setState(() => _isRegeneratingAppearance = true);
                 try {
-                  await chatProvider.generateAppearanceOnce(persist: true);
+                  // La generación del avatar se ejecutará automáticamente desde el provider
+                  // después de actualizar la appearance. Propagamos errores para que la UI
+                  // muestre un único diálogo.
+                  await chatProvider.regenerateAppearance(persist: true);
                 } catch (e) {
                   if (!mounted) return;
                   showErrorDialog('Error al regenerar apariencia:\n$e');

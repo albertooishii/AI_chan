@@ -1049,7 +1049,7 @@ class ChatProvider extends ChangeNotifier {
   /// Ejecuta un único intento del flujo: generar avatar a partir de la apariencia existente -> persistir
   /// Si [replace] es false, añade el avatar al historial y crea un mensaje system notificándolo.
   /// No realiza reintentos adicionales: los generadores internos ya aplican retry.
-  Future<void> generateAvatarFromExistingAppearance({required bool replace}) async {
+  Future<void> createAvatarFromAppearance({required bool replace, bool showErrorDialog = true}) async {
     // This method only generates the avatar from an existing appearance.
     // Appearance generation must be done separately via IAAppearanceGenerator.
     final bio = onboardingData;
@@ -1066,20 +1066,25 @@ class ChatProvider extends ChangeNotifier {
       await _applyAvatarAndPersist(avatar, replace: replace);
     } catch (e) {
       // Si la generación con los intentos internos falló, preguntar al usuario si quiere reintentar
-      final choice = await showRegenerateAppearanceErrorDialog(e);
-      if (choice == 'retry') {
-        try {
-          final avatar2 = await IAAvatarGenerator().generateAvatarWithRetries(
-            bio,
-            appendAvatar: !replace,
-            maxAttempts: 3,
-          );
-          await _applyAvatarAndPersist(avatar2, replace: replace);
-        } catch (e2) {
-          Log.w('Reintento manual de generación de avatar falló: $e2', tag: 'CHAT');
+      if (showErrorDialog) {
+        final choice = await showRegenerateAppearanceErrorDialog(e);
+        if (choice == 'retry') {
+          try {
+            final avatar2 = await IAAvatarGenerator().generateAvatarWithRetries(
+              bio,
+              appendAvatar: !replace,
+              maxAttempts: 3,
+            );
+            await _applyAvatarAndPersist(avatar2, replace: replace);
+          } catch (e2) {
+            Log.w('Reintento manual de generación de avatar falló: $e2', tag: 'CHAT');
+            rethrow;
+          }
+        } else {
           rethrow;
         }
       } else {
+        // Re-lanzar para que el llamador (UI) decida cómo mostrar el error y evitar duplicados
         rethrow;
       }
     }
@@ -1106,28 +1111,19 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Genera únicamente la apariencia (JSON) usando IAAppearanceGenerator.
+  /// Nuevo nombre: Regenera la apariencia (JSON) usando IAAppearanceGenerator
+  /// y, SIEMPRE, genera un nuevo avatar reemplazando los actuales.
   /// - Si [persist] es true, guarda el perfil y notifica listeners.
   /// - Muestra el diálogo centralizado en caso de error y ofrece reintento.
-  Future<void> generateAppearanceOnce({bool persist = true}) async {
+  Future<void> regenerateAppearance({bool persist = true}) async {
     try {
-      final appearanceMap = await iaAppearanceGenerator.generateAppearancePrompt(onboardingData);
-      onboardingData = onboardingData.copyWith(appearance: appearanceMap);
-      if (persist) {
-        await saveAll();
-        notifyListeners();
-      }
+      await _doGenerateAppearanceAndReplaceAvatar(persist: persist);
     } catch (e) {
       Log.w('Error generando apariencia: $e', tag: 'CHAT');
       final choice = await showRegenerateAppearanceErrorDialog(e);
       if (choice == 'retry') {
         try {
-          final appearanceMap2 = await iaAppearanceGenerator.generateAppearancePrompt(onboardingData);
-          onboardingData = onboardingData.copyWith(appearance: appearanceMap2);
-          if (persist) {
-            await saveAll();
-            notifyListeners();
-          }
+          await _doGenerateAppearanceAndReplaceAvatar(persist: persist);
         } catch (e2) {
           Log.w('Reintento manual de generar apariencia falló: $e2', tag: 'CHAT');
           rethrow;
@@ -1138,12 +1134,32 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
+  // Helper privado que realiza un único intento de generar la apariencia,
+  // persistirla y luego generar el avatar reemplazando los existentes.
+  Future<void> _doGenerateAppearanceAndReplaceAvatar({bool persist = true}) async {
+    final appearanceMap = await iaAppearanceGenerator.generateAppearancePrompt(onboardingData);
+    onboardingData = onboardingData.copyWith(appearance: appearanceMap);
+    if (persist) {
+      await saveAll();
+      notifyListeners();
+    }
+    // Tras una generación exitosa de la apariencia, siempre intentar generar
+    // el avatar y reemplazar los actuales. No mostramos el diálogo de error
+    // interno aquí para evitar duplicados en la UX: que el llamador/UI
+    // controle cómo presentar errores.
+    try {
+      await createAvatarFromAppearance(replace: true, showErrorDialog: false);
+    } catch (_) {
+      // No bloquear el flujo de apariencia si la generación de avatar falla.
+    }
+  }
+
   /// Genera únicamente un avatar a partir de la apariencia existente.
   /// Wrapper con nombre claro que delega en regenerateAppearanceOnce (que ya
   /// contiene la lógica de reintentos y diálogo). [replace] indica si
   /// reemplaza el historial (true) o añade al historial (false).
   Future<void> generateAvatarFromAppearance({required bool replace}) async {
-    await generateAvatarFromExistingAppearance(replace: replace);
+    await createAvatarFromAppearance(replace: replace);
   }
 
   String? _selectedModel;

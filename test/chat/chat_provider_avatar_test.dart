@@ -23,7 +23,7 @@ class TestChatProvider extends ChatProvider {
 void main() async {
   await initializeTestEnvironment();
 
-  test('generateAvatarFromExistingAppearance appends avatar and system message on success', () async {
+  test('createAvatarFromAppearance appends avatar and system message on success', () async {
     final provider = TestChatProvider(dialogResult: 'cancel');
     provider.onboardingData = AiChanProfile(
       events: [],
@@ -49,7 +49,7 @@ void main() async {
       expect(provider.onboardingData.avatars?.length ?? 0, 0);
       expect(provider.messages.length, 0);
 
-      await provider.generateAvatarFromExistingAppearance(replace: false);
+      await provider.createAvatarFromAppearance(replace: false);
 
       expect(provider.onboardingData.avatars?.length ?? 0, 1);
       // System message appended
@@ -63,7 +63,7 @@ void main() async {
     }
   });
 
-  test('generateAvatarFromExistingAppearance retries when first attempt fails and user chooses retry', () async {
+  test('createAvatarFromAppearance retries when first attempt fails and user chooses retry', () async {
     final provider = TestChatProvider(dialogResult: 'retry');
     provider.onboardingData = AiChanProfile(
       events: [],
@@ -90,7 +90,7 @@ void main() async {
     try {
       expect(provider.onboardingData.avatars?.length ?? 0, 0);
 
-      await provider.generateAvatarFromExistingAppearance(replace: false);
+      await provider.createAvatarFromAppearance(replace: false);
 
       // After retry, should have one avatar appended
       expect(provider.onboardingData.avatars?.length ?? 0, 1);
@@ -104,7 +104,7 @@ void main() async {
     }
   });
 
-  test('generateAvatarFromExistingAppearance with replace=true replaces avatar and does not add system message', () async {
+  test('createAvatarFromAppearance with replace=true replaces avatar and does not add system message', () async {
     final provider = TestChatProvider(dialogResult: 'cancel');
     provider.onboardingData = AiChanProfile(
       events: [],
@@ -129,7 +129,7 @@ void main() async {
       expect(provider.onboardingData.avatars?.length ?? 0, 1);
       expect(provider.messages.where((m) => m.sender == MessageSender.system).length, 0);
 
-      await provider.generateAvatarFromExistingAppearance(replace: true);
+      await provider.createAvatarFromAppearance(replace: true);
 
       // Should replace existing avatars with the new one
       expect(provider.onboardingData.avatars?.length ?? 0, 1);
