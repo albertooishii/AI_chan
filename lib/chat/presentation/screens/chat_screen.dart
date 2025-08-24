@@ -268,7 +268,8 @@ class _ChatScreenState extends State<ChatScreen> {
     showErrorDialog(error);
   }
 
-  // Removed local _regenerateAppearanceOnce; use ChatProvider.regenerateAppearanceOnce instead.
+  // Removed local _regenerateAppearanceOnce; use ChatProvider.generateAvatarFromExistingAppearance instead.
+  // Removed local _regenerateAppearanceOnce; use ChatProvider.generateAvatarFromExistingAppearance instead.
 
   @override
   Widget build(BuildContext context) {
@@ -591,53 +592,20 @@ class _ChatScreenState extends State<ChatScreen> {
               } else if (value == 'regenAppearance') {
                 setState(() => _isRegeneratingAppearance = true);
                 try {
-                  await chatProvider.regenerateAppearanceOnce(replace: true);
+                  await chatProvider.generateAppearanceOnce(persist: true);
                 } catch (e) {
-                  final navCtx = navigatorKey.currentContext;
-                  if (navCtx == null) return;
-                  final choice = await showAppDialog<String>(
-                    builder: (ctx) => AlertDialog(
-                      backgroundColor: Colors.black,
-                      title: const Text(
-                        'No se pudo regenerar la apariencia',
-                        style: TextStyle(color: AppColors.secondary),
-                      ),
-                      content: SingleChildScrollView(
-                        child: Text(e.toString(), style: const TextStyle(color: AppColors.primary)),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(navCtx).pop('cancel'),
-                          child: const Text('Cerrar', style: TextStyle(color: AppColors.primary)),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.of(navCtx).pop('retry'),
-                          child: const Text('Reintentar', style: TextStyle(color: AppColors.secondary)),
-                        ),
-                      ],
-                    ),
-                  );
                   if (!mounted) return;
-                  if (choice == 'retry') {
-                    // Re-resolve nav context before doing UI after await
-                    try {
-                      await chatProvider.regenerateAppearanceOnce(replace: true);
-                    } catch (e2) {
-                      showErrorDialog('Error al regenerar apariencia (reintento):\n$e2');
-                    }
-                  }
+                  showErrorDialog('Error al regenerar apariencia:\n$e');
                 } finally {
-                  if (mounted) {
-                    setState(() => _isRegeneratingAppearance = false);
-                  }
+                  if (mounted) setState(() => _isRegeneratingAppearance = false);
                 }
               } else if (value == 'add_new_avatar') {
                 setState(() => _isRegeneratingAppearance = true);
                 try {
-                  // Añadir un nuevo avatar usando la apariencia existente si está presente
-                  await chatProvider.regenerateAppearanceOnce(replace: false);
+                  await chatProvider.generateAvatarFromAppearance(replace: false);
                 } catch (e) {
-                  showErrorDialog(e.toString());
+                  if (!mounted) return;
+                  showErrorDialog('Error al generar avatar:\n$e');
                 } finally {
                   if (mounted) setState(() => _isRegeneratingAppearance = false);
                 }

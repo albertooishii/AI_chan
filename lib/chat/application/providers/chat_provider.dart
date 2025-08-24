@@ -18,7 +18,8 @@ import 'package:ai_chan/core/services/ia_avatar_generator.dart';
 import 'package:ai_chan/shared/services/promise_service.dart';
 import 'package:ai_chan/core/services/image_request_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
-import 'package:ai_chan/shared/utils/dialog_utils.dart' show showAppSnackBar;
+import 'package:ai_chan/shared/utils/dialog_utils.dart' show showAppSnackBar, showAppDialog;
+import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/chat/domain/models/chat_result.dart';
 import 'package:ai_chan/voice.dart';
 import 'package:ai_chan/shared/utils/audio_utils.dart' as audio_utils;
@@ -1045,26 +1046,52 @@ class ChatProvider extends ChangeNotifier {
   // Generador de apariencia desacoplado
   final IAAppearanceGenerator iaAppearanceGenerator = IAAppearanceGenerator();
 
-  /// Ejecuta un único intento del flujo: generar appearance -> generar avatar -> persistir
+  /// Ejecuta un único intento del flujo: generar avatar a partir de la apariencia existente -> persistir
   /// Si [replace] es false, añade el avatar al historial y crea un mensaje system notificándolo.
   /// No realiza reintentos adicionales: los generadores internos ya aplican retry.
-  Future<void> regenerateAppearanceOnce({required bool replace}) async {
+  Future<void> generateAvatarFromExistingAppearance({required bool replace}) async {
+    // This method only generates the avatar from an existing appearance.
+    // Appearance generation must be done separately via IAAppearanceGenerator.
     final bio = onboardingData;
-    Map<String, dynamic> appearanceMap;
-    if (!replace && bio.appearance.isNotEmpty) {
-      appearanceMap = Map<String, dynamic>.from(bio.appearance);
-    } else {
-      appearanceMap = await iaAppearanceGenerator.generateAppearancePrompt(bio);
+    if (bio.appearance.isEmpty) {
+      throw Exception('Falta la apariencia en el perfil. Genera la apariencia primero.');
     }
-    final updatedBio = bio.copyWith(appearance: appearanceMap);
 
-    final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(updatedBio, appendAvatar: !replace);
+    // La lógica de aplicación/persistencia se implementa en el método de clase
+    // `_applyAvatarAndPersist` para evitar warnings de identificadores locales
+    // y mejorar testabilidad.
 
+    try {
+      final avatar = await IAAvatarGenerator().generateAvatarWithRetries(bio, appendAvatar: !replace, maxAttempts: 3);
+      await _applyAvatarAndPersist(avatar, replace: replace);
+    } catch (e) {
+      // Si la generación con los intentos internos falló, preguntar al usuario si quiere reintentar
+      final choice = await showRegenerateAppearanceErrorDialog(e);
+      if (choice == 'retry') {
+        try {
+          final avatar2 = await IAAvatarGenerator().generateAvatarWithRetries(
+            bio,
+            appendAvatar: !replace,
+            maxAttempts: 3,
+          );
+          await _applyAvatarAndPersist(avatar2, replace: replace);
+        } catch (e2) {
+          Log.w('Reintento manual de generación de avatar falló: $e2', tag: 'CHAT');
+          rethrow;
+        }
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  // Aplica el avatar al perfil y persiste los cambios. Método privado de clase
+  // para evitar definiciones locales que incumplen lint de identificadores.
+  Future<void> _applyAvatarAndPersist(AiImage avatar, {required bool replace}) async {
     if (replace) {
-      onboardingData = updatedBio.copyWith(avatars: [avatar]);
+      onboardingData = onboardingData.copyWith(avatars: [avatar]);
     } else {
-      onboardingData = updatedBio.copyWith(avatars: [...(updatedBio.avatars ?? []), avatar]);
-      // Añadir mensaje system para notificar al usuario que se añadió un nuevo avatar
+      onboardingData = onboardingData.copyWith(avatars: [...(onboardingData.avatars ?? []), avatar]);
       try {
         final sysMsg = Message(
           text: 'Se ha añadido un nuevo avatar al historial.',
@@ -1077,6 +1104,46 @@ class ChatProvider extends ChangeNotifier {
     }
     await saveAll();
     notifyListeners();
+  }
+
+  /// Genera únicamente la apariencia (JSON) usando IAAppearanceGenerator.
+  /// - Si [persist] es true, guarda el perfil y notifica listeners.
+  /// - Muestra el diálogo centralizado en caso de error y ofrece reintento.
+  Future<void> generateAppearanceOnce({bool persist = true}) async {
+    try {
+      final appearanceMap = await iaAppearanceGenerator.generateAppearancePrompt(onboardingData);
+      onboardingData = onboardingData.copyWith(appearance: appearanceMap);
+      if (persist) {
+        await saveAll();
+        notifyListeners();
+      }
+    } catch (e) {
+      Log.w('Error generando apariencia: $e', tag: 'CHAT');
+      final choice = await showRegenerateAppearanceErrorDialog(e);
+      if (choice == 'retry') {
+        try {
+          final appearanceMap2 = await iaAppearanceGenerator.generateAppearancePrompt(onboardingData);
+          onboardingData = onboardingData.copyWith(appearance: appearanceMap2);
+          if (persist) {
+            await saveAll();
+            notifyListeners();
+          }
+        } catch (e2) {
+          Log.w('Reintento manual de generar apariencia falló: $e2', tag: 'CHAT');
+          rethrow;
+        }
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  /// Genera únicamente un avatar a partir de la apariencia existente.
+  /// Wrapper con nombre claro que delega en regenerateAppearanceOnce (que ya
+  /// contiene la lógica de reintentos y diálogo). [replace] indica si
+  /// reemplaza el historial (true) o añade al historial (false).
+  Future<void> generateAvatarFromAppearance({required bool replace}) async {
+    await generateAvatarFromExistingAppearance(replace: replace);
   }
 
   String? _selectedModel;
@@ -1176,6 +1243,35 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
+  /// Muestra un diálogo de error centrado para errores de regeneración
+  /// y devuelve la elección del usuario: 'retry' o 'cancel' o null.
+  Future<String?> showRegenerateAppearanceErrorDialog(Object error) async {
+    try {
+      return await showAppDialog<String>(
+        builder: (ctx) => AlertDialog(
+          backgroundColor: Colors.black,
+          title: const Text('No se pudo regenerar la apariencia', style: TextStyle(color: AppColors.secondary)),
+          content: SingleChildScrollView(
+            child: Text(error.toString(), style: const TextStyle(color: AppColors.primary)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop('cancel'),
+              child: const Text('Cerrar', style: TextStyle(color: AppColors.primary)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop('retry'),
+              child: const Text('Reintentar', style: TextStyle(color: AppColors.secondary)),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      Log.w('No se pudo mostrar el diálogo de regeneración: $e', tag: 'CHAT');
+      return null;
+    }
+  }
+
   Future<void> loadAll() async {
     // Try to load via repository if available
     if (repository != null) {
@@ -1246,7 +1342,11 @@ class ChatProvider extends ChangeNotifier {
             // to make it the current avatar; we append then set avatars to the new one.
             // Generate using same seed but replace the current avatars (weekly regeneration)
             final updatedProfile = onboardingData.copyWith(appearance: appearanceMap);
-            final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(updatedProfile, appendAvatar: true);
+            final avatar = await IAAvatarGenerator().generateAvatarWithRetries(
+              updatedProfile,
+              appendAvatar: true,
+              maxAttempts: 3,
+            );
             onboardingData = onboardingData.copyWith(avatars: [avatar]);
             // Insertar un mensaje system para que la IA tenga consciencia de la actualización
             try {
@@ -1262,6 +1362,35 @@ class ChatProvider extends ChangeNotifier {
             notifyListeners();
           } catch (e) {
             Log.w('Error generando avatar semanal en background: $e', tag: 'CHAT');
+            // Mostrar diálogo de error centralizado y permitir reintento manual
+            try {
+              final choice = await showRegenerateAppearanceErrorDialog(e);
+              if (choice == 'retry') {
+                try {
+                  final appearanceMap2 = await iaAppearanceGenerator.generateAppearancePrompt(onboardingData);
+                  final updatedProfile2 = onboardingData.copyWith(appearance: appearanceMap2);
+                  final avatar2 = await IAAvatarGenerator().generateAvatarWithRetries(
+                    updatedProfile2,
+                    appendAvatar: true,
+                    maxAttempts: 3,
+                  );
+                  onboardingData = onboardingData.copyWith(avatars: [avatar2]);
+                  try {
+                    final sysMsg2 = Message(
+                      text: 'Tu avatar se ha actualizado. Usa la nueva imagen como referencia en futuras respuestas.',
+                      sender: MessageSender.system,
+                      dateTime: DateTime.now(),
+                      status: MessageStatus.read,
+                    );
+                    messages.add(sysMsg2);
+                  } catch (_) {}
+                  await saveAll();
+                  notifyListeners();
+                } catch (e2) {
+                  Log.w('Error reintentando avatar semanal: $e2', tag: 'CHAT');
+                }
+              }
+            } catch (_) {}
           }
         }();
       }

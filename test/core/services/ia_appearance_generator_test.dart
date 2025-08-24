@@ -1,0 +1,33 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:ai_chan/core/services/ia_appearance_generator.dart';
+import 'package:ai_chan/shared/services/ai_service.dart';
+import 'fake_ai_service.dart';
+import 'package:ai_chan/core/models.dart';
+
+void main() {
+  test('generateAppearancePrompt parses JSON and forces edad_aparente=25', () async {
+    // Respuesta simulada que incluye un bloque JSON válido
+    final jsonText = '{"edad_aparente": 30, "genero": "femenino", "ropa": []}';
+    final resp = AIResponse(text: jsonText, base64: '', seed: '', prompt: '');
+    final fake = FakeAIService([resp]);
+    AIService.testOverride = fake;
+
+    final gen = IAAppearanceGenerator();
+    final profile = AiChanProfile(
+      biography: <String, dynamic>{'text': 'Le gusta bailar'},
+      userName: 'u',
+      aiName: 'a',
+      userBirthday: null,
+      aiBirthday: null,
+      appearance: <String, dynamic>{},
+      avatars: null,
+      timeline: [],
+    );
+    final map = await gen.generateAppearancePrompt(profile);
+    expect(map, isNotNull);
+    expect(map['edad_aparente'], 25);
+    expect(map['genero'], 'femenino');
+
+    AIService.testOverride = null;
+  });
+}

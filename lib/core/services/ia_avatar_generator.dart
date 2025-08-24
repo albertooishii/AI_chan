@@ -26,13 +26,14 @@ class IAAvatarGenerator {
     // el perfil (bio) con la nueva appearance antes de llamar a esta función
     final Map<String, dynamic> appearance = bio.appearance;
 
-    var imagePrompt =
+    // Construir prompt base una sola vez para evitar reconstrucción en cada intento
+    final String baseImagePrompt =
         '''Usa la herramienta de generación de imágenes y devuelve únicamente la imagen en base64.
-    Genera una imagen hiperrealista cuadrada (1:1) centrada en la cara y torso superior, coherente con este JSON de apariencia:
-    ${jsonEncode(appearance)}
-        La imagen debe mostrar a la IA realizando una actividad que le guste (elige la actividad a partir de 'biography'. La pose y la expresión deben transmitir que está disfrutando de esa actividad (sonrisa natural, mirada enfocada, gestos suaves).
-        Viste ropa coherente con los campos de `appearance` (usa prendas, estilo, colores y accesorios especificados allí).
-        Recuerda: la imagen debe representar a una mujer joven de 25 años (edad aparente = 25). Evita texto, marcas de agua y elementos anacrónicos. SOLO devuelve la imagen en base64 en la respuesta.''';
+Genera una imagen hiperrealista cuadrada (1:1) centrada en la cara y torso superior, coherente con este JSON de apariencia:
+${jsonEncode(appearance)}
+La imagen debe mostrar a la IA realizando una actividad que le guste (elige la actividad a partir de 'biography'). La pose y la expresión deben transmitir que está disfrutando de esa actividad (sonrisa natural, mirada enfocada, gestos suaves).
+Viste ropa coherente con los campos de `appearance` (usa prendas, estilo, colores y accesorios especificados allí).
+Recuerda: la imagen debe representar a una mujer joven de 25 años (edad aparente = 25). Evita texto, marcas de agua y elementos anacrónicos. SOLO devuelve la imagen en base64 en la respuesta.''';
 
     AIResponse imageResponse = AIResponse(text: '', base64: '', seed: '', prompt: '');
     const int maxImageAttemptsPerModel = 3;
@@ -46,26 +47,26 @@ class IAAvatarGenerator {
       seedToUse = null;
     }
 
+    // Prompt final (no cambia entre intentos) — mejora rendimiento al no concatenar en cada loop
+    final String promptToSend = seedToUse != null
+        ? '$baseImagePrompt\nRegenera una NUEVA imagen manteniendo la identidad facial pero variando la ropa, cabello, la pose y el entorno según las que hay disponibles en appearance. SOLO devuelve la imagen en base64 en la respuesta.'
+        : baseImagePrompt;
+
+    // Construir profileForPrompt también fuera del bucle (no cambia entre intentos)
+    final profileForPrompt = AiChanProfile(
+      biography: bio.biography,
+      userName: bio.userName,
+      aiName: bio.aiName,
+      userBirthday: null,
+      aiBirthday: null,
+      appearance: appearance,
+      avatars: seedToUse != null ? bio.avatars : null,
+      timeline: [],
+    );
+
     for (int attempt = 0; attempt < maxImageAttemptsPerModel; attempt++) {
       Log.d('[IAAvatarGenerator] Avatar: intento ${attempt + 1}/$maxImageAttemptsPerModel con $forcedImageModel');
       try {
-        final profileForPrompt = AiChanProfile(
-          biography: bio.biography,
-          userName: bio.userName,
-          aiName: bio.aiName,
-          userBirthday: null,
-          aiBirthday: null,
-          appearance: appearance,
-          avatars: seedToUse != null ? bio.avatars : null,
-          timeline: [],
-        );
-
-        // Si decidimos reutilizar una seed, añadimos instrucciones para regenerar
-        // manteniendo la identidad facial.
-        final promptToSend = seedToUse != null
-            ? '$imagePrompt\nRegenera una NUEVA imagen manteniendo la identidad facial pero variando la ropa, cabello, la pose y el entorno según las que hay disponibles en appearance. SOLO devuelve la imagen en base64 en la respuesta.'
-            : imagePrompt;
-
         final systemPromptImage = SystemPrompt(
           profile: profileForPrompt,
           dateTime: DateTime.now(),
@@ -88,6 +89,11 @@ class IAAvatarGenerator {
         } else {
           Log.e('[IAAvatarGenerator] Avatar: error en intento ${attempt + 1}: $err');
         }
+      }
+
+      // Backoff progresivo entre intentos para evitar ráfagas
+      if (attempt < maxImageAttemptsPerModel - 1) {
+        await Future.delayed(Duration(milliseconds: 400 * (attempt + 1)));
       }
     }
 
@@ -119,5 +125,28 @@ class IAAvatarGenerator {
     // Nota: no modificamos ni persistimos onboardingData aquí. El llamador
     // deberá incorporar el avatar a su `AiChanProfile` y persistir si procede.
     return avatar;
+  }
+
+  /// Wrapper que reintenta la generación de avatar hasta [maxAttempts].
+  /// No muestra dialogs ni persiste nada; lanza excepción si no consigue una imagen.
+  Future<AiImage> generateAvatarWithRetries(
+    AiChanProfile bio, {
+    AIService? aiService,
+    bool appendAvatar = false,
+    int maxAttempts = 3,
+    Duration retryDelay = const Duration(milliseconds: 700),
+  }) async {
+    Exception? lastErr;
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        final avatar = await generateAvatarFromAppearance(bio, aiService: aiService, appendAvatar: appendAvatar);
+        return avatar;
+      } catch (e) {
+        lastErr = Exception('Intento $attempt falló: $e');
+        Log.w('[IAAvatarGenerator] generateAvatarWithRetries intento $attempt fallido: $e');
+        if (attempt < maxAttempts) await Future.delayed(retryDelay * attempt);
+      }
+    }
+    throw Exception('No se pudo generar el avatar tras $maxAttempts intentos. Último error: $lastErr');
   }
 }

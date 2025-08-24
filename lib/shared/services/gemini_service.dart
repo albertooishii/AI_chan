@@ -243,7 +243,6 @@ class GeminiService implements AIService {
 
       Future<http.Response> doPost(String key) {
         final mUrl = Uri.parse('$endpointBase$modelId:generateContent?key=$key');
-        Log.d('[Gemini] POST -> $mUrl (bodyPreview=${body.length} chars)');
         // Guardar request payload para debug
         try {
           debugLogCallPrompt('gemini_http_request', {

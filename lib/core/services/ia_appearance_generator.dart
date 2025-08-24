@@ -151,10 +151,13 @@ Biografía:
             : AIService.sendMessage([], systemPromptAppearance, model: usedModel));
         if ((resp.text).trim().isEmpty) {
           Log.w('[IAAppearanceGenerator] Apariencia: respuesta vacía (posible desconexión), reintentando…');
+          // backoff ligero
+          await Future.delayed(Duration(milliseconds: 300 * (attempt + 1)));
           continue;
         }
         final Map<String, dynamic> extracted = extractJsonBlock(resp.text);
-        if (!extracted.containsKey('raw')) {
+        // Validación básica: extraer no vacío y contener keys esperadas
+        if (extracted.isNotEmpty && extracted.keys.isNotEmpty) {
           appearanceMap = Map<String, dynamic>.from(extracted);
           Log.d(
             '[IAAppearanceGenerator] Apariencia: JSON OK en intento ${attempt + 1} (keys=${appearanceMap.keys.length})',
@@ -168,6 +171,10 @@ Biografía:
         } else {
           Log.e('[IAAppearanceGenerator] Apariencia: error de red/timeout en intento ${attempt + 1}: $err');
         }
+      }
+
+      if (attempt < maxJsonAttempts - 1) {
+        await Future.delayed(Duration(milliseconds: 400 * (attempt + 1)));
       }
     }
     // Si tras los intentos no hay JSON válido, cancelar sin fallback
