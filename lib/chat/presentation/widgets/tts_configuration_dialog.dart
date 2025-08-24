@@ -1,3 +1,5 @@
+import 'package:ai_chan/core/cache/cache_service.dart';
+import 'package:ai_chan/voice.dart';
 import 'package:flutter/material.dart';
 // provider import removed; dialog receives ChatProvider from caller
 import 'package:ai_chan/core/di.dart' as di;
@@ -68,7 +70,22 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
       // Aplicar filtrado por idioma similar a Google Cloud TTS
       final effectiveUserCodes = widget.userLangCodes ?? <String>[];
       final effectiveAiCodes = widget.aiLangCodes ?? <String>[];
-      final filtered = _filterNativeVoices(voices, effectiveUserCodes, effectiveAiCodes);
+      // Debug: mostrar códigos efectivos y una muestra de locales recuperadas
+      try {
+        final sampleLocales = voices
+            .take(10)
+            .map((v) => (v['locale'] as String?) ?? (v['name'] as String?) ?? '<no-locale>')
+            .join(', ');
+        Log.d(
+          'DEBUG TTS: effectiveUserCodes=$effectiveUserCodes effectiveAiCodes=$effectiveAiCodes sampleLocales=[$sampleLocales]',
+          tag: 'TTS_DIALOG',
+        );
+      } catch (_) {}
+      final filtered = await AndroidNativeTtsService.filterVoicesByTargetCodes(
+        voices,
+        effectiveUserCodes,
+        effectiveAiCodes,
+      );
       setState(() {
         _androidNativeVoices.clear();
         _androidNativeVoices.addAll(filtered);
@@ -85,52 +102,6 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
       Log.d('DEBUG TTS: Error refrescando voces nativas: $e', tag: 'TTS_DIALOG');
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  List<Map<String, dynamic>> _filterNativeVoices(
-    List<Map<String, dynamic>> voices,
-    List<String> userCodes,
-    List<String> aiCodes,
-  ) {
-    if ((userCodes.isEmpty) && (aiCodes.isEmpty)) return voices;
-
-    // Separar códigos exactos (con región) y sólo idioma.
-    final exactCodes = <String>{};
-    final langCodes = <String>{};
-
-    for (final c in [...userCodes, ...aiCodes]) {
-      if (c.trim().isEmpty) continue;
-      final normalizedIn = c.replaceAll('_', '-').toLowerCase();
-      final parts = normalizedIn.split('-');
-      if (parts.length >= 2) {
-        // Guardar la forma language-region (p.ej. 'es-es')
-        exactCodes.add('${parts[0]}-${parts[1]}');
-      } else {
-        langCodes.add(parts[0]);
-      }
-    }
-
-    return voices.where((voice) {
-      var locale = (voice['locale'] as String?) ?? '';
-      if (locale.isEmpty) return false;
-      locale = locale.replaceAll('_', '-').toLowerCase();
-      final parts = locale.split('-');
-      final vlang = parts[0];
-      final vexact = parts.length >= 2 ? '${parts[0]}-${parts[1]}' : parts[0];
-
-      // Si hay códigos exactos especificados, requerimos coincidencia exacta (incluye región).
-      if (exactCodes.isNotEmpty) {
-        return exactCodes.contains(vexact);
-      }
-
-      // Si no hay exactos, y hay códigos de idioma, hacer match por idioma.
-      if (langCodes.isNotEmpty) {
-        return langCodes.contains(vlang);
-      }
-
-      // Por defecto (no había códigos válidos), permitir todas
-      return true;
-    }).toList();
   }
 
   Future<void> _loadSettings() async {
@@ -237,6 +208,16 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
       final effectiveUserCodes = widget.userLangCodes ?? <String>[];
       final effectiveAiCodes = widget.aiLangCodes ?? <String>[];
 
+      // If caller requested forceRefresh, clear cached voices to force re-download
+      if (forceRefresh) {
+        try {
+          await CacheService.clearAllVoicesCache();
+          Log.d('DEBUG TTS: ClearAllVoicesCache invoked due to forceRefresh', tag: 'TTS_DIALOG');
+        } catch (e) {
+          Log.d('DEBUG TTS: clearAllVoicesCache failed: $e', tag: 'TTS_DIALOG');
+        }
+      }
+
       final voices = await GoogleSpeechService.getNeuralWaveNetVoices(
         effectiveUserCodes,
         effectiveAiCodes,
@@ -246,18 +227,6 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
         'DEBUG TTS: Neural/WaveNet voices loaded: ${voices.length} (user=$effectiveUserCodes, ai=$effectiveAiCodes)',
         tag: 'TTS_DIALOG',
       );
-
-      // Ya no necesitamos filtro de calidad porque getNeuralWaveNetVoices solo devuelve Neural/WaveNet
-      // que son de alta calidad por definición
-
-      // Imprimir algunas voces para debug
-      for (int i = 0; i < voices.length && i < 5; i++) {
-        final voice = voices[i];
-        final name = voice['name'] ?? 'Sin nombre';
-        final langCodes = voice['languageCodes'] ?? [];
-        final quality = _getVoiceQualityLevel(voice);
-        Log.d('DEBUG TTS: Voice $i: $name ($quality) - Languages: $langCodes', tag: 'TTS_DIALOG');
-      }
 
       if (mounted) {
         setState(() {
@@ -280,19 +249,12 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
   Future<void> _loadOpenAiVoices({bool forceRefresh = false}) async {
     setState(() => _isLoading = true);
     try {
-      // Nota: Para mantener la separación de capas la UI usa la lista
-      // estática `kOpenAIVoices`. El fetch remoto se realiza en capas de
-      // infraestructura o en providers cuando corresponda.
+      // Use the static voice list exported by the voice bounded context
       _openaiVoices.clear();
-      _openaiVoices.addAll(
-        kOpenAIVoices.map((v) => {'name': v, 'description': v, 'languageCodes': <String>[]}).toList(),
-      );
+      _openaiVoices.addAll(kOpenAIVoices.map((v) => {'name': v}).toList());
     } catch (e) {
-      // keep fallback static list
       _openaiVoices.clear();
-      _openaiVoices.addAll(
-        kOpenAIVoices.map((v) => {'name': v, 'description': v, 'languageCodes': <String>[]}).toList(),
-      );
+      _openaiVoices.addAll(kOpenAIVoices.map((v) => {'name': v}).toList());
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -374,6 +336,23 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
                   } else if (_selectedProvider == 'android_native') {
                     // Refresh native voices (fetch list) when native provider is selected
                     await _refreshNativeVoices();
+
+                    // Debug: dump JSON for requested language codes to help inspect raw plugin output
+                    try {
+                      final effectiveUserCodes = widget.userLangCodes ?? <String>[];
+                      final effectiveAiCodes = widget.aiLangCodes ?? <String>[];
+                      var codes = [...effectiveUserCodes, ...effectiveAiCodes];
+                      if (codes.isEmpty) codes = ['es-ES'];
+                      for (final c in codes) {
+                        try {
+                          await AndroidNativeTtsService.dumpVoicesJsonForLanguage(c, exactOnly: true);
+                        } catch (e) {
+                          Log.d('DEBUG TTS: dumpVoicesJsonForLanguage failed for $c: $e', tag: 'TTS_DIALOG');
+                        }
+                      }
+                    } catch (e) {
+                      Log.d('DEBUG TTS: Error dumping native voices JSON: $e', tag: 'TTS_DIALOG');
+                    }
                   }
                   showAppSnackBar('Voces actualizadas', isError: false);
                 } catch (e) {
@@ -616,23 +595,10 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
               subtitle = '$originalSubtitle · $quality';
             }
           } else if (_selectedProvider == 'openai') {
-            // Para voces OpenAI: título capitalizado (ej: 'Sage') y subtítulo
-            // con género según el mapa kOpenAIVoiceGender (Femenina/Masculina) y token en minúsculas.
-            final token = (voice['name'] as String? ?? '').trim();
-            if (token.isNotEmpty) {
-              displayName = '${token[0].toUpperCase()}${token.substring(1)}';
-            } else {
-              displayName = token;
-            }
-
-            final genderLabel = (kOpenAIVoiceGender[token.toLowerCase()] ?? '').toString();
-            final genderPart = genderLabel.isNotEmpty ? genderLabel : '';
-            // Construir subtítulo: 'Género · Multilenguaje · token'
-            final parts = <String>[];
-            if (genderPart.isNotEmpty) parts.add(genderPart);
-            parts.add('Multilenguaje');
-            if (token.isNotEmpty) parts.add(token.toLowerCase());
-            subtitle = parts.join(' · ');
+            // Minimal display formatter for OpenAI voices
+            final name = (voice['name'] as String?) ?? voiceName;
+            displayName = name;
+            subtitle = '';
           }
 
           return ListTile(

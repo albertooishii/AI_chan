@@ -10,6 +10,7 @@ import 'package:ai_chan/shared/utils/audio_conversion.dart';
 import 'ai_service.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:http/http.dart' as http;
+import 'package:ai_chan/core/http_connector.dart';
 
 class OpenAIService implements AIService {
   /// Obtiene la lista de modelos disponibles en la API de OpenAI, ordenados por fecha de creación (más nuevo primero)
@@ -19,7 +20,7 @@ class OpenAIService implements AIService {
       throw Exception('Falta la API key de OpenAI. Por favor, configúrala en la app.');
     }
     const endpoint = 'https://api.openai.com/v1/models';
-    final response = await http.get(
+    final response = await HttpConnector.client.get(
       Uri.parse(endpoint),
       headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $apiKey'},
     );
@@ -162,7 +163,7 @@ class OpenAIService implements AIService {
     };
     final body = jsonEncode(bodyMap);
 
-    final response = await http.post(url, headers: headers, body: body);
+    final response = await HttpConnector.client.post(url, headers: headers, body: body);
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       String text = '';
@@ -276,10 +277,12 @@ class OpenAIService implements AIService {
     }
 
     try {
-      final streamed = await request.send().timeout(
-        const Duration(seconds: 30),
-        onTimeout: () => throw TimeoutException('Timeout en transcripción de audio', const Duration(seconds: 30)),
-      );
+      final streamed = await (HttpConnector.client)
+          .send(request)
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () => throw TimeoutException('Timeout en transcripción de audio', const Duration(seconds: 30)),
+          );
       final response = await http.Response.fromStream(streamed);
 
       if (response.statusCode == 200) {
@@ -337,7 +340,7 @@ class OpenAIService implements AIService {
     final effectiveModel = model ?? Config.getOpenAITtsModel();
 
     final url = Uri.parse('https://api.openai.com/v1/audio/speech');
-    final response = await http.post(
+    final response = await HttpConnector.client.post(
       url,
       headers: {'Authorization': 'Bearer $apiKey', 'Content-Type': 'application/json'},
       body: jsonEncode({'model': effectiveModel, 'input': text, 'voice': voice, 'response_format': 'mp3'}),

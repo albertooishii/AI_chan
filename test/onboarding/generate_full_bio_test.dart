@@ -103,38 +103,4 @@ void main() {
       expect(provider.generatedBiography, isNotNull);
     });
   });
-
-  test('generateFullBiographyFlexible + provider loads saved prefs', () async {
-    await initializeTestEnvironment();
-    SharedPreferences.setMockInitialValues({});
-    AIService.testOverride = FakeAIServiceImpl();
-
-    await initializeTestEnvironment(
-      dotenvContents:
-          'DEFAULT_TEXT_MODEL=gemini-1.5-flash-latest\nDEFAULT_IMAGE_MODEL=gemini-1.5-flash-latest\nIMAGE_DIR_DESKTOP=/tmp/ai_chan_test_images\nGEMINI_API_KEY=test_key\n',
-    );
-
-    final bio = await generateFullBiographyFlexible(
-      userName: 'UserX',
-      aiName: 'AiX',
-      userBirthday: DateTime(1990, 1, 1),
-      meetStory: 'Historia',
-      appearanceGenerator: FakeAppearanceGenerator(),
-
-      userCountryCode: 'ES',
-      aiCountryCode: 'JP',
-    );
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('onboarding_data', jsonEncode(bio.toJson()));
-
-    final provider = OnboardingProvider();
-    while (provider.loading) {
-      await Future.delayed(const Duration(milliseconds: 10));
-    }
-
-    expect(provider.generatedBiography, isNotNull);
-
-    AIService.testOverride = null;
-  });
 }

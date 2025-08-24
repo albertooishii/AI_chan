@@ -1,3 +1,5 @@
+import 'package:ai_chan/shared/domain/services/event_timeline_service.dart';
+import 'package:ai_chan/shared/domain/services/promise_service.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'package:ai_chan/shared/utils/storage_utils.dart';
 import 'dart:convert';
@@ -13,9 +15,7 @@ import 'package:ai_chan/core/services/memory_summary_service.dart';
 import 'dart:io';
 import 'package:ai_chan/core/services/ia_appearance_generator.dart';
 import 'package:ai_chan/shared/services/ai_service.dart';
-import 'package:ai_chan/shared/services/event_service.dart';
 import 'package:ai_chan/core/services/ia_avatar_generator.dart';
-import 'package:ai_chan/shared/services/promise_service.dart';
 import 'package:ai_chan/core/services/image_request_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart' show showAppSnackBar, showAppDialog;

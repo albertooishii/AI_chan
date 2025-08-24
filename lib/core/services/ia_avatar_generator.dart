@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/image_utils.dart';
@@ -27,13 +26,13 @@ class IAAvatarGenerator {
     final Map<String, dynamic> appearance = bio.appearance;
 
     // Construir prompt base una sola vez para evitar reconstrucción en cada intento
-    final String baseImagePrompt =
-        '''Usa la herramienta de generación de imágenes y devuelve únicamente la imagen en base64.
-Genera una imagen hiperrealista cuadrada (1:1) centrada en la cara y torso superior, coherente con este JSON de apariencia:
-${jsonEncode(appearance)}
-La imagen debe mostrar a la IA realizando una actividad que le guste (elige la actividad a partir de 'biography'). La pose y la expresión deben transmitir que está disfrutando de esa actividad (sonrisa natural, mirada enfocada, gestos suaves).
-Viste ropa coherente con los campos de `appearance` (usa prendas, estilo, colores y accesorios especificados allí).
-Recuerda: la imagen debe representar a una mujer joven de 25 años (edad aparente = 25). Evita texto, marcas de agua y elementos anacrónicos. SOLO devuelve la imagen en base64 en la respuesta.''';
+    final String baseImagePrompt = '''
+      Usa la herramienta de generación de imágenes y devuelve únicamente la imagen en base64.
+      Genera una imagen hiperrealista cuadrada (1:1) centrada en la cara y torso superior, coherente con su apariencia física que está en el campo 'appearance'.
+      La imagen debe mostrar a la IA realizando una actividad que le guste (elige la actividad a partir de 'biography'). La pose y la expresión deben transmitir que está disfrutando de esa actividad (sonrisa natural, mirada enfocada, gestos suaves).
+      Viste ropa coherente con los campos de `appearance` (usa prendas, estilo, colores y accesorios especificados allí).
+      Recuerda: la imagen debe representar a una mujer joven de 25 años (edad aparente = 25). Evita texto, marcas de agua y elementos anacrónicos. SOLO devuelve la imagen en base64 en la respuesta.
+    ''';
 
     AIResponse imageResponse = AIResponse(text: '', base64: '', seed: '', prompt: '');
     const int maxImageAttemptsPerModel = 3;
@@ -49,7 +48,7 @@ Recuerda: la imagen debe representar a una mujer joven de 25 años (edad aparent
 
     // Prompt final (no cambia entre intentos) — mejora rendimiento al no concatenar en cada loop
     final String promptToSend = seedToUse != null
-        ? '$baseImagePrompt\nRegenera una NUEVA imagen manteniendo la identidad facial pero variando la ropa, cabello, la pose y el entorno según las que hay disponibles en appearance. SOLO devuelve la imagen en base64 en la respuesta.'
+        ? '$baseImagePrompt\nGenera una NUEVA imagen manteniendo la identidad facial pero variando la ropa, cabello, la pose y el entorno según las que hay disponibles en appearance. SOLO devuelve la imagen en base64 en la respuesta.'
         : baseImagePrompt;
 
     // Construir profileForPrompt también fuera del bucle (no cambia entre intentos)

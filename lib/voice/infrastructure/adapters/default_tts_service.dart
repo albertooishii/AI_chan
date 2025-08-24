@@ -1,9 +1,9 @@
 import 'dart:io';
+import 'package:ai_chan/voice/infrastructure/adapters/android_native_tts_service.dart';
+import 'package:ai_chan/voice/infrastructure/adapters/google_speech_service.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:ai_chan/core/interfaces/tts_service.dart';
-import 'package:ai_chan/shared/services/google_speech_service.dart';
-import 'package:ai_chan/shared/services/android_native_tts_service.dart';
 import 'package:ai_chan/core/infrastructure/adapters/openai_adapter.dart';
 import 'package:ai_chan/core/infrastructure/adapters/gemini_adapter.dart';
 // dotenv usage removed — use Config getters instead

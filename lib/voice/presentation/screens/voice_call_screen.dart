@@ -1,3 +1,4 @@
+import 'package:ai_chan/voice.dart';
 import 'package:record/record.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
@@ -9,11 +10,9 @@ import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/core/interfaces/ai_service.dart';
 import 'package:ai_chan/core/config.dart';
-import '../../domain/services/voice_call_summary_service.dart';
+import '../../domain/services/voice_call_summary_service.dart' as dsummary;
 import 'package:ai_chan/shared.dart'; // Using centralized shared exports
 import 'package:ai_chan/chat/application/providers/chat_provider.dart';
-import '../widgets/voice_call_painters.dart';
-import '../widgets/cyberpunk_subtitle.dart';
 
 class VoiceCallChat extends StatefulWidget {
   final bool incoming; // true si la llamada es entrante (IA llama al usuario)
@@ -310,7 +309,7 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
       if (!callSummary.userSpoke) return null;
       if (callSummary.messages.isEmpty) return null;
       if (callSummary.duration.inSeconds < 5) return null;
-      final summaryService = VoiceCallSummaryService(profile: chat.onboardingData);
+      final summaryService = dsummary.VoiceCallSummaryService(profile: chat.onboardingData);
       final conversationSummary = await summaryService.generateSummaryText(callSummary);
       if (conversationSummary.isEmpty) return null;
       controller.clearMessages();

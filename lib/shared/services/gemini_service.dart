@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:ai_chan/core/http_connector.dart';
 import 'ai_service.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/debug_call_logger/debug_call_logger.dart';
@@ -24,7 +25,7 @@ class GeminiService implements AIService {
 
     Future<http.Response> getWithKey(String key) async {
       final url = Uri.parse('https://generativelanguage.googleapis.com/v1beta/models?key=$key');
-      return await http.get(url);
+      return await HttpConnector.client.get(url);
     }
 
     http.Response response;
@@ -252,7 +253,7 @@ class GeminiService implements AIService {
             'body_preview': body.length > 4000 ? body.substring(0, 4000) : body,
           });
         } catch (_) {}
-        return http.post(mUrl, headers: headers, body: body);
+        return HttpConnector.client.post(mUrl, headers: headers, body: body);
       }
 
       // Determina el orden según preferencia y disponibilidad
@@ -300,7 +301,7 @@ class GeminiService implements AIService {
               Log.d('[Gemini] Reintentando con modelo alternativo: $fallbackModel');
               // Intentar con el primer modelo válido encontrado
               final retryUrl = Uri.parse('$endpointBase${fallbackModel.trim()}:generateContent?key=$keyUsed');
-              final retryResp = await http.post(retryUrl, headers: headers, body: body);
+              final retryResp = await HttpConnector.client.post(retryUrl, headers: headers, body: body);
               if (retryResp.statusCode == 200) {
                 return await parseAndBuild(retryResp.body);
               }

@@ -800,20 +800,6 @@ class GoogleSpeechService {
     }
   }
 
-  /// Legacy method - kept for backward compatibility
-  ///
-  /// Deprecated: use `voicesForUserAndAi(List<String> userCodes, List<String> aiCodes, {bool forceRefresh = false})`
-  /// instead. This method will be removed in a future release.
-  @Deprecated(
-    'use voicesForUserAndAi(List<String> userCodes, List<String> aiCodes, {bool forceRefresh = false}) instead',
-  )
-  static Future<List<Map<String, dynamic>>> voicesForAiAndSpanish(
-    String? aiLanguageCode, {
-    bool forceRefresh = false,
-  }) async {
-    return voicesForUserAndAi(['es-ES'], [aiLanguageCode ?? 'es-ES'], forceRefresh: forceRefresh);
-  }
-
   /// Obtiene configuración de voz desde variables de entorno
   static Map<String, dynamic> getVoiceConfig() {
     // Voice name may be configurable, but language, speaking rate and pitch are

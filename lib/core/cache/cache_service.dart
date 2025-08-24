@@ -313,6 +313,27 @@ class CacheService {
     }
   }
 
+  /// Elimina todos los archivos de caché de voces (usado para forzar refresh completo)
+  static Future<void> clearAllVoicesCache() async {
+    try {
+      final voicesDir = await getVoicesCacheDirectory();
+      if (await voicesDir.exists()) {
+        final entities = voicesDir.listSync();
+        for (final e in entities) {
+          try {
+            if (e is File) await e.delete();
+            if (e is Directory) await e.delete(recursive: true);
+          } catch (e) {
+            debugPrint('[Cache] Warning clearing voice cache entry: $e');
+          }
+        }
+        debugPrint('[Cache] All voices cache cleared');
+      }
+    } catch (e) {
+      debugPrint('[Cache] Error clearing all voices cache: $e');
+    }
+  }
+
   /// Elimina todo el caché de audio
   static Future<void> clearAudioCache() async {
     try {

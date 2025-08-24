@@ -49,9 +49,10 @@ class VoiceDisplayUtils {
     'lv-LV': 'Letón (Letonia)',
     'lt-LT': 'Lituano (Lituania)',
     'mt-MT': 'Maltés (Malta)',
-    'eu-ES': 'Euskera (País Vasco)',
-    'ca-ES': 'Catalán (Cataluña)',
-    'gl-ES': 'Gallego (Galicia)',
+    'eu-ES': 'Euskera (España)',
+    'ca-ES': 'Catalán (España)',
+    'gl-ES': 'Gallego (España)',
+    'oc-ES': 'Occitano (España)',
   };
 
   /// Convierte géneros a nombres legibles
@@ -65,6 +66,19 @@ class VoiceDisplayUtils {
         voice['displayName'] as String? ?? voice['display_name'] as String? ?? voice['name'] as String? ?? '';
     if (display.isEmpty) return 'Voz sin nombre';
     return display;
+  }
+
+  /// Normaliza un código de idioma como 'es_es' o 'es-es' a la forma
+  /// 'es-ES' cuando sea posible. Si la entrada no tiene región, devuelve
+  /// la parte de idioma en minúsculas ('es').
+  static String _normalizeLangCode(String code) {
+    if (code.trim().isEmpty) return code;
+    final cleaned = code.replaceAll('_', '-').trim();
+    final parts = cleaned.split('-');
+    if (parts.length == 1) return parts[0].toLowerCase();
+    final lang = parts[0].toLowerCase();
+    final region = parts[1].toUpperCase();
+    return '$lang-$region';
   }
 
   // ...existing code...
@@ -85,12 +99,13 @@ class VoiceDisplayUtils {
     // Determinar nombre de idioma preferido
     String languageName = '';
     if (languageCodes.isNotEmpty) {
-      languageName = _languageNames[languageCodes.first] ?? languageCodes.first;
+      final cand = _normalizeLangCode(languageCodes.first);
+      languageName = _languageNames[cand] ?? _languageNames[languageCodes.first] ?? languageCodes.first;
     } else {
       // intentar extraer de 'name' formato 'xx-YY-...'
       final parts = name.split('-');
       if (parts.length >= 2) {
-        final code = '${parts[0]}-${parts[1]}';
+        final code = _normalizeLangCode('${parts[0]}-${parts[1]}');
         languageName = _languageNames[code] ?? code;
       }
     }
@@ -113,5 +128,34 @@ class VoiceDisplayUtils {
     if (voiceType.isNotEmpty) parts.add(voiceType);
 
     return parts.join(' · ');
+  }
+
+  /// Devuelve únicamente la etiqueta de idioma/país para una voz, por ejemplo
+  /// 'Español (España)'. Se basa en la misma tabla usada por
+  /// `getVoiceSubtitle` y aplica las mismas reglas de fallback.
+  static String getLanguageLabelFromVoice(Map<String, dynamic> voice) {
+    final languageCodes = (voice['languageCodes'] as List<dynamic>?)?.cast<String>() ?? [];
+    final name = voice['name'] as String? ?? '';
+
+    String languageName = '';
+    if (languageCodes.isNotEmpty) {
+      final cand = _normalizeLangCode(languageCodes.first);
+      languageName = _languageNames[cand] ?? _languageNames[languageCodes.first] ?? languageCodes.first;
+    } else {
+      final parts = name.split('-');
+      if (parts.length >= 2) {
+        final code = _normalizeLangCode('${parts[0]}-${parts[1]}');
+        languageName = _languageNames[code] ?? code;
+      }
+    }
+
+    return languageName;
+  }
+
+  /// Formatea el display para voces tipo Google (nombre amigable + subtítulo)
+  static Map<String, String> formatGoogleVoiceDisplay(Map<String, dynamic> voice) {
+    final displayName = getGoogleVoiceFriendlyName(voice);
+    final subtitle = getVoiceSubtitle(voice);
+    return {'displayName': displayName, 'subtitle': subtitle};
   }
 }

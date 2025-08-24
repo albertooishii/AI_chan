@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:ai_chan/core/interfaces/i_stt_service.dart';
-import 'package:ai_chan/shared/services/google_speech_service.dart';
+import 'package:ai_chan/voice/infrastructure/adapters/google_speech_service.dart';
 import 'package:flutter/foundation.dart';
 
 /// Adapter that exposes GoogleSpeechService as ISttService

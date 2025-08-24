@@ -14,12 +14,7 @@ export 'shared/domain/services/promise_service.dart';
 
 // Legacy services moved to shared (to be refactored)
 export 'shared/services/ai_service.dart';
-export 'shared/services/google_speech_service.dart';
-export 'shared/services/android_native_tts_service.dart';
-export 'shared/services/cache_service.dart';
-export 'shared/services/event_service.dart';
-export 'shared/services/promise_service.dart';
-export 'shared/services/subtitle_controller.dart';
+// Legacy re-exports removed: prefer direct imports from their new locations.
 export 'shared/services/voice_call_controller.dart';
 export 'shared/services/gemini_service.dart';
 export 'shared/services/openai_service.dart';
