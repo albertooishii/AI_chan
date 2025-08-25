@@ -37,19 +37,9 @@ class SendMessageUseCase {
 
     try {
       // 4. Detectar si el usuario pidió explícitamente una foto y forzar generación
-      final historyTexts = updatedConversation.messages.map((m) => m.text).toList();
-      // Determinar si el último mensaje del asistente incluía una imagen
-      bool lastAssistantHadImage = false;
-      for (final msg in updatedConversation.messages.reversed) {
-        if (msg.sender == MessageSender.assistant) {
-          lastAssistantHadImage = msg.isImage == true;
-          break;
-        }
-      }
       final wantsImage = ImageRequestService.isImageRequested(
         text: userMessage.text,
-        history: historyTexts,
-        lastAssistantHadImage: lastAssistantHadImage,
+        history: updatedConversation.messages,
       );
       // Pasar la opción enableImageGeneration al servicio de respuesta
       final aiResponse = await _responseService.sendChat(messagesForAI, options: {'enableImageGeneration': wantsImage});

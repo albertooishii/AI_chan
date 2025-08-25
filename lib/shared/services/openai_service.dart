@@ -155,7 +155,7 @@ class OpenAIService implements AIService {
     if (enableImageGeneration) {
       Log.i('image_generation ACTIVADO', tag: 'OPENAI_SERVICE');
       tools = [
-        {"type": "image_generation", "input_fidelity": "low", "moderation": "low"},
+        {"type": "image_generation", "input_fidelity": "high", "moderation": "low"},
       ];
       // Detectar si la petición es explícitamente un AVATAR leyendo directamente el map de instrucciones.
       bool looksLikeAvatar = false;

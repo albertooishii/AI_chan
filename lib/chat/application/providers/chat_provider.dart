@@ -454,7 +454,7 @@ class ChatProvider extends ChangeNotifier {
     // Detección de petición de imagen (solo si no es prompt automático)
     bool solicitaImagen = false;
     if (!isAutomaticPrompt) {
-      final List<String> recentUserHistory = [];
+      final List<Message> recentUserHistory = [];
       int startIdx = messages.length - 1;
       if (messages.isNotEmpty && messages.last.sender == MessageSender.user) {
         startIdx = messages.length - 2;
@@ -462,7 +462,7 @@ class ChatProvider extends ChangeNotifier {
       for (int i = startIdx; i >= 0 && recentUserHistory.length < 5; i--) {
         final m = messages[i];
         if (m.sender == MessageSender.user && m.text.trim().isNotEmpty) {
-          recentUserHistory.add(m.text);
+          recentUserHistory.add(m);
         }
       }
       solicitaImagen = ImageRequestService.isImageRequested(text: text, history: recentUserHistory);
