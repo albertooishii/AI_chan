@@ -1,8 +1,8 @@
-import 'package:ai_chan/chat/domain/models.dart';
-import 'package:ai_chan/chat/domain/interfaces.dart';
-import 'package:ai_chan/chat/domain/services.dart';
+import 'package:ai_chan/chat/domain/models/chat_result.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/core/services/image_request_service.dart';
+import 'package:ai_chan/core/interfaces/i_chat_response_service.dart';
+import 'package:ai_chan/core/di.dart' as di;
+import 'package:ai_chan/shared/domain/services/event_timeline_service.dart';
 
 /// Send Message Use Case - Chat Application Layer
 /// Orquesta el proceso completo de envío de mensaje incluyendo:
@@ -10,94 +10,130 @@ import 'package:ai_chan/core/services/image_request_service.dart';
 /// - Adición a la conversación
 /// - Procesamiento de respuesta de IA
 /// - Actualización de estado
+/// Caso de uso ligero para encapsular la llamada al servicio de respuesta.
+/// La intención es mantener aquí la construcción del payload y el mapeo
+/// del resultado a un `ChatResult`. La lógica de estado UI y persistencia
+/// permanece en `ChatProvider`.
 class SendMessageUseCase {
-  final IChatRepository _repository;
-  final IChatResponseService _responseService;
+  final IChatResponseService? injectedService;
 
-  SendMessageUseCase({required IChatRepository repository, required IChatResponseService responseService})
-    : _repository = repository,
-      _responseService = responseService;
+  SendMessageUseCase({this.injectedService});
 
-  /// Ejecuta el caso de uso de envío de mensaje
-  Future<ChatConversation> execute({
-    required ChatConversation currentConversation,
-    required Message userMessage,
+  Future<SendMessageOutcome> sendChat({
+    required List<Message> recentMessages,
+    required SystemPrompt systemPromptObj,
+    required String model,
+    String? imageBase64,
+    String? imageMimeType,
+    bool enableImageGeneration = false,
+    AiChanProfile? onboardingData,
+    Future<void> Function()? saveAll,
   }) async {
-    // 1. Validar mensaje del usuario
-    if (!ChatValidationService.isValidMessage(userMessage)) {
-      throw ArgumentError('Invalid message: ${userMessage.text}');
+    final msgs = recentMessages
+        .map(
+          (m) => {
+            'role': m.sender == MessageSender.user ? 'user' : (m.sender == MessageSender.assistant ? 'ia' : 'system'),
+            'content': m.text,
+            'datetime': m.dateTime.toIso8601String(),
+          },
+        )
+        .toList();
+
+    final service = injectedService ?? di.getChatResponseService();
+
+    final mapResult = await service.sendChat(
+      msgs,
+      options: {
+        'systemPromptObj': systemPromptObj.toJson(),
+        'model': model,
+        'imageBase64': imageBase64,
+        'imageMimeType': imageMimeType,
+        'enableImageGeneration': enableImageGeneration,
+      },
+    );
+    final chatResult = ChatResult(
+      text: mapResult['text'] as String? ?? '',
+      isImage: mapResult['isImage'] as bool? ?? false,
+      imagePath: mapResult['imagePath'] as String?,
+      prompt: mapResult['prompt'] as String?,
+      seed: mapResult['seed'] as String?,
+      finalModelUsed: mapResult['finalModelUsed'] as String? ?? model,
+    );
+
+    // Normalize [audio] tag and build assistant Message
+    String assistantRawText = chatResult.text;
+    final openTag = '[audio]';
+    final closeTag = '[/audio]';
+    final leftTrimmed = assistantRawText.trimLeft();
+    final leftLower = leftTrimmed.toLowerCase();
+    if (leftLower.startsWith(openTag)) {
+      final afterTag = leftTrimmed.substring(openTag.length).trimLeft();
+      final lowerAfter = afterTag.toLowerCase();
+      if (lowerAfter.contains(closeTag)) {
+        final endIdx = lowerAfter.indexOf(closeTag);
+        final content = afterTag.substring(0, endIdx).trim();
+        assistantRawText = '$openTag $content $closeTag';
+      }
     }
 
-    // 2. Marcar mensaje como enviado y añadir a la conversación
-    final sentMessage = userMessage.copyWith(status: MessageStatus.sent);
-    var updatedConversation = currentConversation.addMessage(sentMessage);
+    final assistantMessage = Message(
+      text: assistantRawText,
+      sender: MessageSender.assistant,
+      dateTime: DateTime.now(),
+      isImage: chatResult.isImage,
+      image: chatResult.isImage ? AiImage(url: chatResult.imagePath ?? '', seed: chatResult.seed, prompt: chatResult.prompt) : null,
+      status: MessageStatus.read,
+    );
 
-    // 3. Preparar mensajes para la IA (convertir a formato Map)
-    final messagesForAI = updatedConversation.messages.map((msg) => _messageToMap(msg)).toList();
-
-    try {
-      // 4. Detectar si el usuario pidió explícitamente una foto y forzar generación
-      final wantsImage = ImageRequestService.isImageRequested(
-        text: userMessage.text,
-        history: updatedConversation.messages,
-      );
-      // Pasar la opción enableImageGeneration al servicio de respuesta
-      final aiResponse = await _responseService.sendChat(messagesForAI, options: {'enableImageGeneration': wantsImage});
-
-      // 5. Crear mensaje del asistente basado en la respuesta
-      final assistantMessage = Message(
-        text: aiResponse['text'] ?? '',
-        sender: MessageSender.assistant,
-        dateTime: DateTime.now(),
-        status: MessageStatus.read,
-        isImage: aiResponse['isImage'] ?? false,
-        // Agregar otros campos según sea necesario
-      );
-
-      // 6. Añadir mensaje del asistente a la conversación
-      updatedConversation = updatedConversation.addMessage(assistantMessage);
-
-      // 7. Persistir conversación actualizada
-      await _repository.saveAll(_conversationToMap(updatedConversation));
-
-      // 8. Marcar mensaje del usuario como leído
-      final finalConversation = updatedConversation.updateMessageStatus(
-        updatedConversation.messages.length - 2, // Usuario message index
-        MessageStatus.read,
-      );
-
-      return finalConversation;
-    } catch (error) {
-      // En caso de error, marcar mensaje del usuario como fallido
-      updatedConversation.updateMessageStatus(
-        updatedConversation.messages.length - 1, // Último mensaje (usuario)
-        MessageStatus.failed,
-      );
-
-      rethrow; // Re-lanzar el error para que la UI lo maneje
+    // Run event detection/save if onboardingData provided. EventTimelineService
+    // expects a saveAll callback. If none provided, pass a no-op.
+    AiChanProfile? updatedProfile;
+    if (onboardingData != null) {
+      try {
+        updatedProfile = await EventTimelineService.detectAndSaveEventAndSchedule(
+          text: recentMessages.isNotEmpty ? recentMessages.last.text : '',
+          textResponse: chatResult.text,
+          onboardingData: onboardingData,
+          saveAll: saveAll ?? () async {},
+        );
+      } catch (_) {
+        updatedProfile = null;
+      }
     }
-  }
 
-  /// Convierte un Message a Map para compatibilidad con IChatResponseService
-  Map<String, dynamic> _messageToMap(Message message) {
-    return {
-      'text': message.text,
-      'sender': message.sender.name,
-      'dateTime': message.dateTime.toIso8601String(),
-      'isImage': message.isImage,
-      if (message.image != null) 'image': message.image!.toJson(),
-      'isAudio': message.isAudio,
-      if (message.audioPath != null) 'audioPath': message.audioPath,
-    };
-  }
+    // Determine TTS request
+    bool ttsRequested = false;
+    final lower = assistantMessage.text.toLowerCase();
+    final hasOpen = lower.contains(openTag);
+    final hasClose = lower.contains(closeTag);
+    if (hasOpen && hasClose) {
+      final start = lower.indexOf(openTag) + openTag.length;
+      final end = lower.indexOf(closeTag, start);
+      if (end > start) {
+        final inner = assistantMessage.text.substring(start, end).trim();
+        if (inner.isNotEmpty) ttsRequested = true;
+      }
+    }
 
-  /// Convierte una ChatConversation a Map para persistencia
-  Map<String, dynamic> _conversationToMap(ChatConversation conversation) {
-    return {
-      'messages': conversation.messages.map((m) => m.toJson()).toList(),
-      'events': conversation.events.map((e) => e.toJson()).toList(),
-      'createdAt': conversation.createdAt.toIso8601String(),
-      'lastUpdatedAt': conversation.lastUpdatedAt.toIso8601String(),
-    };
+    return SendMessageOutcome(
+      result: chatResult,
+      assistantMessage: assistantMessage,
+      ttsRequested: ttsRequested,
+      updatedProfile: updatedProfile,
+    );
   }
+}
+
+
+/// Outcome returned by SendMessageUseCase which includes both the raw
+/// ChatResult and a normalized assistant Message ready to be appended by the
+/// caller. `ttsRequested` indicates whether the assistant message should trigger
+/// TTS generation (i.e., contains paired [audio]...[/audio] tags).
+class SendMessageOutcome {
+  final ChatResult result;
+  final Message assistantMessage;
+  final bool ttsRequested;
+  final AiChanProfile? updatedProfile;
+
+  SendMessageOutcome({required this.result, required this.assistantMessage, required this.ttsRequested, this.updatedProfile});
 }

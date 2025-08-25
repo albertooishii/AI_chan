@@ -1,4 +1,4 @@
-import 'package:ai_chan/shared/domain/services/event_timeline_service.dart';
+// event detection moved into SendMessageUseCase
 import 'package:ai_chan/shared/domain/services/promise_service.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'package:ai_chan/shared/utils/storage_utils.dart';
@@ -28,6 +28,7 @@ import 'package:ai_chan/core/services/prompt_builder.dart';
 import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/network_utils.dart';
+import 'package:ai_chan/chat/application/use_cases/send_message_use_case.dart';
 
 // Opciones asociadas a cada mensaje en la cola de envío diferido.
 class _QueuedSendOptions {
@@ -51,6 +52,7 @@ class ChatProvider extends ChangeNotifier {
   final IChatRepository? repository;
   final IAIService? aiService;
   final IChatResponseService? chatResponseService;
+  SendMessageUseCase? sendMessageUseCase;
 
   // Allow injecting a scheduler for tests or different runtime behavior. If not
   // provided, create a default one.
@@ -216,8 +218,10 @@ class ChatProvider extends ChangeNotifier {
     this.repository,
     this.aiService,
     this.chatResponseService,
+    SendMessageUseCase? sendMessageUseCase,
     PeriodicIaMessageScheduler? periodicScheduler,
   }) : _periodicScheduler = periodicScheduler ?? PeriodicIaMessageScheduler() {
+    this.sendMessageUseCase = sendMessageUseCase ?? SendMessageUseCase(injectedService: chatResponseService);
     // AudioService se inicializa perezosamente en la primera llamada (evita inicializar plugins en tests)
   }
 
@@ -482,8 +486,8 @@ class ChatProvider extends ChangeNotifier {
       }
     }
 
-    // Enviar vía servicio modularizado (maneja reintentos y base64)
-    ChatResult result;
+  // Enviar vía servicio modularizado (maneja reintentos y base64)
+  ChatResult result = ChatResult(text: '', isImage: false, imagePath: null, prompt: null, seed: null, finalModelUsed: '');
     try {
       // Antes de iniciar la petición, comprobar si hay red.
       final bool online = await hasInternetConnection();
@@ -502,99 +506,39 @@ class ChatProvider extends ChangeNotifier {
           _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
           try {
             if (chatResponseService != null) {
-              final msgs = recentMessages
-                  .map(
-                    (m) => {
-                      'role': m.sender == MessageSender.user
-                          ? 'user'
-                          : (m.sender == MessageSender.assistant ? 'ia' : 'system'),
-                      'content': m.text,
-                      'datetime': m.dateTime.toIso8601String(),
-                    },
-                  )
-                  .toList();
-              final mapResult = await chatResponseService!.sendChat(
-                msgs,
-                options: {
-                  'systemPromptObj': systemPromptObj.toJson(),
-                  'model': selected,
-                  'imageBase64': image?.base64,
-                  'imageMimeType': imageMimeType,
-                  'enableImageGeneration': solicitaImagen,
-                },
-              );
-              final tmpResult = ChatResult(
-                text: mapResult['text'] as String? ?? '',
-                isImage: mapResult['isImage'] as bool? ?? false,
-                imagePath: mapResult['imagePath'] as String?,
-                prompt: mapResult['prompt'] as String?,
-                seed: mapResult['seed'] as String?,
-                finalModelUsed: mapResult['finalModelUsed'] as String? ?? selected,
+              _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
+              final outcome = await (sendMessageUseCase ?? SendMessageUseCase(injectedService: chatResponseService))
+                  .sendChat(
+                recentMessages: recentMessages,
+                systemPromptObj: systemPromptObj,
+                model: selected,
+                imageBase64: image?.base64,
+                imageMimeType: imageMimeType,
+                enableImageGeneration: solicitaImagen,
+                onboardingData: onboardingData,
+                saveAll: saveAll,
               );
               // Marcar como read inmediatamente al recibir la respuesta de la IA
               _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
-              // Si la IA responde con el marcador [no_reply], ignorar la respuesta completamente
-              if (_checkAndHandleNoReply(tmpResult.text, index: existingMessageIndex)) return;
-              // Añadir resultado asistente en el hilo principal
-              final assistantMessage = Message(
-                text: tmpResult.text,
-                sender: MessageSender.assistant,
-                dateTime: DateTime.now(),
-                isImage: tmpResult.isImage,
-                image: tmpResult.isImage
-                    ? AiImage(url: tmpResult.imagePath ?? '', seed: tmpResult.seed, prompt: tmpResult.prompt)
-                    : null,
-                status: MessageStatus.read,
-              );
-              messages.add(assistantMessage);
-              notifyListeners();
+              if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) return;
+              result = await _applySendOutcome(outcome, existingMessageIndex: existingMessageIndex);
             } else {
               // Fallback a impl vía DI
               final impl = di.getChatResponseService();
-              final msgs = recentMessages
-                  .map(
-                    (m) => {
-                      'role': m.sender == MessageSender.user
-                          ? 'user'
-                          : (m.sender == MessageSender.assistant ? 'ia' : 'system'),
-                      'content': m.text,
-                      'datetime': m.dateTime.toIso8601String(),
-                    },
-                  )
-                  .toList();
-              final mapResult = await impl.sendChat(
-                msgs,
-                options: {
-                  'systemPromptObj': systemPromptObj.toJson(),
-                  'model': selected,
-                  'imageBase64': image?.base64,
-                  'imageMimeType': imageMimeType,
-                  'enableImageGeneration': solicitaImagen,
-                },
-              );
-              final tmpResult = ChatResult(
-                text: mapResult['text'] as String? ?? '',
-                isImage: mapResult['isImage'] as bool? ?? false,
-                imagePath: mapResult['imagePath'] as String?,
-                prompt: mapResult['prompt'] as String?,
-                seed: mapResult['seed'] as String?,
-                finalModelUsed: mapResult['finalModelUsed'] as String? ?? selected,
+              _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
+              final outcome = await (sendMessageUseCase ?? SendMessageUseCase(injectedService: impl)).sendChat(
+                recentMessages: recentMessages,
+                systemPromptObj: systemPromptObj,
+                model: selected,
+                imageBase64: image?.base64,
+                imageMimeType: imageMimeType,
+                enableImageGeneration: solicitaImagen,
+                onboardingData: onboardingData,
+                saveAll: saveAll,
               );
               _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
-              // Si la IA responde con el marcador [no_reply], ignorar la respuesta completamente
-              if (_checkAndHandleNoReply(tmpResult.text, index: existingMessageIndex)) return;
-              final assistantMessage = Message(
-                text: tmpResult.text,
-                sender: MessageSender.assistant,
-                dateTime: DateTime.now(),
-                isImage: tmpResult.isImage,
-                image: tmpResult.isImage
-                    ? AiImage(url: tmpResult.imagePath ?? '', seed: tmpResult.seed, prompt: tmpResult.prompt)
-                    : null,
-                status: MessageStatus.read,
-              );
-              messages.add(assistantMessage);
-              notifyListeners();
+              if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) return;
+              result = await _applySendOutcome(outcome, existingMessageIndex: existingMessageIndex);
             }
           } catch (e) {
             Log.e('Error enviando mensaje tras reconexión', tag: 'CHAT', error: e);
@@ -610,89 +554,77 @@ class ChatProvider extends ChangeNotifier {
       }
 
       if (chatResponseService != null) {
-        // Convert recentMessages -> List<Map> expected por la interfaz
-        final msgs = recentMessages
-            .map(
-              (m) => {
-                'role': m.sender == MessageSender.user
-                    ? 'user'
-                    : (m.sender == MessageSender.assistant ? 'ia' : 'system'),
-                'content': m.text,
-                'datetime': m.dateTime.toIso8601String(),
-              },
-            )
-            .toList();
-        // Marcar inmediatamente como 'sent' al iniciar la petición para evitar
-        // que la UI muestre el mensaje del usuario permanentemente como 'sending'
-        // (especialmente cuando la IA va a devolver una imagen y la generación tarda).
+        // Delegate to SendMessageUseCase (keeps conversion centralized)
         _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
-
-        final mapResult = await chatResponseService!.sendChat(
-          msgs,
-          options: {
-            'systemPromptObj': systemPromptObj.toJson(),
-            'model': selected,
-            'imageBase64': image?.base64,
-            'imageMimeType': imageMimeType,
-            'enableImageGeneration': solicitaImagen,
-          },
+  final outcome = await (sendMessageUseCase ?? SendMessageUseCase(injectedService: chatResponseService)).sendChat(
+          recentMessages: recentMessages,
+          systemPromptObj: systemPromptObj,
+          model: selected,
+          imageBase64: image?.base64,
+          imageMimeType: imageMimeType,
+          enableImageGeneration: solicitaImagen,
+        onboardingData: onboardingData,
+        saveAll: saveAll,
         );
-        // Map -> ChatResult
-        result = ChatResult(
-          text: mapResult['text'] as String? ?? '',
-          isImage: mapResult['isImage'] as bool? ?? false,
-          imagePath: mapResult['imagePath'] as String?,
-          prompt: mapResult['prompt'] as String?,
-          seed: mapResult['seed'] as String?,
-          finalModelUsed: mapResult['finalModelUsed'] as String? ?? selected,
-        );
-        // Si la IA devuelve el marcador [no_reply], ignorar la respuesta y
-        // asegurarnos de NO activar indicadores como isTyping.
-        if (_checkAndHandleNoReply(result.text, index: existingMessageIndex)) return;
-        // Marcar como read inmediatamente al recibir la respuesta de la IA
-        _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
+  if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) return;
+  _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
+  result = outcome.result;
+        messages.add(outcome.assistantMessage);
+        if (outcome.assistantMessage.text.trim() == '[call][/call]') {
+          pendingIncomingCallMsgIndex = messages.length - 1;
+          Log.i('[Call] Placeholder de llamada entrante detectado (index=$pendingIncomingCallMsgIndex)', tag: 'CHAT');
+          notifyListeners();
+        }
+        try {
+          if (outcome.ttsRequested) await generateTtsForMessage(outcome.assistantMessage);
+        } catch (_) {}
+        if (outcome.updatedProfile != null) {
+          onboardingData = outcome.updatedProfile!;
+          _events
+            ..clear()
+            ..addAll(onboardingData.events ?? []);
+        }
       } else {
         // Resolver una implementación por medio de la fábrica DI y usar la interfaz
         final impl = di.getChatResponseService();
-        final msgs = recentMessages
-            .map(
-              (m) => {
-                'role': m.sender == MessageSender.user
-                    ? 'user'
-                    : (m.sender == MessageSender.assistant ? 'ia' : 'system'),
-                'content': m.text,
-                'datetime': m.dateTime.toIso8601String(),
-              },
-            )
-            .toList();
         // Marcar inmediatamente como 'sent' antes del await para que el mensaje
         // del usuario no quede en estado 'sending' mientras la operación
         // de generación de imágenes (o procesamiento largo) se completa.
         _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
 
-        final mapResult = await impl.sendChat(
-          msgs,
-          options: {
-            'systemPromptObj': systemPromptObj.toJson(),
-            'model': selected,
-            'imageBase64': image?.base64,
-            'imageMimeType': imageMimeType,
-            'enableImageGeneration': solicitaImagen,
-          },
-        );
-        result = ChatResult(
-          text: mapResult['text'] as String? ?? '',
-          isImage: mapResult['isImage'] as bool? ?? false,
-          imagePath: mapResult['imagePath'] as String?,
-          prompt: mapResult['prompt'] as String?,
-          seed: mapResult['seed'] as String?,
-          finalModelUsed: mapResult['finalModelUsed'] as String? ?? selected,
+        // Use unified SendMessageUseCase for DI fallback as well
+  final outcome = await (sendMessageUseCase ?? SendMessageUseCase(injectedService: impl)).sendChat(
+          recentMessages: recentMessages,
+          systemPromptObj: systemPromptObj,
+          model: selected,
+          imageBase64: image?.base64,
+          imageMimeType: imageMimeType,
+          enableImageGeneration: solicitaImagen,
+          onboardingData: onboardingData,
+          saveAll: saveAll,
         );
         // Si la IA devuelve el marcador [no_reply], ignorar la respuesta y
         // asegurarnos de NO activar indicadores como isTyping.
-        if (_checkAndHandleNoReply(result.text, index: existingMessageIndex)) return;
-        // Marcar como read inmediatamente al recibir la respuesta de la IA
-        _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
+  if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) return;
+  // Marcar como read inmediatamente al recibir la respuesta de la IA
+  _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
+  result = outcome.result;
+        messages.add(outcome.assistantMessage);
+        if (outcome.assistantMessage.text.trim() == '[call][/call]') {
+          pendingIncomingCallMsgIndex = messages.length - 1;
+          Log.i('[Call] Placeholder de llamada entrante detectado (index=$pendingIncomingCallMsgIndex)', tag: 'CHAT');
+          notifyListeners();
+        }
+        try {
+          if (outcome.ttsRequested) await generateTtsForMessage(outcome.assistantMessage);
+        } catch (_) {}
+        if (outcome.updatedProfile != null) {
+          onboardingData = outcome.updatedProfile!;
+          _events
+            ..clear()
+            ..addAll(onboardingData.events ?? []);
+        }
+        notifyListeners();
       }
       // Éxito de red: marcar último mensaje usuario como 'sent'
       _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
@@ -806,52 +738,9 @@ class ChatProvider extends ChangeNotifier {
       image: result.isImage ? AiImage(url: result.imagePath ?? '', seed: result.seed, prompt: result.prompt) : null,
       status: MessageStatus.read,
     );
-    // Si la IA responde con el marcador [no_reply'], no añadir ni procesar la respuesta
-    if (_checkAndHandleNoReply(assistantMessage.text, index: existingMessageIndex)) return;
-    messages.add(assistantMessage);
-    // Detección de llamada entrante cuando el modelo responde con el placeholder exacto
-    if (assistantMessage.text.trim() == '[call][/call]') {
-      pendingIncomingCallMsgIndex = messages.length - 1;
-      Log.i('[Call] Placeholder de llamada entrante detectado (index=$pendingIncomingCallMsgIndex)', tag: 'CHAT');
-      // Notificar ya para que la UI abra la pantalla de llamada sin esperar al resto del post-procesado
-      notifyListeners();
-    }
-    // Generar TTS solo si la IA explícitamente marca su respuesta como nota de voz
-    try {
-      if (!assistantMessage.isAudio) {
-        final lower = assistantMessage.text.toLowerCase();
-        final openTag = '[audio]';
-        final closeTag = '[/audio]';
-        final hasOpen = lower.contains(openTag);
-        final hasClose = lower.contains(closeTag);
-        if (hasOpen && hasClose) {
-          final start = lower.indexOf(openTag) + openTag.length;
-          final end = lower.indexOf(closeTag, start);
-          if (end > start) {
-            final inner = assistantMessage.text.substring(start, end).trim();
-            // Solo generar si hay texto real entre las etiquetas
-            if (inner.isNotEmpty) {
-              await generateTtsForMessage(assistantMessage);
-            }
-          }
-        }
-      }
-    } catch (_) {}
-
-    // --- DETECCIÓN Y GUARDADO AUTOMÁTICO DE EVENTOS/CITAS Y HORARIOS ---
-    // Modularizado: solo llamadas a servicios externos
-    final updatedProfile = await EventTimelineService.detectAndSaveEventAndSchedule(
-      text: text,
-      textResponse: result.text,
-      onboardingData: onboardingData,
-      saveAll: saveAll,
-    );
-    if (updatedProfile != null) {
-      onboardingData = updatedProfile;
-      _events
-        ..clear()
-        ..addAll(onboardingData.events ?? []);
-    }
+  // Si la IA responde con el marcador [no_reply'], no añadir ni procesar la respuesta
+  // (el post-procesado - TTS / eventos - lo realiza SendMessageUseCase y se
+  // aplica cuando se añadió el assistantMessage en las ramas de envío).
 
     // Analiza promesas IA tras cada mensaje IA
     onIaMessageSent();
@@ -1060,6 +949,33 @@ class ChatProvider extends ChangeNotifier {
     }
   }
   // =======================================================
+
+  /// Aplica un SendMessageOutcome: añade el assistantMessage a la lista,
+  /// dispara TTS si corresponde, actualiza onboardingData y devuelve el
+  /// ChatResult para continuar el flujo.
+  Future<ChatResult> _applySendOutcome(SendMessageOutcome outcome, {int? existingMessageIndex}) async {
+    final ChatResult chatResult = outcome.result;
+    messages.add(outcome.assistantMessage);
+    // Si la IA responde con el marcador [call][/call] notificar inmediatamente
+    if (outcome.assistantMessage.text.trim() == '[call][/call]') {
+      pendingIncomingCallMsgIndex = messages.length - 1;
+      Log.i('[Call] Placeholder de llamada entrante detectado (index=$pendingIncomingCallMsgIndex)', tag: 'CHAT');
+      notifyListeners();
+    }
+    // Generar TTS si la use-case lo solicitó
+    try {
+      if (outcome.ttsRequested) await generateTtsForMessage(outcome.assistantMessage);
+    } catch (_) {}
+    // Actualizar onboardingData si la use-case guardó/actualizó eventos
+    if (outcome.updatedProfile != null) {
+      onboardingData = outcome.updatedProfile!;
+      _events
+        ..clear()
+        ..addAll(onboardingData.events ?? []);
+    }
+    notifyListeners();
+    return chatResult;
+  }
 
   /// Añade un mensaje de imagen enviado por el usuario
   void addUserImageMessage(Message msg) {
