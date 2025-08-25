@@ -21,8 +21,7 @@ import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart' show showAppSnackBar, showAppDialog;
 import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/chat/domain/models/chat_result.dart';
-import 'package:ai_chan/voice.dart';
-import 'package:ai_chan/shared/utils/audio_utils.dart' as audio_utils;
+import 'package:ai_chan/chat/application/services/tts_service.dart';
 import 'package:ai_chan/chat/domain/services/periodic_ia_message_scheduler.dart';
 import 'package:ai_chan/core/services/prompt_builder.dart';
 import 'package:ai_chan/core/di.dart' as di;
@@ -53,6 +52,7 @@ class ChatProvider extends ChangeNotifier {
   final IAIService? aiService;
   final IChatResponseService? chatResponseService;
   SendMessageUseCase? sendMessageUseCase;
+  TtsService? ttsService;
 
   // Allow injecting a scheduler for tests or different runtime behavior. If not
   // provided, create a default one.
@@ -218,12 +218,12 @@ class ChatProvider extends ChangeNotifier {
     this.repository,
     this.aiService,
     this.chatResponseService,
-    SendMessageUseCase? sendMessageUseCase,
+    SendMessageUseCase? sendMessageUseCaseParam,
+    TtsService? ttsServiceParam,
     PeriodicIaMessageScheduler? periodicScheduler,
-  }) : _periodicScheduler = periodicScheduler ?? PeriodicIaMessageScheduler() {
-    this.sendMessageUseCase = sendMessageUseCase ?? SendMessageUseCase(injectedService: chatResponseService);
-    // AudioService se inicializa perezosamente en la primera llamada (evita inicializar plugins en tests)
-  }
+  }) : sendMessageUseCase = sendMessageUseCaseParam ?? SendMessageUseCase(injectedService: chatResponseService),
+       ttsService = ttsServiceParam,
+       _periodicScheduler = periodicScheduler ?? PeriodicIaMessageScheduler();
 
   void startPeriodicIaMessages() {
     _periodicScheduler.start(
@@ -486,8 +486,15 @@ class ChatProvider extends ChangeNotifier {
       }
     }
 
-  // Enviar vía servicio modularizado (maneja reintentos y base64)
-  ChatResult result = ChatResult(text: '', isImage: false, imagePath: null, prompt: null, seed: null, finalModelUsed: '');
+    // Enviar vía servicio modularizado (maneja reintentos y base64)
+    ChatResult result = ChatResult(
+      text: '',
+      isImage: false,
+      imagePath: null,
+      prompt: null,
+      seed: null,
+      finalModelUsed: '',
+    );
     try {
       // Antes de iniciar la petición, comprobar si hay red.
       final bool online = await hasInternetConnection();
@@ -509,15 +516,15 @@ class ChatProvider extends ChangeNotifier {
               _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
               final outcome = await (sendMessageUseCase ?? SendMessageUseCase(injectedService: chatResponseService))
                   .sendChat(
-                recentMessages: recentMessages,
-                systemPromptObj: systemPromptObj,
-                model: selected,
-                imageBase64: image?.base64,
-                imageMimeType: imageMimeType,
-                enableImageGeneration: solicitaImagen,
-                onboardingData: onboardingData,
-                saveAll: saveAll,
-              );
+                    recentMessages: recentMessages,
+                    systemPromptObj: systemPromptObj,
+                    model: selected,
+                    imageBase64: image?.base64,
+                    imageMimeType: imageMimeType,
+                    enableImageGeneration: solicitaImagen,
+                    onboardingData: onboardingData,
+                    saveAll: saveAll,
+                  );
               // Marcar como read inmediatamente al recibir la respuesta de la IA
               _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
               if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) return;
@@ -556,34 +563,19 @@ class ChatProvider extends ChangeNotifier {
       if (chatResponseService != null) {
         // Delegate to SendMessageUseCase (keeps conversion centralized)
         _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
-  final outcome = await (sendMessageUseCase ?? SendMessageUseCase(injectedService: chatResponseService)).sendChat(
+        final outcome = await (sendMessageUseCase ?? SendMessageUseCase(injectedService: chatResponseService)).sendChat(
           recentMessages: recentMessages,
           systemPromptObj: systemPromptObj,
           model: selected,
           imageBase64: image?.base64,
           imageMimeType: imageMimeType,
           enableImageGeneration: solicitaImagen,
-        onboardingData: onboardingData,
-        saveAll: saveAll,
+          onboardingData: onboardingData,
+          saveAll: saveAll,
         );
-  if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) return;
-  _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
-  result = outcome.result;
-        messages.add(outcome.assistantMessage);
-        if (outcome.assistantMessage.text.trim() == '[call][/call]') {
-          pendingIncomingCallMsgIndex = messages.length - 1;
-          Log.i('[Call] Placeholder de llamada entrante detectado (index=$pendingIncomingCallMsgIndex)', tag: 'CHAT');
-          notifyListeners();
-        }
-        try {
-          if (outcome.ttsRequested) await generateTtsForMessage(outcome.assistantMessage);
-        } catch (_) {}
-        if (outcome.updatedProfile != null) {
-          onboardingData = outcome.updatedProfile!;
-          _events
-            ..clear()
-            ..addAll(onboardingData.events ?? []);
-        }
+        if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) return;
+        _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
+        result = await _applySendOutcome(outcome, existingMessageIndex: existingMessageIndex);
       } else {
         // Resolver una implementación por medio de la fábrica DI y usar la interfaz
         final impl = di.getChatResponseService();
@@ -593,7 +585,7 @@ class ChatProvider extends ChangeNotifier {
         _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
 
         // Use unified SendMessageUseCase for DI fallback as well
-  final outcome = await (sendMessageUseCase ?? SendMessageUseCase(injectedService: impl)).sendChat(
+        final outcome = await (sendMessageUseCase ?? SendMessageUseCase(injectedService: impl)).sendChat(
           recentMessages: recentMessages,
           systemPromptObj: systemPromptObj,
           model: selected,
@@ -605,26 +597,10 @@ class ChatProvider extends ChangeNotifier {
         );
         // Si la IA devuelve el marcador [no_reply], ignorar la respuesta y
         // asegurarnos de NO activar indicadores como isTyping.
-  if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) return;
-  // Marcar como read inmediatamente al recibir la respuesta de la IA
-  _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
-  result = outcome.result;
-        messages.add(outcome.assistantMessage);
-        if (outcome.assistantMessage.text.trim() == '[call][/call]') {
-          pendingIncomingCallMsgIndex = messages.length - 1;
-          Log.i('[Call] Placeholder de llamada entrante detectado (index=$pendingIncomingCallMsgIndex)', tag: 'CHAT');
-          notifyListeners();
-        }
-        try {
-          if (outcome.ttsRequested) await generateTtsForMessage(outcome.assistantMessage);
-        } catch (_) {}
-        if (outcome.updatedProfile != null) {
-          onboardingData = outcome.updatedProfile!;
-          _events
-            ..clear()
-            ..addAll(onboardingData.events ?? []);
-        }
-        notifyListeners();
+        if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) return;
+        // Marcar como read inmediatamente al recibir la respuesta de la IA
+        _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
+        result = await _applySendOutcome(outcome, existingMessageIndex: existingMessageIndex);
       }
       // Éxito de red: marcar último mensaje usuario como 'sent'
       _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
@@ -738,9 +714,9 @@ class ChatProvider extends ChangeNotifier {
       image: result.isImage ? AiImage(url: result.imagePath ?? '', seed: result.seed, prompt: result.prompt) : null,
       status: MessageStatus.read,
     );
-  // Si la IA responde con el marcador [no_reply'], no añadir ni procesar la respuesta
-  // (el post-procesado - TTS / eventos - lo realiza SendMessageUseCase y se
-  // aplica cuando se añadió el assistantMessage en las ramas de envío).
+    // Si la IA responde con el marcador [no_reply'], no añadir ni procesar la respuesta
+    // (el post-procesado - TTS / eventos - lo realiza SendMessageUseCase y se
+    // aplica cuando se añadió el assistantMessage en las ramas de envío).
 
     // Analiza promesas IA tras cada mensaje IA
     onIaMessageSent();
@@ -876,75 +852,23 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> generateTtsForMessage(Message msg, {String voice = 'nova'}) async {
     if (msg.sender != MessageSender.assistant || msg.isAudio) return;
-    String? lang;
-    // Heurística: si la voz parece una voz de Google (contiene guion y dos letras al inicio), intentar resolver languageCode
-    if (voice.contains('-') && RegExp(r'^[a-zA-Z]{2}-').hasMatch(voice)) {
-      try {
-        final all = await GoogleSpeechService.fetchGoogleVoices();
-        final found = all.firstWhere((v) => (v['name'] as String?) == voice, orElse: () => {});
-        if (found.isNotEmpty) {
-          final lcodes = (found['languageCodes'] as List<dynamic>?)?.cast<String>() ?? [];
-          if (lcodes.isNotEmpty) lang = lcodes.first;
-        }
-      } catch (_) {}
-    }
-    // Resolve preferred voice according to currently selected provider (prefs -> env)
-    String preferredVoice = voice;
+    // Delegar a TtsService para sintetizar y persistir el audio
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedProvider = prefs.getString('selected_audio_provider') ?? Config.getAudioProvider().toLowerCase();
-      final providerKey = 'selected_voice_$savedProvider';
-      final providerVoice = prefs.getString(providerKey);
-      final legacyVoice = prefs.getString('selected_voice');
-      if (providerVoice != null && providerVoice.trim().isNotEmpty) {
-        preferredVoice = providerVoice;
-      } else if (legacyVoice != null && legacyVoice.trim().isNotEmpty) {
-        preferredVoice = legacyVoice;
+      final tts = ttsService ?? TtsService(audioService);
+      final path = await tts.synthesizeAndPersist(msg.text, voice: voice);
+      if (path != null) {
+        final idx = messages.indexOf(msg);
+        if (idx != -1) {
+          messages[idx] = messages[idx].copyWith(isAudio: true, audioPath: path, autoTts: true);
+          notifyListeners();
+        }
       }
-    } catch (_) {}
-
-    final file = await audioService.synthesizeTts(msg.text, voice: preferredVoice, languageCode: lang);
-    if (file != null) {
-      // Ensure the synthesized file is persisted to the configured local audio dir
-      try {
-        final localDir = await audio_utils.getLocalAudioDir();
-        String finalPath = file.path;
-        if (!file.path.startsWith(localDir.path)) {
-          final ext = file.path.split('.').last;
-          final dest = '${localDir.path}/assistant_tts_${DateTime.now().millisecondsSinceEpoch}.$ext';
-          try {
-            await file.rename(dest);
-            finalPath = dest;
-          } catch (e) {
-            try {
-              await file.copy(dest);
-              final srcLen = await file.length();
-              final dstLen = await File(dest).length();
-              if (srcLen == dstLen) {
-                try {
-                  await file.delete();
-                } catch (_) {}
-              }
-              finalPath = dest;
-            } catch (e2) {
-              // If copy also fails, keep original file path
-              debugPrint('[Audio][TTS] Could not move synthesized file to local audio dir: $e2');
-            }
-          }
-        }
-
-        final idx = messages.indexOf(msg);
-        if (idx != -1) {
-          messages[idx] = messages[idx].copyWith(isAudio: true, audioPath: finalPath, autoTts: true);
-          notifyListeners();
-        }
-      } catch (e) {
-        debugPrint('[Audio][TTS] Error persisting synthesized file: $e');
-        final idx = messages.indexOf(msg);
-        if (idx != -1) {
-          messages[idx] = messages[idx].copyWith(isAudio: true, audioPath: file.path, autoTts: true);
-          notifyListeners();
-        }
+    } catch (e) {
+      debugPrint('[Audio][TTS] Error generating TTS: $e');
+      final idx = messages.indexOf(msg);
+      if (idx != -1) {
+        messages[idx] = messages[idx].copyWith(isAudio: true, autoTts: true);
+        notifyListeners();
       }
     }
   }

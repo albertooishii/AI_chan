@@ -81,7 +81,9 @@ class SendMessageUseCase {
       sender: MessageSender.assistant,
       dateTime: DateTime.now(),
       isImage: chatResult.isImage,
-      image: chatResult.isImage ? AiImage(url: chatResult.imagePath ?? '', seed: chatResult.seed, prompt: chatResult.prompt) : null,
+      image: chatResult.isImage
+          ? AiImage(url: chatResult.imagePath ?? '', seed: chatResult.seed, prompt: chatResult.prompt)
+          : null,
       status: MessageStatus.read,
     );
 
@@ -124,7 +126,6 @@ class SendMessageUseCase {
   }
 }
 
-
 /// Outcome returned by SendMessageUseCase which includes both the raw
 /// ChatResult and a normalized assistant Message ready to be appended by the
 /// caller. `ttsRequested` indicates whether the assistant message should trigger
@@ -135,5 +136,10 @@ class SendMessageOutcome {
   final bool ttsRequested;
   final AiChanProfile? updatedProfile;
 
-  SendMessageOutcome({required this.result, required this.assistantMessage, required this.ttsRequested, this.updatedProfile});
+  SendMessageOutcome({
+    required this.result,
+    required this.assistantMessage,
+    required this.ttsRequested,
+    this.updatedProfile,
+  });
 }

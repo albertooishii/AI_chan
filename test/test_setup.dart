@@ -5,6 +5,7 @@ import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/core/interfaces/i_stt_service.dart';
 import 'fakes/fake_connectors.dart' as fake_connectors;
 import 'fakes/fake_http_client.dart';
+import 'fakes/fake_audio_playback.dart';
 import 'package:ai_chan/core/http_connector.dart';
 
 // (No global fake realtime client here — tests opt-in to install fakes
@@ -33,6 +34,8 @@ GEMINI_API_KEY=test_key
   SharedPreferences.setMockInitialValues(prefs ?? {});
   // Override STT to avoid hitting GoogleSpeechService in tests
   di.setTestSttOverride(_FakeTestStt());
+  // Override audio playback to avoid native plugin initialization in tests
+  di.setTestAudioPlaybackOverride(FakeAudioPlayback());
   // Register fake connectors to ensure no tests open real sockets/websockets
   fake_connectors.registerFakeSocketConnector();
   fake_connectors.registerFakeWebSocketConnector();
