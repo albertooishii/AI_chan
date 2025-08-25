@@ -20,6 +20,7 @@ class IAAvatarGenerator {
     bool appendAvatar = false,
   }) async {
     final String forcedImageModel = Config.getDefaultImageModel();
+    final String forcedTextModel = Config.getDefaultTextModel();
     Log.d('[IAAvatarGenerator] Avatar: generando imagen con modelo $forcedImageModel');
 
     // Obtener la apariencia desde el perfil; los llamadores deben actualizar
@@ -95,10 +96,9 @@ class IAAvatarGenerator {
           "Fondo coherente con la actividad descrita en la biografía. Evitar logos, marcas y texto. Mantener props y entorno contemporáneos; no incluir ejemplos literales que el modelo pueda renderizar como texto u objetos exactos.",
       "restricciones": [
         "No texto en la imagen",
-        "Sin marcas de agua ni logos",
+        "Sin marcas de agua, pie de foto ni logos, solamente la foto",
         "Sin elementos anacrónicos",
         "Sólo una persona en el encuadre",
-        "Evitar poses sexualizadas; mantener naturalidad y respeto",
       ],
       "salida": "Usa la herramienta de generación de imágenes y devuelve únicamente la imagen en base64, sin texto.",
       "parametros_recomendados": {
@@ -112,32 +112,15 @@ class IAAvatarGenerator {
       "image_request": {"size": "1024x1024", "aspect_ratio": "1:1", "fidelity": 0.25},
     };
 
-    // Construir identity_summary dinámicamente copiando los campos listados
-    // en 'rasgos_fisicos.campos_a_usar' desde el objeto appearance.
-    try {
-      final campos = (basePromptMap['rasgos_fisicos'] as Map<String, dynamic>)['campos_a_usar'] as List<dynamic>;
-      final Map<String, dynamic> dynSummary = {};
-      for (final c in campos) {
-        final key = c.toString();
-        if (appearance.containsKey(key)) dynSummary[key] = appearance[key];
-      }
-      basePromptMap['identity_summary'] = dynSummary;
-    } catch (_) {
-      // If something fails, fallback a un resumen mínimo
-      basePromptMap['identity_summary'] = {
-        'edad_aparente': appearance['edad_aparente'],
-        'genero': appearance['genero'],
-      };
-    }
-
     AIResponse imageResponse = AIResponse(text: '', base64: '', seed: '', prompt: '');
     const int maxImageAttemptsPerModel = 3;
 
     // Decide seed internamente: si appendAvatar==true y el perfil tiene avatars,
     // usamos la seed del primer avatar para mantener identidad. Si no, generamos fresh.
     String? seedToUse;
-    if (appendAvatar && bio.avatars != null && bio.avatars!.isNotEmpty && (bio.avatars!.first.seed ?? '').isNotEmpty) {
-      seedToUse = bio.avatars!.first.seed;
+    if (appendAvatar) {
+      final firstAvatar = bio.firstAvatar;
+      seedToUse = (firstAvatar != null && (firstAvatar.seed ?? '').isNotEmpty) ? firstAvatar.seed : null;
     } else {
       seedToUse = null;
     }
@@ -165,45 +148,69 @@ class IAAvatarGenerator {
         recentTimelineEntries = sorted.take(5).toList();
       }
 
-      // Construir un pequeño resumen de identidad para enviar al motor en
-      // lugar de la seed como instrucción rígida (preserva identidad sin forzar edits)
-      // Usar el resumen de identidad ya incluido en basePromptMap
-      final identitySummary = basePromptMap['identity_summary'] as Map<String, dynamic>;
+      // Construir profileForPrompt mínimo para pasar contexto al generador
+      final profileForPromptGen = AiChanProfile(
+        biography: bio.biography,
+        userName: bio.userName,
+        aiName: bio.aiName,
+        userBirthday: null,
+        aiBirthday: null,
+        appearance: appearance,
+        avatars: bio.avatars,
+        timeline: recentTimelineEntries,
+      );
 
-      // Bloque de variación simplificado: evitar instrucciones que sugieran
-      // ediciones mínimas sobre la imagen previa. Pedimos una foto NUEVA y
-      // distinta, conservando sólo la referencia facial mínima.
-      final variationBlock = {
-        'variacion_por_seed': {
-          'mantener_identidad_facial': true,
-          'identity_summary': identitySummary,
-          'completely_new_scene': true,
-          'cambio_ropa_y_fondo': true,
-          'ensure_distinct': true,
-          'instruccion':
-              "Genera una FOTO COMPLETAMENTE NUEVA en otra ubicación, con ropa distinta y realizando una actividad diferente. Usa 'identity_summary' SOLO para mantener una mínima reconocibilidad facial; no reutilices ropa, accesorios, fondo ni composiciones anteriores. Devuelve únicamente la imagen en base64 sin texto ni marcas de agua.",
-        },
-      };
+      // Preparar identitySummary y las instrucciones para generar el prompt textual
+      final identitySummary = (basePromptMap['identity_summary'] is Map<String, dynamic>)
+          ? basePromptMap['identity_summary'] as Map<String, dynamic>
+          : <String, dynamic>{
+              'edad_aparente': appearance['edad_aparente'] ?? 25,
+              'genero': appearance['genero'] ?? 'mujer',
+            };
 
-      // Construir un prompt de variación reducido — NO unir todo el basePromptMap
-      // para evitar arrastrar 'entorno' o 'actividad_y_pose' que causaban fondos
-      // repetidos similares. Conservamos solo los campos necesarios y añadimos
-      // el bloque de variación.
-      final variationPrompt = <String, dynamic>{
-        'image_type': basePromptMap['image_type'],
-        'is_avatar': basePromptMap['is_avatar'],
-        'descripcion': basePromptMap['descripcion'],
-        'composicion': basePromptMap['composicion'],
-        'rasgos_fisicos': basePromptMap['rasgos_fisicos'],
-        'estetica': basePromptMap['estetica'],
-        'camara': basePromptMap['camara'],
+      // Preparar instrucciones para generar el prompt textual
+      final generatorInstructions = {
+        'task': 'generate_image_prompt',
+        'description':
+            '''Genera UN SOLO prompt de imagen listo para el generador (una frase larga, separada por comas). Debe ser SUPER-DETALLADO: extrae y utiliza toda la información visual disponible del `appearance` del `profile` adjunto (usar como única fuente de verdad para rasgos físicos, ropa, colores, texturas y marcas), de la `biography` (actividad, gustos, contexto) y del `timeline` (entradas recientes) para incluir props, lugares o escenas relacionadas con acciones recientes. No repitas el tema o estilo de avatares anteriores (avatars) y produce un concepto notablemente diferente mientras mantienes los rasgos faciales esenciales si se utiliza continuidad de semilla. No inventes campos ni claves que no existan. Forzar edad_aparente = 25. Añade una cláusula negativa corta: "sin texto, sin logos, sin marcas de agua, sin pie de foto, sin distorsiones, sin manos deformes". Devuelve SOLO el prompt en una línea, sin explicaciones, sin metadatos ni enumeraciones de campos. Si falta algún detalle en `appearance`, usa un fallback realista sin inventar valores concretos.''',
+        'identity_summary': identitySummary,
+        'biography': bio.biography,
         'restricciones': basePromptMap['restricciones'],
-        'salida': basePromptMap['salida'],
         'image_request': basePromptMap['image_request'],
       };
 
-      variationPrompt.addAll(variationBlock);
-      promptToSend = variationPrompt;
+      // Enviar petición al servicio de IA para generar el prompt textual
+      String generatedPromptText = '';
+      try {
+        final systemPromptGen = SystemPrompt(
+          profile: profileForPromptGen,
+          dateTime: DateTime.now(),
+          instructions: generatorInstructions,
+        );
+        final genResp = await (aiService != null
+            ? aiService.sendMessageImpl([], systemPromptGen, model: forcedTextModel, enableImageGeneration: false)
+            : AIService.sendMessage([], systemPromptGen, model: forcedTextModel, enableImageGeneration: false));
+        // genResp.text is non-nullable; prefer it when non-empty, otherwise use prompt
+        generatedPromptText = (genResp.text.isNotEmpty ? genResp.text : (genResp.prompt)).trim();
+        // Log para depuración: ver el prompt textual generado por el modelo de texto
+        Log.d('[IAAvatarGenerator] Prompt generado por modelo de texto: $generatedPromptText');
+      } catch (e) {
+        Log.w('[IAAvatarGenerator] Prompt generator failed: $e');
+      }
+
+      if (generatedPromptText.isNotEmpty) {
+        // Usar el prompt textual generado como instrucción principal para
+        // la generación de imagen. Conservamos restricciones y metadata.
+        promptToSend = {
+          'image_prompt': generatedPromptText,
+          'image_request': basePromptMap['image_request'],
+          'restricciones': basePromptMap['restricciones'],
+          'salida': basePromptMap['salida'],
+        };
+      } else {
+        Log.w('[IAAvatarGenerator] Prompt generator returned empty; usando basePromptMap como fallback');
+        promptToSend = basePromptMap;
+      }
     } else {
       promptToSend = basePromptMap;
     }
@@ -216,7 +223,7 @@ class IAAvatarGenerator {
       userBirthday: null,
       aiBirthday: null,
       appearance: appearance,
-      avatars: null,
+      avatars: seedToUse != null ? bio.avatars : [],
       timeline: seedToUse != null ? recentTimelineEntries : [],
     );
 

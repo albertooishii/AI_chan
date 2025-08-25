@@ -246,7 +246,7 @@ class ChatBubble extends StatelessWidget {
                       .toList();
                   final idx = images.indexWhere((m) => m.image?.url == imageUrl);
                   if (idx != -1) {
-                    ExpandableImageDialog.show(images, idx, imageDir: imageDir);
+                    ExpandableImageDialog.show(images, idx, imageDir: imageDir, onImageDeleted: null);
                   }
                 },
                 child: ClipRRect(

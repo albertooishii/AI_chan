@@ -1,17 +1,24 @@
 import 'dart:io';
 import 'dart:ui';
-import 'package:ai_chan/shared/utils/download_image.dart';
 import 'package:flutter/material.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:ai_chan/main.dart';
-import 'package:ai_chan/shared/utils/dialog_utils.dart';
+import 'package:ai_chan/shared.dart';
+import 'package:ai_chan/shared/widgets/app_dialog.dart';
 
 class ExpandableImageDialog {
   /// images: lista de mensajes con imagePath válido
   /// initialIndex: índice de la imagen a mostrar primero
-  static void show(List<Message> images, int initialIndex, {Directory? imageDir}) {
+  /// [onImageDeleted] callback receives the deleted AiImage (if any) so callers
+  /// can update their authoritative state (for example, remove from saved avatars).
+  static void show(
+    List<Message> images,
+    int initialIndex, {
+    Directory? imageDir,
+    void Function(AiImage?)? onImageDeleted,
+  }) {
     // Show the dialog using the app's global navigator so callers don't need
     // to pass a BuildContext (avoids accidental use across async gaps).
     final ctx = navigatorKey.currentContext;
@@ -22,7 +29,12 @@ class ExpandableImageDialog {
       // para que el ScaffoldMessenger raíz (scaffoldMessengerKey) pueda
       // mostrar SnackBars por encima del diálogo.
       useRootNavigator: false,
-      builder: (context) => _GalleryImageViewerDialog(images: images, initialIndex: initialIndex, imageDir: imageDir),
+      builder: (context) => _GalleryImageViewerDialog(
+        images: images,
+        initialIndex: initialIndex,
+        imageDir: imageDir,
+        onImageDeleted: onImageDeleted,
+      ),
     );
   }
 }
@@ -31,7 +43,13 @@ class _GalleryImageViewerDialog extends StatefulWidget {
   final List<Message> images;
   final int initialIndex;
   final Directory? imageDir;
-  const _GalleryImageViewerDialog({required this.images, required this.initialIndex, this.imageDir});
+  final void Function(AiImage?)? onImageDeleted;
+  const _GalleryImageViewerDialog({
+    required this.images,
+    required this.initialIndex,
+    this.imageDir,
+    this.onImageDeleted,
+  });
 
   @override
   State<_GalleryImageViewerDialog> createState() => _GalleryImageViewerDialogState();
@@ -117,10 +135,69 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
     }
   }
 
+  Future<void> _confirmAndDeleteCurrentImage() async {
+    if (!mounted) return;
+
+    final msg = widget.images[_currentIndex];
+    final relPath = msg.image?.url;
+
+    final confirmed = await showAppDialog<bool>(
+      useRootNavigator: true,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar imagen'),
+        content: const Text('¿Estás seguro de que deseas eliminar esta imagen? Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Eliminar')),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Intentar borrar el archivo si existe
+    if (relPath != null && relPath.isNotEmpty && widget.imageDir != null) {
+      try {
+        final absPath = '${widget.imageDir!.path}/${relPath.split('/').last}';
+        final file = File(absPath);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      } catch (e) {
+        // Mostrar aviso, pero continuar con la eliminación de la lista
+        showAppSnackBar('Advertencia: no se pudo borrar el archivo de imagen: $e', isError: true);
+      }
+    }
+
+    AiImage? deletedImg;
+    // Eliminar del listado localmente y actualizar índice/página
+    setState(() {
+      final removed = widget.images.removeAt(_currentIndex);
+      deletedImg = removed.image;
+      if (_currentIndex >= widget.images.length) {
+        _currentIndex = (widget.images.length - 1).clamp(0, widget.images.length - 1);
+      }
+      // Reconstruir el PageController en la nueva posición para evitar inconsistencias
+      _controller = PageController(initialPage: _currentIndex);
+      // Si no quedan imágenes, cerrar el diálogo
+      if (widget.images.isEmpty) {
+        Navigator.of(navigatorKey.currentContext!).pop();
+      }
+    });
+
+    // Notificar al llamador para que actualice su estado (p.ej., remover avatar guardado)
+    try {
+      widget.onImageDeleted?.call(deletedImg);
+    } catch (_) {}
+
+    showAppSnackBar('Imagen eliminada');
+  }
+
   // Métodos _showIcon y _hideIcon eliminados (ya no se usan)
 
   @override
   Widget build(BuildContext context) {
+    final hasText = widget.images[_currentIndex].text.isNotEmpty && widget.images[_currentIndex].text.trim() != '';
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: EdgeInsets.zero,
@@ -130,14 +207,26 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
         onKeyEvent: (event) => _onKey(event),
         child: Stack(
           children: [
-            // Fondo con blur suave cuando se muestran los controles
-            if (_showText)
-              Positioned.fill(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 3.0, sigmaY: 3.0),
-                  child: Container(color: Colors.black.withValues(alpha: 0.2)),
+            // Fondo con blur suave cuando se muestran los controles.
+            // Mantener el BackdropFilter siempre montado evita que el fondo
+            // aparezca sin blur durante la transición. Animamos sólo la
+            // capa de color encima para controlar visibilidad.
+            Positioned.fill(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 3.0, sigmaY: 3.0),
+                // El IgnorePointer y AnimatedOpacity gobiernan sólo la capa de color,
+                // no el filtro en sí.
+                child: IgnorePointer(
+                  ignoring: !_showText,
+                  child: AnimatedOpacity(
+                    opacity: _showText ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeInOut,
+                    child: Container(color: Colors.black.withValues(alpha: 0.2)),
+                  ),
                 ),
               ),
+            ),
             // Imagen y navegación (pantalla completa, esquinas redondeadas siempre)
             Positioned.fill(
               child: ClipRRect(
@@ -186,6 +275,8 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                               child: GestureDetector(
                                 behavior: HitTestBehavior.opaque,
                                 onTap: () {
+                                  // Only toggle overlay visibility. Avoid touching the PageController
+                                  // to prevent temporary jumps back to the initial page.
                                   setState(() {
                                     _showText = !_showText;
                                   });
@@ -257,87 +348,117 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                 ),
               ),
             ),
-            // Controles y texto (encima de la imagen)
-            if (_showText) ...[
-              Positioned(
-                top: 8,
-                left: 8,
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white, size: 32),
-                  onPressed: () => Navigator.of(context).pop(),
+            // Controles y texto (encima de la imagen) — siempre montados, se muestran con opacity
+            Positioned(
+              top: dialogTopOffset(context),
+              left: dialogLeftOffset(context),
+              child: IgnorePointer(
+                ignoring: !_showText,
+                child: AnimatedOpacity(
+                  opacity: _showText ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeInOut,
+                  child: IconButton(
+                    padding: const EdgeInsets.all(8),
+                    icon: const Icon(Icons.close, color: AppColors.primary, size: 24),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
                 ),
               ),
-              // Botón de descarga y menú juntos en la esquina superior derecha
-              Positioned(
-                top: 16,
-                right: 16,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.download, color: Colors.white, size: 32),
-                      tooltip: 'Descargar imagen',
-                      onPressed: () async {
-                        final relPath = widget.images[_currentIndex].image?.url;
-                        if (relPath != null && relPath.isNotEmpty && widget.imageDir != null) {
-                          // Construir ruta completa
-                          final absPath = '${widget.imageDir!.path}/${relPath.split('/').last}';
-                          final result = await downloadImage(absPath);
+            ),
+            // Botón de descarga y menú juntos en la esquina superior derecha
+            Positioned(
+              top: dialogTopOffset(context),
+              right: dialogRightOffset(context),
+              child: IgnorePointer(
+                ignoring: !_showText,
+                child: AnimatedOpacity(
+                  opacity: _showText ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeInOut,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        padding: const EdgeInsets.all(8),
+                        icon: const Icon(Icons.download, color: AppColors.primary, size: 24),
+                        tooltip: 'Descargar imagen',
+                        onPressed: () async {
+                          final relPath = widget.images[_currentIndex].image?.url;
+                          if (relPath != null && relPath.isNotEmpty && widget.imageDir != null) {
+                            // Construir ruta completa
+                            final absPath = '${widget.imageDir!.path}/${relPath.split('/').last}';
+                            final result = await downloadImage(absPath);
 
-                          if (!mounted) return; // State no longer mounted
+                            if (!mounted) return; // State no longer mounted
 
-                          if (!result.$1 && result.$2 != null) {
-                            // Hay error específico
-                            showAppSnackBar('Error al descargar: ${result.$2}', isError: true);
-                          } else if (result.$1) {
-                            // Éxito
-                            showAppSnackBar('✅ Imagen guardada correctamente', isError: false);
+                            if (!result.$1 && result.$2 != null) {
+                              // Hay error específico
+                              showAppSnackBar('Error al descargar: ${result.$2}', isError: true);
+                            } else if (result.$1) {
+                              // Éxito
+                              showAppSnackBar('✅ Imagen guardada correctamente', isError: false);
+                            }
+                            // Si !result.$1 && result.$2 == null significa que el usuario canceló - no hacer nada
+                          } else {
+                            showAppSnackBar('Error: No se encontró la imagen', isError: true);
                           }
-                          // Si !result.$1 && result.$2 == null significa que el usuario canceló - no hacer nada
-                        } else {
-                          showAppSnackBar('Error: No se encontró la imagen', isError: true);
-                        }
-                      },
-                    ),
-                    PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert, color: Colors.white, size: 32),
-                      tooltip: 'Opciones',
-                      onSelected: (value) {
-                        if (value == 'description') {
-                          _showImageDescriptionDialog(widget.images[_currentIndex].image?.prompt);
-                        }
-                      },
-                      itemBuilder: (context) {
-                        return [const PopupMenuItem<String>(value: 'description', child: Text('Ver descripción'))];
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            // Mostrar el texto solo si no es vacío y si _showText está activo
-            if (_showText &&
-                widget.images[_currentIndex].text.isNotEmpty &&
-                widget.images[_currentIndex].text.trim() != '')
-              Positioned(
-                // Elevar el pie de foto para que no se solape con la etiqueta inferior
-                // (la etiqueta se muestra en bottom:12). Usamos un offset mayor.
-                bottom: 72,
-                left: 24,
-                right: 24,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
-                  decoration: BoxDecoration(
-                    color: const Color.fromRGBO(0, 0, 0, 0.7),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Text(
-                    widget.images[_currentIndex].text,
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                    textAlign: TextAlign.center,
+                        },
+                      ),
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, color: AppColors.primary, size: 24),
+                        tooltip: 'Opciones',
+                        onSelected: (value) async {
+                          if (value == 'description') {
+                            _showImageDescriptionDialog(widget.images[_currentIndex].image?.prompt);
+                          } else if (value == 'delete') {
+                            await _confirmAndDeleteCurrentImage();
+                          }
+                        },
+                        itemBuilder: (context) {
+                          return [
+                            const PopupMenuItem<String>(
+                              value: 'description',
+                              child: Text('Ver descripción', style: TextStyle(color: AppColors.primary)),
+                            ),
+                            const PopupMenuItem<String>(
+                              value: 'delete',
+                              child: Text('Eliminar', style: TextStyle(color: AppColors.primary)),
+                            ),
+                          ];
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ),
+            ),
+            // Mostrar texto (pie de foto) siempre montado, con animación de opacidad
+            Positioned(
+              bottom: 72,
+              left: kAppDialogSidePadding,
+              right: kAppDialogSidePadding,
+              child: IgnorePointer(
+                ignoring: !_showText || !hasText,
+                child: AnimatedOpacity(
+                  opacity: (_showText && hasText) ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeInOut,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
+                    decoration: BoxDecoration(
+                      color: const Color.fromRGBO(0, 0, 0, 0.7),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(
+                      widget.images[_currentIndex].text,
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),

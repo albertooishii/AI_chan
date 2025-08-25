@@ -13,6 +13,7 @@ import '../widgets/expandable_image_dialog.dart';
 import 'package:ai_chan/core/models.dart';
 import 'gallery_screen.dart';
 import 'package:ai_chan/shared.dart'; // Using centralized shared exports
+import 'package:ai_chan/shared/widgets/app_dialog.dart';
 import '../widgets/tts_configuration_dialog.dart';
 import 'package:ai_chan/main.dart';
 
@@ -157,79 +158,88 @@ class _ChatScreenState extends State<ChatScreen> {
             }
           }
 
-          return AlertDialog(
-            backgroundColor: Colors.black,
-            title: Row(
-              children: [
-                const Expanded(
-                  child: Text('Modelo de texto', style: TextStyle(color: AppColors.primary)),
-                ),
-                IconButton(
-                  icon: localLoading
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.refresh, color: AppColors.primary),
-                  tooltip: 'Actualizar modelos',
-                  onPressed: () {
-                    refreshModels();
-                  },
-                ),
-              ],
-            ),
-            content: localModels.isEmpty
-                ? const Text('No se encontraron modelos disponibles.', style: TextStyle(color: AppColors.primary))
-                : SizedBox(
-                    width: 350,
-                    child: ListView(
-                      shrinkWrap: true,
-                      children: [
-                        // Grupo Gemini
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8.0),
-                          child: Text(
-                            'Google',
-                            style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 16),
-                          ),
-                        ),
-                        ...localModels
-                            .where((m) => m.toLowerCase().contains('gemini') || m.toLowerCase().contains('imagen-'))
-                            .map(
-                              (m) => ListTile(
-                                title: Text(m, style: const TextStyle(color: AppColors.primary)),
-                                trailing: initialModel == m
-                                    ? const Icon(Icons.radio_button_checked, color: AppColors.secondary)
-                                    : const Icon(Icons.radio_button_off, color: AppColors.primary),
-                                onTap: () => Navigator.of(dialogCtxInner).pop(m),
-                              ),
-                            ),
-                        const Divider(color: AppColors.secondary, thickness: 1, height: 24),
-                        // Grupo OpenAI
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8.0),
-                          child: Text(
-                            'OpenAI',
-                            style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
-                          ),
-                        ),
-                        ...localModels
-                            .where((m) => m.toLowerCase().startsWith('gpt-'))
-                            .map(
-                              (m) => ListTile(
-                                title: Text(m, style: const TextStyle(color: AppColors.primary)),
-                                trailing: initialModel == m
-                                    ? const Icon(Icons.radio_button_checked, color: AppColors.secondary)
-                                    : const Icon(Icons.radio_button_off, color: AppColors.primary),
-                                onTap: () => Navigator.of(dialogCtxInner).pop(m),
-                              ),
-                            ),
-                      ],
-                    ),
-                  ),
-            actions: [
-              TextButton(
-                child: const Text('Cancelar', style: TextStyle(color: AppColors.primary)),
-                onPressed: () => Navigator.of(dialogCtxInner).pop(),
+          return AppAlertDialog(
+            title: const Text('Modelo de texto', style: TextStyle(color: AppColors.primary)),
+            headerActions: [
+              IconButton(
+                icon: localLoading
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.refresh, color: AppColors.primary),
+                tooltip: 'Actualizar modelos',
+                onPressed: () {
+                  refreshModels();
+                },
               ),
             ],
+            content: localModels.isEmpty
+                ? const Text('No se encontraron modelos disponibles.', style: TextStyle(color: AppColors.primary))
+                : Builder(
+                    builder: (innerCtx) {
+                      final double maxWidth = dialogContentMaxWidth(innerCtx);
+                      // Use the full available dialog content width so the scroll bar
+                      // sits at the right edge of the dialog (no forced narrow column).
+                      final double desiredWidth = maxWidth;
+                      return Align(
+                        alignment: Alignment.topLeft,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: desiredWidth),
+                          child: ListView(
+                            shrinkWrap: true,
+                            children: [
+                              // Grupo Gemini
+                              const Padding(
+                                padding: EdgeInsets.fromLTRB(12.0, 8.0, 12.0, 8.0),
+                                child: Text(
+                                  'Google',
+                                  style: TextStyle(
+                                    color: AppColors.secondary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                              ...localModels
+                                  .where(
+                                    (m) => m.toLowerCase().contains('gemini') || m.toLowerCase().contains('imagen-'),
+                                  )
+                                  .map(
+                                    (m) => ListTile(
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+                                      title: Text(m, style: const TextStyle(color: AppColors.primary)),
+                                      trailing: initialModel == m
+                                          ? const Icon(Icons.radio_button_checked, color: AppColors.secondary)
+                                          : const Icon(Icons.radio_button_off, color: AppColors.primary),
+                                      onTap: () => Navigator.of(dialogCtxInner).pop(m),
+                                    ),
+                                  ),
+                              const Divider(color: AppColors.secondary, thickness: 1, height: 24),
+                              // Grupo OpenAI
+                              const Padding(
+                                padding: EdgeInsets.fromLTRB(12.0, 8.0, 12.0, 8.0),
+                                child: Text(
+                                  'OpenAI',
+                                  style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
+                                ),
+                              ),
+                              ...localModels
+                                  .where((m) => m.toLowerCase().startsWith('gpt-'))
+                                  .map(
+                                    (m) => ListTile(
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+                                      title: Text(m, style: const TextStyle(color: AppColors.primary)),
+                                      trailing: initialModel == m
+                                          ? const Icon(Icons.radio_button_checked, color: AppColors.secondary)
+                                          : const Icon(Icons.radio_button_off, color: AppColors.primary),
+                                      onTap: () => Navigator.of(dialogCtxInner).pop(m),
+                                    ),
+                                  ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+            // Bottom actions removed: dialog close is available in the AppAlertDialog title bar.
           );
         },
       ),
@@ -283,10 +293,10 @@ class _ChatScreenState extends State<ChatScreen> {
         // Abrir VoiceCallChat en modo incoming solo si no hay ya otra ruta de llamada
         final alreadyOpen = navigator.widget is VoiceCallChat; // heurístico simple
         if (!alreadyOpen) {
-          final existing = navCtx.read<ChatProvider>();
           navigator.push(
             MaterialPageRoute(
-              builder: (_) => ChangeNotifierProvider.value(value: existing, child: const VoiceCallChat(incoming: true)),
+              builder: (_) =>
+                  ChangeNotifierProvider.value(value: chatProvider, child: const VoiceCallChat(incoming: true)),
             ),
           );
         }
@@ -300,66 +310,97 @@ class _ChatScreenState extends State<ChatScreen> {
         elevation: 0,
         shadowColor: Colors.transparent,
         surfaceTintColor: Colors.black,
-        title: Row(
-          children: [
-            if (_isRegeneratingAppearance)
-              // Spinner en lugar del avatar mientras se regenera
-              const CircleAvatar(
-                radius: 16,
-                backgroundColor: AppColors.secondary,
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+        title: Padding(
+          padding: EdgeInsets.only(right: MediaQuery.of(context).padding.right + 8.0),
+          child: Row(
+            children: [
+              if (_isRegeneratingAppearance)
+                // Spinner en lugar del avatar mientras se regenera
+                const CircleAvatar(
+                  radius: 16,
+                  backgroundColor: AppColors.secondary,
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    ),
                   ),
-                ),
-              )
-            else if (chatProvider.onboardingData.avatars != null &&
-                chatProvider.onboardingData.avatars!.isNotEmpty &&
-                chatProvider.onboardingData.avatars!.last.url != null &&
-                chatProvider.onboardingData.avatars!.last.url!.isNotEmpty)
-              (_imageDir != null)
-                  ? GestureDetector(
-                      onTap: () {
-                        // Construir lista de Message para ExpandableImageDialog a partir de avatars
-                        final avatars = chatProvider.onboardingData.avatars!;
-                        final messages = avatars.map((a) {
-                          final filename = a.url?.split('/').last ?? '';
-                          return Message(
-                            image: AiImage(url: filename, seed: a.seed, prompt: a.prompt, createdAtMs: a.createdAtMs),
-                            text: '',
-                            sender: MessageSender.assistant,
-                            isImage: true,
-                            dateTime: DateTime.now(),
+                )
+              else if (chatProvider.onboardingData.avatars != null &&
+                  chatProvider.onboardingData.avatars!.isNotEmpty &&
+                  chatProvider.onboardingData.avatars!.last.url != null &&
+                  chatProvider.onboardingData.avatars!.last.url!.isNotEmpty)
+                (_imageDir != null)
+                    ? GestureDetector(
+                        onTap: () {
+                          // Construir lista de Message para ExpandableImageDialog a partir de avatars
+                          final avatars = chatProvider.onboardingData.avatars!;
+                          final messages = avatars.map((a) {
+                            final filename = a.url?.split('/').last ?? '';
+                            return Message(
+                              image: AiImage(url: filename, seed: a.seed, prompt: a.prompt, createdAtMs: a.createdAtMs),
+                              text: '',
+                              sender: MessageSender.assistant,
+                              isImage: true,
+                              dateTime: DateTime.now(),
+                            );
+                          }).toList();
+                          // Mostrar último (index = last)
+                          ExpandableImageDialog.show(
+                            messages,
+                            messages.length - 1,
+                            imageDir: _imageDir,
+                            onImageDeleted: (deleted) async {
+                              if (deleted == null) return;
+                              // Si la imagen eliminada corresponde a un avatar guardado,
+                              // actualizar onboardingData removiendo ese avatar y persistir.
+                              final provider = context.read<ChatProvider>();
+                              try {
+                                final current = provider.onboardingData;
+                                final avatars = List<AiImage>.from(current.avatars ?? []);
+                                avatars.removeWhere((a) => a.seed == deleted.seed || a.url == deleted.url);
+                                final updated = current.copyWith(avatars: avatars);
+                                provider.onboardingData = updated;
+                                // Persistir y notificar listeners
+                                try {
+                                  await provider.saveAll();
+                                } catch (_) {}
+                                try {
+                                  provider.notifyListeners();
+                                } catch (_) {}
+                              } catch (e) {
+                                // Silenciar errores menores
+                              }
+                            },
                           );
-                        }).toList();
-                        // Mostrar último (index = last)
-                        ExpandableImageDialog.show(messages, messages.length - 1, imageDir: _imageDir);
-                      },
-                      child: CircleAvatar(
+                        },
+                        child: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: AppColors.secondary,
+                          backgroundImage: FileImage(
+                            File(
+                              '${_imageDir!.path}/${chatProvider.onboardingData.avatars!.last.url!.split('/').last}',
+                            ),
+                          ),
+                        ),
+                      )
+                    : const CircleAvatar(
                         radius: 16,
                         backgroundColor: AppColors.secondary,
-                        backgroundImage: FileImage(
-                          File('${_imageDir!.path}/${chatProvider.onboardingData.avatars!.last.url!.split('/').last}'),
-                        ),
+                        child: Icon(Icons.person, color: AppColors.primary),
                       ),
-                    )
-                  : const CircleAvatar(
-                      radius: 16,
-                      backgroundColor: AppColors.secondary,
-                      child: Icon(Icons.person, color: AppColors.primary),
-                    ),
-            const SizedBox(width: 12),
-            Flexible(
-              child: Text(
-                aiName,
-                style: const TextStyle(color: AppColors.primary, fontSize: 20, fontWeight: FontWeight.w500),
-                overflow: TextOverflow.ellipsis,
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  aiName,
+                  style: const TextStyle(color: AppColors.primary, fontSize: 20, fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           IconButton(
@@ -570,10 +611,9 @@ class _ChatScreenState extends State<ChatScreen> {
               } else if (value == 'calendar') {
                 final navCtx = navigatorKey.currentContext;
                 if (navCtx == null) return;
-                final existing = navCtx.read<ChatProvider>();
                 Navigator.of(navCtx).push(
                   MaterialPageRoute(
-                    builder: (_) => ChangeNotifierProvider.value(value: existing, child: const CalendarScreen()),
+                    builder: (_) => ChangeNotifierProvider.value(value: chatProvider, child: const CalendarScreen()),
                   ),
                 );
               } else if (value == 'export_json') {
@@ -682,18 +722,14 @@ class _ChatScreenState extends State<ChatScreen> {
                   aiLangCodes = LocaleUtils.officialLanguageCodesForCountry(aiCountry.trim().toUpperCase());
                 }
 
-                // Abrir configuración de TTS como pantalla completa
+                // Mostrar configuración de TTS en diálogo consistente con AppAlertDialog
                 final navCtx = navigatorKey.currentContext;
                 if (navCtx == null) return;
-                final result = await Navigator.of(navCtx).push<bool>(
-                  MaterialPageRoute(
-                    fullscreenDialog: true,
-                    builder: (ctx) => TtsConfigurationDialog(
-                      userLangCodes: userLangCodes,
-                      aiLangCodes: aiLangCodes,
-                      chatProvider: chatProvider,
-                    ),
-                  ),
+                final result = await TtsConfigurationDialog.showAsDialog(
+                  navCtx,
+                  userLangCodes: userLangCodes,
+                  aiLangCodes: aiLangCodes,
+                  chatProvider: chatProvider,
                 );
 
                 if (result == true && mounted) {

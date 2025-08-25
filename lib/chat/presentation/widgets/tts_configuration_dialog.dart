@@ -1,7 +1,7 @@
 import 'package:ai_chan/core/cache/cache_service.dart';
 import 'package:ai_chan/voice.dart';
 import 'package:flutter/material.dart';
-// provider import removed; dialog receives ChatProvider from caller
+import 'package:ai_chan/shared/widgets/app_dialog.dart';
 import 'package:ai_chan/core/di.dart' as di;
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'dart:io' show Platform;
@@ -9,11 +9,8 @@ import 'package:android_intent_plus/android_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared.dart'; // Using centralized shared exports
+import 'package:ai_chan/shared/utils/openai_voice_utils.dart';
 import '../../application/providers/chat_provider.dart';
-// Use the infrastructure facade to avoid direct imports from presentation layer
-// Usar la lista estática de voces para la capa de presentación y evitar
-// dependencias directas a infraestructura o aplicación en este widget.
-// shared.dart already re-exports voice constants
 
 class TtsConfigurationDialog extends StatefulWidget {
   final List<String>? userLangCodes;
@@ -24,6 +21,38 @@ class TtsConfigurationDialog extends StatefulWidget {
 
   @override
   State<TtsConfigurationDialog> createState() => _TtsConfigurationDialogState();
+
+  /// Helper para mostrar este widget dentro de un AppAlertDialog.
+  static Future<bool?> showAsDialog(
+    BuildContext ctx, {
+    List<String>? userLangCodes,
+    List<String>? aiLangCodes,
+    ChatProvider? chatProvider,
+  }) {
+    final stateKey = GlobalKey<_TtsConfigurationDialogState>();
+    return showAppDialog<bool>(
+      builder: (context) => AppAlertDialog(
+        title: const Text('Configuración de TTS'),
+        headerActions: [
+          // Action that triggers the internal refresh logic via the state key
+          IconButton(
+            tooltip: 'Actualizar voces',
+            icon: const Icon(Icons.refresh, color: AppColors.primary),
+            onPressed: () {
+              stateKey.currentState?.refreshVoices(forceRefresh: true);
+            },
+          ),
+        ],
+        content: TtsConfigurationDialog(
+          key: stateKey,
+          userLangCodes: userLangCodes,
+          aiLangCodes: aiLangCodes,
+          chatProvider: chatProvider,
+        ),
+      ),
+      barrierDismissible: true,
+    );
+  }
 }
 
 class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with WidgetsBindingObserver {
@@ -100,6 +129,26 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
       }
     } catch (e) {
       Log.d('DEBUG TTS: Error refrescando voces nativas: $e', tag: 'TTS_DIALOG');
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// Método público que puede ser invocado desde la cabecera (header action)
+  /// para forzar la recarga de voces.
+  Future<void> refreshVoices({bool forceRefresh = false}) async {
+    setState(() => _isLoading = true);
+    try {
+      if (_selectedProvider == 'google') {
+        await _loadVoices(forceRefresh: forceRefresh);
+      } else if (_selectedProvider == 'openai') {
+        await _loadOpenAiVoices(forceRefresh: forceRefresh);
+      } else if (_selectedProvider == 'android_native') {
+        await _refreshNativeVoices();
+      }
+      showAppSnackBar('Voces actualizadas', isError: false);
+    } catch (e) {
+      showAppSnackBar('Error al actualizar voces: $e', isError: true);
+    } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -249,9 +298,9 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
   Future<void> _loadOpenAiVoices({bool forceRefresh = false}) async {
     setState(() => _isLoading = true);
     try {
-      // Use the static voice list exported by the voice bounded context
-      _openaiVoices.clear();
-      _openaiVoices.addAll(kOpenAIVoices.map((v) => {'name': v}).toList());
+  // Use the static voice list helper (presentation-level) to ensure consistent shape and display
+  _openaiVoices.clear();
+  _openaiVoices.addAll(OpenAiVoiceUtils.loadStaticOpenAiVoices());
     } catch (e) {
       _openaiVoices.clear();
       _openaiVoices.addAll(kOpenAIVoices.map((v) => {'name': v}).toList());
@@ -304,8 +353,110 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
 
   @override
   Widget build(BuildContext context) {
-    // Pantalla completa con Scaffold para parecer una pantalla nativa
+    // Detectar si este widget está siendo mostrado dentro de un diálogo
+    final isInDialog =
+        ModalRoute.of(context)?.settings.name == null &&
+        Navigator.of(context).canPop() &&
+        // heurística: si no hay un Scaffold ancestor asumimos diálogo embebido
+        Scaffold.maybeOf(context) == null;
 
+    // Construir el cuerpo principal que puede ser embebido dentro de AppAlertDialog
+    final content = SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Proveedor:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+
+            // Selector de proveedor
+            if (_androidNativeAvailable) ...[
+              ListTile(
+                leading: _selectedProvider == 'android_native'
+                    ? const Icon(Icons.radio_button_checked)
+                    : const Icon(Icons.radio_button_unchecked),
+                title: const Text('TTS Nativo Android (Gratuito)'),
+                subtitle: Text('${_androidNativeVoices.length} voces instaladas'),
+                onTap: () async {
+                  setState(() => _selectedProvider = 'android_native');
+                  await _saveSettings();
+                  // Forzar refresco inmediato al seleccionar proveedor nativo
+                  await _refreshNativeVoices();
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+
+            ListTile(
+              leading: _selectedProvider == 'google'
+                  ? const Icon(Icons.radio_button_checked)
+                  : const Icon(Icons.radio_button_unchecked),
+              title: const Text('Google Cloud TTS'),
+              subtitle: Text(
+                GoogleSpeechService.isConfigured ? '${_googleVoices.length} voces disponibles' : 'No configurado',
+              ),
+              enabled: GoogleSpeechService.isConfigured,
+              onTap: GoogleSpeechService.isConfigured
+                  ? () async {
+                      setState(() => _selectedProvider = 'google');
+                      await _saveSettings();
+                    }
+                  : null,
+            ),
+
+            ListTile(
+              leading: _selectedProvider == 'openai'
+                  ? const Icon(Icons.radio_button_checked)
+                  : const Icon(Icons.radio_button_unchecked),
+              title: const Text('OpenAI TTS'),
+              subtitle: Text('${_openaiVoices.length} voces disponibles'),
+              onTap: () async {
+                setState(() => _selectedProvider = 'openai');
+                await _saveSettings();
+              },
+            ),
+
+            const SizedBox(height: 12),
+            const Divider(),
+
+            // Nota: el control de actualización ahora está en la cabecera (icono refresh)
+            const Text('Voces:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+
+            Expanded(child: _isLoading ? const Center(child: CircularProgressIndicator()) : _buildVoiceList()),
+
+            const SizedBox(height: 12),
+
+            // Información del caché y limpiar
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Caché:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text('Tamaño: ${CacheService.formatCacheSize(_cacheSize)}', style: const TextStyle(fontSize: 12)),
+                  ],
+                ),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('Limpiar'),
+                  onPressed: _cacheSize > 0 ? _clearCache : null,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+
+    // Si estamos dentro de un diálogo, devolver solo el contenido; el AppAlertDialog
+    // se encargará de mostrar la cabecera con el botón de cerrar/volver.
+    if (isInDialog) return content;
+
+    // En caso contrario, mantener la pantalla completa existente (Scaffold con AppBar)
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -365,96 +516,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
           ],
         ),
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Proveedor:', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-
-              // Selector de proveedor
-              if (_androidNativeAvailable) ...[
-                ListTile(
-                  leading: _selectedProvider == 'android_native'
-                      ? const Icon(Icons.radio_button_checked)
-                      : const Icon(Icons.radio_button_unchecked),
-                  title: const Text('TTS Nativo Android (Gratuito)'),
-                  subtitle: Text('${_androidNativeVoices.length} voces instaladas'),
-                  onTap: () async {
-                    setState(() => _selectedProvider = 'android_native');
-                    await _saveSettings();
-                    // Forzar refresco inmediato al seleccionar proveedor nativo
-                    await _refreshNativeVoices();
-                  },
-                ),
-                const SizedBox(height: 8),
-              ],
-
-              ListTile(
-                leading: _selectedProvider == 'google'
-                    ? const Icon(Icons.radio_button_checked)
-                    : const Icon(Icons.radio_button_unchecked),
-                title: const Text('Google Cloud TTS'),
-                subtitle: Text(
-                  GoogleSpeechService.isConfigured ? '${_googleVoices.length} voces disponibles' : 'No configurado',
-                ),
-                enabled: GoogleSpeechService.isConfigured,
-                onTap: GoogleSpeechService.isConfigured
-                    ? () async {
-                        setState(() => _selectedProvider = 'google');
-                        await _saveSettings();
-                      }
-                    : null,
-              ),
-
-              ListTile(
-                leading: _selectedProvider == 'openai'
-                    ? const Icon(Icons.radio_button_checked)
-                    : const Icon(Icons.radio_button_unchecked),
-                title: const Text('OpenAI TTS'),
-                subtitle: Text('${_openaiVoices.length} voces disponibles'),
-                onTap: () async {
-                  setState(() => _selectedProvider = 'openai');
-                  await _saveSettings();
-                },
-              ),
-
-              const SizedBox(height: 12),
-              const Divider(),
-
-              // Nota: el control de actualización ahora está en la cabecera (icono refresh)
-              const Text('Voces:', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-
-              Expanded(child: _isLoading ? const Center(child: CircularProgressIndicator()) : _buildVoiceList()),
-
-              const SizedBox(height: 12),
-
-              // Información del caché y limpiar
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Caché:', style: TextStyle(fontWeight: FontWeight.bold)),
-                      Text('Tamaño: ${CacheService.formatCacheSize(_cacheSize)}', style: const TextStyle(fontSize: 12)),
-                    ],
-                  ),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.delete_outline),
-                    label: const Text('Limpiar'),
-                    onPressed: _cacheSize > 0 ? _clearCache : null,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-            ],
-          ),
-        ),
-      ),
+      body: content,
     );
   }
 
@@ -595,10 +657,9 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
               subtitle = '$originalSubtitle · $quality';
             }
           } else if (_selectedProvider == 'openai') {
-            // Minimal display formatter for OpenAI voices
-            final name = (voice['name'] as String?) ?? voiceName;
-            displayName = name;
-            subtitle = '';
+              final disp = OpenAiVoiceUtils.formatVoiceDisplay(voice);
+            displayName = disp['displayName'] ?? displayName;
+            subtitle = disp['subtitle'] ?? '';
           }
 
           return ListTile(

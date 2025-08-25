@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
 import 'package:ai_chan/core/models.dart';
 import '../constants/app_colors.dart';
+import '../widgets/app_dialog.dart';
 
 /// Utilities to export/import chat JSON and show a preview dialog with copy/save actions.
 class ChatJsonUtils {
@@ -134,60 +135,21 @@ class ChatJsonUtils {
     return await showAppDialog<void>(
       builder: (ctx) {
         final previewScrollController = ScrollController();
-        return AlertDialog(
-          backgroundColor: Colors.black,
+        // Calcular offsets lateral para alinear título/label y preview con AppAlertDialog
+        final leftOffset = dialogLeftOffset(ctx);
+        final rightOffset = dialogRightOffset(ctx);
+        final maxWidth = dialogContentMaxWidth(ctx);
+        return AppAlertDialog(
           title: const Text(
             'Vista previa JSON exportado',
             style: TextStyle(color: AppColors.secondary, fontSize: 18, fontWeight: FontWeight.bold),
           ),
-          content: SizedBox(
-            width: MediaQuery.of(ctx).size.width * 0.8, // 80% del ancho de la pantalla
-            height: MediaQuery.of(ctx).size.height * 0.7, // 70% de la altura de la pantalla
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Text(
-                    'Contenido del archivo JSON:',
-                    style: const TextStyle(color: AppColors.primary, fontSize: 14, fontWeight: FontWeight.w500),
-                  ),
-                ),
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F0F0F),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white24),
-                    ),
-                    child: Scrollbar(
-                      controller: previewScrollController,
-                      thumbVisibility: true,
-                      child: SingleChildScrollView(
-                        controller: previewScrollController,
-                        padding: const EdgeInsets.all(16),
-                        child: SelectableText(
-                          preview,
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 12,
-                            fontFamily: 'Courier',
-                            height: 1.4,
-                          ),
-                          textAlign: TextAlign.left,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Guardar como...', style: TextStyle(color: AppColors.secondary)),
+          headerActions: [
+            IconButton(
+              tooltip: 'Guardar',
+              icon: const Icon(Icons.save, color: AppColors.secondary),
               onPressed: () async {
+                // Close dialog and trigger save flow
                 Navigator.of(ctx).pop();
                 if (chat != null) {
                   final (success, error) = await ChatJsonUtils.saveJsonFile(chat);
@@ -211,13 +173,11 @@ class ChatJsonUtils {
                     var path = result;
                     if (!path.toLowerCase().endsWith('.json')) path = '$path.json';
 
-                    // Si estamos en Android y la ruta parece ser SAF/content URI, no intentar usar File(path)
                     if (!kIsWeb && Platform.isAndroid) {
                       final lower = path.toLowerCase();
                       if (lower.startsWith('/document') ||
                           lower.startsWith('content://') ||
                           lower.contains('primary:')) {
-                        // Confiar en que FilePicker guardó los bytes correctamente
                         showAppSnackBar('Archivo guardado correctamente.', preferRootMessenger: true);
                         return;
                       }
@@ -241,18 +201,68 @@ class ChatJsonUtils {
                 }
               },
             ),
-            TextButton(
-              child: const Text('Copiar', style: TextStyle(color: AppColors.primary)),
+            IconButton(
+              tooltip: 'Copiar JSON',
+              icon: const Icon(Icons.copy, color: AppColors.primary),
               onPressed: () async {
                 await Clipboard.setData(ClipboardData(text: preview));
                 showAppSnackBar('JSON copiado al portapapeles', preferRootMessenger: true);
               },
             ),
-            TextButton(
-              child: const Text('Cerrar', style: TextStyle(color: AppColors.primary)),
-              onPressed: () => Navigator.of(ctx).pop(),
-            ),
           ],
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.only(bottom: 8.0, left: leftOffset),
+                child: const Text(
+                  'Contenido del archivo JSON:',
+                  style: TextStyle(color: AppColors.primary, fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+              ),
+              Flexible(
+                child: Builder(
+                  builder: (innerCtx) {
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: leftOffset, right: rightOffset),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: maxWidth),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0F0F0F),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.white24),
+                            ),
+                            child: Scrollbar(
+                              controller: previewScrollController,
+                              thumbVisibility: true,
+                              child: SingleChildScrollView(
+                                controller: previewScrollController,
+                                padding: const EdgeInsets.all(16),
+                                child: SelectableText(
+                                  preview,
+                                  style: const TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 12,
+                                    fontFamily: 'Courier',
+                                    height: 1.4,
+                                  ),
+                                  textAlign: TextAlign.left,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+          // Bottom actions removed: save/copy are available in the headerActions now.
         );
       },
     );

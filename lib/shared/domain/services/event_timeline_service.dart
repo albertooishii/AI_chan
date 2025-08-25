@@ -8,19 +8,11 @@ class EventTimelineService {
     final date = EventParserUtils.parseFullDate(text);
     if (date != null && EventParserUtils.containsEventKeywords(text)) {
       // Extraer la frase más larga y significativa del texto
-      final frases = text
-          .split(RegExp(r'[\.\n!?]'))
-          .map((f) => f.trim())
-          .where((f) => f.isNotEmpty)
-          .toList();
+      final frases = text.split(RegExp(r'[\.\n!?]')).map((f) => f.trim()).where((f) => f.isNotEmpty).toList();
       // Elegir la frase más larga (probablemente el nombre del evento)
-      String descripcionEvento = frases.isNotEmpty
-          ? frases.reduce((a, b) => a.length >= b.length ? a : b)
-          : 'Evento';
+      String descripcionEvento = frases.isNotEmpty ? frases.reduce((a, b) => a.length >= b.length ? a : b) : 'Evento';
       // Limpiar markdown y caracteres especiales
-      descripcionEvento = descripcionEvento
-          .replaceAll(RegExp(r'\*|\_|\#|\-|\`|\>|\[|\]|\(|\)|\:|\;'), '')
-          .trim();
+      descripcionEvento = descripcionEvento.replaceAll(RegExp(r'\*|\_|\#|\-|\`|\>|\[|\]|\(|\)|\:|\;'), '').trim();
       // Detectar hora explícita como '7 de la tarde', '8 pm', etc.
       final horaExplicita = RegExp(
         r'(\d{1,2})\s*(?:[:h](\d{2}))?\s*(de la tarde|pm|p\.m\.|tarde|de la noche|noche|am|a\.m\.|mañana)?',
@@ -52,21 +44,10 @@ class EventTimelineService {
       }
       DateTime dateWithHour = date;
       if (hour > 0 || minute > 0) {
-        dateWithHour = DateTime(
-          date.year,
-          date.month,
-          date.day,
-          hour,
-          minute,
-          0,
-        );
+        dateWithHour = DateTime(date.year, date.month, date.day, hour, minute, 0);
       }
       final startDate = dateWithHour.toIso8601String();
-      return TimelineEntry(
-        resume: descripcionEvento,
-        startDate: startDate,
-        level: 1,
-      );
+      return TimelineEntry(resume: descripcionEvento, startDate: startDate, level: 1);
     }
     return null;
   }
@@ -87,15 +68,12 @@ class EventTimelineService {
           : <EventEntry>[];
       // Usar la frase significativa extraída por createEventFromText
       final descripcionNatural = eventEntry.resume;
-      final DateTime? eventDate =
-          (eventEntry.startDate != null && eventEntry.startDate != '')
+      final DateTime? eventDate = (eventEntry.startDate != null && eventEntry.startDate != '')
           ? DateTime.parse(eventEntry.startDate!)
           : null;
       bool isDuplicate = false;
       for (final ev in updatedEvents) {
-        final sameDesc =
-            ev.description.trim().toLowerCase() ==
-            descripcionNatural.trim().toLowerCase();
+        final sameDesc = ev.description.trim().toLowerCase() == descripcionNatural.trim().toLowerCase();
         final sameDay =
             ev.date != null &&
             eventDate != null &&
@@ -103,27 +81,17 @@ class EventTimelineService {
             ev.date!.month == eventDate.month &&
             ev.date!.day == eventDate.day;
         final closeInTime =
-            ev.date != null &&
-            eventDate != null &&
-            (ev.date!.difference(eventDate).inMinutes).abs() <= 120;
+            ev.date != null && eventDate != null && (ev.date!.difference(eventDate).inMinutes).abs() <= 120;
         if (ev.type == 'evento' && sameDesc && (sameDay || closeInTime)) {
           isDuplicate = true;
           break;
         }
       }
       if (!isDuplicate) {
-        updatedEvents.add(
-          EventEntry(
-            type: 'evento',
-            description: descripcionNatural,
-            date: eventDate,
-          ),
-        );
+        updatedEvents.add(EventEntry(type: 'evento', description: descripcionNatural, date: eventDate));
         onboardingData = onboardingData.copyWith(events: updatedEvents);
         await saveAll();
-        debugPrint(
-          '[EVENTO IA] Guardado evento en events: $descripcionNatural (${eventEntry.startDate})',
-        );
+        debugPrint('[EVENTO IA] Guardado evento en events: $descripcionNatural (${eventEntry.startDate})');
       } else {
         debugPrint(
           '[EVENTO IA] Evento duplicado detectado. No se guarda: $descripcionNatural (${eventEntry.startDate})',
@@ -144,25 +112,16 @@ class EventTimelineService {
       r'(de\s*|entre\s*)?(\d{1,2})(?:[:h](\d{2}))?\s*(de la mañana|am|a\.m\.|de la tarde|pm|p\.m\.|tarde|mañana)?\s*(a|y)\s*(las\s*)?(\d{1,2})(?:[:h](\d{2}))?\s*(de la mañana|am|a\.m\.|de la tarde|pm|p\.m\.|tarde|mañana)?',
       caseSensitive: false,
     );
-    final sleepWords =
-        r'sueño|dormir|duermo|duerma|duermes|duerme|duermen|dormido|dormida|dormidas|dormidos|sleep';
+    final sleepWords = r'sueño|dormir|duermo|duerma|duermes|duerme|duermen|dormido|dormida|dormidas|dormidos|sleep';
     final workWords = r'trabajo|work';
     final busyWords =
         r'ocupada|ocupación|busy|gimnasio|gym|compras|reunión|reunion|cita|viaje|deporte|actividad|evento|tarea|proyecto';
     final studyWords =
         r'estudio|estudiar|clase|universidad|escuela|facultad|tutoría|tutoria|asignatura|examen|prácticas|practicas';
-    final preguntaSleep = text.contains(
-      RegExp(sleepWords, caseSensitive: false),
-    );
-    final respuestaSleep = textResponse.contains(
-      RegExp(sleepWords, caseSensitive: false),
-    );
-    final respuestaWork = textResponse.contains(
-      RegExp(workWords, caseSensitive: false),
-    );
-    final respuestaBusy = textResponse.contains(
-      RegExp(busyWords, caseSensitive: false),
-    );
+    final preguntaSleep = text.contains(RegExp(sleepWords, caseSensitive: false));
+    final respuestaSleep = textResponse.contains(RegExp(sleepWords, caseSensitive: false));
+    final respuestaWork = textResponse.contains(RegExp(workWords, caseSensitive: false));
+    final respuestaBusy = textResponse.contains(RegExp(busyWords, caseSensitive: false));
     final diasMatch = diasRegex.firstMatch(textResponse);
     final rangoMatch = rangoRegex.firstMatch(textResponse);
     if (!regexVagoCheck.hasMatch(textResponse) && rangoMatch != null) {
@@ -171,9 +130,7 @@ class EventTimelineService {
         tipoHorario = 'sleep';
       } else if (respuestaWork) {
         tipoHorario = 'work';
-      } else if (textResponse.contains(
-        RegExp(studyWords, caseSensitive: false),
-      )) {
+      } else if (textResponse.contains(RegExp(studyWords, caseSensitive: false))) {
         tipoHorario = 'study';
       } else if (respuestaBusy) {
         tipoHorario = 'busy';
@@ -188,12 +145,8 @@ class EventTimelineService {
           tipoHorario = 'busy';
         }
       }
-      debugPrint(
-        '[HORARIO IA] Intentando extraer días: ${diasMatch != null ? diasMatch.group(0) : 'NO DETECTADO'}',
-      );
-      debugPrint(
-        '[HORARIO IA] Intentando extraer rango de horas: ${rangoMatch.group(0)}',
-      );
+      debugPrint('[HORARIO IA] Intentando extraer días: ${diasMatch != null ? diasMatch.group(0) : 'NO DETECTADO'}');
+      debugPrint('[HORARIO IA] Intentando extraer rango de horas: ${rangoMatch.group(0)}');
       if (tipoHorario.isNotEmpty) {
         String fromHour = rangoMatch.group(2) ?? '';
         String fromMin = rangoMatch.group(3) ?? '00';
@@ -203,40 +156,86 @@ class EventTimelineService {
         String toPeriod = (rangoMatch.group(9) ?? '').toLowerCase();
         int fromHourInt = int.tryParse(fromHour) ?? 0;
         int toHourInt = int.tryParse(toHour) ?? 0;
-        if (fromPeriod.contains('tarde') ||
-            fromPeriod.contains('pm') ||
-            fromPeriod.contains('p.m.')) {
+        if (fromPeriod.contains('tarde') || fromPeriod.contains('pm') || fromPeriod.contains('p.m.')) {
           if (fromHourInt < 12) fromHourInt += 12;
         }
-        if (toPeriod.contains('tarde') ||
-            toPeriod.contains('pm') ||
-            toPeriod.contains('p.m.')) {
+        if (toPeriod.contains('tarde') || toPeriod.contains('pm') || toPeriod.contains('p.m.')) {
           if (toHourInt < 12) toHourInt += 12;
         }
         if (toPeriod.isEmpty && toHourInt < fromHourInt) {
           toHourInt += 12;
         }
         final horarioMap = <String, String>{
-          'from':
-              '${fromHourInt.toString().padLeft(2, '0')}:${fromMin.padLeft(2, '0')}',
-          'to':
-              '${toHourInt.toString().padLeft(2, '0')}:${toMin.padLeft(2, '0')}',
-          'days': diasMatch != null
-              ? (diasMatch.group(0)?.replaceAll(RegExp(r'\s+'), ' ').trim() ??
-                    '')
-              : '',
+          'from': '${fromHourInt.toString().padLeft(2, '0')}:${fromMin.padLeft(2, '0')}',
+          'to': '${toHourInt.toString().padLeft(2, '0')}:${toMin.padLeft(2, '0')}',
+          'days': diasMatch != null ? (diasMatch.group(0)?.replaceAll(RegExp(r'\s+'), ' ').trim() ?? '') : '',
         };
         // Guardar en biography según el tipo
         try {
-          final Map<String, dynamic> bio = Map<String, dynamic>.from(
-            onboardingData.biography,
-          );
+          final Map<String, dynamic> bio = Map<String, dynamic>.from(onboardingData.biography);
           final dias = horarioMap['days'] ?? '';
-          final entry = {
+          DateTime? computeNextForDays(String daysStr) {
+            try {
+              final Map<String, int> map = {
+                'lun': 1,
+                'lunes': 1,
+                'mar': 2,
+                'martes': 2,
+                'mie': 3,
+                'mié': 3,
+                'miercoles': 3,
+                'miércoles': 3,
+                'jue': 4,
+                'jueves': 4,
+                'vie': 5,
+                'viernes': 5,
+                'sab': 6,
+                'sáb': 6,
+                'sabado': 6,
+                'sábado': 6,
+                'dom': 7,
+                'domingo': 7,
+              };
+              final dayNameRe = RegExp(r'([a-záéíóú]{3,9})');
+              final m = dayNameRe.firstMatch(daysStr.toLowerCase());
+              if (m == null) return null;
+              final key = m.group(1)!;
+              final wd = map[key];
+              if (wd == null) return null;
+              final now = DateTime.now();
+              int delta = (wd - now.weekday);
+              if (delta < 0) delta += 7;
+              if (delta == 0) delta = 7; // next occurrence is next week (avoid today)
+              return DateTime(now.year, now.month, now.day).add(Duration(days: delta));
+            } catch (_) {
+              return null;
+            }
+          }
+
+          // Detectar intervalos explícitos en la cadena original (p.ej. 'cada dos semanas')
+          final hasBiweekly =
+              textResponse.toLowerCase().contains('cada dos semanas') ||
+              textResponse.toLowerCase().contains('cada 2 semanas') ||
+              textResponse.toLowerCase().contains('cada quincena');
+          final hasWeekly = textResponse.toLowerCase().contains('cada semana');
+          final hasMonthly = textResponse.toLowerCase().contains('cada mes');
+
+          final entry = <String, dynamic>{
             'from': horarioMap['from'] ?? '',
             'to': horarioMap['to'] ?? '',
             if (dias.isNotEmpty) 'dias': dias,
           };
+          if (hasBiweekly) {
+            entry['interval'] = 2;
+            final sd = computeNextForDays(dias);
+            if (sd != null) entry['startDate'] = sd.toIso8601String();
+          }
+          if (hasWeekly) {
+            entry['interval'] = 1;
+          }
+          if (hasMonthly) {
+            entry['unit'] = 'months';
+          }
           if (tipoHorario == 'sleep') {
             bio['horario_dormir'] = entry;
           } else if (tipoHorario == 'work') {

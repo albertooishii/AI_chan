@@ -313,10 +313,30 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final events = chatProvider.events;
     final bio = chatProvider.onboardingData.biography;
     // Funciones auxiliares para filtrar y mostrar horarios por día seleccionado
-    bool dayMatches(String daysStr, DateTime day) {
-      final set = ScheduleUtils.parseDiasToWeekdaySet(daysStr);
-      if (set == null) return true; // aplica a todos si no se pudo parsear
-      return set.contains(day.weekday);
+    bool dayMatchesWithInterval(String daysStr, DateTime day, Map<String, String>? rawEntry) {
+      final spec = ScheduleUtils.parseScheduleString(daysStr);
+      // si el mapa rawEntry contiene interval/unit/startDate preferirlo
+      if (rawEntry != null) {
+        try {
+          final rInterval = rawEntry['interval'];
+          final rUnit = rawEntry['unit'];
+          final rStart = rawEntry['startDate'];
+          int? interval;
+          DateTime? startDate;
+          if (rInterval != null) interval = int.tryParse(rInterval);
+          if (rStart != null && rStart.isNotEmpty) startDate = DateTime.tryParse(rStart);
+          final spec2 = ScheduleSpec(
+            days: spec.days,
+            interval: interval ?? spec.interval,
+            unit: rUnit ?? spec.unit,
+            startDate: startDate ?? spec.startDate,
+          );
+          return ScheduleUtils.matchesDateWithInterval(day, spec2);
+        } catch (_) {
+          return ScheduleUtils.matchesDateWithInterval(day, spec);
+        }
+      }
+      return ScheduleUtils.matchesDateWithInterval(day, spec);
     }
 
     DateTime? parseTime(DateTime baseDay, String hhmm) {
@@ -387,7 +407,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final DateTime selected = _selectedDay ?? DateTime.now();
     final now = DateTime.now();
     final schedulesForDay = <Map<String, String>>[];
-    for (final s in rawSchedules().where((s) => dayMatches(s['days'] ?? '', selected))) {
+    for (final s in rawSchedules().where((s) => dayMatchesWithInterval(s['days'] ?? '', selected, s))) {
       final fromStr = (s['from'] ?? '').trim();
       final toStr = (s['to'] ?? '').trim();
       final start = parseTime(selected, fromStr);
