@@ -102,24 +102,86 @@ class ImageRequestService {
     ),
   ];
 
-  /// Detecta si el texto actual (y opcionalmente el historial) solicita una imagen
-  static bool isImageRequested({required String text, List<String>? history}) {
-    final lowerText = text.toLowerCase();
-    for (final kw in _keywords) {
-      if (lowerText.contains(kw)) return true;
+  /// Detecta si el texto actual (y opcionalmente el historial) solicita una imagen.
+  ///
+  /// Mejoras principales:
+  /// - Si `lastAssistantHadImage==true` y el usuario no pide explícitamente otra foto, NO se considera
+  ///   solicitud (evita falsos positivos cuando el usuario responde a una foto ya enviada).
+  /// - Añade patrones negativos (p. ej. "no quiero foto") y reglas para evitar falsos positivos en textos
+  ///   muy cortos o ambiguos.
+  static bool isImageRequested({required String text, List<String>? history, bool? lastAssistantHadImage}) {
+    final lowerText = text.toLowerCase().trim();
+    if (lowerText.isEmpty) return false;
+
+    // Patrones que claramente niegan una petición de foto
+    final List<RegExp> negativePatterns = [
+      RegExp(r'\bno quiero (foto|imagen)\b', caseSensitive: false),
+      RegExp(r'\bno me (mandes|env[íi]es) (foto|imagen)\b', caseSensitive: false),
+      RegExp(r'\bno necesito (foto|imagen)\b', caseSensitive: false),
+      RegExp(r'\bno quiero ver\b', caseSensitive: false),
+    ];
+    for (final np in negativePatterns) {
+      if (np.hasMatch(lowerText)) return false;
     }
+
+    // Patrones que indican petición explícita (verbo cercano a 'foto')
+    final explicitRequestRegex = RegExp(
+      r'(?:env[ií]a|manda|muestra|ens[eé]ñame|hazme|saca|mu[eé]strame|puedes|podr[ií]as|quiero|me gustar[ií]a|me gustaria|me mandas|me env[ií]as)[^\n]{0,60}(foto|imagen|selfie|retrato|foto tuya|otra foto|otra imagen|otra)',
+      caseSensitive: false,
+    );
+    if (explicitRequestRegex.hasMatch(lowerText)) return true;
+
+    // Peticiones explícitas de "otra foto/otra imagen" o variaciones cortas
+    if (lowerText.contains('otra foto') ||
+        lowerText.contains('otra imagen') ||
+        RegExp(r'\botra\b').hasMatch(lowerText) && RegExp(r'foto|imagen').hasMatch(lowerText)) {
+      return true;
+    }
+
+    // Si la IA acaba de enviar una foto y el usuario no pide explícitamente otra, NO contar como petición.
+    if (lastAssistantHadImage == true) {
+      // Considerar algunas frases explícitas que sí piden otra foto
+      final explicitAgain = RegExp(
+        r'(otra|otra vez|otra m[ií]a|otra similar|otra, por favor|otra por favor|otra\?)',
+        caseSensitive: false,
+      );
+      if (explicitAgain.hasMatch(lowerText)) return true;
+      // Caso: el usuario pide un tipo de foto diferente (ej: 'una de cuerpo entero', 'una más sexy')
+      final differentType = RegExp(
+        r'(cuerpo entero|full body|medio cuerpo|primer plano|close[- ]?up|más sexy|más natural)',
+        caseSensitive: false,
+      );
+      if (differentType.hasMatch(lowerText)) return true;
+      return false;
+    }
+
+    // Evitar falsos positivos en palabras ambiguas si el texto es muy corto
+    final ambiguousShortWords = {'cara', 'rostro', 'retrato', 'imagen', 'foto', 'selfie'};
+    for (final kw in _keywords) {
+      if (lowerText.contains(kw)) {
+        // Si la keyword es una de las ambiguas y el texto es corto (<=12 caracteres), ignorar
+        if (ambiguousShortWords.contains(kw) && lowerText.length <= 12) return false;
+        return true;
+      }
+    }
+
+    // Revisar patrones regex existentes (más flexibles)
     for (final regex in _regexPatterns) {
       if (regex.hasMatch(lowerText)) return true;
     }
+
+    // Revisar historial reciente: si el usuario ya pidió foto en los últimos 3 mensajes
     if (history != null && history.isNotEmpty) {
       final recent = history.length <= 3 ? history : history.sublist(history.length - 3);
       for (final h in recent) {
         final hLower = h.toLowerCase();
+        // Solo considerar entradas del usuario anteriores (si la lista mezcla remitentes, asumimos que son textos puros)
         for (final kw in _keywords) {
           if (hLower.contains(kw)) return true;
         }
       }
     }
+
     return false;
   }
 }

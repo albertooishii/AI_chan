@@ -6,6 +6,7 @@ import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/debug_call_logger/debug_call_logger.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/core/services/prompt_builder.dart';
 // duplicate import removed
 
 class GeminiService implements AIService {
@@ -133,8 +134,27 @@ class GeminiService implements AIService {
     // Unificar todo el historial en un solo bloque de texto para el content
     List<Map<String, dynamic>> contents = [];
     // Añadir un bloque de role=system con el SystemPrompt serializado para que Gemini lo reciba
+    // Preparar una copia serializable del SystemPrompt y, si procede, inyectar
+    // instrucciones relacionadas con imagenes/metadatos antes de serializar.
+    Map<String, dynamic> systemPromptMap;
     try {
-      final sysJson = jsonEncode(systemPrompt.toJson());
+      systemPromptMap = systemPrompt.toJson();
+      try {
+        final instrRoot = systemPromptMap['instructions'];
+        if (instrRoot is Map) {
+          // Inyectar la instrucción para metadatos de imagen cuando el usuario
+          // adjunta una imagen (imageBase64 presente).
+          if (imageBase64 != null && imageBase64.isNotEmpty) {
+            instrRoot['metadatos_imagen'] = imageMetadata(systemPrompt.profile.userName);
+          }
+          // Mantener consistencia con OpenAIService: si se solicita generación
+          // de imagen explícita, inyectar también la instrucción de 'foto'.
+          if (enableImageGeneration) {
+            instrRoot['foto'] = imageInstructions(systemPrompt.profile.userName);
+          }
+        }
+      } catch (_) {}
+      final sysJson = jsonEncode(systemPromptMap);
       contents.add({
         // Gemini API expects roles named 'user' or 'model' — use 'model' for system-level instructions
         'role': 'model',
@@ -144,13 +164,14 @@ class GeminiService implements AIService {
       });
     } catch (_) {
       // silenciar error de serialización; fallback: no system part
+      systemPromptMap = {};
     }
     bool hasImage =
         history.isNotEmpty && history.last['role'] == 'user' && imageBase64 != null && imageBase64.isNotEmpty;
     if (hasImage) {
       // Si hay imagen, enviar el historial completo y el systemPrompt como texto, y la imagen como segundo part
       StringBuffer allText = StringBuffer();
-      allText.write('[system]: ${jsonEncode(systemPrompt.toJson())}');
+      allText.write('[system]: ${jsonEncode(systemPromptMap)}');
       for (int i = 0; i < history.length; i++) {
         final role = history[i]['role'] ?? 'user';
         final contentStr = history[i]['content'] ?? '';
@@ -171,7 +192,7 @@ class GeminiService implements AIService {
     } else {
       // Unir todos los mensajes en un solo bloque de texto (como JSON o texto plano)
       StringBuffer allText = StringBuffer();
-      allText.write('[system]: ${jsonEncode(systemPrompt.toJson())}');
+      allText.write('[system]: ${jsonEncode(systemPromptMap)}');
       for (int i = 0; i < history.length; i++) {
         final role = history[i]['role'] ?? 'user';
         final contentStr = history[i]['content'] ?? '';

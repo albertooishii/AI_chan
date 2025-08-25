@@ -2,6 +2,7 @@ import 'package:ai_chan/chat/domain/models.dart';
 import 'package:ai_chan/chat/domain/interfaces.dart';
 import 'package:ai_chan/chat/domain/services.dart';
 import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/core/services/image_request_service.dart';
 
 /// Send Message Use Case - Chat Application Layer
 /// Orquesta el proceso completo de envío de mensaje incluyendo:
@@ -13,11 +14,9 @@ class SendMessageUseCase {
   final IChatRepository _repository;
   final IChatResponseService _responseService;
 
-  SendMessageUseCase({
-    required IChatRepository repository,
-    required IChatResponseService responseService,
-  }) : _repository = repository,
-       _responseService = responseService;
+  SendMessageUseCase({required IChatRepository repository, required IChatResponseService responseService})
+    : _repository = repository,
+      _responseService = responseService;
 
   /// Ejecuta el caso de uso de envío de mensaje
   Future<ChatConversation> execute({
@@ -34,13 +33,26 @@ class SendMessageUseCase {
     var updatedConversation = currentConversation.addMessage(sentMessage);
 
     // 3. Preparar mensajes para la IA (convertir a formato Map)
-    final messagesForAI = updatedConversation.messages
-        .map((msg) => _messageToMap(msg))
-        .toList();
+    final messagesForAI = updatedConversation.messages.map((msg) => _messageToMap(msg)).toList();
 
     try {
-      // 4. Obtener respuesta de la IA
-      final aiResponse = await _responseService.sendChat(messagesForAI);
+      // 4. Detectar si el usuario pidió explícitamente una foto y forzar generación
+      final historyTexts = updatedConversation.messages.map((m) => m.text).toList();
+      // Determinar si el último mensaje del asistente incluía una imagen
+      bool lastAssistantHadImage = false;
+      for (final msg in updatedConversation.messages.reversed) {
+        if (msg.sender == MessageSender.assistant) {
+          lastAssistantHadImage = msg.isImage == true;
+          break;
+        }
+      }
+      final wantsImage = ImageRequestService.isImageRequested(
+        text: userMessage.text,
+        history: historyTexts,
+        lastAssistantHadImage: lastAssistantHadImage,
+      );
+      // Pasar la opción enableImageGeneration al servicio de respuesta
+      final aiResponse = await _responseService.sendChat(messagesForAI, options: {'enableImageGeneration': wantsImage});
 
       // 5. Crear mensaje del asistente basado en la respuesta
       final assistantMessage = Message(

@@ -9,6 +9,7 @@ import 'package:ai_chan/shared/utils/audio_conversion.dart';
 
 import 'ai_service.dart';
 import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/core/services/prompt_builder.dart';
 import 'package:http/http.dart' as http;
 import 'package:ai_chan/core/http_connector.dart';
 
@@ -107,7 +108,23 @@ class OpenAIService implements AIService {
     };
     List<Map<String, dynamic>> input = [];
     StringBuffer allText = StringBuffer();
-    final systemPromptStr = jsonEncode(systemPrompt.toJson());
+    final systemPromptMap = systemPrompt.toJson();
+    // Inyectar instrucciones específicas sobre fotos/metadatos según corresponda.
+    // Estas cadenas vienen de PromptBuilder (centralizadas) y solo deben añadirse
+    // cuando proceda: petición explícita de imagen y/o imagen adjunta.
+    try {
+      final instrRoot = systemPromptMap['instructions'];
+      if (instrRoot is Map) {
+        if (enableImageGeneration) {
+          // inject image instructions mentioning the real user name when available
+          instrRoot['foto'] = imageInstructions(systemPrompt.profile.userName);
+        }
+        if (imageBase64 != null && imageBase64.isNotEmpty) {
+          instrRoot['metadatos_imagen'] = imageMetadata(systemPrompt.profile.userName);
+        }
+      }
+    } catch (_) {}
+    final systemPromptStr = jsonEncode(systemPromptMap);
     // El contenido del sistema proviene de PromptBuilder; las instrucciones específicas
     // sobre metadatos de imagen ([img_caption]) están definidas allí.
     input.add({

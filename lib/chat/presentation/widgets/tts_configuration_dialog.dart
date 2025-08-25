@@ -298,9 +298,9 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
   Future<void> _loadOpenAiVoices({bool forceRefresh = false}) async {
     setState(() => _isLoading = true);
     try {
-  // Use the static voice list helper (presentation-level) to ensure consistent shape and display
-  _openaiVoices.clear();
-  _openaiVoices.addAll(OpenAiVoiceUtils.loadStaticOpenAiVoices());
+      // Use the static voice list helper (presentation-level) to ensure consistent shape and display
+      _openaiVoices.clear();
+      _openaiVoices.addAll(OpenAiVoiceUtils.loadStaticOpenAiVoices());
     } catch (e) {
       _openaiVoices.clear();
       _openaiVoices.addAll(kOpenAIVoices.map((v) => {'name': v}).toList());
@@ -657,7 +657,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
               subtitle = '$originalSubtitle · $quality';
             }
           } else if (_selectedProvider == 'openai') {
-              final disp = OpenAiVoiceUtils.formatVoiceDisplay(voice);
+            final disp = OpenAiVoiceUtils.formatVoiceDisplay(voice);
             displayName = disp['displayName'] ?? displayName;
             subtitle = disp['subtitle'] ?? '';
           }

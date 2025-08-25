@@ -197,6 +197,20 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // Proteger contra cambios concurrentes en la lista de imágenes.
+    // Si la lista queda vacía, cerrar el diálogo de forma segura.
+    if (widget.images.isEmpty) {
+      // Asegurar que el pop ocurra fuera del ciclo de construcción
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.of(context).pop();
+      });
+      return const SizedBox.shrink();
+    }
+
+    // Mantener _currentIndex dentro de los límites válidos.
+    if (_currentIndex < 0) _currentIndex = 0;
+    if (_currentIndex >= widget.images.length) _currentIndex = widget.images.length - 1;
+
     final hasText = widget.images[_currentIndex].text.isNotEmpty && widget.images[_currentIndex].text.trim() != '';
     return Dialog(
       backgroundColor: Colors.transparent,
