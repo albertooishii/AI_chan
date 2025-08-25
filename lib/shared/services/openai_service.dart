@@ -128,7 +128,8 @@ class OpenAIService implements AIService {
     if (imageBase64 != null && imageBase64.isNotEmpty) {
       userContent.add({"type": "input_image", "image_url": "data:${imageMimeType ?? 'image/png'};base64,$imageBase64"});
     }
-    final avatar = systemPrompt.profile.avatar;
+    // Prefer explicit getter firstAvatar for clarity (primer avatar histórico)
+    final avatar = systemPrompt.profile.firstAvatar;
     // El bloque 'role: user' siempre primero
     input.add({"role": "user", "content": userContent});
     // Declarar tools vacío
@@ -137,11 +138,30 @@ class OpenAIService implements AIService {
     if (enableImageGeneration) {
       Log.i('image_generation ACTIVADO', tag: 'OPENAI_SERVICE');
       tools = [
-        {"type": "image_generation"},
+        {"type": "image_generation", "input_fidelity": "low", "moderation": "low"},
       ];
       // Añadir image_generation_call solo si hay avatar y seed
-      if (avatar != null && avatar.seed != null && avatar.seed!.isNotEmpty) {
-        final imageGenCall = {"type": "image_generation_call", "id": avatar.seed};
+      if (avatar != null && avatar.seed != null) {
+        // Detectar si la petición es explícitamente un AVATAR leyendo directamente el map de instrucciones.
+        bool looksLikeAvatar = false;
+        try {
+          final instrRoot = systemPrompt.toJson()['instructions'];
+          if (instrRoot is Map) {
+            if (instrRoot['is_avatar'] == true || instrRoot['image_type'] == 'avatar') {
+              looksLikeAvatar = true;
+            }
+          }
+        } catch (_) {}
+
+        final imageGenCall = <String, dynamic>{"type": "image_generation_call", "id": avatar.seed};
+        // input_fidelity moved to tools element per request
+        // Solo fijar size cuando detectamos un avatar; en otros casos dejamos
+        // al backend decidir (o usar 'auto').
+        if (looksLikeAvatar) {
+          imageGenCall['size'] = '1024x1024';
+          Log.d('Detección: petición tratada como AVATAR -> size=1024x1024', tag: 'OPENAI_SERVICE');
+        }
+
         input.add(imageGenCall);
         Log.d('Usando imageId: ${avatar.seed}', tag: 'OPENAI_SERVICE');
       }

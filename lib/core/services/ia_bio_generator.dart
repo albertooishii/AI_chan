@@ -183,7 +183,7 @@ Incluye todos los apartados y detalles relevantes, siguiendo la estructura anter
 
 La sección "historia_personal" debe contener muchos años y eventos, cubriendo toda la vida de la IA desde la infancia hasta el día que conoce al usuario. Detalla especialmente la infancia, estudios, trabajos, amistades, viajes, cambios de ciudad, logros, fracasos y cualquier etapa relevante. Cada año debe tener varios eventos importantes y anécdotas, mostrando una evolución realista y completa.
 Incluye también:
-- "resumen_breve": 3–4 frases que capten su esencia.
+- "resumen_breve": 3-4 frases que capten su esencia.
 - "horario_trabajo": días (por ejemplo, "lun-vie") y horas 24h (from-to); si no trabaja, deja vacío.
 - "horario_estudio": igual que trabajo, solo si aplica; si no estudia, deja vacío.
 - "horario_dormir": horas 24h (from-to) habituales.

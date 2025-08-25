@@ -37,10 +37,26 @@ class _MessageInputState extends State<MessageInput> {
   final TextEditingController _controller = TextEditingController();
   bool _showEmojiPicker = false;
   final FocusNode _textFieldFocusNode = FocusNode();
+  bool _hasRecentEmojis = false;
+  final GlobalKey<EmojiPickerState> _emojiPickerKey = GlobalKey<EmojiPickerState>();
+
+  Future<void> _updateHasRecentEmojis() async {
+    try {
+      final recents = await EmojiPickerUtils().getRecentEmojis();
+      if (!mounted) return;
+      setState(() {
+        _hasRecentEmojis = recents.isNotEmpty;
+      });
+    } catch (_) {
+      // ignore errors from the plugin
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    // Preconsultar recents para evitar parpadeos la primera vez que se abre el picker
+    _updateHasRecentEmojis();
     _textFieldFocusNode.addListener(() {
       if (_textFieldFocusNode.hasFocus && _showEmojiPicker) {
         setState(() {
@@ -49,7 +65,14 @@ class _MessageInputState extends State<MessageInput> {
       }
     });
     _controller.addListener(() {
-      setState(() {});
+      if (mounted) {
+        // Informar al provider que el usuario está escribiendo (cancela/reinicia temporizador de cola)
+        try {
+          final chatProvider = context.read<ChatProvider>();
+          chatProvider.onUserTyping(_controller.text);
+        } catch (_) {}
+        setState(() {});
+      }
     });
   }
 
@@ -202,7 +225,8 @@ class _MessageInputState extends State<MessageInput> {
         _attachedImageMime = null;
       });
     }
-    await chatProvider.sendMessage(text, image: imageToSend, imageMimeType: imageMimeType);
+    // Usar scheduleSendMessage para encolar y enviar tras 5s de inactividad
+    chatProvider.scheduleSendMessage(text, image: imageToSend, imageMimeType: imageMimeType);
   }
 
   bool get _hasText => _controller.text.trim().isNotEmpty;
@@ -257,13 +281,22 @@ class _MessageInputState extends State<MessageInput> {
                 attachedImage: _attachedImage,
                 hasImage: _hasImage,
                 hasText: _hasText,
-                onToggleEmojis: () {
+                onToggleEmojis: () async {
                   if (_showEmojiPicker) {
-                    FocusScope.of(context).requestFocus(_textFieldFocusNode);
+                    // Cerrar picker antes de abrir teclado para evitar solapamientos
+                    setState(() => _showEmojiPicker = false);
+                    // Pequeña espera para que el frame procese el cambio de layout
+                    await Future.delayed(const Duration(milliseconds: 50));
+                    if (!mounted) return;
+                    _textFieldFocusNode.requestFocus();
                   } else {
+                    // Ocultar teclado primero y esperar que se cierre antes de mostrar picker
                     FocusScope.of(context).unfocus();
+                    await Future.delayed(const Duration(milliseconds: 220));
+                    await _updateHasRecentEmojis();
+                    if (!mounted) return;
+                    setState(() => _showEmojiPicker = true);
                   }
-                  setState(() => _showEmojiPicker = !_showEmojiPicker);
                 },
                 onPickImage: _pickImage,
                 onSend: _onPrimaryPressed,
@@ -277,33 +310,84 @@ class _MessageInputState extends State<MessageInput> {
         if (_showEmojiPicker)
           SizedBox(
             height: 280,
-            child: EmojiPicker(
-              onEmojiSelected: (category, emoji) {
-                _controller.text += emoji.emoji;
-                _controller.selection = TextSelection.fromPosition(TextPosition(offset: _controller.text.length));
-              },
-              config: Config(
-                height: 280,
-                checkPlatformCompatibility: true,
-                viewOrderConfig: ViewOrderConfig(top: EmojiPickerItem.categoryBar, middle: EmojiPickerItem.emojiView),
-                emojiViewConfig: EmojiViewConfig(
-                  emojiSizeMax: 28,
-                  backgroundColor: Colors.black, // negro app
-                  gridPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-                  recentsLimit: 24,
+            child: Theme(
+              // Forzar InputDecorationTheme para que la barra de búsqueda del picker
+              // use fondo negro y texto en color secundario. Si la versión del plugin
+              // no respeta este Theme para su SearchBar, la alternativa es ocultarla
+              // usando Visibility(visible: false) alrededor de la búsqueda dentro
+              // del propio paquete (no accesible aquí) o actualizar el paquete.
+              data: Theme.of(context).copyWith(
+                inputDecorationTheme: InputDecorationTheme(
+                  filled: true,
+                  fillColor: Colors.black,
+                  hintStyle: const TextStyle(color: AppColors.secondary),
+                  border: OutlineInputBorder(borderSide: BorderSide.none),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 ),
-                categoryViewConfig: CategoryViewConfig(
-                  indicatorColor: AppColors.secondary, // magenta
-                  iconColor: AppColors.secondary, // magenta
-                  iconColorSelected: Colors.white,
-                  backspaceColor: AppColors.secondary,
-                  backgroundColor: Colors.black, // negro barra
+                // Forzar tema para la barra de categorías (selector de tipo de emoji)
+                bottomNavigationBarTheme: BottomNavigationBarThemeData(
+                  backgroundColor: Colors.black,
+                  selectedIconTheme: const IconThemeData(color: Colors.white),
+                  unselectedIconTheme: IconThemeData(color: AppColors.secondary),
+                  selectedLabelStyle: const TextStyle(color: Colors.white),
+                  unselectedLabelStyle: TextStyle(color: AppColors.secondary),
                 ),
-                skinToneConfig: SkinToneConfig(
-                  dialogBackgroundColor: Colors.black,
-                  indicatorColor: AppColors.secondary,
-                  enabled: true,
-                ),
+                primaryColor: AppColors.secondary,
+              ),
+              child: Stack(
+                children: [
+                  EmojiPicker(
+                    key: _emojiPickerKey,
+                    onEmojiSelected: (category, emoji) async {
+                      _controller.text += emoji.emoji;
+                      _controller.selection = TextSelection.fromPosition(TextPosition(offset: _controller.text.length));
+                      // Registrar en recents para futuras aperturas
+                      try {
+                        // El API expone addEmojiToRecentlyUsed(key: GlobalKey<EmojiPickerState>, emoji: Emoji)
+                        EmojiPickerUtils().addEmojiToRecentlyUsed(key: _emojiPickerKey, emoji: emoji);
+                      } catch (_) {}
+                      if (!mounted) return;
+                      setState(() {
+                        _hasRecentEmojis = true;
+                      });
+                    },
+                    config: Config(
+                      height: 280,
+                      checkPlatformCompatibility: true,
+                      // Restauramos la configuración original (incluye categoryBar)
+                      // y usamos una sobreposición negra para ocultar visualmente la
+                      // barra de categorías; esto evita fallos si la versión del
+                      // paquete requiere valores únicos en ViewOrderConfig.
+                      viewOrderConfig: ViewOrderConfig(
+                        top: EmojiPickerItem.categoryBar,
+                        middle: EmojiPickerItem.emojiView,
+                      ),
+                      emojiViewConfig: EmojiViewConfig(
+                        emojiSizeMax: 28,
+                        backgroundColor: Colors.black, // negro app
+                        gridPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                        recentsLimit: 24,
+                      ),
+                      categoryViewConfig: CategoryViewConfig(
+                        indicatorColor: AppColors.secondary, // magenta
+                        iconColor: AppColors.secondary, // magenta
+                        iconColorSelected: Colors.white,
+                        backspaceColor: AppColors.secondary,
+                        backgroundColor: Colors.black, // negro barra
+                        recentTabBehavior: _hasRecentEmojis ? RecentTabBehavior.RECENT : RecentTabBehavior.NONE,
+                      ),
+                      skinToneConfig: SkinToneConfig(
+                        dialogBackgroundColor: Colors.black,
+                        indicatorColor: AppColors.secondary,
+                        enabled: true,
+                      ),
+                    ),
+                  ),
+                  // Overlay negro para cubrir la barra de tipo/categorías / buscador
+                  // Si el picker renderiza el buscador fuera del área, extendemos
+                  // la overlay hacia abajo con bottom negativo para cubrirlo visualmente.
+                  Positioned(bottom: 0, left: 0, right: 0, height: 56, child: Container(color: Colors.black)),
+                ],
               ),
             ),
           ),

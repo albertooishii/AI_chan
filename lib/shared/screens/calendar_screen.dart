@@ -536,7 +536,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         final from = s['from'] ?? '';
                         final to = s['to'] ?? '';
                         final actividad = (s['actividad'] ?? '').trim();
-                        final timePart = (from.isNotEmpty || to.isNotEmpty) ? '$from–$to' : '';
+                        final timePart = (from.isNotEmpty || to.isNotEmpty) ? '$from-$to' : '';
                         String stateVerb;
                         switch (type) {
                           case 'sleep':

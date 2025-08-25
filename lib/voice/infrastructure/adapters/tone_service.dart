@@ -673,7 +673,7 @@ class ToneService {
 
   /// Ringback melódico limpio: motivo corto + silencio para sensación de tono de llamada.
   /// - Mono 44.1 kHz para máxima compatibilidad
-  /// - Motivo breve (~0.9 s) con 2–3 notas y cola corta; resto silencio hasta completar durationSeconds
+  /// - Motivo breve (~0.9 s) con 2-3 notas y cola corta; resto silencio hasta completar durationSeconds
   /// - Headroom amplio (norm ~ -6 dB) sin saturación en dispositivos
   static Uint8List buildMelodicRingbackWav({double durationSeconds = 2.5, int sampleRate = 44100}) {
     final int N = (durationSeconds * sampleRate).round();

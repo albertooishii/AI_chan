@@ -29,6 +29,24 @@ import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/network_utils.dart';
 
+// Opciones asociadas a cada mensaje en la cola de envío diferido.
+class _QueuedSendOptions {
+  final String? model;
+  final String? callPrompt;
+  final AiImage? image;
+  final String? imageMimeType;
+  final String? preTranscribedText;
+  final String? userAudioPath;
+  _QueuedSendOptions({
+    this.model,
+    this.callPrompt,
+    this.image,
+    this.imageMimeType,
+    this.preTranscribedText,
+    this.userAudioPath,
+  });
+}
+
 class ChatProvider extends ChangeNotifier {
   final IChatRepository? repository;
   final IAIService? aiService;
@@ -45,6 +63,154 @@ class ChatProvider extends ChangeNotifier {
 
   // Flag para evitar loops tras dispose
   bool _isDisposed = false;
+
+  // ===== Cola de envío diferido =====
+  // Cola de envío diferido: guardamos los localIds encolados para poder
+  // actualizar su estado cuando el último se envíe. Conservamos una sola
+  // estructura de opciones para el último mensaje encolado (simplifica casos).
+  final List<String> _queuedMessageLocalIds = [];
+  Timer? _queuedSendTimer;
+  final Duration _queuedSendDelay = const Duration(seconds: 5);
+
+  // Opciones asociadas al último mensaje encolado (null si no hay ninguno).
+  _QueuedSendOptions? _queuedOptions;
+
+  /// Número de mensajes actualmente en cola (pendientes de envío automático)
+  int get queuedCount => _queuedMessageLocalIds.length;
+
+  /// Scheduler público que la UI debe usar en lugar de llamar directamente
+  /// a `sendMessage` cuando quiera la semántica de "cola + envío tras 5s".
+  /// - Añade el mensaje a `messages` inmediatamente (para contexto/UX).
+  /// - Si el usuario deja el input vacío durante [_queuedSendDelay], se enviará
+  ///   únicamente el último mensaje en la cola. Los demás permanecerán en
+  ///   `messages` y formarán parte del contexto enviado.
+  void scheduleSendMessage(
+    String text, {
+    String? callPrompt,
+    String? model,
+    AiImage? image,
+    String? imageMimeType,
+    String? preTranscribedText,
+    String? userAudioPath,
+  }) {
+    final now = DateTime.now();
+    final bool hasImage = image != null && (((image.base64 ?? '').isNotEmpty) || ((image.url ?? '').isNotEmpty));
+    final isAutomaticPrompt = text.trim().isEmpty && (callPrompt != null && callPrompt.isNotEmpty);
+    AiImage? imageForHistory;
+    if (hasImage) {
+      imageForHistory = AiImage(url: image.url, seed: image.seed, prompt: image.prompt);
+    }
+    String displayText;
+    if (isAutomaticPrompt) {
+      displayText = callPrompt;
+    } else {
+      displayText = preTranscribedText ?? text;
+    }
+
+    final msg = Message(
+      text: displayText,
+      sender: isAutomaticPrompt ? MessageSender.system : MessageSender.user,
+      dateTime: now,
+      isImage: hasImage,
+      image: imageForHistory,
+      isAudio: userAudioPath != null,
+      audioPath: userAudioPath,
+      status: MessageStatus.sending,
+    );
+
+    // Añadir a la lista de mensajes para que formen parte del contexto
+    messages.add(msg);
+    final lid = msg.localId;
+    // Añadir a la lista de encolados (evitar duplicados por si acaso)
+    if (!_queuedMessageLocalIds.contains(lid)) _queuedMessageLocalIds.add(lid);
+    _queuedOptions = _QueuedSendOptions(
+      model: model,
+      callPrompt: callPrompt,
+      image: image,
+      imageMimeType: imageMimeType,
+      preTranscribedText: preTranscribedText,
+      userAudioPath: userAudioPath,
+    );
+    // Reiniciar temporizador de envío automático
+    _startOrResetQueuedTimer();
+    notifyListeners();
+  }
+
+  void _startOrResetQueuedTimer() {
+    _queuedSendTimer?.cancel();
+    if (_queuedMessageLocalIds.isEmpty) return;
+    _queuedSendTimer = Timer(_queuedSendDelay, () async {
+      await _processQueuedMessages();
+    });
+  }
+
+  /// Procesa la cola: envía solo el último mensaje en la cola mediante
+  /// `sendMessage(..., existingMessageIndex: idx)`. Los mensajes previos
+  /// permanecen en `messages` y se incluyen en el prompt/contexto.
+  Future<void> _processQueuedMessages() async {
+    _queuedSendTimer?.cancel();
+    if (_queuedMessageLocalIds.isEmpty) return;
+    // Copiar los ids encolados y limpiar el estado antes de proceder para
+    // evitar reentrancia.
+    final queuedIds = List<String>.from(_queuedMessageLocalIds);
+    _queuedMessageLocalIds.clear();
+    final lastLid = queuedIds.isNotEmpty ? queuedIds.last : null;
+    final opts = _queuedOptions;
+    _queuedOptions = null;
+    if (lastLid == null) return;
+    // Buscar el índice actual del mensaje por localId
+    final lastIdx = messages.indexWhere((m) => m.localId == lastLid);
+    // Si por alguna razón no existe, abortar
+    if (lastIdx == -1) return;
+    try {
+      await sendMessage(
+        messages[lastIdx].text,
+        existingMessageIndex: lastIdx,
+        callPrompt: opts?.callPrompt,
+        model: opts?.model,
+        image: opts?.image,
+        imageMimeType: opts?.imageMimeType,
+        preTranscribedText: opts?.preTranscribedText,
+        userAudioPath: opts?.userAudioPath,
+      );
+      // Tras un envío exitoso, sincronizar el estado de todos los mensajes
+      // que estaban encolados para que tengan el mismo estado que el
+      // mensaje que acabamos de enviar (por ejemplo: sent/read).
+      final finalStatus = messages[lastIdx].status;
+      var changed = false;
+      for (final qlid in queuedIds) {
+        if (qlid == lastLid) continue; // ya actualizado por sendMessage
+        final idx = messages.indexWhere((m) => m.localId == qlid);
+        if (idx != -1) {
+          final m = messages[idx];
+          if (m.sender == MessageSender.user && m.status != finalStatus) {
+            messages[idx] = m.copyWith(status: finalStatus);
+            changed = true;
+          }
+        }
+      }
+      if (changed) notifyListeners();
+    } catch (e) {
+      // sendMessage ya marca estado failed si algo va mal; nada adicional.
+    }
+  }
+
+  /// Debe llamarse desde la UI cuando el usuario está escribiendo en el
+  /// input. Si `text` es no vacío se cancelará el temporizador de envío
+  /// automático para evitar que mensajes en cola se envíen mientras el
+  /// usuario compone otro mensaje. Si `text` queda vacío se reinicia el
+  /// temporizador para enviar tras [_queuedSendDelay].
+  void onUserTyping(String text) {
+    final empty = text.trim().isEmpty;
+    if (!empty) {
+      _queuedSendTimer?.cancel();
+      _queuedSendTimer = null;
+    } else {
+      if (_queuedMessageLocalIds.isNotEmpty) {
+        _startOrResetQueuedTimer();
+      }
+    }
+  }
 
   ChatProvider({
     this.repository,
@@ -78,7 +244,7 @@ class ChatProvider extends ChangeNotifier {
   /// pero con instrucciones adaptadas a la modalidad de llamada:
   /// - No pedir/ofrecer fotos ni imágenes durante la llamada.
   /// - No usar enlaces/URLs, clics, Markdown, ni hablar de herramientas.
-  /// - Estilo oral: frases cortas (2–8 s), pausas naturales, sin monólogos.
+  /// - Estilo oral: frases cortas (2-8 s), pausas naturales, sin monólogos.
   /// - No presentarse como "asistente" o "IA"; mantener la misma persona del chat.
   String buildCallSystemPromptJson({int maxRecent = 32, required bool aiInitiatedCall}) =>
       _promptBuilder.buildCallSystemPromptJson(
@@ -108,17 +274,78 @@ class ChatProvider extends ChangeNotifier {
   void schedulePromiseEvent(EventEntry e) => _promiseService.schedulePromiseEvent(e);
   void onIaMessageSent() => _promiseService.analyzeAfterIaMessage(messages);
 
-  void _setLastUserMessageStatus(MessageStatus status) {
+  /// Variante: permitir especificar un índice concreto a actualizar.
+  /// Si [index] es null se comporta como la versión sin índice (busca el último user).
+  void _setLastUserMessageStatus(MessageStatus status, {int? index}) {
+    if (index != null) {
+      if (index >= 0 && index < messages.length) {
+        // If we're marking as read, also mark all previous user messages as read
+        if (status == MessageStatus.read) {
+          var changed = false;
+          for (var i = 0; i <= index; i++) {
+            final m = messages[i];
+            if (m.sender == MessageSender.user && m.status != MessageStatus.read) {
+              messages[i] = m.copyWith(status: MessageStatus.read);
+              changed = true;
+            }
+          }
+          if (changed) notifyListeners();
+        } else {
+          final m = messages[index];
+          if (m.sender == MessageSender.user) {
+            if (m.status != status) {
+              messages[index] = m.copyWith(status: status);
+              notifyListeners();
+            }
+          }
+        }
+      }
+      return;
+    }
+    // Fallback: aplicar al último mensaje de usuario (comportamiento previo)
     for (var i = messages.length - 1; i >= 0; i--) {
       final m = messages[i];
       if (m.sender == MessageSender.user) {
-        if (m.status != status) {
-          messages[i] = m.copyWith(status: status);
-          notifyListeners();
+        if (status == MessageStatus.read) {
+          // mark this and all previous user messages as read
+          var changed = false;
+          for (var j = 0; j <= i; j++) {
+            final mm = messages[j];
+            if (mm.sender == MessageSender.user && mm.status != MessageStatus.read) {
+              messages[j] = mm.copyWith(status: MessageStatus.read);
+              changed = true;
+            }
+          }
+          if (changed) notifyListeners();
+        } else {
+          if (m.status != status) {
+            messages[i] = m.copyWith(status: status);
+            notifyListeners();
+          }
         }
         return;
       }
     }
+  }
+
+  // Helper: detectar la etiqueta [no_reply] en el texto y, si existe,
+  // resetear indicadores UI, marcar el último mensaje del usuario como
+  // SENT (no read) y notificar a la UI. Devuelve true si la etiqueta fue
+  // encontrada y manejada (para hacer early return en el flujo llamador).
+  bool _checkAndHandleNoReply(String? text, {int? index}) {
+    if (text == null) return false;
+    final hasNoReply = RegExp(r'\[no_reply\]', caseSensitive: false).hasMatch(text);
+    if (!hasNoReply) return false;
+    Log.i('IA devolvió [no_reply]; ignorando mensaje del asistente.', tag: 'CHAT');
+    // Reset indicadores y finalizar flujo limpio
+    isSendingImage = false;
+    isTyping = false;
+    isSendingAudio = false;
+    _imageRequestId++;
+    // Mantener el último mensaje del usuario en SENT (no marcar como read)
+    _setLastUserMessageStatus(MessageStatus.sent, index: index);
+    notifyListeners();
+    return true;
   }
 
   /// Envía un mensaje (texto y/o imagen) de forma unificada
@@ -272,7 +499,7 @@ class ChatProvider extends ChangeNotifier {
           }
           if (_isDisposed) return;
           // Cuando vuelva la conexión, iniciar el envío real (marca sent justo antes)
-          _setLastUserMessageStatus(MessageStatus.sent);
+          _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
           try {
             if (chatResponseService != null) {
               final msgs = recentMessages
@@ -305,7 +532,9 @@ class ChatProvider extends ChangeNotifier {
                 finalModelUsed: mapResult['finalModelUsed'] as String? ?? selected,
               );
               // Marcar como read inmediatamente al recibir la respuesta de la IA
-              _setLastUserMessageStatus(MessageStatus.read);
+              _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
+              // Si la IA responde con el marcador [no_reply], ignorar la respuesta completamente
+              if (_checkAndHandleNoReply(tmpResult.text, index: existingMessageIndex)) return;
               // Añadir resultado asistente en el hilo principal
               final assistantMessage = Message(
                 text: tmpResult.text,
@@ -351,7 +580,9 @@ class ChatProvider extends ChangeNotifier {
                 seed: mapResult['seed'] as String?,
                 finalModelUsed: mapResult['finalModelUsed'] as String? ?? selected,
               );
-              _setLastUserMessageStatus(MessageStatus.read);
+              _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
+              // Si la IA responde con el marcador [no_reply], ignorar la respuesta completamente
+              if (_checkAndHandleNoReply(tmpResult.text, index: existingMessageIndex)) return;
               final assistantMessage = Message(
                 text: tmpResult.text,
                 sender: MessageSender.assistant,
@@ -394,7 +625,7 @@ class ChatProvider extends ChangeNotifier {
         // Marcar inmediatamente como 'sent' al iniciar la petición para evitar
         // que la UI muestre el mensaje del usuario permanentemente como 'sending'
         // (especialmente cuando la IA va a devolver una imagen y la generación tarda).
-        _setLastUserMessageStatus(MessageStatus.sent);
+        _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
 
         final mapResult = await chatResponseService!.sendChat(
           msgs,
@@ -415,8 +646,11 @@ class ChatProvider extends ChangeNotifier {
           seed: mapResult['seed'] as String?,
           finalModelUsed: mapResult['finalModelUsed'] as String? ?? selected,
         );
+        // Si la IA devuelve el marcador [no_reply], ignorar la respuesta y
+        // asegurarnos de NO activar indicadores como isTyping.
+        if (_checkAndHandleNoReply(result.text, index: existingMessageIndex)) return;
         // Marcar como read inmediatamente al recibir la respuesta de la IA
-        _setLastUserMessageStatus(MessageStatus.read);
+        _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
       } else {
         // Resolver una implementación por medio de la fábrica DI y usar la interfaz
         final impl = di.getChatResponseService();
@@ -434,7 +668,7 @@ class ChatProvider extends ChangeNotifier {
         // Marcar inmediatamente como 'sent' antes del await para que el mensaje
         // del usuario no quede en estado 'sending' mientras la operación
         // de generación de imágenes (o procesamiento largo) se completa.
-        _setLastUserMessageStatus(MessageStatus.sent);
+        _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
 
         final mapResult = await impl.sendChat(
           msgs,
@@ -454,11 +688,14 @@ class ChatProvider extends ChangeNotifier {
           seed: mapResult['seed'] as String?,
           finalModelUsed: mapResult['finalModelUsed'] as String? ?? selected,
         );
+        // Si la IA devuelve el marcador [no_reply], ignorar la respuesta y
+        // asegurarnos de NO activar indicadores como isTyping.
+        if (_checkAndHandleNoReply(result.text, index: existingMessageIndex)) return;
         // Marcar como read inmediatamente al recibir la respuesta de la IA
-        _setLastUserMessageStatus(MessageStatus.read);
+        _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
       }
       // Éxito de red: marcar último mensaje usuario como 'sent'
-      _setLastUserMessageStatus(MessageStatus.sent);
+      _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
     } catch (e) {
       Log.e('Error enviando mensaje', tag: 'CHAT', error: e);
       // Marcar último mensaje de usuario como failed
@@ -511,7 +748,7 @@ class ChatProvider extends ChangeNotifier {
     }
 
     // Ahora ya tenemos la respuesta completa: marcar como 'read'
-    _setLastUserMessageStatus(MessageStatus.read);
+    _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
 
     // Indicadores de escritura / imagen
     isTyping = !result.isImage;
@@ -569,6 +806,8 @@ class ChatProvider extends ChangeNotifier {
       image: result.isImage ? AiImage(url: result.imagePath ?? '', seed: result.seed, prompt: result.prompt) : null,
       status: MessageStatus.read,
     );
+    // Si la IA responde con el marcador [no_reply'], no añadir ni procesar la respuesta
+    if (_checkAndHandleNoReply(assistantMessage.text, index: existingMessageIndex)) return;
     messages.add(assistantMessage);
     // Detección de llamada entrante cuando el modelo responde con el placeholder exacto
     if (assistantMessage.text.trim() == '[call][/call]') {
@@ -1228,6 +1467,8 @@ class ChatProvider extends ChangeNotifier {
     if (imported == null) return null;
     onboardingData = imported.profile;
     messages = imported.messages.cast<Message>();
+    // Limpiar cualquier estado de cola previo para evitar índices obsoletos
+    _clearQueuedState();
     // Restaurar eventos programados
     _events.clear();
     if (imported.events.isNotEmpty) {
@@ -1437,11 +1678,27 @@ class ChatProvider extends ChangeNotifier {
       await prefs.remove('onboarding_data');
     }
     messages.clear();
+    // Limpiar cola de envío diferido
+    _clearQueuedState();
     Log.d('[AI-chan] clearAll completado, mensajes: ${messages.length}');
     notifyListeners();
   }
 
-  // Eliminada función duplicada getLocalImageDir. Usar la de image_utils.dart
+  /// Limpia el estado interno de la cola de envío diferido.
+  void _clearQueuedState() {
+    _queuedSendTimer?.cancel();
+    _queuedSendTimer = null;
+    _queuedMessageLocalIds.clear();
+    _queuedOptions = null;
+  }
+
+  /// Fuerza el procesamiento inmediato de la cola (útil para un botón "Enviar ahora").
+  Future<void> flushQueuedMessages() async {
+    // Cancelar timer y procesar inmediatamente
+    _queuedSendTimer?.cancel();
+    _queuedSendTimer = null;
+    await _processQueuedMessages();
+  }
 
   @override
   void notifyListeners() {
@@ -1468,6 +1725,7 @@ class ChatProvider extends ChangeNotifier {
       audioService.dispose();
     } catch (_) {}
     _saveDebounceTimer?.cancel();
+    _queuedSendTimer?.cancel();
     try {
       _periodicScheduler.stop();
     } catch (_) {}

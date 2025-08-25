@@ -409,15 +409,15 @@ class FemaleNamesRepo {
 
       // Países multilingües (combinaciones)
       // RS ya definido arriba con serbio
-      case 'LU': // Luxemburgo (FR/DE) – por si se añade
+      case 'LU': // Luxemburgo (FR/DE) - por si se añade
         return _mergeUnique([fr, de]);
       case 'PR': // Puerto Rico (ES/EN)
         return _mergeUnique([es, en]);
       case 'GQ': // Guinea Ecuatorial (ES/FR)
         return _mergeUnique([es, fr, pt]);
-      case 'MT': // Malta (MT/EN) – aproximamos IT/EN
+      case 'MT': // Malta (MT/EN) - aproximamos IT/EN
         return _mergeUnique([it, en]);
-      case 'AD': // Andorra (CA/ES/FR) – aproximamos ES/FR
+      case 'AD': // Andorra (CA/ES/FR) - aproximamos ES/FR
         return _mergeUnique([es, fr]);
       case 'BE': // Bélgica (NL/FR/DE)
         return _mergeUnique([nl, fr, de]);

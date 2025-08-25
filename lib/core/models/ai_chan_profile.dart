@@ -38,6 +38,10 @@ class AiChanProfile {
   /// Backwards-compat getter: última avatar si existe.
   AiImage? get avatar => (avatars != null && avatars!.isNotEmpty) ? avatars!.last : null;
 
+  /// Nuevo getter explícito para obtener el PRIMER avatar (avatars[0])
+  /// Use esto cuando se desea la versión histórica/primera del avatar.
+  AiImage? get firstAvatar => (avatars != null && avatars!.isNotEmpty) ? avatars!.first : null;
+
   factory AiChanProfile.fromJson(Map<String, dynamic> json) {
     final events = (json['events'] as List<dynamic>? ?? [])
         .map((e) => EventEntry.fromJson(e as Map<String, dynamic>))

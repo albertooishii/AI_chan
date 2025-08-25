@@ -24,16 +24,9 @@ class AIChatResult {
 /// Servicio que encapsula la lógica de enviar mensaje a la IA (incluye reintentos,
 /// detección de generación de imagen y guardado de base64 a fichero).
 class AiChatResponseService {
-  static final RegExp _imageGenPattern = RegExp(
-    r'tools.*(image_generation|Image Generation)',
-    caseSensitive: false,
-  );
-  static final RegExp _markdownImagePattern = RegExp(
-    r'!\[.*?\]\((https?:\/\/.*?)\)',
-  );
-  static final RegExp _urlInTextPattern = RegExp(
-    r'https?:\/\/\S+\.(jpg|jpeg|png|webp|gif)',
-  );
+  static final RegExp _imageGenPattern = RegExp(r'tools.*(image_generation|Image Generation)', caseSensitive: false);
+  static final RegExp _markdownImagePattern = RegExp(r'!\[.*?\]\((https?:\/\/.*?)\)');
+  static final RegExp _urlInTextPattern = RegExp(r'https?:\/\/\S+\.(jpg|jpeg|png|webp|gif)');
 
   static int _extractWaitSeconds(String text) {
     final regex = RegExp(r'try again in ([\d\.]+)s');
@@ -68,7 +61,7 @@ class AiChatResponseService {
     final tagToken = RegExp(r'\[/?([a-zA-Z0-9_]+)\]');
     final matches = tagToken.allMatches(trimmed).toList();
     // Extraer tokens detectados (solo los que no llevan espacios dentro, para no confundir roleplay)
-    final allowed = {'audio', 'img_caption', 'call', 'end_call'};
+    final allowed = {'audio', 'img_caption', 'call', 'end_call', 'no_reply'};
     final tokens = <String>[];
     for (final m in matches) {
       final name = m.group(1);
@@ -84,9 +77,7 @@ class AiChatResponseService {
 
     // Validación de [call][/call] y [end_call][/end_call]
     if (trimmed.contains('[call]') || trimmed.contains('[end_call]')) {
-      final simpleTagPattern = RegExp(
-        r'^\s*(\[(?:call|end_call)\]\s*\[/(?:call|end_call)\])\s*$',
-      );
+      final simpleTagPattern = RegExp(r'^\s*(\[(?:call|end_call)\]\s*\[/(?:call|end_call)\])\s*$');
       if (!simpleTagPattern.hasMatch(trimmed)) {
         return false; // Debe ser lo único
       }
@@ -100,14 +91,9 @@ class AiChatResponseService {
     if (trimmed.contains(imgCaptionOpen)) {
       final firstIdx = trimmed.indexOf(imgCaptionOpen);
       if (firstIdx != 0) return false; // Debe iniciar el mensaje
-      final closeIdx = trimmed.indexOf(
-        imgCaptionClose,
-        firstIdx + imgCaptionOpen.length,
-      );
+      final closeIdx = trimmed.indexOf(imgCaptionClose, firstIdx + imgCaptionOpen.length);
       if (closeIdx < 0) return false; // falta cierre
-      final after = trimmed
-          .substring(closeIdx + imgCaptionClose.length)
-          .trimLeft();
+      final after = trimmed.substring(closeIdx + imgCaptionClose.length).trimLeft();
       // No permitir segunda aparición
       if (after.contains(imgCaptionOpen)) return false;
     }
@@ -119,9 +105,7 @@ class AiChatResponseService {
       final openIdx = trimmed.indexOf(audioOpen);
       final closeIdx = trimmed.indexOf(audioClose, openIdx + audioOpen.length);
       if (closeIdx < 0) return false; // Falta cierre
-      final inner = trimmed
-          .substring(openIdx + audioOpen.length, closeIdx)
-          .trim();
+      final inner = trimmed.substring(openIdx + audioOpen.length, closeIdx).trim();
       if (inner.isEmpty) return false; // Debe tener texto
       // Si inner empieza con '[' considerarlo intento de anidar etiqueta no permitida
       if (inner.startsWith('[')) return false;
@@ -170,11 +154,7 @@ class AiChatResponseService {
           : m.sender == MessageSender.system
           ? 'system'
           : 'unknown';
-      return {
-        "role": role,
-        "content": content,
-        "datetime": m.dateTime.toIso8601String(),
-      };
+      return {"role": role, "content": content, "datetime": m.dateTime.toIso8601String()};
     }
 
     AIResponse response = await AIService.sendMessage(
@@ -207,9 +187,7 @@ class AiChatResponseService {
     }
 
     int retry = 0;
-    while ((!_hasValidText(response) ||
-            !_hasValidAllowedTagsStructure(response.text)) &&
-        retry < maxRetries) {
+    while ((!_hasValidText(response) || !_hasValidAllowedTagsStructure(response.text)) && retry < maxRetries) {
       final waitSeconds = _extractWaitSeconds(response.text);
       await Future.delayed(Duration(seconds: waitSeconds));
       response = await AIService.sendMessage(
@@ -223,15 +201,11 @@ class AiChatResponseService {
       retry++;
     }
 
-    if (!_hasValidText(response) ||
-        !_hasValidAllowedTagsStructure(response.text)) {
+    if (!_hasValidText(response) || !_hasValidAllowedTagsStructure(response.text)) {
       // Último intento inválido: sanitizar removiendo etiquetas desconocidas para no mostrar markup roto.
       String sanitized = response.text;
       // Quitar cualquier tag desconocido tipo [xxxx] o [/xxxx] que no sea permitido
-      sanitized = sanitized.replaceAll(
-        RegExp(r'\[(?!/?(?:audio|img_caption|call|end_call)\b)[^\]\[]+\]'),
-        '',
-      );
+      sanitized = sanitized.replaceAll(RegExp(r'\[(?!/?(?:audio|img_caption|call|end_call)\b)[^\]\[]+\]'), '');
       return AIChatResult(
         text: sanitized,
         isImage: false,
@@ -266,24 +240,14 @@ class AiChatResponseService {
       // Validar que realmente sea base64 y no una URL
       final urlPattern = RegExp(r'^(https?:\/\/|file:|\/|[A-Za-z]:\\)');
       if (urlPattern.hasMatch(response.base64)) {
-        Log.e(
-          'La IA envió una URL/ruta en vez de imagen base64',
-          tag: 'AI_CHAT_RESPONSE',
-        );
-        textResponse +=
-            '\n[ERROR: La IA envió una URL/ruta en vez de imagen. Pide la foto de nuevo.]';
+        Log.e('La IA envió una URL/ruta en vez de imagen base64', tag: 'AI_CHAT_RESPONSE');
+        textResponse += '\n[ERROR: La IA envió una URL/ruta en vez de imagen. Pide la foto de nuevo.]';
         isImageResp = false;
       } else {
         try {
-          imagePathResp = await saveBase64ImageToFile(
-            response.base64,
-            prefix: 'img',
-          );
+          imagePathResp = await saveBase64ImageToFile(response.base64, prefix: 'img');
           if (imagePathResp == null) {
-            Log.e(
-              'No se pudo guardar la imagen localmente',
-              tag: 'AI_CHAT_RESPONSE',
-            );
+            Log.e('No se pudo guardar la imagen localmente', tag: 'AI_CHAT_RESPONSE');
             isImageResp = false;
           }
         } catch (e) {
@@ -294,14 +258,9 @@ class AiChatResponseService {
       }
     }
 
-    if (_markdownImagePattern.hasMatch(textResponse) ||
-        _urlInTextPattern.hasMatch(textResponse)) {
-      Log.e(
-        'La IA envió una imagen Markdown o URL en el texto',
-        tag: 'AI_CHAT_RESPONSE',
-      );
-      textResponse +=
-          '\n[ERROR: La IA envió una imagen como enlace o Markdown. Pide la foto de nuevo.]';
+    if (_markdownImagePattern.hasMatch(textResponse) || _urlInTextPattern.hasMatch(textResponse)) {
+      Log.e('La IA envió una imagen Markdown o URL en el texto', tag: 'AI_CHAT_RESPONSE');
+      textResponse += '\n[ERROR: La IA envió una imagen como enlace o Markdown. Pide la foto de nuevo.]';
     }
 
     return AIChatResult(
