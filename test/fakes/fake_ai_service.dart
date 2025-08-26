@@ -1,8 +1,9 @@
-import 'package:ai_chan/shared/services/ai_service.dart';
-import 'package:ai_chan/core/models.dart';
 import 'dart:convert';
 
-/// Base fake AI service for testing - provides configurable responses
+import 'package:ai_chan/shared/services/ai_service.dart';
+import 'package:ai_chan/core/models.dart';
+
+/// Fake AIService used in tests to replace the runtime via AIService.testOverride
 class FakeAIService extends AIService {
   final String? textResponse;
   final String? imageBase64Response;
@@ -27,9 +28,7 @@ class FakeAIService extends AIService {
     String? imageMimeType,
     bool enableImageGeneration = false,
   }) async {
-    if (shouldThrowError) {
-      throw Exception(errorMessage);
-    }
+    if (shouldThrowError) throw Exception(errorMessage);
 
     if (customJsonResponse != null) {
       return AIResponse(
@@ -49,30 +48,23 @@ class FakeAIService extends AIService {
       );
     }
 
-    return AIResponse(
-      text: textResponse ?? 'fake response',
-      base64: '',
-      seed: 'fake-seed',
-      prompt: 'fake-prompt',
-    );
+    return AIResponse(text: textResponse ?? 'fake response', base64: '', seed: 'fake-seed', prompt: 'fake-prompt');
   }
 
   @override
   Future<List<String>> getAvailableModels() async => ['fake'];
 
   /// Factory for biography generation tests
-  factory FakeAIService.forBiography() {
-    return FakeAIService(
-      customJsonResponse: {
-        'datos_personales': {'nombre_completo': 'Ai Test'},
-        'personalidad': {
-          'valores': {'Sociabilidad': '5'},
-          'intereses': ['testing', 'coding'],
-        },
-        'timeline': [],
+  factory FakeAIService.forBiography() => FakeAIService(
+    customJsonResponse: {
+      'datos_personales': {'nombre_completo': 'Ai Test'},
+      'personalidad': {
+        'valores': {'Sociabilidad': '5'},
+        'intereses': ['testing', 'coding'],
       },
-    );
-  }
+      'timeline': [],
+    },
+  );
 
   /// Factory for appearance generation tests
   factory FakeAIService.forAppearance() {
@@ -88,10 +80,6 @@ class FakeAIService extends AIService {
   }
 
   /// Factory for failure scenarios
-  factory FakeAIService.withError([String? message]) {
-    return FakeAIService(
-      shouldThrowError: true,
-      errorMessage: message ?? 'AI failure',
-    );
-  }
+  factory FakeAIService.withError([String? message]) =>
+      FakeAIService(shouldThrowError: true, errorMessage: message ?? 'AI failure');
 }

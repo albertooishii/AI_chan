@@ -27,7 +27,6 @@ void main() {
     test('bounded contexts can be accessed without circular dependencies', () {
       // Verify that we can access services from different contexts
       expect(() => di.getProfileServiceForProvider(), returnsNormally);
-      expect(() => di.getChatResponseService(), returnsNormally);
       expect(() => di.getAIServiceForModel('test-model'), returnsNormally);
     });
 
@@ -36,8 +35,9 @@ void main() {
       final profileService = di.getProfileServiceForProvider();
       expect(profileService, isNotNull);
 
-      final chatService = di.getChatResponseService();
-      expect(chatService, isNotNull);
+      // legacy chat response service removed; ensure AI service factory works
+      final aiService = di.getAIServiceForModel('test-model');
+      expect(aiService, isNotNull);
     });
   });
 }

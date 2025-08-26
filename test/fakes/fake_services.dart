@@ -8,7 +8,6 @@ export 'fake_ai_service.dart';
 export 'fake_voice_services.dart';
 
 // Chat Services
-export 'fake_chat_response_service.dart';
 export 'fake_realtime_client.dart';
 
 // Configuration Services

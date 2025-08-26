@@ -11,7 +11,7 @@ import 'package:ai_chan/core/config.dart';
 class TestChatProvider extends ChatProvider {
   final String dialogResult;
 
-  TestChatProvider({required this.dialogResult}) : super(repository: null, chatResponseService: null);
+  TestChatProvider({required this.dialogResult}) : super(repository: null);
 
   @override
   Future<String?> showRegenerateAppearanceErrorDialog(Object error) async {

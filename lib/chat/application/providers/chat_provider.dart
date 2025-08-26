@@ -8,8 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/config.dart';
-import 'package:ai_chan/core/interfaces/i_chat_repository.dart';
-import 'package:ai_chan/core/interfaces/i_chat_response_service.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_chat_repository.dart';
 import 'package:ai_chan/core/interfaces/ai_service.dart';
 import 'package:ai_chan/core/services/memory_summary_service.dart';
 import 'dart:io';
@@ -39,7 +38,6 @@ import 'package:ai_chan/chat/application/services/timeline_updater.dart';
 class ChatProvider extends ChangeNotifier {
   final IChatRepository? repository;
   final IAIService? aiService;
-  final IChatResponseService? chatResponseService;
   SendMessageUseCase? sendMessageUseCase;
   TtsService? ttsService;
 
@@ -106,21 +104,21 @@ class ChatProvider extends ChangeNotifier {
       audioPath: userAudioPath,
       status: MessageStatus.sending,
     );
-
-    // Añadir a la lista de mensajes para que formen parte del contexto
-    messages.add(msg);
-    final lid = msg.localId;
-    // Encolar y dejar que MessageQueueManager controle el temporizador
-    final opts = QueuedSendOptions(
-      model: model,
-      callPrompt: callPrompt,
-      image: image,
-      imageMimeType: imageMimeType,
-      preTranscribedText: preTranscribedText,
-      userAudioPath: userAudioPath,
-    );
-    _queueManager?.enqueue(lid, options: opts);
-    notifyListeners();
+    if (text.trim().isNotEmpty || hasImage || isAutomaticPrompt || userAudioPath != null) {
+      messages.add(msg);
+      final lid = msg.localId;
+      // Encolar y dejar que MessageQueueManager controle el temporizador
+      final opts = QueuedSendOptions(
+        model: model,
+        callPrompt: callPrompt,
+        image: image,
+        imageMimeType: imageMimeType,
+        preTranscribedText: preTranscribedText,
+        userAudioPath: userAudioPath,
+      );
+      _queueManager?.enqueue(lid, options: opts);
+      notifyListeners();
+    }
   }
 
   // Queue processing is handled by MessageQueueManager; no local implementation.
@@ -144,7 +142,6 @@ class ChatProvider extends ChangeNotifier {
   ChatProvider({
     this.repository,
     this.aiService,
-    this.chatResponseService,
     SendMessageUseCase? sendMessageUseCaseParam,
     TtsService? ttsServiceParam,
     PeriodicIaMessageScheduler? periodicScheduler,
@@ -152,7 +149,7 @@ class ChatProvider extends ChangeNotifier {
     int? typingWpm,
     int? typingMinMs,
     int? typingMaxMs,
-  }) : sendMessageUseCase = sendMessageUseCaseParam ?? SendMessageUseCase(injectedService: chatResponseService),
+  }) : sendMessageUseCase = sendMessageUseCaseParam ?? SendMessageUseCase(),
        ttsService = ttsServiceParam,
        _periodicScheduler = periodicScheduler ?? PeriodicIaMessageScheduler(),
        memoryManager = memoryManagerParam,
@@ -580,83 +577,42 @@ class ChatProvider extends ChangeNotifier {
           // Cuando vuelva la conexión, iniciar el envío real (marca sent justo antes)
           _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
           try {
-            if (chatResponseService != null) {
-              _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
-              final outcome = await (sendMessageUseCase ?? SendMessageUseCase(injectedService: chatResponseService))
-                  .sendChat(
-                    recentMessages: recentMessages,
-                    systemPromptObj: systemPromptObj,
-                    model: selected,
-                    imageBase64: image?.base64,
-                    imageMimeType: imageMimeType,
-                    enableImageGeneration: solicitaImagen,
-                    onboardingData: onboardingData,
-                    saveAll: saveAll,
-                  );
-              // Marcar como read inmediatamente al recibir la respuesta de la IA
-              _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
-              if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) return;
-              try {
-                final outRes = outcome.result;
-                isTyping = !outRes.isImage;
-                isSendingImage = outRes.isImage;
-                final lowerText = outRes.text.toLowerCase();
-                if (lowerText.contains('[audio]')) isSendingAudio = true;
-                notifyListeners();
-              } catch (_) {}
-              // Guardar outcome y mostrar indicadores; la adición del mensaje
-              // se realizará tras el delay por _finalizeAssistantResponse.
-              pendingOutcome = outcome;
-              result = outcome.result;
-              try {
-                final outRes = outcome.result;
-                isTyping = !outRes.isImage;
-                isSendingImage = outRes.isImage;
-                final lowerText = outRes.text.toLowerCase();
-                if (lowerText.contains('[audio]')) isSendingAudio = true;
-                notifyListeners();
-              } catch (_) {}
-              // Lanzar finalizer (no await) para aplicar outcome tras el delay
-              finalizeAssistantResponse();
-            } else {
-              // Fallback a impl vía DI
-              final impl = di.getChatResponseService();
-              _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
-              final outcome = await (sendMessageUseCase ?? SendMessageUseCase(injectedService: impl)).sendChat(
-                recentMessages: recentMessages,
-                systemPromptObj: systemPromptObj,
-                model: selected,
-                imageBase64: image?.base64,
-                imageMimeType: imageMimeType,
-                enableImageGeneration: solicitaImagen,
-                onboardingData: onboardingData,
-                saveAll: saveAll,
-              );
-              _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
-              if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) return;
-              try {
-                final outRes = outcome.result;
-                isTyping = !outRes.isImage;
-                isSendingImage = outRes.isImage;
-                final lowerText = outRes.text.toLowerCase();
-                if (lowerText.contains('[audio]')) isSendingAudio = true;
-                notifyListeners();
-              } catch (_) {}
-              // Guardar outcome y mostrar indicadores; la adición del mensaje
-              // se realizará tras el delay por _finalizeAssistantResponse.
-              pendingOutcome = outcome;
-              result = outcome.result;
-              try {
-                final outRes = outcome.result;
-                isTyping = !outRes.isImage;
-                isSendingImage = outRes.isImage;
-                final lowerText = outRes.text.toLowerCase();
-                if (lowerText.contains('[audio]')) isSendingAudio = true;
-                notifyListeners();
-              } catch (_) {}
-              // Lanzar finalizer (no await) para aplicar outcome tras el delay
-              finalizeAssistantResponse();
-            }
+            _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
+            final outcome = await (sendMessageUseCase ?? SendMessageUseCase()).sendChat(
+              recentMessages: recentMessages,
+              systemPromptObj: systemPromptObj,
+              model: selected,
+              imageBase64: image?.base64,
+              imageMimeType: imageMimeType,
+              enableImageGeneration: solicitaImagen,
+              onboardingData: onboardingData,
+              saveAll: saveAll,
+            );
+            // Marcar como read inmediatamente al recibir la respuesta de la IA
+            _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
+            if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) return;
+            try {
+              final outRes = outcome.result;
+              isTyping = !outRes.isImage;
+              isSendingImage = outRes.isImage;
+              final lowerText = outRes.text.toLowerCase();
+              if (lowerText.contains('[audio]')) isSendingAudio = true;
+              notifyListeners();
+            } catch (_) {}
+            // Guardar outcome y mostrar indicadores; la adición del mensaje
+            // se realizará tras el delay por _finalizeAssistantResponse.
+            pendingOutcome = outcome;
+            result = outcome.result;
+            try {
+              final outRes = outcome.result;
+              isTyping = !outRes.isImage;
+              isSendingImage = outRes.isImage;
+              final lowerText = outRes.text.toLowerCase();
+              if (lowerText.contains('[audio]')) isSendingAudio = true;
+              notifyListeners();
+            } catch (_) {}
+            // Lanzar finalizer (no await) para aplicar outcome tras el delay
+            finalizeAssistantResponse();
           } catch (e) {
             Log.e('Error enviando mensaje tras reconexión', tag: 'CHAT', error: e);
             final idx = messages.lastIndexWhere((m) => m.sender == MessageSender.user);
@@ -670,70 +626,35 @@ class ChatProvider extends ChangeNotifier {
         return;
       }
 
-      if (chatResponseService != null) {
-        // Delegate to SendMessageUseCase (keeps conversion centralized)
-        _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
-        final outcome = await (sendMessageUseCase ?? SendMessageUseCase(injectedService: chatResponseService)).sendChat(
-          recentMessages: recentMessages,
-          systemPromptObj: systemPromptObj,
-          model: selected,
-          imageBase64: image?.base64,
-          imageMimeType: imageMimeType,
-          enableImageGeneration: solicitaImagen,
-          onboardingData: onboardingData,
-          saveAll: saveAll,
-        );
-        if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) return;
-        _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
-        // Guardar outcome y ejecutar finalizer para aplicar el resultado tras el delay
-        pendingOutcome = outcome;
-        result = outcome.result;
-        try {
-          final outRes = outcome.result;
-          isTyping = !outRes.isImage;
-          isSendingImage = outRes.isImage;
-          final lowerText = outRes.text.toLowerCase();
-          if (lowerText.contains('[audio]')) isSendingAudio = true;
-          notifyListeners();
-        } catch (_) {}
-        finalizeAssistantResponse();
-      } else {
-        // Resolver una implementación por medio de la fábrica DI y usar la interfaz
-        final impl = di.getChatResponseService();
-        // Marcar inmediatamente como 'sent' antes del await para que el mensaje
-        // del usuario no quede en estado 'sending' mientras la operación
-        // de generación de imágenes (o procesamiento largo) se completa.
-        _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
-
-        // Use unified SendMessageUseCase for DI fallback as well
-        final outcome = await (sendMessageUseCase ?? SendMessageUseCase(injectedService: impl)).sendChat(
-          recentMessages: recentMessages,
-          systemPromptObj: systemPromptObj,
-          model: selected,
-          imageBase64: image?.base64,
-          imageMimeType: imageMimeType,
-          enableImageGeneration: solicitaImagen,
-          onboardingData: onboardingData,
-          saveAll: saveAll,
-        );
-        // Si la IA devuelve el marcador [no_reply], ignorar la respuesta y
-        // asegurarnos de NO activar indicadores como isTyping.
-        if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) return;
-        // Marcar como read inmediatamente al recibir la respuesta de la IA
-        _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
-        // Guardar outcome y ejecutar finalizer para aplicar el resultado tras el delay
-        pendingOutcome = outcome;
-        result = outcome.result;
-        try {
-          final outRes = outcome.result;
-          isTyping = !outRes.isImage;
-          isSendingImage = outRes.isImage;
-          final lowerText = outRes.text.toLowerCase();
-          if (lowerText.contains('[audio]')) isSendingAudio = true;
-          notifyListeners();
-        } catch (_) {}
-        finalizeAssistantResponse();
-      }
+      // Preferir SendMessageUseCase (por defecto usa AIService) para mantener
+      // comportamiento centralizado y permitir testOverride en tests.
+      _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
+      final outcome = await (sendMessageUseCase ?? SendMessageUseCase()).sendChat(
+        recentMessages: recentMessages,
+        systemPromptObj: systemPromptObj,
+        model: selected,
+        imageBase64: image?.base64,
+        imageMimeType: imageMimeType,
+        enableImageGeneration: solicitaImagen,
+        onboardingData: onboardingData,
+        saveAll: saveAll,
+      );
+      // Si la IA devuelve el marcador [no_reply], ignorar la respuesta
+      if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) return;
+      // Marcar como read inmediatamente al recibir la respuesta de la IA
+      _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
+      // Guardar outcome y ejecutar finalizer para aplicar el resultado tras el delay
+      pendingOutcome = outcome;
+      result = outcome.result;
+      try {
+        final outRes = outcome.result;
+        isTyping = !outRes.isImage;
+        isSendingImage = outRes.isImage;
+        final lowerText = outRes.text.toLowerCase();
+        if (lowerText.contains('[audio]')) isSendingAudio = true;
+        notifyListeners();
+      } catch (_) {}
+      finalizeAssistantResponse();
       // Éxito de red: marcar último mensaje usuario como 'sent'
       _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
     } catch (e) {

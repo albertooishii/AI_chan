@@ -1,5 +1,6 @@
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/services/ai_service.dart' as ai_service;
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
 import 'package:ai_chan/shared/utils/storage_utils.dart';
 import 'package:flutter/material.dart';
@@ -272,16 +273,17 @@ class OnboardingProvider extends ChangeNotifier {
         instructions: {'raw': instrucciones},
       );
       try {
-        // Usar el servicio de chat response para generar la historia
-        final chatService = di.getChatResponseService();
-        final response = await chatService.sendChat(
-          [
-            {"role": "user", "content": prompt, "datetime": DateTime.now().toIso8601String()},
-          ],
-          options: {'systemPromptObj': systemPromptObj.toJson(), 'model': Config.getDefaultTextModel()},
+        // Usar AIService.sendMessage directamente (respeta AIService.testOverride en tests)
+        final history = [
+          {"role": "user", "content": prompt, "datetime": DateTime.now().toIso8601String()},
+        ];
+        final resp = await ai_service.AIService.sendMessage(
+          history,
+          systemPromptObj,
+          model: Config.getDefaultTextModel(),
         );
         if (!context.mounted) return;
-        final storyText = response['text'] as String? ?? '';
+        final storyText = resp.text;
         if (storyText.toLowerCase().contains('error al conectar con la ia') ||
             storyText.toLowerCase().contains('"error"')) {
           await showErrorDialog(storyText);

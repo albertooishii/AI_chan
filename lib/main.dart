@@ -242,8 +242,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     return ChangeNotifierProvider(
       create: (_) {
         final repo = di.getChatRepository();
-        final chatAdapter = di.getChatResponseService();
-        final provider = ChatProvider(repository: repo, chatResponseService: chatAdapter);
+        final provider = ChatProvider(repository: repo);
         provider.onboardingData = onboardingProvider.generatedBiography!;
         provider.loadAll();
         return provider;
