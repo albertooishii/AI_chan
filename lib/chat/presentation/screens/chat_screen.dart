@@ -947,7 +947,13 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<String?> _loadActiveVoice() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getString('selected_voice');
+      final savedProvider = prefs.getString('selected_audio_provider');
+      final envProvider = Config.getAudioProvider().toLowerCase();
+      String provider = savedProvider ?? envProvider;
+      if (provider == 'gemini') provider = 'google';
+      if (provider.isEmpty) provider = 'google';
+      final providerKey = 'selected_voice_$provider';
+      return prefs.getString(providerKey);
     } catch (_) {
       return null;
     }

@@ -39,8 +39,7 @@ class SendMessageUseCase {
         )
         .toList();
 
-    // Copy core behavior from previous AiChatResponseService to preserve
-    // retries, image-detection and sanitization when calling AIService.
+    // Preserve retries, image-detection and sanitization behavior when calling AIService.
     final RegExp imageGenPattern = RegExp(r'tools.*(image_generation|Image Generation)', caseSensitive: false);
     final RegExp markdownImagePattern = RegExp(r'!\[.*?\]\((https?:\/\/.*?)\)');
     final RegExp urlInTextPattern = RegExp(r'https?:\/\/\S+\.(jpg|jpeg|png|webp|gif)');

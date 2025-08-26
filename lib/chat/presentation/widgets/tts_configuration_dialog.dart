@@ -156,13 +156,12 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     final savedProvider = prefs.getString('selected_audio_provider') ?? Config.getAudioProvider().toLowerCase();
-    // Prefer provider-specific saved voice, fall back to legacy 'selected_voice'
+    // Read provider-specific saved voice only
     final providerVoiceKey = 'selected_voice_$savedProvider';
     final providerVoice = prefs.getString(providerVoiceKey);
-    final legacyVoice = prefs.getString('selected_voice');
     setState(() {
       _selectedProvider = savedProvider;
-      _selectedVoice = providerVoice ?? legacyVoice;
+      _selectedVoice = providerVoice;
       // Cargar modelo seleccionado guardado o usar el por defecto
       _selectedModel = prefs.getString('selected_model') ?? Config.getDefaultTextModel();
     });
@@ -318,8 +317,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('selected_audio_provider', _selectedProvider);
     if (_selectedVoice != null) {
-      // Save both provider-specific and legacy key for backward compatibility
-      await prefs.setString('selected_voice', _selectedVoice!);
+      // Save provider-specific voice only
       final providerKey = 'selected_voice_$_selectedProvider';
       await prefs.setString(providerKey, _selectedVoice!);
     }
@@ -774,9 +772,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
                       setState(() => _selectedVoice = voiceName);
                       try {
                         final prefs = await SharedPreferences.getInstance();
-                        // Save both legacy key and provider-specific key to avoid mismatch between
-                        // the UI selection and the active provider used by TTS at runtime.
-                        await prefs.setString('selected_voice', voiceName);
+                        // Save provider-specific key only
                         final providerKey = 'selected_voice_$_selectedProvider';
                         await prefs.setString(providerKey, voiceName);
                         if (widget.chatProvider != null) widget.chatProvider!.notifyListeners();
@@ -793,7 +789,6 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
               setState(() => _selectedVoice = voiceName);
               try {
                 final prefs = await SharedPreferences.getInstance();
-                await prefs.setString('selected_voice', voiceName);
                 final providerKey = 'selected_voice_$_selectedProvider';
                 await prefs.setString(providerKey, voiceName);
                 if (widget.chatProvider != null) widget.chatProvider!.notifyListeners();

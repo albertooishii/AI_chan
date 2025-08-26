@@ -7,16 +7,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Implementación única y consolidada de IChatRepository.
 /// Usa StorageUtils (si está disponible) para compatibilidad con import/export robusto.
-/// Además mantiene un respaldo en SharedPreferences bajo la clave 'chat_state_v1'.
+/// Persiste partes estructuradas en SharedPreferences y guarda un respaldo completo
+/// bajo la clave 'chat_full_export' para inspección manual si es necesario.
 class LocalChatRepository implements IChatRepository {
-  static const _kPrefsKey = 'chat_state_v1';
-
   @override
   Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('chat_history');
     await prefs.remove('onboarding_data');
-    await prefs.remove(_kPrefsKey);
+    await prefs.remove('chat_full_export');
   }
 
   @override
@@ -44,15 +43,8 @@ class LocalChatRepository implements IChatRepository {
       } catch (_) {}
     }
 
-    // Fallback: legacy single-key storage
-    final raw = prefs.getString(_kPrefsKey);
-    if (raw == null) return null;
-    try {
-      final Map<String, dynamic> parsed = json.decode(raw) as Map<String, dynamic>;
-      return parsed;
-    } catch (_) {
-      return null;
-    }
+    // No legacy single-key fallback: return null if structured keys are not present
+    return null;
   }
 
   @override
@@ -67,8 +59,21 @@ class LocalChatRepository implements IChatRepository {
     }
 
     final prefs = await SharedPreferences.getInstance();
-    final encoded = json.encode(exportedJson);
-    await prefs.setString(_kPrefsKey, encoded);
+    // Save structured parts if possible to make future reads deterministic
+    if (exportedJson.containsKey('messages')) {
+      await prefs.setString('chat_history', json.encode(exportedJson['messages']));
+    }
+    if (exportedJson.containsKey('onboarding') ||
+        exportedJson.containsKey('ai_profile') ||
+        exportedJson.containsKey('aiChanProfile')) {
+      // Many callers use 'onboarding' or profile top-level keys; save a canonical 'onboarding_data'
+      final profile = exportedJson['onboarding'] ?? exportedJson['ai_profile'] ?? exportedJson['aiChanProfile'];
+      if (profile != null) {
+        await prefs.setString('onboarding_data', json.encode(profile));
+      }
+    }
+    // Fallback: persist the whole payload under 'chat_full_export' for manual inspection
+    await prefs.setString('chat_full_export', json.encode(exportedJson));
   }
 
   @override

@@ -63,11 +63,10 @@ Future<void> main() async {
       }
     }
 
-    // selected_voice and provider-specific key
-    final savedVoice = prefs.getString('selected_voice');
+    // TTS voice configuration: we only ensure a provider-specific default is present.
     final providerKey = 'selected_voice_$provider';
     final providerVoice = prefs.getString(providerKey);
-    if ((savedVoice == null || savedVoice.isEmpty) && (providerVoice == null || providerVoice.isEmpty)) {
+    if (providerVoice == null || providerVoice.isEmpty) {
       String defaultVoice = '';
       if (provider == 'google') {
         defaultVoice = Config.getGoogleVoice();
@@ -76,7 +75,6 @@ Future<void> main() async {
       }
 
       if (defaultVoice.isNotEmpty) {
-        await prefs.setString('selected_voice', defaultVoice);
         await prefs.setString(providerKey, defaultVoice);
       }
     }

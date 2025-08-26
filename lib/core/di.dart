@@ -1,6 +1,5 @@
 import 'package:ai_chan/chat/infrastructure/repositories/local_chat_repository.dart';
 import 'package:ai_chan/chat/infrastructure/adapters/audio_chat_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_response_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_repository.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
 import 'package:ai_chan/core/interfaces/ai_service.dart';
@@ -23,14 +22,10 @@ import 'package:ai_chan/voice/infrastructure/audio/audio_playback.dart';
 /// Idealmente esto evolucionará a un contenedor/locator más completo.
 IChatRepository getChatRepository() => LocalChatRepository();
 
-// Note: legacy `AiChatResponseAdapter` was removed. Call sites should
-// migrate to use `SendMessageUseCase`/`AIService`. This helper remains
-// to provide a clear error during migration if any code still relies on it.
-IChatResponseService getChatResponseService() {
-  throw UnimplementedError(
-    'AiChatResponseService/Adapter removed: use SendMessageUseCase or AIService.sendMessage instead.',
-  );
-}
+// DI factories and small helpers used across the app. Legacy adapters have
+// been removed and their logic migrated into higher-level use-cases such
+// as `SendMessageUseCase` and `AIService` — keep this file focused on
+// active factory functions and test overrides.
 
 /// Factory for audio chat service with required callbacks
 IAudioChatService getAudioChatService({

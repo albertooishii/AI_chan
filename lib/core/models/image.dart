@@ -40,29 +40,7 @@ class AiImage {
     );
   }
 
-  /// Crea una instancia core a partir del modelo legacy `lib/models/image.dart`.
-  factory AiImage.fromLegacy(dynamic legacy) {
-    if (legacy == null) return AiImage();
-    try {
-      // Intentar mapear campos comunes
-      final base64 = legacy.base64 as String?;
-      final seed = legacy.seed as String?;
-      final url = legacy.url as String?;
-      final prompt = legacy.prompt as String?;
-      return AiImage(base64: base64, seed: seed, url: url, prompt: prompt);
-    } catch (_) {
-      // Si no es el tipo esperado, intentar tratarlo como Map
-      try {
-        final Map<String, dynamic> m = legacy as Map<String, dynamic>;
-        return AiImage.fromJson(m);
-      } catch (_) {
-        return AiImage();
-      }
-    }
-  }
-
-  /// Backwards-compat shim: keep a factory named `fromJson` and provide an alias for old name usage
-  // (AiImage already provides fromJson)
+  // Legacy compatibility removed: use `fromJson` instead of legacy shims.
 }
 
 // Deprecated: previously provided a typedef `Image = AiImage` for compatibility.

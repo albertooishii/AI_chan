@@ -35,7 +35,6 @@ export 'fake_appearance_generator.dart';
 /// - FakeSTTService (with factory: failure())
 ///
 /// Chat Services:
-/// - FakeChatResponseService (with factory: withError())
 /// - FakeRealtimeClient
 ///
 /// Configuration Services:

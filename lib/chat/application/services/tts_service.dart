@@ -41,11 +41,8 @@ class TtsService {
       final savedProvider = prefs.getString('selected_audio_provider') ?? Config.getAudioProvider().toLowerCase();
       final providerKey = 'selected_voice_$savedProvider';
       final providerVoice = prefs.getString(providerKey);
-      final legacyVoice = prefs.getString('selected_voice');
       if (providerVoice != null && providerVoice.trim().isNotEmpty) {
         preferredVoice = providerVoice;
-      } else if (legacyVoice != null && legacyVoice.trim().isNotEmpty) {
-        preferredVoice = legacyVoice;
       }
     } catch (_) {}
 

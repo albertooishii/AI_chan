@@ -350,7 +350,6 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
     Future.microtask(() async {
       try {
         final prefs = await SharedPreferences.getInstance();
-        final saved = prefs.getString('selected_voice');
         // Determinar proveedor activo (prefs -> env), mapeando gemini->google para compatibilidad
         final savedProvider = prefs.getString('selected_audio_provider');
         final envProvider = Config.getAudioProvider().toLowerCase();
@@ -362,6 +361,8 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
         } else {
           provider = 'google';
         }
+        final providerKey = 'selected_voice_$provider';
+        final saved = prefs.getString(providerKey);
 
         // Construir lista válida según provider
         List<String> validVoices;
@@ -825,7 +826,7 @@ extension _IncomingLogic on _VoiceCallChatState {
     String? selectedVoice;
     try {
       final prefs = await SharedPreferences.getInstance();
-      selectedVoice = prefs.getString('selected_voice');
+      selectedVoice = prefs.getString('selected_voice_$providerToUse');
     } catch (_) {}
     final voiceToUse = selectedVoice ?? resolveDefaultVoice(Config.getOpenaiVoice());
 

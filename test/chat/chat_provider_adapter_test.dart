@@ -8,7 +8,7 @@ import '../fakes/fake_ai_service.dart';
 void main() async {
   await initializeTestEnvironment(prefs: {});
 
-  test('ChatProvider uses IChatResponseService adapter to append assistant message', () async {
+  test('ChatProvider uses AIService (test override) to append assistant message', () async {
     // Use AIService.testOverride instead of injecting legacy adapter
     final fake = FakeAIService(textResponse: 'hola desde fake');
     AIService.testOverride = fake;

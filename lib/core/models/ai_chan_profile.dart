@@ -71,15 +71,12 @@ class AiChanProfile {
       timeline: (json['timeline'] as List<dynamic>? ?? [])
           .map((e) => TimelineEntry.fromJson(e as Map<String, dynamic>))
           .toList(),
-      // Compatibilidad: soportar tanto 'avatars' (lista) como el campo legacy 'avatar'.
+      // Avatars: expect a list under 'avatars' only (legacy single 'avatar' removed)
       avatars: (() {
         try {
           if (json['avatars'] is List) {
             final list = (json['avatars'] as List).cast<Map<String, dynamic>>();
             return list.map((m) => AiImage.fromJson(m)).toList();
-          }
-          if (json['avatar'] != null) {
-            return [AiImage.fromJson(json['avatar'] as Map<String, dynamic>)];
           }
         } catch (_) {}
         return null;

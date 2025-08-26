@@ -1,4 +1,3 @@
-// event detection moved into SendMessageUseCase
 import 'package:ai_chan/shared/domain/services/promise_service.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'package:ai_chan/shared/utils/storage_utils.dart';
@@ -1356,7 +1355,7 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // _extractWaitSeconds eliminado (reintentos ahora están en AiChatResponseService)
+  // _extractWaitSeconds eliminado (reintentos ahora están en SendMessageUseCase)
 
   /// Limpia el texto para mostrarlo correctamente en el chat (quita escapes JSON)
   String cleanText(String text) {

@@ -22,16 +22,4 @@ void main() {
     // original unchanged
     expect(img.url, 'u');
   });
-
-  test('AiImage.fromLegacy handles null and maps', () {
-    final nullImg = AiImage.fromLegacy(null);
-    expect(nullImg.base64, isNull);
-    // legacy map
-    final legacy = {'base64': 'B', 'seed': 's2', 'url': 'u2', 'prompt': 'pp'};
-    final fromLegacy = AiImage.fromLegacy(legacy);
-    expect(fromLegacy.base64, 'B');
-    expect(fromLegacy.seed, 's2');
-    expect(fromLegacy.url, 'u2');
-    expect(fromLegacy.prompt, 'pp');
-  });
 }
