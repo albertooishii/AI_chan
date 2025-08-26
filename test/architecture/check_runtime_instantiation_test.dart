@@ -14,13 +14,14 @@ void main() {
         .listSync(recursive: true)
         .whereType<File>()
         .where((f) => f.path.endsWith('.dart'))
-        .where((f) => !f.path.endsWith('lib/core/runtime_factory.dart'))
+        .where(
+          (f) =>
+              !f.path.endsWith('lib/core/runtime_factory.dart') &&
+              !f.path.endsWith('lib/shared/services/ai_runtime_provider.dart'),
+        )
         .toList();
 
-    final patterns = [
-      RegExp(r'\bOpenAIService\s*\('),
-      RegExp(r'\bGeminiService\s*\('),
-    ];
+    final patterns = [RegExp(r'\bOpenAIService\s*\('), RegExp(r'\bGeminiService\s*\(')];
     final offenders = <String>[];
 
     for (final f in files) {
@@ -28,9 +29,7 @@ void main() {
       for (final p in patterns) {
         final m = p.firstMatch(content);
         if (m != null) {
-          offenders.add(
-            '${f.path}:${_lineInfo(content, m.start)} -> ${p.pattern}',
-          );
+          offenders.add('${f.path}:${_lineInfo(content, m.start)} -> ${p.pattern}');
         }
       }
     }
@@ -38,8 +37,7 @@ void main() {
     expect(
       offenders,
       isEmpty,
-      reason:
-          'Direct runtime instantiations found outside runtime_factory:\n${offenders.join('\n')}',
+      reason: 'Direct runtime instantiations found outside runtime_factory:\n${offenders.join('\n')}',
     );
   });
 }

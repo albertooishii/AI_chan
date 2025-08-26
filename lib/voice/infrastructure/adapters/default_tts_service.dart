@@ -10,7 +10,7 @@ import 'package:ai_chan/core/infrastructure/adapters/gemini_adapter.dart';
 // removed unused runtime/openai imports: use OpenAIAdapter wrapper instead
 import 'package:ai_chan/core/config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
+import 'package:ai_chan/shared/services/ai_runtime_provider.dart' as runtime_factory;
 
 /// Default TTS service that tries native -> Google -> OpenAI in that order.
 class DefaultTtsService implements ITtsService {

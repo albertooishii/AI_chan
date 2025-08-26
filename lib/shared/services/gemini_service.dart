@@ -3,7 +3,6 @@ import 'package:http/http.dart' as http;
 import 'package:ai_chan/core/http_connector.dart';
 import 'ai_service.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/shared/utils/debug_call_logger/debug_call_logger.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/core/services/prompt_builder.dart';
@@ -217,12 +216,12 @@ class GeminiService implements AIService {
 
     Future<AIResponse> parseAndBuild(String respBody) async {
       // Guardar la respuesta raw para análisis detallado en debug
+      // For debugging during development we log the size/preview via Log.d
       try {
-        await debugLogCallPrompt('gemini_http_raw_response', {
-          'model': selectedModel,
-          'body_length': respBody.length,
-          'body_preview': respBody.length > 4000 ? respBody.substring(0, 4000) : respBody,
-        });
+        Log.d('[Gemini] Raw response preview length=${respBody.length}');
+        if (respBody.isNotEmpty) {
+          Log.d('[Gemini] Raw response preview: ${respBody.length > 4000 ? respBody.substring(0, 4000) : respBody}');
+        }
       } catch (_) {}
       final data = jsonDecode(respBody);
       String? text;
@@ -267,13 +266,11 @@ class GeminiService implements AIService {
       Future<http.Response> doPost(String key) {
         final mUrl = Uri.parse('$endpointBase$modelId:generateContent?key=$key');
         // Guardar request payload para debug
+        // Don't write debug files here; use lightweight debug prints instead.
         try {
-          debugLogCallPrompt('gemini_http_request', {
-            'model': modelId,
-            'key_used': key == primary ? 'PRIMARY' : 'FALLBACK',
-            'body_length': body.length,
-            'body_preview': body.length > 4000 ? body.substring(0, 4000) : body,
-          });
+          Log.d(
+            '[Gemini] HTTP request model=$modelId key_used=${key == primary ? 'PRIMARY' : 'FALLBACK'} body_length=${body.length}',
+          );
         } catch (_) {}
         return HttpConnector.client.post(mUrl, headers: headers, body: body);
       }

@@ -17,7 +17,7 @@ import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
 import 'package:ai_chan/core/infrastructure/adapters/openai_adapter.dart';
 import 'package:ai_chan/core/infrastructure/adapters/gemini_adapter.dart';
 import 'package:ai_chan/core/config.dart';
-import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
+import 'package:ai_chan/shared/services/ai_runtime_provider.dart' as runtime_factory;
 import 'package:ai_chan/voice/infrastructure/audio/audio_playback.dart';
 
 /// Pequeñas fábricas/funciones de DI para la migración incremental.

@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/shared/utils/debug_call_logger/debug_call_logger_io.dart';
 import 'package:ai_chan/shared/utils/locale_utils.dart';
 
 // Contenido relacionado con imágenes separado para reusarlo desde OpenAIService.
@@ -142,11 +141,7 @@ class PromptBuilder {
       recentMessages: recentMessagesFormatted,
       instructions: instructions,
     );
-    try {
-      final obj = systemPromptObj.toJson();
-      final name = '${profile.aiName}_${profile.userName}'.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
-      debugLogCallPrompt(name, obj);
-    } catch (_) {}
+
     return jsonEncode(systemPromptObj.toJson());
   }
 

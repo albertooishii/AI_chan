@@ -1,7 +1,7 @@
 // dotenv no se usa aquí; la configuración se centraliza en runtime_factory / Config
 import '../utils/debug_call_logger/debug_call_logger.dart';
 import 'package:flutter/foundation.dart';
-import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
+import 'package:ai_chan/shared/services/ai_runtime_provider.dart' as runtime_factory;
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/cache/cache_service.dart';
@@ -66,17 +66,29 @@ abstract class AIService {
       }
     } catch (_) {}
 
-    // Guardar logs usando debugLogCallPrompt (solo en debug/profile y escritorio)
-    await debugLogCallPrompt('ai_service_send', {
-      'history': history,
-      'systemPrompt': systemPrompt.toJson(),
-      'model': model,
-      if (imageBase64 != null) 'imageBase64': imageBase64,
-      if (imageMimeType != null) 'imageMimeType': imageMimeType,
-    });
+    // Guardar logs usando debugLogCallPrompt (solo en debug/profile y escritorio).
+    // Registramos una versión truncada/segura de lo que enviamos: previews del history
+    // y del systemPrompt para evitar volcar imágenes completas en disco.
+    try {
+      final runtimeTypeStr = aiService.runtimeType.toString();
+      // Store full history and systemPrompt, but truncate only base64 content.
+      final sysJson = systemPrompt.toJson();
+      await debugLogCallPrompt('ai_service_send', {
+        'runtime': runtimeTypeStr,
+        'model': model,
+        'history': history,
+        'systemPrompt': sysJson,
+        if (imageBase64 != null) 'image_base64_length': imageBase64.length,
+        if (imageBase64 != null)
+          'image_base64_preview': imageBase64.length > 400 ? '${imageBase64.substring(0, 400)}...' : imageBase64,
+        if (imageMimeType != null) 'image_mime_type': imageMimeType,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+    } catch (_) {}
     // Revertir sanitización del history
     final bool requestHadImage = imageBase64 != null && imageBase64.isNotEmpty;
 
+    final int startMs = DateTime.now().millisecondsSinceEpoch;
     AIResponse response = await aiService.sendMessageImpl(
       history,
       systemPrompt,
@@ -137,12 +149,25 @@ abstract class AIService {
         response = AIResponse(text: cleanedText, base64: response.base64, seed: response.seed, prompt: finalPrompt);
       } catch (_) {}
     }
-    // Guardar la respuesta usando debugLogCallPrompt
-    await debugLogCallPrompt('ai_service_response', {
-      'response': response.toJson(),
-      'model': model,
-      'timestamp': DateTime.now().toIso8601String(),
-    });
+    // Guardar la respuesta usando debugLogCallPrompt con un preview seguro.
+    try {
+      final runtimeTypeStr = aiService.runtimeType.toString();
+      final durationMs = DateTime.now().millisecondsSinceEpoch - startMs;
+      await debugLogCallPrompt('ai_service_response', {
+        'runtime': runtimeTypeStr,
+        'model': model,
+        'duration_ms': durationMs,
+        // Keep full text/prompt/seed but truncate only base64.
+        'response_text': response.text,
+        'response_prompt': response.prompt,
+        'response_seed': response.seed,
+        'response_base64_length': response.base64.length,
+        'response_base64_preview': response.base64.length > 400
+            ? '${response.base64.substring(0, 400)}...'
+            : response.base64,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+    } catch (_) {}
 
     // Nota: no se reintenta con modelos de fallback automáticamente: la resolución de runtimes
     // debe ser explícita vía DI/fábrica. Si hay un error por cuota, devolvemos la respuesta tal cual

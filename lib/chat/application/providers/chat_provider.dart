@@ -156,9 +156,9 @@ class ChatProvider extends ChangeNotifier {
        ttsService = ttsServiceParam,
        _periodicScheduler = periodicScheduler ?? PeriodicIaMessageScheduler(),
        memoryManager = memoryManagerParam,
-       typingWpm = typingWpm ?? 120,
+       typingWpm = typingWpm ?? 300,
        typingMinMs = typingMinMs ?? 400,
-       typingMaxMs = typingMaxMs ?? 30000 {
+       typingMaxMs = typingMaxMs ?? 10000 {
     // Initialize helpers with sensible defaults.
     _debouncedSave = DebouncedSave(const Duration(seconds: 1), saveAll);
 
@@ -487,7 +487,8 @@ class ChatProvider extends ChangeNotifier {
 
     // Helper: calcular delay en ms basado en número de palabras (WPM).
     // Use a human-like default speaking rate and cap at 30s.
-    int computeDelayMsFromText(String text, {int wpm = 120, int minMs = 400, int maxMs = 30000}) {
+    // Pondré 300 palabras por minuto, que es aproximadamente el record mundial.
+    int computeDelayMsFromText(String text, {int wpm = 300, int minMs = 400, int maxMs = 10000}) {
       final trimmed = text.trim();
       if (trimmed.isEmpty) return minMs;
       final words = trimmed.split(RegExp(r'\s+')).length;

@@ -1,4 +1,4 @@
-import 'package:ai_chan/core/runtime_factory.dart' as runtime_factory;
+import 'package:ai_chan/shared/services/ai_runtime_provider.dart' as runtime_factory;
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/interfaces/ai_service.dart';
 
@@ -13,15 +13,12 @@ class OpenAIAdapter implements IAIService {
   /// runtime instance (OpenAIService) instead of relying on the internal
   /// factory. If not provided, the adapter falls back to the centralized
   /// runtime factory.
-  OpenAIAdapter({String? modelId, this.runtime})
-    : modelId = modelId ?? Config.getDefaultTextModel();
+  OpenAIAdapter({String? modelId, this.runtime}) : modelId = modelId ?? Config.getDefaultTextModel();
 
   dynamic get _impl {
     final resolved = (runtime != null)
         ? (runtime)
-        : runtime_factory.getRuntimeAIServiceForModel(
-            modelId.isNotEmpty ? modelId : Config.getDefaultTextModel(),
-          );
+        : runtime_factory.getRuntimeAIServiceForModel(modelId.isNotEmpty ? modelId : Config.getDefaultTextModel());
     return resolved;
   }
 
@@ -43,8 +40,7 @@ class OpenAIAdapter implements IAIService {
       final model = options?['model'] as String?;
       final imageBase64 = options?['imageBase64'] as String?;
       final imageMimeType = options?['imageMimeType'] as String?;
-      final enableImageGeneration =
-          options?['enableImageGeneration'] as bool? ?? false;
+      final enableImageGeneration = options?['enableImageGeneration'] as bool? ?? false;
 
       final resp = await _impl.sendMessageImpl(
         messages.cast<Map<String, String>>(),
