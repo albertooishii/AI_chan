@@ -85,10 +85,7 @@ void main() {
     final generator = IAAppearanceGenerator();
     final appearance = await generator.generateAppearancePrompt(profile, aiService: AIService.testOverride!);
     final updatedProfile = profile.copyWith(appearance: appearance);
-    final image = await IAAvatarGenerator().generateAvatarFromAppearance(
-      updatedProfile,
-      aiService: AIService.testOverride!,
-    );
+    final image = await IAAvatarGenerator().generateAvatarFromAppearance(updatedProfile);
     expect(image, isA<AiImage>());
     expect(image.url, contains('.png'));
     // Clear override

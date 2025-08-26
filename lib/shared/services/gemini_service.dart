@@ -145,12 +145,13 @@ class GeminiService implements AIService {
           // Inyectar la instrucción para metadatos de imagen cuando el usuario
           // adjunta una imagen (imageBase64 presente).
           if (imageBase64 != null && imageBase64.isNotEmpty) {
-            instrRoot['metadatos_imagen'] = imageMetadata(systemPrompt.profile.userName);
+            instrRoot['attached_image_metadata_instructions'] = imageMetadata(systemPrompt.profile.userName);
           }
           // Mantener consistencia con OpenAIService: si se solicita generación
           // de imagen explícita, inyectar también la instrucción de 'foto'.
           if (enableImageGeneration) {
-            instrRoot['foto'] = imageInstructions(systemPrompt.profile.userName);
+            // Usar la clave unificada 'photo_instructions' (antes 'foto')
+            instrRoot['photo_instructions'] = imageInstructions(systemPrompt.profile.userName);
           }
         }
       } catch (_) {}

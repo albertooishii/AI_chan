@@ -14,11 +14,7 @@ class IAAvatarGenerator {
   /// - [appendAvatar]: si es true, reutiliza la seed del primer avatar (si existe)
   ///   para mantener identidad y añade el nuevo avatar al histórico.
   ///   Si es false, se genera un avatar completamente nuevo y reemplaza el histórico.
-  Future<AiImage> generateAvatarFromAppearance(
-    AiChanProfile bio, {
-    AIService? aiService,
-    bool appendAvatar = false,
-  }) async {
+  Future<AiImage> generateAvatarFromAppearance(AiChanProfile bio, {bool appendAvatar = false}) async {
     final String forcedImageModel = Config.getDefaultImageModel();
     final String forcedTextModel = Config.getDefaultTextModel();
     Log.d('[IAAvatarGenerator] Avatar: generando imagen con modelo $forcedImageModel');
@@ -26,6 +22,11 @@ class IAAvatarGenerator {
     // Obtener la apariencia desde el perfil; los llamadores deben actualizar
     // el perfil (bio) con la nueva appearance antes de llamar a esta función
     final Map<String, dynamic> appearance = bio.appearance;
+
+    // Usamos el wrapper estático `AIService.sendMessage` que ya respeta
+    // `AIService.testOverride` para tests y realiza la resolución del runtime
+    // internamente. Evitamos usar la fábrica `runtime_factory` directamente
+    // desde aquí para reducir acoplamiento.
 
     final Map<String, dynamic> basePromptMap = {
       // Marca explícita para facilitar la detección en el servicio de envío
@@ -187,9 +188,12 @@ class IAAvatarGenerator {
           dateTime: DateTime.now(),
           instructions: generatorInstructions,
         );
-        final genResp = await (aiService != null
-            ? aiService.sendMessageImpl([], systemPromptGen, model: forcedTextModel, enableImageGeneration: false)
-            : AIService.sendMessage([], systemPromptGen, model: forcedTextModel, enableImageGeneration: false));
+        final genResp = await AIService.sendMessage(
+          [],
+          systemPromptGen,
+          model: forcedTextModel,
+          enableImageGeneration: false,
+        );
         // genResp.text is non-nullable; prefer it when non-empty, otherwise use prompt
         generatedPromptText = (genResp.text.isNotEmpty ? genResp.text : (genResp.prompt)).trim();
         // Log para depuración: ver el prompt textual generado por el modelo de texto
@@ -236,9 +240,12 @@ class IAAvatarGenerator {
           instructions: promptToSend,
         );
 
-        final resp = await (aiService != null
-            ? aiService.sendMessageImpl([], systemPromptImage, model: forcedImageModel, enableImageGeneration: true)
-            : AIService.sendMessage([], systemPromptImage, model: forcedImageModel, enableImageGeneration: true));
+        final resp = await AIService.sendMessage(
+          [],
+          systemPromptImage,
+          model: forcedImageModel,
+          enableImageGeneration: true,
+        );
 
         if (resp.base64.isNotEmpty) {
           imageResponse = resp;
@@ -290,26 +297,7 @@ class IAAvatarGenerator {
     return avatar;
   }
 
-  /// Wrapper que reintenta la generación de avatar hasta [maxAttempts].
-  /// No muestra dialogs ni persiste nada; lanza excepción si no consigue una imagen.
-  Future<AiImage> generateAvatarWithRetries(
-    AiChanProfile bio, {
-    AIService? aiService,
-    bool appendAvatar = false,
-    int maxAttempts = 3,
-    Duration retryDelay = const Duration(milliseconds: 700),
-  }) async {
-    Exception? lastErr;
-    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        final avatar = await generateAvatarFromAppearance(bio, aiService: aiService, appendAvatar: appendAvatar);
-        return avatar;
-      } catch (e) {
-        lastErr = Exception('Intento $attempt falló: $e');
-        Log.w('[IAAvatarGenerator] generateAvatarWithRetries intento $attempt fallido: $e');
-        if (attempt < maxAttempts) await Future.delayed(retryDelay * attempt);
-      }
-    }
-    throw Exception('No se pudo generar el avatar tras $maxAttempts intentos. Último error: $lastErr');
-  }
+  // generateAvatarWithRetries was removed: callers should use
+  // `generateAvatarFromAppearance` directly. The internal retry logic
+  // is implemented inside `generateAvatarFromAppearance`.
 }

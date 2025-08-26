@@ -28,24 +28,13 @@ import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/network_utils.dart';
 import 'package:ai_chan/chat/application/use_cases/send_message_use_case.dart';
+import 'package:ai_chan/chat/application/services/debounced_save.dart';
+import 'package:ai_chan/chat/application/services/message_queue_manager.dart';
+import 'package:ai_chan/chat/application/services/memory_manager.dart';
+import 'package:ai_chan/chat/application/services/timeline_updater.dart';
 
-// Opciones asociadas a cada mensaje en la cola de envío diferido.
-class _QueuedSendOptions {
-  final String? model;
-  final String? callPrompt;
-  final AiImage? image;
-  final String? imageMimeType;
-  final String? preTranscribedText;
-  final String? userAudioPath;
-  _QueuedSendOptions({
-    this.model,
-    this.callPrompt,
-    this.image,
-    this.imageMimeType,
-    this.preTranscribedText,
-    this.userAudioPath,
-  });
-}
+// Using external MessageQueueManager. Queue options type lives in the
+// message_queue_manager service (QueuedSendOptions).
 
 class ChatProvider extends ChangeNotifier {
   final IChatRepository? repository;
@@ -58,27 +47,25 @@ class ChatProvider extends ChangeNotifier {
   // provided, create a default one.
   final PeriodicIaMessageScheduler _periodicScheduler;
 
-  // Debounce timer to avoid excessive saveAll() calls when notifyListeners()
-  // is triggered many times in quick succession.
-  Timer? _saveDebounceTimer;
-  final Duration _saveDebounceDuration = const Duration(milliseconds: 300);
+  // Debounced save helper (delegates persistence calls)
+  DebouncedSave? _debouncedSave;
 
   // Flag para evitar loops tras dispose
   bool _isDisposed = false;
 
-  // ===== Cola de envío diferido =====
-  // Cola de envío diferido: guardamos los localIds encolados para poder
-  // actualizar su estado cuando el último se envíe. Conservamos una sola
-  // estructura de opciones para el último mensaje encolado (simplifica casos).
-  final List<String> _queuedMessageLocalIds = [];
-  Timer? _queuedSendTimer;
-  final Duration _queuedSendDelay = const Duration(seconds: 5);
+  // Queue manager handling delayed automatic sends
+  MessageQueueManager? _queueManager;
 
-  // Opciones asociadas al último mensaje encolado (null si no hay ninguno).
-  _QueuedSendOptions? _queuedOptions;
+  // Optional injected MemoryManager to allow tests to control memory processing
+  final MemoryManager? memoryManager;
+
+  // Typing/audio timing configuration (words per minute and clamps)
+  final int typingWpm;
+  final int typingMinMs;
+  final int typingMaxMs;
 
   /// Número de mensajes actualmente en cola (pendientes de envío automático)
-  int get queuedCount => _queuedMessageLocalIds.length;
+  int get queuedCount => _queueManager?.queuedCount ?? 0;
 
   /// Scheduler público que la UI debe usar en lugar de llamar directamente
   /// a `sendMessage` cuando quiera la semántica de "cola + envío tras 5s".
@@ -123,9 +110,8 @@ class ChatProvider extends ChangeNotifier {
     // Añadir a la lista de mensajes para que formen parte del contexto
     messages.add(msg);
     final lid = msg.localId;
-    // Añadir a la lista de encolados (evitar duplicados por si acaso)
-    if (!_queuedMessageLocalIds.contains(lid)) _queuedMessageLocalIds.add(lid);
-    _queuedOptions = _QueuedSendOptions(
+    // Encolar y dejar que MessageQueueManager controle el temporizador
+    final opts = QueuedSendOptions(
       model: model,
       callPrompt: callPrompt,
       image: image,
@@ -133,69 +119,11 @@ class ChatProvider extends ChangeNotifier {
       preTranscribedText: preTranscribedText,
       userAudioPath: userAudioPath,
     );
-    // Reiniciar temporizador de envío automático
-    _startOrResetQueuedTimer();
+    _queueManager?.enqueue(lid, options: opts);
     notifyListeners();
   }
 
-  void _startOrResetQueuedTimer() {
-    _queuedSendTimer?.cancel();
-    if (_queuedMessageLocalIds.isEmpty) return;
-    _queuedSendTimer = Timer(_queuedSendDelay, () async {
-      await _processQueuedMessages();
-    });
-  }
-
-  /// Procesa la cola: envía solo el último mensaje en la cola mediante
-  /// `sendMessage(..., existingMessageIndex: idx)`. Los mensajes previos
-  /// permanecen en `messages` y se incluyen en el prompt/contexto.
-  Future<void> _processQueuedMessages() async {
-    _queuedSendTimer?.cancel();
-    if (_queuedMessageLocalIds.isEmpty) return;
-    // Copiar los ids encolados y limpiar el estado antes de proceder para
-    // evitar reentrancia.
-    final queuedIds = List<String>.from(_queuedMessageLocalIds);
-    _queuedMessageLocalIds.clear();
-    final lastLid = queuedIds.isNotEmpty ? queuedIds.last : null;
-    final opts = _queuedOptions;
-    _queuedOptions = null;
-    if (lastLid == null) return;
-    // Buscar el índice actual del mensaje por localId
-    final lastIdx = messages.indexWhere((m) => m.localId == lastLid);
-    // Si por alguna razón no existe, abortar
-    if (lastIdx == -1) return;
-    try {
-      await sendMessage(
-        messages[lastIdx].text,
-        existingMessageIndex: lastIdx,
-        callPrompt: opts?.callPrompt,
-        model: opts?.model,
-        image: opts?.image,
-        imageMimeType: opts?.imageMimeType,
-        preTranscribedText: opts?.preTranscribedText,
-        userAudioPath: opts?.userAudioPath,
-      );
-      // Tras un envío exitoso, sincronizar el estado de todos los mensajes
-      // que estaban encolados para que tengan el mismo estado que el
-      // mensaje que acabamos de enviar (por ejemplo: sent/read).
-      final finalStatus = messages[lastIdx].status;
-      var changed = false;
-      for (final qlid in queuedIds) {
-        if (qlid == lastLid) continue; // ya actualizado por sendMessage
-        final idx = messages.indexWhere((m) => m.localId == qlid);
-        if (idx != -1) {
-          final m = messages[idx];
-          if (m.sender == MessageSender.user && m.status != finalStatus) {
-            messages[idx] = m.copyWith(status: finalStatus);
-            changed = true;
-          }
-        }
-      }
-      if (changed) notifyListeners();
-    } catch (e) {
-      // sendMessage ya marca estado failed si algo va mal; nada adicional.
-    }
-  }
+  // Queue processing is handled by MessageQueueManager; no local implementation.
 
   /// Debe llamarse desde la UI cuando el usuario está escribiendo en el
   /// input. Si `text` es no vacío se cancelará el temporizador de envío
@@ -205,11 +133,10 @@ class ChatProvider extends ChangeNotifier {
   void onUserTyping(String text) {
     final empty = text.trim().isEmpty;
     if (!empty) {
-      _queuedSendTimer?.cancel();
-      _queuedSendTimer = null;
+      _queueManager?.cancelTimer();
     } else {
-      if (_queuedMessageLocalIds.isNotEmpty) {
-        _startOrResetQueuedTimer();
+      if (queuedCount > 0) {
+        _queueManager?.ensureTimer();
       }
     }
   }
@@ -221,9 +148,67 @@ class ChatProvider extends ChangeNotifier {
     SendMessageUseCase? sendMessageUseCaseParam,
     TtsService? ttsServiceParam,
     PeriodicIaMessageScheduler? periodicScheduler,
+    MemoryManager? memoryManagerParam,
+    int? typingWpm,
+    int? typingMinMs,
+    int? typingMaxMs,
   }) : sendMessageUseCase = sendMessageUseCaseParam ?? SendMessageUseCase(injectedService: chatResponseService),
        ttsService = ttsServiceParam,
-       _periodicScheduler = periodicScheduler ?? PeriodicIaMessageScheduler();
+       _periodicScheduler = periodicScheduler ?? PeriodicIaMessageScheduler(),
+       memoryManager = memoryManagerParam,
+       typingWpm = typingWpm ?? 120,
+       typingMinMs = typingMinMs ?? 400,
+       typingMaxMs = typingMaxMs ?? 30000 {
+    // Initialize helpers with sensible defaults.
+    _debouncedSave = DebouncedSave(const Duration(seconds: 1), saveAll);
+
+    // Queue manager: when the timer flushes, send only the last queued message
+    // and mark earlier queued messages as 'sent' so they don't remain in 'sending'.
+    _queueManager = MessageQueueManager(
+      onFlush: (ids, lastLocalId, options) {
+        try {
+          // Mark all but last as sent (they serve as context)
+          for (final lid in ids) {
+            if (lid == lastLocalId) continue;
+            final idx = messages.indexWhere((m) => m.localId == lid);
+            if (idx != -1) {
+              final m = messages[idx];
+              if (m.sender == MessageSender.user && m.status == MessageStatus.sending) {
+                messages[idx] = m.copyWith(status: MessageStatus.sent);
+              }
+            }
+          }
+
+          // Find index of last message and trigger sendMessage reusing that index.
+          final lastIdx = messages.indexWhere((m) => m.localId == lastLocalId);
+          if (lastIdx != -1) {
+            final lastMsg = messages[lastIdx];
+            // Mark last message as 'sent' immediately to avoid UI stuck in 'sending'
+            if (lastMsg.sender == MessageSender.user && lastMsg.status == MessageStatus.sending) {
+              messages[lastIdx] = lastMsg.copyWith(status: MessageStatus.sent);
+              try {
+                // notify UI about state change
+                notifyListeners();
+              } catch (_) {}
+            }
+            // Fire-and-forget send; existingMessageIndex ensures we reuse the placeholder
+            sendMessage(
+              lastMsg.text,
+              model: options?.model,
+              callPrompt: options?.callPrompt,
+              image: options?.image as AiImage?,
+              imageMimeType: options?.imageMimeType,
+              preTranscribedText: options?.preTranscribedText,
+              userAudioPath: options?.userAudioPath,
+              existingMessageIndex: lastIdx,
+            );
+          }
+        } catch (e, st) {
+          Log.w('Error flushing queued messages: $e \n$st', tag: 'CHAT');
+        }
+      },
+    );
+  }
 
   void startPeriodicIaMessages() {
     _periodicScheduler.start(
@@ -495,6 +480,88 @@ class ChatProvider extends ChangeNotifier {
       seed: null,
       finalModelUsed: '',
     );
+
+    // Guardamos el SendMessageOutcome temporalmente para aplicarlo
+    // tras mostrar los indicadores (typing / sending image / audio).
+    SendMessageOutcome? pendingOutcome;
+
+    // Helper: calcular delay en ms basado en número de palabras (WPM).
+    // Use a human-like default speaking rate and cap at 30s.
+    int computeDelayMsFromText(String text, {int wpm = 120, int minMs = 400, int maxMs = 30000}) {
+      final trimmed = text.trim();
+      if (trimmed.isEmpty) return minMs;
+      final words = trimmed.split(RegExp(r'\s+')).length;
+      final perWord = (60000 / wpm).round();
+      final ms = words * perWord;
+      return ms.clamp(minMs, maxMs).toInt();
+    }
+
+    // Helper local: aplica el outcome luego del delay calculado en base al texto.
+    Future<void> finalizeAssistantResponse() async {
+      final SendMessageOutcome? localOutcome = pendingOutcome;
+      if (localOutcome == null) return;
+      // Consume shared pendingOutcome immediately to avoid races
+      pendingOutcome = null;
+      final ChatResult res = localOutcome.result;
+
+      // Calcular delay en ms según número de palabras (typing / audio)
+      final delayMs = computeDelayMsFromText(res.text);
+      try {
+        await Future.delayed(Duration(milliseconds: delayMs));
+      } catch (_) {
+        // Si falla el delay por cancelación, continuar de todos modos
+      }
+
+      // Si se ha disposed, abortar
+      if (_isDisposed) return;
+
+      try {
+        // Añadir el assistantMessage, generar TTS y actualizar perfil/eventos
+        await _applySendOutcome(localOutcome, existingMessageIndex: existingMessageIndex);
+      } catch (e, st) {
+        Log.w('Error applying pending outcome: $e\n$st', tag: 'CHAT');
+      }
+
+      // Ejecutar acciones posteriores al mensaje IA (igual que antes)
+      try {
+        onIaMessageSent();
+      } catch (_) {}
+
+      isSendingImage = false;
+      isTyping = false;
+      isSendingAudio = false;
+      _imageRequestId++;
+
+      final textResp = res.text;
+      if (textResp.trim() != '' &&
+          !textResp.trim().toLowerCase().contains('error al conectar con la ia') &&
+          !textResp.trim().toLowerCase().contains('"error"')) {
+        try {
+          final memManager = memoryManager ?? MemoryManager(profile: onboardingData);
+          final memResult = await memManager.processAllSummariesAndSuperblock(
+            messages: messages,
+            timeline: onboardingData.timeline,
+            superbloqueEntry: superbloqueEntry,
+          );
+          onboardingData = TimelineUpdater.applyTimelineUpdate(
+            profile: onboardingData,
+            timeline: memResult.timeline,
+            superbloqueEntry: memResult.superbloqueEntry,
+          );
+          superbloqueEntry = memResult.superbloqueEntry;
+        } catch (e) {
+          Log.w('[AI-chan][WARN] Falló actualización de memoria post-IA (finalize): $e');
+        }
+      }
+
+      // Evitar doble render si el assistantMessage era placeholder de llamada
+      if (localOutcome.assistantMessage.text.trim() != '[call][/call]') {
+        try {
+          notifyListeners();
+        } catch (_) {}
+      }
+    }
+
     try {
       // Antes de iniciar la petición, comprobar si hay red.
       final bool online = await hasInternetConnection();
@@ -528,7 +595,28 @@ class ChatProvider extends ChangeNotifier {
               // Marcar como read inmediatamente al recibir la respuesta de la IA
               _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
               if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) return;
-              result = await _applySendOutcome(outcome, existingMessageIndex: existingMessageIndex);
+              try {
+                final outRes = outcome.result;
+                isTyping = !outRes.isImage;
+                isSendingImage = outRes.isImage;
+                final lowerText = outRes.text.toLowerCase();
+                if (lowerText.contains('[audio]')) isSendingAudio = true;
+                notifyListeners();
+              } catch (_) {}
+              // Guardar outcome y mostrar indicadores; la adición del mensaje
+              // se realizará tras el delay por _finalizeAssistantResponse.
+              pendingOutcome = outcome;
+              result = outcome.result;
+              try {
+                final outRes = outcome.result;
+                isTyping = !outRes.isImage;
+                isSendingImage = outRes.isImage;
+                final lowerText = outRes.text.toLowerCase();
+                if (lowerText.contains('[audio]')) isSendingAudio = true;
+                notifyListeners();
+              } catch (_) {}
+              // Lanzar finalizer (no await) para aplicar outcome tras el delay
+              finalizeAssistantResponse();
             } else {
               // Fallback a impl vía DI
               final impl = di.getChatResponseService();
@@ -545,7 +633,28 @@ class ChatProvider extends ChangeNotifier {
               );
               _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
               if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) return;
-              result = await _applySendOutcome(outcome, existingMessageIndex: existingMessageIndex);
+              try {
+                final outRes = outcome.result;
+                isTyping = !outRes.isImage;
+                isSendingImage = outRes.isImage;
+                final lowerText = outRes.text.toLowerCase();
+                if (lowerText.contains('[audio]')) isSendingAudio = true;
+                notifyListeners();
+              } catch (_) {}
+              // Guardar outcome y mostrar indicadores; la adición del mensaje
+              // se realizará tras el delay por _finalizeAssistantResponse.
+              pendingOutcome = outcome;
+              result = outcome.result;
+              try {
+                final outRes = outcome.result;
+                isTyping = !outRes.isImage;
+                isSendingImage = outRes.isImage;
+                final lowerText = outRes.text.toLowerCase();
+                if (lowerText.contains('[audio]')) isSendingAudio = true;
+                notifyListeners();
+              } catch (_) {}
+              // Lanzar finalizer (no await) para aplicar outcome tras el delay
+              finalizeAssistantResponse();
             }
           } catch (e) {
             Log.e('Error enviando mensaje tras reconexión', tag: 'CHAT', error: e);
@@ -575,7 +684,18 @@ class ChatProvider extends ChangeNotifier {
         );
         if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) return;
         _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
-        result = await _applySendOutcome(outcome, existingMessageIndex: existingMessageIndex);
+        // Guardar outcome y ejecutar finalizer para aplicar el resultado tras el delay
+        pendingOutcome = outcome;
+        result = outcome.result;
+        try {
+          final outRes = outcome.result;
+          isTyping = !outRes.isImage;
+          isSendingImage = outRes.isImage;
+          final lowerText = outRes.text.toLowerCase();
+          if (lowerText.contains('[audio]')) isSendingAudio = true;
+          notifyListeners();
+        } catch (_) {}
+        finalizeAssistantResponse();
       } else {
         // Resolver una implementación por medio de la fábrica DI y usar la interfaz
         final impl = di.getChatResponseService();
@@ -600,7 +720,18 @@ class ChatProvider extends ChangeNotifier {
         if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) return;
         // Marcar como read inmediatamente al recibir la respuesta de la IA
         _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
-        result = await _applySendOutcome(outcome, existingMessageIndex: existingMessageIndex);
+        // Guardar outcome y ejecutar finalizer para aplicar el resultado tras el delay
+        pendingOutcome = outcome;
+        result = outcome.result;
+        try {
+          final outRes = outcome.result;
+          isTyping = !outRes.isImage;
+          isSendingImage = outRes.isImage;
+          final lowerText = outRes.text.toLowerCase();
+          if (lowerText.contains('[audio]')) isSendingAudio = true;
+          notifyListeners();
+        } catch (_) {}
+        finalizeAssistantResponse();
       }
       // Éxito de red: marcar último mensaje usuario como 'sent'
       _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
@@ -670,8 +801,7 @@ class ChatProvider extends ChangeNotifier {
       'isTyping=$isTyping, isSendingImage=$isSendingImage, isSendingAudio=$isSendingAudio (sendMessage)',
       tag: 'CHAT',
     );
-    final textLength = result.text.length;
-    final delayMs = (textLength * 15).clamp(15, double.maxFinite).toInt();
+    final delayMs = computeDelayMsFromText(result.text);
     await Future.delayed(Duration(milliseconds: delayMs));
 
     if (solicitaImagen) {
@@ -686,62 +816,74 @@ class ChatProvider extends ChangeNotifier {
       });
     }
 
-    // Normalizar posibles espacios o saltos de línea antes de la etiqueta de nota de voz
-    // Usamos etiquetas emparejadas: [audio]contenido[/audio]
-    String assistantRawText = result.text;
-    // Construir tags con corchetes a partir de la clave
-    final openTag = '[audio]';
-    final closeTag = '[/audio]';
-    final leftTrimmed = assistantRawText.trimLeft();
-    final leftLower = leftTrimmed.toLowerCase();
-    // Solo aceptar como nota de voz si hay apertura y cierre exactos
-    if (leftLower.startsWith(openTag)) {
-      final afterTag = leftTrimmed.substring(openTag.length).trimLeft();
-      final lowerAfter = afterTag.toLowerCase();
-      if (lowerAfter.contains(closeTag)) {
-        final endIdx = lowerAfter.indexOf(closeTag);
-        final content = afterTag.substring(0, endIdx).trim();
-        assistantRawText = '$openTag $content $closeTag';
-      } else {
-        // No hay cierre: no lo tratamos como nota de voz — dejar el texto sin cambios
+    // Si guardamos un pendingOutcome, el helper lo aplicará tras su propio delay.
+    if (pendingOutcome != null) {
+      await finalizeAssistantResponse();
+      return;
+    }
+
+    if (pendingOutcome == null) {
+      // Normalizar posibles espacios o saltos de línea antes de la etiqueta de nota de voz
+      // Usamos etiquetas emparejadas: [audio]contenido[/audio]
+      String assistantRawText = result.text;
+      // Construir tags con corchetes a partir de la clave
+      final openTag = '[audio]';
+      final closeTag = '[/audio]';
+      final leftTrimmed = assistantRawText.trimLeft();
+      final leftLower = leftTrimmed.toLowerCase();
+      // Solo aceptar como nota de voz si hay apertura y cierre exactos
+      if (leftLower.startsWith(openTag)) {
+        final afterTag = leftTrimmed.substring(openTag.length).trimLeft();
+        final lowerAfter = afterTag.toLowerCase();
+        if (lowerAfter.contains(closeTag)) {
+          final endIdx = lowerAfter.indexOf(closeTag);
+          final content = afterTag.substring(0, endIdx).trim();
+          assistantRawText = '$openTag $content $closeTag';
+        } else {
+          // No hay cierre: no lo tratamos como nota de voz — dejar el texto sin cambios
+        }
       }
-    }
-    final assistantMessage = Message(
-      text: assistantRawText,
-      sender: MessageSender.assistant,
-      dateTime: DateTime.now(),
-      isImage: result.isImage,
-      image: result.isImage ? AiImage(url: result.imagePath ?? '', seed: result.seed, prompt: result.prompt) : null,
-      status: MessageStatus.read,
-    );
-    // Si la IA responde con el marcador [no_reply'], no añadir ni procesar la respuesta
-    // (el post-procesado - TTS / eventos - lo realiza SendMessageUseCase y se
-    // aplica cuando se añadió el assistantMessage en las ramas de envío).
-
-    // Analiza promesas IA tras cada mensaje IA
-    onIaMessageSent();
-
-    isSendingImage = false;
-    isTyping = false;
-    isSendingAudio = false;
-    _imageRequestId++;
-
-    final textResp = result.text;
-    if (textResp.trim() != '' &&
-        !textResp.trim().toLowerCase().contains('error al conectar con la ia') &&
-        !textResp.trim().toLowerCase().contains('"error"')) {
-      final memoryService = MemorySummaryService(profile: onboardingData);
-      final result = await memoryService.processAllSummariesAndSuperblock(
-        messages: messages,
-        timeline: onboardingData.timeline,
-        superbloqueEntry: superbloqueEntry,
+      final assistantMessage = Message(
+        text: assistantRawText,
+        sender: MessageSender.assistant,
+        dateTime: DateTime.now(),
+        isImage: result.isImage,
+        image: result.isImage ? AiImage(url: result.imagePath ?? '', seed: result.seed, prompt: result.prompt) : null,
+        status: MessageStatus.read,
       );
-      onboardingData = onboardingData.copyWith(timeline: result.timeline);
-      superbloqueEntry = result.superbloqueEntry;
-    }
-    // Si se agregó un placeholder de llamada entrante ya se notificó antes (evitamos doble render inmediato)
-    if (assistantMessage.text.trim() != '[call][/call]') {
-      notifyListeners();
+      // Si la IA responde con el marcador [no_reply'], no añadir ni procesar la respuesta
+      // (el post-procesado - TTS / eventos - lo realiza SendMessageUseCase y se
+      // aplica cuando se añadió el assistantMessage en las ramas de envío).
+
+      // Analiza promesas IA tras cada mensaje IA
+      onIaMessageSent();
+
+      isSendingImage = false;
+      isTyping = false;
+      isSendingAudio = false;
+      _imageRequestId++;
+
+      final textResp = result.text;
+      if (textResp.trim() != '' &&
+          !textResp.trim().toLowerCase().contains('error al conectar con la ia') &&
+          !textResp.trim().toLowerCase().contains('"error"')) {
+        final memManager = memoryManager ?? MemoryManager(profile: onboardingData);
+        final memResult = await memManager.processAllSummariesAndSuperblock(
+          messages: messages,
+          timeline: onboardingData.timeline,
+          superbloqueEntry: superbloqueEntry,
+        );
+        onboardingData = TimelineUpdater.applyTimelineUpdate(
+          profile: onboardingData,
+          timeline: memResult.timeline,
+          superbloqueEntry: memResult.superbloqueEntry,
+        );
+        superbloqueEntry = memResult.superbloqueEntry;
+      }
+      // Si se agregó un placeholder de llamada entrante ya se notificó antes (evitamos doble render inmediato)
+      if (assistantMessage.text.trim() != '[call][/call]') {
+        notifyListeners();
+      }
     }
   }
 
@@ -772,9 +914,9 @@ class ChatProvider extends ChangeNotifier {
 
     String? transcript;
 
-    // Intentar transcripci f3n con reintentos. Antes la implementaci f3n solo
+    // Intentar transcripción con reintentos. Antes la implementación solo
     // incrementaba el contador en errores, provocando un bucle infinito cuando
-    // la API devolv eda "null" sin lanzar excepciones. Ahora iteramos un n famax
+    // la API devolvía "null" sin lanzar excepciones. Ahora iteramos un máximo
     // de intentos y siempre incrementamos el contador entre intentos.
     const maxRetries = 2;
     int attempt = 0;
@@ -784,10 +926,10 @@ class ChatProvider extends ChangeNotifier {
         final result = await stt.transcribeAudio(path);
         if (result != null && result.trim().isNotEmpty) {
           transcript = result.trim();
-          Log.i('Transcripci f3n exitosa en intento ${attempt + 1}', tag: 'AUDIO');
+          Log.i('Transcripción exitosa en intento ${attempt + 1}', tag: 'AUDIO');
           break;
         } else {
-          Log.w('Transcripci f3n vac eda en intento ${attempt + 1}', tag: 'AUDIO');
+          Log.w('Transcripción vacía en intento ${attempt + 1}', tag: 'AUDIO');
         }
       } catch (e) {
         Log.e('Error transcribiendo (intento ${attempt + 1}/$maxRetries)', tag: 'AUDIO', error: e);
@@ -879,20 +1021,33 @@ class ChatProvider extends ChangeNotifier {
   /// ChatResult para continuar el flujo.
   Future<ChatResult> _applySendOutcome(SendMessageOutcome outcome, {int? existingMessageIndex}) async {
     final ChatResult chatResult = outcome.result;
-    messages.add(outcome.assistantMessage);
-    // Si la IA responde con el marcador [call][/call] notificar inmediatamente
-    if (outcome.assistantMessage.text.trim() == '[call][/call]') {
-      pendingIncomingCallMsgIndex = messages.length - 1;
-      Log.i('[Call] Placeholder de llamada entrante detectado (index=$pendingIncomingCallMsgIndex)', tag: 'CHAT');
+    // Si la IA responde con el marcador [call][/call] debemos mostrar la UI
+    // de llamada entrante en lugar de insertar un placeholder en el historial.
+    final isCallPlaceholder = outcome.assistantMessage.text.trim() == '[call][/call]';
+    if (isCallPlaceholder) {
+      isCalling = true;
+      pendingIncomingCallMsgIndex = null; // no placeholder stored
+      Log.i('[Call] IA solicita llamada entrante -> mostrando indicador isCalling=true', tag: 'CHAT');
+      // Apply profile updates if present
+      if (outcome.updatedProfile != null) {
+        onboardingData = outcome.updatedProfile!;
+        _events
+          ..clear()
+          ..addAll(onboardingData.events ?? []);
+      }
       notifyListeners();
+    } else {
+      messages.add(outcome.assistantMessage);
     }
     // Generar TTS si la use-case lo solicitó
     try {
-      if (outcome.ttsRequested) await generateTtsForMessage(outcome.assistantMessage);
+      if (!isCallPlaceholder) {
+        if (outcome.ttsRequested) await generateTtsForMessage(outcome.assistantMessage);
+      }
     } catch (_) {}
     // Actualizar onboardingData si la use-case guardó/actualizó eventos
     if (outcome.updatedProfile != null) {
-      onboardingData = outcome.updatedProfile!;
+      if (!isCallPlaceholder) onboardingData = outcome.updatedProfile!;
       _events
         ..clear()
         ..addAll(onboardingData.events ?? []);
@@ -928,14 +1083,18 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
     // Actualizar memoria/cronología igual que tras respuestas IA normales
     try {
-      final memoryService = MemorySummaryService(profile: onboardingData);
-      final result = await memoryService.processAllSummariesAndSuperblock(
+      final memManager = memoryManager ?? MemoryManager(profile: onboardingData);
+      final memResult = await memManager.processAllSummariesAndSuperblock(
         messages: messages,
         timeline: onboardingData.timeline,
         superbloqueEntry: superbloqueEntry,
       );
-      onboardingData = onboardingData.copyWith(timeline: result.timeline);
-      superbloqueEntry = result.superbloqueEntry;
+      onboardingData = TimelineUpdater.applyTimelineUpdate(
+        profile: onboardingData,
+        timeline: memResult.timeline,
+        superbloqueEntry: memResult.superbloqueEntry,
+      );
+      superbloqueEntry = memResult.superbloqueEntry;
       notifyListeners();
     } catch (e) {
       Log.w('[AI-chan][WARN] Falló actualización de memoria post-voz: $e');
@@ -980,14 +1139,18 @@ class ChatProvider extends ChangeNotifier {
     }
     notifyListeners();
     try {
-      final memoryService = MemorySummaryService(profile: onboardingData);
-      final result = await memoryService.processAllSummariesAndSuperblock(
+      final memManager = memoryManager ?? MemoryManager(profile: onboardingData);
+      final memResult = await memManager.processAllSummariesAndSuperblock(
         messages: messages,
         timeline: onboardingData.timeline,
         superbloqueEntry: superbloqueEntry,
       );
-      onboardingData = onboardingData.copyWith(timeline: result.timeline);
-      superbloqueEntry = result.superbloqueEntry;
+      onboardingData = TimelineUpdater.applyTimelineUpdate(
+        profile: onboardingData,
+        timeline: memResult.timeline,
+        superbloqueEntry: memResult.superbloqueEntry,
+      );
+      superbloqueEntry = memResult.superbloqueEntry;
       notifyListeners();
     } catch (e) {
       Log.w('[AI-chan][WARN] Falló actualización de memoria post-updateCallStatus: $e');
@@ -1004,14 +1167,18 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
     // Actualizar memoria/cronología igual que tras respuestas IA normales
     try {
-      final memoryService = MemorySummaryService(profile: onboardingData);
-      final result = await memoryService.processAllSummariesAndSuperblock(
+      final memManager = memoryManager ?? MemoryManager(profile: onboardingData);
+      final memResult = await memManager.processAllSummariesAndSuperblock(
         messages: messages,
         timeline: onboardingData.timeline,
         superbloqueEntry: superbloqueEntry,
       );
-      onboardingData = onboardingData.copyWith(timeline: result.timeline);
-      superbloqueEntry = result.superbloqueEntry;
+      onboardingData = TimelineUpdater.applyTimelineUpdate(
+        profile: onboardingData,
+        timeline: memResult.timeline,
+        superbloqueEntry: memResult.superbloqueEntry,
+      );
+      superbloqueEntry = memResult.superbloqueEntry;
       notifyListeners();
     } catch (e) {
       Log.w('[AI-chan][WARN] Falló actualización de memoria post-message: $e');
@@ -1025,6 +1192,7 @@ class ChatProvider extends ChangeNotifier {
 
   void clearPendingIncomingCall() {
     pendingIncomingCallMsgIndex = null;
+    isCalling = false;
     notifyListeners();
   }
 
@@ -1052,14 +1220,18 @@ class ChatProvider extends ChangeNotifier {
     // Actualizar memoria igual que otros mensajes
     () async {
       try {
-        final memoryService = MemorySummaryService(profile: onboardingData);
-        final result = await memoryService.processAllSummariesAndSuperblock(
+        final memManager = memoryManager ?? MemoryManager(profile: onboardingData);
+        final memResult = await memManager.processAllSummariesAndSuperblock(
           messages: messages,
           timeline: onboardingData.timeline,
           superbloqueEntry: superbloqueEntry,
         );
-        onboardingData = onboardingData.copyWith(timeline: result.timeline);
-        superbloqueEntry = result.superbloqueEntry;
+        onboardingData = TimelineUpdater.applyTimelineUpdate(
+          profile: onboardingData,
+          timeline: memResult.timeline,
+          superbloqueEntry: memResult.superbloqueEntry,
+        );
+        superbloqueEntry = memResult.superbloqueEntry;
         notifyListeners();
       } catch (e) {
         Log.w('[AI-chan][WARN] Falló actualización de memoria post-replace-call: $e');
@@ -1141,7 +1313,7 @@ class ChatProvider extends ChangeNotifier {
     // y mejorar testabilidad.
 
     try {
-      final avatar = await IAAvatarGenerator().generateAvatarWithRetries(bio, appendAvatar: !replace, maxAttempts: 3);
+      final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(bio, appendAvatar: !replace);
       await _applyAvatarAndPersist(avatar, replace: replace);
     } catch (e) {
       // Si la generación con los intentos internos falló, preguntar al usuario si quiere reintentar
@@ -1149,11 +1321,7 @@ class ChatProvider extends ChangeNotifier {
         final choice = await showRegenerateAppearanceErrorDialog(e);
         if (choice == 'retry') {
           try {
-            final avatar2 = await IAAvatarGenerator().generateAvatarWithRetries(
-              bio,
-              appendAvatar: !replace,
-              maxAttempts: 3,
-            );
+            final avatar2 = await IAAvatarGenerator().generateAvatarFromAppearance(bio, appendAvatar: !replace);
             await _applyAvatarAndPersist(avatar2, replace: replace);
           } catch (e2) {
             Log.w('Reintento manual de generación de avatar falló: $e2', tag: 'CHAT');
@@ -1276,6 +1444,10 @@ class ChatProvider extends ChangeNotifier {
   bool isSummarizing = false;
   bool isTyping = false;
   bool isSendingImage = false;
+
+  /// Indicador para llamadas entrantes: si true la UI debe mostrar el flujo
+  /// de llamada entrante sin necesidad de añadir un mensaje placeholder.
+  bool isCalling = false;
   bool isSendingAudio = false;
   bool isUploadingUserAudio = false;
   List<Message> messages = [];
@@ -1347,7 +1519,7 @@ class ChatProvider extends ChangeNotifier {
       return await showAppDialog<String>(
         builder: (ctx) => AlertDialog(
           backgroundColor: Colors.black,
-          title: const Text('No se pudo regenerar la apariencia', style: TextStyle(color: AppColors.secondary)),
+          title: const Text('Error generando apariencia/avatar', style: TextStyle(color: AppColors.secondary)),
           content: SingleChildScrollView(
             child: Text(error.toString(), style: const TextStyle(color: AppColors.primary)),
           ),
@@ -1439,11 +1611,7 @@ class ChatProvider extends ChangeNotifier {
             // to make it the current avatar; we append then set avatars to the new one.
             // Generate using same seed but replace the current avatars (weekly regeneration)
             final updatedProfile = onboardingData.copyWith(appearance: appearanceMap);
-            final avatar = await IAAvatarGenerator().generateAvatarWithRetries(
-              updatedProfile,
-              appendAvatar: true,
-              maxAttempts: 3,
-            );
+            final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(updatedProfile, appendAvatar: true);
             onboardingData = onboardingData.copyWith(avatars: [avatar]);
             // Insertar un mensaje system para que la IA tenga consciencia de la actualización
             try {
@@ -1466,10 +1634,9 @@ class ChatProvider extends ChangeNotifier {
                 try {
                   final appearanceMap2 = await iaAppearanceGenerator.generateAppearancePrompt(onboardingData);
                   final updatedProfile2 = onboardingData.copyWith(appearance: appearanceMap2);
-                  final avatar2 = await IAAvatarGenerator().generateAvatarWithRetries(
+                  final avatar2 = await IAAvatarGenerator().generateAvatarFromAppearance(
                     updatedProfile2,
                     appendAvatar: true,
-                    maxAttempts: 3,
                   );
                   onboardingData = onboardingData.copyWith(avatars: [avatar2]);
                   try {
@@ -1526,18 +1693,13 @@ class ChatProvider extends ChangeNotifier {
 
   /// Limpia el estado interno de la cola de envío diferido.
   void _clearQueuedState() {
-    _queuedSendTimer?.cancel();
-    _queuedSendTimer = null;
-    _queuedMessageLocalIds.clear();
-    _queuedOptions = null;
+    _queueManager?.clear();
   }
 
   /// Fuerza el procesamiento inmediato de la cola (útil para un botón "Enviar ahora").
   Future<void> flushQueuedMessages() async {
-    // Cancelar timer y procesar inmediatamente
-    _queuedSendTimer?.cancel();
-    _queuedSendTimer = null;
-    await _processQueuedMessages();
+    // Force immediate flush via MessageQueueManager
+    _queueManager?.flushNow();
   }
 
   @override
@@ -1545,10 +1707,8 @@ class ChatProvider extends ChangeNotifier {
     // Debounce persistence to avoid excessive disk writes when many state
     // updates happen quickly (e.g., during message streaming).
     saveAllEvents();
-    _saveDebounceTimer?.cancel();
-    _saveDebounceTimer = Timer(_saveDebounceDuration, () {
-      saveAll();
-    });
+    // Use DebouncedSave helper
+    _debouncedSave?.trigger();
     super.notifyListeners();
   }
 
@@ -1564,8 +1724,8 @@ class ChatProvider extends ChangeNotifier {
     try {
       audioService.dispose();
     } catch (_) {}
-    _saveDebounceTimer?.cancel();
-    _queuedSendTimer?.cancel();
+    _debouncedSave?.dispose();
+    _queueManager?.dispose();
     try {
       _periodicScheduler.stop();
     } catch (_) {}

@@ -289,10 +289,12 @@ class _ChatScreenState extends State<ChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final navCtx = context;
       final navigator = Navigator.of(navCtx);
-      if (chatProvider.hasPendingIncomingCall) {
+      if (chatProvider.isCalling) {
         // Abrir VoiceCallChat en modo incoming solo si no hay ya otra ruta de llamada
         final alreadyOpen = navigator.widget is VoiceCallChat; // heurístico simple
         if (!alreadyOpen) {
+          // Clear the calling flag to avoid reopening while the screen is active.
+          chatProvider.clearPendingIncomingCall();
           navigator.push(
             MaterialPageRoute(
               builder: (_) =>

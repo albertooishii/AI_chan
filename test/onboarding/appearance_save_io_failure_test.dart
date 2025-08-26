@@ -43,9 +43,13 @@ void main() {
     // Esperamos que la excepción se propague cuando intentamos guardar la imagen
     final appearance = await gen.generateAppearancePrompt(profile, aiService: fake);
     final updatedProfile = profile.copyWith(appearance: appearance);
-    expect(
-      () async => await IAAvatarGenerator().generateAvatarFromAppearance(updatedProfile, aiService: fake),
-      throwsA(isA<Exception>()),
-    );
+    expect(() async {
+      AIService.testOverride = fake;
+      try {
+        await IAAvatarGenerator().generateAvatarFromAppearance(updatedProfile);
+      } finally {
+        AIService.testOverride = null;
+      }
+    }, throwsA(isA<Exception>()));
   });
 }

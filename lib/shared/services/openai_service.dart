@@ -109,18 +109,35 @@ class OpenAIService implements AIService {
     List<Map<String, dynamic>> input = [];
     StringBuffer allText = StringBuffer();
     final systemPromptMap = systemPrompt.toJson();
-    // Inyectar instrucciones específicas sobre fotos/metadatos según corresponda.
-    // Estas cadenas vienen de PromptBuilder (centralizadas) y solo deben añadirse
-    // cuando proceda: petición explícita de imagen y/o imagen adjunta.
+    // Detectar si la petición es explícitamente para generar un AVATAR.
+    // Si es así, NO inyectaremos las claves 'photo_instructions' ni 'attached_image_metadata_instructions'.
+    bool looksLikeAvatar = false;
+    try {
+      final instrDetect = systemPromptMap['instructions'];
+      if (instrDetect is Map) {
+        if (instrDetect['is_avatar'] == true || instrDetect['image_type'] == 'avatar') {
+          looksLikeAvatar = true;
+        }
+      }
+    } catch (_) {}
+
+    // Garantizar que las instrucciones de AVATAR y las de FOTO/Metadatos no se mezclen.
+    // Regla simple y explícita: si es una petición de avatar, eliminar cualquier clave
+    // relacionada con imagen (p.ej. 'photo_instructions' / 'attached_image_metadata_instructions')
+    // para evitar contaminación accidental. Si no es una petición de avatar,
+    // inyectar las instrucciones de foto/metadatos cuando proceda y eliminar
+    // claves específicas de avatar si estuvieran presentes.
     try {
       final instrRoot = systemPromptMap['instructions'];
       if (instrRoot is Map) {
-        if (enableImageGeneration) {
-          // inject image instructions mentioning the real user name when available
-          instrRoot['foto'] = imageInstructions(systemPrompt.profile.userName);
-        }
-        if (imageBase64 != null && imageBase64.isNotEmpty) {
-          instrRoot['metadatos_imagen'] = imageMetadata(systemPrompt.profile.userName);
+        if (!looksLikeAvatar) {
+          // Inyectar instrucciones sobre foto y metadatos cuando corresponda
+          if (enableImageGeneration) {
+            instrRoot['photo_instructions'] = imageInstructions(systemPrompt.profile.userName);
+          }
+          if (imageBase64 != null && imageBase64.isNotEmpty) {
+            instrRoot['attached_image_metadata_instructions'] = imageMetadata(systemPrompt.profile.userName);
+          }
         }
       }
     } catch (_) {}
@@ -157,16 +174,8 @@ class OpenAIService implements AIService {
       tools = [
         {"type": "image_generation", "input_fidelity": "high", "moderation": "low"},
       ];
-      // Detectar si la petición es explícitamente un AVATAR leyendo directamente el map de instrucciones.
-      bool looksLikeAvatar = false;
-      try {
-        final instrRoot = systemPrompt.toJson()['instructions'];
-        if (instrRoot is Map) {
-          if (instrRoot['is_avatar'] == true || instrRoot['image_type'] == 'avatar') {
-            looksLikeAvatar = true;
-          }
-        }
-      } catch (_) {}
+      // Reutilizar el flag 'looksLikeAvatar' detectado anteriormente en lugar
+      // de volver a calcularlo para mantener la lógica consistente.
 
       // Construir image_generation_call cuando proceda. Evitar duplicar la creación
       // creando la estructura una sola vez y ajustando campos según el caso.

@@ -47,7 +47,10 @@ void main() {
     final appearance = <String, dynamic>{'edad_aparente': 25};
     final updatedProfile = profile.copyWith(appearance: appearance);
 
-    final image = await generator.generateAvatarFromAppearance(updatedProfile, aiService: fake);
+    // Use testOverride to inject fake AIService for this unit test
+    AIService.testOverride = fake;
+    final image = await generator.generateAvatarFromAppearance(updatedProfile);
+    AIService.testOverride = null;
 
     expect(image, isA<AiImage>());
     expect(image.seed, equals('seed-123'));

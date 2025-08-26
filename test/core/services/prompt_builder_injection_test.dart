@@ -27,36 +27,39 @@ void main() {
 
     // Por defecto no debe contener las claves de imagen en las instrucciones
     final instr = map['instructions'] as Map<String, dynamic>;
-    expect(instr.containsKey('foto'), isFalse);
-    expect(instr.containsKey('metadatos_imagen'), isFalse);
+    expect(instr.containsKey('photo_instructions'), isFalse);
+    expect(instr.containsKey('attached_image_metadata_instructions'), isFalse);
 
     // Simular inyección que hace OpenAIService cuando enableImageGeneration==true
-    instr['foto'] = pb.imageInstructions('u');
-    expect(instr['foto'], equals(pb.imageInstructions('u')));
+    instr['photo_instructions'] = pb.imageInstructions('u');
+    expect(instr['photo_instructions'], equals(pb.imageInstructions('u')));
   });
 
-  test('PromptBuilder JSON supports simultaneous foto y metadatos_imagen injection', () {
-    final profile = AiChanProfile(
-      biography: <String, dynamic>{},
-      userName: 'u',
-      aiName: 'ai',
-      userBirthday: null,
-      aiBirthday: null,
-      appearance: <String, dynamic>{},
-      timeline: [],
-    );
-    final builder = pb.PromptBuilder();
-    final jsonStr = builder.buildRealtimeSystemPromptJson(profile: profile, messages: []);
-    final map = jsonDecode(jsonStr) as Map<String, dynamic>;
-    final instr = map['instructions'] as Map<String, dynamic>;
+  test(
+    'PromptBuilder JSON supports simultaneous photo_instructions and attached_image_metadata_instructions injection',
+    () {
+      final profile = AiChanProfile(
+        biography: <String, dynamic>{},
+        userName: 'u',
+        aiName: 'ai',
+        userBirthday: null,
+        aiBirthday: null,
+        appearance: <String, dynamic>{},
+        timeline: [],
+      );
+      final builder = pb.PromptBuilder();
+      final jsonStr = builder.buildRealtimeSystemPromptJson(profile: profile, messages: []);
+      final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+      final instr = map['instructions'] as Map<String, dynamic>;
 
-    // Simular que hay petición de imagen y que el usuario adjuntó una imagen
-    instr['foto'] = pb.imageInstructions('u');
-    instr['metadatos_imagen'] = pb.imageMetadata('u');
+      // Simular que hay petición de imagen y que el usuario adjuntó una imagen
+      instr['photo_instructions'] = pb.imageInstructions('u');
+      instr['attached_image_metadata_instructions'] = pb.imageMetadata('u');
 
-    expect(instr.containsKey('foto'), isTrue);
-    expect(instr.containsKey('metadatos_imagen'), isTrue);
-    expect(instr['foto'], equals(pb.imageInstructions('u')));
-    expect(instr['metadatos_imagen'], equals(pb.imageMetadata('u')));
-  });
+      expect(instr.containsKey('photo_instructions'), isTrue);
+      expect(instr.containsKey('attached_image_metadata_instructions'), isTrue);
+      expect(instr['photo_instructions'], equals(pb.imageInstructions('u')));
+      expect(instr['attached_image_metadata_instructions'], equals(pb.imageMetadata('u')));
+    },
+  );
 }

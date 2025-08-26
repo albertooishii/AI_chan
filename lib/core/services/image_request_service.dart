@@ -15,84 +15,60 @@ class ImageRequestResult {
 }
 
 class ImageRequestService {
-  static final List<String> _highConfidenceKeywords = [
-    'envíame una foto',
-    'enviame una foto',
-    'mándame una foto',
-    'mandame una foto',
-    'envíame una selfie',
-    'enviame una selfie',
-    'mándame una selfie',
-    'mandame una selfie',
-    'envíame un selfie',
-    'enviame un selfie',
-    'mándame un selfie',
-    'mandame un selfie',
-    'envíame foto',
-    'enviame foto',
-    'envíame una imagen',
-    'enviame una imagen',
-    'mándame una imagen',
-    'mandame una imagen',
-    'quiero verte',
-    'quiero una foto',
-    'quiero ver tu cara',
-    'ahora mismo te la mando',
-    'ahora mismo te la envio',
-    'ahora te la mando',
-    'la hago ahora',
-    'te la mando ahora',
-    'mándame un selfie',
-    'mandame un selfie',
-    'mándame una selfie',
-    'mandame una selfie',
-    'mándame una fotito',
-    'mandame una fotito',
-    'mándame una fotito',
-    'mandame una fotito',
-    'mándame una fotito',
-    'send me a photo',
-    'send me a picture',
-    'show me a photo',
-  ];
+  // Replaced exact phrase list by regex-based detection below.
 
-  static final List<String> _keywords = [
-    'foto',
-    'fotito',
-    'selfie',
-    'selfi',
-    'imagen',
-    'retrato',
-    'rostro',
-    'cara',
-    'picture',
-    'photo',
-  ];
+  // _keywords removed: use _imageWordRegex instead.
 
-  static final List<RegExp> _explicitRegex = [
-    RegExp(
-      r"\b(env[ií]a|manda|muestr|ens[eé]ñ|ens[eé]ñame|hazme|saca|mu[eé]strame|m[áa]ndame|por favor)[^\n]{0,40}\b(foto|imagen|selfie|retrato|una foto|una imagen)\b",
-      caseSensitive: false,
-    ),
-    RegExp(
-      r"\b(quiero|puedes|podr[ií]as?|me gustar[ií]a|me gustaria|me mandas|me env[ií]as)[^\n]{0,40}\b(foto|imagen|selfie|retrato|una foto)\b",
-      caseSensitive: false,
-    ),
-    RegExp(r"\b(send|show|can you send|can you show)[^\n]{0,40}\b(photo|picture)\b", caseSensitive: false),
-  ];
+  // Regex to detect image-related words (Spanish + common English variants).
+  static final RegExp _imageWordRegex = RegExp(
+    r"\b(foto|fotos|fotito|fotitos|fotograf[ií]a|fotograf[ií]as|selfie|selfi|imagen|imagenes|imagenito|imagenitos|retrato|retratos|rostro|cara|cuerpo|perfil|picture|picture(s)?|photo|photos|pic|screenshot|captura|headshot|portrait|foto_de_perfil)\b",
+    caseSensitive: false,
+  );
 
-  static final List<RegExp> _negativePatterns = [
-    RegExp(r"\b(no quiero (foto|imagen))\b", caseSensitive: false),
-    RegExp(r"\b(no me (mandes|env[ií]es) (foto|imagen))\b", caseSensitive: false),
-    RegExp(r"\b(no necesito (foto|imagen))\b", caseSensitive: false),
-  ];
+  // Regex que matchea exactamente una única palabra de imagen (mensaje corto "foto")
+  static final RegExp _onlyImageWordRegex = RegExp(
+    r"^\s*(?:foto|fotos|fotito|selfie|selfi|imagen|imagenito|retrato|rostro|cara|picture|photo|pic|screenshot)\s*[.!?]?\s*$",
+    caseSensitive: false,
+  );
+
+  // Regex to detect send/re-send actions (envíame, reenvíame, mándame, manda, etc.).
+  // Usamos formas tolerantes para cubrir variantes con/without accents and common suffixes.
+  static final RegExp _sendVerbRegex = RegExp(
+    // cubrir enviar/envíame/reenvíame, manda/mándame, pásame/pasame, comparte, adjunta
+    r"\b(?:re)?env[ií]\w*\b|\bm[áa]nd\w*\b|\bpas[ae]\w*\b|\bcompart\w*\b|\badju?n?ta\w*\b|\bsube\w*\b",
+    caseSensitive: false,
+  );
+
+  // Se eliminaron las regex explícitas basadas en verbos. La detección usa:
+  // - _highConfidenceKeywords (frases exactas)
+  // - conteo de palabras de imagen
+  // - heurística estructural (posesivos/comparativos)
+  // - detección de 'otra foto' y tipos (full body, close-up, ...)
+
+  // Consolidated negative patterns into a single regex for broader coverage.
+  static final RegExp _negativePatternsRegex = RegExp(
+    r"\b(?:no quiero (?:foto|imagen|fotograf[ií]a)|no me (?:mandes|env[ií]es) (?:foto|imagen)|no necesito (?:foto|imagen)|de ninguna manera|ni loco|nunca|no,? gracias|para nada)\b",
+    caseSensitive: false,
+  );
 
   static final RegExp _anotherPhotoRegex = RegExp(
-    r"\b(otra foto|otra imagen|otra vez|otra similar|otra, por favor|otra por favor)\b",
+    r"\b(otra foto|otra imagen|otra vez|otra similar|otra por favor|otra, por favor|otra igual|otra distinta|another photo|another picture|otra?)\b",
     caseSensitive: false,
   );
   static final RegExp _typeRequestRegex = RegExp(
-    r"\b(cuerpo entero|full body|medio cuerpo|primer plano|close[- ]?up|más sexy|más natural|más grande)\b",
+    r"\b(cuerpo entero|de cuerpo entero|full body|medio cuerpo|plano medio|primer plano|close[- ]?up|close ?up|primerplano|primer_plano|plano_detalle|headshot|más sexy|más natural|más grande|detalle|closeup|retrato)\b",
+    caseSensitive: false,
+  );
+
+  // Regex amplio para frases afirmativas cortas.
+  static final RegExp _affirmativeRegex = RegExp(
+    r"\b(?:si+|sí+|sip+|sii+|claro|obvio|vale|ok(?:ay)?|perfecto|adelante|por supuesto|dale|venga|claro que sí|por supuesto que sí|sí claro|sí,|si claro|yeah|yep|sure|okey)\b",
+    caseSensitive: false,
+  );
+
+  // Regex amplio para negaciones cortas.
+  static final RegExp _negativeRegex = RegExp(
+    r"\b(?:no|nop|nope|no gracias|nah|na|nunca|de ninguna manera)\b",
     caseSensitive: false,
   );
 
@@ -106,29 +82,53 @@ class ImageRequestService {
     if (trimmed.isEmpty) return ImageRequestResult(detected: false, reason: 'empty', matchedPhrase: '', score: 0);
     final lower = trimmed.toLowerCase();
 
-    for (final neg in _negativePatterns) {
-      final m = neg.firstMatch(lower);
-      if (m != null) {
-        return ImageRequestResult(detected: false, reason: 'negative_match', matchedPhrase: m.group(0) ?? '', score: 0);
-      }
+    final negM = _negativePatternsRegex.firstMatch(lower);
+    if (negM != null) {
+      return ImageRequestResult(
+        detected: false,
+        reason: 'negative_match',
+        matchedPhrase: negM.group(0) ?? '',
+        score: 0,
+      );
     }
 
-    for (final p in _highConfidenceKeywords) {
-      if (lower.contains(p)) {
-        return ImageRequestResult(detected: true, reason: 'high_confidence_phrase', matchedPhrase: p, score: 95);
-      }
+    // Alta confianza si el texto contiene una acción de envío y una palabra de imagen.
+    if (_sendVerbRegex.hasMatch(lower) && _imageWordRegex.hasMatch(lower)) {
+      return ImageRequestResult(detected: true, reason: 'high_confidence_regex', matchedPhrase: lower, score: 95);
     }
 
-    for (final rx in _explicitRegex) {
-      final m = rx.firstMatch(lower);
-      if (m != null) {
+    // Nueva regla simple y conservadora:
+    // Si en el historial reciente hay un mensaje del asistente que mencionó
+    // una palabra de imagen (por ejemplo "foto") y el usuario responde con
+    // una afirmación corta («si», «claro», «vale», etc.) o con una negación
+    // corta («no», «no gracias»), entonces actuamos como petición confirmada
+    // o negada respectivamente. Esto evita depender de verbos y es muy
+    // directa: palabra de imagen (asistente) + confirmación del usuario.
+    final assistantMention = _lastAssistantImageMention(history);
+    if (assistantMention != null) {
+      if (_containsAffirmation(lower)) {
         return ImageRequestResult(
           detected: true,
-          reason: 'explicit_verb_regex',
-          matchedPhrase: m.group(0) ?? '',
-          score: 90,
+          reason: 'followup_affirmative_to_assistant_image_mention',
+          matchedPhrase: assistantMention,
+          score: 95,
         );
       }
+      if (_containsNegation(lower)) {
+        return ImageRequestResult(
+          detected: false,
+          reason: 'followup_negative_to_assistant_image_mention',
+          matchedPhrase: assistantMention,
+          score: 0,
+        );
+      }
+    }
+
+    // Ya no usamos expresiones basadas en verbos; en su lugar, si el texto
+    // contiene una frase de alta confianza o la estructura sugiere petición,
+    // la marcamos.
+    if (_structureSuggestsRequest(lower)) {
+      return ImageRequestResult(detected: true, reason: 'structural_request', matchedPhrase: lower, score: 85);
     }
 
     final mAnother = _anotherPhotoRegex.firstMatch(lower);
@@ -152,7 +152,7 @@ class ImageRequestService {
     final mType = _typeRequestRegex.firstMatch(lower);
     if (mType != null) {
       final verbNear = RegExp(
-        r"\b(env[ií]a|manda|muestr|ens[eé]ñ|haz|saca|mu[eé]strame|m[áa]ndame|quiero|puedes|podr[ií]as?)\b",
+        r"\b(env[ií]a|manda|muestr|ens[eé]ñ|haz|saca|mu[eé]strame|m[áa]ndame|quiero|queri[í]a|puedes|podr[ií]as?)\b",
         caseSensitive: false,
       );
       final ctx = 30;
@@ -168,28 +168,36 @@ class ImageRequestService {
       }
     }
 
-    for (final kw in _keywords) {
-      if (lower.contains(kw)) {
-        if (_isAmbiguousShort(lower, kw)) {
-          return ImageRequestResult(detected: false, reason: 'ambiguous_short', matchedPhrase: kw, score: 5);
-        }
-        final verbNearby = RegExp(
-          r"\b(env[ií]a|manda|muestr|ens[eé]ñ|haz|saca|mu[eé]strame|m[áa]ndame|quiero|puedes|podr[ií]as?)\b",
-          caseSensitive: false,
-        );
-        final idx = lower.indexOf(kw);
-        final ctxBefore = lower.substring((idx - 20).clamp(0, lower.length), idx);
-        final ctxAfter = lower.substring(idx, (idx + kw.length + 20).clamp(0, lower.length));
-        if (verbNearby.hasMatch(ctxBefore) || verbNearby.hasMatch(ctxAfter)) {
-          return ImageRequestResult(detected: true, reason: 'keyword_with_verb', matchedPhrase: kw, score: 75);
-        }
-        final imageWords = ['foto', 'selfie', 'imagen', 'retrato', 'cara', 'rostro'];
-        final count = imageWords.where((w) => lower.contains(w)).length;
-        if (count >= 2) {
-          return ImageRequestResult(detected: true, reason: 'multiple_image_words', matchedPhrase: kw, score: 70);
-        }
-        return ImageRequestResult(detected: false, reason: 'keyword_low_confidence', matchedPhrase: kw, score: 30);
+    if (_imageWordRegex.hasMatch(lower)) {
+      final m = _imageWordRegex.firstMatch(lower);
+      final kw = m?.group(0) ?? '';
+      if (kw.isNotEmpty && _isAmbiguousShort(lower, kw)) {
+        return ImageRequestResult(detected: false, reason: 'ambiguous_short', matchedPhrase: kw, score: 5);
       }
+      if (_structureSuggestsRequest(lower)) {
+        return ImageRequestResult(
+          detected: true,
+          reason: 'structural_request',
+          matchedPhrase: kw.isNotEmpty ? kw : lower,
+          score: 80,
+        );
+      }
+      // Conteo de apariciones de palabras de imagen usando regex
+      final count = _imageWordRegex.allMatches(lower).length;
+      if (count >= 2) {
+        return ImageRequestResult(
+          detected: true,
+          reason: 'multiple_image_words',
+          matchedPhrase: kw.isNotEmpty ? kw : lower,
+          score: 70,
+        );
+      }
+      return ImageRequestResult(
+        detected: false,
+        reason: 'keyword_low_confidence',
+        matchedPhrase: kw.isNotEmpty ? kw : lower,
+        score: 30,
+      );
     }
 
     // Si el usuario envía un ack/polite followup ("vale, cuando puedas") y en el
@@ -215,17 +223,101 @@ class ImageRequestService {
     return res;
   }
 
+  static bool _structureSuggestsRequest(String lowerText) {
+    // Requiere presencia de palabra de imagen
+    if (!_imageWordRegex.hasMatch(lowerText)) return false;
+
+    // Posesivos o pronombres que indican "tu foto", "foto tuya", "te" etc.
+    final possessive = RegExp(
+      r"\b(?:mi|mio|mía|mia|tu|tuyo|tuya|su|sus|de ti|de usted|de vosotros|de ustedes|para ti|para usted)\b",
+      caseSensitive: false,
+    );
+    if (possessive.hasMatch(lowerText)) return true;
+
+    // Comparativos/descritores que suelen aparecer cuando se pide una foto similar
+    final comparative = RegExp(
+      r"\b(parecid|parecida|parecido|similar|como|igual|parece|asemeja|tal como)\b",
+      caseSensitive: false,
+    );
+    if (comparative.hasMatch(lowerText)) return true;
+
+    // Frases que suelen indicar petición indirecta: "me la mandas", "puedes mandarme",
+    // "podrías enviarme", etc. Detectamos con patrón flexible sin listar cada verbo.
+    final requestish = RegExp(
+      r"\b(puedes|podr[ií]as|podr[ií]a|me la|mela|mand(a|ame|arme)|env[ií]a(me|la|mela)?|reenv[ií]a(me|la)?)\b",
+      caseSensitive: false,
+    );
+    if (requestish.hasMatch(lowerText)) return true;
+
+    // Detectar formas verbales en condicional/subjuntivo/condicional like -ría/-ría (quisiera, querría)
+    final iAverb = RegExp(r"\b\w{3,}[ríí]a\b", caseSensitive: false);
+    if (iAverb.hasMatch(lowerText)) return true;
+
+    return false;
+  }
+
+  // Devuelve el texto del último mensaje del asistente (reciente) que menciona
+  // una palabra relacionada con imagen y que no sea ya un mensaje de imagen.
+  static String? _lastAssistantImageMention(List<Message>? history) {
+    if (history == null || history.isEmpty) return null;
+    final recent = history.length <= 8 ? history : history.sublist(history.length - 8);
+    for (final m in recent.reversed) {
+      if (m.sender == MessageSender.assistant) {
+        if (m.isImage) continue; // ya envió imagen, no contamos
+        final l = m.text.toLowerCase();
+        // si contiene palabra relacionada con imagen o un verbo de envío
+        if (_imageWordRegex.hasMatch(l) || _sendVerbRegex.hasMatch(l)) return m.text;
+      }
+    }
+    return null;
+  }
+
+  // Affirmation and negation regexes (replacing word lists)
+  // Note: anchored checks and short-message heuristics are applied in helpers.
+  static final RegExp _affirmativeRegexWide = _affirmativeRegex;
+  static final RegExp _negativeRegexWide = _negativeRegex;
+
+  static bool _containsAffirmation(String lowerText) {
+    // Tokeniza y busca palabras de afirmación simples.
+    final tokens = lowerText
+        .replaceAll(RegExp(r"[^\wáéíóúñü]", caseSensitive: false), ' ')
+        .split(RegExp(r"\s+"))
+        .where((t) => t.isNotEmpty)
+        .toList();
+    if (tokens.isEmpty) return false;
+    // Si el mensaje es muy corto (<=3 tokens) y contiene cualquiera de las
+    // afirmativas, lo consideramos confirmación.
+    if (tokens.length <= 3 && _affirmativeRegexWide.hasMatch(lowerText)) return true;
+    // También aceptar frases que empiezan con una afirmación larga ("sí, envíamela")
+    if (RegExp(
+      r"^\s*(?:si|sí|claro|vale|ok|perfecto|por supuesto|dale|venga)\b",
+      caseSensitive: false,
+    ).hasMatch(lowerText)) {
+      return true;
+    }
+    return false;
+  }
+
+  static bool _containsNegation(String lowerText) {
+    final t = lowerText.trim();
+    if (_negativeRegexWide.hasMatch(t)) return true;
+    // exact match or start
+    if (RegExp(r"^\s*(?:no|nop|nope|no gracias|nah)\b", caseSensitive: false).hasMatch(t)) return true;
+    return false;
+  }
+
   static bool isImageRequested({required String text, List<Message>? history}) {
     final res = detectImageRequest(text: text, history: history);
     return res.detected;
   }
 
   static bool _isAmbiguousShort(String lowerText, String kw) {
-    final ambiguousShortWords = {'cara', 'rostro', 'retrato', 'imagen', 'foto', 'selfie'};
-    if (ambiguousShortWords.contains(kw)) {
-      if (lowerText.length <= 12) return true;
-      final onlyKeyword = RegExp('^\\s*${RegExp.escape(kw)}\\s*\$');
-      if (onlyKeyword.hasMatch(lowerText)) return true;
+    // Considerar ambiguo si el mensaje es solamente una palabra de imagen o muy corto
+    if (_onlyImageWordRegex.hasMatch(lowerText)) return true;
+    if (lowerText.trim().length <= 12 &&
+        _imageWordRegex.hasMatch(lowerText) &&
+        _imageWordRegex.allMatches(lowerText).length == 1) {
+      return true;
     }
     return false;
   }
@@ -237,11 +329,12 @@ class ImageRequestService {
       // Si el asistente ya envió una imagen, consideramos que hay imagen previa
       if (m.sender == MessageSender.assistant && m.isImage) return true;
       final l = m.text.toLowerCase();
-      for (final p in _highConfidenceKeywords) {
-        if (l.contains(p)) return true;
-      }
-      for (final rx in _explicitRegex) {
-        if (rx.hasMatch(l)) return true;
+      // Si en el historial hay un envío explícito (regex) o mención de imagen,
+      // lo consideramos como petición previa.
+      if ((_sendVerbRegex.hasMatch(l) && _imageWordRegex.hasMatch(l)) ||
+          _imageWordRegex.hasMatch(l) ||
+          _structureSuggestsRequest(l)) {
+        return true;
       }
     }
     // registrar si hay una frase coincidente en el historial (para diagnóstico)
@@ -258,12 +351,10 @@ class ImageRequestService {
     for (final m in recent.reversed) {
       if (m.sender == MessageSender.assistant && m.isImage) return m.text.isNotEmpty ? m.text : 'assistant_image';
       final l = m.text.toLowerCase();
-      for (final p in _highConfidenceKeywords) {
-        if (l.contains(p)) return m.text;
-      }
-      for (final rx in _explicitRegex) {
-        final r = rx.firstMatch(l);
-        if (r != null) return m.text;
+      if ((_sendVerbRegex.hasMatch(l) && _imageWordRegex.hasMatch(l)) ||
+          _imageWordRegex.hasMatch(l) ||
+          _structureSuggestsRequest(l)) {
+        return m.text;
       }
     }
     return null;
@@ -280,11 +371,8 @@ class ImageRequestService {
         // Si ya envió una imagen tras la promesa, la promesa no está pendiente
         if (m.isImage) return false;
         // Buscar frases que indiquen promesa/confirmación de envío
-        for (final p in _highConfidenceKeywords) {
-          if (l.contains(p)) {
-            foundPromise = true;
-            break;
-          }
+        if (_sendVerbRegex.hasMatch(l) && _imageWordRegex.hasMatch(l)) {
+          foundPromise = true;
         }
         // también chequear expresiones simples de promesa
         if (!foundPromise &&

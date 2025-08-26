@@ -29,7 +29,7 @@ void main() {
       timeline: [],
     );
 
-    final img = await gen.generateAvatarWithRetries(profile, maxAttempts: 2);
+    final img = await gen.generateAvatarFromAppearance(profile);
     expect(img, isNotNull);
     expect(img.seed, 'seed123');
 
@@ -62,7 +62,7 @@ void main() {
     );
 
     try {
-      await gen.generateAvatarWithRetries(profile, maxAttempts: 2);
+      await gen.generateAvatarFromAppearance(profile);
       fail('Expected exception');
     } catch (e) {
       expect(e, isA<Exception>());
