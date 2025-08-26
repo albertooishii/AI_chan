@@ -14,6 +14,11 @@ class FakeImageAIService extends AIService {
     String? imageMimeType,
     bool enableImageGeneration = false,
   }) async {
+    if (enableImageGeneration) {
+      if (systemPrompt.instructions['is_avatar'] != true) {
+        throw AssertionError('Expected is_avatar==true in image generation instructions');
+      }
+    }
     // Return a 1x1 PNG base64 (valid)
     const onePixelPngBase64 =
         'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAAWgmWQ0AAAAASUVORK5CYII=';

@@ -20,6 +20,18 @@ class FakeAIService implements AIService {
   }) async {
     // Simular latencia pequeña
     await Future.delayed(Duration(milliseconds: 30));
+    // Si la llamada es para generación de imagen, asegurarse que las
+    // instrucciones contienen la marca `is_avatar: true` cuando procede.
+    try {
+      if (enableImageGeneration) {
+        if (systemPrompt.instructions['is_avatar'] != true) {
+          throw AssertionError('Expected is_avatar==true in image generation instructions');
+        }
+      }
+    } catch (e) {
+      // Propagar como fallo de test
+      rethrow;
+    }
     if (_idx >= responses.length) {
       return AIResponse(text: '');
     }

@@ -110,12 +110,11 @@ class OpenAIService implements AIService {
     StringBuffer allText = StringBuffer();
     final systemPromptMap = systemPrompt.toJson();
     // Detectar si la petición es explícitamente para generar un AVATAR.
-    // Si es así, NO inyectaremos las claves 'photo_instructions' ni 'attached_image_metadata_instructions'.
     bool looksLikeAvatar = false;
     try {
       final instrDetect = systemPromptMap['instructions'];
       if (instrDetect is Map) {
-        if (instrDetect['is_avatar'] == true || instrDetect['image_type'] == 'avatar') {
+        if (instrDetect['is_avatar'] == true) {
           looksLikeAvatar = true;
         }
       }
@@ -174,26 +173,19 @@ class OpenAIService implements AIService {
       tools = [
         {"type": "image_generation", "input_fidelity": "high", "moderation": "low"},
       ];
-      // Reutilizar el flag 'looksLikeAvatar' detectado anteriormente en lugar
-      // de volver a calcularlo para mantener la lógica consistente.
 
-      // Construir image_generation_call cuando proceda. Evitar duplicar la creación
-      // creando la estructura una sola vez y ajustando campos según el caso.
-      final shouldAddImageCall = looksLikeAvatar || (avatar != null && avatar.seed != null);
-      if (shouldAddImageCall) {
-        final imageGenCall = <String, dynamic>{"type": "image_generation_call"};
-        // Incluir id si existe
-        if (avatar != null && avatar.seed != null) {
-          imageGenCall['id'] = avatar.seed;
-          Log.d('Usando imageId: ${avatar.seed}', tag: 'OPENAI_SERVICE');
-        }
-        // Si es avatar explícito, forzar tamaño 1024x1024
-        if (looksLikeAvatar) {
-          imageGenCall['size'] = '1024x1024';
-          Log.d('Detección: petición tratada como AVATAR -> size=1024x1024', tag: 'OPENAI_SERVICE');
-        }
-        input.add(imageGenCall);
+      final imageGenCall = <String, dynamic>{"type": "image_generation_call"};
+      // Incluir id si existe
+      if (avatar != null && avatar.seed != null) {
+        imageGenCall['id'] = avatar.seed;
+        Log.d('Usando imageId: ${avatar.seed}', tag: 'OPENAI_SERVICE');
       }
+      // Si es avatar explícito, forzar tamaño 1024x1024
+      if (looksLikeAvatar) {
+        imageGenCall['size'] = '1024x1024';
+        Log.d('Detección: petición tratada como AVATAR -> size=1024x1024', tag: 'OPENAI_SERVICE');
+      }
+      input.add(imageGenCall);
     } else {
       Log.i('image_generation DESACTIVADO', tag: 'OPENAI_SERVICE');
     }

@@ -31,14 +31,27 @@ class IAAvatarGenerator {
     final Map<String, dynamic> basePromptMap = {
       // Marca explícita para facilitar la detección en el servicio de envío
       // Indica que este prompt es para generar un AVATAR/foto de personaje
-      "image_type": "avatar",
       "is_avatar": true,
       "descripcion":
-          "Prompt JSON para generar avatar estilo foto divertida de Instagram. Devuelve SOLO la imagen en base64, sin texto ni metadatos.",
-      "composicion": {
-        "aspect_ratio": "1:1",
-        "encuadre": "cara y torso superior centrados",
-        "profundidad_de_campo": "fondo suavemente desenfocado",
+          "[IMAGEN REQUERIDA]: Genera una imagen usando tu herramienta de generación de imágenes 'image_generation' teniendo en cuenta el máximo detalle de 'appearance' y la conversación actual.",
+      "visual_settings": {
+        "composicion": {
+          "aspect_ratio": "1:1",
+          "encuadre": "cara y torso superior centrados",
+          "profundidad_de_campo": "fondo suavemente desenfocado",
+        },
+        "estetica": {
+          "estilo": "instagram portrait, divertida y natural",
+          "iluminacion": "calida, direccional, balance de blancos cálido, contraste medio-alto",
+          "postprocesado":
+              "bokeh, viñeteado sutil, nitidez en ojos, suavizado de piel realista, colores ligeramente saturados",
+        },
+        "camara": {"objetivo_preferido": "50mm", "apertura": "f/1.8-f/2.8", "iso": "bajo-medio"},
+        "parametros_tecnicos": {
+          "negative_prompt":
+              "Evitar watermark, texto, logos, firmas, baja resolución, deformaciones o elementos irreales.",
+        },
+        "image_request": {"size": "1024x1024", "aspect_ratio": "1:1", "fidelity": 0.25},
       },
       "identidad": {"edad_aparente": 25, "genero": "mujer"},
       "rasgos_fisicos": {
@@ -86,13 +99,6 @@ class IAAvatarGenerator {
           "La lista 'ropa' en 'appearance' contiene exactamente nueve conjuntos en este orden: 1) Trabajo, 2) Ocio muy casual, 3) Fiesta normal, 4) Fiesta cultural, 5) Diario primavera, 6) Diario verano, 7) Diario otoño, 8) Diario invierno, 9) Pijama. Selecciona el conjunto que mejor concuerde con la actividad indicada en la biografía. Si no hay correspondencia clara, usa el conjunto 2 (Ocio muy casual). Reproducir texturas, materiales y colores tal como aparecen en 'appearance'. Mostrar tatuajes, cicatrices o pecas en la ubicación y tamaño descritos si existen.",
       "actividad_y_pose":
           "Extrae la actividad principal desde biography.intereses_y_aficiones o biography.resumen_breve. Muestra a la persona realizando esa actividad con expresión de disfrute (sonrisa natural, mirada enfocada, gestos coherentes con la acción). Añade elementos o props coherentes según la actividad descrita en la biografía, evitando listar ejemplos literales que el modelo pueda reproducir textualmente en la imagen.",
-      "estetica": {
-        "estilo": "instagram portrait, divertida y natural",
-        "iluminacion": "calida, direccional, balance de blancos cálido, contraste medio-alto",
-        "postprocesado":
-            "bokeh, viñeteado sutil, nitidez en ojos, suavizado de piel realista, colores ligeramente saturados",
-      },
-      "camara": {"objetivo_preferido": "50mm", "apertura": "f/1.8-f/2.8", "iso": "bajo-medio"},
       "entorno":
           "Fondo coherente con la actividad descrita en la biografía. Evitar logos, marcas y texto. Mantener props y entorno contemporáneos; no incluir ejemplos literales que el modelo pueda renderizar como texto u objetos exactos.",
       "restricciones": [
@@ -102,15 +108,8 @@ class IAAvatarGenerator {
         "Sólo una persona en el encuadre",
       ],
       "salida": "Usa la herramienta de generación de imágenes y devuelve únicamente la imagen en base64, sin texto.",
-      "parametros_recomendados": {
-        "negative_prompt":
-            "Evitar watermark, texto, logos, firmas, baja resolución, deformaciones o elementos irreales.",
-        "nota":
-            "Si el backend admite parámetros técnicos (steps, sampler, cfg_scale), configúralos según su política; no se requieren valores literales aquí.",
-      },
       "notas":
           "Lee 'appearance' fielmente para ropa, colores, texturas y accesorios. Usa 'biography' solo para elegir la actividad y contexto; prioriza 'appearance' ante contradicciones. La imagen debe tener edad aparente EXACTA = 25.",
-      "image_request": {"size": "1024x1024", "aspect_ratio": "1:1", "fidelity": 0.25},
     };
 
     AIResponse imageResponse = AIResponse(text: '', base64: '', seed: '', prompt: '');
@@ -161,23 +160,13 @@ class IAAvatarGenerator {
         timeline: recentTimelineEntries,
       );
 
-      // Preparar identitySummary y las instrucciones para generar el prompt textual
-      final identitySummary = (basePromptMap['identity_summary'] is Map<String, dynamic>)
-          ? basePromptMap['identity_summary'] as Map<String, dynamic>
-          : <String, dynamic>{
-              'edad_aparente': appearance['edad_aparente'] ?? 25,
-              'genero': appearance['genero'] ?? 'mujer',
-            };
-
       // Preparar instrucciones para generar el prompt textual
       final generatorInstructions = {
         'task': 'generate_image_prompt',
         'description':
-            '''Genera UN SOLO prompt de imagen listo para el generador (una frase larga, separada por comas). Debe ser SUPER-DETALLADO: extrae y utiliza toda la información visual disponible del `appearance` del `profile` adjunto (usar como única fuente de verdad para rasgos físicos, ropa, colores, texturas y marcas), de la `biography` (actividad, gustos, contexto) y del `timeline` (entradas recientes) para incluir props, lugares o escenas relacionadas con acciones recientes. No repitas el tema o estilo de avatares anteriores (avatars) y produce un concepto notablemente diferente mientras mantienes los rasgos faciales esenciales si se utiliza continuidad de semilla. No inventes campos ni claves que no existan. Forzar edad_aparente = 25. Añade una cláusula negativa corta: "sin texto, sin logos, sin marcas de agua, sin pie de foto, sin distorsiones, sin manos deformes". Devuelve SOLO el prompt en una línea, sin explicaciones, sin metadatos ni enumeraciones de campos. Si falta algún detalle en `appearance`, usa un fallback realista sin inventar valores concretos.''',
-        'identity_summary': identitySummary,
-        'biography': bio.biography,
+            '''Genera UN SOLO prompt de imagen listo para el generador (una frase larga, separada por comas). Debe ser SUPER-DETALLADO: extrae y utiliza toda la información visual disponible del `appearance` del `profile` adjunto (usar como única fuente de verdad para rasgos físicos, ropa, colores, texturas y marcas), de la `biography` (actividad, gustos, contexto) y del `timeline` (entradas recientes) para incluir props, lugares o escenas relacionadas con acciones recientes. No repitas el tema o estilo de avatares anteriores (avatars) y produce un concepto notablemente diferente mientras mantienes los rasgos faciales esenciales si se utiliza continuidad de semilla. No inventes campos ni claves que no existan. Forzar edad_aparente = 25. Añade una cláusula negativa corta: "sin texto, sin logos, sin marcas de agua, sin pie de foto, sin distorsiones, sin manos deformes; asegurar que la pantalla y los botones estén correctamente orientados y visibles hacia la persona que lo está usando (no hacia la parte trasera)". Devuelve SOLO el prompt en una línea, sin explicaciones, sin metadatos ni enumeraciones de campos. Si falta algún detalle en `appearance`, usa un fallback realista sin inventar valores concretos.''',
+        'identidad': basePromptMap['identidad'],
         'restricciones': basePromptMap['restricciones'],
-        'image_request': basePromptMap['image_request'],
       };
 
       // Enviar petición al servicio de IA para generar el prompt textual
@@ -206,8 +195,11 @@ class IAAvatarGenerator {
         // Usar el prompt textual generado como instrucción principal para
         // la generación de imagen. Conservamos restricciones y metadata.
         promptToSend = {
+          "is_avatar": true,
+          "descripcion":
+              "[IMAGEN REQUERIDA]: Genera una imagen usando tu herramienta de generación de imágenes 'image_generation' utilizando el prompt 'image_prompt'",
           'image_prompt': generatedPromptText,
-          'image_request': basePromptMap['image_request'],
+          'visual_settings': basePromptMap['visual_settings'],
           'restricciones': basePromptMap['restricciones'],
           'salida': basePromptMap['salida'],
         };

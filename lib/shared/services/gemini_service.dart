@@ -215,14 +215,6 @@ class GeminiService implements AIService {
     final body = jsonEncode(requestPayload);
 
     Future<AIResponse> parseAndBuild(String respBody) async {
-      // Guardar la respuesta raw para análisis detallado en debug
-      // For debugging during development we log the size/preview via Log.d
-      try {
-        Log.d('[Gemini] Raw response preview length=${respBody.length}');
-        if (respBody.isNotEmpty) {
-          Log.d('[Gemini] Raw response preview: ${respBody.length > 4000 ? respBody.substring(0, 4000) : respBody}');
-        }
-      } catch (_) {}
       final data = jsonDecode(respBody);
       String? text;
       String? imagePrompt;

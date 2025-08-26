@@ -9,6 +9,8 @@ String _imageInstructions(String userName) =>
   Edad aparente: siempre la apariencia debe ser de 25 años en las fotos.
   Formato y calidad: imagen con aspecto de foto móvil (alta calidad, buena iluminación). Evita texto, marcas de agua o URLs en la imagen.
 
+  Restricciones visuales adicionales: evita manos deformes o proporciones anatómicas incorrectas. Si aparece un dispositivo con pantalla, asegura que la pantalla y los botones estén orientados claramente hacia la persona que lo está usando.
+
   [IMPORTANTE]: Añade 1-2 frases naturales en el chat. No menciones que utilizas herramientas, prompts ni procesos para generarla. NUNCA digas que generas las fotos; en su lugar di que te las has hecho o que las has buscado en tu galería.
 
   Estilo y estética (recomendado): foto tipo Instagram, retrato/medio cuerpo,
