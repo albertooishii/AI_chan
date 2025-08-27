@@ -45,6 +45,8 @@ class _InitializingScreenState extends State<InitializingScreen> {
   final int initialStepsCount = 0;
   bool startedGeneration = false;
   bool generationDone = false;
+  bool _avatarFailed = false; // indica fallo tras intentos en IAAvatarGenerator
+  String? _avatarError;
   // Duraciones configurables para ajustar la percepción de tiempo entre fases
   final Duration _stepDuration = const Duration(milliseconds: 5000);
   final Duration _finalPause = const Duration(seconds: 5);
@@ -190,7 +192,18 @@ class _InitializingScreenState extends State<InitializingScreen> {
         setState(() {});
       }
     } catch (e) {
-      await _handleErrorWithOptions(e);
+      // Si el error proviene de IAAvatarGenerator por agotar intentos, mostrar opciones en UI
+      final msg = e.toString();
+      if (msg.contains('No se pudo generar el avatar') || msg.contains('No se pudo generar el avatar tras')) {
+        if (!mounted) return;
+        setState(() {
+          _cancel = true;
+          _avatarFailed = true;
+          _avatarError = msg;
+        });
+      } else {
+        await _handleErrorWithOptions(e);
+      }
     }
   }
 
@@ -278,14 +291,57 @@ class _InitializingScreenState extends State<InitializingScreen> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 40),
-            // Spinner visual bajo los textos para indicar actividad.
-            const SizedBox(height: 8),
-            SizedBox(
-              width: 36,
-              height: 36,
-              child: CircularProgressIndicator(color: AppColors.secondary, strokeWidth: 4),
-            ),
-            const SizedBox(height: 24),
+            // Si la generación de avatar falló tras intentos, mostrar botones para reintentar o volver
+            if (_avatarFailed) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Text(
+                  _avatarError ?? 'Error generando avatar',
+                  style: const TextStyle(color: AppColors.primary),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      // Reintentar generación
+                      setState(() {
+                        _cancel = false;
+                        _avatarFailed = false;
+                        _avatarError = null;
+                        currentStep = 0;
+                        finished = false;
+                        bioReady = false;
+                        _generatedBio = null;
+                        startedGeneration = false;
+                        generationDone = false;
+                      });
+                      _autoAdvanceInitialSteps();
+                    },
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary),
+                    child: const Text('Reintentar'),
+                  ),
+                  const SizedBox(width: 16),
+                  OutlinedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text('Volver'),
+                  ),
+                ],
+              ),
+            ] else ...[
+              // Spinner normal (cuando no hay fallo de avatar)
+              SizedBox(
+                width: 36,
+                height: 36,
+                child: CircularProgressIndicator(color: AppColors.secondary, strokeWidth: 4),
+              ),
+              const SizedBox(height: 24),
+            ],
           ],
         ),
       ),

@@ -3,29 +3,59 @@ import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/locale_utils.dart';
 
 // Contenido relacionado con imágenes separado para reusarlo desde OpenAIService.
-String _imageInstructions(String userName) =>
-    '''
-  [IMAGEN REQUERIDA]: $userName está pidiendo que le envíes una foto. Genera un prompt superdetallado en español para tu herramienta de generación de imágenes 'image_generation' teniendo en cuenta el máximo detalle de 'appearance', tus avatares anteriores 'avatars' y la conversación actual.
-  Edad aparente: siempre la apariencia debe ser de 25 años en las fotos.
-  Formato y calidad: imagen con aspecto de foto móvil (alta calidad, buena iluminación). Evita texto, marcas de agua o URLs en la imagen.
+Map<String, dynamic> _imageInstructions(String userName) => {
+  "descripcion":
+      "[FOTO/IMAGEN PEDIDA POR CHAT]: $userName solicita que le envíes una foto realista. Genera una imagen con aspecto de fotografía tomada con móvil o cámara (alta calidad) respetando fielmente el campo 'appearance' del perfil y la conversación reciente. Genera una imagen usando tu herramienta de generación de imágenes 'image_generation'",
+  "identidad": "edad_aparente = 25; mantener rasgos y proporciones realistas.",
+  "visual_settings": {
+    "composicion": {
+      "aspect_ratio": "4:5 o 3:4 (portrait/back-ready para móvil)",
+      "encuadre": "retrato o medio cuerpo centrado; cabeza y hombros visibles",
+      "profundidad_de_campo": "fondo suavemente desenfocado (bokeh leve) para aislar sujeto",
+    },
+    "estetica": {
+      "estilo": "foto tipo Instagram/portrait, natural y profesional",
+      "iluminacion": "cálida, direccional, balance de blancos cálido; evita luz dura o sombras extremas",
+      "postprocesado":
+          "nitidez moderada en ojos, suavizado realista de piel, sin exceso de filtros; evitar efectos artificiales",
+    },
+    "camara": {"objetivo_preferido": "50mm equivalente", "apertura": "f/1.8-f/2.8", "iso": "bajo-medio"},
+    "parametros_tecnicos": {
+      "negative_prompt":
+          "Evitar watermark, texto en la imagen, logos, baja resolución, deformaciones, manos deformes o proporciones irreales.",
+    },
+  },
+  "rasgos_fisicos": {
+    "instruccion_general":
+        "Extrae y respeta todos los campos relevantes del objeto 'appearance' del perfil (color de piel, rasgos faciales, peinado, ojos, marcas, etc.). Si falta algún campo, aplica un fallback realista coherente con el estilo.",
+    "detalle":
+        "Describe de forma breve en el prompt: rasgos faciales, peinado y color, tono de piel, ropa y accesorios, expresión facial, dirección de la mirada y pose. No uses pares clave=valor en el texto visible; el generador debe recibir instrucciones claras y naturales.",
+  },
+  "actividad_y_pose":
+      "Si la conversación sugiere una actividad (ej. cocinar, leyendo, caminando), muéstrala naturalmente: manos en posición coherente, elementos de utilería discretos y contexto apropiado. Evita props con texto legible o marcas.",
+  "restricciones": [
+    "No texto en la imagen",
+    "Sin marcas de agua, logos ni firmas",
+    "Solo una persona en el encuadre",
+    "Sin elementos anacrónicos o irreales",
+  ],
+  "texto":
+      "En el mensaje que acompañe la foto (si aplica) añade 1 frase natural en español explicando la escena o el contexto. NO menciones prompts, herramientas ni procesos; si necesitas justificar origen, di que te la has hecho o que la tienes en la galería.",
+  "salida":
+      "Devolver la imagen en base64 si la herramienta lo soporta. Si no, devolver la URL local o ruta de archivo.",
+  "notas":
+      "Prioriza coherencia entre 'appearance' y la foto; no inventes rasgos contradictorios. Sigue las restricciones y evita cualquier contenido que pueda considerarse manipulador o que muestre identificadores personales sensibles.",
+};
 
-  Restricciones visuales adicionales: evita manos deformes o proporciones anatómicas incorrectas. Si aparece un dispositivo con pantalla, asegura que la pantalla y los botones estén orientados claramente hacia la persona que lo está usando.
+Map<String, dynamic> _imageMetadata(String userName) => {
+  "descripcion": "[IMAGEN DE $userName ADJUNTA] $userName te ha enviado una foto adjunta en su mensaje.",
+  "etiqueta": "[img_caption]descripción detallada en español[/img_caption]",
+  "contenido":
+      "El contenido dentro de la etiqueta debe ser una descripción visual muy detallada, en español natural, que cubra de forma clara y legible elementos como: rasgos faciales y expresiones, dirección de la mirada, peinado y color de cabello, tono de piel y edad aparente, ropa y accesorios, pose y ángulo de cámara, iluminación (tipo y dirección), ambiente y fondo (objetos, ubicación, hora del día), colores predominantes, composición y encuadre (por ejemplo: retrato, medio cuerpo, primer plano), sensación o emoción transmitida, y cualquier detalle relevante que ayude a recrear o generar la imagen. No uses pares clave=valor, JSON ni formatos técnicos; escribe en oraciones naturales y coherentes. La etiqueta debe aparecer ANTES de cualquier otra salida y su contenido NO debe repetirse en el cuerpo del mensaje.",
+};
 
-  [IMPORTANTE]: Añade 1-2 frases naturales en el chat. No menciones que utilizas herramientas, prompts ni procesos para generarla. NUNCA digas que generas las fotos; en su lugar di que te las has hecho o que las has buscado en tu galería.
-
-  Estilo y estética (recomendado): foto tipo Instagram, retrato/medio cuerpo,
-  aspecto natural y profesional: iluminación cálida direccional, bokeh sutil
-  en el fondo, nitidez en los ojos, balance de blancos cálido, colores
-  ligeramente saturados y contraste medio-alto. Objetivo equivalente: 50mm;
-  apertura amplia (f/1.8-f/2.8) para fondo desenfocado; encuadre centrado,
-  buena composición y sin elementos distractores.
-  ''';
-
-String _imageMetadata(String userName) =>
-    "[IMAGEN DE $userName ADJUNTA] $userName te ha enviado una foto adjunta en su mensaje.Antes de cualquier otro texto incluye una única etiqueta emparejada exactamente así: [img_caption]descripción detallada en español[/img_caption]. El contenido dentro de la etiqueta debe ser una descripción visual muy detallada, en español natural, que cubra de forma clara y legible elementos como: rasgos faciales y expresiones, dirección de la mirada, peinado y color de cabello, tono de piel y edad aparente, ropa y accesorios, pose y ángulo de cámara, iluminación (tipo y dirección), ambiente y fondo (objetos, ubicación, hora del día), colores predominantes, composición y encuadre (por ejemplo: retrato, medio cuerpo, primer plano), sensación o emoción transmitida, y cualquier detalle relevante que ayude a recrear o generar la imagen. No uses pares clave=valor, JSON ni formatos técnicos; escribe en oraciones naturales y coherentes. La etiqueta debe aparecer ANTES de cualquier otra salida y su contenido NO debe repetirse en el cuerpo del mensaje.";
-
-String imageInstructions(String userName) => _imageInstructions(userName);
-String imageMetadata(String userName) => _imageMetadata(userName);
+Map<String, dynamic> imageInstructions(String userName) => _imageInstructions(userName);
+Map<String, dynamic> imageMetadata(String userName) => _imageMetadata(userName);
 
 /// Encapsula la construcción de SystemPrompts y lógica de sanitización
 /// para separar esta responsabilidad del ChatProvider.
@@ -171,16 +201,12 @@ class PromptBuilder {
         "Formas de comunicarte disponibles en este chat (usa SOLO las formas indicadas):\n"
         "1) Texto normal: escribe sin etiquetas para mensajes escritos habituales.\n"
         "2) Nota de voz (texto que se convertirá en audio): usa EXCLUSIVAMENTE la etiqueta emparejada '[audio]texto[/audio]'. El interior debe ser solo el texto que se transcribirá; no pongas otras etiquetas, emojis ni caracteres no verbales dentro.\n"
-        "3) Llamadas: existen tres tokens para controlar llamadas y solo deben emitirse como mensajes completos y vacíos en su interior: '[call][/call]' (la IA solicita iniciar una llamada saliente), '[start_call][/start_call]' (ACEPTAR una llamada entrante; debe emitirse SOLO cuando aceptas y como único contenido) y '[end_call][/end_call]' (RECHAZAR o FINALIZAR: usar como único contenido para colgar).\n"
-        "4) Imagen enviada por $userName: si $userName envía una imagen, ANTES de cualquier otra salida incluye UNA sola etiqueta '[img_caption]descripción[/img_caption]' que contenga la descripción en español; después de esa etiqueta puedes añadir (opcional) una respuesta normal.\n"
-        "Reglas generales: NO inventes etiquetas ni variantes; no anides etiquetas; no pongas texto fuera de '[img_caption]' antes de cerrarla; todas las etiquetas de control de llamada deben ir solas en el mensaje y vacías dentro; usa '[audio]' con moderación (máx. ~1 cada 6-10 respuestas) y solo cuando aporte valor emocional claro.",
+        "3) Llamadas: existen tres tokens para controlar llamadas y solo deben emitirse como mensajes completos y vacíos en su interior: '[call][/call]' (la IA solicita iniciar una llamada saliente), '[start_call][/start_call]' (ACEPTAR una llamada entrante; debe emitirse SOLO cuando aceptas y como único contenido) y '[end_call][/end_call]' (RECHAZAR o FINALIZAR: usar como único contenido para colgar).",
     "etiquetas_permitidas": {
       "instrucciones":
           "Listado cerrado. Usa SOLO estas etiquetas y en la forma exacta descrita. Cualquier otra secuencia con corchetes se considera no permitida.",
       "nota de voz":
           "Forma exacta: [audio]texto de la nota[/audio] — el contenido entre las etiquetas debe ser solo texto plano (sin emojis ni otras etiquetas) y no debe empezar por '[' (evita anidación).",
-      "caption de imagen":
-          "Forma exacta: [img_caption]descripción detallada en español[/img_caption] — SIEMPRE debe ir al inicio del mensaje si la imagen la envía $userName; solo una vez; su contenido en oraciones naturales, no pares clave=valor ni JSON.",
       "iniciar llamada (saliente)":
           "Forma exacta: [call][/call] — debe ser el único contenido del mensaje y nada dentro de las etiquetas.",
       "aceptar llamada (entrante)":

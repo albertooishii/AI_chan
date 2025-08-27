@@ -271,7 +271,7 @@ IProfileService getProfileServiceForProvider([String? provider]) {
           ? Config.getDefaultImageModel()
           : Config.getDefaultImageModel();
       // If still empty, fall back to a reasonable image-capable model
-      final resolvedImg = imgModel.isNotEmpty ? imgModel : 'gpt-4.1-mini';
+      final resolvedImg = imgModel.isNotEmpty ? imgModel : 'gpt-5-mini';
       return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(resolvedImg));
     }
     if (p == 'openai') {
@@ -284,7 +284,7 @@ IProfileService getProfileServiceForProvider([String? provider]) {
     final fallbackImg = Config.getDefaultImageModel().isNotEmpty
         ? Config.getDefaultImageModel()
         : Config.getDefaultImageModel();
-    final resolvedFallbackImg = fallbackImg.isNotEmpty ? fallbackImg : 'gpt-4.1-mini';
+    final resolvedFallbackImg = fallbackImg.isNotEmpty ? fallbackImg : 'gpt-5-mini';
     return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(resolvedFallbackImg));
   }
 

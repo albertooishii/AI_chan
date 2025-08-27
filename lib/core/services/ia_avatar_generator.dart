@@ -288,8 +288,4 @@ class IAAvatarGenerator {
     // deberá incorporar el avatar a su `AiChanProfile` y persistir si procede.
     return avatar;
   }
-
-  // generateAvatarWithRetries was removed: callers should use
-  // `generateAvatarFromAppearance` directly. The internal retry logic
-  // is implemented inside `generateAvatarFromAppearance`.
 }

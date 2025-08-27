@@ -12,7 +12,7 @@ class IAAppearanceGenerator {
 
     // Bloque de formato JSON para la apariencia física
     final appearanceJsonFormat = jsonEncode({
-      "edad_aparente": "", // Forzar luego a 25
+      "edad_aparente": "25", // Forzar luego a 25
       "genero": "",
       "origen_etnico": "",
       "altura": "",
@@ -92,37 +92,39 @@ class IAAppearanceGenerator {
 
     final prompt =
         '''
-Eres un generador de fichas visuales para IA. Basado en la siguiente biografía, genera una ficha superdetallada, obsesiva y milimétrica de la apariencia física de la IA, usando el siguiente formato JSON. Cada campo debe ser lo más preciso y descriptivo posible, como si fueras un editor de personajes de videojuego AAA. Sé obsesivo con el detalle: especifica medidas, proporciones, formas, texturas, colores, ubicación exacta de cada rasgo y cualquier aspecto visual relevante. Rellena TODOS los campos con máximo detalle. No repitas la biografía textual ni inventes datos biográficos nuevos; extrapola solo lo visual.
+      Eres un generador de fichas visuales para IA. Basado en la siguiente biografía, genera una ficha superdetallada, obsesiva y milimétrica de la apariencia física de la IA, usando el siguiente formato JSON. Cada campo debe ser lo más preciso y descriptivo posible, como si fueras un editor de personajes de videojuego AAA. Sé obsesivo con el detalle: especifica medidas, proporciones, formas, texturas, colores, ubicación exacta de cada rasgo y cualquier aspecto visual relevante. Rellena TODOS los campos con máximo detalle. No repitas la biografía textual ni inventes datos biográficos nuevos; extrapola solo lo visual.
 
-IMPORTANTE:
-- La apariencia debe ser SIEMPRE la de una mujer joven de 25 años (aspecto juvenil, saludable, sin arrugas marcadas), aunque su edad biográfica sea distinta.
-- Añade el campo "edad_aparente" y fíjalo EXACTAMENTE al número 25 (no texto como "25 años", solo 25 o "25"). Si la biografía menciona otra edad, ignórala.
-- No contradigas este requisito en ninguna descripción.
+      IMPORTANTE:
+      - La apariencia debe ser SIEMPRE la de una mujer joven de 25 años (aspecto juvenil, saludable, sin arrugas marcadas), aunque su edad biográfica sea distinta.
+      - Añade el campo "edad_aparente" y fíjalo EXACTAMENTE al número 25 (no texto como "25 años", solo 25 o "25"). Si la biografía menciona otra edad, ignórala.
+      - No contradigas este requisito en ninguna descripción.
 
-Formato (DEVUELVE ÚNICAMENTE EL BLOQUE JSON DE APARIENCIA, SIN TEXTO EXTRA NI COMENTARIOS):
-$appearanceJsonFormat
+      Formato (DEVUELVE ÚNICAMENTE EL BLOQUE JSON DE APARIENCIA, SIN TEXTO EXTRA NI COMENTARIOS):
+      $appearanceJsonFormat
 
-En "cabello.peinado" devuelve 3 a 5 peinados distintos, cada uno con máximo detalle y variedad, coherentes con la biografía y la apariencia general.
+      En "cabello.peinado" devuelve 3 a 5 peinados distintos, cada uno con máximo detalle y variedad, coherentes con la biografía y la apariencia general.
 
-En "ropa" devuelve exactamente nueve conjuntos diferentes, cada uno como objeto con todos los detalles (prendas, colores, materiales, texturas, accesorios si aplica, estilo general). Los conjuntos deben ser:
-1) Trabajo (casual/creativo/tecnológico, no formal salvo que biography lo indique)
-2) Ocio muy casual (alineado con hobbies)
-3) Fiesta normal (eventos sociales habituales)
-4) Fiesta o evento cultural del país de origen (atuendo tradicional auténtico y respetuoso, acorde a la biografía; si la biografía es japonesa, usa yukata o kimono; si es de otro país, usa la prenda tradicional o look festivo local adecuado. Si no hay datos culturales, usa un outfit de evento elegante local contemporáneo, no tradicional.)
-5) Diario primavera (día de semana, clima templado)
-6) Diario verano (día de semana, clima cálido)
-7) Diario otoño (día de semana, clima templado/fresco)
-8) Diario invierno (día de semana, clima frío)
-9) Pijama (comodidad y estilo)
-Los accesorios son opcionales; no añadas por defecto.
+      En "ropa" devuelve exactamente once conjuntos diferentes, cada uno como objeto con todos los detalles (prendas, colores, materiales, texturas, accesorios si aplica, estilo general). Los conjuntos deben ser:
+      1) Trabajo (casual/creativo/tecnológico, no formal salvo que biography lo indique)
+      2) Ocio muy casual (alineado con hobbies)
+      3) Fiesta normal (eventos sociales habituales)
+      4) Fiesta o evento cultural del país de origen (atuendo tradicional auténtico y respetuoso, acorde a la biografía; si la biografía es japonesa, usa yukata o kimono; si es de otro país, usa la prenda tradicional o look festivo local adecuado. Si no hay datos culturales, usa un outfit de evento elegante local contemporáneo, no tradicional.)
+      5) Diario primavera (día de semana, clima templado)
+      6) Diario verano (día de semana, clima cálido)
+      7) Diario otoño (día de semana, clima templado/fresco)
+      8) Diario invierno (día de semana, clima frío)
+      9) Pijama (comodidad y estilo)
+      10) Cosplay (atuendo inspirado en personajes de anime, videojuegos, etc.)
+      11) Deportivo (atuendo para hacer ejercicio, gimnasio o actividades al aire libre)
+      Los accesorios son opcionales; no añadas por defecto.
 
-// Conjuntos de diario fijos por estación (primavera, verano, otoño, invierno); no adaptar por fecha actual.
+      // Conjuntos de diario fijos por estación (primavera, verano, otoño, invierno); no adaptar por fecha actual.
 
-En cada campo, describe con máximo detalle y precisión todos los rasgos físicos y visuales. Sé milimétrico en medidas, proporciones, distancias y texturas. No omitas campos.
+      En cada campo, describe con máximo detalle y precisión todos los rasgos físicos y visuales. Sé milimétrico en medidas, proporciones, distancias y texturas. No omitas campos.
 
-Biografía:
-\${bio.biography}
-''';
+      Biografía:
+      \${bio.biography}
+      ''';
 
     final systemPromptAppearance = SystemPrompt(
       profile: AiChanProfile(

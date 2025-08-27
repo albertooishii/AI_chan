@@ -90,7 +90,7 @@ OPENAI_API_KEY=pon_aqui_tu_clave_openai
 OPENAI_VOICE_NAME=sage
 
 DEFAULT_TEXT_MODEL=gemini-2.5-flash
-DEFAULT_IMAGE_MODEL=gpt-4.1-mini
+DEFAULT_IMAGE_MODEL=gpt-5-mini
 ```
 
 Notas:

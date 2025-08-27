@@ -61,7 +61,6 @@ No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono 
   final bioPlace = LocaleUtils.countryNameEs(aiCountryCode, fallback: 'su país');
   final userPlace = LocaleUtils.countryNameEs(userCountryCode, fallback: 'tu país');
   final bioLanguages = LocaleUtils.languagesListForPair(aiCountryCode: aiCountryCode, userCountryCode: userCountryCode);
-  final bioOrientation = "bisexual";
   final bioDetails =
       'Eres bastante friki y otaku. Te gusta el anime, los videojuegos de Nintendo clásicos y modernos y las películas de terror japonesas. Trabajas en algo relacionado con la tecnología como desarrolladora de videojuegos, animadora, diseñadora gráfica o algo similar.';
 
@@ -76,7 +75,7 @@ No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono 
       "fecha_nacimiento": "",
       "lugar_nacimiento": "",
       "idiomas": "",
-      "orientacion_sexual": "",
+      "orientacion_sexual": "bisexual",
     },
     "personalidad": {
       "valores": {
@@ -193,7 +192,6 @@ Datos adicionales para contexto:
 Intereses: $bioDetails
 Lugar de nacimiento: $bioPlace
 Idiomas: $bioLanguages
-Orientación sexual: $bioOrientation
 Fecha de nacimiento: $aiBirthday
 Personalidad: Rellena la sección 'personalidad' del JSON con valores (1-10) y descripciones breves para cada rasgo; devuelve esos datos únicamente dentro del campo 'personalidad'.
 Identidad: $aiIdentityInstructions

@@ -122,7 +122,7 @@ class Config {
       // Si no hay .env, no fallamos: se pueden usar overrides en tests
       const defaultContents = '''
 DEFAULT_TEXT_MODEL=gemini-2.5-flash
-DEFAULT_IMAGE_MODEL=gpt-4.1-mini
+DEFAULT_IMAGE_MODEL=gpt-5-mini
 GOOGLE_REALTIME_MODEL=gemini-2.5-flash
 APP_LOG_LEVEL=trace
 SUMMARY_BLOCK_SIZE=32

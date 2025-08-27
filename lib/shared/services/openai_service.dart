@@ -30,7 +30,7 @@ class OpenAIService implements AIService {
       final List models = data['data'] ?? [];
       // Filtrar solo modelos gpt-*
       final gptModels = models.where((m) => m['id'] != null && m['id'].toString().startsWith('gpt-')).toList();
-      // Agrupar por versión y tipo base (ej. gpt-5, gpt-5-mini, gpt-4.1, gpt-4.1-mini, etc.)
+      // Agrupar por versión y tipo base (ej. gpt-5, gpt-5-mini, gpt-4.1, gpt-5-mini, etc.)
       final groupMap = <String, List<String>>{};
       final noVersion = <String>[];
       final groupRegex = RegExp(r'^(gpt-(\d+(?:\.\d+)?)(?:-(mini|nano|chat|o|realtime|latest))?)');
@@ -175,17 +175,24 @@ class OpenAIService implements AIService {
       ];
 
       final imageGenCall = <String, dynamic>{"type": "image_generation_call"};
-      // Incluir id si existe
+      // Incluir id solo si existe avatar.seed
       if (avatar != null && avatar.seed != null) {
         imageGenCall['id'] = avatar.seed;
         Log.d('Usando imageId: ${avatar.seed}', tag: 'OPENAI_SERVICE');
+      } else {
+        Log.d('No hay avatar.seed; no se añadirá el campo id', tag: 'OPENAI_SERVICE');
       }
       // Si es avatar explícito, forzar tamaño 1024x1024
       if (looksLikeAvatar) {
         imageGenCall['size'] = '1024x1024';
         Log.d('Detección: petición tratada como AVATAR -> size=1024x1024', tag: 'OPENAI_SERVICE');
       }
-      input.add(imageGenCall);
+      // Evitar enviar image_generation_call vacío cuando es petición de avatar sin seed
+      if (!(looksLikeAvatar && (avatar == null || avatar.seed == null))) {
+        input.add(imageGenCall);
+      } else {
+        Log.w('Omitiendo image_generation_call para AVATAR porque no hay avatar.seed', tag: 'OPENAI_SERVICE');
+      }
     } else {
       Log.i('image_generation DESACTIVADO', tag: 'OPENAI_SERVICE');
     }

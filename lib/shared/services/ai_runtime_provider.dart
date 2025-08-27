@@ -14,7 +14,6 @@ runtime_ai.AIService getRuntimeAIServiceForModel(String modelId) {
   final key = normalized.isEmpty ? (defaultModel.isEmpty ? 'default' : defaultModel) : normalized;
   if (_runtimeAiSingletons.containsKey(key)) {
     final existing = _runtimeAiSingletons[key]!;
-    Log.d('[ai_runtime_provider] Reusing singleton for key="$key" -> ${existing.runtimeType}');
     // Sanity check: if the cached singleton type doesn't match the model prefix, replace it
     if (key.startsWith('gpt-') && existing.runtimeType.toString() != 'OpenAIService') {
       Log.w('[ai_runtime_provider] Warning: singleton type mismatch for $key (expected OpenAIService). Recreating.');
