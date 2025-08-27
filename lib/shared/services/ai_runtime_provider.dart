@@ -1,6 +1,7 @@
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/services/gemini_service.dart';
 import 'package:ai_chan/shared/services/openai_service.dart';
+import 'package:ai_chan/shared/services/grok_service.dart';
 import 'package:ai_chan/shared/services/ai_service.dart' as runtime_ai;
 import 'package:ai_chan/core/config.dart';
 
@@ -36,6 +37,8 @@ runtime_ai.AIService getRuntimeAIServiceForModel(String modelId) {
     impl = OpenAIService();
   } else if (key.startsWith('gemini-') || key.startsWith('imagen-')) {
     impl = GeminiService();
+  } else if (key.startsWith('grok-')) {
+    impl = GrokService();
   } else if (key == 'default') {
     // fallback preferido: Gemini
     impl = GeminiService();

@@ -22,6 +22,26 @@ class FakeAIService implements AIService {
   Future<List<String>> getAvailableModels() async => ['gpt-fake'];
 }
 
+class FakeAudioAIService implements AIService {
+  final String responseText;
+  FakeAudioAIService(this.responseText);
+
+  @override
+  Future<AIResponse> sendMessageImpl(
+    List<Map<String, String>> history,
+    SystemPrompt systemPrompt, {
+    String? model,
+    String? imageBase64,
+    String? imageMimeType,
+    bool enableImageGeneration = false,
+  }) async {
+    return AIResponse(text: responseText, base64: '', seed: '', prompt: '');
+  }
+
+  @override
+  Future<List<String>> getAvailableModels() async => ['gpt-fake'];
+}
+
 void main() {
   test('SendMessageUseCase uses AIService when no injectedService provided', () async {
     final fake = FakeAIService();
@@ -48,6 +68,75 @@ void main() {
 
     expect(fake.called, isTrue);
     expect(outcome.result.text, contains('hola desde fake'));
+
+    AIService.testOverride = null;
+  });
+
+  test('SendMessageUseCase extracts inner audio text and requests TTS', () async {
+    final fake = FakeAudioAIService('[audio] ¡Hola audio! [/audio]');
+    AIService.testOverride = fake;
+
+    final useCase = SendMessageUseCase();
+
+    final recent = <Message>[
+      Message(text: 'hola', sender: MessageSender.user, dateTime: DateTime.now(), status: MessageStatus.sent),
+    ];
+    final profile = AiChanProfile(
+      userName: 'u',
+      aiName: 'ai',
+      userBirthday: DateTime(2000, 1, 1),
+      aiBirthday: DateTime(2000, 1, 1),
+      biography: {},
+      appearance: {},
+      timeline: [],
+      avatars: null,
+    );
+    final systemPrompt = SystemPrompt(profile: profile, dateTime: DateTime.now(), recentMessages: [], instructions: {});
+
+    final outcome2 = await useCase.sendChat(recentMessages: recent, systemPromptObj: systemPrompt, model: 'gpt-fake');
+
+    expect(outcome2.ttsRequested, isTrue);
+    expect(outcome2.result.text, equals('¡Hola audio!'));
+    expect(outcome2.assistantMessage.text, equals('¡Hola audio!'));
+
+    AIService.testOverride = null;
+  });
+
+  test('SendMessageUseCase leaves text unchanged and ttsRequested false when no audio tag', () async {
+    final fake2 = FakeAudioAIService('Texto normal sin tag');
+    AIService.testOverride = fake2;
+
+    final useCase2 = SendMessageUseCase();
+
+    final recent2 = <Message>[
+      Message(text: 'hola', sender: MessageSender.user, dateTime: DateTime.now(), status: MessageStatus.sent),
+    ];
+    final profile2 = AiChanProfile(
+      userName: 'u',
+      aiName: 'ai',
+      userBirthday: DateTime(2000, 1, 1),
+      aiBirthday: DateTime(2000, 1, 1),
+      biography: {},
+      appearance: {},
+      timeline: [],
+      avatars: null,
+    );
+    final systemPrompt2 = SystemPrompt(
+      profile: profile2,
+      dateTime: DateTime.now(),
+      recentMessages: [],
+      instructions: {},
+    );
+
+    final outcome3 = await useCase2.sendChat(
+      recentMessages: recent2,
+      systemPromptObj: systemPrompt2,
+      model: 'gpt-fake',
+    );
+
+    expect(outcome3.ttsRequested, isFalse);
+    expect(outcome3.result.text, equals('Texto normal sin tag'));
+    expect(outcome3.assistantMessage.text, equals('Texto normal sin tag'));
 
     AIService.testOverride = null;
   });

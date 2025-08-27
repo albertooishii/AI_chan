@@ -13,6 +13,7 @@ import '../widgets/expandable_image_dialog.dart';
 import 'package:ai_chan/core/models.dart';
 import 'gallery_screen.dart';
 import 'package:ai_chan/shared.dart'; // Using centralized shared exports
+import 'package:ai_chan/shared/utils/model_utils.dart';
 import 'package:ai_chan/shared/widgets/app_dialog.dart';
 import '../widgets/tts_configuration_dialog.dart';
 import 'package:ai_chan/main.dart';
@@ -185,24 +186,31 @@ class _ChatScreenState extends State<ChatScreen> {
                           constraints: BoxConstraints(maxWidth: desiredWidth),
                           child: ListView(
                             shrinkWrap: true,
-                            children: [
-                              // Grupo Gemini
-                              const Padding(
-                                padding: EdgeInsets.fromLTRB(12.0, 8.0, 12.0, 8.0),
-                                child: Text(
-                                  'Google',
-                                  style: TextStyle(
-                                    color: AppColors.secondary,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
+                            children: () {
+                              // Agrupar modelos por proveedor usando heurísticas sencillas.
+                              final grouped = ModelUtils.groupModels(localModels);
+                              final preferred = ModelUtils.preferredOrder();
+                              final others = grouped.keys.where((k) => !preferred.contains(k)).toList()..sort();
+                              final order = [...preferred.where((k) => grouped.containsKey(k)), ...others];
+                              final widgets = <Widget>[];
+                              for (final grp in order) {
+                                final items = grouped[grp] ?? [];
+                                if (items.isEmpty) continue;
+                                widgets.add(
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(12.0, 8.0, 12.0, 8.0),
+                                    child: Text(
+                                      grp,
+                                      style: const TextStyle(
+                                        color: AppColors.cyberpunkYellow,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                              ...localModels
-                                  .where(
-                                    (m) => m.toLowerCase().contains('gemini') || m.toLowerCase().contains('imagen-'),
-                                  )
-                                  .map(
+                                );
+                                widgets.addAll(
+                                  items.map(
                                     (m) => ListTile(
                                       contentPadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
                                       title: Text(m, style: const TextStyle(color: AppColors.primary)),
@@ -212,28 +220,11 @@ class _ChatScreenState extends State<ChatScreen> {
                                       onTap: () => Navigator.of(dialogCtxInner).pop(m),
                                     ),
                                   ),
-                              const Divider(color: AppColors.secondary, thickness: 1, height: 24),
-                              // Grupo OpenAI
-                              const Padding(
-                                padding: EdgeInsets.fromLTRB(12.0, 8.0, 12.0, 8.0),
-                                child: Text(
-                                  'OpenAI',
-                                  style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
-                                ),
-                              ),
-                              ...localModels
-                                  .where((m) => m.toLowerCase().startsWith('gpt-'))
-                                  .map(
-                                    (m) => ListTile(
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-                                      title: Text(m, style: const TextStyle(color: AppColors.primary)),
-                                      trailing: initialModel == m
-                                          ? const Icon(Icons.radio_button_checked, color: AppColors.secondary)
-                                          : const Icon(Icons.radio_button_off, color: AppColors.primary),
-                                      onTap: () => Navigator.of(dialogCtxInner).pop(m),
-                                    ),
-                                  ),
-                            ],
+                                );
+                                widgets.add(const Divider(color: AppColors.secondary, thickness: 1, height: 24));
+                              }
+                              return widgets;
+                            }(),
                           ),
                         ),
                       );

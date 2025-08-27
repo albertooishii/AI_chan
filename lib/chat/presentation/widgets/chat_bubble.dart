@@ -267,19 +267,6 @@ class ChatBubble extends StatelessWidget {
     final isUser = message.sender == MessageSender.user;
     final borderColor = isUser ? AppColors.primary : AppColors.secondary;
     final glowColor = isUser ? AppColors.primary : AppColors.secondary;
-    final txtLower = message.text.trimLeft().toLowerCase();
-    // Detectar tag de audio en formato [audio]...[/audio] con contenido no vacío
-    final openTag = '[audio]';
-    final closeTag = '[/audio]';
-    int openIdx = txtLower.indexOf(openTag);
-    int closeIdx = openIdx >= 0 ? txtLower.indexOf(closeTag, openIdx + openTag.length) : -1;
-    // Solo consideramos placeholder de nota de voz pendiente para mensajes del asistente.
-    // Si el usuario escribe manualmente [audio]...[/audio] se mostrará como texto normal (NO barra de carga).
-    bool isVoiceNoteTag = false;
-    if (message.sender == MessageSender.assistant && openIdx >= 0 && closeIdx > openIdx) {
-      final inner = message.text.substring(openIdx + openTag.length, closeIdx).trim();
-      if (inner.isNotEmpty) isVoiceNoteTag = true;
-    }
 
     Widget statusWidget = const SizedBox.shrink();
     if (isUser) {
@@ -306,10 +293,13 @@ class ChatBubble extends StatelessWidget {
       statusWidget = Icon(icon, size: 16, color: color);
     }
 
-    // Ocultar texto si es audio o si está marcado como nota de voz (etiqueta previa a generación de TTS)
-    final shouldShowText = !message.isAudio && message.text.trim().isNotEmpty && !isVoiceNoteTag;
+    final shouldShowText = !message.isAudio && message.text.trim().isNotEmpty;
     final hasImage = message.image != null && message.image!.url != null && message.image!.url!.isNotEmpty;
+    // Mostrar player sólo cuando el mensaje está marcado como audio y ya tiene audioPath persistido.
     final hasAudio = message.isAudio && (message.audioPath != null && message.audioPath!.isNotEmpty);
+    // Si el mensaje está marcado como audio pero aún no tiene audioPath, no mostrar nada
+    final isAwaitingAudio = message.isAudio && (message.audioPath == null || message.audioPath!.isEmpty);
+    if (isAwaitingAudio) return const SizedBox.shrink();
     final isVoiceCallSummary = message.isVoiceCallSummary;
     final bool isCallPlaceholder =
         message.callStatus == CallStatus.placeholder || message.text.trim() == '[call][/call]';
@@ -320,7 +310,7 @@ class ChatBubble extends StatelessWidget {
     EdgeInsetsGeometry padding = const EdgeInsets.all(14);
     if (hasImage && hasAudio) {
       // Caso combinado: imagen + nota de voz
-      final showCaption = message.text.trim().isNotEmpty && !isVoiceNoteTag; // ignorar isAudio para caption
+      final showCaption = message.text.trim().isNotEmpty; // ignorar isAudio para caption
       final isShortCaption = !showCaption || (showCaption && message.text.length < 80);
       // Forzar tamaño reducido cuando hay imagen para que el bubble no ocupe ancho completo
       useIntrinsicWidth = true;
@@ -432,39 +422,6 @@ class ChatBubble extends StatelessWidget {
               ),
             ),
           ],
-          _footerRow(context: context, message: message, isUser: isUser, statusWidget: statusWidget),
-        ],
-      );
-    } else if (isVoiceNoteTag) {
-      // Placeholder mientras se genera/adjunta el audio de una nota de voz de la IA
-      bubbleContent = Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 180,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: glowColor, width: 1.2),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.schedule, color: glowColor, size: 26),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: SizedBox(
-                    height: 12,
-                    child: LinearProgressIndicator(
-                      backgroundColor: Colors.grey[850],
-                      valueColor: AlwaysStoppedAnimation(glowColor.withValues(alpha: 0.55)),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
           _footerRow(context: context, message: message, isUser: isUser, statusWidget: statusWidget),
         ],
       );

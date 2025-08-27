@@ -32,7 +32,9 @@ class SendMessageUseCase {
     final msgs = recentMessages
         .map(
           (m) => {
-            'role': m.sender == MessageSender.user ? 'user' : (m.sender == MessageSender.assistant ? 'ia' : 'system'),
+            'role': m.sender == MessageSender.user
+                ? 'user'
+                : (m.sender == MessageSender.assistant ? 'assistant' : 'system'),
             'content': m.text,
             'datetime': m.dateTime.toIso8601String(),
           },
@@ -166,6 +168,26 @@ class SendMessageUseCase {
     }
 
     if (!hasValidText(response) || !hasValidAllowedTagsStructure(response.text)) {
+      // Detectar si es un error de API que debería marcar el mensaje como failed
+      final errorPatterns = [
+        RegExp(r'error.*\d{3}'), // Errores HTTP con códigos
+        RegExp(r'unknown variant'), // Errores de deserialización
+        RegExp(r'failed to deserialize'), // Errores de JSON
+        RegExp(r'invalid.*request'), // Solicitudes inválidas
+        RegExp(r'unauthorized'), // No autorizado
+        RegExp(r'forbidden'), // Prohibido
+        RegExp(r'rate limit'), // Límite de tasa
+        RegExp(r'quota exceeded'), // Cuota excedida
+        RegExp(r'insufficient.*funds'), // Fondos insuficientes
+      ];
+
+      bool isApiError = errorPatterns.any((pattern) => pattern.hasMatch(response.text.toLowerCase()));
+
+      if (isApiError) {
+        // Lanzar excepción para que sea manejada como error en ChatProvider
+        throw Exception('API Error: ${response.text}');
+      }
+
       String sanitized = response.text;
       sanitized = sanitized.replaceAll(RegExp(r'\[(?!/?(?:audio|img_caption|call|end_call)\b)[^\]\[]+\]'), '');
       final chatResultFail = ChatResult(
@@ -194,7 +216,6 @@ class SendMessageUseCase {
         updatedProfile: null,
       );
     }
-
     bool isImageResp = response.base64.isNotEmpty;
     String? imagePathResp;
     String textResponse = response.text;
@@ -234,41 +255,64 @@ class SendMessageUseCase {
       finalModelUsed: selected,
     );
 
-    // Normalize [audio] tag and build assistant Message
+    // Detect and extract [audio]...[/audio] here so callers (providers/widgets)
+    // receive a cleaned text and a boolean flag indicating TTS is required.
     String assistantRawText = chatResult.text;
     final openTag = '[audio]';
     final closeTag = '[/audio]';
-    final leftTrimmed = assistantRawText.trimLeft();
-    final leftLower = leftTrimmed.toLowerCase();
-    if (leftLower.startsWith(openTag)) {
-      final afterTag = leftTrimmed.substring(openTag.length).trimLeft();
-      final lowerAfter = afterTag.toLowerCase();
-      if (lowerAfter.contains(closeTag)) {
-        final endIdx = lowerAfter.indexOf(closeTag);
-        final content = afterTag.substring(0, endIdx).trim();
-        assistantRawText = '$openTag $content $closeTag';
+    bool ttsRequested = false;
+
+    final lowerText = assistantRawText.toLowerCase();
+    final hasOpen = lowerText.contains(openTag);
+    final hasClose = lowerText.contains(closeTag);
+    if (hasOpen && hasClose) {
+      final start = lowerText.indexOf(openTag) + openTag.length;
+      final end = lowerText.indexOf(closeTag, start);
+      if (end > start) {
+        final inner = assistantRawText.substring(start, end).trim();
+        if (inner.isNotEmpty) {
+          ttsRequested = true;
+          assistantRawText = inner; // replace full tagged text with inner content
+        }
       }
     }
+
+    // If TTS was requested, produce a new ChatResult with cleaned text so
+    // storage/consumers don't keep the [audio] tags.
+    final ChatResult processedChatResult = ttsRequested
+        ? ChatResult(
+            text: assistantRawText,
+            isImage: chatResult.isImage,
+            imagePath: chatResult.imagePath,
+            prompt: chatResult.prompt,
+            seed: chatResult.seed,
+            finalModelUsed: chatResult.finalModelUsed,
+          )
+        : chatResult;
 
     final assistantMessage = Message(
       text: assistantRawText,
       sender: MessageSender.assistant,
       dateTime: DateTime.now(),
-      isImage: chatResult.isImage,
-      image: chatResult.isImage
-          ? AiImage(url: chatResult.imagePath ?? '', seed: chatResult.seed, prompt: chatResult.prompt)
+      isImage: processedChatResult.isImage,
+      image: processedChatResult.isImage
+          ? AiImage(
+              url: processedChatResult.imagePath ?? '',
+              seed: processedChatResult.seed,
+              prompt: processedChatResult.prompt,
+            )
           : null,
       status: MessageStatus.read,
     );
 
-    // Run event detection/save if onboardingData provided. EventTimelineService
-    // expects a saveAll callback. If none provided, pass a no-op.
+    // Run event detection/save if onboardingData provided. Use the processed
+    // text so event detection doesn't see the [audio] tags.
     AiChanProfile? updatedProfile;
     if (onboardingData != null) {
       try {
         updatedProfile = await EventTimelineService.detectAndSaveEventAndSchedule(
           text: recentMessages.isNotEmpty ? recentMessages.last.text : '',
-          textResponse: chatResult.text,
+          textResponse: processedChatResult.text,
           onboardingData: onboardingData,
           saveAll: saveAll ?? () async {},
         );
@@ -277,22 +321,8 @@ class SendMessageUseCase {
       }
     }
 
-    // Determine TTS request
-    bool ttsRequested = false;
-    final lower = assistantMessage.text.toLowerCase();
-    final hasOpen = lower.contains(openTag);
-    final hasClose = lower.contains(closeTag);
-    if (hasOpen && hasClose) {
-      final start = lower.indexOf(openTag) + openTag.length;
-      final end = lower.indexOf(closeTag, start);
-      if (end > start) {
-        final inner = assistantMessage.text.substring(start, end).trim();
-        if (inner.isNotEmpty) ttsRequested = true;
-      }
-    }
-
     return SendMessageOutcome(
-      result: chatResult,
+      result: processedChatResult,
       assistantMessage: assistantMessage,
       ttsRequested: ttsRequested,
       updatedProfile: updatedProfile,

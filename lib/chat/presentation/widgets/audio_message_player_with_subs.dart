@@ -39,19 +39,9 @@ class _AudioMessagePlayerWithSubsState extends State<AudioMessagePlayerWithSubs>
 
   void _prepareTimeline() {
     final raw = widget.message.text;
-    // Extraer contenido dentro de [audio] ... [/audio] si existe
-    final lower = raw.toLowerCase();
-    String content = raw;
-    final openTag = '[audio]';
-    final closeTag = '[/audio]';
-    if (lower.contains(openTag) && lower.contains(closeTag)) {
-      final start = lower.indexOf(openTag) + openTag.length;
-      final end = lower.indexOf(closeTag, start);
-      if (end > start) {
-        content = raw.substring(start, end).trim();
-      }
-    }
-    _baseText = content.trim();
+    // Usar el texto completo del mensaje como subtítulo; el use-case ya normaliza
+    // la intención de TTS y el provider controla isAudio/audioPath.
+    _baseText = raw.trim();
     // Sanitizar: remover caracteres astrales (emojis u otros símbolos que muestran tofu) y control chars
     _baseText = _sanitizePlainText(_baseText);
   }

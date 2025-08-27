@@ -396,7 +396,7 @@ class ChatProvider extends ChangeNotifier {
         try {
           final f = File(userAudioPath);
           Log.d(
-            '[Audio] sendMessage added msg con audioPath=$userAudioPath exists=${f.existsSync()} size=${f.existsSync() ? f.lengthSync() : 0}',
+            'Audio: sendMessage added msg con audioPath=$userAudioPath exists=${f.existsSync()} size=${f.existsSync() ? f.lengthSync() : 0}',
             tag: 'AUDIO',
           );
         } catch (_) {}
@@ -526,7 +526,8 @@ class ChatProvider extends ChangeNotifier {
 
       isSendingImage = false;
       isTyping = false;
-      isSendingAudio = false;
+      // Mantener isSendingAudio=true hasta que el audio (TTS) esté verdaderamente
+      // persistido y asociado al mensaje (audioPath). No lo reseteamos aquí.
       _imageRequestId++;
 
       final textResp = res.text;
@@ -594,8 +595,8 @@ class ChatProvider extends ChangeNotifier {
               final outRes = outcome.result;
               isTyping = !outRes.isImage;
               isSendingImage = outRes.isImage;
-              final lowerText = outRes.text.toLowerCase();
-              if (lowerText.contains('[audio]')) isSendingAudio = true;
+              // Usar la señal del use-case para saber si se debe sintetizar audio
+              if (outcome.ttsRequested) isSendingAudio = true;
               notifyListeners();
             } catch (_) {}
             // Guardar outcome y mostrar indicadores; la adición del mensaje
@@ -606,8 +607,7 @@ class ChatProvider extends ChangeNotifier {
               final outRes = outcome.result;
               isTyping = !outRes.isImage;
               isSendingImage = outRes.isImage;
-              final lowerText = outRes.text.toLowerCase();
-              if (lowerText.contains('[audio]')) isSendingAudio = true;
+              // Use the use-case signal (outcome.ttsRequested) to set audio indicator.
               notifyListeners();
             } catch (_) {}
             // Lanzar finalizer (no await) para aplicar outcome tras el delay
@@ -649,8 +649,7 @@ class ChatProvider extends ChangeNotifier {
         final outRes = outcome.result;
         isTyping = !outRes.isImage;
         isSendingImage = outRes.isImage;
-        final lowerText = outRes.text.toLowerCase();
-        if (lowerText.contains('[audio]')) isSendingAudio = true;
+        if (outcome.ttsRequested) isSendingAudio = true;
         notifyListeners();
       } catch (_) {}
       finalizeAssistantResponse();
@@ -713,10 +712,9 @@ class ChatProvider extends ChangeNotifier {
     // Indicadores de escritura / imagen
     isTyping = !result.isImage;
     isSendingImage = result.isImage;
-    // Si la IA marca su respuesta como nota de voz ([audio]...[/audio]) activamos el indicador
-    final lowerResultText = result.text.toLowerCase();
-    if (lowerResultText.contains('[audio]')) {
-      isSendingAudio = true; // Se desactiva al final del flujo cuando termina la síntesis TTS
+    // Si la IA solicitó TTS, activamos el indicador global hasta que finalice
+    if (pendingOutcome?.ttsRequested ?? false) {
+      isSendingAudio = true;
     }
     Log.d(
       'isTyping=$isTyping, isSendingImage=$isSendingImage, isSendingAudio=$isSendingAudio (sendMessage)',
@@ -744,28 +742,9 @@ class ChatProvider extends ChangeNotifier {
     }
 
     if (pendingOutcome == null) {
-      // Normalizar posibles espacios o saltos de línea antes de la etiqueta de nota de voz
-      // Usamos etiquetas emparejadas: [audio]contenido[/audio]
-      String assistantRawText = result.text;
-      // Construir tags con corchetes a partir de la clave
-      final openTag = '[audio]';
-      final closeTag = '[/audio]';
-      final leftTrimmed = assistantRawText.trimLeft();
-      final leftLower = leftTrimmed.toLowerCase();
-      // Solo aceptar como nota de voz si hay apertura y cierre exactos
-      if (leftLower.startsWith(openTag)) {
-        final afterTag = leftTrimmed.substring(openTag.length).trimLeft();
-        final lowerAfter = afterTag.toLowerCase();
-        if (lowerAfter.contains(closeTag)) {
-          final endIdx = lowerAfter.indexOf(closeTag);
-          final content = afterTag.substring(0, endIdx).trim();
-          assistantRawText = '$openTag $content $closeTag';
-        } else {
-          // No hay cierre: no lo tratamos como nota de voz — dejar el texto sin cambios
-        }
-      }
+      // Confiar en el resultado tal cual lo proporciona SendMessageUseCase.
       final assistantMessage = Message(
-        text: assistantRawText,
+        text: result.text,
         sender: MessageSender.assistant,
         dateTime: DateTime.now(),
         isImage: result.isImage,
@@ -781,7 +760,7 @@ class ChatProvider extends ChangeNotifier {
 
       isSendingImage = false;
       isTyping = false;
-      isSendingAudio = false;
+      // Mantener isSendingAudio=true hasta que TTS complete y actualice el mensaje
       _imageRequestId++;
 
       final textResp = result.text;
@@ -835,31 +814,46 @@ class ChatProvider extends ChangeNotifier {
 
     String? transcript;
 
-    // Intentar transcripción con reintentos. Antes la implementación solo
-    // incrementaba el contador en errores, provocando un bucle infinito cuando
-    // la API devolvía "null" sin lanzar excepciones. Ahora iteramos un máximo
-    // de intentos y siempre incrementamos el contador entre intentos.
-    const maxRetries = 2;
-    int attempt = 0;
-    while (attempt <= maxRetries) {
-      try {
-        final stt = di.getSttService();
-        final result = await stt.transcribeAudio(path);
-        if (result != null && result.trim().isNotEmpty) {
-          transcript = result.trim();
-          Log.i('Transcripción exitosa en intento ${attempt + 1}', tag: 'AUDIO');
-          break;
-        } else {
-          Log.w('Transcripción vacía en intento ${attempt + 1}', tag: 'AUDIO');
-        }
-      } catch (e) {
-        Log.e('Error transcribiendo (intento ${attempt + 1}/$maxRetries)', tag: 'AUDIO', error: e);
-      }
+    // If user selected native STT, prefer the live transcription captured
+    // during listening and skip file-based transcription attempts.
+    String provider = 'google';
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      provider = prefs.getString('selected_audio_provider') ?? provider;
+    } catch (_) {}
 
-      attempt++;
-      if (attempt <= maxRetries) {
-        // Backoff progresivo entre intentos
-        await Future.delayed(Duration(milliseconds: 500 * attempt));
+    if (provider == 'native' || provider == 'android_native') {
+      // Use live transcript as the final transcription
+      if (audioService.liveTranscript.trim().isNotEmpty) {
+        transcript = audioService.liveTranscript.trim();
+        Log.i('Usando transcripción nativa en vivo como transcripción final', tag: 'AUDIO');
+      } else {
+        Log.w('Transcripción nativa en vivo vacía al detener; no se intentará STT de fichero', tag: 'AUDIO');
+      }
+    } else {
+      // Intentar transcripción con reintentos para providers cloud (Google/OpenAI)
+      const maxRetries = 2;
+      int attempt = 0;
+      while (attempt <= maxRetries) {
+        try {
+          final stt = di.getSttServiceForProvider(provider);
+          final result = await stt.transcribeAudio(path);
+          if (result != null && result.trim().isNotEmpty) {
+            transcript = result.trim();
+            Log.i('Transcripción exitosa en intento ${attempt + 1}', tag: 'AUDIO');
+            break;
+          } else {
+            Log.w('Transcripción vacía en intento ${attempt + 1}', tag: 'AUDIO');
+          }
+        } catch (e) {
+          Log.e('Error transcribiendo (intento ${attempt + 1}/$maxRetries)', tag: 'AUDIO', error: e);
+        }
+
+        attempt++;
+        if (attempt <= maxRetries) {
+          // Backoff progresivo entre intentos
+          await Future.delayed(Duration(milliseconds: 500 * attempt));
+        }
       }
     }
 
@@ -880,10 +874,9 @@ class ChatProvider extends ChangeNotifier {
       return;
     }
 
-    // Envolver la transcripción en etiquetas emparejadas [audio]texto[/audio]
-    final tagged = '[audio]${transcript.trim()}[/audio]';
-
-    await sendMessage(tagged, model: model, userAudioPath: path, preTranscribedText: tagged);
+    // Enviar la transcripción como texto plano (el use-case decide si requiere TTS)
+    final plain = transcript.trim();
+    await sendMessage(plain, model: model, userAudioPath: path, preTranscribedText: plain);
 
     // Desactivar indicador de envío de audio
     Log.d('isUploadingUserAudio = false (stopAndSendRecording)', tag: 'AUDIO');
@@ -915,24 +908,35 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> generateTtsForMessage(Message msg, {String voice = 'nova'}) async {
     if (msg.sender != MessageSender.assistant || msg.isAudio) return;
+    // Indicar que la IA está generando audio hasta que tengamos audioPath
+    isSendingAudio = true;
+    notifyListeners();
     // Delegar a TtsService para sintetizar y persistir el audio
     try {
       final tts = ttsService ?? TtsService(audioService);
       final path = await tts.synthesizeAndPersist(msg.text, voice: voice);
+      final idx = messages.indexOf(msg);
       if (path != null) {
-        final idx = messages.indexOf(msg);
         if (idx != -1) {
           messages[idx] = messages[idx].copyWith(isAudio: true, audioPath: path, autoTts: true);
-          notifyListeners();
+        }
+      } else {
+        // Mark as audio requested but no path returned (error case handled below)
+        if (idx != -1) {
+          messages[idx] = messages[idx].copyWith(isAudio: true, autoTts: true);
         }
       }
+      // Ya tenemos resultado (positivo o negativo), desactivar indicador
+      isSendingAudio = false;
+      if (idx != -1) notifyListeners();
     } catch (e) {
       debugPrint('[Audio][TTS] Error generating TTS: $e');
       final idx = messages.indexOf(msg);
       if (idx != -1) {
         messages[idx] = messages[idx].copyWith(isAudio: true, autoTts: true);
-        notifyListeners();
       }
+      isSendingAudio = false;
+      if (idx != -1) notifyListeners();
     }
   }
   // =======================================================
@@ -958,14 +962,45 @@ class ChatProvider extends ChangeNotifier {
       }
       notifyListeners();
     } else {
-      messages.add(outcome.assistantMessage);
-    }
-    // Generar TTS si la use-case lo solicitó
-    try {
-      if (!isCallPlaceholder) {
-        if (outcome.ttsRequested) await generateTtsForMessage(outcome.assistantMessage);
+      // Decide whether to add the assistant message immediately or esperar a TTS
+      final assistantMessage = outcome.assistantMessage;
+      final wantsAudio = outcome.ttsRequested;
+
+      if (wantsAudio) {
+        // Mostrar indicador global de síntesis y sintetizar antes de insertar
+        // Nota: SendMessageUseCase es la fuente de verdad para decidir TTS/limpieza
+        isSendingAudio = true;
+        notifyListeners();
+        // Usar el texto provisto por outcome; no tocar etiquetas aquí.
+        final String cleaned = assistantMessage.text.trim();
+
+        try {
+          final tts = ttsService ?? TtsService(audioService);
+          final path = await tts.synthesizeAndPersist(cleaned);
+          if (path != null && path.isNotEmpty) {
+            final msgWithAudio = assistantMessage.copyWith(
+              text: cleaned,
+              isAudio: true,
+              audioPath: path,
+              status: MessageStatus.read,
+              autoTts: true,
+            );
+            messages.add(msgWithAudio);
+          } else {
+            // Fallback a texto si no se generó audio
+            messages.add(assistantMessage.copyWith(text: cleaned, status: MessageStatus.read));
+          }
+        } catch (e, st) {
+          Log.w('TTS failed while applying outcome: $e\n$st', tag: 'CHAT');
+          messages.add(assistantMessage.copyWith(text: cleaned, status: MessageStatus.read));
+        } finally {
+          isSendingAudio = false;
+          notifyListeners();
+        }
+      } else {
+        messages.add(assistantMessage);
       }
-    } catch (_) {}
+    }
     // Actualizar onboardingData si la use-case guardó/actualizó eventos
     if (outcome.updatedProfile != null) {
       if (!isCallPlaceholder) onboardingData = outcome.updatedProfile!;

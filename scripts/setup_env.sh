@@ -66,6 +66,7 @@ echo "🔐 API Keys (required for app to work):"
 echo "   Note: API keys will be visible while typing for easier input"
 prompt_key "GEMINI_API_KEY" "Enter GEMINI_API_KEY: " "" false
 prompt_key "OPENAI_API_KEY" "Enter OPENAI_API_KEY: " "" false
+prompt_key "GROK_API_KEY" "Enter GROK_API_KEY [Enter to skip]: " "" false
 
 echo ""
 echo "🔐 Additional API Keys (optional):"
@@ -122,6 +123,7 @@ echo "✅ Environment setup completed!"
 echo ""
 echo "🔐 API Keys:"
 for k in GEMINI_API_KEY GEMINI_API_KEY_FALLBACK OPENAI_API_KEY GOOGLE_CLOUD_API_KEY; do
+for k in GEMINI_API_KEY GEMINI_API_KEY_FALLBACK OPENAI_API_KEY GROK_API_KEY GOOGLE_CLOUD_API_KEY; do
   if grep -qE "^${k}=" "$ENV_FILE"; then
     v=$(grep -E "^${k}=" "$ENV_FILE" | sed -E "s/^${k}=(.*)$/\1/")
     if [ -z "$v" ] || [ "$v" = "PUT_YOUR_GEMINI_KEY_HERE" ] || [ "$v" = "PUT_YOUR_OPENAI_KEY_HERE" ] || [ "$v" = "PUT_YOUR_GOOGLE_CLOUD_KEY_HERE" ]; then

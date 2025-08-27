@@ -73,6 +73,7 @@ class Config {
   static String getGoogleVoice() => _get('GOOGLE_VOICE_NAME', '');
 
   static String getGoogleRealtimeModel() => _get('GOOGLE_REALTIME_MODEL', '');
+  static String getGrokKey() => _get('GROK_API_KEY', '');
 
   /// Devuelve el GOOGLE_REALTIME_MODEL y lanza si no está configurado.
   static String requireGoogleRealtimeModel() {
@@ -118,7 +119,7 @@ class Config {
     }
     try {
       await dotenv.load();
-    } catch (_) {
+    } catch (e) {
       // Si no hay .env, no fallamos: se pueden usar overrides en tests
       const defaultContents = '''
 DEFAULT_TEXT_MODEL=gemini-2.5-flash

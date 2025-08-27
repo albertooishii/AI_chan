@@ -9,6 +9,8 @@ import 'package:ai_chan/core/interfaces/i_stt_service.dart';
 import 'package:ai_chan/core/interfaces/tts_service.dart';
 import 'package:ai_chan/voice/infrastructure/adapters/default_tts_service.dart';
 import 'package:ai_chan/voice/infrastructure/adapters/google_stt_adapter.dart';
+import 'package:ai_chan/voice/infrastructure/adapters/openai_stt_adapter.dart';
+import 'package:ai_chan/voice/infrastructure/adapters/android_native_stt_adapter.dart';
 import 'package:ai_chan/voice/infrastructure/adapters/google_tts_adapter.dart';
 import 'dart:typed_data';
 import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
@@ -108,6 +110,12 @@ ISttService getSttServiceForProvider(String provider) {
   final p = provider.toLowerCase();
   if (p == 'google') {
     return _testSttOverride ?? const GoogleSttAdapter();
+  }
+  if (p == 'openai') {
+    return _testSttOverride ?? const OpenAISttAdapter();
+  }
+  if (p == 'native' || p == 'android_native') {
+    return _testSttOverride ?? const AndroidNativeSttAdapter();
   }
   return getSttService();
 }

@@ -34,7 +34,7 @@ void main() {
     // Mensajes de ejemplo
     final m1 = Message(text: 'Hola', sender: MessageSender.user, dateTime: DateTime.now());
     final m2 = Message(
-      text: '[audio]Hola[/audio]',
+      text: 'Hola',
       sender: MessageSender.assistant,
       dateTime: DateTime.now(),
       isAudio: true,

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:ai_chan/shared/services/ai_runtime_provider.dart' as runtime_factory;
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/shared/utils/model_utils.dart';
 import 'package:ai_chan/core/cache/cache_service.dart';
 
 abstract class AIService {
@@ -46,6 +47,11 @@ abstract class AIService {
         return AIResponse(text: '');
       }
     }
+
+    // Log which model and runtime implementation we're using (helpful for debugging)
+    try {
+      debugPrint('[AIService] sendMessage -> model="$model", runtime="${aiService.runtimeType}"');
+    } catch (_) {}
 
     // Sanity: asegurar que el runtime seleccionado coincide con el prefijo del modelo
     try {
@@ -183,47 +189,121 @@ abstract class AIService {
 
 /// Devuelve la lista combinada de modelos de todos los servicios IA
 Future<List<String>> getAllAIModels({bool forceRefresh = false}) async {
-  // Pedimos instancias a la fábrica centralizada para evitar instanciaciones dispersas
-  final services = [
-    runtime_factory.getRuntimeAIServiceForModel(Config.requireDefaultImageModel()),
-    runtime_factory.getRuntimeAIServiceForModel(Config.requireDefaultTextModel()),
-  ];
-
+  // Query providers in preferred UI order and append each provider's list
+  // exactly as the provider returns it. This preserves provider-specific
+  // ordering (for example OpenAI/Gemini providers already sort by recency).
+  final providerOrder = ModelUtils.preferredOrder();
   final allModels = <String>[];
 
-  // Attempt to read per-service cache first (unless forceRefresh)
-  if (!forceRefresh) {
-    try {
-      for (final service in services) {
-        final providerName = service.runtimeType.toString().toLowerCase();
-        final cached = await CacheService.getCachedModels(provider: providerName);
-        if (cached != null && cached.isNotEmpty) {
-          allModels.addAll(cached);
-        }
-      }
-      if (allModels.isNotEmpty) {
-        return allModels;
-      }
-    } catch (_) {
-      // ignore cache errors and proceed to fetch
+  String representativeForProvider(String provider) {
+    switch (provider) {
+      case 'Google':
+        return Config.getDefaultTextModel().startsWith('gemini-') ? Config.getDefaultTextModel() : 'gemini-2.5-pro';
+      case 'Grok':
+        return 'grok-3';
+      case 'OpenAI':
+        return 'gpt-4';
+      default:
+        return Config.getDefaultTextModel();
     }
   }
 
-  // If we reach here, fetch from services and save to cache
-  for (final service in services) {
+  // Función para determinar si la caché parece incompleta para un proveedor
+  bool isCacheIncomplete(String provider, List<String> cachedModels) {
+    switch (provider) {
+      case 'grokservice':
+        // Si hay API key de Grok configurada pero la caché tiene pocos modelos (< 5),
+        // consideramos que está incompleta
+        final hasGrokKey = Config.getGrokKey().trim().isNotEmpty;
+        return hasGrokKey && cachedModels.length < 5;
+      case 'openaiservice':
+        // Similar para OpenAI
+        final hasOpenAIKey = Config.getOpenAIKey().trim().isNotEmpty;
+        return hasOpenAIKey && cachedModels.length < 5;
+      case 'geminiservice':
+        // Para Gemini, esperamos al menos algunos modelos
+        return cachedModels.length < 3;
+      default:
+        return false;
+    }
+  }
+
+  for (final provider in providerOrder) {
     try {
-      final models = await service.getAvailableModels();
-      if (models.isNotEmpty) {
-        allModels.addAll(models);
-        // Save per-service cache
+      final rep = representativeForProvider(provider);
+      final service = runtime_factory.getRuntimeAIServiceForModel(rep);
+      final providerName = service.runtimeType.toString().toLowerCase();
+
+      // If cache present and allowed, use it as-is (preserves order)
+      bool shouldUseCache = !forceRefresh;
+      if (shouldUseCache) {
         try {
-          final providerName = service.runtimeType.toString().toLowerCase();
-          await CacheService.saveModelsToCache(models: models, provider: providerName);
+          final cached = await CacheService.getCachedModels(provider: providerName);
+          if (cached != null && cached.isNotEmpty) {
+            // Verificar si la caché parece incompleta
+            if (isCacheIncomplete(providerName, cached)) {
+              // Forzar refresh porque la caché parece incompleta
+              shouldUseCache = false;
+            } else {
+              allModels.addAll(cached);
+              continue;
+            }
+          }
+        } catch (_) {}
+      }
+
+      // Fetch live and append exactly as returned (si no usamos caché o está incompleta)
+      if (!shouldUseCache) {
+        try {
+          final models = await service.getAvailableModels();
+          if (models.isNotEmpty) {
+            allModels.addAll(models);
+            try {
+              await CacheService.saveModelsToCache(models: models, provider: providerName);
+            } catch (_) {}
+          }
         } catch (_) {}
       }
     } catch (_) {
-      // Si falla un servicio, ignora y sigue
+      // ignore provider resolution errors
     }
+  }
+
+  // Probe defaults for any runtimes not covered above
+  final extras = {Config.requireDefaultImageModel(), Config.requireDefaultTextModel()};
+  for (final ex in extras) {
+    final n = ex.trim().toLowerCase();
+    if (n.startsWith('gpt-') && providerOrder.contains('OpenAI')) continue;
+    if ((n.startsWith('gemini-') || n.startsWith('imagen-')) && providerOrder.contains('Google')) continue;
+    if (n.startsWith('grok-') && providerOrder.contains('Grok')) continue;
+    try {
+      final s = runtime_factory.getRuntimeAIServiceForModel(ex);
+      final providerName = s.runtimeType.toString().toLowerCase();
+      bool shouldUseCache = !forceRefresh;
+      if (shouldUseCache) {
+        try {
+          final cached = await CacheService.getCachedModels(provider: providerName);
+          if (cached != null && cached.isNotEmpty) {
+            // Verificar si la caché parece incompleta
+            if (isCacheIncomplete(providerName, cached)) {
+              shouldUseCache = false;
+            } else {
+              allModels.addAll(cached);
+              continue;
+            }
+          }
+        } catch (_) {}
+      }
+      if (!shouldUseCache) {
+        final models = await s.getAvailableModels();
+        if (models.isNotEmpty) {
+          allModels.addAll(models);
+          try {
+            await CacheService.saveModelsToCache(models: models, provider: providerName);
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
   }
 
   return allModels;

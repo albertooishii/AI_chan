@@ -7,6 +7,7 @@ import 'package:ai_chan/voice/infrastructure/audio/audio_playback.dart';
 import 'package:ai_chan/shared/utils/audio_utils.dart' as audio_utils;
 import 'package:ai_chan/core/config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../../voice/infrastructure/adapters/google_speech_service.dart';
 import '../../../voice/infrastructure/adapters/android_native_tts_service.dart';
 import 'package:ai_chan/core/cache/cache_service.dart';
@@ -33,6 +34,9 @@ class AudioChatService implements IAudioChatService {
 
   Timer? _partialTxTimer;
   bool _isPartialTranscribing = false;
+  // Native speech-to-text (live) helper
+  stt.SpeechToText? _speech;
+  bool _isNativeListening = false;
 
   final AudioPlayback _audioPlayer = di.getAudioPlayback();
   String? _currentPlayingId;
@@ -74,7 +78,59 @@ class AudioChatService implements IAudioChatService {
     _recordStart = DateTime.now();
     _currentRecordingPath = path;
     _liveTranscript = '';
-    _startPartialLoop();
+    // Decide whether to use native live STT or file-based partials
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('selected_audio_provider');
+      final provider = (saved == null || saved.isEmpty)
+          ? Config.getAudioProvider().toLowerCase()
+          : (saved == 'gemini' ? 'google' : saved.toLowerCase());
+      if (provider == 'native' || provider == 'android_native') {
+        // Try to initialize speech_to_text for live partials. If init fails,
+        // fall back to the file-based partial loop.
+        try {
+          _speech = stt.SpeechToText();
+          final initialized = await _speech!.initialize(onStatus: (s) {}, onError: (e) {});
+          if (initialized) {
+            _isNativeListening = true;
+            _speech!.listen(
+              onResult: (r) {
+                try {
+                  final text = r.recognizedWords.trim();
+                  if (text.isNotEmpty && text.length > _liveTranscript.trim().length) {
+                    _liveTranscript = text;
+                    onStateChanged();
+                  }
+                  // If this result is final, keep it as the authoritative
+                  // live transcript (we don't stop listening here to allow
+                  // continuous updates; ChatProvider will consume
+                  // audioService.liveTranscript as final when native
+                  // provider is selected).
+                } catch (_) {}
+              },
+              // Some versions of the speech_to_text package expose the
+              // deprecated named parameter `partialResults`. We prefer the
+              // newer SpeechListenOptions API, but to remain compatible with
+              // the runtime linked package in this project, use the old
+              // parameter and silence the deprecation lint.
+              // ignore: deprecated_member_use
+              partialResults: true,
+            );
+          } else {
+            _speech = null;
+            _startPartialLoop();
+          }
+        } catch (e) {
+          debugPrint('[Audio] native STT init error: $e; falling back to file partials');
+          _speech = null;
+          _startPartialLoop();
+        }
+      } else {
+        _startPartialLoop();
+      }
+    } catch (_) {
+      _startPartialLoop();
+    }
     try {
       await _ampSub?.cancel();
       _ampSub = _recorder.onAmplitudeChanged(const Duration(milliseconds: 120)).listen((amp) {
@@ -97,6 +153,14 @@ class AudioChatService implements IAudioChatService {
       final path = await _recorder.stop();
       isRecording = false;
       await _ampSub?.cancel();
+      // Stop native listening if active
+      if (_isNativeListening) {
+        try {
+          await _speech?.stop();
+        } catch (_) {}
+        _isNativeListening = false;
+        _speech = null;
+      }
       _stopPartialLoop();
       if (path == null) return null;
       if (cancelled || _recordCancelled) {
@@ -178,6 +242,14 @@ class AudioChatService implements IAudioChatService {
   @override
   Future<void> cancelRecording() async {
     _recordCancelled = true;
+    // Ensure native listener is stopped if active
+    if (_isNativeListening) {
+      try {
+        await _speech?.stop();
+      } catch (_) {}
+      _isNativeListening = false;
+      _speech = null;
+    }
     await stopRecording(cancelled: true);
   }
 
@@ -209,7 +281,14 @@ class AudioChatService implements IAudioChatService {
       }
       if (len < 24000) return;
       _isPartialTranscribing = true;
-      final stt = di.getSttService();
+      // Respect user-selected audio provider for partial transcription
+      String provider = '';
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final saved = prefs.getString('selected_audio_provider');
+        if (saved != null && saved.isNotEmpty) provider = (saved == 'gemini') ? 'google' : saved.toLowerCase();
+      } catch (_) {}
+      final stt = di.getSttServiceForProvider(provider.isEmpty ? 'google' : provider);
       final partial = await stt.transcribeAudio(path);
       if (partial != null && partial.trim().isNotEmpty) {
         if (partial.trim().length > _liveTranscript.trim().length) {
@@ -597,6 +676,13 @@ class AudioChatService implements IAudioChatService {
   void dispose() {
     _partialTxTimer?.cancel();
     _ampSub?.cancel();
+    if (_isNativeListening) {
+      try {
+        _speech?.stop();
+      } catch (_) {}
+      _isNativeListening = false;
+      _speech = null;
+    }
     try {
       _posSub?.cancel();
     } catch (_) {}
