@@ -271,20 +271,20 @@ IProfileService getProfileServiceForProvider([String? provider]) {
           ? Config.getDefaultImageModel()
           : Config.getDefaultImageModel();
       // If still empty, fall back to a reasonable image-capable model
-      final resolvedImg = imgModel.isNotEmpty ? imgModel : 'gpt-5-mini';
+      final resolvedImg = imgModel.isNotEmpty ? imgModel : 'gpt-4.1-mini';
       return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(resolvedImg));
     }
     if (p == 'openai') {
       final txtModel = Config.getDefaultTextModel().isNotEmpty
           ? Config.getDefaultTextModel()
           : Config.getDefaultTextModel();
-      final resolvedTxt = txtModel.isNotEmpty ? txtModel : 'gpt-5-mini';
+      final resolvedTxt = txtModel.isNotEmpty ? txtModel : 'gpt-4.1-mini';
       return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(resolvedTxt));
     }
     final fallbackImg = Config.getDefaultImageModel().isNotEmpty
         ? Config.getDefaultImageModel()
         : Config.getDefaultImageModel();
-    final resolvedFallbackImg = fallbackImg.isNotEmpty ? fallbackImg : 'gpt-5-mini';
+    final resolvedFallbackImg = fallbackImg.isNotEmpty ? fallbackImg : 'gpt-4.1-mini';
     return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(resolvedFallbackImg));
   }
 

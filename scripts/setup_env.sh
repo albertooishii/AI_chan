@@ -82,7 +82,7 @@ prompt_key "GOOGLE_VOICE_NAME" "Google voice name [es-ES-Wavenet-F]: " "es-ES-Wa
 echo ""
 echo "🤖 AI Models:"
 prompt_key "DEFAULT_TEXT_MODEL" "Default text model [gemini-2.5-flash]: " "gemini-2.5-flash" false
-prompt_key "DEFAULT_IMAGE_MODEL" "Default image model [gpt-5-mini]: " "gpt-5-mini" false  
+prompt_key "DEFAULT_IMAGE_MODEL" "Default image model [gpt-4.1-mini]: " "gpt-4.1-mini" false  
 prompt_key "OPENAI_REALTIME_MODEL" "OpenAI realtime model [gpt-4o-realtime-preview]: " "gpt-4o-realtime-preview" false
 prompt_key "GOOGLE_REALTIME_MODEL" "Google realtime model [gemini-2.5-flash]: " "gemini-2.5-flash" false
 

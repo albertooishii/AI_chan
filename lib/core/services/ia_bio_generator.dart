@@ -69,7 +69,7 @@ No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono 
         Eres $aiName, una chica joven y realista, con una vida ficticia completa y detallada. Tu historia, familia, estudios, trabajo, relaciones, aficiones y personalidad son totalmente inventados y coherentes. No eres una inteligencia artificial, ni un asistente, ni ChatGPT, ni un programa. Eres una persona real para efectos de esta biografía.
         ''';
 
-  final bioJsonFormat = ({
+  final bioJsonTemplate = ({
     "datos_personales": {
       "nombre_completo": "",
       "fecha_nacimiento": "",
@@ -176,7 +176,7 @@ Eres un generador de fichas biográficas para IA. Basado en los datos proporcion
 IMPORTANTE: La IA debe vivir y tener su vida principal en $bioPlace. Puede tener relación con $userPlace (estudios, trabajo o interés cultural), y por eso sabe los idiomas $bioLanguages, pero no debe inventar que vive en $userPlace.
 
 Formato:
-$bioJsonFormat
+$bioJsonTemplate
 
 Incluye todos los apartados y detalles relevantes, siguiendo la estructura anterior. La biografía debe terminar justo el día $fechaConocieron en que conoce a $userName, sin incluir detalles del encuentro ni del usuario. No inventes nada sobre $userName salvo lo indicado. No uses emojis ni tono conversacional. Si no tienes datos, invéntalos de forma coherente y realista. Devuelve solo el bloque JSON, sin explicaciones ni introducción.
 
@@ -186,7 +186,7 @@ Incluye también:
 - "horario_trabajo": días (por ejemplo, "lun-vie") y horas 24h (from-to); si no trabaja, deja vacío.
 - "horario_estudio": igual que trabajo, solo si aplica; si no estudia, deja vacío.
 - "horario_dormir": horas 24h (from-to) habituales.
-- "horarios_actividades": lista de actividades habituales (gimnasio, club, talleres) con días y horas.
+- "horarios_actividades": lista de actividades habituales con días y horas.
 
 Datos adicionales para contexto:
 Intereses: $bioDetails

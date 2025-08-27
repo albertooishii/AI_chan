@@ -30,7 +30,7 @@ class OpenAIService implements AIService {
       final List models = data['data'] ?? [];
       // Filtrar solo modelos gpt-*
       final gptModels = models.where((m) => m['id'] != null && m['id'].toString().startsWith('gpt-')).toList();
-      // Agrupar por versión y tipo base (ej. gpt-5, gpt-5-mini, gpt-4.1, gpt-5-mini, etc.)
+      // Agrupar por versión y tipo base (ej. gpt-5, gpt-4.1-mini, gpt-4.1, gpt-4.1-mini, etc.)
       final groupMap = <String, List<String>>{};
       final noVersion = <String>[];
       final groupRegex = RegExp(r'^(gpt-(\d+(?:\.\d+)?)(?:-(mini|nano|chat|o|realtime|latest))?)');
@@ -167,34 +167,58 @@ class OpenAIService implements AIService {
     input.add({"role": "user", "content": userContent});
     // Declarar tools vacío
     List<Map<String, dynamic>> tools = [];
+    String? previousResponseId;
     // Luego image_generation_call y tools si corresponde
     if (enableImageGeneration) {
       Log.i('image_generation ACTIVADO', tag: 'OPENAI_SERVICE');
       tools = [
-        {"type": "image_generation", "input_fidelity": "high", "moderation": "low"},
+        {"type": "image_generation", "input_fidelity": "low", "moderation": "low", "background": "opaque"},
       ];
 
-      final imageGenCall = <String, dynamic>{"type": "image_generation_call"};
-      // Incluir id solo si existe avatar.seed
+      final imageGenCall = <String, dynamic>{};
+      // Incluir id solo si existe avatar.seed. Si el seed es un response-level id
+      // (empieza por 'resp_') se debe usar previous_response_id en el body en lugar
+      // de colocarlo dentro de image_generation_call.id.
       if (avatar != null && avatar.seed != null) {
-        imageGenCall['id'] = avatar.seed;
-        Log.d('Usando imageId: ${avatar.seed}', tag: 'OPENAI_SERVICE');
+        final seed = avatar.seed!;
+        if (seed.startsWith('resp_')) {
+          previousResponseId = seed;
+          Log.d('Seed es previous response ID: $seed', tag: 'OPENAI_SERVICE');
+        } else {
+          // Solo inicializar image_generation_call cuando tenemos un seed válido (no response-level)
+          imageGenCall['type'] = "image_generation_call";
+          imageGenCall['id'] = seed;
+          imageGenCall['role'] = 'user';
+          Log.d('Seed es Image ID: $seed', tag: 'OPENAI_SERVICE');
+          if (looksLikeAvatar) {
+            imageGenCall['size'] = '1024x1024';
+            Log.d('Detección: petición tratada como AVATAR -> size=1024x1024', tag: 'OPENAI_SERVICE');
+          }
+        }
       } else {
         Log.d('No hay avatar.seed; no se añadirá el campo id', tag: 'OPENAI_SERVICE');
+        if (looksLikeAvatar) {
+          Log.d(
+            'Detección: petición tratada como AVATAR -> size=1024x1024 (aplicado vía tools)',
+            tag: 'OPENAI_SERVICE',
+          );
+        }
       }
-      // Si es avatar explícito, forzar tamaño 1024x1024
+
+      // Si es avatar explícito y no vamos a incluir image_generation_call (p.ej. seed es response-level
+      // o no hay seed), propagar tamaño al bloque de tools para que el backend reciba la indicación.
       if (looksLikeAvatar) {
-        imageGenCall['size'] = '1024x1024';
-        Log.d('Detección: petición tratada como AVATAR -> size=1024x1024', tag: 'OPENAI_SERVICE');
+        try {
+          if (tools.isNotEmpty) {
+            tools[0]['size'] = '1024x1024';
+          }
+        } catch (_) {}
       }
-      // Evitar enviar image_generation_call vacío cuando es petición de avatar sin seed
-      if (!(looksLikeAvatar && (avatar == null || avatar.seed == null))) {
+
+      // Añadir image_generation_call solo si fue inicializado con 'type' (evitar añadir objeto vacío)
+      if (imageGenCall.containsKey('type')) {
         input.add(imageGenCall);
-      } else {
-        Log.w('Omitiendo image_generation_call para AVATAR porque no hay avatar.seed', tag: 'OPENAI_SERVICE');
       }
-    } else {
-      Log.i('image_generation DESACTIVADO', tag: 'OPENAI_SERVICE');
     }
     int tokens = estimateTokens(history, systemPrompt);
     if (tokens > 128000) {
@@ -207,7 +231,7 @@ class OpenAIService implements AIService {
       "model": model ?? Config.getDefaultImageModel(), // default OpenAI cuando se fuerza imagen
       "input": input,
       if (tools.isNotEmpty) "tools": tools,
-      // Nota: No incluir 'modalities' aquí; algunos modelos del endpoint /responses no lo soportan
+      if (previousResponseId != null) 'previous_response_id': previousResponseId,
     };
     final body = jsonEncode(bodyMap);
 
@@ -285,6 +309,19 @@ class OpenAIService implements AIService {
       // NOTE: La extracción de [img_caption] se realiza centralmente en AIService.sendMessage
 
       // Para generación usamos revised_prompt; para análisis usamos metaPrompt
+      // Elegir seed de forma centralizada: si el modelo soporta multi-turn (gpt-5*),
+      // preferir el id de la respuesta; en caso contrario usar el item.id existente.
+      try {
+        final respId = data['id']?.toString();
+        final effectiveModel = (model ?? Config.getDefaultImageModel()).toString().toLowerCase();
+        if (respId != null && respId.isNotEmpty && effectiveModel.startsWith('gpt-5')) {
+          imageId = respId;
+          Log.d('Modelo $effectiveModel -> usando response.id como seed: $imageId', tag: 'OPENAI_SERVICE');
+        } else {
+          Log.d('Modelo $effectiveModel -> usando item.id como seed: $imageId', tag: 'OPENAI_SERVICE');
+        }
+      } catch (_) {}
+
       final effectivePrompt = (revisedPrompt.trim().isNotEmpty) ? revisedPrompt.trim() : metaPrompt;
       final aiResponse = AIResponse(
         text: (text.trim().isNotEmpty) ? text : '',

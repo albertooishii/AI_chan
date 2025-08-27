@@ -9,7 +9,7 @@ Map<String, dynamic> _imageInstructions(String userName) => {
   "identidad": "edad_aparente = 25; mantener rasgos y proporciones realistas.",
   "visual_settings": {
     "composicion": {
-      "aspect_ratio": "4:5 o 3:4 (portrait/back-ready para móvil)",
+      "aspect_ratio": "4:3 o 3:4 (portrait/back-ready para móvil)",
       "encuadre": "retrato o medio cuerpo centrado; cabeza y hombros visibles",
       "profundidad_de_campo": "fondo suavemente desenfocado (bokeh leve) para aislar sujeto",
     },
@@ -29,14 +29,12 @@ Map<String, dynamic> _imageInstructions(String userName) => {
     "instruccion_general":
         "Extrae y respeta todos los campos relevantes del objeto 'appearance' del perfil (color de piel, rasgos faciales, peinado, ojos, marcas, etc.). Si falta algún campo, aplica un fallback realista coherente con el estilo.",
     "detalle":
-        "Describe de forma breve en el prompt: rasgos faciales, peinado y color, tono de piel, ropa y accesorios, expresión facial, dirección de la mirada y pose. No uses pares clave=valor en el texto visible; el generador debe recibir instrucciones claras y naturales.",
+        "Describe de forma breve en el prompt: rasgos faciales, peinado y color, tono de piel, ropa y accesorios, expresión facial, dirección de la mirada y pose. Presta especial atención a las manos: representarlas con dedos proporcionados y en poses naturales; evita manos deformes o poco realistas. Si aparece una pantalla o dispositivo con botones en la escena, asegúrate de que la pantalla y los botones estén orientados hacia la persona/usuario y sean visibles (no hacia la parte trasera).",
   },
-  "actividad_y_pose":
-      "Si la conversación sugiere una actividad (ej. cocinar, leyendo, caminando), muéstrala naturalmente: manos en posición coherente, elementos de utilería discretos y contexto apropiado. Evita props con texto legible o marcas.",
   "restricciones": [
     "No texto en la imagen",
-    "Sin marcas de agua, logos ni firmas",
-    "Solo una persona en el encuadre",
+    "Sin marcas de agua",
+    "Solo una persona en el encuadre salvo que se especifique lo contrario.",
     "Sin elementos anacrónicos o irreales",
   ],
   "texto":

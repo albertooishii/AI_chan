@@ -218,13 +218,13 @@ class DefaultTtsService implements ITtsService {
 
     // 3) Fallback to a runtime adapter using centralized runtime factory.
     // Project-wide default is Gemini ('gemini-2.5-flash'). If the chosen provider is OpenAI,
-    // we prefer 'gpt-5-mini'. Otherwise use DEFAULT_TEXT_MODEL when configured.
+    // we prefer 'gpt-4.1-mini'. Otherwise use DEFAULT_TEXT_MODEL when configured.
     try {
       final defaultModel = Config.getDefaultTextModel();
       String modelToUse = defaultModel.isNotEmpty
           ? defaultModel
           : (provider == 'openai'
-                ? (Config.getDefaultTextModel().isNotEmpty ? Config.getDefaultTextModel() : 'gpt-5-mini')
+                ? (Config.getDefaultTextModel().isNotEmpty ? Config.getDefaultTextModel() : 'gpt-4.1-mini')
                 : (Config.getDefaultTextModel().isNotEmpty ? Config.getDefaultTextModel() : 'gemini-2.5-flash'));
 
       debugPrint(
