@@ -188,7 +188,6 @@ class OpenAIService implements AIService {
           // Solo inicializar image_generation_call cuando tenemos un seed válido (no response-level)
           imageGenCall['type'] = "image_generation_call";
           imageGenCall['id'] = seed;
-          imageGenCall['role'] = 'user';
           Log.d('Seed es Image ID: $seed', tag: 'OPENAI_SERVICE');
           if (looksLikeAvatar) {
             imageGenCall['size'] = '1024x1024';
