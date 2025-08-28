@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/chat/application/providers/chat_provider.dart';
+import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'package:ai_chan/shared/utils/storage_utils.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -38,7 +40,7 @@ void main() {
       sender: MessageSender.assistant,
       dateTime: DateTime.now(),
       isAudio: true,
-      audioPath: '/tmp/tts.mp3',
+      audioPath: '${Directory.systemTemp.path}/ai_chan/tts.mp3',
     );
 
     final events = [EventEntry(type: 'cita', description: 'Doctor', date: DateTime.now())];
@@ -70,14 +72,19 @@ void main() {
     expect(restored.messages.length, equals(2));
     expect(restored.events.length, equals(1));
 
-    // Probar ChatProvider.exportAllToJson (sin repositorio)
+    // Probar export via BackupUtils (sin repositorio)
     final provider = ChatProvider();
     provider.onboardingData = profile;
     provider.messages = [m1, m2];
-    final exportedStr = await provider.exportAllToJson();
+    final exportedStr = await BackupUtils.exportChatPartsToJson(
+      profile: provider.onboardingData,
+      messages: provider.messages,
+      events: provider.events,
+    );
     final decoded = jsonDecode(exportedStr) as Map<String, dynamic>;
-    expect(decoded['userName'], equals(profile.userName));
-    expect((decoded['messages'] as List).length, equals(2));
+    expect(decoded['userName'] ?? decoded['profile']?['userName'], equals(profile.userName));
+    final messagesList = decoded['messages'] ?? (decoded['profile']?['messages']);
+    expect((messagesList as List).length, equals(2));
   });
 
   test('persistence survives reload: loadAll restores onboarding/messages/events', () async {

@@ -42,8 +42,11 @@ void main() async {
     final fakeResp = AIResponse(text: '', base64: png1x1, seed: 'seed123', prompt: 'pp');
     final fake = FakeAIService([fakeResp]);
     AIService.testOverride = fake;
-    final tmp = Directory.systemTemp.createTempSync('ai_chan_test_images_');
-    Config.setOverrides({'IMAGE_DIR_DESKTOP': tmp.path});
+    final baseTmp = Directory('${Directory.systemTemp.path}/ai_chan');
+    if (!baseTmp.existsSync()) baseTmp.createSync(recursive: true);
+    final tmp = Directory('${baseTmp.path}/images_${DateTime.now().millisecondsSinceEpoch}')
+      ..createSync(recursive: true);
+    Config.setOverrides({'TEST_IMAGE_DIR': tmp.path});
 
     try {
       expect(provider.onboardingData.avatars?.length ?? 0, 0);
@@ -84,8 +87,11 @@ void main() async {
     final okResp = AIResponse(text: '', base64: png1x1, seed: 's2', prompt: 'pp');
     final fake = FakeAIService([failResp, okResp]);
     AIService.testOverride = fake;
-    final tmp = Directory.systemTemp.createTempSync('ai_chan_test_images_');
-    Config.setOverrides({'IMAGE_DIR_DESKTOP': tmp.path});
+    final baseTmp = Directory('${Directory.systemTemp.path}/ai_chan');
+    if (!baseTmp.existsSync()) baseTmp.createSync(recursive: true);
+    final tmp = Directory('${baseTmp.path}/images_${DateTime.now().millisecondsSinceEpoch}')
+      ..createSync(recursive: true);
+    Config.setOverrides({'TEST_IMAGE_DIR': tmp.path});
 
     try {
       expect(provider.onboardingData.avatars?.length ?? 0, 0);
@@ -122,8 +128,11 @@ void main() async {
     final fakeResp = AIResponse(text: '', base64: png1x1, seed: 'newseed', prompt: 'pp');
     final fake = FakeAIService([fakeResp]);
     AIService.testOverride = fake;
-    final tmp = Directory.systemTemp.createTempSync('ai_chan_test_images_');
-    Config.setOverrides({'IMAGE_DIR_DESKTOP': tmp.path});
+    final baseTmp = Directory('${Directory.systemTemp.path}/ai_chan');
+    if (!baseTmp.existsSync()) baseTmp.createSync(recursive: true);
+    final tmp = Directory('${baseTmp.path}/images_${DateTime.now().millisecondsSinceEpoch}')
+      ..createSync(recursive: true);
+    Config.setOverrides({'TEST_IMAGE_DIR': tmp.path});
 
     try {
       expect(provider.onboardingData.avatars?.length ?? 0, 1);

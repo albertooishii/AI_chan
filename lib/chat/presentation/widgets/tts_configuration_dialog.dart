@@ -10,14 +10,31 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared.dart'; // Using centralized shared exports
 import 'package:ai_chan/shared/utils/openai_voice_utils.dart';
-import '../../application/providers/chat_provider.dart';
+import 'dart:io' show File;
+
+typedef SynthesizeTtsFn =
+    Future<File?> Function(
+      String phrase, {
+      required String voice,
+      required String language,
+      required bool forDialogDemo,
+    });
 
 class TtsConfigurationDialog extends StatefulWidget {
   final List<String>? userLangCodes;
   final List<String>? aiLangCodes;
-  final ChatProvider? chatProvider; // Provided by the caller to avoid Provider lookup inside dialog
+  // Callback that performs TTS synthesis for dialog demos. If null, play demo is disabled.
+  final SynthesizeTtsFn? synthesizeTts;
+  // Callback to notify the caller that settings changed and it may want to refresh UI
+  final VoidCallback? onSettingsChanged;
 
-  const TtsConfigurationDialog({super.key, this.userLangCodes, this.aiLangCodes, this.chatProvider});
+  const TtsConfigurationDialog({
+    super.key,
+    this.userLangCodes,
+    this.aiLangCodes,
+    this.synthesizeTts,
+    this.onSettingsChanged,
+  });
 
   @override
   State<TtsConfigurationDialog> createState() => _TtsConfigurationDialogState();
@@ -27,7 +44,8 @@ class TtsConfigurationDialog extends StatefulWidget {
     BuildContext ctx, {
     List<String>? userLangCodes,
     List<String>? aiLangCodes,
-    ChatProvider? chatProvider,
+    SynthesizeTtsFn? synthesizeTts,
+    VoidCallback? onSettingsChanged,
   }) {
     final stateKey = GlobalKey<_TtsConfigurationDialogState>();
     return showAppDialog<bool>(
@@ -47,7 +65,8 @@ class TtsConfigurationDialog extends StatefulWidget {
           key: stateKey,
           userLangCodes: userLangCodes,
           aiLangCodes: aiLangCodes,
-          chatProvider: chatProvider,
+          synthesizeTts: synthesizeTts,
+          onSettingsChanged: onSettingsChanged,
         ),
       ),
       barrierDismissible: true,
@@ -635,8 +654,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
           String displayName = voiceName;
           String subtitle = '';
 
-          // Obtener ChatProvider proporcionado por quien abrió el diálogo
-          final chatProv = widget.chatProvider;
+          // Use the provided synthesizeTts callback to generate demo audio
 
           if (_selectedProvider == 'android_native') {
             subtitle = AndroidNativeTtsService.formatVoiceInfo(voice);
@@ -685,7 +703,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
                           lang = (voice['languageCodes'] as List).cast<String>().first;
                         }
 
-                        if (chatProv == null) {
+                        if (widget.synthesizeTts == null) {
                           showAppSnackBar('Proveedor de audio no disponible', isError: true);
                           return;
                         }
@@ -730,10 +748,10 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
 
                         showAppSnackBar('Generando audio de prueba...', isError: false);
 
-                        final file = await chatProv.audioService.synthesizeTts(
+                        final file = await widget.synthesizeTts!(
                           phrase,
                           voice: voiceName,
-                          languageCode: lang,
+                          language: lang,
                           forDialogDemo: true,
                         );
                         if (file != null) {
@@ -775,7 +793,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
                         // Save provider-specific key only
                         final providerKey = 'selected_voice_$_selectedProvider';
                         await prefs.setString(providerKey, voiceName);
-                        if (widget.chatProvider != null) widget.chatProvider!.notifyListeners();
+                        if (widget.onSettingsChanged != null) widget.onSettingsChanged!.call();
                         showAppSnackBar('Voz seleccionada: $voiceName', isError: false);
                       } catch (e) {
                         showAppSnackBar('Error guardando la voz seleccionada: $e', isError: true);
@@ -791,7 +809,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
                 final prefs = await SharedPreferences.getInstance();
                 final providerKey = 'selected_voice_$_selectedProvider';
                 await prefs.setString(providerKey, voiceName);
-                if (widget.chatProvider != null) widget.chatProvider!.notifyListeners();
+                if (widget.onSettingsChanged != null) widget.onSettingsChanged!.call();
                 showAppSnackBar('Voz seleccionada: $voiceName', isError: false);
               } catch (e) {
                 showAppSnackBar('Error guardando la voz seleccionada: $e', isError: true);

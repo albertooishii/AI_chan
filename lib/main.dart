@@ -9,6 +9,7 @@ import 'dart:io' show Platform;
 
 import 'package:ai_chan/chat.dart';
 import 'dart:convert';
+import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'core/di.dart' as di;
 import 'core/di_bootstrap.dart' as di_bootstrap;
 // ...existing code...
@@ -231,8 +232,14 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
         onClearAllDebug: resetApp,
         onImportJson: (importedChat) async {
           final jsonStr = jsonEncode(importedChat.toJson());
-          await onboardingProvider.importAllFromJson(jsonStr);
-          if (mounted) setState(() {});
+          final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
+            jsonStr,
+            onError: (err) => onboardingProvider.setImportError(err),
+          );
+          if (imported != null) {
+            await onboardingProvider.applyImportedChat(imported);
+            if (mounted) setState(() {});
+          }
         },
       );
     }
@@ -253,7 +260,13 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
           onImportJson: (importedChat) async {
             final ob = Provider.of<OnboardingProvider>(context, listen: false);
             final jsonStr = jsonEncode(importedChat.toJson());
-            await ob.importAllFromJson(jsonStr);
+            final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
+              jsonStr,
+              onError: (err) => ob.setImportError(err),
+            );
+            if (imported != null) {
+              await ob.applyImportedChat(imported);
+            }
           },
         ),
       ),

@@ -1,4 +1,7 @@
+// Removed local userinfo fetch imports; uses GoogleBackupService.fetchUserInfoIfTokenValid()
 import 'package:ai_chan/core/presentation/widgets/cyberpunk_button.dart';
+// onboarding_provider imported once below; avoid duplicate import
+import 'package:ai_chan/chat/application/providers/chat_provider.dart';
 import 'package:ai_chan/shared/constants/countries_es.dart';
 import 'package:ai_chan/shared/constants/female_names.dart';
 import 'package:flutter/material.dart';
@@ -7,9 +10,16 @@ import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import '../widgets/birth_date_field.dart';
 import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/locale_utils.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
+// archive and convert handled by BackupService
+import 'package:ai_chan/shared/services/backup_service.dart';
+import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
+import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
 
 class OnboardingScreen extends StatelessWidget {
   final Future<void> Function({
@@ -57,6 +67,11 @@ class _OnboardingScreenContent extends StatefulWidget {
 }
 
 class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
+  // Persisted Google account fallback (used when ChatProvider isn't available)
+  bool _persistedGoogleLinked = false;
+  String? _persistedGoogleEmail;
+  String? _persistedGoogleName;
+  String? _persistedGoogleAvatar;
   // Helper: normaliza strings para búsquedas sin acentos
   String _normalize(String s) => s
       .toLowerCase()
@@ -146,6 +161,67 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
     }
   }
 
+  Future<void> _handleRestoreFromLocal(OnboardingProvider provider) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(allowMultiple: false);
+      if (result == null || result.files.isEmpty) return;
+      final path = result.files.first.path;
+      if (path == null) return;
+      final f = File(path);
+
+      // Usar BackupService para extraer JSON y restaurar imágenes/audio en sus carpetas
+      final jsonStr = await BackupService.extractJsonAndRestoreMedia(f);
+
+      if (jsonStr.trim().isEmpty) {
+        await showAppDialog(
+          builder: (ctx) => AlertDialog(
+            title: const Text('Error'),
+            content: const Text('Archivo vacío o no contiene JSON'),
+            actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
+          ),
+        );
+        return;
+      }
+
+      final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
+        jsonStr,
+        onError: (err) => provider.setImportError(err),
+      );
+      if (imported == null) {
+        await showAppDialog(
+          builder: (ctx) => AlertDialog(
+            title: const Text('Error al importar'),
+            content: Text(provider.importError ?? 'Error desconocido'),
+            actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
+          ),
+        );
+        return;
+      }
+
+      if (widget.onImportJson != null) {
+        await widget.onImportJson!(imported);
+        return;
+      }
+
+      await showAppDialog(
+        builder: (ctx) => AlertDialog(
+          title: const Text('Restauración completada'),
+          content: const Text('Biografía, imágenes y audios restaurados.'),
+          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
+        ),
+      );
+      if (mounted) setState(() {});
+    } catch (e) {
+      await showAppDialog(
+        builder: (ctx) => AlertDialog(
+          title: const Text('Error'),
+          content: Text(e.toString()),
+          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
+        ),
+      );
+    }
+  }
+
   bool get _formCompleto {
     final provider = Provider.of<OnboardingProvider>(context, listen: false);
     return provider.userNameController.text.trim().isNotEmpty &&
@@ -164,6 +240,26 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
     _userNameController = TextEditingController(
       text: Provider.of<OnboardingProvider>(context, listen: false).userNameController.text,
     );
+    // El estado de cuenta Google se lee desde ChatProvider en tiempo de build
+    // Además, precargamos cualquier cuenta persistida para mostrarla en el
+    // menú durante onboarding cuando no exista un ChatProvider.
+    () async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final linked = prefs.getBool('google_account_linked') ?? false;
+        final email = prefs.getString('google_account_email');
+        final name = prefs.getString('google_account_name');
+        final avatar = prefs.getString('google_account_avatar');
+        if (mounted) {
+          setState(() {
+            _persistedGoogleLinked = linked;
+            _persistedGoogleEmail = email;
+            _persistedGoogleName = name;
+            _persistedGoogleAvatar = avatar;
+          });
+        }
+      } catch (_) {}
+    }();
   }
 
   @override
@@ -197,17 +293,171 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
         ),
         actions: [
           PopupMenuButton<String>(
-            itemBuilder: (context) => [
-              PopupMenuItem<String>(
-                value: 'import',
-                child: Text('Importar chat', style: TextStyle(color: AppColors.primary)),
-              ),
-              PopupMenuItem<String>(
-                value: 'clear',
-                child: Text('Borrar todo (debug)', style: TextStyle(color: AppColors.secondary)),
-              ),
-            ],
+            itemBuilder: (context) {
+              final items = <PopupMenuEntry<String>>[];
+              items.add(
+                PopupMenuItem<String>(
+                  value: 'restore_local',
+                  child: Row(
+                    children: [
+                      Icon(Icons.file_upload, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Text('Restaurar desde archivo local', style: TextStyle(color: AppColors.primary)),
+                    ],
+                  ),
+                ),
+              );
+              ChatProvider? chatProvider;
+              try {
+                chatProvider = Provider.of<ChatProvider>(context, listen: false);
+              } catch (_) {
+                chatProvider = null;
+              }
+              final effectiveLinked = chatProvider?.googleLinked ?? _persistedGoogleLinked;
+              final effectiveEmail = chatProvider?.googleEmail ?? _persistedGoogleEmail;
+              final effectiveName = chatProvider?.googleName ?? _persistedGoogleName;
+              final effectiveAvatar = chatProvider?.googleAvatarUrl ?? _persistedGoogleAvatar;
+
+              if (!effectiveLinked) {
+                items.add(
+                  PopupMenuItem<String>(
+                    value: 'backup_google',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.add_to_drive, size: 20, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text('Copia de seguridad en Google Drive', style: TextStyle(color: AppColors.primary)),
+                      ],
+                    ),
+                  ),
+                );
+              } else {
+                items.add(
+                  PopupMenuItem<String>(
+                    value: 'backup_status',
+                    child: Row(
+                      children: [
+                        if (effectiveAvatar != null && effectiveAvatar.isNotEmpty)
+                          CircleAvatar(radius: 16, backgroundImage: NetworkImage(effectiveAvatar))
+                        else
+                          const Icon(Icons.account_circle, size: 28, color: AppColors.primary),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (effectiveName != null && effectiveName.isNotEmpty)
+                                Text(
+                                  effectiveName,
+                                  style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              const SizedBox(height: 4),
+                              Text(
+                                effectiveEmail ?? 'Cuenta Google',
+                                style: const TextStyle(color: AppColors.secondary, fontSize: 12),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              return items;
+            },
             onSelected: (value) async {
+              if (value == 'backup_status') {
+                ChatProvider? cp;
+                try {
+                  cp = Provider.of<ChatProvider>(context, listen: false);
+                } catch (_) {
+                  cp = null;
+                }
+                final op = Provider.of<OnboardingProvider>(context, listen: false);
+                final res = await showAppDialog<dynamic>(
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: Colors.black,
+                    content: SizedBox(
+                      width: 560,
+                      child: GoogleDriveBackupDialog(
+                        clientId: 'YOUR_GOOGLE_CLIENT_ID',
+                        disableAutoRestore: true,
+                        requestBackupJson: cp != null
+                            ? () async {
+                                final captured = cp!;
+                                return await BackupUtils.exportChatPartsToJson(
+                                  profile: captured.onboardingData,
+                                  messages: captured.messages,
+                                  events: captured.events,
+                                );
+                              }
+                            : null,
+                        onImportedJson: cp != null
+                            ? (jsonStr) async {
+                                final captured = cp!;
+                                final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
+                                if (imported != null) {
+                                  captured.onboardingData = imported.profile;
+                                  captured.messages = imported.messages.cast<Message>();
+                                  await captured.saveAll();
+                                }
+                              }
+                            : null,
+                        onAccountInfoUpdated: cp != null
+                            ? ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
+                                final captured = cp!;
+                                await captured.updateGoogleAccountInfo(
+                                  email: email,
+                                  avatarUrl: avatarUrl,
+                                  name: name,
+                                  linked: linked,
+                                );
+                              }
+                            : null,
+                        onClearAccountInfo: cp != null ? () => cp!.clearGoogleAccountInfo() : null,
+                      ),
+                    ),
+                  ),
+                );
+                // If the dialog returned restored JSON (when no ChatProvider was passed), import it.
+                if (res is Map && res['restoredJson'] is String && cp == null) {
+                  final jsonStr = res['restoredJson'] as String;
+                  try {
+                    final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
+                      jsonStr,
+                      onError: (err) => op.setImportError(err),
+                    );
+                    if (imported != null) {
+                      await op.applyImportedChat(imported);
+                      if (widget.onImportJson != null) await widget.onImportJson!(imported);
+                      if (mounted) setState(() {});
+                    } else {
+                      await showAppDialog(
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Error al importar'),
+                          content: Text(op.importError ?? 'Error desconocido'),
+                          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    await showAppDialog(
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Error'),
+                        content: Text(e.toString()),
+                        actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
+                      ),
+                    );
+                  }
+                }
+                return;
+              }
               if (value == 'clear') {
                 if (widget.onClearAllDebug != null) {
                   widget.onClearAllDebug!();
@@ -218,6 +468,95 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               }
               if (value == 'import') {
                 await _handleImportJson(provider);
+                return;
+              }
+              if (value == 'restore_local') {
+                await _handleRestoreFromLocal(provider);
+                return;
+              }
+              if (value == 'backup_google') {
+                ChatProvider? cp;
+                try {
+                  cp = Provider.of<ChatProvider>(context, listen: false);
+                } catch (_) {
+                  cp = null;
+                }
+                final op = Provider.of<OnboardingProvider>(context, listen: false);
+                final res2 = await showAppDialog<dynamic>(
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: Colors.black,
+                    content: SizedBox(
+                      width: 560,
+                      child: GoogleDriveBackupDialog(
+                        clientId: 'YOUR_GOOGLE_CLIENT_ID',
+                        requestBackupJson: cp != null
+                            ? () async {
+                                final captured = cp!;
+                                return await BackupUtils.exportChatPartsToJson(
+                                  profile: captured.onboardingData,
+                                  messages: captured.messages,
+                                  events: captured.events,
+                                );
+                              }
+                            : null,
+                        onImportedJson: cp != null
+                            ? (jsonStr) async {
+                                final captured = cp!;
+                                final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
+                                if (imported != null) {
+                                  captured.onboardingData = imported.profile;
+                                  captured.messages = imported.messages.cast<Message>();
+                                  await captured.saveAll();
+                                }
+                              }
+                            : null,
+                        onAccountInfoUpdated: cp != null
+                            ? ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
+                                final captured = cp!;
+                                await captured.updateGoogleAccountInfo(
+                                  email: email,
+                                  avatarUrl: avatarUrl,
+                                  name: name,
+                                  linked: linked,
+                                );
+                              }
+                            : null,
+                        onClearAccountInfo: cp != null ? () => cp!.clearGoogleAccountInfo() : null,
+                      ),
+                    ),
+                  ),
+                );
+                if (res2 is Map && res2['restoredJson'] is String && cp == null) {
+                  final jsonStr = res2['restoredJson'] as String;
+                  try {
+                    final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
+                      jsonStr,
+                      onError: (err) => op.setImportError(err),
+                    );
+                    if (imported != null) {
+                      await op.applyImportedChat(imported);
+                      if (widget.onImportJson != null) await widget.onImportJson!(imported);
+                      if (mounted) setState(() {});
+                    } else {
+                      await showAppDialog(
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Error al importar'),
+                          content: Text(op.importError ?? 'Error desconocido'),
+                          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    await showAppDialog(
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Error'),
+                        content: Text(e.toString()),
+                        actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
+                      ),
+                    );
+                  }
+                }
+                return;
               }
             },
           ),

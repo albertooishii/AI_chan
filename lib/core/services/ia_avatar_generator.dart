@@ -96,9 +96,9 @@ class IAAvatarGenerator {
             "Usar 'biography' únicamente para elegir la actividad/hobby principal que aparecerá en la imagen. No extraer rasgos físicos desde la biografía si contradicen 'appearance'.",
       },
       "instrucciones_apariencia":
-          "La lista 'ropa' en 'appearance' contiene exactamente nueve conjuntos en este orden: 1) Trabajo, 2) Ocio muy casual, 3) Fiesta normal, 4) Fiesta cultural, 5) Diario primavera, 6) Diario verano, 7) Diario otoño, 8) Diario invierno, 9) Pijama. Selecciona el conjunto que mejor concuerde con la actividad indicada en la biografía. Si no hay correspondencia clara, usa el conjunto 2 (Ocio muy casual). Reproducir texturas, materiales y colores tal como aparecen en 'appearance'. Mostrar tatuajes, cicatrices o pecas en la ubicación y tamaño descritos si existen.",
+          "Tienes la lista de 'ropa' en 'appearance', selecciona el conjunto que mejor concuerde con la actividad indicada en la biografía. Reproducir texturas, materiales y colores tal como aparecen en 'appearance'. Mostrar tatuajes, cicatrices o pecas en la ubicación y tamaño descritos si existen.",
       "actividad_y_pose":
-          "Extrae la actividad principal desde biography.intereses_y_aficiones o biography.resumen_breve. Muestra a la persona realizando esa actividad con expresión de disfrute (sonrisa natural, mirada enfocada, gestos coherentes con la acción). Añade elementos o props coherentes según la actividad descrita en la biografía, evitando listar ejemplos literales que el modelo pueda reproducir textualmente en la imagen.",
+          "Basarse en la biografía en general para seleccionar una actividad. La foto debe ser divertida y natural: la persona puede aparecer realizando una acción o gesto gracioso (gestos cómicos con las manos, una risa espontánea, una pequeña pose dinámica o movimiento alegre) mostrando disfrute y naturalidad. Añadir props o elementos coherentes con el contexto biográfico, evitando elementos anacrónicos o que contradigan 'appearance'. Si el perfil incluye una mascota, puede aparecer en la imagen; representa la mascota respetando su especie, tamaño y características descritas en la biografía.",
       "entorno": "Fondo coherente con la actividad descrita en la biografía. Mantener props y entorno contemporáneos.",
       "restricciones": [
         "No texto en la imagen",

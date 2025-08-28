@@ -27,13 +27,14 @@ cleanup() {
   if [ -n "$WATCHER_PID" ]; then
     kill $WATCHER_PID 2>/dev/null || true
   fi
-  rm -f /tmp/flutter_input_pipe 2>/dev/null || true
+  mkdir -p /tmp/ai_chan 2>/dev/null || true
+  rm -f /tmp/ai_chan/flutter_input_pipe 2>/dev/null || true
   exit 0
 }
 trap cleanup SIGINT SIGTERM
 
 # Crear un named pipe para comunicación con Flutter  
-mkfifo /tmp/flutter_input_pipe 2>/dev/null || true
+mkfifo /tmp/ai_chan/flutter_input_pipe 2>/dev/null || true
 
 echo "🚀 Iniciando Flutter con salida visible..."
 echo "📺 Salida de Flutter:"
@@ -47,7 +48,7 @@ send_hot_reload() {
         # Enviar SIGUSR1 a Flutter para hot reload (método alternativo)
         kill -SIGUSR1 "$FLUTTER_PID" 2>/dev/null || {
             # Si SIGUSR1 no funciona, usar el pipe
-            echo 'r' > /tmp/flutter_input_pipe 2>/dev/null || true
+            echo 'r' > /tmp/ai_chan/flutter_input_pipe 2>/dev/null || true
         }
         echo "✅ [AUTO HOT RELOAD] Comando enviado"
     fi

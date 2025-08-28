@@ -13,9 +13,12 @@ void main() {
     final fakeResp = AIResponse(text: '', base64: png1x1, seed: 'seed123', prompt: 'pp');
     final fake = FakeAIService([fakeResp]);
     AIService.testOverride = fake;
-    // Provide writable IMAGE_DIR_DESKTOP so saveBase64ImageToFile can succeed
-    final tmp = Directory.systemTemp.createTempSync('ai_chan_test_images_');
-    Config.setOverrides({'IMAGE_DIR_DESKTOP': tmp.path});
+    // Provide writable test image dir so saveBase64ImageToFile can succeed
+    final baseTmp = Directory('${Directory.systemTemp.path}/ai_chan');
+    if (!baseTmp.existsSync()) baseTmp.createSync(recursive: true);
+    final tmp = Directory('${baseTmp.path}/images_${DateTime.now().millisecondsSinceEpoch}')
+      ..createSync(recursive: true);
+    Config.setOverrides({'TEST_IMAGE_DIR': tmp.path});
 
     final gen = IAAvatarGenerator();
     final profile = AiChanProfile(
@@ -46,8 +49,11 @@ void main() {
       AIResponse(text: '', base64: '', seed: '', prompt: ''),
     ]);
     AIService.testOverride = fake;
-    final tmp = Directory.systemTemp.createTempSync('ai_chan_test_images_');
-    Config.setOverrides({'IMAGE_DIR_DESKTOP': tmp.path});
+    final baseTmp = Directory('${Directory.systemTemp.path}/ai_chan');
+    if (!baseTmp.existsSync()) baseTmp.createSync(recursive: true);
+    final tmp = Directory('${baseTmp.path}/images_${DateTime.now().millisecondsSinceEpoch}')
+      ..createSync(recursive: true);
+    Config.setOverrides({'TEST_IMAGE_DIR': tmp.path});
 
     final gen = IAAvatarGenerator();
     final profile = AiChanProfile(

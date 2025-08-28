@@ -1,5 +1,5 @@
 import 'package:ai_chan/shared/domain/services/promise_service.dart';
-import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:ai_chan/shared/utils/storage_utils.dart';
 import 'dart:convert';
 import 'dart:async';
@@ -1409,45 +1409,14 @@ class ChatProvider extends ChangeNotifier {
   List<Message> messages = [];
   late AiChanProfile onboardingData;
 
-  Future<String> exportAllToJson() async {
-    final export = ChatExport(profile: onboardingData, messages: messages, events: _events);
-    final map = export.toJson();
-    if (repository != null) {
-      try {
-        return await repository!.exportAllToJson(map);
-      } catch (_) {
-        // fallback to local encoding
-      }
-    }
-    final encoder = JsonEncoder.withIndent('  ');
-    return encoder.convert(map);
-  }
+  // Google account state propagated from the Drive linking flow.
+  String? googleEmail;
+  String? googleAvatarUrl;
+  String? googleName;
+  bool googleLinked = false;
 
-  // Eliminada versión sync, usar solo la versión async
-
-  Future<ImportedChat?> importAllFromJsonAsync(String jsonStr) async {
-    final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
-      jsonStr,
-      onError: (err) {
-        // Manejo de error si se desea
-      },
-    );
-    if (imported == null) return null;
-    onboardingData = imported.profile;
-    messages = imported.messages.cast<Message>();
-    // Limpiar cualquier estado de cola previo para evitar índices obsoletos
-    _clearQueuedState();
-    // Restaurar eventos programados
-    _events.clear();
-    if (imported.events.isNotEmpty) {
-      _events.addAll(imported.events);
-    }
-    // Reprogramar promesas futuras tras importar
-    _promiseService.restoreFromEvents();
-    await saveAll();
-    notifyListeners();
-    return imported;
-  }
+  // Export/import moved to utilities. Methods removed to decouple BackupService
+  // from provider state; callers must use BackupUtils and ChatJsonUtils.
 
   Future<void> saveAll() async {
     final exported = ImportedChat(profile: onboardingData, messages: messages, events: _events);
@@ -1466,6 +1435,71 @@ class ChatProvider extends ChangeNotifier {
     } catch (e) {
       Log.w('StorageUtils.saveImportedChatToPrefs failed: $e', tag: 'PERSIST');
     }
+  }
+
+  /// Aplica un `ImportedChat` ya parseado al provider, persiste y restaura
+  /// cualquier estado dependiente (events, promesas) y notifica listeners.
+  Future<void> applyImportedChat(ImportedChat imported) async {
+    onboardingData = imported.profile;
+    messages = imported.messages.cast<Message>();
+    _events.clear();
+    if (imported.events.isNotEmpty) _events.addAll(imported.events);
+    // Persistir usando la ruta configurada
+    await saveAll();
+    // Restaurar eventos en el servicio de promesas
+    try {
+      _promiseService.restoreFromEvents();
+    } catch (_) {}
+    notifyListeners();
+  }
+
+  /// Update the global Google account info and persist to SharedPreferences.
+  Future<void> updateGoogleAccountInfo({String? email, String? avatarUrl, String? name, bool linked = true}) async {
+    googleEmail = email;
+    googleAvatarUrl = avatarUrl;
+    googleName = name;
+    googleLinked = linked;
+    try {
+      if (kDebugMode) {
+        debugPrint('updateGoogleAccountInfo called: email=$email name=$name avatar=$avatarUrl linked=$linked');
+      }
+    } catch (_) {}
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (email != null) {
+        await prefs.setString('google_account_email', email);
+      } else {
+        await prefs.remove('google_account_email');
+      }
+      if (avatarUrl != null) {
+        await prefs.setString('google_account_avatar', avatarUrl);
+      } else {
+        await prefs.remove('google_account_avatar');
+      }
+      if (name != null) {
+        await prefs.setString('google_account_name', name);
+      } else {
+        await prefs.remove('google_account_name');
+      }
+      await prefs.setBool('google_account_linked', linked);
+    } catch (_) {}
+    notifyListeners();
+  }
+
+  /// Clear stored Google account info both in memory and persisted prefs.
+  Future<void> clearGoogleAccountInfo() async {
+    googleEmail = null;
+    googleAvatarUrl = null;
+    googleName = null;
+    googleLinked = false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('google_account_email');
+      await prefs.remove('google_account_avatar');
+      await prefs.remove('google_account_name');
+      await prefs.remove('google_account_linked');
+    } catch (_) {}
+    notifyListeners();
   }
 
   /// Muestra un diálogo de error centrado para errores de regeneración
@@ -1618,6 +1652,17 @@ class ChatProvider extends ChangeNotifier {
     await loadSelectedModel();
     // Reprogramar promesas IA futuras desde events
     _promiseService.restoreFromEvents();
+    // Restore persisted Google account display info so menus reflect linked session immediately
+    try {
+      final gEmail = prefs.getString('google_account_email');
+      final gAvatar = prefs.getString('google_account_avatar');
+      final gName = prefs.getString('google_account_name');
+      final gLinked = prefs.getBool('google_account_linked') ?? false;
+      googleEmail = gEmail;
+      googleAvatarUrl = gAvatar;
+      googleName = gName;
+      googleLinked = gLinked;
+    } catch (_) {}
     notifyListeners();
     // Nota: no arrancar el scheduler automáticamente al cargar; el caller/UI
     // debe decidir cuándo iniciar el envío periódico. Esto mejora testeo y

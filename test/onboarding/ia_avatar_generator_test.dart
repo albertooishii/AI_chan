@@ -32,8 +32,7 @@ class FakeImageAIService extends AIService {
 void main() {
   test('IAAvatarGenerator genera y guarda imagen correctamente', () async {
     await initializeTestEnvironment(
-      dotenvContents:
-          'DEFAULT_TEXT_MODEL=fake\nDEFAULT_IMAGE_MODEL=fake\nIMAGE_DIR_DESKTOP=/tmp/ai_chan_test_images\nGEMINI_API_KEY=test_key\n',
+      dotenvContents: 'DEFAULT_TEXT_MODEL=fake\nDEFAULT_IMAGE_MODEL=fake\nGEMINI_API_KEY=test_key\n',
     );
 
     final profile = AiChanProfile(

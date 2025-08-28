@@ -47,7 +47,7 @@ void main() {
       // Ensure image dir configured to allow saveBase64ImageToFile to work in tests
       await initializeTestEnvironment(
         dotenvContents:
-            'DEFAULT_TEXT_MODEL=gemini-1.5-flash-latest\nDEFAULT_IMAGE_MODEL=gemini-1.5-flash-latest\nIMAGE_DIR_DESKTOP=/tmp/ai_chan_test_images\nGEMINI_API_KEY=test_key\n',
+            'DEFAULT_TEXT_MODEL=gemini-1.5-flash-latest\nDEFAULT_IMAGE_MODEL=gemini-1.5-flash-latest\nGEMINI_API_KEY=test_key\n',
       );
 
       final bio = await generateFullBiographyFlexible(
@@ -78,7 +78,7 @@ void main() {
       // Deterministic saver for tests to avoid filesystem env dependency
       await initializeTestEnvironment(
         dotenvContents:
-            'DEFAULT_TEXT_MODEL=gemini-1.5-flash-latest\nDEFAULT_IMAGE_MODEL=gemini-1.5-flash-latest\nIMAGE_DIR_DESKTOP=/tmp/ai_chan_test_images\nGEMINI_API_KEY=test_key\n',
+            'DEFAULT_TEXT_MODEL=gemini-1.5-flash-latest\nDEFAULT_IMAGE_MODEL=gemini-1.5-flash-latest\nGEMINI_API_KEY=test_key\n',
       );
 
       final bio = await generateFullBiographyFlexible(

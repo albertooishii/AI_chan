@@ -15,8 +15,8 @@ class FakeGoodAIService extends AIService {
     String? imageMimeType,
     bool enableImageGeneration = false,
   }) async {
-    // Devuelve JSON mínimo y base64 válido (pero el saver fallará)
-    return AIResponse(text: '{"resumen":"x"}', base64: 'iVBORw0KGgoAAAANSUhEUgAAAAUA', seed: 's', prompt: 'p');
+    // Devuelve JSON mínimo y base64 inválido para forzar fallo al guardar
+    return AIResponse(text: '{"resumen":"x"}', base64: '***INVALID_BASE64***', seed: 's', prompt: 'p');
   }
 
   @override

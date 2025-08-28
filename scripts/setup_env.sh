@@ -72,6 +72,9 @@ echo ""
 echo "🔐 Additional API Keys (optional):"
 prompt_key "GEMINI_API_KEY_FALLBACK" "GEMINI_API_KEY_FALLBACK [Enter to skip]: " "" false
 prompt_key "GOOGLE_CLOUD_API_KEY" "GOOGLE_CLOUD_API_KEY [Enter to skip]: " "" false
+prompt_key "GOOGLE_CLIENT_ID_DESKTOP" "GOOGLE_CLIENT_ID_DESKTOP (OAuth client id para Desktop) [Enter to skip]: " "" false
+prompt_key "GOOGLE_CLIENT_ID_ANDROID" "GOOGLE_CLIENT_ID_ANDROID (OAuth client id para Android) [Enter to skip]: " "" false
+prompt_key "GOOGLE_CLIENT_ID_WEB" "GOOGLE_CLIENT_ID_WEB (OAuth client id para Web) [Enter to skip]: " "" false
 
 echo ""
 echo "🎵 Audio/Voice Configuration:"
@@ -90,30 +93,15 @@ prompt_key "GOOGLE_REALTIME_MODEL" "Google realtime model [gemini-2.5-flash]: " 
 # OpenAI TTS/STT models (defaults aligned with documentation)
 prompt_key "OPENAI_TTS_MODEL" "OpenAI TTS model [gpt-4o-mini-tts]: " "gpt-4o-mini-tts" false
 prompt_key "OPENAI_STT_MODEL" "OpenAI STT model [gpt-4o-mini-transcribe]: " "gpt-4o-mini-transcribe" false
-
-# Set default directories and log level without prompting
+# The application uses OS-recommended default directories for images/audio/cache.
+# We no longer write platform-specific path overrides to .env.
 echo ""
-echo "📁 Setting default directories and configuration..."
-set_key "IMAGE_DIR_ANDROID" "/storage/emulated/0/Pictures/AI_chan"
-set_key "IMAGE_DIR_IOS" "DCIM/AI_chan"
-set_key "IMAGE_DIR_DESKTOP" "~/AI_chan/images"
-set_key "IMAGE_DIR_WEB" "AI_chan"
+echo "📁 Using OS default directories for images/audio/cache. No path overrides will be written to .env."
 
-set_key "AUDIO_DIR_ANDROID" "/data/user/0/com.example.ai_chan/cache"
-set_key "AUDIO_DIR_IOS" "Library/Caches"
-set_key "AUDIO_DIR_DESKTOP" "~/AI_chan/audio"
-set_key "AUDIO_DIR_WEB" "AI_chan_audio"
-
-set_key "CACHE_DIR_ANDROID" ""
-set_key "CACHE_DIR_IOS" ""
-set_key "CACHE_DIR_DESKTOP" "~/AI_chan/cache"
-set_key "CACHE_DIR_WEB" "AI_chan_cache"
-
+# Set non-path defaults
 set_key "APP_LOG_LEVEL" "debug"
-
 # Whether to disable structured debug JSON logs (1 = disable, 0 = allow)
 set_key "DISABLE_DEBUG_JSON_LOGS" "1"
-
 # Preferred audio format for storage and STT fallbacks
 set_key "PREFERRED_AUDIO_FORMAT" "mp3"
 
@@ -122,8 +110,7 @@ echo ""
 echo "✅ Environment setup completed!"
 echo ""
 echo "🔐 API Keys:"
-for k in GEMINI_API_KEY GEMINI_API_KEY_FALLBACK OPENAI_API_KEY GOOGLE_CLOUD_API_KEY; do
-for k in GEMINI_API_KEY GEMINI_API_KEY_FALLBACK OPENAI_API_KEY GROK_API_KEY GOOGLE_CLOUD_API_KEY; do
+for k in GEMINI_API_KEY GEMINI_API_KEY_FALLBACK OPENAI_API_KEY GROK_API_KEY GOOGLE_CLOUD_API_KEY GOOGLE_CLIENT_ID_DESKTOP GOOGLE_CLIENT_ID_ANDROID GOOGLE_CLIENT_ID_WEB; do
   if grep -qE "^${k}=" "$ENV_FILE"; then
     v=$(grep -E "^${k}=" "$ENV_FILE" | sed -E "s/^${k}=(.*)$/\1/")
     if [ -z "$v" ] || [ "$v" = "PUT_YOUR_GEMINI_KEY_HERE" ] || [ "$v" = "PUT_YOUR_OPENAI_KEY_HERE" ] || [ "$v" = "PUT_YOUR_GOOGLE_CLOUD_KEY_HERE" ]; then

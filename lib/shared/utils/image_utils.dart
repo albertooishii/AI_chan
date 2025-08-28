@@ -2,10 +2,11 @@ import 'dart:io';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:ai_chan/core/config.dart';
-// Rutas ahora configurables vía .env: IMAGE_DIR_ANDROID, IMAGE_DIR_IOS, IMAGE_DIR_DESKTOP, IMAGE_DIR_WEB
 
-/// Guarda una imagen en base64 en el directorio local de imágenes y devuelve la ruta del archivo.
+/// Guarda una imagen en base64 en el directorio de documentos de la app
+/// bajo la carpeta `images`.
 Future<String?> saveBase64ImageToFile(String base64, {String prefix = 'img'}) async {
   try {
     final bytes = base64Decode(base64);
@@ -23,9 +24,6 @@ Future<String?> saveBase64ImageToFile(String base64, {String prefix = 'img'}) as
       return null;
     }
   } catch (e) {
-    // Algunas condiciones son esperadas en tests (p.ej. IMAGE_DIR no configurado
-    // o base64 no válido). Registrar como warn para no marcar tests como fallos
-    // visibles. En caso de error inesperado, seguir registrando la excepción.
     final isExpected = e is StateError || e is FormatException;
     if (isExpected) {
       Log.w('[Image] No se pudo guardar imagen (esperado): ${e.toString()}', tag: 'IMAGE_UTILS');
@@ -36,68 +34,35 @@ Future<String?> saveBase64ImageToFile(String base64, {String prefix = 'img'}) as
   }
 }
 
-/// Devuelve el directorio local para imágenes del chat usando exclusivamente las claves de `.env`.
-/// Lanza un error si no está configurado.
+/// Devuelve el directorio local para imágenes: app_documents/images
 Future<Directory> getLocalImageDir() async {
+  // Allow tests to override the image directory using a test-only key.
+  final testOverride = Config.get('TEST_IMAGE_DIR', '').trim();
+  if (testOverride.isNotEmpty) {
+    final dir = Directory(testOverride);
+    if (!await dir.exists()) await dir.create(recursive: true);
+    return dir;
+  }
+
   if (kIsWeb) {
-    final webDir = Config.get('IMAGE_DIR_WEB', '');
-    if (webDir.trim().isEmpty) {
-      throw StateError('IMAGE_DIR_WEB no está configurado en .env');
-    }
-    return Directory(webDir.trim());
+    // En web no hay un directorio real; usar carpeta virtual en memoria o nombre simbólico.
+    return Directory('AI_chan_images');
   }
 
-  String? configured;
-  if (Platform.isAndroid) {
-    configured = Config.get('IMAGE_DIR_ANDROID', '');
-  } else if (Platform.isIOS) {
-    configured = Config.get('IMAGE_DIR_IOS', '');
-  } else {
-    configured = Config.get('IMAGE_DIR_DESKTOP', '');
-  }
+  // Prefer OS-specific Application Support on desktop so the app doesn't
+  // create loose folders under the user's Documents directory. On mobile
+  // and web keep using the documents directory (mobile uses app-private
+  // Documents; web uses virtual folder name).
+  final appDoc = (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS))
+      ? await getApplicationSupportDirectory()
+      : await getApplicationDocumentsDirectory();
 
-  if (configured.trim().isEmpty) {
-    throw StateError('IMAGE_DIR no está configurado en .env para esta plataforma');
-  }
-
-  // Expandir '~' a la ruta HOME y resolver rutas relativas para escritorio
-  var cfg = configured.trim();
-  final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '';
-  if (cfg.startsWith('~')) {
-    if (home.isEmpty) {
-      throw StateError('No se pudo determinar HOME para expandir ~ en IMAGE_DIR_DESKTOP');
-    }
-    cfg = cfg.replaceFirst('~', home);
-  } else if (!cfg.startsWith('/') && home.isNotEmpty) {
-    // Ruta relativa -> interpretarla dentro de $HOME
-    cfg = '$home/$cfg';
-  }
-
-  final dir = Directory(cfg);
-  if (!(await dir.exists())) {
-    await dir.create(recursive: true);
-  }
-  return dir;
+  final imagesDir = Directory('${appDoc.path}/AI_chan/images');
+  if (!await imagesDir.exists()) await imagesDir.create(recursive: true);
+  return imagesDir;
 }
 
-/// Devuelve la ruta relativa para guardar imágenes
+/// Ruta relativa usada internamente para presentar/serializar paths (simple nombre)
 Future<String> getRelativeImageDir() async {
-  if (Platform.isAndroid) {
-    final cfg = Config.get('IMAGE_DIR_ANDROID', '');
-    if (cfg.trim().isEmpty) {
-      throw StateError('IMAGE_DIR_ANDROID no está en .env');
-    }
-    return cfg.trim();
-  } else if (Platform.isIOS) {
-    final cfg = Config.get('IMAGE_DIR_IOS', '');
-    if (cfg.trim().isEmpty) throw StateError('IMAGE_DIR_IOS no está en .env');
-    return cfg.trim();
-  } else {
-    // Desktop: always point to $HOME/AI_chan/images dynamically
-    final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '';
-    if (home.isEmpty) {
-      throw StateError('No se pudo determinar el home del usuario');
-    }
-    return 'AI_chan/images';
-  }
+  return 'AI_chan/images';
 }

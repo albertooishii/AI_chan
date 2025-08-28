@@ -17,6 +17,10 @@ import 'package:ai_chan/shared/utils/model_utils.dart';
 import 'package:ai_chan/shared/widgets/app_dialog.dart';
 import '../widgets/tts_configuration_dialog.dart';
 import 'package:ai_chan/main.dart';
+import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
+// google_backup_service not used directly in this file; ChatProvider exposes necessary state
+import 'package:ai_chan/shared/widgets/local_backup_dialog.dart';
+import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
 
 class ChatScreen extends StatefulWidget {
   final AiChanProfile bio;
@@ -35,6 +39,7 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   Directory? _imageDir;
   bool _isRegeneratingAppearance = false; // Muestra spinner en avatar durante la regeneración
+  // Google Drive linked account state is now provided by ChatProvider
   // Pagination / lazy loading for messages
   late final ScrollController _scrollController;
   int _displayedCount = 100; // inicial: últimos 100 mensajes
@@ -67,6 +72,7 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       } catch (_) {}
     });
+    // El estado de la cuenta de Google se obtiene desde ChatProvider
     // No cargar voces automáticamente - solo cuando se abra el diálogo
   }
 
@@ -120,13 +126,17 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (jsonStr != null && jsonStr.trim().isNotEmpty) {
       try {
-        final imported = await chatProvider.importAllFromJsonAsync(jsonStr);
+        final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
         if (widget.onImportJson != null && imported != null) {
           await widget.onImportJson!.call(imported);
         } else {
-          if (mounted) setState(() {});
-          // Snackbar helper resolves its own messenger.
-          _showImportSuccessSnackBar();
+          if (imported != null) {
+            await chatProvider.applyImportedChat(imported);
+            if (mounted) setState(() {});
+            _showImportSuccessSnackBar();
+          } else {
+            showErrorDialog('Error al importar: JSON inválido');
+          }
         }
       } catch (e) {
         showErrorDialog('Error al importar:\n$e');
@@ -536,29 +546,76 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
               const PopupMenuDivider(),
-              // Exportar chat
+              // Copia de seguridad local (unificada)
+              PopupMenuItem<String>(
+                value: 'local_backup',
+                child: Row(
+                  children: const [
+                    Icon(Icons.sd_storage, color: AppColors.primary, size: 20),
+                    SizedBox(width: 8),
+                    Text('Copia de seguridad local', style: TextStyle(color: AppColors.primary)),
+                  ],
+                ),
+              ),
+              // Google Drive: show linked status like Onboarding
+              if (!chatProvider.googleLinked)
+                PopupMenuItem<String>(
+                  value: 'backup_google',
+                  child: Row(
+                    children: const [
+                      Icon(Icons.add_to_drive, size: 20, color: AppColors.primary),
+                      SizedBox(width: 8),
+                      Text('Copia de seguridad en Google Drive', style: TextStyle(color: AppColors.primary)),
+                    ],
+                  ),
+                )
+              else
+                PopupMenuItem<String>(
+                  value: 'backup_status',
+                  child: Row(
+                    children: [
+                      if (chatProvider.googleAvatarUrl != null && chatProvider.googleAvatarUrl!.isNotEmpty)
+                        CircleAvatar(radius: 16, backgroundImage: NetworkImage(chatProvider.googleAvatarUrl!))
+                      else
+                        const Icon(Icons.account_circle, size: 28, color: AppColors.primary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (chatProvider.googleName != null && chatProvider.googleName!.isNotEmpty)
+                              Text(
+                                chatProvider.googleName!,
+                                style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            const SizedBox(height: 4),
+                            Text(
+                              chatProvider.googleEmail ?? 'Cuenta Google',
+                              style: const TextStyle(color: AppColors.secondary, fontSize: 12),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              const PopupMenuDivider(),
+              // Debug: Vista previa JSON
               PopupMenuItem<String>(
                 value: 'export_json',
                 child: Row(
                   children: const [
-                    Icon(Icons.save_alt, color: AppColors.primary, size: 20),
+                    Icon(Icons.code, color: Colors.redAccent, size: 20),
                     SizedBox(width: 8),
-                    Text('Exportar chat (JSON)', style: TextStyle(color: AppColors.primary)),
+                    Text('Vista previa JSON (debug)', style: TextStyle(color: Colors.redAccent)),
                   ],
                 ),
               ),
-              // Importar chat
-              PopupMenuItem<String>(
-                value: 'import_json',
-                child: Row(
-                  children: const [
-                    Icon(Icons.file_open, color: AppColors.primary, size: 20),
-                    SizedBox(width: 8),
-                    Text('Importar chat (JSON)', style: TextStyle(color: AppColors.primary)),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
               // Debug: regenerar apariencia
               PopupMenuItem<String>(
                 value: 'regenAppearance',
@@ -581,7 +638,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                 ),
               ),
-              // Debug: borrar todo
+              // Debug: borrar todo (debug) - reintroducido solo en ChatScreen
               PopupMenuItem<String>(
                 value: 'clear_debug',
                 child: Row(
@@ -592,6 +649,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                 ),
               ),
+              // Debug options removed: import chat and clear all not applicable in release flows
             ],
             onSelected: (value) async {
               if (value == 'gallery') {
@@ -611,7 +669,11 @@ class _ChatScreenState extends State<ChatScreen> {
                 );
               } else if (value == 'export_json') {
                 try {
-                  final jsonStr = await chatProvider.exportAllToJson();
+                  final jsonStr = await BackupUtils.exportChatPartsToJson(
+                    profile: chatProvider.onboardingData,
+                    messages: chatProvider.messages,
+                    events: chatProvider.events,
+                  );
                   final navCtx = navigatorKey.currentContext;
                   if (navCtx == null) return;
                   _showExportDialog(jsonStr, chatProvider);
@@ -622,6 +684,33 @@ class _ChatScreenState extends State<ChatScreen> {
                 }
               } else if (value == 'import_json') {
                 await _showImportDialog(chatProvider);
+              } else if (value == 'local_backup') {
+                final navCtx = navigatorKey.currentContext;
+                if (navCtx == null) return;
+                await showAppDialog<void>(
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: Colors.black,
+                    content: SizedBox(
+                      width: 560,
+                      child: LocalBackupDialog(
+                        requestExportJson: () async {
+                          return await BackupUtils.exportChatPartsToJson(
+                            profile: chatProvider.onboardingData,
+                            messages: chatProvider.messages,
+                            events: chatProvider.events,
+                          );
+                        },
+                        onImportedJson: (imported) async {
+                          await chatProvider.applyImportedChat(imported);
+                          if (mounted) setState(() {});
+                        },
+                        onImportError: (err) {
+                          showErrorDialog(err);
+                        },
+                      ),
+                    ),
+                  ),
+                );
               } else if (value == 'regenAppearance') {
                 setState(() => _isRegeneratingAppearance = true);
                 try {
@@ -722,12 +811,99 @@ class _ChatScreenState extends State<ChatScreen> {
                   navCtx,
                   userLangCodes: userLangCodes,
                   aiLangCodes: aiLangCodes,
-                  chatProvider: chatProvider,
+                  synthesizeTts: (phrase, {required voice, required language, required forDialogDemo}) async {
+                    try {
+                      final file = await chatProvider.audioService.synthesizeTts(
+                        phrase,
+                        voice: voice,
+                        languageCode: language,
+                        forDialogDemo: forDialogDemo,
+                      );
+                      return file;
+                    } catch (e) {
+                      return null;
+                    }
+                  },
+                  onSettingsChanged: () {
+                    if (mounted) setState(() {});
+                  },
                 );
 
                 if (result == true && mounted) {
                   setState(() {});
                 }
+              } else if (value == 'backup_google') {
+                final navCtx = navigatorKey.currentContext;
+                if (navCtx == null) return;
+                await showAppDialog<void>(
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: Colors.black,
+                    content: SizedBox(
+                      width: 560,
+                      child: GoogleDriveBackupDialog(
+                        clientId: 'YOUR_GOOGLE_CLIENT_ID',
+                        requestBackupJson: () async => await BackupUtils.exportChatPartsToJson(
+                          profile: chatProvider.onboardingData,
+                          messages: chatProvider.messages,
+                          events: chatProvider.events,
+                        ),
+                        onImportedJson: (jsonStr) async {
+                          final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
+                          if (imported != null) {
+                            await chatProvider.applyImportedChat(imported);
+                          }
+                        },
+                        onAccountInfoUpdated:
+                            ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
+                              await chatProvider.updateGoogleAccountInfo(
+                                email: email,
+                                avatarUrl: avatarUrl,
+                                name: name,
+                                linked: linked,
+                              );
+                            },
+                        onClearAccountInfo: () => chatProvider.clearGoogleAccountInfo(),
+                      ),
+                    ),
+                  ),
+                );
+                // ChatProvider will be updated by the dialog; no local refresh needed.
+              } else if (value == 'backup_status') {
+                final navCtx = navigatorKey.currentContext;
+                if (navCtx == null) return;
+                await showAppDialog<void>(
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: Colors.black,
+                    content: SizedBox(
+                      width: 560,
+                      child: GoogleDriveBackupDialog(
+                        clientId: 'YOUR_GOOGLE_CLIENT_ID',
+                        requestBackupJson: () async => await BackupUtils.exportChatPartsToJson(
+                          profile: chatProvider.onboardingData,
+                          messages: chatProvider.messages,
+                          events: chatProvider.events,
+                        ),
+                        onImportedJson: (jsonStr) async {
+                          final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
+                          if (imported != null) {
+                            await chatProvider.applyImportedChat(imported);
+                          }
+                        },
+                        onAccountInfoUpdated:
+                            ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
+                              await chatProvider.updateGoogleAccountInfo(
+                                email: email,
+                                avatarUrl: avatarUrl,
+                                name: name,
+                                linked: linked,
+                              );
+                            },
+                        onClearAccountInfo: () => chatProvider.clearGoogleAccountInfo(),
+                      ),
+                    ),
+                  ),
+                );
+                return;
               }
             },
           ),
@@ -931,6 +1107,8 @@ class _ChatScreenState extends State<ChatScreen> {
           : null,
     );
   }
+
+  // ...existing code...
 
   // Eliminado: diálogo para seleccionar países
 

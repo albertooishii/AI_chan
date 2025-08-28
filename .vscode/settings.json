@@ -1,5 +1,5 @@
 {
-    "java.configuration.updateBuildConfiguration": "interactive",
+    "java.configuration.updateBuildConfiguration": "automatic",
     "editor.formatOnSave": false,
     "yaml.format.enable": false,
     "[yaml]": {
@@ -21,4 +21,5 @@
     "git.autorefresh": false,
     "files.autoSave": "off",
     "dart.flutterHotReloadOnSave": "all",
+    "cmake.sourceDirectory": "/home/albertooishii/AI_chan/ai_chan/linux",
 }

@@ -1,46 +1,35 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:ai_chan/core/config.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:ai_chan/core/config.dart';
 
-/// Devuelve el directorio local de caché según plataforma
-/// Solo permite configuración personalizada en desktop (Windows, macOS, Linux)
-/// Para móviles (Android, iOS) siempre usa directorios estándar del sistema
+/// Devuelve el directorio local de caché según plataforma usando siempre
+/// las rutas recomendadas por el sistema operativo.
 Future<Directory> getLocalCacheDir() async {
-  // Solo permitir configuración personalizada en plataformas desktop
-  if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
-    // Desktop: try env first, otherwise fallback to $HOME/AI_chan/cache
-    String configured = Config.get('CACHE_DIR_DESKTOP', '~/AI_chan/cache');
-
-    var cfg = configured.trim();
-    final home =
-        Platform.environment['HOME'] ??
-        Platform.environment['USERPROFILE'] ??
-        '';
-
-    if (cfg.startsWith('~')) {
-      if (home.isEmpty) {
-        throw StateError(
-          'No se pudo determinar el home del usuario para expandir ~ en CACHE_DIR',
-        );
-      }
-      cfg = cfg.replaceFirst('~', home);
-    }
-
-    // Reemplazar formas comunes de $HOME (literal) por la ruta HOME
-    cfg = cfg.replaceAll(r'\$HOME', home);
-    cfg = cfg.replaceAll(r'$HOME', home);
-
-    if (!cfg.startsWith('/') && home.isNotEmpty) {
-      // Ruta relativa -> interpretarla dentro de $HOME
-      cfg = '$home/$cfg';
-    }
-
-    final out = Directory(cfg);
-    if (!await out.exists()) await out.create(recursive: true);
-    return out;
+  // Test-only override (set via Config.setOverrides({'TEST_CACHE_DIR': '<path>'}))
+  final testOverride = Config.get('TEST_CACHE_DIR', '');
+  if (testOverride.isNotEmpty) {
+    final d = Directory(testOverride);
+    if (!await d.exists()) await d.create(recursive: true);
+    return d;
   }
 
-  // Para móviles y web, usar directorio estándar de la aplicación
-  return await getApplicationSupportDirectory();
+  if (kIsWeb) {
+    return Directory('AI_chan_cache');
+  }
+  // Prefer tmp directory for cache-like ephemeral files, but place cache
+  // inside a dedicated subfolder so files don't get mixed with other tmp
+  // data (e.g. /tmp/AI_chan_cache).
+  try {
+    final tmp = await getTemporaryDirectory();
+    final cacheDir = Directory('${tmp.path}${Platform.pathSeparator}AI_chan_cache');
+    if (!await cacheDir.exists()) await cacheDir.create(recursive: true);
+    return cacheDir;
+  } catch (_) {
+    // Fallback to application support directory if tmp not available
+    final support = await getApplicationSupportDirectory();
+    final cacheDir = Directory('${support.path}${Platform.pathSeparator}AI_chan_cache');
+    if (!await cacheDir.exists()) await cacheDir.create(recursive: true);
+    return cacheDir;
+  }
 }

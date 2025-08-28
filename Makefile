@@ -94,6 +94,14 @@ test:
 
 clean:
 	@flutter clean
+	@echo "Also cleaning temporary files..."
+	@$(MAKE) clean-tmp
+
+
+clean-tmp:
+	@echo "Cleaning temporary ai_chan folder (${TMPDIR:-/tmp}/ai_chan)"
+	@chmod +x scripts/clean_tmp_ai_chan.sh 2>/dev/null || true
+	@bash scripts/clean_tmp_ai_chan.sh --yes
 
 run:
 	@echo "🚀 Starting AI_chan con Hot Reload AUTOMÁTICO..."
@@ -105,7 +113,8 @@ run-release:
 
 stop:
 	@pkill -f flutter || echo "No flutter processes found"
-	@rm -f /tmp/flutter_input_pipe 2>/dev/null || true
+	@mkdir -p /tmp/ai_chan 2>/dev/null || true
+	@rm -f /tmp/ai_chan/flutter_input_pipe 2>/dev/null || true
 
 logs:
 	@echo "📝 Showing debug logs (Ctrl+C to exit):"

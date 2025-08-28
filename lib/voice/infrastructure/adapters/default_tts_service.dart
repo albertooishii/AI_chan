@@ -87,8 +87,9 @@ class DefaultTtsService implements ITtsService {
           final isNativeAvailable = await AndroidNativeTtsService.isNativeTtsAvailable();
           if (isNativeAvailable) {
             try {
-              final outputPath =
-                  '${Directory.systemTemp.path}/ai_chan_tts_${DateTime.now().millisecondsSinceEpoch}.mp3';
+              final baseTmp = Directory('${Directory.systemTemp.path}/ai_chan');
+              if (!baseTmp.existsSync()) baseTmp.createSync(recursive: true);
+              final outputPath = '${baseTmp.path}/ai_chan_tts_${DateTime.now().millisecondsSinceEpoch}.mp3';
               final res = await AndroidNativeTtsService.synthesizeToFile(
                 text: text,
                 outputPath: outputPath,

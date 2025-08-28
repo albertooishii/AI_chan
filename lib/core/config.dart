@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_dotenv/flutter_dotenv.dart' show dotenv;
 
 /// Helper centralizado para acceder a configuración derivada de .env.
@@ -112,15 +114,27 @@ class Config {
   /// Si `dotenvContents` se proporciona, carga los valores desde la cadena
   /// (útil para tests). Devuelve cuando la carga ha terminado.
   static Future<void> initialize({String? dotenvContents}) async {
+    // Si nos pasan contenido por parámetro (útil en tests), lo escribimos a un
+    // archivo temporal y llamamos a dotenv.load(fileName: ...). Evitamos
+    // invocar APIs removidas como `testLoad` y mantenemos compatibilidad con
+    // la versión instalada de flutter_dotenv.
     if (dotenvContents != null) {
-      // testLoad es sincrónico pero mantenemos la paridad con el helper de tests
-      dotenv.testLoad(fileInput: dotenvContents);
+      final tmp = await _writeTempEnv(dotenvContents);
+      try {
+        await dotenv.load(fileName: tmp.path);
+      } finally {
+        try {
+          await tmp.delete();
+        } catch (_) {}
+      }
       return;
     }
+
     try {
       await dotenv.load();
     } catch (e) {
-      // Si no hay .env, no fallamos: se pueden usar overrides en tests
+      // Si no hay .env en disco, cargamos valores por defecto usando el mismo
+      // mecanismo temporal.
       const defaultContents = '''
 DEFAULT_TEXT_MODEL=gemini-2.5-flash
 DEFAULT_IMAGE_MODEL=gpt-4.1-mini
@@ -128,7 +142,21 @@ GOOGLE_REALTIME_MODEL=gemini-2.5-flash
 APP_LOG_LEVEL=trace
 SUMMARY_BLOCK_SIZE=32
 ''';
-      dotenv.testLoad(fileInput: defaultContents);
+      final tmp = await _writeTempEnv(defaultContents);
+      try {
+        await dotenv.load(fileName: tmp.path);
+      } finally {
+        try {
+          await tmp.delete();
+        } catch (_) {}
+      }
     }
+  }
+
+  // Helper para escribir un archivo temporal con formato .env.
+  static Future<File> _writeTempEnv(String contents) async {
+    final tmp = File('${Directory.systemTemp.path}/.env_ai_chan_tmp');
+    await tmp.writeAsString(contents, flush: true);
+    return tmp;
   }
 }

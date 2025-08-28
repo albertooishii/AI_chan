@@ -26,21 +26,18 @@ class OnboardingProvider extends ChangeNotifier {
   }
   bool loading = true;
 
-  /// Importa y guarda biografía y mensajes desde un JSON robusto (ImportedChat), actualizando estado y notificando listeners
-  Future<ImportedChat?> importAllFromJson(String jsonStr) async {
-    final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
-      jsonStr,
-      onError: (err) {
-        importError = err;
-        notifyListeners();
-      },
-    );
-    if (imported == null) return null;
+  /// Aplica un `ImportedChat` ya parseado al provider y lo persiste.
+  Future<void> applyImportedChat(ImportedChat imported) async {
     await StorageUtils.saveImportedChatToPrefs(imported);
     _generatedBiography = imported.profile;
     _biographySaved = true;
     notifyListeners();
-    return imported;
+  }
+
+  /// Setea un mensaje de error de importación y notifica listeners.
+  void setImportError(String? err) {
+    importError = err;
+    notifyListeners();
   }
 
   /// Resetea el estado interno tras borrar la caché

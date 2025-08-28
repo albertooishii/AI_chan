@@ -63,7 +63,7 @@ void main() {
   test('GoogleProfileAdapter returns a basic profile and appearance', () async {
     await initializeTestEnvironment(
       dotenvContents:
-          'DEFAULT_TEXT_MODEL=gemini-1.5-flash-latest\nDEFAULT_IMAGE_MODEL=gemini-1.5-flash-latest\nIMAGE_DIR_DESKTOP=/tmp/ai_chan_test_images\nGEMINI_API_KEY=test_key\n',
+          'DEFAULT_TEXT_MODEL=gemini-1.5-flash-latest\nDEFAULT_IMAGE_MODEL=gemini-1.5-flash-latest\nGEMINI_API_KEY=test_key\n',
     );
     // Use the top-level LocalImageFake declared above.
     AIService.testOverride = LocalImageFake();

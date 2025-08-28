@@ -56,10 +56,12 @@ class FakeAudioService implements IAudioChatService {
 
 void main() {
   test('TtsService synthesizes and persists file when audioService returns file', () async {
-    final tmp = File('${Directory.systemTemp.path}/tts_test_${DateTime.now().millisecondsSinceEpoch}.wav');
+    final baseTmp = Directory('${Directory.systemTemp.path}/ai_chan');
+    if (!baseTmp.existsSync()) baseTmp.createSync(recursive: true);
+    final tmp = File('${baseTmp.path}/tts_test_${DateTime.now().millisecondsSinceEpoch}.wav');
     await tmp.writeAsString('fake');
     final fake = FakeAudioService(tmp);
-    final svc = TtsService(fake, localAudioDirGetter: () async => Directory.systemTemp);
+    final svc = TtsService(fake, localAudioDirGetter: () async => baseTmp);
     final path = await svc.synthesizeAndPersist('hola mundo', voice: 'nova');
     expect(path, isNotNull);
     // Cleanup
@@ -71,7 +73,9 @@ void main() {
 
   test('TtsService returns null when audioService returns null', () async {
     final fake = FakeAudioService(null);
-    final svc = TtsService(fake, localAudioDirGetter: () async => Directory.systemTemp);
+    final baseTmp2 = Directory('${Directory.systemTemp.path}/ai_chan');
+    if (!baseTmp2.existsSync()) baseTmp2.createSync(recursive: true);
+    final svc = TtsService(fake, localAudioDirGetter: () async => baseTmp2);
     final path = await svc.synthesizeAndPersist('hola mundo', voice: 'nova');
     expect(path, isNull);
   });
