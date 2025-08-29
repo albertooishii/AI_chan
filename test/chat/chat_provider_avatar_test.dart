@@ -2,7 +2,7 @@ import '../test_setup.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/chat/application/providers/chat_provider.dart';
 import 'package:ai_chan/core/models.dart';
-import '../core/services/fake_ai_service.dart';
+import '../fakes/fake_ai_service.dart';
 import 'package:ai_chan/shared/services/ai_service.dart';
 import 'dart:io';
 import 'package:ai_chan/core/config.dart';
@@ -40,7 +40,7 @@ void main() async {
     // Fake AI returns a valid base64 PNG (1x1) -- reuse existing test fixture used elsewhere
     const png1x1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
     final fakeResp = AIResponse(text: '', base64: png1x1, seed: 'seed123', prompt: 'pp');
-    final fake = FakeAIService([fakeResp]);
+    final fake = FakeAIService.withResponses([fakeResp]);
     AIService.testOverride = fake;
     final baseTmp = Directory('${Directory.systemTemp.path}/ai_chan');
     if (!baseTmp.existsSync()) baseTmp.createSync(recursive: true);
@@ -85,7 +85,7 @@ void main() async {
     // Second fake: valid image
     const png1x1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
     final okResp = AIResponse(text: '', base64: png1x1, seed: 's2', prompt: 'pp');
-    final fake = FakeAIService([failResp, okResp]);
+    final fake = FakeAIService.withResponses([failResp, okResp]);
     AIService.testOverride = fake;
     final baseTmp = Directory('${Directory.systemTemp.path}/ai_chan');
     if (!baseTmp.existsSync()) baseTmp.createSync(recursive: true);
@@ -126,7 +126,7 @@ void main() async {
 
     const png1x1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
     final fakeResp = AIResponse(text: '', base64: png1x1, seed: 'newseed', prompt: 'pp');
-    final fake = FakeAIService([fakeResp]);
+    final fake = FakeAIService.withResponses([fakeResp]);
     AIService.testOverride = fake;
     final baseTmp = Directory('${Directory.systemTemp.path}/ai_chan');
     if (!baseTmp.existsSync()) baseTmp.createSync(recursive: true);

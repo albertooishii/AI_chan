@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/core/services/ia_avatar_generator.dart';
 import 'package:ai_chan/shared/services/ai_service.dart';
-import 'fake_ai_service.dart';
+import '../../fakes/fake_ai_service.dart';
 import 'package:ai_chan/core/models.dart';
 import 'dart:io';
 import 'package:ai_chan/core/config.dart';
@@ -11,7 +11,7 @@ void main() {
     // tiny 1x1 PNG base64 to allow saveBase64ImageToFile to succeed in tests
     final png1x1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
     final fakeResp = AIResponse(text: '', base64: png1x1, seed: 'seed123', prompt: 'pp');
-    final fake = FakeAIService([fakeResp]);
+    final fake = FakeAIService.withResponses([fakeResp]);
     AIService.testOverride = fake;
     // Provide writable test image dir so saveBase64ImageToFile can succeed
     final baseTmp = Directory('${Directory.systemTemp.path}/ai_chan');
@@ -44,7 +44,7 @@ void main() {
   });
 
   test('generateAvatarWithRetries throws when no base64 returned', () async {
-    final fake = FakeAIService([
+    final fake = FakeAIService.withResponses([
       AIResponse(text: '', base64: '', seed: '', prompt: ''),
       AIResponse(text: '', base64: '', seed: '', prompt: ''),
     ]);

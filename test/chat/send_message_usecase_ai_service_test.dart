@@ -2,49 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/chat/application/use_cases/send_message_use_case.dart';
-
-class FakeAIService implements AIService {
-  bool called = false;
-  @override
-  Future<AIResponse> sendMessageImpl(
-    List<Map<String, String>> history,
-    SystemPrompt systemPrompt, {
-    String? model,
-    String? imageBase64,
-    String? imageMimeType,
-    bool enableImageGeneration = false,
-  }) async {
-    called = true;
-    return AIResponse(text: 'hola desde fake', base64: '', seed: '', prompt: '');
-  }
-
-  @override
-  Future<List<String>> getAvailableModels() async => ['gpt-fake'];
-}
-
-class FakeAudioAIService implements AIService {
-  final String responseText;
-  FakeAudioAIService(this.responseText);
-
-  @override
-  Future<AIResponse> sendMessageImpl(
-    List<Map<String, String>> history,
-    SystemPrompt systemPrompt, {
-    String? model,
-    String? imageBase64,
-    String? imageMimeType,
-    bool enableImageGeneration = false,
-  }) async {
-    return AIResponse(text: responseText, base64: '', seed: '', prompt: '');
-  }
-
-  @override
-  Future<List<String>> getAvailableModels() async => ['gpt-fake'];
-}
+import '../fakes/fake_ai_service.dart';
 
 void main() {
   test('SendMessageUseCase uses AIService when no injectedService provided', () async {
-    final fake = FakeAIService();
+    final fake = FakeAIService.withText('hola desde fake');
+    // For test that asserts method called, wrap to detect usage
     AIService.testOverride = fake;
 
     final useCase = SendMessageUseCase();
@@ -73,7 +36,7 @@ void main() {
   });
 
   test('SendMessageUseCase extracts inner audio text and requests TTS', () async {
-    final fake = FakeAudioAIService('[audio] ¡Hola audio! [/audio]');
+    final fake = FakeAIService.withAudio('[audio] ¡Hola audio! [/audio]');
     AIService.testOverride = fake;
 
     final useCase = SendMessageUseCase();
@@ -103,7 +66,7 @@ void main() {
   });
 
   test('SendMessageUseCase leaves text unchanged and ttsRequested false when no audio tag', () async {
-    final fake2 = FakeAudioAIService('Texto normal sin tag');
+    final fake2 = FakeAIService.withText('Texto normal sin tag');
     AIService.testOverride = fake2;
 
     final useCase2 = SendMessageUseCase();

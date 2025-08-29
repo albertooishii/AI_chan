@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/core/services/ia_appearance_generator.dart';
 import 'package:ai_chan/shared/services/ai_service.dart';
-import 'fake_ai_service.dart';
+import '../../fakes/fake_ai_service.dart';
 import 'package:ai_chan/core/models.dart';
 
 void main() {
@@ -9,7 +9,7 @@ void main() {
     // Respuesta simulada que incluye un bloque JSON válido
     final jsonText = '{"edad_aparente": 30, "genero": "femenino", "ropa": []}';
     final resp = AIResponse(text: jsonText, base64: '', seed: '', prompt: '');
-    final fake = FakeAIService([resp]);
+    final fake = FakeAIService.withResponses([resp]);
     AIService.testOverride = fake;
 
     final gen = IAAppearanceGenerator();
