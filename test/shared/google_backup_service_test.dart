@@ -41,13 +41,11 @@ void main() {
       return http.Response('not found', 404);
     });
 
-    final service = GoogleBackupService(accessToken: null, httpClient: client);
+    // service holder not needed for this test since AppAuth exchange is out of scope
 
-    final start = await service.startDeviceAuthorization(clientId: 'cid');
-    expect(start['device_code'], 'dev123');
-
-    final token = await service.pollForDeviceToken(clientId: 'cid', deviceCode: 'dev123', interval: 1, maxAttempts: 2);
-    expect(token['access_token'], 'atk');
+    // Instead of exercising the removed exchangeAuthCode, assume the
+    // token has already been obtained by AppAuth and proceed to upload.
+    final token = {'access_token': 'atk', 'refresh_token': 'rtk'};
 
     // Create a temp zip file
     final tmp = Directory.systemTemp.createTempSync('ai_chan_test_');
@@ -55,7 +53,7 @@ void main() {
     await f.writeAsBytes([0, 1, 2, 3, 4]);
 
     // create a new service instance that holds the access token
-    final serviceWithToken = GoogleBackupService(accessToken: token['access_token'] as String?, httpClient: client);
+    final serviceWithToken = GoogleBackupService(accessToken: token['access_token'], httpClient: client);
     final id = await serviceWithToken.uploadBackupResumable(f);
     expect(id, 'file123');
 

@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart' show debugPrint, kDebugMode, kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
+import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:ai_chan/core/config.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -51,98 +52,16 @@ class GoogleBackupService {
   }
 
   // --- Device-flow helpers (Google OAuth 2.0 device code flow) ---
-  /// Start device authorization. Returns a map with keys: device_code, user_code, verification_uri, expires_in, interval
-  Future<Map<String, dynamic>> startDeviceAuthorization({
-    required String clientId,
-    String? clientSecret,
-    // Use conservative default scopes for device flow. Some Drive scopes
-    // (like drive.appdata) are rejected in device flow for certain clients
-    // causing `invalid_scope`. Request identity scopes and a general
-    // drive.file scope which is more widely accepted. If appDataFolder
-    // access is required, the PKCE/loopback flow will request it.
-    List<String> scopes = const ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/drive.file'],
-  }) async {
-    final url = Uri.parse('https://oauth2.googleapis.com/device/code');
-    final body = {'client_id': clientId, 'scope': scopes.join(' ')};
-    if (clientSecret != null && clientSecret.isNotEmpty) body['client_secret'] = clientSecret;
-    final res = await httpClient.post(url, body: body);
-    if (res.statusCode >= 200 && res.statusCode < 300) {
-      return jsonDecode(res.body) as Map<String, dynamic>;
-    }
-    throw HttpException('Device authorization failed: ${res.statusCode} ${res.body}');
-  }
-
-  /// Poll token endpoint for device_flow. Returns token map (access_token, refresh_token, expires_in, token_type)
-  Future<Map<String, dynamic>> pollForDeviceToken({
-    required String clientId,
-    String? clientSecret,
-    required String deviceCode,
-    int interval = 5,
-    int maxAttempts = 120,
-  }) async {
-    final url = Uri.parse('https://oauth2.googleapis.com/token');
-    int attempts = 0;
-    if (kDebugMode) debugPrint('pollForDeviceToken: starting poll for deviceCode=$deviceCode, interval=$interval');
-    while (attempts++ < maxAttempts) {
-      final body = {
-        'client_id': clientId,
-        'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
-        'device_code': deviceCode,
-      };
-      if (clientSecret != null && clientSecret.isNotEmpty) body['client_secret'] = clientSecret;
-      final res = await httpClient.post(url, body: body);
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
-        await _persistCredentialsSecure(data);
-        if (kDebugMode) debugPrint('pollForDeviceToken: token received for deviceCode=$deviceCode');
-        return data;
-      } else {
-        // Only log detailed polling responses in debug mode.
-        if (kDebugMode) debugPrint('pollForDeviceToken: attempt $attempts status=${res.statusCode} body=${res.body}');
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
-        final err = data['error'] as String?;
-        if (err == 'authorization_pending') {
-          if (kDebugMode) debugPrint('pollForDeviceToken: authorization_pending (attempt $attempts)');
-          await Future.delayed(Duration(seconds: interval));
-          continue;
-        } else if (err == 'slow_down') {
-          if (kDebugMode) debugPrint('pollForDeviceToken: slow_down received; increasing interval');
-          interval += 5;
-          await Future.delayed(Duration(seconds: interval));
-          continue;
-        } else {
-          // Keep unrecoverable error visible in logs in all modes
-          debugPrint('pollForDeviceToken: unrecoverable error: $err');
-          throw HttpException('Device token polling failed: ${res.statusCode} ${res.body}');
-        }
-      }
-    }
-    throw TimeoutException('Device token polling timed out after $maxAttempts attempts');
-  }
+  // Device Authorization Flow removed: using AppAuth (native) + PKCE loopback for web.
 
   /// Refresh an access token using the stored refresh_token.
   Future<Map<String, dynamic>> refreshAccessToken({required String clientId, String? clientSecret}) async {
+    // Use AppAuth exclusively for token refresh on native platforms.
     final creds = await _loadCredentialsSecure();
     final refresh = creds?['refresh_token'] as String?;
     if (refresh == null) throw StateError('No refresh token available');
-    final url = Uri.parse('https://oauth2.googleapis.com/token');
-    final res = await httpClient.post(
-      url,
-      body: {
-        'client_id': clientId,
-        'grant_type': 'refresh_token',
-        'refresh_token': refresh,
-        if (clientSecret != null && clientSecret.isNotEmpty) 'client_secret': clientSecret,
-      },
-    );
-    if (res.statusCode >= 200 && res.statusCode < 300) {
-      final data = jsonDecode(res.body) as Map<String, dynamic>;
-      // Merge refresh_token if Google doesn't return it on refresh
-      if (!data.containsKey('refresh_token')) data['refresh_token'] = refresh;
-      await _persistCredentialsSecure(data);
-      return data;
-    }
-    throw HttpException('Refresh failed: ${res.statusCode} ${res.body}');
+    // This will throw if AppAuth is unavailable or refresh fails.
+    return await refreshAccessTokenWithAppAuth(clientId: clientId, refreshToken: refresh);
   }
 
   // Resolve client id/secret from app config based on the current platform.
@@ -155,6 +74,7 @@ class GoogleBackupService {
         if (kIsWeb) {
           cid = Config.get('GOOGLE_CLIENT_ID_WEB', '');
         } else if (Platform.isAndroid) {
+          // Temporal: usar el client_id de escritorio en Android por petición del usuario.
           cid = Config.get('GOOGLE_CLIENT_ID_ANDROID', '');
         } else if (Platform.isIOS) {
           cid = Config.get('GOOGLE_CLIENT_ID_IOS', '');
@@ -172,12 +92,13 @@ class GoogleBackupService {
   static Future<String?> resolveClientSecret() async {
     String s = '';
     try {
+      // Temporal: usar client secret de escritorio en Android; mantener vacío en iOS.
       if (kIsWeb) {
         s = Config.get('GOOGLE_CLIENT_SECRET_WEB', '');
       } else if (Platform.isAndroid) {
-        s = Config.get('GOOGLE_CLIENT_SECRET_ANDROID', '');
+        s = '';
       } else if (Platform.isIOS) {
-        s = Config.get('GOOGLE_CLIENT_SECRET_IOS', '');
+        s = '';
       } else {
         s = Config.get('GOOGLE_CLIENT_SECRET_DESKTOP', '');
       }
@@ -188,6 +109,60 @@ class GoogleBackupService {
     return s.isEmpty ? null : s;
   }
 
+  /// Resolve a client id for an explicit target platform string.
+  /// Accepted values: 'web', 'android', 'ios', 'desktop'. Returns empty
+  /// string on error or if not configured.
+  static Future<String> resolveClientIdFor(String target) async {
+    try {
+      switch (target) {
+        case 'web':
+          return Config.get('GOOGLE_CLIENT_ID_WEB', '').trim();
+        case 'android':
+          return Config.get('GOOGLE_CLIENT_ID_ANDROID', '').trim();
+        case 'ios':
+          return Config.get('GOOGLE_CLIENT_ID_IOS', '').trim();
+        case 'desktop':
+          return Config.get('GOOGLE_CLIENT_ID_DESKTOP', '').trim();
+        default:
+          return '';
+      }
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// Resolve a client secret for an explicit target platform string.
+  /// Accepted values: 'web', 'android', 'ios', 'desktop'. Returns null when
+  /// no secret is configured or for mobile if empty.
+  static Future<String?> resolveClientSecretFor(String target) async {
+    try {
+      String s = '';
+      switch (target) {
+        case 'web':
+          s = Config.get('GOOGLE_CLIENT_SECRET_WEB', '');
+          break;
+        case 'android':
+          // By default Android may not have a secret; return empty which
+          // callers will treat as null. If you previously mapped Android
+          // to desktop, use 'desktop' target explicitly.
+          s = Config.get('GOOGLE_CLIENT_SECRET_ANDROID', '');
+          break;
+        case 'ios':
+          s = Config.get('GOOGLE_CLIENT_SECRET_IOS', '');
+          break;
+        case 'desktop':
+          s = Config.get('GOOGLE_CLIENT_SECRET_DESKTOP', '');
+          break;
+        default:
+          s = '';
+      }
+      s = s.trim();
+      return s.isEmpty ? null : s;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Attempt to refresh stored credentials using config client id/secret.
   /// Returns the refreshed token map on success.
   Future<Map<String, dynamic>> _attemptRefreshUsingConfig() async {
@@ -196,36 +171,95 @@ class GoogleBackupService {
     if (refresh == null) throw StateError('No refresh token available to refresh');
     final clientId = await GoogleBackupService.resolveClientId('');
     if (clientId.isEmpty) throw StateError('Client ID not configured; cannot refresh token');
-    final clientSecret = await GoogleBackupService.resolveClientSecret();
-    return await refreshAccessToken(clientId: clientId, clientSecret: clientSecret);
+    // Use AppAuth refresh exclusively.
+    return await refreshAccessToken(clientId: clientId, clientSecret: null);
   }
 
   /// Exchange an authorization code (from the authorization-code flow) for tokens.
   /// Persists the credentials securely and returns the token map.
-  Future<Map<String, dynamic>> exchangeAuthCode({
-    required String clientId,
-    String? clientSecret,
-    required String code,
-    required String redirectUri,
-    required String codeVerifier,
-  }) async {
-    final url = Uri.parse('https://oauth2.googleapis.com/token');
-    final body = <String, String>{
-      'code': code,
-      'client_id': clientId,
-      'redirect_uri': redirectUri,
-      'grant_type': 'authorization_code',
-      'code_verifier': codeVerifier,
-    };
-    if (clientSecret != null && clientSecret.isNotEmpty) body['client_secret'] = clientSecret;
+  // Authorization code exchange removed: AppAuth (authorizeAndExchangeCode)
+  // is the only supported path for exchanging authorization codes.
 
-    final res = await httpClient.post(url, body: body);
-    if (res.statusCode >= 200 && res.statusCode < 300) {
-      final data = jsonDecode(res.body) as Map<String, dynamic>;
-      await _persistCredentialsSecure(data);
-      return data;
+  // --- AppAuth helper (native PKCE via flutter_appauth) ---
+  /// Returns a token map (access_token, refresh_token, expires_in, token_type, scope)
+  /// This uses the native AppAuth bindings and PKCE. `redirectUri` is read
+  /// from Config if omitted; make sure you configured a platform redirect
+  /// URI in your Google Cloud OAuth client (Android/iOS) and `Config`.
+  Future<Map<String, dynamic>> authenticateWithAppAuth({
+    required String clientId,
+    String? redirectUri,
+    List<String> scopes = const ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/drive.appdata'],
+  }) async {
+    final appAuth = FlutterAppAuth();
+    final redirect = (redirectUri != null && redirectUri.isNotEmpty) ? redirectUri : _defaultRedirectUri();
+    if (redirect.isEmpty) throw StateError('Redirect URI not configured for AppAuth');
+
+    final req = AuthorizationTokenRequest(
+      clientId,
+      redirect,
+      scopes: scopes,
+      promptValues: ['consent', 'select_account'],
+      // preferEphemeralSession left default
+      serviceConfiguration: AuthorizationServiceConfiguration(
+        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+        tokenEndpoint: 'https://oauth2.googleapis.com/token',
+      ),
+    );
+
+    final AuthorizationTokenResponse resp = await appAuth.authorizeAndExchangeCode(req);
+
+    final expiresIn = resp.accessTokenExpirationDateTime?.difference(DateTime.now()).inSeconds;
+    final data = <String, dynamic>{
+      'access_token': resp.accessToken,
+      'refresh_token': resp.refreshToken,
+      'expires_in': expiresIn ?? 0,
+      'token_type': resp.tokenType,
+      'scope': scopes.join(' '),
+    };
+    await _persistCredentialsSecure(data);
+    return data;
+  }
+
+  /// Refresh tokens using AppAuth if possible. Falls back to HTTP token endpoint
+  /// when AppAuth is not available or returns null.
+  Future<Map<String, dynamic>> refreshAccessTokenWithAppAuth({
+    required String clientId,
+    String? refreshToken,
+    String? redirectUri,
+  }) async {
+    final appAuth = FlutterAppAuth();
+    final redirect = (redirectUri != null && redirectUri.isNotEmpty) ? redirectUri : _defaultRedirectUri();
+    if (redirect.isEmpty) throw StateError('Redirect URI not configured for AppAuth refresh');
+
+    final tokenResp = await appAuth.token(
+      TokenRequest(
+        clientId,
+        redirect,
+        refreshToken: refreshToken,
+        serviceConfiguration: AuthorizationServiceConfiguration(
+          authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+          tokenEndpoint: 'https://oauth2.googleapis.com/token',
+        ),
+      ),
+    );
+    final expiresIn = tokenResp.accessTokenExpirationDateTime?.difference(DateTime.now()).inSeconds;
+    final data = <String, dynamic>{
+      'access_token': tokenResp.accessToken,
+      'refresh_token': tokenResp.refreshToken ?? refreshToken,
+      'expires_in': expiresIn ?? 0,
+      'token_type': tokenResp.tokenType,
+      'scope': tokenResp.scopes?.join(' ') ?? '',
+    };
+    await _persistCredentialsSecure(data);
+    return data;
+  }
+
+  static String _defaultRedirectUri() {
+    try {
+      return Config.get('GOOGLE_REDIRECT_URI', '');
+    } catch (_) {
+      return '';
     }
-    throw HttpException('Auth code exchange failed: ${res.statusCode} ${res.body}');
   }
 
   // --- Simple credential persistence (for desktop/dev). In production use secure storage. ---
