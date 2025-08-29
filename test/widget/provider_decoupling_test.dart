@@ -3,24 +3,34 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('Widgets should not directly depend on Provider API', () {
+  test('Widgets and presentation should not directly depend on Provider API', () {
     final repoRoot = Directory('lib');
     if (!repoRoot.existsSync()) return;
 
+    // Collect dart files under presentation/ and widgets/ folders
     final files = repoRoot
         .listSync(recursive: true)
         .whereType<File>()
-        .where((f) => f.path.endsWith('.dart') && f.path.contains('/widgets/'))
+        // include Dart files under presentation/, widgets/ and shared/screen( s ) folders
+        .where(
+          (f) =>
+              f.path.endsWith('.dart') &&
+              (f.path.contains('/widgets/') ||
+                  f.path.contains('/presentation/') ||
+                  f.path.contains('/shared/screens/')),
+        )
         .toList();
 
     final patterns = <String, RegExp>{
+      'provider import': RegExp(r"package:provider/provider\.dart"),
       'Provider.of<': RegExp(r'Provider\.of<'),
       'context.watch<': RegExp(r'\bcontext\.watch<'),
       'context.read<': RegExp(r'\bcontext\.read<'),
       'context.select<': RegExp(r'\bcontext\.select<'),
-      'Consumer<': RegExp(r'Consumer<'),
-      'ChangeNotifierProvider<': RegExp(r'ChangeNotifierProvider<'),
-      'provider import': RegExp(r"package:provider/provider\.dart"),
+      'Consumer<': RegExp(r'\bConsumer<'),
+      'ChangeNotifierProvider<': RegExp(r'\bChangeNotifierProvider<'),
+      'ChangeNotifierProvider.value': RegExp(r'ChangeNotifierProvider\.value'),
+      'MultiProvider': RegExp(r'\bMultiProvider\b'),
     };
 
     final Map<String, List<String>> offenders = {};
@@ -43,7 +53,7 @@ void main() {
     if (offenders.isNotEmpty) {
       final buffer = StringBuffer();
       buffer.writeln(
-        'Found Provider usage in widget files. Widgets should be UI-only and receive callbacks/data from callers.',
+        'Provider API usage found inside presentation/widgets code. Presentation and widget files must not call Provider API directly.',
       );
       buffer.writeln('Offending files and matches:');
       offenders.forEach((path, issues) {
@@ -52,6 +62,7 @@ void main() {
           buffer.writeln('    $it');
         }
       });
+      buffer.writeln('If a screen needs a provider instance, pass it via constructor parameters from a parent widget.');
       fail(buffer.toString());
     }
   });

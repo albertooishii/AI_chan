@@ -1,10 +1,10 @@
 import 'package:ai_chan/voice.dart';
 import 'package:record/record.dart';
-import 'package:provider/provider.dart';
+// Prefer injected ChatProvider via widget.chatProvider; callers must pass it explicitly.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ai_chan/shared/utils/prefs_utils.dart';
 
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/di.dart' as di;
@@ -16,7 +16,9 @@ import 'package:ai_chan/chat/application/providers/chat_provider.dart';
 
 class VoiceCallChat extends StatefulWidget {
   final bool incoming; // true si la llamada es entrante (IA llama al usuario)
-  const VoiceCallChat({super.key, this.incoming = false});
+  // ChatProvider MUST be passed by the caller to avoid Provider.of in presentation.
+  final ChatProvider chatProvider;
+  const VoiceCallChat({super.key, this.incoming = false, required this.chatProvider});
 
   @override
   State<VoiceCallChat> createState() => _VoiceCallChatState();
@@ -42,11 +44,8 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
     // Mute inmediato para cortar el micrófono en UI
     controller.setMuted(true);
 
-    // Capturar provider antes de navegar
-    ChatProvider? chat;
-    try {
-      if (mounted) chat = context.read<ChatProvider>();
-    } catch (_) {}
+    // Capturar provider inyectado por el padre
+    final chat = widget.chatProvider;
 
     // Parar animación y timers antes de cerrar la pantalla
     try {
@@ -85,7 +84,7 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
     // Determinar si hubo conversación REAL: solo cuenta si hubo audio IA reproducido o el usuario habló.
     // Antes se usaba aiRespondedFlag (texto IA) lo que impedía marcar como "sin contestar" cuando solo llegó texto.
     final bool hadConversation = controller.userSpokeFlag || controller.firstAudioReceivedFlag;
-    final int? placeholderIndex = chat?.pendingIncomingCallMsgIndex;
+    final int? placeholderIndex = chat.pendingIncomingCallMsgIndex;
     // Forzar rechazo si IA emitió [end_call][/end_call] (aunque controller marque que habló)
     // Criterio de "aceptación silenciosa": hubo start_call pero jamás llegó audio IA ni voz usuario.
     // Antes se trataba como rechazo técnico; lo reclasificamos como missed (equivale a que la IA nunca contestó realmente).
@@ -349,27 +348,16 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
     // Cargar / validar voz por defecto inmediatamente para el controlador
     Future.microtask(() async {
       try {
-        final prefs = await SharedPreferences.getInstance();
-        // Determinar proveedor activo (prefs -> env), mapeando gemini->google para compatibilidad
-        final savedProvider = prefs.getString('selected_audio_provider');
-        final envProvider = Config.getAudioProvider().toLowerCase();
-        String provider;
-        if (savedProvider != null) {
-          provider = (savedProvider == 'gemini') ? 'google' : savedProvider.toLowerCase();
-        } else if (envProvider.isNotEmpty) {
-          provider = (envProvider == 'gemini') ? 'google' : envProvider;
-        } else {
-          provider = 'google';
-        }
-        final providerKey = 'selected_voice_$provider';
-        final saved = prefs.getString(providerKey);
+        final savedProvider = await PrefsUtils.getSelectedAudioProvider();
+        final provider = (savedProvider == 'gemini') ? 'google' : savedProvider.toLowerCase();
+        final saved = await PrefsUtils.getSelectedVoiceForProvider(provider);
 
-        // Construir lista válida según provider
+        // Construir lista v e1lida seg fan provider
         List<String> validVoices;
         if (provider == 'google') {
           if (GoogleSpeechService.isConfigured) {
             try {
-              // Obtener voces femeninas filtradas para español (España)
+              // Obtener voces femeninas filtradas para espa f1ol (Espa f1a)
               final fetchedVoices = await GoogleSpeechService.voicesForUserAndAi(['es-ES'], ['es-ES']);
               validVoices = fetchedVoices.map((v) => v['name'] as String).toList();
             } catch (e) {
@@ -405,17 +393,11 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
         _incomingAnswerTimer = Timer(const Duration(seconds: 10), () async {
           if (mounted && !_incomingAccepted && !_hangupInProgress) {
             debugPrint('[AI-chan][VoiceCall] Timeout entrante 10s sin aceptar -> marcar no contestada');
-            ChatProvider? chat;
-            try {
-              chat = context.read<ChatProvider>();
-            } catch (_) {}
-            try {
-              await controller.stopIncomingRing();
-            } catch (_) {}
+            final chat = widget.chatProvider;
             // Rechazar placeholder si existe
-            if (chat?.pendingIncomingCallMsgIndex != null) {
+            if (chat.pendingIncomingCallMsgIndex != null) {
               try {
-                chat!.rejectIncomingCallPlaceholder(
+                chat.rejectIncomingCallPlaceholder(
                   index: chat.pendingIncomingCallMsgIndex!,
                   text: 'Llamada no contestada',
                 );
@@ -424,7 +406,7 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
               }
             } else {
               try {
-                await chat?.updateOrAddCallStatusMessage(
+                await chat.updateOrAddCallStatusMessage(
                   text: 'Llamada no contestada',
                   callStatus: CallStatus.missed,
                   incoming: widget.incoming,
@@ -654,9 +636,9 @@ class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProvider
                       String aiLabel = 'AI';
                       String userLabel = 'Tú';
                       try {
-                        final chat = context.read<ChatProvider>();
-                        final rawAi = chat.onboardingData.aiName;
-                        final rawUser = chat.onboardingData.userName;
+                        final chatLocal = widget.chatProvider;
+                        final rawAi = chatLocal.onboardingData.aiName;
+                        final rawUser = chatLocal.onboardingData.userName;
                         if (rawAi.trim().isNotEmpty) aiLabel = rawAi.trim();
                         if (rawUser.trim().isNotEmpty) {
                           userLabel = rawUser.trim();
@@ -788,7 +770,7 @@ extension _IncomingLogic on _VoiceCallChatState {
   Future<void> _startCallInternal() async {
     String systemPrompt;
     try {
-      final chat = context.read<ChatProvider>();
+      final chat = widget.chatProvider;
       systemPrompt = chat.buildCallSystemPromptJson(
         maxRecent: 32,
         aiInitiatedCall: widget.incoming, // incoming=true => IA inició la llamada
@@ -808,9 +790,8 @@ extension _IncomingLogic on _VoiceCallChatState {
     String? selectedProvider;
     String? selectedModel;
     try {
-      final prefs = await SharedPreferences.getInstance();
-      selectedProvider = prefs.getString('selected_audio_provider');
-      selectedModel = prefs.getString('selected_audio_model');
+      selectedProvider = await PrefsUtils.getSelectedAudioProvider();
+      selectedModel = await PrefsUtils.getSelectedModel();
     } catch (_) {}
     final envProvider = Config.getAudioProvider().toLowerCase();
     String providerToUse;
@@ -825,8 +806,7 @@ extension _IncomingLogic on _VoiceCallChatState {
     // Determine voice selected by user (prefs) or fallback
     String? selectedVoice;
     try {
-      final prefs = await SharedPreferences.getInstance();
-      selectedVoice = prefs.getString('selected_voice_$providerToUse');
+      selectedVoice = await PrefsUtils.getSelectedVoiceForProvider(providerToUse);
     } catch (_) {}
     final voiceToUse = selectedVoice ?? resolveDefaultVoice(Config.getOpenaiVoice());
 

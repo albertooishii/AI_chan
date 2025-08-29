@@ -1,5 +1,5 @@
 import 'package:ai_chan/core/models.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ai_chan/shared/utils/prefs_utils.dart';
 
 class AiChanProfile {
   final List<EventEntry>? events;
@@ -103,9 +103,8 @@ class AiChanProfile {
     }
     if (!valid) {
       try {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('onboarding_data');
-        await prefs.remove('chat_history');
+        await PrefsUtils.removeOnboardingData();
+        await PrefsUtils.removeChatHistory();
       } catch (_) {}
       return null;
     }

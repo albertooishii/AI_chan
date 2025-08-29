@@ -9,8 +9,7 @@ import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import '../widgets/birth_date_field.dart';
 import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dart';
-import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/locale_utils.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
@@ -21,7 +20,7 @@ import 'package:ai_chan/shared/services/backup_service.dart';
 import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
 import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
 
-class OnboardingScreen extends StatelessWidget {
+class OnboardingScreen extends StatefulWidget {
   final Future<void> Function({
     required String userName,
     required String aiName,
@@ -34,19 +33,66 @@ class OnboardingScreen extends StatelessWidget {
   onFinish;
   final void Function()? onClearAllDebug;
   final Future<void> Function(ImportedChat importedChat)? onImportJson;
+  // Optional external provider instance (presentation widgets should avoid creating providers internally when possible)
+  final OnboardingProvider? onboardingProvider;
+  // Optional ChatProvider instance so presentation widgets receive it via constructor
+  // instead of depending on provider package APIs internally.
+  final ChatProvider? chatProvider;
 
-  const OnboardingScreen({super.key, required this.onFinish, this.onClearAllDebug, this.onImportJson});
+  const OnboardingScreen({
+    super.key,
+    required this.onFinish,
+    this.onClearAllDebug,
+    this.onImportJson,
+    this.onboardingProvider,
+    this.chatProvider,
+  });
+
+  @override
+  State<OnboardingScreen> createState() => _OnboardingScreenState();
+}
+
+class _OnboardingScreenState extends State<OnboardingScreen> {
+  OnboardingProvider? _createdProvider;
+
+  @override
+  void initState() {
+    super.initState();
+    // If no external provider was supplied, create one and retain it across rebuilds.
+    if (widget.onboardingProvider == null) {
+      _createdProvider = OnboardingProvider();
+    }
+  }
+
+  @override
+  void dispose() {
+    try {
+      // Only dispose if we created it here.
+      _createdProvider?.dispose();
+    } catch (_) {}
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => OnboardingProvider(),
-      child: _OnboardingScreenContent(onFinish: onFinish, onClearAllDebug: onClearAllDebug, onImportJson: onImportJson),
+    final effectiveProvider = widget.onboardingProvider ?? _createdProvider!;
+    // The onboarding provider instance is passed explicitly to the presentation
+    // content. Presentation widgets must not call provider package APIs directly.
+    return _OnboardingScreenContent(
+      onboardingProvider: effectiveProvider,
+      chatProvider: widget.chatProvider,
+      onFinish: widget.onFinish,
+      onClearAllDebug: widget.onClearAllDebug,
+      onImportJson: widget.onImportJson,
     );
   }
 }
 
 class _OnboardingScreenContent extends StatefulWidget {
+  // does not call provider package APIs internally.
+  final OnboardingProvider onboardingProvider;
+  // Optional chat provider instance passed from the parent to avoid Provider.of inside presentation.
+  final ChatProvider? chatProvider;
   final Future<void> Function({
     required String userName,
     required String aiName,
@@ -60,7 +106,13 @@ class _OnboardingScreenContent extends StatefulWidget {
   final void Function()? onClearAllDebug;
   final Future<void> Function(ImportedChat importedChat)? onImportJson;
 
-  const _OnboardingScreenContent({required this.onFinish, this.onClearAllDebug, this.onImportJson});
+  const _OnboardingScreenContent({
+    required this.onFinish,
+    this.onClearAllDebug,
+    this.onImportJson,
+    required this.onboardingProvider,
+    this.chatProvider,
+  });
 
   @override
   State<_OnboardingScreenContent> createState() => _OnboardingScreenContentState();
@@ -223,7 +275,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
   }
 
   bool get _formCompleto {
-    final provider = Provider.of<OnboardingProvider>(context, listen: false);
+    final provider = widget.onboardingProvider;
     return provider.userNameController.text.trim().isNotEmpty &&
         (provider.aiNameController?.text.trim().isNotEmpty ?? false) &&
         provider.userBirthday != null &&
@@ -237,25 +289,21 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
   @override
   void initState() {
     super.initState();
-    _userNameController = TextEditingController(
-      text: Provider.of<OnboardingProvider>(context, listen: false).userNameController.text,
-    );
+    _userNameController = TextEditingController(text: widget.onboardingProvider.userNameController.text);
+    // Register a listener to refresh the UI whenever the provider notifies listeners.
+    widget.onboardingProvider.addListener(_onProviderChanged);
     // El estado de cuenta Google se lee desde ChatProvider en tiempo de build
     // Además, precargamos cualquier cuenta persistida para mostrarla en el
     // menú durante onboarding cuando no exista un ChatProvider.
     () async {
       try {
-        final prefs = await SharedPreferences.getInstance();
-        final linked = prefs.getBool('google_account_linked') ?? false;
-        final email = prefs.getString('google_account_email');
-        final name = prefs.getString('google_account_name');
-        final avatar = prefs.getString('google_account_avatar');
+        final info = await PrefsUtils.getGoogleAccountInfo();
         if (mounted) {
           setState(() {
-            _persistedGoogleLinked = linked;
-            _persistedGoogleEmail = email;
-            _persistedGoogleName = name;
-            _persistedGoogleAvatar = avatar;
+            _persistedGoogleLinked = info['linked'] as bool? ?? false;
+            _persistedGoogleEmail = info['email'] as String?;
+            _persistedGoogleName = info['name'] as String?;
+            _persistedGoogleAvatar = info['avatar'] as String?;
           });
         }
       } catch (_) {}
@@ -264,13 +312,19 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
 
   @override
   void dispose() {
+    widget.onboardingProvider.removeListener(_onProviderChanged);
     _userNameController.dispose();
     super.dispose();
   }
 
+  void _onProviderChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
-    final provider = Provider.of<OnboardingProvider>(context);
+    final provider = widget.onboardingProvider;
     void onMeetStoryChanged(String value) {
       provider.setMeetStory(value);
       setState(() {}); // Fuerza refresco para reactivar el botón
@@ -307,12 +361,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                   ),
                 ),
               );
-              ChatProvider? chatProvider;
-              try {
-                chatProvider = Provider.of<ChatProvider>(context, listen: false);
-              } catch (_) {
-                chatProvider = null;
-              }
+              final ChatProvider? chatProvider = widget.chatProvider;
               final effectiveLinked = chatProvider?.googleLinked ?? _persistedGoogleLinked;
               final effectiveEmail = chatProvider?.googleEmail ?? _persistedGoogleEmail;
               final effectiveName = chatProvider?.googleName ?? _persistedGoogleName;
@@ -373,13 +422,8 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
             },
             onSelected: (value) async {
               if (value == 'backup_status') {
-                ChatProvider? cp;
-                try {
-                  cp = Provider.of<ChatProvider>(context, listen: false);
-                } catch (_) {
-                  cp = null;
-                }
-                final op = Provider.of<OnboardingProvider>(context, listen: false);
+                final ChatProvider? cp = widget.chatProvider;
+                final op = provider;
                 final res = await showAppDialog<dynamic>(
                   builder: (ctx) => AlertDialog(
                     backgroundColor: Colors.black,
@@ -390,7 +434,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                         disableAutoRestore: true,
                         requestBackupJson: cp != null
                             ? () async {
-                                final captured = cp!;
+                                final captured = cp;
                                 return await BackupUtils.exportChatPartsToJson(
                                   profile: captured.onboardingData,
                                   messages: captured.messages,
@@ -400,18 +444,16 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                             : null,
                         onImportedJson: cp != null
                             ? (jsonStr) async {
-                                final captured = cp!;
+                                final captured = cp;
                                 final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
                                 if (imported != null) {
-                                  captured.onboardingData = imported.profile;
-                                  captured.messages = imported.messages.cast<Message>();
-                                  await captured.saveAll();
+                                  await captured.applyImportedChat(imported);
                                 }
                               }
                             : null,
                         onAccountInfoUpdated: cp != null
                             ? ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
-                                final captured = cp!;
+                                final captured = cp;
                                 await captured.updateGoogleAccountInfo(
                                   email: email,
                                   avatarUrl: avatarUrl,
@@ -420,7 +462,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                                 );
                               }
                             : null,
-                        onClearAccountInfo: cp != null ? () => cp!.clearGoogleAccountInfo() : null,
+                        onClearAccountInfo: cp != null ? () => cp.clearGoogleAccountInfo() : null,
                       ),
                     ),
                   ),
@@ -475,13 +517,8 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                 return;
               }
               if (value == 'backup_google') {
-                ChatProvider? cp;
-                try {
-                  cp = Provider.of<ChatProvider>(context, listen: false);
-                } catch (_) {
-                  cp = null;
-                }
-                final op = Provider.of<OnboardingProvider>(context, listen: false);
+                final ChatProvider? cp = widget.chatProvider;
+                final op = provider;
                 final res2 = await showAppDialog<dynamic>(
                   builder: (ctx) => AlertDialog(
                     backgroundColor: Colors.black,
@@ -491,7 +528,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                         clientId: 'YOUR_GOOGLE_CLIENT_ID',
                         requestBackupJson: cp != null
                             ? () async {
-                                final captured = cp!;
+                                final captured = cp;
                                 return await BackupUtils.exportChatPartsToJson(
                                   profile: captured.onboardingData,
                                   messages: captured.messages,
@@ -501,18 +538,16 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                             : null,
                         onImportedJson: cp != null
                             ? (jsonStr) async {
-                                final captured = cp!;
+                                final captured = cp;
                                 final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
                                 if (imported != null) {
-                                  captured.onboardingData = imported.profile;
-                                  captured.messages = imported.messages.cast<Message>();
-                                  await captured.saveAll();
+                                  await captured.applyImportedChat(imported);
                                 }
                               }
                             : null,
                         onAccountInfoUpdated: cp != null
                             ? ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
-                                final captured = cp!;
+                                final captured = cp;
                                 await captured.updateGoogleAccountInfo(
                                   email: email,
                                   avatarUrl: avatarUrl,
@@ -521,7 +556,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                                 );
                               }
                             : null,
-                        onClearAccountInfo: cp != null ? () => cp!.clearGoogleAccountInfo() : null,
+                        onClearAccountInfo: cp != null ? () => cp.clearGoogleAccountInfo() : null,
                       ),
                     ),
                   ),
@@ -645,7 +680,11 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               const SizedBox(height: 18),
 
               // 3) Fecha de nacimiento
-              const BirthDateField(),
+              BirthDateField(
+                controller: provider.birthDateController,
+                userBirthday: provider.userBirthday,
+                onBirthdayChanged: (d) => provider.setUserBirthday(d),
+              ),
               const SizedBox(height: 18),
 
               // 4) País de la IA

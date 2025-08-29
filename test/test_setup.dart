@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/core/config.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'test_utils/prefs_test_utils.dart';
 import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/core/interfaces/i_stt_service.dart';
 import 'fakes/fake_connectors.dart' as fake_connectors;
@@ -45,7 +45,9 @@ GEMINI_API_KEY=test_key
 ''';
 
   await Config.initialize(dotenvContents: testDotenvContents);
-  SharedPreferences.setMockInitialValues(prefs ?? {});
+  // Initialize SharedPreferences with centralized test helper for consistency
+  // (tests can override by passing prefs)
+  PrefsTestUtils.setMockInitialValues(prefs);
   // Override STT to avoid hitting GoogleSpeechService in tests
   di.setTestSttOverride(_FakeTestStt());
   // Override audio playback to avoid native plugin initialization in tests

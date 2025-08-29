@@ -6,7 +6,8 @@ import '../widgets/expandable_image_dialog.dart';
 
 class GalleryScreen extends StatelessWidget {
   final List<Message> images;
-  const GalleryScreen({super.key, required this.images});
+  final Future<void> Function(AiImage?)? onImageDeleted;
+  const GalleryScreen({super.key, required this.images, this.onImageDeleted});
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +44,12 @@ class GalleryScreen extends StatelessWidget {
                     final file = File(absPath);
                     return GestureDetector(
                       onTap: () {
-                        ExpandableImageDialog.show(existingImages, index, imageDir: absDir, onImageDeleted: null);
+                        ExpandableImageDialog.show(
+                          existingImages,
+                          index,
+                          imageDir: absDir,
+                          onImageDeleted: onImageDeleted,
+                        );
                       },
                       child: Image.file(file, fit: BoxFit.cover),
                     );

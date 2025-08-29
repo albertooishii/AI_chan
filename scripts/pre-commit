@@ -1,6 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Establece un locale UTF-8 para el entorno del hook para evitar warnings
+# como: "bash: warning: setlocale: LC_ALL: cannot change locale (en_US.UTF-8)"
+# Intenta usar es_ES.UTF-8 si está disponible, si no, cae a C.UTF-8 (seguro).
+if command -v locale >/dev/null 2>&1; then
+	if locale -a 2>/dev/null | grep -qi '^es_ES\(.utf8\|.UTF-8\)?$\|^es_ES\.utf8$\|^es_ES\.UTF-8$'; then
+		export LANG=es_ES.UTF-8
+		export LC_ALL=es_ES.UTF-8
+	else
+		# Spanish locale no disponible: usar un locale UTF-8 seguro para evitar warnings
+		export LANG=C.UTF-8
+		export LC_ALL=C.UTF-8
+	fi
+else
+	export LANG=C.UTF-8
+	export LC_ALL=C.UTF-8
+fi
+
 echo "[pre-commit] Running flutter analyze..."
 flutter analyze
 

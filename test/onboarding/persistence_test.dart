@@ -8,13 +8,14 @@ import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'package:ai_chan/shared/utils/storage_utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../test_utils/prefs_test_utils.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() async {
     // Mockear SharedPreferences para tests
-    SharedPreferences.setMockInitialValues({});
+    PrefsTestUtils.setMockInitialValues();
   });
 
   test('onboarding+chat persistence -> save/import roundtrip and export JSON', () async {

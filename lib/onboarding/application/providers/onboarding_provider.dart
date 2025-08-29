@@ -2,9 +2,9 @@ import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/services/ai_service.dart' as ai_service;
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
-import 'package:ai_chan/shared/utils/storage_utils.dart';
+import 'package:ai_chan/shared/utils/provider_persist_utils.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'dart:convert';
 import 'package:ai_chan/core/services/ia_appearance_generator.dart';
 import 'package:ai_chan/core/services/ia_avatar_generator.dart';
@@ -28,7 +28,7 @@ class OnboardingProvider extends ChangeNotifier {
 
   /// Aplica un `ImportedChat` ya parseado al provider y lo persiste.
   Future<void> applyImportedChat(ImportedChat imported) async {
-    await StorageUtils.saveImportedChatToPrefs(imported);
+    await ProviderPersistUtils.saveImportedChat(imported);
     _generatedBiography = imported.profile;
     _biographySaved = true;
     notifyListeners();
@@ -50,8 +50,8 @@ class OnboardingProvider extends ChangeNotifier {
   // Carga inicial desde SharedPreferences (sin UI) para tests y arranque
   Future<void> _loadBiographyFromPrefs() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final jsonStr = prefs.getString('onboarding_data');
+      // Use centralized StorageUtils to load imported chat (keeps format stable)
+      final jsonStr = await PrefsUtils.getOnboardingData();
       if (jsonStr != null && jsonStr.trim().isNotEmpty) {
         final Map<String, dynamic> json = jsonDecode(jsonStr);
         final profile = await AiChanProfile.tryFromJson(json);
@@ -69,9 +69,8 @@ class OnboardingProvider extends ChangeNotifier {
     } catch (e) {
       // En tests/entorno sin UI no mostramos diálogos; limpiamos prefs si hay corrupción
       try {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('onboarding_data');
-        await prefs.remove('chat_history');
+        await PrefsUtils.removeOnboardingData();
+        await PrefsUtils.removeChatHistory();
       } catch (_) {}
       _generatedBiography = null;
       _biographySaved = false;
@@ -133,9 +132,8 @@ class OnboardingProvider extends ChangeNotifier {
       // aprecie el paso 16 antes de persistir/navegar.
       await Future.delayed(const Duration(seconds: 3));
       // Persistir siempre en SharedPreferences aunque el contexto UI haya sido desmontado.
-      final prefs = await SharedPreferences.getInstance();
       final jsonBio = jsonEncode(biographyWithAvatar.toJson());
-      await prefs.setString('onboarding_data', jsonBio);
+      await PrefsUtils.setOnboardingData(jsonBio);
       _generatedBiography = biographyWithAvatar;
       _biographySaved = true;
       // Notificar listeners (si los hay). Mostrar diálogos UI solo si el context está montado.

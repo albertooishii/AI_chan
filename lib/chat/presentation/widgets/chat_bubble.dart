@@ -1,8 +1,5 @@
 import 'package:ai_chan/shared/constants/app_colors.dart';
-import 'expandable_image_dialog.dart';
 import 'audio_message_player_with_subs.dart';
-import 'package:provider/provider.dart';
-import '../../application/providers/chat_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 import 'dart:io';
@@ -35,11 +32,7 @@ class ChatBubble extends StatelessWidget {
               constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
               icon: const Icon(Icons.refresh, size: 18, color: Colors.white),
               tooltip: 'Reintentar',
-              onPressed: () {
-                try {
-                  context.read<ChatProvider>().retryLastFailedMessage(onError: (e) {});
-                } catch (_) {}
-              },
+              onPressed: () => onRetry?.call(),
             ),
           ],
         ],
@@ -192,7 +185,21 @@ class ChatBubble extends StatelessWidget {
   final Message message;
   final bool isLastUserMessage;
   final Directory? imageDir;
-  const ChatBubble({required this.message, this.isLastUserMessage = false, this.imageDir, super.key});
+  // Callbacks injected by the parent to avoid Provider usage inside the widget.
+  // onRetry should trigger a retry of the last failed message when provided.
+  final Future<void> Function()? onRetry;
+  // onImageTap is called when the user taps an image; parent should show the
+  // gallery/dialog because it owns the message list and deletion logic.
+  final Future<void> Function()? onImageTap;
+
+  const ChatBubble({
+    required this.message,
+    this.isLastUserMessage = false,
+    this.imageDir,
+    this.onRetry,
+    this.onImageTap,
+    super.key,
+  });
 
   String cleanText(String text) {
     String cleaned = text.replaceAll(r'\n', '\n').replaceAll(r'\"', '"');
@@ -240,14 +247,7 @@ class ChatBubble extends StatelessWidget {
               alignment: alignment,
               child: GestureDetector(
                 onTap: () {
-                  final chatProvider = context.read<ChatProvider>();
-                  final images = chatProvider.messages
-                      .where((m) => m.isImage && m.image != null && m.image!.url != null && m.image!.url!.isNotEmpty)
-                      .toList();
-                  final idx = images.indexWhere((m) => m.image?.url == imageUrl);
-                  if (idx != -1) {
-                    ExpandableImageDialog.show(images, idx, imageDir: imageDir, onImageDeleted: null);
-                  }
+                  onImageTap?.call();
                 },
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:provider/provider.dart';
 import 'package:ai_chan/core/models.dart';
-import '../../application/providers/chat_provider.dart';
 import 'audio_message_player.dart';
 import 'floating_audio_subtitle.dart';
 
@@ -11,7 +9,25 @@ class AudioMessagePlayerWithSubs extends StatefulWidget {
   final Message message;
   final double width;
   final bool globalOverlay; // muestra subtítulos estilo video ocupando ancho pantalla
-  const AudioMessagePlayerWithSubs({super.key, required this.message, this.width = 180, this.globalOverlay = true});
+  // Playback callbacks/readers injected by parent to avoid Provider here.
+  final bool Function(Message) isPlaying;
+  final Future<void> Function(Message) togglePlay;
+  final Duration Function()? getPlayingPosition;
+  final Duration Function()? getPlayingDuration;
+
+  const AudioMessagePlayerWithSubs({
+    super.key,
+    required this.message,
+    this.width = 180,
+    this.globalOverlay = true,
+    this.isPlaying = _defaultIsPlaying,
+    this.togglePlay = _defaultTogglePlay,
+    this.getPlayingPosition,
+    this.getPlayingDuration,
+  });
+
+  static bool _defaultIsPlaying(Message _) => false;
+  static Future<void> _defaultTogglePlay(Message _) async {}
 
   @override
   State<AudioMessagePlayerWithSubs> createState() => _AudioMessagePlayerWithSubsState();
@@ -146,8 +162,7 @@ class _AudioMessagePlayerWithSubsState extends State<AudioMessagePlayerWithSubs>
       _overlayFadeTimer = Timer(fadeStart, () {
         if (!mounted) return;
         // Si volvió a reproducirse, cancelar fade
-        final chat = context.read<ChatProvider>();
-        if (chat.isPlaying(widget.message)) return;
+        if (widget.isPlaying(widget.message)) return;
         _setOverlayOpacity(0.0);
       });
     } else {
@@ -156,8 +171,7 @@ class _AudioMessagePlayerWithSubsState extends State<AudioMessagePlayerWithSubs>
     _overlayRemovalTimer = Timer(_lingerTotal, () {
       if (!mounted) return;
       // Si durante el delay volvió a reproducirse, no remover
-      final chat = context.read<ChatProvider>();
-      if (chat.isPlaying(widget.message)) return;
+      if (widget.isPlaying(widget.message)) return;
       _removeGlobalOverlay();
     });
   }
@@ -183,10 +197,9 @@ class _AudioMessagePlayerWithSubsState extends State<AudioMessagePlayerWithSubs>
 
   @override
   Widget build(BuildContext context) {
-    final chat = context.watch<ChatProvider>();
-    final isPlaying = chat.isPlaying(widget.message);
-    final pos = chat.playingPosition;
-    final rawDur = chat.playingDuration;
+    final isPlaying = widget.isPlaying(widget.message);
+    final pos = widget.getPlayingPosition?.call() ?? Duration.zero;
+    final rawDur = widget.getPlayingDuration?.call() ?? Duration.zero;
     final hasRealDuration = rawDur.inMilliseconds > 0;
     final dur = hasRealDuration ? rawDur : const Duration(milliseconds: 1);
 
@@ -215,9 +228,8 @@ class _AudioMessagePlayerWithSubsState extends State<AudioMessagePlayerWithSubs>
         _overlayFadeTimer?.cancel();
         _overlayRemovalTimer = Timer(_lingerTotal, () {
           if (!mounted) return;
-          final chat = context.read<ChatProvider>();
-          // si volvió a reproducir, cancelar la limpieza
-          if (chat.isPlaying(widget.message)) return;
+          // si volvió a reproducir, cancelar la limpieza (usando el reader inyectado)
+          if (widget.isPlaying(widget.message)) return;
           _subsCtrl.clear();
         });
       }
@@ -262,12 +274,19 @@ class _AudioMessagePlayerWithSubsState extends State<AudioMessagePlayerWithSubs>
     }
 
     if (widget.globalOverlay) {
-      // Sólo mostrar reproductor sin subtítulo embebido
-      return AudioMessagePlayer(message: widget.message, width: widget.width);
+      return AudioMessagePlayer(
+        message: widget.message,
+        width: widget.width,
+        isPlaying: isPlaying,
+        onTap: () async => await widget.togglePlay(widget.message),
+      );
     }
 
-    // Con overlay global activado, solo renderizamos el reproductor. El overlay
-    // global se encarga de mostrar los subtítulos estilizados al arrancar la reproducción.
-    return AudioMessagePlayer(message: widget.message, width: widget.width);
+    return AudioMessagePlayer(
+      message: widget.message,
+      width: widget.width,
+      isPlaying: isPlaying,
+      onTap: () async => await widget.togglePlay(widget.message),
+    );
   }
 }

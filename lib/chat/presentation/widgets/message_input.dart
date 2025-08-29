@@ -1,7 +1,7 @@
 import 'package:ai_chan/shared/utils/image_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
+// Provider usage removed from this widget: use ChatInputController for state/actions
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kIsWeb, debugPrint;
@@ -9,7 +9,8 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:ai_chan/shared/constants/app_colors.dart';
-import '../../application/providers/chat_provider.dart';
+import 'package:ai_chan/shared/widgets/animated_indicators.dart';
+import '../controllers/chat_input_controller.dart';
 import 'package:ai_chan/core/models.dart';
 
 // Intents para atajos de teclado en escritorio
@@ -22,9 +23,8 @@ class InsertNewlineIntent extends Intent {
 }
 
 class MessageInput extends StatefulWidget {
-  final void Function(String text)? onSend;
-  final VoidCallback? onRecordAudio;
-  const MessageInput({super.key, this.onSend, this.onRecordAudio});
+  final ChatInputController controller;
+  const MessageInput({super.key, required this.controller});
 
   @override
   State<MessageInput> createState() => _MessageInputState();
@@ -66,10 +66,9 @@ class _MessageInputState extends State<MessageInput> {
     });
     _controller.addListener(() {
       if (mounted) {
-        // Informar al provider que el usuario está escribiendo (cancela/reinicia temporizador de cola)
+        // Informar al controlador/parent que el usuario está escribiendo
         try {
-          final chatProvider = context.read<ChatProvider>();
-          chatProvider.onUserTyping(_controller.text);
+          widget.controller.onUserTyping?.call(_controller.text);
         } catch (_) {}
         setState(() {});
       }
@@ -114,9 +113,7 @@ class _MessageInputState extends State<MessageInput> {
                     final bytes = await file.readAsBytes();
                     final base64img = base64Encode(bytes);
                     final ext = file.path.split('.').last.toLowerCase();
-                    String mime = 'image/png';
-                    if (ext == 'jpg' || ext == 'jpeg') mime = 'image/jpeg';
-                    if (ext == 'webp') mime = 'image/webp';
+                    final mime = _mimeFromPath(ext);
                     setState(() {
                       _attachedImage = file;
                       _attachedImageBase64 = base64img;
@@ -136,9 +133,7 @@ class _MessageInputState extends State<MessageInput> {
                     final bytes = await file.readAsBytes();
                     final base64img = base64Encode(bytes);
                     final ext = file.path.split('.').last.toLowerCase();
-                    String mime = 'image/png';
-                    if (ext == 'jpg' || ext == 'jpeg') mime = 'image/jpeg';
-                    if (ext == 'webp') mime = 'image/webp';
+                    final mime = _mimeFromPath(ext);
                     setState(() {
                       _attachedImage = file;
                       _attachedImageBase64 = base64img;
@@ -168,9 +163,7 @@ class _MessageInputState extends State<MessageInput> {
                     final bytes = await file.readAsBytes();
                     final base64img = base64Encode(bytes);
                     final ext = file.path.split('.').last.toLowerCase();
-                    String mime = 'image/png';
-                    if (ext == 'jpg' || ext == 'jpeg') mime = 'image/jpeg';
-                    if (ext == 'webp') mime = 'image/webp';
+                    final mime = _mimeFromPath(ext);
                     setState(() {
                       _attachedImage = file;
                       _attachedImageBase64 = base64img;
@@ -183,6 +176,18 @@ class _MessageInputState extends State<MessageInput> {
           ),
         ),
       );
+    }
+  }
+
+  String _mimeFromPath(String ext) {
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'webp':
+        return 'image/webp';
+      default:
+        return 'image/png';
     }
   }
 
@@ -199,7 +204,7 @@ class _MessageInputState extends State<MessageInput> {
     final hasImage = _attachedImageBase64 != null && _attachedImageBase64!.isNotEmpty;
     if (text.isEmpty && !hasImage) return;
 
-    final chatProvider = context.read<ChatProvider>();
+    // Delegate sending to injected controller (parent created it and wired to provider)
     AiImage? imageToSend;
     String? imageMimeType = _attachedImageMime;
     if (hasImage) {
@@ -225,8 +230,8 @@ class _MessageInputState extends State<MessageInput> {
         _attachedImageMime = null;
       });
     }
-    // Usar scheduleSendMessage para encolar y enviar tras 5s de inactividad
-    chatProvider.scheduleSendMessage(text, image: imageToSend, imageMimeType: imageMimeType);
+    // Delegate to controller
+    await widget.controller.scheduleSend(text, image: imageToSend, imageMimeType: imageMimeType);
   }
 
   bool get _hasText => _controller.text.trim().isNotEmpty;
@@ -276,6 +281,7 @@ class _MessageInputState extends State<MessageInput> {
                 ),
               _RecordingOrTextBar(
                 controller: _controller,
+                inputController: widget.controller,
                 focusNode: _textFieldFocusNode,
                 showEmojiPicker: _showEmojiPicker,
                 attachedImage: _attachedImage,
@@ -403,6 +409,7 @@ class _RecordingOrTextBar extends StatelessWidget {
   final File? attachedImage;
   final bool hasImage;
   final bool hasText;
+  final ChatInputController? inputController;
   final VoidCallback onToggleEmojis;
   final VoidCallback onPickImage;
   final Future<void> Function() onSend;
@@ -411,6 +418,7 @@ class _RecordingOrTextBar extends StatelessWidget {
   final String sendTooltip;
   const _RecordingOrTextBar({
     required this.controller,
+    this.inputController,
     required this.focusNode,
     required this.showEmojiPicker,
     required this.attachedImage,
@@ -424,157 +432,301 @@ class _RecordingOrTextBar extends StatelessWidget {
     required this.sendTooltip,
   });
 
+  Widget _buildTextField(
+    BuildContext context,
+    TextEditingController controller,
+    FocusNode focusNode,
+    bool showEmojiPicker,
+    File? attachedImage,
+    bool hasImage,
+    bool hasText,
+    VoidCallback onToggleEmojis,
+    VoidCallback onPickImage,
+    Future<void> Function() onSend,
+    bool isMobile,
+    Icon Function() buildSendIcon,
+    String sendTooltip,
+  ) {
+    Widget field = TextField(
+      focusNode: focusNode,
+      controller: controller,
+      style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
+      decoration: InputDecoration(
+        hintText: 'Escribe tu mensaje...${attachedImage != null ? ' (opcional)' : ''}',
+        hintStyle: const TextStyle(color: AppColors.secondary),
+        enabledBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: AppColors.secondary),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: AppColors.primary, width: 2),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        filled: true,
+        fillColor: Colors.black,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        prefixIcon: IconButton(
+          icon: showEmojiPicker
+              ? const Icon(Icons.close, color: AppColors.secondary)
+              : const Icon(Icons.emoji_emotions_outlined, color: AppColors.secondary),
+          onPressed: onToggleEmojis,
+          tooltip: showEmojiPicker ? 'Cerrar emojis' : 'Emojis',
+        ),
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.camera_alt, color: AppColors.secondary),
+          onPressed: onPickImage,
+          tooltip: 'Foto o galería',
+        ),
+      ),
+      textInputAction: isMobile ? TextInputAction.send : TextInputAction.newline,
+      onSubmitted: (_) async {
+        if (!isMobile) {
+          return; // Desktop/web: envío sólo vía shortcut Enter sin Shift
+        }
+        if (controller.text.trim().isNotEmpty || hasImage) {
+          await onSend();
+        }
+      },
+      keyboardType: TextInputType.multiline,
+      minLines: 1,
+      maxLines: 8,
+    );
+    field = Shortcuts(
+      shortcuts: <ShortcutActivator, Intent>{
+        const SingleActivator(LogicalKeyboardKey.enter): const SendMessageIntent(),
+        const SingleActivator(LogicalKeyboardKey.enter, shift: true): const InsertNewlineIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          SendMessageIntent: CallbackAction<SendMessageIntent>(
+            onInvoke: (intent) {
+              if (controller.text.trim().isEmpty && !hasImage) return null;
+              onSend();
+              return null;
+            },
+          ),
+          InsertNewlineIntent: CallbackAction<InsertNewlineIntent>(
+            onInvoke: (intent) {
+              final sel = controller.selection;
+              final start = sel.start >= 0 ? sel.start : controller.text.length;
+              final end = sel.end >= 0 ? sel.end : controller.text.length;
+              final newText = controller.text.replaceRange(start, end, '\n');
+              controller.text = newText;
+              controller.selection = TextSelection.collapsed(offset: start + 1);
+              return null;
+            },
+          ),
+        },
+        child: field,
+      ),
+    );
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(child: field),
+        const SizedBox(width: 6),
+        SizedBox(
+          width: 44,
+          height: 44,
+          child: IconButton(
+            padding: EdgeInsets.zero,
+            icon: hasText || hasImage ? buildSendIcon() : const Icon(Icons.mic, color: AppColors.secondary),
+            tooltip: hasText || hasImage ? sendTooltip : 'Grabar nota de voz',
+            onPressed: () async {
+              if (hasText || hasImage) {
+                await onSend();
+                return;
+              }
+              await inputController?.startRecording?.call();
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final chat = context.watch<ChatProvider>();
-    if (chat.isRecording) {
-      // Barra de grabación
-      final waveform = chat.currentWaveform;
-      // Keep the full recent waveform raw; we'll sample it inside LayoutBuilder
-      final raw = waveform;
-      debugPrint('[Recording] waveform.length=${waveform.length}');
-      final elapsed = chat.recordingElapsed;
-      String fmt(Duration d) =>
-          '${d.inMinutes.toString().padLeft(2, '0')}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
-      final live = chat.liveTranscript;
-      return Container(
-        constraints: const BoxConstraints(minHeight: 60, maxHeight: 122),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.black,
-          border: Border.all(color: Colors.redAccent, width: 1.5),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  tooltip: 'Cancelar',
-                  icon: const Icon(Icons.close, color: Colors.redAccent),
-                  onPressed: () async => chat.cancelRecording(),
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Row(
-                    children: [
-                      const _BlinkingDot(),
-                      const SizedBox(width: 8),
-                      Text(
-                        fmt(elapsed),
-                        style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: SizedBox(
-                          height: 28,
-
-                          // Mantener ancho fijo por barra y adaptar el espaciado
-                          // para que la fila ocupe todo el ancho disponible.
-                          child: LayoutBuilder(
-                            builder: (context, constraints) {
-                              const double barWidth = 6.0;
-                              const double gap = 2.0; // gap fijo entre barras
-
-                              // Calcular cuántas barras caben con ancho fijo barWidth+gap
-                              final int maxFit = ((constraints.maxWidth + gap) / (barWidth + gap)).floor().clamp(
-                                1,
-                                256,
-                              );
-
-                              // Número de barras a mostrar: tantas como quepan (hasta un tope razonable)
-                              final int showCount = maxFit;
-
-                              // Muestrear `raw` para obtener `showCount` valores (mostramos los más recientes)
-                              List<int> display;
-                              if (raw.isEmpty) {
-                                display = List<int>.filled(showCount, 0);
-                              } else if (raw.length >= showCount) {
-                                display = raw.sublist(raw.length - showCount);
-                              } else {
-                                // raw shorter than showCount: spread raw values over showCount
-                                display = List<int>.generate(showCount, (i) {
-                                  final idx = (i * raw.length / showCount).floor();
-                                  return raw[idx.clamp(0, raw.length - 1)];
-                                });
-                              }
-                              final int count = display.length;
-                              if (count <= 1) {
-                                final v = count == 1 ? display.first : 0;
-                                return Align(
-                                  alignment: Alignment.center,
-                                  child: SizedBox(
-                                    width: barWidth,
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 240),
-                                      height: 4 + (v / 100) * 22,
-                                      decoration: BoxDecoration(
-                                        color: Colors.redAccent.withAlpha((0.55 * 255).round()),
-                                        borderRadius: BorderRadius.circular(2),
+    // Use inputController streams/actions when available
+    final ic = inputController;
+    if (ic != null) {
+      return StreamBuilder<bool>(
+        stream: ic.isRecordingStream,
+        initialData: false,
+        builder: (ctx, snapRec) {
+          final isRec = snapRec.data ?? false;
+          if (isRec) {
+            return StreamBuilder<List<int>>(
+              stream: ic.waveformStream,
+              initialData: const <int>[],
+              builder: (ctx2, snapW) {
+                final waveform = snapW.data ?? const <int>[];
+                final raw = waveform;
+                debugPrint('[Recording] waveform.length=${raw.length}');
+                return StreamBuilder<Duration>(
+                  stream: ic.elapsedStream,
+                  initialData: Duration.zero,
+                  builder: (ctx3, snapE) {
+                    final elapsed = snapE.data ?? Duration.zero;
+                    String fmt(Duration d) =>
+                        '${d.inMinutes.toString().padLeft(2, '0')}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
+                    return StreamBuilder<String>(
+                      stream: ic.liveTranscriptStream,
+                      initialData: '',
+                      builder: (ctx4, snapL) {
+                        final live = snapL.data ?? '';
+                        return Container(
+                          constraints: const BoxConstraints(minHeight: 60, maxHeight: 122),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            border: Border.all(color: Colors.redAccent, width: 1.5),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                children: [
+                                  IconButton(
+                                    tooltip: 'Cancelar',
+                                    icon: const Icon(Icons.close, color: Colors.redAccent),
+                                    onPressed: () async => ic.cancelRecording?.call(),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Row(
+                                      children: [
+                                        const BlinkingDot(),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          fmt(elapsed),
+                                          style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: SizedBox(
+                                            height: 28,
+                                            child: LayoutBuilder(
+                                              builder: (context, constraints) {
+                                                const double barWidth = 6.0;
+                                                const double gap = 2.0;
+                                                final int maxFit = ((constraints.maxWidth + gap) / (barWidth + gap))
+                                                    .floor()
+                                                    .clamp(1, 256);
+                                                final int showCount = maxFit;
+                                                List<int> display;
+                                                if (raw.isEmpty) {
+                                                  display = List<int>.filled(showCount, 0);
+                                                } else if (raw.length >= showCount) {
+                                                  display = raw.sublist(raw.length - showCount);
+                                                } else {
+                                                  display = List<int>.generate(showCount, (i) {
+                                                    final idx = (i * raw.length / showCount).floor();
+                                                    return raw[idx.clamp(0, raw.length - 1)];
+                                                  });
+                                                }
+                                                final int count = display.length;
+                                                if (count <= 1) {
+                                                  final v = count == 1 ? display.first : 0;
+                                                  return Align(
+                                                    alignment: Alignment.center,
+                                                    child: SizedBox(
+                                                      width: barWidth,
+                                                      child: AnimatedContainer(
+                                                        duration: const Duration(milliseconds: 240),
+                                                        height: 4 + (v / 100) * 22,
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.redAccent.withAlpha((0.55 * 255).round()),
+                                                          borderRadius: BorderRadius.circular(2),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  );
+                                                }
+                                                final List<int> toShow = display;
+                                                return Row(
+                                                  mainAxisAlignment: MainAxisAlignment.end,
+                                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                                  children: List<Widget>.generate(toShow.length * 2 - 1, (i) {
+                                                    if (i.isEven) {
+                                                      final val = toShow[i ~/ 2];
+                                                      return SizedBox(
+                                                        width: barWidth,
+                                                        child: AnimatedContainer(
+                                                          duration: const Duration(milliseconds: 240),
+                                                          height: 4 + (val / 100) * 22,
+                                                          decoration: BoxDecoration(
+                                                            color: Colors.redAccent.withAlpha((0.55 * 255).round()),
+                                                            borderRadius: BorderRadius.circular(2),
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }
+                                                    return SizedBox(width: gap);
+                                                  }),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    tooltip: 'Detener y enviar',
+                                    icon: const Icon(Icons.stop_circle, color: Colors.redAccent, size: 34),
+                                    onPressed: () async => ic.stopAndSendRecording?.call(),
+                                  ),
+                                ],
+                              ),
+                              if (live.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 8, right: 8, top: 4),
+                                  child: AnimatedOpacity(
+                                    opacity: 1,
+                                    duration: const Duration(milliseconds: 200),
+                                    child: Text(
+                                      live,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 13,
+                                        fontStyle: FontStyle.italic,
                                       ),
                                     ),
                                   ),
-                                );
-                              }
-
-                              // Renderizar con gaps fijos y alinear al extremo derecho para
-                              // que se vean las barras más recientes a la derecha.
-                              final List<int> toShow = display;
-                              return Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: List<Widget>.generate(toShow.length * 2 - 1, (i) {
-                                  if (i.isEven) {
-                                    final val = toShow[i ~/ 2];
-                                    return SizedBox(
-                                      width: barWidth,
-                                      child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 240),
-                                        height: 4 + (val / 100) * 22,
-                                        decoration: BoxDecoration(
-                                          color: Colors.redAccent.withAlpha((0.55 * 255).round()),
-                                          borderRadius: BorderRadius.circular(2),
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                  return SizedBox(width: gap);
-                                }),
-                              );
-                            },
+                                ),
+                            ],
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  tooltip: 'Detener y enviar',
-                  icon: const Icon(Icons.stop_circle, color: Colors.redAccent, size: 34),
-                  onPressed: () async => chat.stopAndSendRecording(),
-                ),
-              ],
-            ),
-            if (live.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(left: 8, right: 8, top: 4),
-                child: AnimatedOpacity(
-                  opacity: 1,
-                  duration: const Duration(milliseconds: 200),
-                  child: Text(
-                    live,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white70, fontSize: 13, fontStyle: FontStyle.italic),
-                  ),
-                ),
-              ),
-          ],
-        ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            );
+          }
+          return _buildTextField(
+            context,
+            controller,
+            focusNode,
+            showEmojiPicker,
+            attachedImage,
+            hasImage,
+            hasText,
+            onToggleEmojis,
+            onPickImage,
+            onSend,
+            isMobile,
+            buildSendIcon,
+            sendTooltip,
+          );
+        },
       );
     }
 
@@ -668,7 +820,7 @@ class _RecordingOrTextBar extends StatelessWidget {
                 await onSend();
                 return;
               }
-              await chat.startRecording();
+              await inputController?.startRecording?.call();
             },
           ),
         ),
@@ -677,35 +829,4 @@ class _RecordingOrTextBar extends StatelessWidget {
   }
 }
 
-class _BlinkingDot extends StatefulWidget {
-  const _BlinkingDot();
-  @override
-  State<_BlinkingDot> createState() => _BlinkingDotState();
-}
-
-class _BlinkingDotState extends State<_BlinkingDot> with SingleTickerProviderStateMixin {
-  late AnimationController _c;
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-      child: Container(
-        width: 12,
-        height: 12,
-        decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
-      ),
-    );
-  }
-}
+// ...existing code...

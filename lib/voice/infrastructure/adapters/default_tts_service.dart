@@ -9,7 +9,7 @@ import 'package:ai_chan/core/infrastructure/adapters/gemini_adapter.dart';
 // dotenv usage removed — use Config getters instead
 // removed unused runtime/openai imports: use OpenAIAdapter wrapper instead
 import 'package:ai_chan/core/config.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/shared/services/ai_runtime_provider.dart' as runtime_factory;
 
 /// Default TTS service that tries native -> Google -> OpenAI in that order.
@@ -42,28 +42,14 @@ class DefaultTtsService implements ITtsService {
     // the preference is 'auto' or not set. Also track whether the provider was
     // explicitly configured (prefs or env) so we can avoid silent fallbacks
     // when the user asked for a specific provider.
-    String provider = 'openai';
-    bool providerExplicit = false;
+    // Delegate provider normalization to PrefsUtils which centralizes
+    // the gemini->google mapping and default selection.
+    String provider;
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getString('selected_audio_provider');
-      if (saved != null) {
-        provider = (saved == 'gemini') ? 'google' : saved.toLowerCase();
-        providerExplicit = true;
-        debugPrint('[DefaultTTS] Provider selected from prefs: $provider');
-      } else {
-        final env = Config.getAudioProvider().toLowerCase();
-        if (env.isNotEmpty) {
-          provider = (env == 'gemini') ? 'google' : env;
-          providerExplicit = true;
-        }
-      }
+      provider = await PrefsUtils.getSelectedAudioProvider();
     } catch (_) {
       final env = Config.getAudioProvider().toLowerCase();
-      if (env.isNotEmpty) {
-        provider = (env == 'gemini') ? 'google' : env;
-        providerExplicit = true;
-      }
+      provider = (env == 'openai') ? 'openai' : 'google';
     }
 
     // If provider requests auto-detection, detect by voice name.
@@ -118,7 +104,7 @@ class DefaultTtsService implements ITtsService {
     // If the provider was explicitly chosen as Google, map generic or OpenAI
     // voice names to the configured GOOGLE_VOICE_NAME before calling the API.
     if (provider == 'google') {
-      debugPrint('[DefaultTTS] Trying Google TTS for voice: $voice (explicit=$providerExplicit)');
+      debugPrint('[DefaultTTS] Trying Google TTS for voice: $voice');
 
       // Normalize voice: if caller passed an OpenAI voice name or empty string,
       // substitute Google default voice from .env when available.
@@ -174,12 +160,7 @@ class DefaultTtsService implements ITtsService {
 
           // If provider was explicitly chosen, don't silently fallback to other
           // providers when Google was explicitly requested and it returned null.
-          if (providerExplicit) {
-            debugPrint(
-              '[DefaultTTS] Provider explicitly set to Google and Google TTS returned null — aborting fallback',
-            );
-            return null;
-          }
+          // If Google returned null we continue to fallbacks — no explicit provider flag
         } else {
           debugPrint('[DefaultTTS] Google TTS not configured');
         }
@@ -187,14 +168,7 @@ class DefaultTtsService implements ITtsService {
         debugPrint('[DefaultTTS] Google TTS error: $e');
         // If the error indicates an invalid voice and provider was explicitly
         // chosen, abort fallback to avoid using a different provider's voice.
-        final err = e.toString().toLowerCase();
-        if (providerExplicit &&
-            (err.contains('voice') && err.contains('does not exist') || err.contains('invalid_argument'))) {
-          debugPrint(
-            '[DefaultTTS] Google TTS error indicates invalid voice and provider was explicit — aborting fallback',
-          );
-          return null;
-        }
+        // If Google TTS error indicates invalid voice we allow fallback to other adapters.
       }
     }
 

@@ -3,7 +3,8 @@ import 'dart:convert';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_repository.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/storage_utils.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ai_chan/shared/utils/prefs_utils.dart';
+// shared_preferences usage centralized via PrefsUtils
 
 /// Implementación única y consolidada de IChatRepository.
 /// Usa StorageUtils (si está disponible) para compatibilidad con import/export robusto.
@@ -12,18 +13,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 class LocalChatRepository implements IChatRepository {
   @override
   Future<void> clearAll() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('chat_history');
-    await prefs.remove('onboarding_data');
-    await prefs.remove('chat_full_export');
+    // Use repository clear when possible; otherwise clear the canonical keys
+    await PrefsUtils.removeChatHistory();
+    await PrefsUtils.removeOnboardingData();
+    try {
+      await PrefsUtils.removeKey(PrefsUtils.kChatFullExport);
+    } catch (_) {}
   }
 
   @override
   Future<Map<String, dynamic>?> loadAll() async {
-    final prefs = await SharedPreferences.getInstance();
     // Prefer the structured onboarding + chat_history if present
-    final bioString = prefs.getString('onboarding_data');
-    final jsonString = prefs.getString('chat_history');
+    final bioString = await PrefsUtils.getOnboardingData();
+    final jsonString = await PrefsUtils.getChatHistory();
     if (bioString != null || jsonString != null) {
       try {
         // El onboarding_data puede ser el JSON completo (profile + messages/events) o solo el profile.
@@ -58,10 +60,9 @@ class LocalChatRepository implements IChatRepository {
       // ignore and fallthrough to raw save
     }
 
-    final prefs = await SharedPreferences.getInstance();
     // Save structured parts if possible to make future reads deterministic
     if (exportedJson.containsKey('messages')) {
-      await prefs.setString('chat_history', json.encode(exportedJson['messages']));
+      await PrefsUtils.setChatHistory(json.encode(exportedJson['messages']));
     }
     if (exportedJson.containsKey('onboarding') ||
         exportedJson.containsKey('ai_profile') ||
@@ -69,11 +70,13 @@ class LocalChatRepository implements IChatRepository {
       // Many callers use 'onboarding' or profile top-level keys; save a canonical 'onboarding_data'
       final profile = exportedJson['onboarding'] ?? exportedJson['ai_profile'] ?? exportedJson['aiChanProfile'];
       if (profile != null) {
-        await prefs.setString('onboarding_data', json.encode(profile));
+        await PrefsUtils.setOnboardingData(json.encode(profile));
       }
     }
     // Fallback: persist the whole payload under 'chat_full_export' for manual inspection
-    await prefs.setString('chat_full_export', json.encode(exportedJson));
+    try {
+      await PrefsUtils.setRawString(PrefsUtils.kChatFullExport, json.encode(exportedJson));
+    } catch (_) {}
   }
 
   @override

@@ -2,9 +2,7 @@ import 'dart:io';
 import 'dart:math';
 import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:ai_chan/core/models.dart';
-import '../../application/providers/chat_provider.dart';
 
 /// Reproductor compacto de mensajes de audio.
 /// Extrae la lógica de ChatBubble para poder reutilizarlo / refactorizar.
@@ -12,7 +10,18 @@ class AudioMessagePlayer extends StatefulWidget {
   final Message message;
   final double width;
   final int bars; // número de barras de la forma de onda sintética
-  const AudioMessagePlayer({super.key, required this.message, this.width = 140, this.bars = 32});
+  // Externalized playback state and action to avoid Provider inside the widget.
+  final bool isPlaying;
+  final Future<void> Function()? onTap;
+
+  const AudioMessagePlayer({
+    super.key,
+    required this.message,
+    this.width = 140,
+    this.bars = 32,
+    this.isPlaying = false,
+    this.onTap,
+  });
 
   @override
   State<AudioMessagePlayer> createState() => _AudioMessagePlayerState();
@@ -74,8 +83,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> with SingleTick
 
   @override
   Widget build(BuildContext context) {
-    final chat = context.watch<ChatProvider>();
-    final isPlaying = chat.isPlaying(widget.message);
+    final isPlaying = widget.isPlaying;
     final glowColor = widget.message.sender == MessageSender.user ? AppColors.primary : AppColors.secondary;
     final durationText = _durationSeconds != null ? _fmt(_durationSeconds!) : '--:--';
     // Use LayoutBuilder so the player expands to the bubble's available width.
@@ -103,7 +111,11 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> with SingleTick
           label: 'Nota de voz, duración $durationText, ${isPlaying ? 'reproduciendo' : 'pausada'}',
           button: true,
           child: GestureDetector(
-            onTap: () => chat.togglePlayAudio(widget.message, context),
+            onTap: () async {
+              try {
+                if (widget.onTap != null) await widget.onTap!();
+              } catch (_) {}
+            },
             child: Container(
               width: finalWidth,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

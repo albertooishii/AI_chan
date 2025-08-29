@@ -2,14 +2,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/chat/application/utils/profile_persist_utils.dart';
 import '../test_helpers.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../test_utils/prefs_test_utils.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('profile_persist_utils', () {
     setUp(() {
-      SharedPreferences.setMockInitialValues({});
+      PrefsTestUtils.setMockInitialValues();
     });
 
     test('setOnboardingDataAndPersist updates profile and persists', () async {

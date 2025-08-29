@@ -12,86 +12,56 @@ import 'dart:convert';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'core/di.dart' as di;
 import 'core/di_bootstrap.dart' as di_bootstrap;
-// ...existing code...
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ai_chan/chat/application/utils/profile_persist_utils.dart' as profile_persist_utils;
+import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-// Clave global para navegación
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-// Clave global para el ScaffoldMessenger (mostrar SnackBars desde cualquier sitio)
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
-// Función global para borrar toda la cache y datos locales
 Future<void> clearAppData() async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.clear();
+  await PrefsUtils.clearAll();
 }
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // Necesario para registrar plugins antes de usarlos
+  WidgetsFlutterBinding.ensureInitialized();
   await Config.initialize();
-  // Register default realtime providers for DI registry via bootstrap helper.
   di_bootstrap.registerDefaultRealtimeClientFactories();
-  // Precargar valores por defecto de TTS en SharedPreferences si faltan.
-  // Esto asegura que la configuración de audio esté disponible en toda la app
-  // desde el arranque (en lugar de hacerlo en una pantalla concreta).
-  try {
-    final prefs = await SharedPreferences.getInstance();
 
-    // selected_audio_provider
-    final savedProvider = prefs.getString('selected_audio_provider');
-    if (savedProvider == null || savedProvider.isEmpty) {
-      final env = Config.getAudioProvider().toLowerCase();
-      String defaultProvider = 'google';
-      if (env == 'openai') {
-        defaultProvider = 'openai';
-      }
-      if (env == 'gemini') {
-        defaultProvider = 'google';
-      }
-      await prefs.setString('selected_audio_provider', defaultProvider);
-    }
+  await PrefsUtils.ensureDefaults();
 
-    final provider = prefs.getString('selected_audio_provider') ?? Config.getAudioProvider().toLowerCase();
-
-    // selected_model
-    final savedModel = prefs.getString('selected_model');
-    if (savedModel == null || savedModel.isEmpty) {
-      final defModel = Config.getDefaultTextModel();
-      if (defModel.isNotEmpty) {
-        await prefs.setString('selected_model', defModel);
-      }
-    }
-
-    // TTS voice configuration: we only ensure a provider-specific default is present.
-    final providerKey = 'selected_voice_$provider';
-    final providerVoice = prefs.getString(providerKey);
-    if (providerVoice == null || providerVoice.isEmpty) {
-      String defaultVoice = '';
-      if (provider == 'google') {
-        defaultVoice = Config.getGoogleVoice();
-      } else if (provider == 'openai') {
-        defaultVoice = Config.getOpenaiVoice();
-      }
-
-      if (defaultVoice.isNotEmpty) {
-        await prefs.setString(providerKey, defaultVoice);
-      }
-    }
-  } catch (_) {
-    // no bloquear el arranque si hay problemas con SharedPreferences
-  }
   runApp(const RootApp());
 }
 
-class RootApp extends StatelessWidget {
+class RootApp extends StatefulWidget {
   const RootApp({super.key});
 
   @override
+  State<RootApp> createState() => _RootAppState();
+}
+
+class _RootAppState extends State<RootApp> {
+  late final OnboardingProvider _onboardingProvider;
+
+  @override
+  void initState() {
+    super.initState();
+    _onboardingProvider = OnboardingProvider();
+  }
+
+  @override
+  void dispose() {
+    try {
+      _onboardingProvider.dispose();
+    } catch (_) {}
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => OnboardingProvider(),
+    return ChangeNotifierProvider.value(
+      value: _onboardingProvider,
       child: MaterialApp(
         navigatorKey: navigatorKey,
         scaffoldMessengerKey: scaffoldMessengerKey,
@@ -103,7 +73,7 @@ class RootApp extends StatelessWidget {
           useMaterial3: true,
         ),
         debugShowCheckedModeBanner: false,
-        home: const MyApp(),
+        home: MyApp(onboardingProvider: _onboardingProvider),
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
@@ -115,23 +85,22 @@ class RootApp extends StatelessWidget {
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final OnboardingProvider onboardingProvider;
+  const MyApp({super.key, required this.onboardingProvider});
 
   @override
   State<MyApp> createState() => MyAppState();
 }
 
 class MyAppState extends State<MyApp> with WidgetsBindingObserver {
-  // Permite borrar todo y reiniciar la app desde cualquier sitio
-
+  ChatProvider? _chatProvider;
   Future<void> resetApp() async {
     Log.i('resetApp llamado', tag: 'APP');
     await clearAppData();
     Log.i('resetApp completado', tag: 'APP');
     if (mounted) {
-      final onboardingProvider = Provider.of<OnboardingProvider>(context, listen: false);
-      onboardingProvider.reset();
-      setState(() {}); // El build ya muestra onboarding limpio
+      widget.onboardingProvider.reset();
+      setState(() {});
     }
   }
 
@@ -142,12 +111,9 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     Future.microtask(() async {
-      // Solicitar permisos de almacenamiento externo en Android
-      // Solo si la plataforma es Android
       try {
-        // Usar defaultTargetPlatform en lugar de Theme.of(context) en initState
         if (!kIsWeb && Platform.isAndroid) {
-          await Future.delayed(Duration(milliseconds: 500)); // Espera a que el contexto esté listo
+          await Future.delayed(Duration(milliseconds: 500));
           await Permission.storage.request();
         }
       } catch (e) {
@@ -162,30 +128,29 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    try {
+      _chatProvider?.dispose();
+    } catch (_) {}
     super.dispose();
   }
-
-  // Carga la biografía desde SharedPreferences (fuera de la clase)
 
   @override
   Widget build(BuildContext context) {
     if (!_initialized) {
-      // Mostrar pantalla de carga hasta que todo esté listo
       return const Scaffold(
         backgroundColor: Colors.black,
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    // Esperar a que OnboardingProvider termine de cargar
-    final onboardingProvider = Provider.of<OnboardingProvider>(context);
+
+    final onboardingProvider = widget.onboardingProvider;
     if (onboardingProvider.loading) {
-      // Si el provider está cargando, mostrar loading
       return const Scaffold(
         backgroundColor: Colors.black,
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    // Si no hay biografía, muestra onboarding
+
     if (!onboardingProvider.biographySaved) {
       return OnboardingScreen(
         onFinish:
@@ -198,11 +163,9 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
               String? aiCountryCode,
               Map<String, dynamic>? appearance,
             }) async {
-              // Capturar navigator y evitar usar context tras esperas largas
               final navigator = Navigator.of(context);
               onboardingProvider.setUserName(userName);
               onboardingProvider.setAiName(aiName);
-              // meetStory solo se usa aquí y se pasa a la generación de biografía
               await navigator.push<AiChanProfile>(
                 MaterialPageRoute(
                   fullscreenDialog: true,
@@ -241,34 +204,36 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
             if (mounted) setState(() {});
           }
         },
+        onboardingProvider: onboardingProvider,
       );
     }
-    // Si hay biografía, muestra chat
-    return ChangeNotifierProvider(
-      create: (_) {
-        final repo = di.getChatRepository();
-        final provider = ChatProvider(repository: repo);
-        provider.onboardingData = onboardingProvider.generatedBiography!;
-        provider.loadAll();
-        return provider;
-      },
-      child: Builder(
-        builder: (context) => ChatScreen(
-          bio: onboardingProvider.generatedBiography!,
-          aiName: onboardingProvider.generatedBiography!.aiName,
-          onClearAllDebug: resetApp,
-          onImportJson: (importedChat) async {
-            final ob = Provider.of<OnboardingProvider>(context, listen: false);
-            final jsonStr = jsonEncode(importedChat.toJson());
-            final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
-              jsonStr,
-              onError: (err) => ob.setImportError(err),
-            );
-            if (imported != null) {
-              await ob.applyImportedChat(imported);
-            }
-          },
-        ),
+
+    // Ensure we only create the ChatProvider once and pass it down explicitly
+    if (_chatProvider == null) {
+      final repo = di.getChatRepository();
+      _chatProvider = ChatProvider(repository: repo);
+      profile_persist_utils.setOnboardingDataAndPersist(_chatProvider!, onboardingProvider.generatedBiography!);
+      _chatProvider!.loadAll();
+    }
+
+    return ChangeNotifierProvider.value(
+      value: _chatProvider!,
+      child: ChatScreen(
+        bio: onboardingProvider.generatedBiography!,
+        aiName: onboardingProvider.generatedBiography!.aiName,
+        chatProvider: _chatProvider!,
+        onClearAllDebug: resetApp,
+        onImportJson: (importedChat) async {
+          final ob = onboardingProvider;
+          final jsonStr = jsonEncode(importedChat.toJson());
+          final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
+            jsonStr,
+            onError: (err) => ob.setImportError(err),
+          );
+          if (imported != null) {
+            await ob.applyImportedChat(imported);
+          }
+        },
       ),
     );
   }

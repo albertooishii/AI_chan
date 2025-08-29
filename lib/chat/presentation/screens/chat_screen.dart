@@ -1,12 +1,13 @@
+import 'package:ai_chan/chat/application/utils/avatar_persist_utils.dart';
 import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
-import 'package:provider/provider.dart';
 import '../../application/providers/chat_provider.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/message_input.dart';
+import '../controllers/chat_input_controller.dart';
 import 'package:ai_chan/voice/presentation/screens/voice_call_screen.dart';
 import '../widgets/typing_animation.dart';
 import '../widgets/expandable_image_dialog.dart';
@@ -15,6 +16,7 @@ import 'gallery_screen.dart';
 import 'package:ai_chan/shared.dart'; // Using centralized shared exports
 import 'package:ai_chan/shared/utils/model_utils.dart';
 import 'package:ai_chan/shared/widgets/app_dialog.dart';
+import 'package:ai_chan/shared/widgets/animated_indicators.dart';
 import '../widgets/tts_configuration_dialog.dart';
 import 'package:ai_chan/main.dart';
 import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
@@ -25,10 +27,18 @@ import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
 class ChatScreen extends StatefulWidget {
   final AiChanProfile bio;
   final String aiName;
+  final ChatProvider chatProvider;
   final Future<void> Function()? onClearAllDebug;
   final Future<void> Function(ImportedChat importedChat)? onImportJson;
 
-  const ChatScreen({super.key, required this.bio, required this.aiName, this.onClearAllDebug, this.onImportJson});
+  const ChatScreen({
+    super.key,
+    required this.bio,
+    required this.aiName,
+    required this.chatProvider,
+    this.onClearAllDebug,
+    this.onImportJson,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -46,6 +56,8 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isLoadingMore = false;
   static const int _pageSize = 100;
   bool _showScrollToBottomButton = false;
+  ChatInputController? _chatInputController;
+  VoidCallback? _chatProviderListener;
   // Estado relacionado con la carga de voces migrado a TtsConfigurationDialog
 
   @override
@@ -74,11 +86,39 @@ class _ChatScreenState extends State<ChatScreen> {
     });
     // El estado de la cuenta de Google se obtiene desde ChatProvider
     // No cargar voces automáticamente - solo cuando se abra el diálogo
+    // Create ChatInputController after first frame so context is available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        final provider = widget.chatProvider;
+        _chatInputController = ChatInputController(
+          scheduleSend: (text, {image, imageMimeType}) async {
+            provider.scheduleSendMessage(text, image: image, imageMimeType: imageMimeType);
+            return Future.value();
+          },
+          startRecording: () async => await provider.startRecording(),
+          stopAndSendRecording: () async => await provider.stopAndSendRecording(),
+          cancelRecording: () async => await provider.cancelRecording(),
+          onUserTyping: (text) => provider.onUserTyping(text),
+        );
+
+        // Listener to push provider recording-related state into controller streams
+        _chatProviderListener = () {
+          try {
+            if (_chatInputController == null) return;
+            _chatInputController!.pushIsRecording(provider.isSendingAudio);
+            _chatInputController!.pushWaveform(provider.currentWaveform);
+            _chatInputController!.pushElapsed(provider.recordingElapsed);
+            _chatInputController!.pushLiveTranscript(provider.liveTranscript);
+          } catch (_) {}
+        };
+        provider.addListener(_chatProviderListener!);
+      } catch (_) {}
+    });
   }
 
   Future<void> _tryLoadMore() async {
     if (_isLoadingMore) return;
-    final chatProvider = context.read<ChatProvider>();
+    final chatProvider = widget.chatProvider;
     final filtered = chatProvider.messages
         .where(
           (m) => m.sender != MessageSender.system || (m.sender == MessageSender.system && m.text.contains('[call]')),
@@ -144,7 +184,11 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<String?> _showModelSelectionDialog(List<String> models, String? initialModel) async {
+  Future<String?> _showModelSelectionDialog(
+    List<String> models,
+    String? initialModel,
+    ChatProvider chatProvider,
+  ) async {
     final navCtx = navigatorKey.currentContext;
     if (navCtx == null) return null;
     // Use StatefulBuilder to allow in-dialog refresh of models
@@ -158,7 +202,6 @@ class _ChatScreenState extends State<ChatScreen> {
             if (localLoading) return;
             setStateDialog(() => localLoading = true);
             try {
-              final chatProvider = dialogCtxInner.read<ChatProvider>();
               final fetched = await chatProvider.getAllModels(forceRefresh: true);
               setStateDialog(() => localModels = fetched);
             } catch (e) {
@@ -270,6 +313,15 @@ class _ChatScreenState extends State<ChatScreen> {
     chat_json_utils.ChatJsonUtils.showExportedJsonDialog(jsonStr, chat: importedChat);
   }
 
+  // Central handler para eliminaciones de imagenes desde los viewers/galería.
+  // Mantener aquí la llamada al util para evitar duplicación en varios sitios.
+  Future<void> _handleImageDeleted(AiImage? deleted) async {
+    try {
+      final chatProvider = widget.chatProvider;
+      await removeImageFromProfileAndPersist(chatProvider, deleted);
+    } catch (_) {}
+  }
+
   // Snackbar helper removed: provider handles message insertion; UI will react to provider notifications.
 
   bool _loadingModels = false;
@@ -284,7 +336,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final chatProvider = context.watch<ChatProvider>();
+    final chatProvider = widget.chatProvider;
     final aiName = widget.aiName;
     // Detectar llamada entrante pendiente y abrir pantalla si aún no está abierta
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -296,12 +348,7 @@ class _ChatScreenState extends State<ChatScreen> {
         if (!alreadyOpen) {
           // Clear the calling flag to avoid reopening while the screen is active.
           chatProvider.clearPendingIncomingCall();
-          navigator.push(
-            MaterialPageRoute(
-              builder: (_) =>
-                  ChangeNotifierProvider.value(value: chatProvider, child: const VoiceCallChat(incoming: true)),
-            ),
-          );
+          navigator.push(MaterialPageRoute(builder: (_) => VoiceCallChat(incoming: true, chatProvider: chatProvider)));
         }
       }
     });
@@ -355,28 +402,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             messages,
                             messages.length - 1,
                             imageDir: _imageDir,
-                            onImageDeleted: (deleted) async {
-                              if (deleted == null) return;
-                              // Si la imagen eliminada corresponde a un avatar guardado,
-                              // actualizar onboardingData removiendo ese avatar y persistir.
-                              final provider = context.read<ChatProvider>();
-                              try {
-                                final current = provider.onboardingData;
-                                final avatars = List<AiImage>.from(current.avatars ?? []);
-                                avatars.removeWhere((a) => a.seed == deleted.seed || a.url == deleted.url);
-                                final updated = current.copyWith(avatars: avatars);
-                                provider.onboardingData = updated;
-                                // Persistir y notificar listeners
-                                try {
-                                  await provider.saveAll();
-                                } catch (_) {}
-                                try {
-                                  provider.notifyListeners();
-                                } catch (_) {}
-                              } catch (e) {
-                                // Silenciar errores menores
-                              }
-                            },
+                            onImageDeleted: _handleImageDeleted,
                           );
                         },
                         child: CircleAvatar(
@@ -410,12 +436,8 @@ class _ChatScreenState extends State<ChatScreen> {
             icon: const Icon(Icons.call, color: AppColors.secondary),
             tooltip: 'Llamada de voz',
             onPressed: () {
-              final existing = context.read<ChatProvider>();
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => ChangeNotifierProvider.value(value: existing, child: const VoiceCallChat()),
-                ),
-              );
+              final existing = widget.chatProvider;
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => VoiceCallChat(chatProvider: existing)));
             },
           ),
           PopupMenuButton<String>(
@@ -658,21 +680,23 @@ class _ChatScreenState extends State<ChatScreen> {
                     .toList();
                 final navCtx = navigatorKey.currentContext;
                 if (navCtx == null) return;
-                Navigator.of(navCtx).push(MaterialPageRoute(builder: (_) => GalleryScreen(images: images)));
+                Navigator.of(navCtx).push(
+                  MaterialPageRoute(
+                    builder: (_) => GalleryScreen(images: images, onImageDeleted: _handleImageDeleted),
+                  ),
+                );
               } else if (value == 'calendar') {
                 final navCtx = navigatorKey.currentContext;
                 if (navCtx == null) return;
-                Navigator.of(navCtx).push(
-                  MaterialPageRoute(
-                    builder: (_) => ChangeNotifierProvider.value(value: chatProvider, child: const CalendarScreen()),
-                  ),
-                );
+                Navigator.of(
+                  navCtx,
+                ).push(MaterialPageRoute(builder: (_) => CalendarScreen(chatProvider: widget.chatProvider)));
               } else if (value == 'export_json') {
                 try {
                   final jsonStr = await BackupUtils.exportChatPartsToJson(
-                    profile: chatProvider.onboardingData,
-                    messages: chatProvider.messages,
-                    events: chatProvider.events,
+                    profile: widget.chatProvider.onboardingData,
+                    messages: widget.chatProvider.messages,
+                    events: widget.chatProvider.events,
                   );
                   final navCtx = navigatorKey.currentContext;
                   if (navCtx == null) return;
@@ -683,7 +707,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   showErrorDialog(e.toString());
                 }
               } else if (value == 'import_json') {
-                await _showImportDialog(chatProvider);
+                await _showImportDialog(widget.chatProvider);
               } else if (value == 'local_backup') {
                 final navCtx = navigatorKey.currentContext;
                 if (navCtx == null) return;
@@ -695,13 +719,13 @@ class _ChatScreenState extends State<ChatScreen> {
                       child: LocalBackupDialog(
                         requestExportJson: () async {
                           return await BackupUtils.exportChatPartsToJson(
-                            profile: chatProvider.onboardingData,
-                            messages: chatProvider.messages,
-                            events: chatProvider.events,
+                            profile: widget.chatProvider.onboardingData,
+                            messages: widget.chatProvider.messages,
+                            events: widget.chatProvider.events,
                           );
                         },
                         onImportedJson: (imported) async {
-                          await chatProvider.applyImportedChat(imported);
+                          await widget.chatProvider.applyImportedChat(imported);
                           if (mounted) setState(() {});
                         },
                         onImportError: (err) {
@@ -717,7 +741,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   // La generación del avatar se ejecutará automáticamente desde el provider
                   // después de actualizar la appearance. Propagamos errores para que la UI
                   // muestre un único diálogo.
-                  await chatProvider.regenerateAppearance(persist: true);
+                  await widget.chatProvider.regenerateAppearance(persist: true);
                 } catch (e) {
                   if (!mounted) return;
                   showErrorDialog('Error al regenerar apariencia:\n$e');
@@ -727,7 +751,7 @@ class _ChatScreenState extends State<ChatScreen> {
               } else if (value == 'add_new_avatar') {
                 setState(() => _isRegeneratingAppearance = true);
                 try {
-                  await chatProvider.generateAvatarFromAppearance(replace: false);
+                  await widget.chatProvider.generateAvatarFromAppearance(replace: false);
                 } catch (e) {
                   if (!mounted) return;
                   showErrorDialog('Error al generar avatar:\n$e');
@@ -774,7 +798,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 setState(() => _loadingModels = true);
                 List<String> models = [];
                 try {
-                  models = await chatProvider.getAllModels();
+                  models = await widget.chatProvider.getAllModels();
                 } catch (e) {
                   if (!mounted) return;
                   _showErrorDialog('Error al obtener modelos:\n$e');
@@ -782,12 +806,12 @@ class _ChatScreenState extends State<ChatScreen> {
                   return;
                 }
                 setState(() => _loadingModels = false);
-                final current = chatProvider.selectedModel;
+                final current = widget.chatProvider.selectedModel;
                 final defaultModel = Config.getDefaultTextModel();
                 final initialModel =
                     current ??
                     (models.contains(defaultModel) ? defaultModel : (models.isNotEmpty ? models.first : null));
-                final selected = await _showModelSelectionDialog(models, initialModel);
+                final selected = await _showModelSelectionDialog(models, initialModel, widget.chatProvider);
                 if (!mounted) return;
                 _setSelectedModel(selected, current, chatProvider);
               } else if (value == 'select_voice') {
@@ -813,7 +837,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   aiLangCodes: aiLangCodes,
                   synthesizeTts: (phrase, {required voice, required language, required forDialogDemo}) async {
                     try {
-                      final file = await chatProvider.audioService.synthesizeTts(
+                      final file = await widget.chatProvider.audioService.synthesizeTts(
                         phrase,
                         voice: voice,
                         languageCode: language,
@@ -850,7 +874,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         onImportedJson: (jsonStr) async {
                           final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
                           if (imported != null) {
-                            await chatProvider.applyImportedChat(imported);
+                            await widget.chatProvider.applyImportedChat(imported);
                           }
                         },
                         onAccountInfoUpdated:
@@ -879,26 +903,26 @@ class _ChatScreenState extends State<ChatScreen> {
                       child: GoogleDriveBackupDialog(
                         clientId: 'YOUR_GOOGLE_CLIENT_ID',
                         requestBackupJson: () async => await BackupUtils.exportChatPartsToJson(
-                          profile: chatProvider.onboardingData,
-                          messages: chatProvider.messages,
-                          events: chatProvider.events,
+                          profile: widget.chatProvider.onboardingData,
+                          messages: widget.chatProvider.messages,
+                          events: widget.chatProvider.events,
                         ),
                         onImportedJson: (jsonStr) async {
                           final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
                           if (imported != null) {
-                            await chatProvider.applyImportedChat(imported);
+                            await widget.chatProvider.applyImportedChat(imported);
                           }
                         },
                         onAccountInfoUpdated:
                             ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
-                              await chatProvider.updateGoogleAccountInfo(
+                              await widget.chatProvider.updateGoogleAccountInfo(
                                 email: email,
                                 avatarUrl: avatarUrl,
                                 name: name,
                                 linked: linked,
                               );
                             },
-                        onClearAccountInfo: () => chatProvider.clearGoogleAccountInfo(),
+                        onClearAccountInfo: () => widget.chatProvider.clearGoogleAccountInfo(),
                       ),
                     ),
                   ),
@@ -961,7 +985,35 @@ class _ChatScreenState extends State<ChatScreen> {
                       if (message.sender == MessageSender.user) {
                         isLastUserMessage = !reversedShown.skip(index + 1).any((m) => m.sender == MessageSender.user);
                       }
-                      return ChatBubble(message: message, isLastUserMessage: isLastUserMessage, imageDir: _imageDir);
+                      return ChatBubble(
+                        message: message,
+                        isLastUserMessage: isLastUserMessage,
+                        imageDir: _imageDir,
+                        onRetry: () async {
+                          try {
+                            chatProvider.retryLastFailedMessage(onError: (e) {});
+                          } catch (_) {}
+                        },
+                        onImageTap: () async {
+                          try {
+                            final images = chatProvider.messages
+                                .where(
+                                  (m) =>
+                                      m.isImage && m.image != null && m.image!.url != null && m.image!.url!.isNotEmpty,
+                                )
+                                .toList();
+                            final idx = images.indexWhere((m) => m.image?.url == message.image?.url);
+                            if (idx != -1) {
+                              ExpandableImageDialog.show(
+                                images,
+                                idx,
+                                imageDir: _imageDir,
+                                onImageDeleted: _handleImageDeleted,
+                              );
+                            }
+                          } catch (_) {}
+                        },
+                      );
                     },
                   );
                 },
@@ -1074,9 +1126,18 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
             MessageInput(
-              onSend: (text) {
-                chatProvider.sendMessage(text, onError: (error) => _showErrorDialog(error));
-              },
+              controller:
+                  _chatInputController ??
+                  ChatInputController(
+                    scheduleSend: (text, {image, imageMimeType}) async {
+                      chatProvider.scheduleSendMessage(text, image: image, imageMimeType: imageMimeType);
+                      return Future.value();
+                    },
+                    startRecording: () async => await chatProvider.startRecording(),
+                    stopAndSendRecording: () async => await chatProvider.stopAndSendRecording(),
+                    cancelRecording: () async => await chatProvider.cancelRecording(),
+                    onUserTyping: (text) => chatProvider.onUserTyping(text),
+                  ),
             ),
           ],
         ),
@@ -1115,14 +1176,10 @@ class _ChatScreenState extends State<ChatScreen> {
   // ===== Soporte selección de voz (compartida con llamadas) =====
   Future<String?> _loadActiveVoice() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedProvider = prefs.getString('selected_audio_provider');
-      final envProvider = Config.getAudioProvider().toLowerCase();
-      String provider = savedProvider ?? envProvider;
-      if (provider == 'gemini') provider = 'google';
-      if (provider.isEmpty) provider = 'google';
-      final providerKey = 'selected_voice_$provider';
-      return prefs.getString(providerKey);
+      // PrefsUtils.getPreferredVoice centraliza resolución y fallback.
+      final voice = await PrefsUtils.getPreferredVoice(fallback: '');
+      if (voice.trim().isEmpty) return null;
+      return voice;
     } catch (_) {
       return null;
     }
@@ -1130,76 +1187,29 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<String> _loadActiveAudioProvider() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getString('selected_audio_provider');
-      final envValue = Config.getAudioProvider().toLowerCase();
-
-      String defaultValue = 'google';
-      if (envValue == 'openai') {
-        defaultValue = 'openai';
-      }
-      if (envValue == 'gemini') {
-        defaultValue = 'google';
-      }
-
-      if (saved == 'gemini') {
-        return 'google';
-      }
-
-      return saved ?? defaultValue;
+      // getSelectedAudioProvider() ya normaliza y aplica mapeos como 'gemini'->'google'
+      return await PrefsUtils.getSelectedAudioProvider();
     } catch (_) {
       return 'google';
     }
   }
-}
-
-class ThreeDotsIndicator extends StatefulWidget {
-  final Color color;
-  const ThreeDotsIndicator({super.key, required this.color});
-  @override
-  State<ThreeDotsIndicator> createState() => _ThreeDotsIndicatorState();
-}
-
-class _ThreeDotsIndicatorState extends State<ThreeDotsIndicator> with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat();
-  }
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    try {
+      _scrollController.dispose();
+    } catch (_) {}
+    try {
+      if (_chatProviderListener != null) {
+        final provider = widget.chatProvider;
+        provider.removeListener(_chatProviderListener!);
+      }
+    } catch (_) {}
+    try {
+      _chatInputController?.dispose();
+    } catch (_) {}
     super.dispose();
   }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (context, _) {
-        final phase = _ctrl.value;
-        final int active = (phase * 3).floor().clamp(0, 2);
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: List.generate(3, (i) {
-            final on = i == active;
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: widget.color.withAlpha(on ? 255 : (0.25 * 255).round()),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            );
-          }),
-        );
-      },
-    );
-  }
 }
+
+// ...existing code...

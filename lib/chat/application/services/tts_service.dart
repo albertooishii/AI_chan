@@ -1,9 +1,9 @@
 import 'dart:io';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/audio_utils.dart' as audio_utils;
-import 'package:ai_chan/core/config.dart';
+// config not required here
 import 'package:ai_chan/voice.dart';
 
 /// Servicio dedicado para sintetizar TTS y persistir el archivo en el
@@ -34,17 +34,8 @@ class TtsService {
       } catch (_) {}
     }
 
-    // Resolve preferred voice according to prefs -> env
-    String preferredVoice = voice;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedProvider = prefs.getString('selected_audio_provider') ?? Config.getAudioProvider().toLowerCase();
-      final providerKey = 'selected_voice_$savedProvider';
-      final providerVoice = prefs.getString(providerKey);
-      if (providerVoice != null && providerVoice.trim().isNotEmpty) {
-        preferredVoice = providerVoice;
-      }
-    } catch (_) {}
+    // Resolve preferred voice using PrefsUtils helper
+    final preferredVoice = await PrefsUtils.getPreferredVoice(fallback: voice);
 
     final file = await audioService.synthesizeTts(text, voice: preferredVoice, languageCode: lang);
     if (file == null) return null;

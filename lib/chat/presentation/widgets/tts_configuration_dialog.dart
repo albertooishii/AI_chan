@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/widgets/app_dialog.dart';
 import 'package:ai_chan/core/di.dart' as di;
 import 'package:audioplayers/audioplayers.dart' as ap;
+import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'dart:io' show Platform;
 import 'package:android_intent_plus/android_intent.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared.dart'; // Using centralized shared exports
 import 'package:ai_chan/shared/utils/openai_voice_utils.dart';
@@ -173,17 +173,23 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
   }
 
   Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedProvider = prefs.getString('selected_audio_provider') ?? Config.getAudioProvider().toLowerCase();
-    // Read provider-specific saved voice only
-    final providerVoiceKey = 'selected_voice_$savedProvider';
-    final providerVoice = prefs.getString(providerVoiceKey);
-    setState(() {
-      _selectedProvider = savedProvider;
-      _selectedVoice = providerVoice;
-      // Cargar modelo seleccionado guardado o usar el por defecto
-      _selectedModel = prefs.getString('selected_model') ?? Config.getDefaultTextModel();
-    });
+    try {
+      final savedProvider = await PrefsUtils.getSelectedAudioProvider();
+      // getPreferredVoice centraliza la lógica de resolución por provider + fallback
+      final providerVoice = await PrefsUtils.getPreferredVoice(fallback: '');
+      final selModel = await PrefsUtils.getSelectedModel();
+      setState(() {
+        _selectedProvider = savedProvider;
+        _selectedVoice = providerVoice.isEmpty ? null : providerVoice;
+        _selectedModel = selModel ?? Config.getDefaultTextModel();
+      });
+    } catch (_) {
+      setState(() {
+        _selectedProvider = Config.getAudioProvider().toLowerCase();
+        _selectedVoice = null;
+        _selectedModel = Config.getDefaultTextModel();
+      });
+    }
   }
 
   Future<void> _checkAndroidNative() async {
@@ -263,9 +269,8 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
       return 'WaveNet'; // Máxima calidad
     } else if (name.contains('neural')) {
       return 'Neural'; // Alta calidad
-    } else {
-      return 'Standard'; // No debería llegar aquí con getNeuralWaveNetVoices
     }
+    return 'Standard';
   }
 
   Future<void> _loadVoices({bool forceRefresh = false}) async {
@@ -333,16 +338,11 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
   }
 
   Future<void> _saveSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('selected_audio_provider', _selectedProvider);
-    if (_selectedVoice != null) {
-      // Save provider-specific voice only
-      final providerKey = 'selected_voice_$_selectedProvider';
-      await prefs.setString(providerKey, _selectedVoice!);
-    }
-    if (_selectedModel != null) {
-      await prefs.setString('selected_model', _selectedModel!);
-    }
+    try {
+      await PrefsUtils.setSelectedAudioProvider(_selectedProvider);
+      if (_selectedVoice != null) await PrefsUtils.setSelectedVoiceForProvider(_selectedProvider, _selectedVoice!);
+      if (_selectedModel != null) await PrefsUtils.setSelectedModel(_selectedModel!);
+    } catch (_) {}
   }
 
   Future<void> _clearCache() async {
@@ -789,10 +789,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
                     onPressed: () async {
                       setState(() => _selectedVoice = voiceName);
                       try {
-                        final prefs = await SharedPreferences.getInstance();
-                        // Save provider-specific key only
-                        final providerKey = 'selected_voice_$_selectedProvider';
-                        await prefs.setString(providerKey, voiceName);
+                        await PrefsUtils.setSelectedVoiceForProvider(_selectedProvider, voiceName);
                         if (widget.onSettingsChanged != null) widget.onSettingsChanged!.call();
                         showAppSnackBar('Voz seleccionada: $voiceName', isError: false);
                       } catch (e) {
@@ -806,9 +803,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
             onTap: () async {
               setState(() => _selectedVoice = voiceName);
               try {
-                final prefs = await SharedPreferences.getInstance();
-                final providerKey = 'selected_voice_$_selectedProvider';
-                await prefs.setString(providerKey, voiceName);
+                await PrefsUtils.setSelectedVoiceForProvider(_selectedProvider, voiceName);
                 if (widget.onSettingsChanged != null) widget.onSettingsChanged!.call();
                 showAppSnackBar('Voz seleccionada: $voiceName', isError: false);
               } catch (e) {

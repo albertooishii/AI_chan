@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:ai_chan/shared/utils.dart';
 import 'package:ai_chan/chat.dart';
+import 'package:ai_chan/chat/application/utils/profile_persist_utils.dart' as profile_persist_utils;
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/constants.dart';
 
 class CalendarScreen extends StatefulWidget {
-  const CalendarScreen({super.key});
+  final ChatProvider chatProvider;
+
+  const CalendarScreen({super.key, required this.chatProvider});
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -102,7 +104,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Future<void> _openEventEditor(BuildContext context, {EventEntry? existing, DateTime? defaultDay}) async {
-    final chatProvider = context.read<ChatProvider>();
+    final chatProvider = widget.chatProvider;
     final formKey = GlobalKey<FormState>();
     final descCtrl = TextEditingController(text: existing?.description ?? '');
     DateTime date = existing?.date ?? (defaultDay ?? DateTime.now());
@@ -271,9 +273,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       } else {
         events.add(newEvent);
       }
-      final updated = chatProvider.onboardingData.copyWith(events: events);
-      chatProvider.onboardingData = updated;
-      await chatProvider.saveAll();
+      // Persist via application util to centralize logic
+      await profile_persist_utils.setEventsAndPersist(chatProvider, events);
       // Programar promesa si aplica
       chatProvider.schedulePromiseEvent(newEvent);
       if (mounted) setState(() {});
@@ -281,7 +282,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _deleteEvent(BuildContext context, EventEntry e) async {
-    final chatProvider = context.read<ChatProvider>();
+    final chatProvider = widget.chatProvider;
     final confirm = await showAppDialog<bool>(
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
@@ -302,14 +303,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (confirm != true) return;
     final events = List<EventEntry>.from(chatProvider.onboardingData.events ?? []);
     events.removeWhere((x) => x.type == e.type && x.description == e.description && x.date == e.date);
-    chatProvider.onboardingData = chatProvider.onboardingData.copyWith(events: events);
-    await chatProvider.saveAll();
+    await profile_persist_utils.setEventsAndPersist(chatProvider, events);
     if (mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    final chatProvider = context.watch<ChatProvider>();
+    final chatProvider = widget.chatProvider;
     final events = chatProvider.events;
     final bio = chatProvider.onboardingData.biography;
     // Funciones auxiliares para filtrar y mostrar horarios por día seleccionado

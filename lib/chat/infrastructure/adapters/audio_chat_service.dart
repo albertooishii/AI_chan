@@ -5,8 +5,7 @@ import 'package:record/record.dart';
 import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/voice/infrastructure/audio/audio_playback.dart';
 import 'package:ai_chan/shared/utils/audio_utils.dart' as audio_utils;
-import 'package:ai_chan/core/config.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../../voice/infrastructure/adapters/google_speech_service.dart';
 import '../../../voice/infrastructure/adapters/android_native_tts_service.dart';
@@ -80,11 +79,7 @@ class AudioChatService implements IAudioChatService {
     _liveTranscript = '';
     // Decide whether to use native live STT or file-based partials
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getString('selected_audio_provider');
-      final provider = (saved == null || saved.isEmpty)
-          ? Config.getAudioProvider().toLowerCase()
-          : (saved == 'gemini' ? 'google' : saved.toLowerCase());
+      final provider = await PrefsUtils.getSelectedAudioProvider();
       if (provider == 'native' || provider == 'android_native') {
         // Try to initialize speech_to_text for live partials. If init fails,
         // fall back to the file-based partial loop.
@@ -282,12 +277,7 @@ class AudioChatService implements IAudioChatService {
       if (len < 24000) return;
       _isPartialTranscribing = true;
       // Respect user-selected audio provider for partial transcription
-      String provider = '';
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final saved = prefs.getString('selected_audio_provider');
-        if (saved != null && saved.isNotEmpty) provider = (saved == 'gemini') ? 'google' : saved.toLowerCase();
-      } catch (_) {}
+      final provider = await PrefsUtils.getSelectedAudioProvider();
       final stt = di.getSttServiceForProvider(provider.isEmpty ? 'google' : provider);
       final partial = await stt.transcribeAudio(path);
       if (partial != null && partial.trim().isNotEmpty) {
@@ -435,37 +425,10 @@ class AudioChatService implements IAudioChatService {
     } catch (_) {}
 
     try {
-      // Determinar provider activo: prefs -> env (compatibilidad gemini->google).
-      // Si el usuario configuró explícitamente el provider (p.ej. 'google' o 'openai'), lo respetamos.
-      // Solo haremos auto-detección por nombre de voz si la preferencia es 'auto' o no está configurada.
-      String provider = 'google';
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final saved = prefs.getString('selected_audio_provider');
-        if (saved != null) {
-          provider = (saved == 'gemini') ? 'google' : saved.toLowerCase();
-          debugPrint('[Audio][TTS] Provider selected from prefs: $provider');
-        } else {
-          final env = Config.getAudioProvider().toLowerCase();
-          if (env.isNotEmpty) provider = (env == 'gemini') ? 'google' : env;
-        }
-      } catch (_) {
-        final env = Config.getAudioProvider().toLowerCase();
-        if (env.isNotEmpty) provider = (env == 'gemini') ? 'google' : env;
-      }
-
-      // Si la preferencia pide detección automática o no se especificó, detectar por voz.
-      if (provider == 'auto' || provider.isEmpty) {
-        const openAIVoices = ['sage', 'alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
-        if (openAIVoices.contains(voice)) {
-          provider = 'openai';
-          debugPrint('[Audio][TTS] Auto-detected OpenAI voice: $voice, using OpenAI provider');
-        } else {
-          provider = 'google';
-        }
-      }
-
-      debugPrint('[Audio][TTS] Using provider: $provider for voice: $voice');
+      // Delegate provider and voice resolution to PrefsUtils
+      final provider = await PrefsUtils.getSelectedAudioProvider();
+      final preferredVoice = await PrefsUtils.getPreferredVoice(fallback: voice);
+      debugPrint('[Audio][TTS] Using provider: $provider for voice: $preferredVoice');
 
       // Probar TTS nativo de Android primero si está disponible - PERO SOLO para voces que no son de OpenAI ni Google Cloud
       if (provider != 'openai' && provider != 'google' && AndroidNativeTtsService.isAndroid) {
@@ -532,20 +495,8 @@ class AudioChatService implements IAudioChatService {
       }
 
       if (provider == 'google') {
-        // voice is expected to be a Google voice name like 'es-ES-Wavenet-F'
-        // If caller passed an OpenAI voice name or empty string, map to
-        // configured Google default so the cache lookup uses the Google
-        // voice name (avoids regenerating audio that was cached under the
-        // Google voice name).
-        var voiceToUse = voice;
-        const openAIVoices = ['sage', 'alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
-        if (voiceToUse.trim().isEmpty || openAIVoices.contains(voiceToUse)) {
-          final googleDefault = Config.getGoogleVoice();
-          if (googleDefault.isNotEmpty) {
-            debugPrint('[Audio][TTS] Mapping voice "$voice" -> Google default voice: $googleDefault');
-            voiceToUse = googleDefault;
-          }
-        }
+        // voice is resolved via PrefsUtils.getPreferredVoice to prefer a configured voice for the provider
+        final voiceToUse = preferredVoice;
 
         if (GoogleSpeechService.isConfigured) {
           try {

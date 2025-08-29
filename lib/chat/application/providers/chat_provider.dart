@@ -1,10 +1,10 @@
 import 'package:ai_chan/shared/domain/services/promise_service.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
-import 'package:ai_chan/shared/utils/storage_utils.dart';
+import 'package:ai_chan/shared/utils/provider_persist_utils.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_repository.dart';
@@ -14,6 +14,7 @@ import 'dart:io';
 import 'package:ai_chan/core/services/ia_appearance_generator.dart';
 import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/core/services/ia_avatar_generator.dart';
+import 'package:ai_chan/chat/application/utils/avatar_persist_utils.dart';
 import 'package:ai_chan/core/services/image_request_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart' show showAppSnackBar, showAppDialog;
@@ -26,7 +27,7 @@ import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/network_utils.dart';
 import 'package:ai_chan/chat/application/use_cases/send_message_use_case.dart';
-import 'package:ai_chan/chat/application/services/debounced_save.dart';
+import 'package:ai_chan/shared/mixins/debounced_persistence_mixin.dart';
 import 'package:ai_chan/chat/application/services/message_queue_manager.dart';
 import 'package:ai_chan/chat/application/services/memory_manager.dart';
 import 'package:ai_chan/chat/application/services/timeline_updater.dart';
@@ -34,7 +35,7 @@ import 'package:ai_chan/chat/application/services/timeline_updater.dart';
 // Using external MessageQueueManager. Queue options type lives in the
 // message_queue_manager service (QueuedSendOptions).
 
-class ChatProvider extends ChangeNotifier {
+class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
   final IChatRepository? repository;
   final IAIService? aiService;
   SendMessageUseCase? sendMessageUseCase;
@@ -43,9 +44,6 @@ class ChatProvider extends ChangeNotifier {
   // Allow injecting a scheduler for tests or different runtime behavior. If not
   // provided, create a default one.
   final PeriodicIaMessageScheduler _periodicScheduler;
-
-  // Debounced save helper (delegates persistence calls)
-  DebouncedSave? _debouncedSave;
 
   // Flag para evitar loops tras dispose
   bool _isDisposed = false;
@@ -156,7 +154,7 @@ class ChatProvider extends ChangeNotifier {
        typingMinMs = typingMinMs ?? 400,
        typingMaxMs = typingMaxMs ?? 10000 {
     // Initialize helpers with sensible defaults.
-    _debouncedSave = DebouncedSave(const Duration(seconds: 1), saveAll);
+    initDebouncedPersistence(saveAll, duration: const Duration(seconds: 1));
 
     // Queue manager: when the timer flushes, send only the last queued message
     // and mark earlier queued messages as 'sent' so they don't remain in 'sending'.
@@ -248,7 +246,6 @@ class ChatProvider extends ChangeNotifier {
 
   // Eventos (incluye promesas) y servicio de programación de promesas
   final List<EventEntry> _events = [];
-  static const String _eventsKey = 'events';
 
   late final PromiseService _promiseService = PromiseService(
     events: _events,
@@ -815,11 +812,11 @@ class ChatProvider extends ChangeNotifier {
     String? transcript;
 
     // If user selected native STT, prefer the live transcription captured
-    // during listening and skip file-based transcription attempts.
-    String provider = 'google';
+    // during listening and skip file-based transcription attempts. PrefsUtils
+    // normalizes provider names (e.g., gemini -> google).
+    String provider = '';
     try {
-      final prefs = await SharedPreferences.getInstance();
-      provider = prefs.getString('selected_audio_provider') ?? provider;
+      provider = await PrefsUtils.getSelectedAudioProvider();
     } catch (_) {}
 
     if (provider == 'native' || provider == 'android_native') {
@@ -1296,22 +1293,8 @@ class ChatProvider extends ChangeNotifier {
   // Aplica el avatar al perfil y persiste los cambios. Método privado de clase
   // para evitar definiciones locales que incumplen lint de identificadores.
   Future<void> _applyAvatarAndPersist(AiImage avatar, {required bool replace}) async {
-    if (replace) {
-      onboardingData = onboardingData.copyWith(avatars: [avatar]);
-    } else {
-      onboardingData = onboardingData.copyWith(avatars: [...(onboardingData.avatars ?? []), avatar]);
-      try {
-        final sysMsg = Message(
-          text: 'Se ha añadido un nuevo avatar al historial.',
-          sender: MessageSender.system,
-          dateTime: DateTime.now(),
-          status: MessageStatus.read,
-        );
-        messages.add(sysMsg);
-      } catch (_) {}
-    }
-    await saveAll();
-    notifyListeners();
+    // Delegate to centralized util that persists and notifies.
+    await addAvatarAndPersist(this, avatar, replace: replace);
   }
 
   /// Nuevo nombre: Regenera la apariencia (JSON) usando IAAppearanceGenerator
@@ -1376,17 +1359,22 @@ class ChatProvider extends ChangeNotifier {
   }
 
   Future<void> saveSelectedModel() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (_selectedModel != null) {
-      await prefs.setString('selected_model', _selectedModel!);
-    } else {
-      await prefs.remove('selected_model');
-    }
+    try {
+      if (_selectedModel != null) {
+        await PrefsUtils.setSelectedModel(_selectedModel!);
+      } else {
+        // store empty to indicate unset
+        await PrefsUtils.setSelectedModel('');
+      }
+    } catch (_) {}
   }
 
   Future<void> loadSelectedModel() async {
-    final prefs = await SharedPreferences.getInstance();
-    _selectedModel = prefs.getString('selected_model');
+    try {
+      _selectedModel = await PrefsUtils.getSelectedModel();
+    } catch (_) {
+      _selectedModel = null;
+    }
     notifyListeners();
   }
 
@@ -1429,11 +1417,11 @@ class ChatProvider extends ChangeNotifier {
         Log.w('IChatRepository.saveAll failed, falling back to StorageUtils: $e', tag: 'PERSIST');
       }
     }
-    // Fallback: legacy StorageUtils
+    // Fallback: legacy StorageUtils via ProviderPersistUtils helper
     try {
-      await StorageUtils.saveImportedChatToPrefs(exported);
+      await ProviderPersistUtils.saveImportedChat(exported, repository: repository);
     } catch (e) {
-      Log.w('StorageUtils.saveImportedChatToPrefs failed: $e', tag: 'PERSIST');
+      Log.w('ProviderPersistUtils.saveImportedChat failed: $e', tag: 'PERSIST');
     }
   }
 
@@ -1465,23 +1453,7 @@ class ChatProvider extends ChangeNotifier {
       }
     } catch (_) {}
     try {
-      final prefs = await SharedPreferences.getInstance();
-      if (email != null) {
-        await prefs.setString('google_account_email', email);
-      } else {
-        await prefs.remove('google_account_email');
-      }
-      if (avatarUrl != null) {
-        await prefs.setString('google_account_avatar', avatarUrl);
-      } else {
-        await prefs.remove('google_account_avatar');
-      }
-      if (name != null) {
-        await prefs.setString('google_account_name', name);
-      } else {
-        await prefs.remove('google_account_name');
-      }
-      await prefs.setBool('google_account_linked', linked);
+      await PrefsUtils.setGoogleAccountInfo(email: email, avatar: avatarUrl, name: name, linked: linked);
     } catch (_) {}
     notifyListeners();
   }
@@ -1493,11 +1465,7 @@ class ChatProvider extends ChangeNotifier {
     googleName = null;
     googleLinked = false;
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('google_account_email');
-      await prefs.remove('google_account_avatar');
-      await prefs.remove('google_account_name');
-      await prefs.remove('google_account_linked');
+      await PrefsUtils.clearGoogleAccountInfo();
     } catch (_) {}
     notifyListeners();
   }
@@ -1556,15 +1524,14 @@ class ChatProvider extends ChangeNotifier {
       }
     }
 
-    // Fallback legacy loading via SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
+    // Fallback legacy loading via PrefsUtils
     // Restaurar biografía
-    final bioString = prefs.getString('onboarding_data');
+    final bioString = await PrefsUtils.getOnboardingData();
     if (bioString != null) {
       onboardingData = AiChanProfile.fromJson(jsonDecode(bioString));
     }
     // Restaurar mensajes
-    final jsonString = prefs.getString('chat_history');
+    final jsonString = await PrefsUtils.getChatHistory();
     if (jsonString != null) {
       final List<dynamic> jsonList = jsonDecode(jsonString);
       final List<Message> loadedMessages = [];
@@ -1578,7 +1545,7 @@ class ChatProvider extends ChangeNotifier {
       messages = loadedMessages;
     }
     // Restaurar eventos programados IA (modularizado)
-    final eventsString = prefs.getString(_eventsKey);
+    final eventsString = await PrefsUtils.getEvents();
     if (eventsString != null) {
       final List<dynamic> eventsList = jsonDecode(eventsString);
       _events.clear();
@@ -1602,7 +1569,7 @@ class ChatProvider extends ChangeNotifier {
             // Generate using same seed but replace the current avatars (weekly regeneration)
             final updatedProfile = onboardingData.copyWith(appearance: appearanceMap);
             final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(updatedProfile, appendAvatar: true);
-            onboardingData = onboardingData.copyWith(avatars: [avatar]);
+            await addAvatarAndPersist(this, avatar, replace: true);
             // Insertar un mensaje system para que la IA tenga consciencia de la actualización
             try {
               final sysMsg = Message(
@@ -1628,7 +1595,7 @@ class ChatProvider extends ChangeNotifier {
                     updatedProfile2,
                     appendAvatar: true,
                   );
-                  onboardingData = onboardingData.copyWith(avatars: [avatar2]);
+                  await addAvatarAndPersist(this, avatar2, replace: true);
                   try {
                     final sysMsg2 = Message(
                       text: 'Tu avatar se ha actualizado. Usa la nueva imagen como referencia en futuras respuestas.',
@@ -1654,14 +1621,11 @@ class ChatProvider extends ChangeNotifier {
     _promiseService.restoreFromEvents();
     // Restore persisted Google account display info so menus reflect linked session immediately
     try {
-      final gEmail = prefs.getString('google_account_email');
-      final gAvatar = prefs.getString('google_account_avatar');
-      final gName = prefs.getString('google_account_name');
-      final gLinked = prefs.getBool('google_account_linked') ?? false;
-      googleEmail = gEmail;
-      googleAvatarUrl = gAvatar;
-      googleName = gName;
-      googleLinked = gLinked;
+      final g = await PrefsUtils.getGoogleAccountInfo();
+      googleEmail = g['email'] as String?;
+      googleAvatarUrl = g['avatar'] as String?;
+      googleName = g['name'] as String?;
+      googleLinked = g['linked'] as bool? ?? false;
     } catch (_) {}
     notifyListeners();
     // Nota: no arrancar el scheduler automáticamente al cargar; el caller/UI
@@ -1676,14 +1640,16 @@ class ChatProvider extends ChangeNotifier {
         await repository!.clearAll();
       } catch (e) {
         Log.w('IChatRepository.clearAll failed, falling back: $e', tag: 'PERSIST');
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('chat_history');
-        await prefs.remove('onboarding_data');
+        try {
+          await PrefsUtils.removeChatHistory();
+          await PrefsUtils.removeOnboardingData();
+        } catch (_) {}
       }
     } else {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('chat_history');
-      await prefs.remove('onboarding_data');
+      try {
+        await PrefsUtils.removeChatHistory();
+        await PrefsUtils.removeOnboardingData();
+      } catch (_) {}
     }
     messages.clear();
     // Limpiar cola de envío diferido
@@ -1708,15 +1674,16 @@ class ChatProvider extends ChangeNotifier {
     // Debounce persistence to avoid excessive disk writes when many state
     // updates happen quickly (e.g., during message streaming).
     saveAllEvents();
-    // Use DebouncedSave helper
-    _debouncedSave?.trigger();
+    // Use DebouncedPersistenceMixin helper
+    triggerDebouncedSave();
     super.notifyListeners();
   }
 
   Future<void> saveAllEvents() async {
-    final prefs = await SharedPreferences.getInstance();
     final eventsJson = jsonEncode(_events.map((e) => e.toJson()).toList());
-    await prefs.setString(_eventsKey, eventsJson);
+    try {
+      await PrefsUtils.setEvents(eventsJson);
+    } catch (_) {}
   }
 
   @override
@@ -1725,7 +1692,7 @@ class ChatProvider extends ChangeNotifier {
     try {
       audioService.dispose();
     } catch (_) {}
-    _debouncedSave?.dispose();
+    disposeDebouncedPersistence();
     _queueManager?.dispose();
     try {
       _periodicScheduler.stop();
