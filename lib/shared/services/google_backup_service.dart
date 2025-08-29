@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ai_chan/shared/utils/log_utils.dart';
-import 'package:flutter_appauth/flutter_appauth.dart';
+import 'package:ai_chan/shared/services/google_appauth_adapter.dart';
 import 'package:ai_chan/core/config.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -19,6 +19,11 @@ import 'package:ai_chan/shared/services/google_sign_in_adapter.dart';
 ///   en cada llamada. En producción deberías implementar OAuth2 (flow de
 ///   dispositivo o iniciar navegador) o usar credenciales de servicio.
 class GoogleBackupService {
+  // Single in-flight link completer to avoid concurrent interactive
+  // authorization flows (AppAuth / google_sign_in) which can cause
+  // multiple loopback servers to bind and lead to timeouts.
+  static Completer<Map<String, dynamic>>? _inflightLinkCompleter;
+
   /// Nombre fijo del backup en Drive (oculto en appDataFolder)
   static const String backupFileName = 'ai_chan_backup.zip';
   final String? accessToken;
@@ -232,54 +237,16 @@ class GoogleBackupService {
     // Fallback to AppAuth only for desktop/web (mobile platforms return earlier
     // after using google_sign_in). This prevents AppAuth being invoked a second
     // time on Android/iOS.
-    final appAuth = FlutterAppAuth();
-    final redirect = (redirectUri != null && redirectUri.isNotEmpty) ? redirectUri : _defaultRedirectUri();
-    if (redirect.isEmpty) throw StateError('Redirect URI not configured for AppAuth');
-
-    final req = AuthorizationTokenRequest(
-      clientId,
-      redirect,
-      scopes: scopes,
-      promptValues: ['consent', 'select_account'],
-      additionalParameters: {'access_type': 'offline'},
-      serviceConfiguration: AuthorizationServiceConfiguration(
-        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-        tokenEndpoint: 'https://oauth2.googleapis.com/token',
-      ),
-    );
-
-    Log.d('GoogleBackupService: starting AppAuth authorizeAndExchangeCode', tag: 'GoogleBackup');
-    Log.d('  clientId: $clientId', tag: 'GoogleBackup');
-    Log.d('  platform: ${kIsWeb ? 'web' : Platform.operatingSystem}', tag: 'GoogleBackup');
-    Log.d('  redirect: $redirect', tag: 'GoogleBackup');
-    Log.d('  scopes: ${scopes.join(', ')}', tag: 'GoogleBackup');
-
+    // Delegate to the GoogleAppAuthAdapter for the actual authorize+exchange
     try {
-      final AuthorizationTokenResponse resp = await appAuth.authorizeAndExchangeCode(req);
-
-      final expiresIn = resp.accessTokenExpirationDateTime?.difference(DateTime.now()).inSeconds;
-      Log.d(
-        'GoogleBackupService: AppAuth response received: accessToken? ${resp.accessToken != null}, refreshToken? ${resp.refreshToken != null}, expiresIn: ${expiresIn ?? 'unknown'}',
-        tag: 'GoogleBackup',
-      );
-
-      final data = <String, dynamic>{
-        'access_token': resp.accessToken,
-        'refresh_token': resp.refreshToken,
-        'expires_in': expiresIn ?? 0,
-        'token_type': resp.tokenType,
-        'scope': scopes.join(' '),
-      };
-      await _persistCredentialsSecure(data);
-      Log.d('GoogleBackupService: credentials persisted securely', tag: 'GoogleBackup');
-      return data;
+      final adapter = GoogleAppAuthAdapter(scopes: scopes, clientId: clientId, redirectUri: redirectUri);
+      final tokenMap = await adapter.signIn(scopes: scopes);
+      // persist and return like before
+      await _persistCredentialsSecure(tokenMap);
+      Log.d('GoogleBackupService: AppAuth credentials persisted securely', tag: 'GoogleBackup');
+      return tokenMap;
     } catch (e, st) {
-      Log.e(
-        'GoogleBackupService: AppAuth authorizeAndExchangeCode failed: $e',
-        tag: 'GoogleBackup',
-        error: e,
-        stack: st,
-      );
+      Log.e('GoogleBackupService: authenticateWithAppAuth failed: $e', tag: 'GoogleBackup', error: e, stack: st);
       rethrow;
     }
   }
@@ -338,6 +305,17 @@ class GoogleBackupService {
     dynamic signInAdapterOverride,
     bool forceUseGoogleSignIn = false,
   }) async {
+    Log.d('GoogleBackupService.linkAccount: invoked (clientId length=${clientId?.length ?? 0})', tag: 'GoogleBackup');
+    // If a link is already in progress, await its result instead of starting
+    // a new interactive flow. This prevents multiple loopback servers from
+    // being created on desktop and reduces race conditions when callers
+    // re-open the dialog rapidly.
+    if (_inflightLinkCompleter != null) {
+      Log.d('GoogleBackupService.linkAccount: awaiting existing in-flight link', tag: 'GoogleBackup');
+      return _inflightLinkCompleter!.future;
+    }
+
+    _inflightLinkCompleter = Completer<Map<String, dynamic>>();
     final usedScopes = scopes ?? ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/drive.appdata'];
     // Resolve a client id if none provided.
     String cid = (clientId ?? '').trim();
@@ -356,6 +334,24 @@ class GoogleBackupService {
         cid = '';
       }
     }
+
+    // Short-circuit: if stored credentials already exist, return them instead
+    // of starting a new interactive flow. This prevents duplicate AppAuth
+    // loopback bindings when the UI or other callers accidentally invoke
+    // linkAccount concurrently. Respect explicit forcing of google_sign_in
+    // or adapter overrides by skipping this short-circuit in those cases.
+    try {
+      if (!forceUseGoogleSignIn && signInAdapterOverride == null) {
+        final stored = await _loadCredentialsSecure();
+        if (stored != null && (stored['access_token'] as String?)?.isNotEmpty == true) {
+          Log.d(
+            'GoogleBackupService.linkAccount: stored credentials found, returning cached token',
+            tag: 'GoogleBackup',
+          );
+          return stored;
+        }
+      }
+    } catch (_) {}
 
     // Mobile and web: prefer google_sign_in
     try {
@@ -381,33 +377,40 @@ class GoogleBackupService {
       }
     }
 
-    // Desktop: use AppAuth with loopback redirect when possible
+    // Desktop: use AppAuth. The adapter will manage loopback binding and
+    // PKCE exchange itself (avoids relying on flutter_appauth desktop plugin).
     if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
-      HttpServer? loopbackServer;
-      String? redirectForAppAuth;
-      try {
-        loopbackServer = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-        redirectForAppAuth = 'http://127.0.0.1:${loopbackServer.port}/';
-      } catch (e) {
-        Log.w('GoogleBackupService.linkAccount: failed to bind loopback server: $e', tag: 'GoogleBackup');
-        loopbackServer = null;
-        redirectForAppAuth = null;
+      // Ensure we have a desktop client id before invoking AppAuth
+      var desktopCid = cid;
+      if (desktopCid.isEmpty) {
+        try {
+          desktopCid = await GoogleBackupService.resolveClientIdFor('desktop');
+        } catch (_) {
+          desktopCid = '';
+        }
       }
 
-      try {
-        final tokenMap = await authenticateWithAppAuth(
-          clientId: cid,
-          redirectUri: redirectForAppAuth,
-          scopes: usedScopes,
+      if (desktopCid.isEmpty) {
+        Log.w(
+          'GoogleBackupService.linkAccount: no desktop client id configured (GOOGLE_CLIENT_ID_DESKTOP)',
+          tag: 'GoogleBackup',
         );
-        if (tokenMap['access_token'] != null) {
-          await _persistCredentialsSecure(tokenMap);
-          return tokenMap;
-        }
-      } finally {
+      } else {
         try {
-          if (loopbackServer != null) await loopbackServer.close(force: true);
-        } catch (_) {}
+          final tokenMap = await authenticateWithAppAuth(clientId: desktopCid, redirectUri: null, scopes: usedScopes);
+          if (tokenMap['access_token'] != null) {
+            await _persistCredentialsSecure(tokenMap);
+            return tokenMap;
+          }
+        } catch (e, st) {
+          Log.e(
+            'GoogleBackupService.linkAccount: AppAuth desktop flow failed: $e',
+            tag: 'GoogleBackup',
+            error: e,
+            stack: st,
+          );
+          throw StateError('Fallo al autenticar en escritorio con AppAuth: ${e.toString()}');
+        }
       }
     }
 
@@ -420,12 +423,16 @@ class GoogleBackupService {
       );
       if (tokenMap['access_token'] != null) {
         await _persistCredentialsSecure(tokenMap);
+        _inflightLinkCompleter?.complete(tokenMap);
+        _inflightLinkCompleter = null;
         return tokenMap;
       }
     } catch (e) {
       Log.w('GoogleBackupService.linkAccount: AppAuth fallback failed: $e', tag: 'GoogleBackup');
     }
 
+    _inflightLinkCompleter?.completeError(StateError('Linking failed: no tokens obtained'));
+    _inflightLinkCompleter = null;
     throw StateError('Linking failed: no tokens obtained');
   }
 
@@ -538,9 +545,12 @@ class GoogleBackupService {
   Future<void> clearStoredCredentials() async {
     try {
       await _secureStorage.delete(key: 'google_credentials');
-      Log.d('GoogleBackupService: cleared stored credentials', tag: 'GoogleBackup');
-    } catch (e) {
-      Log.w('GoogleBackupService: failed to clear credentials: $e', tag: 'GoogleBackup');
+      // Log a lightweight stack trace so we can identify which caller triggered
+      // the credential clear at runtime. Keep the trace short to avoid noisy logs.
+      final st = StackTrace.current.toString().split('\n').take(6).join('\n');
+      Log.d('GoogleBackupService: cleared stored credentials\n$st', tag: 'GoogleBackup');
+    } catch (e, st) {
+      Log.w('GoogleBackupService: failed to clear credentials: $e\n${st.toString()}', tag: 'GoogleBackup');
     }
   }
 

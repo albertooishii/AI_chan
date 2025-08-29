@@ -4,8 +4,12 @@ import 'dart:math';
 import 'package:ai_chan/shared/services/backup_service.dart';
 import 'package:ai_chan/shared/services/google_backup_service.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:ai_chan/shared/services/google_appauth_adapter_desktop.dart';
+import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/main.dart' show navigatorKey;
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
 
@@ -44,12 +48,22 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
   bool _insufficientScope = false;
   bool _linkInProgress = false;
   bool _userCancelledSignIn = false;
+  DateTime? _lastAuthFailureAt;
+  String? _lastSeenAuthUrl;
+  Timer? _authUrlWatcher;
   // removed _usingNativeAppAuth (no longer needed)
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _ensureLinkedAndCheck());
+    // Start auth URL watcher immediately so the UI detects adapter-set
+    // authorization URLs even if the adapter constructs them after the
+    // dialog has been shown. This makes desktop flows robust when the
+    // linkAccount flow races and completes quickly.
+    _startAuthUrlWatcher();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _ensureLinkedAndCheck();
+    });
   }
 
   void _safeSetState(VoidCallback fn) {
@@ -61,11 +75,14 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
   Future<String?> _resolveClientSecret() async => await GoogleBackupService.resolveClientSecret();
 
   Future<void> _ensureLinkedAndCheck() async {
+    Log.d('GoogleDriveBackupDialog: _ensureLinkedAndCheck start', tag: 'GoogleBackup');
     if (!mounted) return;
     if (_linkInProgress) return;
     _safeSetState(() {
       _linkInProgress = true;
-      _status = 'Comprobando estado de vinculación...';
+      // Do not set a transient 'Iniciando vinculación...' status here; keep status updates
+      // minimal to avoid flicker. The UI will update with persistent states like
+      // 'Cuenta ya vinculada' or error messages.
       _working = true;
     });
 
@@ -77,20 +94,16 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
       final token = await svc.loadStoredAccessToken();
 
       if (token != null) {
-        if (!_hasChatProvider) {
-          try {
-            await svc.clearStoredCredentials();
-          } catch (_) {}
-          _service = null;
-        } else {
-          _service = GoogleBackupService(accessToken: token);
-          try {
-            await _fetchAccountInfo(token, attemptRefresh: true);
-          } catch (_) {}
-          _safeSetState(() => _status = 'Cuenta ya vinculada');
-          await _checkForBackupAndMaybeRestore();
-          return;
-        }
+        // Reuse stored credentials instead of clearing them on dialog open.
+        // Clearing should only happen on explicit user action or when we
+        // detect invalid scopes/expired tokens during an operation.
+        _service = GoogleBackupService(accessToken: token);
+        try {
+          await _fetchAccountInfo(token, attemptRefresh: true);
+        } catch (_) {}
+        _safeSetState(() => _status = 'Cuenta ya vinculada');
+        await _checkForBackupAndMaybeRestore();
+        return;
       }
 
       // If the user previously cancelled the native chooser, don't reopen it automatically.
@@ -102,12 +115,59 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         return;
       }
 
-      _safeSetState(() {
-        _status = 'Iniciando vinculación...';
-        _working = true;
-      });
+      // If we recently failed an AppAuth attempt, avoid automatically restarting
+      // another one immediately when the dialog is reopened. This prevents
+      // repeated loopback bindings and timeouts. Allow manual retry via the
+      // 'Iniciar sesión' button.
+      if (_lastAuthFailureAt != null) {
+        final diff = DateTime.now().difference(_lastAuthFailureAt!);
+        if (diff.inSeconds < 30) {
+          _safeSetState(() {
+            _status = 'Intento previo de autenticación falló recientemente. Pulsa "Iniciar sesión" para reintentar.';
+            _working = false;
+          });
+          return;
+        }
+      }
+
+      // Intentionally do not set a generic 'Iniciando vinculación...' status; the click
+      // handler now sets a clearer 'Iniciando vinculación manual...' when appropriate.
 
       try {
+        // Start watching the adapter's static `lastAuthUrl` while an
+        // automatic linking flow is running. This covers the case where
+        // linkAccount constructs the authorization URL after the dialog
+        // started and the UI would otherwise not show the copy/sign-in
+        // buttons.
+        _startAuthUrlWatcher();
+
+        // If we're on desktop and an auth URL is already available (for
+        // example because a previous link attempt constructed it), try to
+        // open the browser proactively. This handles the case where the
+        // dialog was closed while a linkAccount flow was in-flight and the
+        // system browser was opened earlier — reopening the dialog should
+        // also try to bring up the browser so the user continues the flow.
+        try {
+          final isDesktop = !kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
+          final hasAuthUrlLocal =
+              ((GoogleAppAuthAdapter.lastAuthUrl != null && GoogleAppAuthAdapter.lastAuthUrl!.isNotEmpty) ||
+              (_lastSeenAuthUrl != null && _lastSeenAuthUrl!.isNotEmpty));
+          if (isDesktop && hasAuthUrlLocal) {
+            final copyUrl = (GoogleAppAuthAdapter.lastAuthUrl != null && GoogleAppAuthAdapter.lastAuthUrl!.isNotEmpty)
+                ? GoogleAppAuthAdapter.lastAuthUrl!
+                : (_lastSeenAuthUrl ?? '');
+            if (copyUrl.isNotEmpty) {
+              try {
+                Log.d('GoogleDriveBackupDialog: trying to re-open browser for desktop auth', tag: 'GoogleBackup');
+                await GoogleAppAuthAdapter.openBrowser(copyUrl);
+                Log.d('GoogleDriveBackupDialog: re-opened browser for desktop auth', tag: 'GoogleBackup');
+              } catch (e) {
+                Log.w('GoogleDriveBackupDialog: re-open browser failed: $e', tag: 'GoogleBackup');
+              }
+            }
+          }
+        } catch (_) {}
+
         final tokenMap = await GoogleBackupService(accessToken: null).linkAccount(clientId: candidateCid);
         if (tokenMap['access_token'] != null) {
           _service = GoogleBackupService(accessToken: tokenMap['access_token'] as String?);
@@ -130,6 +190,11 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
             statusMsg = 'Vinculación cancelada por el usuario';
             _userCancelledSignIn = true;
           }
+          // Detect AppAuth timeouts/failures and record timestamp to avoid
+          // immediately retrying when the dialog is reopened.
+          if (m.contains('appauth') || m.contains('timeout') || m.contains('fallo en la autenticación')) {
+            _lastAuthFailureAt = DateTime.now();
+          }
         } catch (_) {}
         _safeSetState(() {
           _status = statusMsg;
@@ -143,10 +208,32 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         _working = false;
       });
     } finally {
+      _stopAuthUrlWatcher();
       _safeSetState(() {
         _linkInProgress = false;
       });
     }
+  }
+
+  void _startAuthUrlWatcher() {
+    try {
+      _authUrlWatcher?.cancel();
+      _authUrlWatcher = Timer.periodic(const Duration(milliseconds: 300), (_) {
+        try {
+          final last = GoogleAppAuthAdapter.lastAuthUrl;
+          if (last != null && last.isNotEmpty && last != _lastSeenAuthUrl) {
+            _safeSetState(() => _lastSeenAuthUrl = last);
+          }
+        } catch (_) {}
+      });
+    } catch (_) {}
+  }
+
+  void _stopAuthUrlWatcher() {
+    try {
+      _authUrlWatcher?.cancel();
+      _authUrlWatcher = null;
+    } catch (_) {}
   }
 
   // PKCE/AppAuth flow moved to GoogleBackupService.linkAccount(); dialog is UI-only now.
@@ -370,6 +457,19 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
   @override
   Widget build(BuildContext context) {
     final linked = _service != null;
+    final isAndroid = !kIsWeb && Platform.isAndroid;
+    final isDesktop = !kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
+    final hasAuthUrl =
+        ((GoogleAppAuthAdapter.lastAuthUrl != null && GoogleAppAuthAdapter.lastAuthUrl!.isNotEmpty) ||
+        (_lastSeenAuthUrl != null && _lastSeenAuthUrl!.isNotEmpty));
+    // Only show the desktop sign-in button when we actually have an authorization
+    // URL available. This keeps the "Copiar enlace" and "Iniciar sesión" buttons
+    // consistent: both depend on an auth URL being present.
+    final canShowDesktopSignIn = isDesktop && hasAuthUrl;
+    Log.d(
+      'GoogleDriveBackupDialog: build linked=$linked working=$_working status=${_status ?? ''} lastAuthUrl=${GoogleAppAuthAdapter.lastAuthUrl ?? '<null>'}',
+      tag: 'GoogleBackup',
+    );
     return SizedBox(
       width: 560,
       child: Column(
@@ -382,12 +482,11 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
               children: [
                 const Icon(Icons.add_to_drive, size: 20, color: Colors.white),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Copia de seguridad en Google Drive',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                    // Allow the title to wrap into multiple lines instead of truncating with ellipsis
                   ),
                 ),
                 IconButton(
@@ -436,18 +535,46 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
           const SizedBox(height: 12),
 
           if (!linked) ...[
-            Text('Estado: No vinculada', style: const TextStyle(color: Colors.white)),
-            const SizedBox(height: 8),
+            // Platform-specific helper text
+            if (isAndroid)
+              Text(
+                'Se abrirá el selector nativo de cuentas en Android. Pulsa "Iniciar sesión" para elegir la cuenta.',
+                style: const TextStyle(color: Colors.white70),
+              )
+            else
+              Text(
+                'Se abrirá tu navegador para elegir la cuenta. Pulsa "Iniciar sesión" para iniciar el proceso. Si no se abre automáticamente, puedes copiar la URL y abrirla manualmente una vez esté disponible.',
+                style: const TextStyle(color: Colors.white70),
+              ),
+            const SizedBox(height: 12),
             Wrap(
               alignment: WrapAlignment.end,
               spacing: 8,
               runSpacing: 8,
               children: [
+                // Desktop: show copy only when we have a prepared auth URL
+                if (isDesktop && hasAuthUrl)
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      try {
+                        final copyUrl =
+                            (GoogleAppAuthAdapter.lastAuthUrl != null && GoogleAppAuthAdapter.lastAuthUrl!.isNotEmpty)
+                            ? GoogleAppAuthAdapter.lastAuthUrl!
+                            : (_lastSeenAuthUrl ?? '');
+                        await Clipboard.setData(ClipboardData(text: copyUrl));
+                        showAppSnackBar('Enlace copiado al portapapeles');
+                      } catch (e) {
+                        debugPrint('copy url failed: $e');
+                      }
+                    },
+                    icon: const Icon(Icons.copy),
+                    label: const Text('Copiar enlace'),
+                  ),
                 if (_insufficientScope)
                   Tooltip(
                     message: 'Pulsa para volver a vincular y conceder acceso a Google Drive',
                     child: ElevatedButton(
-                      onPressed: _working
+                      onPressed: _linkInProgress
                           ? null
                           : () async {
                               try {
@@ -459,18 +586,96 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                       child: const Text('Re-vincular (conceder acceso a Google Drive)'),
                     ),
                   ),
-                // The main link button is hidden in this UI variant; keep it in code
-                // for quick re-enable but not shown to users.
-                ElevatedButton(
-                  onPressed: _working
-                      ? null
-                      : () async {
-                          // Clear the previous cancellation marker and start sign-in manually
-                          _userCancelledSignIn = false;
-                          await _ensureLinkedAndCheck();
-                        },
-                  child: const Text('Iniciar sesión'),
-                ),
+                // The main link button: Android uses the native chooser (always visible).
+                // On desktop we only show it when an auth URL is available so the
+                // "Copiar enlace" and "Iniciar sesión" states remain consistent.
+                if (isAndroid)
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      Log.d('GoogleDriveBackupDialog: Iniciar sesión (Android) pressed', tag: 'GoogleBackup');
+                      _userCancelledSignIn = false;
+                      _safeSetState(() => _working = true);
+                      if (_linkInProgress) _safeSetState(() => _linkInProgress = false);
+                      try {
+                        // Capture last auth URL emitted by adapter before starting
+                        // the interactive flow so UI can keep showing copy/sign-in.
+                        try {
+                          final last = GoogleAppAuthAdapter.lastAuthUrl;
+                          if (last != null && last.isNotEmpty) _safeSetState(() => _lastSeenAuthUrl = last);
+                        } catch (_) {}
+                        final candidateCid = await _resolveClientId(widget.clientId);
+                        await GoogleBackupService(accessToken: null).linkAccount(clientId: candidateCid);
+                        Log.d('GoogleDriveBackupDialog: Android linkAccount returned', tag: 'GoogleBackup');
+                        await _ensureLinkedAndCheck();
+                      } catch (e, st) {
+                        Log.d('GoogleDriveBackupDialog: Android linkAccount threw: $e', tag: 'GoogleBackup');
+                        debugPrint('Android sign-in error: $e\n$st');
+                        _safeSetState(() {
+                          _status = 'Error iniciando vinculación';
+                          _working = false;
+                        });
+                      }
+                    },
+                    icon: const Icon(Icons.login),
+                    label: const Text('Iniciar sesión'),
+                  )
+                else if (canShowDesktopSignIn)
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      Log.d('GoogleDriveBackupDialog: Iniciar sesión (Desktop) pressed', tag: 'GoogleBackup');
+                      _userCancelledSignIn = false;
+                      _safeSetState(() => _working = true);
+                      if (_linkInProgress) _safeSetState(() => _linkInProgress = false);
+                      try {
+                        // Capture last auth URL emitted by adapter before starting
+                        // the interactive flow so UI can keep showing copy/sign-in.
+                        try {
+                          final last = GoogleAppAuthAdapter.lastAuthUrl;
+                          if (last != null && last.isNotEmpty) _safeSetState(() => _lastSeenAuthUrl = last);
+                        } catch (_) {}
+                        // If we already have an auth URL available, try to open it
+                        // explicitly as a fallback so the user sees the browser.
+                        try {
+                          final copyUrl =
+                              (GoogleAppAuthAdapter.lastAuthUrl != null && GoogleAppAuthAdapter.lastAuthUrl!.isNotEmpty)
+                              ? GoogleAppAuthAdapter.lastAuthUrl!
+                              : (_lastSeenAuthUrl ?? '');
+                          if (copyUrl.isNotEmpty) {
+                            Log.d(
+                              'GoogleDriveBackupDialog: attempting to open browser for desktop auth',
+                              tag: 'GoogleBackup',
+                            );
+                            try {
+                              await GoogleAppAuthAdapter.openBrowser(copyUrl);
+                              Log.d(
+                                'GoogleDriveBackupDialog: openBrowser invoked for desktop auth',
+                                tag: 'GoogleBackup',
+                              );
+                            } catch (e) {
+                              Log.w('GoogleDriveBackupDialog: openBrowser fallback failed: $e', tag: 'GoogleBackup');
+                              showAppSnackBar(
+                                'No se pudo abrir el navegador automáticamente. Puedes copiar el enlace.',
+                              );
+                            }
+                          }
+                        } catch (_) {}
+
+                        final candidateCid = await _resolveClientId(widget.clientId);
+                        await GoogleBackupService(accessToken: null).linkAccount(clientId: candidateCid);
+                        Log.d('GoogleDriveBackupDialog: Desktop linkAccount returned', tag: 'GoogleBackup');
+                        await _ensureLinkedAndCheck();
+                      } catch (e, st) {
+                        Log.d('GoogleDriveBackupDialog: Desktop linkAccount threw: $e', tag: 'GoogleBackup');
+                        debugPrint('Desktop sign-in error: $e\n$st');
+                        _safeSetState(() {
+                          _status = 'Error iniciando vinculación';
+                          _working = false;
+                        });
+                      }
+                    },
+                    icon: const Icon(Icons.login),
+                    label: const Text('Iniciar sesión'),
+                  ),
                 // local serverAuthCode exchange UI removed per request.
                 // Manual PKCE buttons removed; dialog delegates auth to service.
               ],
@@ -567,6 +772,12 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
     );
   }
 
+  @override
+  void dispose() {
+    _stopAuthUrlWatcher();
+    super.dispose();
+  }
+
   String _humanFileSize(int bytes) {
     if (bytes <= 0) return '0 B';
     const suffixes = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -584,8 +795,3 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
     return '$s ${suffixes[i]}';
   }
 }
-
-// Note: inline HTML fallbacks removed. The flow now requires packaged
-// assets `assets/oauth_start.html` and `assets/oauth_success.html`. If those
-// assets are missing the loopback flow will abort and the manual paste dialog
-// will be used instead.
