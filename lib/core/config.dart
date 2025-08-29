@@ -97,6 +97,10 @@ class Config {
     }
   }
 
+  /// Nombre de la aplicación. Lee `APP_NAME` desde .env o devuelve el
+  /// valor por defecto "AI-チャン'" si no está presente.
+  static String getAppName() => _get('APP_NAME', 'AI-チャン');
+
   /// Acceso genérico para claves no previstas por getters específicos.
   static String get(String key, String fallback) => _get(key, fallback);
 

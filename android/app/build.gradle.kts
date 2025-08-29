@@ -22,6 +22,12 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.albertooishii.ai_chan"
+    // Provide manifest placeholders required by some plugins (eg. AppAuth).
+    // The AppAuth library expects a placeholder named `appAuthRedirectScheme` that
+    // is used in merged manifests; default to the applicationId so it works out
+    // of the box. Adjust if your redirect scheme must differ.
+    // Use the literal application id here to avoid Kotlin DSL smart-cast issues.
+    manifestPlaceholders["appAuthRedirectScheme"] = "com.albertooishii.ai_chan"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

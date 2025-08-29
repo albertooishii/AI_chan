@@ -65,7 +65,7 @@ class _RootAppState extends State<RootApp> {
       child: MaterialApp(
         navigatorKey: navigatorKey,
         scaffoldMessengerKey: scaffoldMessengerKey,
-        title: 'ＡＩチャン',
+        title: Config.getAppName(),
         theme: ThemeData(
           brightness: Brightness.dark,
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.pinkAccent, brightness: Brightness.dark),

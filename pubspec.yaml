@@ -58,6 +58,7 @@ dependencies:
   url_launcher: ^6.1.10
   qr_flutter: ^4.0.0
   flutter_appauth: ^9.0.1
+  google_sign_in: ^7.1.1
   # image_picker: ^1.1.2
   characters: ^1.4.0
   emoji_picker_flutter: ^4.3.0

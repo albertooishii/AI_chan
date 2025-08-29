@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:ai_chan/core/config.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:ai_chan/shared/services/google_sign_in_adapter.dart';
 
 /// Servicio esqueleto para subir/descargar backups a Google Drive / GCS.
 ///
@@ -56,12 +58,8 @@ class GoogleBackupService {
 
   /// Refresh an access token using the stored refresh_token.
   Future<Map<String, dynamic>> refreshAccessToken({required String clientId, String? clientSecret}) async {
-    // Use AppAuth exclusively for token refresh on native platforms.
-    final creds = await _loadCredentialsSecure();
-    final refresh = creds?['refresh_token'] as String?;
-    if (refresh == null) throw StateError('No refresh token available');
-    // This will throw if AppAuth is unavailable or refresh fails.
-    return await refreshAccessTokenWithAppAuth(clientId: clientId, refreshToken: refresh);
+    // Token refresh is not supported in this build by design.
+    throw StateError('Token refresh is not supported. Store short-lived tokens and re-authenticate when needed.');
   }
 
   // Resolve client id/secret from app config based on the current platform.
@@ -166,13 +164,51 @@ class GoogleBackupService {
   /// Attempt to refresh stored credentials using config client id/secret.
   /// Returns the refreshed token map on success.
   Future<Map<String, dynamic>> _attemptRefreshUsingConfig() async {
-    final creds = await _loadCredentialsSecure();
-    final refresh = creds?['refresh_token'] as String?;
-    if (refresh == null) throw StateError('No refresh token available to refresh');
-    final clientId = await GoogleBackupService.resolveClientId('');
-    if (clientId.isEmpty) throw StateError('Client ID not configured; cannot refresh token');
-    // Use AppAuth refresh exclusively.
-    return await refreshAccessToken(clientId: clientId, clientSecret: null);
+    // Token refresh removed: callers should re-authenticate instead.
+    throw StateError('Token refresh not supported in this build');
+  }
+
+  /// Convenience helper: force the native AppAuth authorization code flow on
+  /// the current platform to obtain full tokens (including refresh_token if
+  /// the OAuth client and consent prompt allow it).
+  ///
+  /// Usage: call this on mobile when you specifically need a refresh token
+  /// (e.g., to keep server-side access or long-lived Drive backups). It will
+  /// pick the platform-specific client id (GOOGLE_CLIENT_ID_ANDROID/IOS) if
+  /// available, otherwise falls back to desktop/web client ids.
+  Future<Map<String, dynamic>> authenticateWithNativeAppAuth({String? clientId, String? redirectUri}) async {
+    var cid = (clientId ?? '').trim();
+    if (cid.isEmpty) {
+      try {
+        if (!kIsWeb && Platform.isAndroid) {
+          cid = await GoogleBackupService.resolveClientIdFor('android');
+        } else if (!kIsWeb && Platform.isIOS) {
+          cid = await GoogleBackupService.resolveClientIdFor('ios');
+        } else {
+          cid = await GoogleBackupService.resolveClientIdFor('desktop');
+        }
+      } catch (_) {
+        cid = '';
+      }
+    }
+    if (cid.isEmpty) {
+      // Last resort: generic resolution (reads env keys based on platform)
+      cid = await GoogleBackupService.resolveClientId('');
+    }
+    if (cid.isEmpty) {
+      throw StateError(
+        'No OAuth client ID configured for AppAuth on this platform. Please set the appropriate GOOGLE_CLIENT_ID_* in .env',
+      );
+    }
+    Log.d(
+      'GoogleBackupService: authenticateWithNativeAppAuth resolved clientId length=${cid.length}',
+      tag: 'GoogleBackup',
+    );
+    // Do NOT force AppAuth on mobile — prefer the google_sign_in experience
+    // which uses native Play Services / iOS sign-in and avoids showing the
+    // AppAuth web-popup. If callers truly need AppAuth on mobile they should
+    // call authenticateWithAppAuth(...) explicitly with forceAppAuth=true.
+    return await authenticateWithAppAuth(clientId: cid, redirectUri: redirectUri, forceAppAuth: false);
   }
 
   /// Exchange an authorization code (from the authorization-code flow) for tokens.
@@ -189,7 +225,13 @@ class GoogleBackupService {
     required String clientId,
     String? redirectUri,
     List<String> scopes = const ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/drive.appdata'],
+    bool forceAppAuth = false,
   }) async {
+    // Removed google_sign_in usage: use AppAuth (PKCE) for all non-web platforms.
+
+    // Fallback to AppAuth only for desktop/web (mobile platforms return earlier
+    // after using google_sign_in). This prevents AppAuth being invoked a second
+    // time on Android/iOS.
     final appAuth = FlutterAppAuth();
     final redirect = (redirectUri != null && redirectUri.isNotEmpty) ? redirectUri : _defaultRedirectUri();
     if (redirect.isEmpty) throw StateError('Redirect URI not configured for AppAuth');
@@ -199,25 +241,192 @@ class GoogleBackupService {
       redirect,
       scopes: scopes,
       promptValues: ['consent', 'select_account'],
-      // preferEphemeralSession left default
+      additionalParameters: {'access_type': 'offline'},
       serviceConfiguration: AuthorizationServiceConfiguration(
         authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
         tokenEndpoint: 'https://oauth2.googleapis.com/token',
       ),
     );
 
-    final AuthorizationTokenResponse resp = await appAuth.authorizeAndExchangeCode(req);
+    Log.d('GoogleBackupService: starting AppAuth authorizeAndExchangeCode', tag: 'GoogleBackup');
+    Log.d('  clientId: $clientId', tag: 'GoogleBackup');
+    Log.d('  platform: ${kIsWeb ? 'web' : Platform.operatingSystem}', tag: 'GoogleBackup');
+    Log.d('  redirect: $redirect', tag: 'GoogleBackup');
+    Log.d('  scopes: ${scopes.join(', ')}', tag: 'GoogleBackup');
 
-    final expiresIn = resp.accessTokenExpirationDateTime?.difference(DateTime.now()).inSeconds;
-    final data = <String, dynamic>{
-      'access_token': resp.accessToken,
-      'refresh_token': resp.refreshToken,
-      'expires_in': expiresIn ?? 0,
-      'token_type': resp.tokenType,
-      'scope': scopes.join(' '),
-    };
-    await _persistCredentialsSecure(data);
-    return data;
+    try {
+      final AuthorizationTokenResponse resp = await appAuth.authorizeAndExchangeCode(req);
+
+      final expiresIn = resp.accessTokenExpirationDateTime?.difference(DateTime.now()).inSeconds;
+      Log.d(
+        'GoogleBackupService: AppAuth response received: accessToken? ${resp.accessToken != null}, refreshToken? ${resp.refreshToken != null}, expiresIn: ${expiresIn ?? 'unknown'}',
+        tag: 'GoogleBackup',
+      );
+
+      final data = <String, dynamic>{
+        'access_token': resp.accessToken,
+        'refresh_token': resp.refreshToken,
+        'expires_in': expiresIn ?? 0,
+        'token_type': resp.tokenType,
+        'scope': scopes.join(' '),
+      };
+      await _persistCredentialsSecure(data);
+      Log.d('GoogleBackupService: credentials persisted securely', tag: 'GoogleBackup');
+      return data;
+    } catch (e, st) {
+      Log.e(
+        'GoogleBackupService: AppAuth authorizeAndExchangeCode failed: $e',
+        tag: 'GoogleBackup',
+        error: e,
+        stack: st,
+      );
+      rethrow;
+    }
+  }
+
+  // signInAndExchangeServerAuthCodeLocally removed: local serverAuthCode
+  // exchange logic was intentionally deleted per UX/security decisions.
+
+  /// Use the google_sign_in plugin to sign in on web/mobile and return a token map.
+  Future<Map<String, dynamic>> _signInUsingGoogleSignIn({
+    List<String> scopes = const ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/drive.appdata'],
+    dynamic signInAdapterOverride,
+  }) async {
+    Log.d('GoogleBackupService._signInUsingGoogleSignIn: using GoogleSignInAdapter', tag: 'GoogleBackup');
+    // Use the platform adapter which will throw on desktop. Do not fallback
+    // to AppAuth here — callers expect google_sign_in on mobile/web.
+    String? platformClientId;
+    String? platformServerClientId;
+    try {
+      if (kIsWeb) {
+        platformClientId = await GoogleBackupService.resolveClientIdFor('web');
+        platformServerClientId = null;
+      } else if (Platform.isAndroid) {
+        platformClientId = await GoogleBackupService.resolveClientIdFor('android');
+        // Android expects a serverClientId (the web client id) for certain auth flows
+        platformServerClientId = await GoogleBackupService.resolveClientIdFor('web');
+      } else if (Platform.isIOS) {
+        platformClientId = await GoogleBackupService.resolveClientIdFor('ios');
+        platformServerClientId = null;
+      } else {
+        platformClientId = null;
+        platformServerClientId = null;
+      }
+    } catch (_) {
+      platformClientId = null;
+      platformServerClientId = null;
+    }
+    final adapter =
+        signInAdapterOverride ??
+        GoogleSignInAdapter(scopes: scopes, clientId: platformClientId, serverClientId: platformServerClientId);
+    try {
+      final tokenMap = await adapter.signIn(scopes: scopes);
+      return tokenMap;
+    } on NoSuchMethodError catch (e) {
+      Log.d('GoogleBackupService._signInUsingGoogleSignIn: NoSuchMethodError from adapter: $e', tag: 'GoogleBackup');
+      throw StateError('El método de inicio de sesión nativo no está disponible en este dispositivo');
+    }
+  }
+
+  /// Public wrapper that performs the full linking/auth flow depending on
+  /// the current platform. For web, Android and iOS it uses google_sign_in;
+  /// for desktop (Linux/macOS/Windows) it uses AppAuth with an optional
+  /// loopback redirect. Returns the token map on success.
+  Future<Map<String, dynamic>> linkAccount({
+    String? clientId,
+    List<String>? scopes,
+    dynamic signInAdapterOverride,
+    bool forceUseGoogleSignIn = false,
+  }) async {
+    final usedScopes = scopes ?? ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/drive.appdata'];
+    // Resolve a client id if none provided.
+    String cid = (clientId ?? '').trim();
+    if (cid.isEmpty) {
+      try {
+        if (kIsWeb) {
+          cid = await GoogleBackupService.resolveClientIdFor('web');
+        } else if (Platform.isAndroid) {
+          cid = await GoogleBackupService.resolveClientIdFor('android');
+        } else if (Platform.isIOS) {
+          cid = await GoogleBackupService.resolveClientIdFor('ios');
+        } else {
+          cid = await GoogleBackupService.resolveClientIdFor('desktop');
+        }
+      } catch (_) {
+        cid = '';
+      }
+    }
+
+    // Mobile and web: prefer google_sign_in
+    try {
+      if (forceUseGoogleSignIn || kIsWeb || (!kIsWeb && (Platform.isAndroid || Platform.isIOS))) {
+        final tokenMap = await _signInUsingGoogleSignIn(
+          scopes: usedScopes,
+          signInAdapterOverride: signInAdapterOverride,
+        );
+        if (tokenMap['access_token'] != null) {
+          await _persistCredentialsSecure(tokenMap);
+          return tokenMap;
+        }
+      }
+    } catch (e, st) {
+      Log.w('GoogleBackupService.linkAccount: google_sign_in flow failed: $e', tag: 'GoogleBackup');
+      Log.d(st.toString(), tag: 'GoogleBackup');
+      // If this is web/mobile, do not fallback to AppAuth: surface the error
+      // to the caller so the UI can show it. AppAuth is desktop-only.
+      try {
+        if (kIsWeb || (!kIsWeb && (Platform.isAndroid || Platform.isIOS))) rethrow;
+      } catch (_) {
+        rethrow;
+      }
+    }
+
+    // Desktop: use AppAuth with loopback redirect when possible
+    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
+      HttpServer? loopbackServer;
+      String? redirectForAppAuth;
+      try {
+        loopbackServer = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        redirectForAppAuth = 'http://127.0.0.1:${loopbackServer.port}/';
+      } catch (e) {
+        Log.w('GoogleBackupService.linkAccount: failed to bind loopback server: $e', tag: 'GoogleBackup');
+        loopbackServer = null;
+        redirectForAppAuth = null;
+      }
+
+      try {
+        final tokenMap = await authenticateWithAppAuth(
+          clientId: cid,
+          redirectUri: redirectForAppAuth,
+          scopes: usedScopes,
+        );
+        if (tokenMap['access_token'] != null) {
+          await _persistCredentialsSecure(tokenMap);
+          return tokenMap;
+        }
+      } finally {
+        try {
+          if (loopbackServer != null) await loopbackServer.close(force: true);
+        } catch (_) {}
+      }
+    }
+
+    // As a final fallback, attempt AppAuth on any platform using resolved desktop client id.
+    try {
+      final tokenMap = await authenticateWithAppAuth(
+        clientId: cid,
+        redirectUri: _defaultRedirectUri(),
+        scopes: usedScopes,
+      );
+      if (tokenMap['access_token'] != null) {
+        await _persistCredentialsSecure(tokenMap);
+        return tokenMap;
+      }
+    } catch (e) {
+      Log.w('GoogleBackupService.linkAccount: AppAuth fallback failed: $e', tag: 'GoogleBackup');
+    }
+
+    throw StateError('Linking failed: no tokens obtained');
   }
 
   /// Refresh tokens using AppAuth if possible. Falls back to HTTP token endpoint
@@ -227,36 +436,28 @@ class GoogleBackupService {
     String? refreshToken,
     String? redirectUri,
   }) async {
-    final appAuth = FlutterAppAuth();
-    final redirect = (redirectUri != null && redirectUri.isNotEmpty) ? redirectUri : _defaultRedirectUri();
-    if (redirect.isEmpty) throw StateError('Redirect URI not configured for AppAuth refresh');
-
-    final tokenResp = await appAuth.token(
-      TokenRequest(
-        clientId,
-        redirect,
-        refreshToken: refreshToken,
-        serviceConfiguration: AuthorizationServiceConfiguration(
-          authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-          tokenEndpoint: 'https://oauth2.googleapis.com/token',
-        ),
-      ),
-    );
-    final expiresIn = tokenResp.accessTokenExpirationDateTime?.difference(DateTime.now()).inSeconds;
-    final data = <String, dynamic>{
-      'access_token': tokenResp.accessToken,
-      'refresh_token': tokenResp.refreshToken ?? refreshToken,
-      'expires_in': expiresIn ?? 0,
-      'token_type': tokenResp.tokenType,
-      'scope': tokenResp.scopes?.join(' ') ?? '',
-    };
-    await _persistCredentialsSecure(data);
-    return data;
+    // Refresh via AppAuth removed — use re-authentication.
+    throw StateError('Token refresh with AppAuth is not supported.');
   }
 
   static String _defaultRedirectUri() {
     try {
-      return Config.get('GOOGLE_REDIRECT_URI', '');
+      final cfg = Config.get('GOOGLE_REDIRECT_URI', '').trim();
+      if (cfg.isNotEmpty) return cfg;
+      // Fallbacks when no explicit redirect uri is configured in .env.
+      // Use application-specific custom scheme that matches the
+      // `appAuthRedirectScheme` manifest placeholder configured in Gradle.
+      // This default should match the redirect intent-filter added by the
+      // AppAuth plugin during manifest merging.
+      try {
+        if (!kIsWeb && Platform.isAndroid) return 'com.albertooishii.ai_chan:/oauthredirect';
+        if (!kIsWeb && Platform.isIOS) return 'com.albertooishii.ai_chan:/oauthredirect';
+      } catch (_) {}
+      Log.d(
+        'GoogleBackupService: _defaultRedirectUri resolved to empty (no explicit cfg and not Android/iOS)',
+        tag: 'GoogleBackup',
+      );
+      return '';
     } catch (_) {
       return '';
     }
@@ -299,16 +500,19 @@ class GoogleBackupService {
   Future<Map<String, dynamic>?> fetchUserInfoIfTokenValid() async {
     try {
       final token = await loadStoredAccessToken();
+      Log.d('GoogleBackupService: fetchUserInfoIfTokenValid token present? ${token != null}', tag: 'GoogleBackup');
       if (token == null) return null;
       final resp = await httpClient.get(
         Uri.parse('https://www.googleapis.com/oauth2/v3/userinfo'),
         headers: {'Authorization': 'Bearer $token'},
       );
+      Log.d('GoogleBackupService: userinfo HTTP status: ${resp.statusCode}', tag: 'GoogleBackup');
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
         return jsonDecode(resp.body) as Map<String, dynamic>;
       }
       // If 401 attempt a refresh using stored refresh token and config
       if (resp.statusCode == 401) {
+        Log.w('GoogleBackupService: userinfo 401 Unauthorized, attempting refresh', tag: 'GoogleBackup');
         try {
           final refreshed = await _attemptRefreshUsingConfig();
           final newToken = refreshed['access_token'] as String?;
@@ -318,6 +522,7 @@ class GoogleBackupService {
               Uri.parse('https://www.googleapis.com/oauth2/v3/userinfo'),
               headers: {'Authorization': 'Bearer $newToken'},
             );
+            Log.d('GoogleBackupService: retry userinfo HTTP status: ${retryResp.statusCode}', tag: 'GoogleBackup');
             if (retryResp.statusCode >= 200 && retryResp.statusCode < 300) {
               return jsonDecode(retryResp.body) as Map<String, dynamic>;
             }
@@ -333,9 +538,9 @@ class GoogleBackupService {
   Future<void> clearStoredCredentials() async {
     try {
       await _secureStorage.delete(key: 'google_credentials');
-      debugPrint('GoogleBackupService: cleared stored credentials');
+      Log.d('GoogleBackupService: cleared stored credentials', tag: 'GoogleBackup');
     } catch (e) {
-      debugPrint('GoogleBackupService: failed to clear credentials: $e');
+      Log.w('GoogleBackupService: failed to clear credentials: $e', tag: 'GoogleBackup');
     }
   }
 
@@ -399,7 +604,7 @@ class GoogleBackupService {
       }
     } catch (e) {
       // Si la lista falla por permisos, dejamos que la creación inicial lo intente
-      debugPrint('GoogleBackupService.uploadBackup: list existing failed: $e');
+      Log.w('GoogleBackupService.uploadBackup: list existing failed: $e', tag: 'GoogleBackup');
     }
 
     var res = await httpClient.post(driveUploadEndpoint, headers: headers, body: bodyBytes);

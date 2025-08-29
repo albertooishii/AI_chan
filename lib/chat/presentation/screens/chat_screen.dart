@@ -104,14 +104,23 @@ class _ChatScreenState extends State<ChatScreen> {
         // Listener to push provider recording-related state into controller streams
         _chatProviderListener = () {
           try {
-            if (_chatInputController == null) return;
-            _chatInputController!.pushIsRecording(provider.isSendingAudio);
-            _chatInputController!.pushWaveform(provider.currentWaveform);
-            _chatInputController!.pushElapsed(provider.recordingElapsed);
-            _chatInputController!.pushLiveTranscript(provider.liveTranscript);
+            // Push recording-related updates into the input controller when present.
+            if (_chatInputController != null) {
+              _chatInputController!.pushIsRecording(provider.isSendingAudio);
+              _chatInputController!.pushWaveform(provider.currentWaveform);
+              _chatInputController!.pushElapsed(provider.recordingElapsed);
+              _chatInputController!.pushLiveTranscript(provider.liveTranscript);
+            }
+            // Also trigger a rebuild so UI elements that read provider fields
+            // (for example the overflow menu showing Google Drive linked status)
+            // update immediately when the provider state changes.
+            if (mounted) setState(() {});
           } catch (_) {}
         };
         provider.addListener(_chatProviderListener!);
+        // Ensure UI reflects current provider state immediately in case the
+        // provider was already updated before this listener was attached.
+        if (mounted) setState(() {});
       } catch (_) {}
     });
   }

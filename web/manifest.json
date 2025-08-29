@@ -1,6 +1,6 @@
 {
-    "name": "ai_chan",
-    "short_name": "ai_chan",
+    "name": "AI-チャン",
+    "short_name": "AI-チャン",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

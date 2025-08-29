@@ -44,12 +44,29 @@ class IAAppearanceGenerator {
         "color": "",
         "largo": "",
         "forma": "",
-        "peinado": [],
+        "peinados": [],
         "detalle": "",
         "volumen": "",
         "densidad": "",
         "raiz": "",
         "puntas": "",
+        // Opcional: tintes y mechas (si aplica)
+        "tinte": {
+          "aplica": false,
+          "tipo": "", // e.g. permanente, semipermanente, baño de color
+          "colores": [], // lista de colores aplicados (orden principal -> secundario)
+          "intensidad": "", // suave/medio/intenso
+          "zona": "", // todo el cabello / raíces / medios / puntas
+          "detalle": "",
+        },
+        "mechas": {
+          "aplica": false,
+          "tipo": "", // e.g. balayage, highlights, babylights, ombré
+          "colores": [],
+          "ubicacion": "", // e.g. frontal, laterales, coronilla, puntas
+          "intensidad": "", // sutil/visible/marcado
+          "detalle": "",
+        },
       },
       "manos": {
         "tamaño": "",
@@ -107,7 +124,7 @@ class IAAppearanceGenerator {
       Formato (DEVUELVE ÚNICAMENTE EL BLOQUE JSON DE APARIENCIA, SIN TEXTO EXTRA NI COMENTARIOS):
       $appearanceJsonTemplate
 
-      En "cabello.peinado" devuelve 3 a 5 peinados distintos, cada uno con máximo detalle y variedad, coherentes con la biografía y la apariencia general.
+      En "cabello.peinados" devuelve 3 a 5 peinados distintos, cada uno con máximo detalle y variedad, coherentes con la biografía y la apariencia general.
 
       En "ropa" devuelve unos diez u once conjuntos diferentes, cada uno como objeto con todos los detalles (prendas, colores, materiales, texturas, accesorios si aplica, estilo general). Los conjuntos propuestos son:
       1) Trabajo (casual/creativo/tecnológico, no formal salvo que biography lo indique)

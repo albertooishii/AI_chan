@@ -66,15 +66,20 @@ echo "🔐 API Keys (required for app to work):"
 echo "   Note: API keys will be visible while typing for easier input"
 prompt_key "GEMINI_API_KEY" "Enter GEMINI_API_KEY: " "" false
 prompt_key "OPENAI_API_KEY" "Enter OPENAI_API_KEY: " "" false
-prompt_key "GROK_API_KEY" "Enter GROK_API_KEY [Enter to skip]: " "" false
 
 echo ""
-echo "🔐 Additional API Keys (optional):"
+echo "🔐 Optional / additional API keys (press Enter to skip):"
+prompt_key "GROK_API_KEY" "GROK_API_KEY [Enter to skip]: " "" false
 prompt_key "GEMINI_API_KEY_FALLBACK" "GEMINI_API_KEY_FALLBACK [Enter to skip]: " "" false
 prompt_key "GOOGLE_CLOUD_API_KEY" "GOOGLE_CLOUD_API_KEY [Enter to skip]: " "" false
+
+echo ""
+echo "🛠️  OAuth client IDs / secrets (optional). Secrets will be hidden while typing."
 prompt_key "GOOGLE_CLIENT_ID_DESKTOP" "GOOGLE_CLIENT_ID_DESKTOP (OAuth client id para Desktop) [Enter to skip]: " "" false
+prompt_key "GOOGLE_CLIENT_SECRET_DESKTOP" "GOOGLE_CLIENT_SECRET_DESKTOP (secret) [Enter to skip]: " "" true
 prompt_key "GOOGLE_CLIENT_ID_ANDROID" "GOOGLE_CLIENT_ID_ANDROID (OAuth client id para Android) [Enter to skip]: " "" false
 prompt_key "GOOGLE_CLIENT_ID_WEB" "GOOGLE_CLIENT_ID_WEB (OAuth client id para Web) [Enter to skip]: " "" false
+prompt_key "GOOGLE_CLIENT_SECRET_WEB" "GOOGLE_CLIENT_SECRET_WEB (secret) [Enter to skip]: " "" true
 
 echo ""
 echo "🎵 Audio/Voice Configuration:"
@@ -83,10 +88,11 @@ prompt_key "AUDIO_TTS_MODE" "TTS mode (google|local) [google]: " "google" false
 prompt_key "OPENAI_VOICE_NAME" "OpenAI voice [sage]: " "sage" false
 prompt_key "GOOGLE_VOICE_NAME" "Google voice name [es-ES-Wavenet-F]: " "es-ES-Wavenet-F" false
 
+
 echo ""
 echo "🤖 AI Models:"
 prompt_key "DEFAULT_TEXT_MODEL" "Default text model [gemini-2.5-flash]: " "gemini-2.5-flash" false
-prompt_key "DEFAULT_IMAGE_MODEL" "Default image model [gpt-4.1-mini]: " "gpt-4.1-mini" false  
+prompt_key "DEFAULT_IMAGE_MODEL" "Default image model [gpt-4.1-mini]: " "gpt-4.1-mini" false
 prompt_key "OPENAI_REALTIME_MODEL" "OpenAI realtime model [gpt-4o-realtime-preview]: " "gpt-4o-realtime-preview" false
 prompt_key "GOOGLE_REALTIME_MODEL" "Google realtime model [gemini-2.5-flash]: " "gemini-2.5-flash" false
 
@@ -104,6 +110,8 @@ set_key "APP_LOG_LEVEL" "debug"
 set_key "DISABLE_DEBUG_JSON_LOGS" "1"
 # Preferred audio format for storage and STT fallbacks
 set_key "PREFERRED_AUDIO_FORMAT" "mp3"
+# Application name (do not prompt; use default)
+set_key "APP_NAME" "AI-チャン"
 
 # Show summary (mask keys partially)
 echo ""

@@ -6,6 +6,7 @@ import 'package:ai_chan/shared/constants/countries_es.dart';
 import 'package:ai_chan/shared/constants/female_names.dart';
 import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/constants/app_colors.dart';
+import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import '../widgets/birth_date_field.dart';
 import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dart';
@@ -334,9 +335,9 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text.rich(
+        title: Text.rich(
           TextSpan(
-            text: 'AI-チャン',
+            text: Config.getAppName(),
             style: TextStyle(
               color: AppColors.primary,
               fontWeight: FontWeight.bold,

@@ -27,7 +27,7 @@
     </queries>
 
     <application
-        android:label="ai_chan"
+        android:label="@string/app_name"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true"
@@ -52,6 +52,16 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <!-- AppAuth: capture the custom scheme redirect so the App can receive the
+                 authorization response at the custom URI (e.g. com.albertooishii.ai_chan:/oauthredirect).
+                 The scheme should match the value used by AppAuth (`_defaultRedirectUri()`) or the
+                 `GOOGLE_REDIRECT_URI` configuration when provided. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.albertooishii.ai_chan" android:path="/oauthredirect" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

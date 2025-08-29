@@ -1,22 +1,13 @@
-// ignore_for_file: curly_braces_in_flow_control_structures, use_build_context_synchronously
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-import 'dart:io' show Platform, HttpServer, InternetAddress;
 import 'package:ai_chan/shared/services/backup_service.dart';
 import 'package:ai_chan/shared/services/google_backup_service.dart';
-import 'package:ai_chan/shared/utils/dialog_utils.dart' show showAppDialog, showAppSnackBar;
-import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/services.dart' show MissingPluginException, Clipboard, ClipboardData;
-import 'package:url_launcher/url_launcher.dart';
-import 'package:crypto/crypto.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter/services.dart' show rootBundle;
-
+import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/material.dart';
 import 'package:ai_chan/main.dart' show navigatorKey;
+import 'package:ai_chan/shared/utils/dialog_utils.dart';
 
 /// Dialog minimalista: flujo único "Vincular → Detectar backup → Restaurar".
 class GoogleDriveBackupDialog extends StatefulWidget {
@@ -51,8 +42,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
   bool _working = false;
   bool _hasChatProvider = false;
   bool _insufficientScope = false;
-  final FlutterSecureStorage _localSecure = const FlutterSecureStorage();
-  String? _lastAuthUrl;
+  bool _linkInProgress = false;
+  bool _userCancelledSignIn = false;
+  // removed _usingNativeAppAuth (no longer needed)
 
   @override
   void initState() {
@@ -70,7 +62,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
 
   Future<void> _ensureLinkedAndCheck() async {
     if (!mounted) return;
+    if (_linkInProgress) return;
     _safeSetState(() {
+      _linkInProgress = true;
       _status = 'Comprobando estado de vinculación...';
       _working = true;
     });
@@ -99,282 +93,67 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         }
       }
 
-      _safeSetState(() => _status = 'Iniciando vinculación...');
-
-      if (kIsWeb) {
-        await _pkceOobFlow(candidateCid);
+      // If the user previously cancelled the native chooser, don't reopen it automatically.
+      if (_userCancelledSignIn) {
+        _safeSetState(() {
+          _status = 'No vinculada';
+          _working = false;
+        });
         return;
       }
 
+      _safeSetState(() {
+        _status = 'Iniciando vinculación...';
+        _working = true;
+      });
+
       try {
-        await _pkceOobFlow(candidateCid);
-        return;
-      } catch (e) {
-        final msg = e.toString();
-        if (kDebugMode) debugPrint('device-flow via PKCE/OOB failed: $msg');
-        if (msg.contains('invalid_scope')) {
-          try {
-            await GoogleBackupService(accessToken: null).clearStoredCredentials();
-          } catch (_) {}
-          _insufficientScope = true;
-          _safeSetState(() {
-            _status = 'Permisos insuficientes. Reintenta y se han borrado las credenciales locales.';
-            _working = false;
-          });
+        final tokenMap = await GoogleBackupService(accessToken: null).linkAccount(clientId: candidateCid);
+        if (tokenMap['access_token'] != null) {
+          _service = GoogleBackupService(accessToken: tokenMap['access_token'] as String?);
+          unawaited(_fetchAccountInfo(tokenMap['access_token'] as String?));
+          _safeSetState(() => _status = 'Vinculación completada');
+          await _checkForBackupAndMaybeRestore();
           return;
         }
-        rethrow;
+      } catch (e) {
+        debugPrint('ensureLinkedAndCheck: linkAccount failed: $e');
+        String statusMsg = 'Fallo al vincular';
+        try {
+          final raw = (e is StateError) ? e.message.toString() : e.toString();
+          final m = raw.toLowerCase();
+          // Broadly detect cancellation-like messages from various plugin versions
+          if (m.contains('cancel') ||
+              m.contains('user cancelled') ||
+              m.contains('user canceled') ||
+              m.contains('user_cancel')) {
+            statusMsg = 'Vinculación cancelada por el usuario';
+            _userCancelledSignIn = true;
+          }
+        } catch (_) {}
+        _safeSetState(() {
+          _status = statusMsg;
+          _working = false;
+        });
       }
     } catch (e) {
       debugPrint('ensureLinkedAndCheck error: $e');
       _safeSetState(() {
-        _status = 'Error vinculación: $e';
+        _status = 'Error al vincular';
         _working = false;
       });
-    }
-  }
-
-  Future<void> _pkceOobFlow(String clientId) async {
-    _safeSetState(() => _status = 'Iniciando AppAuth...');
-    final isDesktop = !kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
-    HttpServer? loopbackServer;
-    String? redirectForAppAuth;
-    if (isDesktop) {
-      try {
-        loopbackServer = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-        final port = loopbackServer.port;
-        redirectForAppAuth = 'http://127.0.0.1:$port/';
-      } catch (e) {
-        debugPrint('Failed to bind loopback server for AppAuth: $e');
-        loopbackServer = null;
-        redirectForAppAuth = null;
-      }
-    }
-
-    try {
-      final svcApp = GoogleBackupService(accessToken: null);
-      final tokenMap = await svcApp.authenticateWithAppAuth(clientId: clientId, redirectUri: redirectForAppAuth);
-      if (tokenMap['access_token'] != null) {
-        _service = GoogleBackupService(accessToken: tokenMap['access_token'] as String?);
-        unawaited(_fetchAccountInfo(tokenMap['access_token'] as String?));
-        _safeSetState(() => _status = 'Vinculación completada (AppAuth)');
-        await _checkForBackupAndMaybeRestore();
-        return;
-      }
-    } catch (e) {
-      debugPrint('AppAuth attempt failed: $e');
+    } finally {
       _safeSetState(() {
-        _status = 'Se abrió la web de autorización; espera a que completes el proceso en el navegador.';
-        _working = true;
+        _linkInProgress = false;
       });
-      if (e is MissingPluginException || e.toString().contains('MissingPluginException')) {
-        if (isDesktop) {
-          try {
-            await _manualPkceFallback(clientId, redirectForAppAuth, existingServer: loopbackServer);
-            return;
-          } catch (e2) {
-            debugPrint('Manual PKCE fallback failed: $e2');
-          }
-        }
-        _safeSetState(
-          () => _status = 'AppAuth no disponible en esta plataforma; usando fallback PKCE si está disponible.',
-        );
-        return;
-      }
-
-      // Show a simple status so the user knows the browser was opened and
-      // the app is waiting for the loopback redirect.
-      _safeSetState(() {
-        _status = 'Se abrió la web de autorización; espera a que completes el proceso en el navegador.';
-        _working = true;
-      });
-      return;
     }
   }
 
-  Future<void> _manualPkceFallback(String clientId, String? redirectUri, {HttpServer? existingServer}) async {
-    final redirect = (redirectUri != null && redirectUri.isNotEmpty) ? redirectUri : 'http://127.0.0.1:0/';
-    final rnd = List<int>.generate(32, (_) => Random.secure().nextInt(256));
-    final codeVerifier = base64UrlEncode(rnd).replaceAll('=', '');
-    final bytes = sha256.convert(utf8.encode(codeVerifier)).bytes;
-    final codeChallenge = base64UrlEncode(bytes).replaceAll('=', '');
-
-    final authUri = Uri.parse('https://accounts.google.com/o/oauth2/v2/auth').replace(
-      queryParameters: {
-        'client_id': clientId,
-        'redirect_uri': redirect,
-        'response_type': 'code',
-        'scope': 'openid email profile https://www.googleapis.com/auth/drive.appdata',
-        'code_challenge': codeChallenge,
-        'code_challenge_method': 'S256',
-        'prompt': 'consent',
-        'access_type': 'offline',
-      },
-    );
-
-    Uri finalRedirect = Uri.parse(redirect);
-    HttpServer? server = existingServer;
-    if (server == null) {
-      if (redirect.contains(':0')) {
-        server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-        finalRedirect = Uri.parse('http://127.0.0.1:${server.port}/');
-      } else {
-        try {
-          final port = finalRedirect.port;
-          if (port != 0) server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
-        } catch (_) {
-          server = null;
-        }
-      }
-    }
-
-    final authUriWithRedirect = authUri.replace(
-      queryParameters: {...authUri.queryParameters, 'redirect_uri': finalRedirect.toString()},
-    );
-    // Keep the last built auth URL available so the user can copy it if needed.
-    _safeSetState(() => _lastAuthUrl = authUriWithRedirect.toString());
-    String? code;
-
-    // Open the authorization URL directly in the system browser.
-    final opened = await _openUrlPreferNewWindow(authUriWithRedirect);
-    if (!opened) {
-      final manual = await showAppDialog<bool>(
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Abrir navegador'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'No se pudo abrir el navegador automáticamente. Copia el enlace y ábrelo manualmente en tu navegador.',
-              ),
-              const SizedBox(height: 8),
-              SelectableText(authUriWithRedirect.toString(), maxLines: 5),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
-            TextButton(
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: authUriWithRedirect.toString()));
-                Navigator.of(ctx).pop(true);
-              },
-              child: const Text('Copiar enlace'),
-            ),
-          ],
-        ),
-      );
-      if (manual != true) throw StateError('Usuario canceló operación de abrir navegador');
-    }
-
-    // linkToCopy removed (manual paste flow disabled)
-
-    // If we have a loopback server, listen in background and auto-close the dialog
-    Completer<void>? serverCompleter;
-    if (server != null) {
-      serverCompleter = Completer<void>();
-
-      // Start background listener: capture the first incoming request (the OAuth redirect),
-      // extract the authorization code and serve the packaged success page that attempts to
-      // notify the opener and close the browser window.
-      () async {
-        final srv = server!; // server is non-null here
-        final sc = serverCompleter!;
-        try {
-          final req = await srv.first.timeout(const Duration(minutes: 5));
-          final q = req.uri.queryParameters;
-          code = q['code'];
-          try {
-            req.response.statusCode = 200;
-            req.response.headers.set('Content-Type', 'text/html; charset=utf-8');
-            try {
-              final successHtml = await rootBundle.loadString('assets/oauth_success.html');
-              req.response.write(successHtml);
-              await req.response.close();
-            } catch (e) {
-              // If the success asset is missing, abort to allow manual fallback.
-              try {
-                req.response.statusCode = 500;
-                await req.response.close();
-              } catch (_) {}
-              if (kDebugMode) debugPrint('Missing oauth_success.html asset: $e');
-              if (!serverCompleter.isCompleted) serverCompleter.complete();
-              return;
-            }
-          } catch (_) {}
-        } catch (e) {
-          if (kDebugMode) debugPrint('Loopback listener error: $e');
-        } finally {
-          try {
-            if (existingServer == null) await srv.close(force: true);
-          } catch (_) {}
-          if (!sc.isCompleted) sc.complete();
-        }
-      }();
-    }
-
-    // No UX dialog: wait silently for the loopback listener to capture the code.
-    if (serverCompleter != null) {
-      try {
-        await serverCompleter.future.timeout(const Duration(minutes: 5));
-      } catch (e) {
-        if (kDebugMode) debugPrint('Loopback wait timed out: $e');
-      }
-    } else {
-      // Manual paste flow removed: cannot continue without loopback capture.
-      throw StateError('No loopback server available; manual paste flow removed');
-    }
-
-    // If still no code after waiting, fallback to manual paste
-    if (code == null) throw StateError('Authorization code not received');
-
-    final clientSecret = await GoogleBackupService.resolveClientSecret();
-
-    final tokenBody = {
-      'grant_type': 'authorization_code',
-      'code': code,
-      'redirect_uri': finalRedirect.toString(),
-      'client_id': clientId,
-      'code_verifier': codeVerifier,
-    };
-    if (clientSecret != null && clientSecret.isNotEmpty) tokenBody['client_secret'] = clientSecret;
-
-    final tokenResp = await http.post(
-      Uri.parse('https://oauth2.googleapis.com/token'),
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: tokenBody,
-    );
-    if (tokenResp.statusCode < 200 || tokenResp.statusCode >= 300)
-      throw StateError('Token exchange failed: ${tokenResp.statusCode} ${tokenResp.body}');
-    final data = jsonDecode(tokenResp.body) as Map<String, dynamic>;
-    final tokenMap = <String, dynamic>{
-      'access_token': data['access_token'],
-      'refresh_token': data['refresh_token'],
-      'expires_in': data['expires_in'] ?? 0,
-      'token_type': data['token_type'],
-      'scope': data['scope'] ?? '',
-    };
-
-    await _localSecure.write(key: 'google_credentials', value: jsonEncode(tokenMap));
-    _service = GoogleBackupService(accessToken: tokenMap['access_token'] as String?);
-    unawaited(_fetchAccountInfo(tokenMap['access_token'] as String?));
-    _safeSetState(() => _status = 'Vinculación completada (PKCE fallback)');
-    await _checkForBackupAndMaybeRestore();
-  }
+  // PKCE/AppAuth flow moved to GoogleBackupService.linkAccount(); dialog is UI-only now.
 
   // Authorization wait dialog removed: flow is automatic and waits silently for loopback capture
 
-  Future<bool> _openUrlPreferNewWindow(Uri url) async {
-    try {
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-        return true;
-      }
-    } catch (e) {
-      debugPrint('openUrl failed: $e');
-    }
-    return false;
-  }
+  // URL launcher helper removed; dialog delegates auth to service and no longer opens URLs.
 
   // _extractCodeFromUrlOrCode removed (manual paste flow disabled)
 
@@ -545,7 +324,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
       _safeSetState(() => _status = 'Copia subida correctamente');
     } catch (e) {
       debugPrint('createBackupNow error: $e');
-      _safeSetState(() => _status = 'Error creando/subiendo copia de seguridad: $e');
+      _safeSetState(() => _status = 'Error creando/subiendo copia de seguridad');
     }
   }
 
@@ -570,7 +349,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         } catch (e) {
           debugPrint('onImportedJson failed: $e');
           _safeSetState(() {
-            _status = 'Error importando copia de seguridad en el callback del llamador';
+            _status = 'Error importando copia de seguridad';
             _working = false;
           });
           return;
@@ -583,7 +362,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
       return;
     } catch (e) {
       debugPrint('restoreLatest failed: $e');
-      _safeSetState(() => _status = 'Error restaurando copia de seguridad: $e');
+      _safeSetState(() => _status = 'Error restaurando copia de seguridad');
       _safeSetState(() => _working = false);
     }
   }
@@ -659,10 +438,12 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
           if (!linked) ...[
             Text('Estado: No vinculada', style: const TextStyle(color: Colors.white)),
             const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                if (_insufficientScope) ...[
+                if (_insufficientScope)
                   Tooltip(
                     message: 'Pulsa para volver a vincular y conceder acceso a Google Drive',
                     child: ElevatedButton(
@@ -678,57 +459,20 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                       child: const Text('Re-vincular (conceder acceso a Google Drive)'),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                ],
                 // The main link button is hidden in this UI variant; keep it in code
                 // for quick re-enable but not shown to users.
-                Visibility(
-                  visible: false,
-                  child: ElevatedButton(
-                    onPressed: _working ? null : _ensureLinkedAndCheck,
-                    child: const Text('Vincular cuenta de Google'),
-                  ),
+                ElevatedButton(
+                  onPressed: _working
+                      ? null
+                      : () async {
+                          // Clear the previous cancellation marker and start sign-in manually
+                          _userCancelledSignIn = false;
+                          await _ensureLinkedAndCheck();
+                        },
+                  child: const Text('Iniciar sesión'),
                 ),
-                const SizedBox(width: 8),
-                // Copy link button: useful when the browser didn't open automatically.
-                // Copiar URL / Abrir página: botones para el caso en que el navegador no se abra
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.copy, size: 18),
-                  label: const Text('Copiar URL'),
-                  onPressed: () async {
-                    if (_lastAuthUrl == null) {
-                      showAppSnackBar('No hay enlace de autorización disponible aún. Pulsa "Vincular" para empezar.');
-                      return;
-                    }
-                    try {
-                      await Clipboard.setData(ClipboardData(text: _lastAuthUrl!));
-                      showAppSnackBar('Enlace de autorización copiado al portapapeles.');
-                    } catch (e) {
-                      debugPrint('Failed to copy auth url: $e');
-                      showAppSnackBar('No se pudo copiar el enlace. Intenta manualmente.', isError: true);
-                    }
-                  },
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.open_in_new, size: 18),
-                  label: const Text('Abrir página'),
-                  onPressed: () async {
-                    if (_lastAuthUrl == null) {
-                      showAppSnackBar('No hay enlace de autorización disponible aún. Pulsa "Vincular" para empezar.');
-                      return;
-                    }
-                    try {
-                      final opened = await _openUrlPreferNewWindow(Uri.parse(_lastAuthUrl!));
-                      if (!opened) {
-                        showAppSnackBar('No se pudo abrir el navegador automáticamente. Usa "Copiar URL" para abrir manualmente.');
-                      }
-                    } catch (e) {
-                      debugPrint('Failed to open auth url: $e');
-                      showAppSnackBar('Error al intentar abrir la página. Usa "Copiar URL" para abrir manualmente.', isError: true);
-                    }
-                  },
-                ),
+                // local serverAuthCode exchange UI removed per request.
+                // Manual PKCE buttons removed; dialog delegates auth to service.
               ],
             ),
           ] else ...[
@@ -746,11 +490,12 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                     const SizedBox(width: 8),
                     Builder(
                       builder: (ctx) {
-                        if (widget.requestBackupJson != null)
+                        if (widget.requestBackupJson != null) {
                           return ElevatedButton(
                             onPressed: _working ? null : _createBackupNow,
                             child: const Text('Hacer copia ahora'),
                           );
+                        }
                         return const SizedBox.shrink();
                       },
                     ),
@@ -799,11 +544,15 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                               _status = 'Cuenta desvinculada';
                             });
                             try {
-                              if (widget.onClearAccountInfo != null) widget.onClearAccountInfo!();
+                              if (widget.onClearAccountInfo != null) {
+                                widget.onClearAccountInfo!();
+                              }
                             } catch (_) {}
                             try {
                               final navState = navigatorKey.currentState;
-                              if (navState != null && navState.canPop()) navState.pop(true);
+                              if (navState != null && navState.canPop()) {
+                                navState.pop(true);
+                              }
                             } catch (_) {}
                           }
                         },
@@ -825,12 +574,13 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
     i = i.clamp(0, suffixes.length - 1);
     final size = bytes / pow(1024, i);
     String s;
-    if (size >= 100 || size.truncateToDouble() == size)
+    if (size >= 100 || size.truncateToDouble() == size) {
       s = size.toStringAsFixed(0);
-    else if (size >= 10)
+    } else if (size >= 10) {
       s = size.toStringAsFixed(1);
-    else
+    } else {
       s = size.toStringAsFixed(2);
+    }
     return '$s ${suffixes[i]}';
   }
 }
