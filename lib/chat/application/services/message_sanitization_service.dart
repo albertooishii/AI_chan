@@ -3,7 +3,10 @@ class MessageSanitizationService {
   /// Sanitize message by removing forbidden tags and cleaning content
   String sanitizeMessage(String text) {
     // Remove any tags that are not in the allowed list
-    String sanitized = text.replaceAll(RegExp(r'\[(?!/?(?:audio|img_caption|call|end_call)\b)[^\]\[]+\]'), '');
+    String sanitized = text.replaceAll(
+      RegExp(r'\[(?!/?(?:audio|img_caption|call|end_call)\b)[^\]\[]+\]'),
+      '',
+    );
 
     return sanitized.trim();
   }

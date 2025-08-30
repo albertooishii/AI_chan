@@ -21,7 +21,10 @@ class GoogleSttAdapter implements ISttService {
   }
 
   @override
-  Future<String?> transcribeFile({required String filePath, Map<String, dynamic>? options}) async {
+  Future<String?> transcribeFile({
+    required String filePath,
+    Map<String, dynamic>? options,
+  }) async {
     return await transcribeAudio(filePath);
   }
 }

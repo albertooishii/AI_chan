@@ -32,7 +32,9 @@ void main() {
 
     test('setEventsAndPersist updates events only', () async {
       final provider = createTestChatProvider();
-      final events = [EventEntry(type: 'evento', description: 'E1', date: DateTime.now())];
+      final events = [
+        EventEntry(type: 'evento', description: 'E1', date: DateTime.now()),
+      ];
 
       await setEventsAndPersist(provider, events);
 

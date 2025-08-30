@@ -9,7 +9,9 @@ Future<(bool success, String? error)> downloadImage(String imagePath) async {
     final bytes = await File(imagePath).readAsBytes();
 
     // Log de depuración
-    Log.d('[downloadImage] Preparando para guardar: $fileName, bytes=${bytes.length}');
+    Log.d(
+      '[downloadImage] Preparando para guardar: $fileName, bytes=${bytes.length}',
+    );
 
     final result = await FilePicker.platform.saveFile(
       dialogTitle: 'Guardar imagen',
@@ -28,9 +30,13 @@ Future<(bool success, String? error)> downloadImage(String imagePath) async {
       // No debemos usar dart:io File en esos casos.
       if (Platform.isAndroid) {
         final lower = result.toLowerCase();
-        if (lower.startsWith('/document') || lower.startsWith('content://') || lower.contains('primary:')) {
+        if (lower.startsWith('/document') ||
+            lower.startsWith('content://') ||
+            lower.contains('primary:')) {
           // Confiar en que FilePicker escribió los bytes correctamente
-          Log.d('[downloadImage] Ruta SAF/content detectada; confiar en FilePicker para guardar los bytes');
+          Log.d(
+            '[downloadImage] Ruta SAF/content detectada; confiar en FilePicker para guardar los bytes',
+          );
           return (true, null);
         }
       }
@@ -50,7 +56,10 @@ Future<(bool success, String? error)> downloadImage(String imagePath) async {
           return (true, null);
         } else {
           Log.w('[downloadImage] Falló creación manual en: $result');
-          return (false, 'No se pudo crear el archivo en la ubicación especificada');
+          return (
+            false,
+            'No se pudo crear el archivo en la ubicación especificada',
+          );
         }
       } catch (e, st) {
         Log.e('[downloadImage] Error al escribir manualmente: $e\n$st');

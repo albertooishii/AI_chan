@@ -27,7 +27,12 @@ void main() async {
     );
 
     provider.messages = [
-      Message(text: 'hello', sender: MessageSender.user, dateTime: DateTime.now(), status: MessageStatus.read),
+      Message(
+        text: 'hello',
+        sender: MessageSender.user,
+        dateTime: DateTime.now(),
+        status: MessageStatus.read,
+      ),
       Message(
         text: 'assistant reply',
         sender: MessageSender.assistant,
@@ -52,8 +57,9 @@ void main() async {
     // Create a temp destination directory to simulate user-chosen path
     final baseTmp = Directory('${Directory.systemTemp.path}/ai_chan');
     if (!baseTmp.existsSync()) baseTmp.createSync(recursive: true);
-    final destDir = Directory('${baseTmp.path}/backup_dest_${DateTime.now().millisecondsSinceEpoch}')
-      ..createSync(recursive: true);
+    final destDir = Directory(
+      '${baseTmp.path}/backup_dest_${DateTime.now().millisecondsSinceEpoch}',
+    )..createSync(recursive: true);
 
     // Create the backup and assert file created in destDir
     final jsonStr = await BackupUtils.exportChatPartsToJson(
@@ -61,7 +67,10 @@ void main() async {
       messages: provider.messages,
       events: provider.events,
     );
-    final backupFile = await BackupService.createLocalBackup(jsonStr: jsonStr, destinationDirPath: destDir.path);
+    final backupFile = await BackupService.createLocalBackup(
+      jsonStr: jsonStr,
+      destinationDirPath: destDir.path,
+    );
     expect(await backupFile.exists(), isTrue);
 
     // Clear provider state and delete media to simulate fresh device
@@ -77,7 +86,9 @@ void main() async {
 
     // Restore from backup
     final extractedJson = await BackupService.restoreAndExtractJson(backupFile);
-    final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(extractedJson);
+    final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
+      extractedJson,
+    );
     expect(imported, isNotNull);
     if (imported != null) {
       provider.onboardingData = imported.profile;

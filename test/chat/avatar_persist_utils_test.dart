@@ -19,21 +19,33 @@ void main() {
       await addAvatarAndPersist(provider, avatar, replace: false);
 
       expect(provider.onboardingData.avatars, isNotNull);
-      expect(provider.onboardingData.avatars!.any((a) => a.seed == 's1'), isTrue);
+      expect(
+        provider.onboardingData.avatars!.any((a) => a.seed == 's1'),
+        isTrue,
+      );
     });
 
-    test('removeImageFromProfileAndPersist removes avatar when present', () async {
-      final provider = createTestChatProvider();
-      final avatar1 = AiImage(url: 'http://example.com/img1.png', seed: 's1');
-      final avatar2 = AiImage(url: 'http://example.com/img2.png', seed: 's2');
-      // add both
-      await addAvatarAndPersist(provider, avatar1);
-      await addAvatarAndPersist(provider, avatar2);
-      expect(provider.onboardingData.avatars!.length, equals(2));
+    test(
+      'removeImageFromProfileAndPersist removes avatar when present',
+      () async {
+        final provider = createTestChatProvider();
+        final avatar1 = AiImage(url: 'http://example.com/img1.png', seed: 's1');
+        final avatar2 = AiImage(url: 'http://example.com/img2.png', seed: 's2');
+        // add both
+        await addAvatarAndPersist(provider, avatar1);
+        await addAvatarAndPersist(provider, avatar2);
+        expect(provider.onboardingData.avatars!.length, equals(2));
 
-      await removeImageFromProfileAndPersist(provider, avatar1);
-      expect(provider.onboardingData.avatars!.any((a) => a.seed == 's1'), isFalse);
-      expect(provider.onboardingData.avatars!.any((a) => a.seed == 's2'), isTrue);
-    });
+        await removeImageFromProfileAndPersist(provider, avatar1);
+        expect(
+          provider.onboardingData.avatars!.any((a) => a.seed == 's1'),
+          isFalse,
+        );
+        expect(
+          provider.onboardingData.avatars!.any((a) => a.seed == 's2'),
+          isTrue,
+        );
+      },
+    );
   });
 }

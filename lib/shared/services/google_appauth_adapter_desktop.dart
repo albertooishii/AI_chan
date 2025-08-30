@@ -28,21 +28,37 @@ class GoogleAppAuthAdapter {
     try {
       if (Platform.isWindows) {
         final proc = await Process.start('cmd', ['/c', 'start', url]);
-        Log.d('GoogleAppAuthAdapter.openBrowser: started process pid=${proc.pid} (windows)', tag: 'GoogleAppAuth');
+        Log.d(
+          'GoogleAppAuthAdapter.openBrowser: started process pid=${proc.pid} (windows)',
+          tag: 'GoogleAppAuth',
+        );
       } else if (Platform.isMacOS) {
         final proc = await Process.start('open', [url]);
-        Log.d('GoogleAppAuthAdapter.openBrowser: started process pid=${proc.pid} (macos)', tag: 'GoogleAppAuth');
+        Log.d(
+          'GoogleAppAuthAdapter.openBrowser: started process pid=${proc.pid} (macos)',
+          tag: 'GoogleAppAuth',
+        );
       } else {
         final proc = await Process.start('xdg-open', [url]);
-        Log.d('GoogleAppAuthAdapter.openBrowser: started process pid=${proc.pid} (linux)', tag: 'GoogleAppAuth');
+        Log.d(
+          'GoogleAppAuthAdapter.openBrowser: started process pid=${proc.pid} (linux)',
+          tag: 'GoogleAppAuth',
+        );
       }
     } catch (e) {
-      Log.w('GoogleAppAuthAdapter.openBrowser failed: $e', tag: 'GoogleAppAuth');
+      Log.w(
+        'GoogleAppAuthAdapter.openBrowser failed: $e',
+        tag: 'GoogleAppAuth',
+      );
       rethrow;
     }
   }
 
-  GoogleAppAuthAdapter({required this.scopes, required this.clientId, this.redirectUri});
+  GoogleAppAuthAdapter({
+    required this.scopes,
+    required this.clientId,
+    this.redirectUri,
+  });
 
   Future<Map<String, dynamic>> signIn({List<String>? scopes}) async {
     final usedScopes = (scopes ?? this.scopes).join(' ');
@@ -66,7 +82,10 @@ class GoogleAppAuthAdapter {
       // Bind loopback
       server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       redirect = 'http://127.0.0.1:${server.port}/';
-      Log.d('GoogleAppAuthAdapter: loopback bound on ${server.address.address}:${server.port}', tag: 'GoogleAppAuth');
+      Log.d(
+        'GoogleAppAuthAdapter: loopback bound on ${server.address.address}:${server.port}',
+        tag: 'GoogleAppAuth',
+      );
     }
     authRedirect = Uri.parse(redirect);
 
@@ -75,19 +94,20 @@ class GoogleAppAuthAdapter {
     final codeChallenge = _codeChallenge(codeVerifier);
 
     final state = _randomString(16);
-    final authorizationEndpoint = Uri.parse('https://accounts.google.com/o/oauth2/v2/auth').replace(
-      queryParameters: {
-        'response_type': 'code',
-        'client_id': clientId,
-        'redirect_uri': authRedirect.toString(),
-        'scope': usedScopes,
-        'state': state,
-        'code_challenge': codeChallenge,
-        'code_challenge_method': 'S256',
-        'access_type': 'offline', // request refresh token
-        'prompt': 'consent',
-      },
-    );
+    final authorizationEndpoint =
+        Uri.parse('https://accounts.google.com/o/oauth2/v2/auth').replace(
+          queryParameters: {
+            'response_type': 'code',
+            'client_id': clientId,
+            'redirect_uri': authRedirect.toString(),
+            'scope': usedScopes,
+            'state': state,
+            'code_challenge': codeChallenge,
+            'code_challenge_method': 'S256',
+            'access_type': 'offline', // request refresh token
+            'prompt': 'consent',
+          },
+        );
 
     // Save the authorization URL so the UI can offer manual copy/open if needed.
     GoogleAppAuthAdapter.lastAuthUrl = authorizationEndpoint.toString();
@@ -96,7 +116,10 @@ class GoogleAppAuthAdapter {
     try {
       await GoogleAppAuthAdapter.openBrowser(authorizationEndpoint.toString());
     } catch (e) {
-      Log.w('GoogleAppAuthAdapter: failed to open browser: $e', tag: 'GoogleAppAuth');
+      Log.w(
+        'GoogleAppAuthAdapter: failed to open browser: $e',
+        tag: 'GoogleAppAuth',
+      );
     }
 
     // Wait for code on loopback if we bound one, otherwise instruct user
@@ -112,9 +135,14 @@ class GoogleAppAuthAdapter {
         // reply a friendly page
         // reply with the packaged oauth_success.html when available
         try {
-          String page = await rootBundle.loadString('assets/oauth_success.html');
+          String page = await rootBundle.loadString(
+            'assets/oauth_success.html',
+          );
           final appName = (Config.get('APP_NAME', '')).toString();
-          final replaced = page.replaceAll('%APP_NAME%', appName.isNotEmpty ? appName : 'AI Chan');
+          final replaced = page.replaceAll(
+            '%APP_NAME%',
+            appName.isNotEmpty ? appName : 'AI Chan',
+          );
           req.response.statusCode = 200;
           req.response.headers.set('Content-Type', 'text/html; charset=utf-8');
           req.response.write(replaced);
@@ -135,7 +163,12 @@ class GoogleAppAuthAdapter {
         );
       }
     } catch (e, st) {
-      Log.e('GoogleAppAuthAdapter: AppAuth failed: $e', tag: 'GoogleAppAuth', error: e, stack: st);
+      Log.e(
+        'GoogleAppAuthAdapter: AppAuth failed: $e',
+        tag: 'GoogleAppAuth',
+        error: e,
+        stack: st,
+      );
       try {
         if (server != null) await server.close(force: true);
       } catch (_) {}
@@ -160,10 +193,15 @@ class GoogleAppAuthAdapter {
       String? clientSecret;
       try {
         clientSecret = Config.get('GOOGLE_CLIENT_SECRET_DESKTOP', '').trim();
-        if (clientSecret.isEmpty) clientSecret = Config.get('GOOGLE_CLIENT_SECRET_WEB', '').trim();
+        if (clientSecret.isEmpty) {
+          clientSecret = Config.get('GOOGLE_CLIENT_SECRET_WEB', '').trim();
+        }
         if (clientSecret.isEmpty) clientSecret = null;
         if (clientSecret != null) {
-          Log.d('GoogleAppAuthAdapter: included client_secret in token request (masked)', tag: 'GoogleAppAuth');
+          Log.d(
+            'GoogleAppAuthAdapter: included client_secret in token request (masked)',
+            tag: 'GoogleAppAuth',
+          );
         }
       } catch (_) {
         clientSecret = null;
@@ -178,14 +216,18 @@ class GoogleAppAuthAdapter {
         'redirect_uri': authRedirect.toString(),
         'code_verifier': codeVerifier,
       };
-      if (clientSecret != null && clientSecret.isNotEmpty) body['client_secret'] = clientSecret;
+      if (clientSecret != null && clientSecret.isNotEmpty) {
+        body['client_secret'] = clientSecret;
+      }
       final tokenRes = await http.post(
         tokenUrl,
         headers: {'content-type': 'application/x-www-form-urlencoded'},
         body: body,
       );
       if (tokenRes.statusCode < 200 || tokenRes.statusCode >= 300) {
-        throw StateError('Token exchange failed: ${tokenRes.statusCode} ${tokenRes.body}');
+        throw StateError(
+          'Token exchange failed: ${tokenRes.statusCode} ${tokenRes.body}',
+        );
       }
       final map = Map<String, dynamic>.of(jsonDecode(tokenRes.body));
       try {
@@ -197,8 +239,13 @@ class GoogleAppAuthAdapter {
         final idToken = map['id_token'] as String?;
         final accessToken = map['access_token'] as String?;
         if (idToken != null || accessToken != null) {
-          final credential = GoogleAuthProvider.credential(idToken: idToken, accessToken: accessToken);
-          final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+          final credential = GoogleAuthProvider.credential(
+            idToken: idToken,
+            accessToken: accessToken,
+          );
+          final userCred = await FirebaseAuth.instance.signInWithCredential(
+            credential,
+          );
           final refreshToken = userCred.user?.refreshToken;
           if (refreshToken != null && refreshToken.isNotEmpty) {
             map['refresh_token'] = refreshToken;
@@ -207,7 +254,12 @@ class GoogleAppAuthAdapter {
       } catch (_) {}
       return map;
     } catch (e, st) {
-      Log.e('GoogleAppAuthAdapter: token exchange error: $e', tag: 'GoogleAppAuth', error: e, stack: st);
+      Log.e(
+        'GoogleAppAuthAdapter: token exchange error: $e',
+        tag: 'GoogleAppAuth',
+        error: e,
+        stack: st,
+      );
       try {
         await server.close(force: true);
       } catch (_) {}

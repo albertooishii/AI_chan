@@ -32,7 +32,9 @@ class LocalChatRepository implements IChatRepository {
         final Map<String, dynamic> profileMap = bioString != null
             ? (jsonDecode(bioString) as Map<String, dynamic>)
             : <String, dynamic>{};
-        final List<dynamic> messages = jsonString != null ? jsonDecode(jsonString) as List<dynamic> : <dynamic>[];
+        final List<dynamic> messages = jsonString != null
+            ? jsonDecode(jsonString) as List<dynamic>
+            : <dynamic>[];
         // Normalizar la salida para que sea compatible con ImportedChat.fromJson:
         // devolver un mapa con los campos del perfil en el nivel superior y las claves 'messages' y 'events'.
         final Map<String, dynamic> out = Map<String, dynamic>.from(profileMap);
@@ -68,14 +70,20 @@ class LocalChatRepository implements IChatRepository {
         exportedJson.containsKey('ai_profile') ||
         exportedJson.containsKey('aiChanProfile')) {
       // Many callers use 'onboarding' or profile top-level keys; save a canonical 'onboarding_data'
-      final profile = exportedJson['onboarding'] ?? exportedJson['ai_profile'] ?? exportedJson['aiChanProfile'];
+      final profile =
+          exportedJson['onboarding'] ??
+          exportedJson['ai_profile'] ??
+          exportedJson['aiChanProfile'];
       if (profile != null) {
         await PrefsUtils.setOnboardingData(json.encode(profile));
       }
     }
     // Fallback: persist the whole payload under 'chat_full_export' for manual inspection
     try {
-      await PrefsUtils.setRawString(PrefsUtils.kChatFullExport, json.encode(exportedJson));
+      await PrefsUtils.setRawString(
+        PrefsUtils.kChatFullExport,
+        json.encode(exportedJson),
+      );
     } catch (_) {}
   }
 

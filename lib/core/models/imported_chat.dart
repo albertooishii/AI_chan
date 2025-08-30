@@ -6,7 +6,11 @@ class ImportedChat {
   final List<Message> messages;
   final List<EventEntry> events;
 
-  ImportedChat({required this.profile, required this.messages, required this.events});
+  ImportedChat({
+    required this.profile,
+    required this.messages,
+    required this.events,
+  });
 
   factory ImportedChat.fromJson(Map<String, dynamic> json) {
     final Map<String, dynamic> profileMap = Map.from(json);
@@ -14,8 +18,12 @@ class ImportedChat {
     profileMap.remove('events');
     return ImportedChat(
       profile: AiChanProfile.fromJson(profileMap),
-      messages: (json['messages'] as List<dynamic>? ?? []).map((e) => Message.fromJson(e)).toList(),
-      events: (json['events'] as List<dynamic>? ?? []).map((e) => EventEntry.fromJson(e)).toList(),
+      messages: (json['messages'] as List<dynamic>? ?? [])
+          .map((e) => Message.fromJson(e))
+          .toList(),
+      events: (json['events'] as List<dynamic>? ?? [])
+          .map((e) => EventEntry.fromJson(e))
+          .toList(),
     );
   }
 

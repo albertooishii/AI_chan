@@ -113,7 +113,7 @@ class FakeImageSaverService {
     }
 
     final path =
-        '${directory ?? 'images'}/${filename ?? 'image_${DateTime.now().millisecondsSinceEpoch}.png'}';
+        '${directory ?? 'images'}/${filename ?? 'image_${DateTime.now().millisecondsSinceEpoch}.png'}'; // Mantener PNG para tests
     _savedImages[path] = base64Image;
     return path;
   }

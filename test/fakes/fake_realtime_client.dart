@@ -8,7 +8,10 @@ class FakeRealtimeClient {
 
   FakeRealtimeClient({this.onText, this.onAudio, this.onCompleted});
 
-  Future<void> connect({required String systemPrompt, String voice = 'default'}) async {
+  Future<void> connect({
+    required String systemPrompt,
+    String voice = 'default',
+  }) async {
     // no-op
   }
 

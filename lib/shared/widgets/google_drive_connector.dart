@@ -5,9 +5,14 @@ import 'package:ai_chan/shared/utils/log_utils.dart';
 /// Widget helper para testing y manejo fácil de la vinculación con Google Drive
 class GoogleDriveConnector extends StatefulWidget {
   final Widget child;
-  final Function(bool isConnected, Map<String, dynamic>? userInfo)? onConnectionChanged;
+  final Function(bool isConnected, Map<String, dynamic>? userInfo)?
+  onConnectionChanged;
 
-  const GoogleDriveConnector({super.key, required this.child, this.onConnectionChanged});
+  const GoogleDriveConnector({
+    super.key,
+    required this.child,
+    this.onConnectionChanged,
+  });
 
   @override
   State<GoogleDriveConnector> createState() => _GoogleDriveConnectorState();
@@ -44,7 +49,10 @@ class _GoogleDriveConnectorState extends State<GoogleDriveConnector> {
         widget.onConnectionChanged?.call(_isConnected, _userInfo);
       }
     } catch (e) {
-      Log.w('GoogleDriveConnector: failed to check connection status: $e', tag: 'GoogleDrive');
+      Log.w(
+        'GoogleDriveConnector: failed to check connection status: $e',
+        tag: 'GoogleDrive',
+      );
       if (mounted) {
         setState(() {
           _isConnected = false;
@@ -71,13 +79,20 @@ class _GoogleDriveConnectorState extends State<GoogleDriveConnector> {
       final service = GoogleBackupService(accessToken: null);
       final tokenMap = await service.linkAccount(
         forceUseGoogleSignIn: true, // Force native chooser on Android
-        scopes: ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/drive.appdata'],
+        scopes: [
+          'openid',
+          'email',
+          'profile',
+          'https://www.googleapis.com/auth/drive.appdata',
+        ],
       );
 
       Log.d('GoogleDriveConnector: connection successful', tag: 'GoogleDrive');
 
       // Verify connection by fetching user info
-      final connectedService = GoogleBackupService(accessToken: tokenMap['access_token']);
+      final connectedService = GoogleBackupService(
+        accessToken: tokenMap['access_token'],
+      );
       final userInfo = await connectedService.fetchUserInfoIfTokenValid();
 
       if (mounted) {
@@ -92,7 +107,9 @@ class _GoogleDriveConnectorState extends State<GoogleDriveConnector> {
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Conectado a Google Drive como ${userInfo?['email'] ?? 'usuario'}'),
+            content: Text(
+              'Conectado a Google Drive como ${userInfo?['email'] ?? 'usuario'}',
+            ),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),
           ),
@@ -170,7 +187,8 @@ class _GoogleDriveConnectorState extends State<GoogleDriveConnector> {
       return 'Conexión cancelada por el usuario';
     } else if (error.contains('network')) {
       return 'Error de conexión. Verifica tu internet.';
-    } else if (error.contains('access_denied') || error.contains('access blocked')) {
+    } else if (error.contains('access_denied') ||
+        error.contains('access blocked')) {
       return 'Acceso denegado. Verifica la configuración OAuth.';
     } else if (error.contains('invalid_client')) {
       return 'Cliente OAuth inválido. Verifica la configuración.';
@@ -198,8 +216,13 @@ class _GoogleDriveConnectorState extends State<GoogleDriveConnector> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  _isConnected ? 'Google Drive: ${_userInfo?['email'] ?? 'Conectado'}' : 'Google Drive: No conectado',
-                  style: TextStyle(color: _isConnected ? Colors.green : Colors.grey, fontSize: 12),
+                  _isConnected
+                      ? 'Google Drive: ${_userInfo?['email'] ?? 'Conectado'}'
+                      : 'Google Drive: No conectado',
+                  style: TextStyle(
+                    color: _isConnected ? Colors.green : Colors.grey,
+                    fontSize: 12,
+                  ),
                 ),
               ),
               if (!_isLoading) ...[
@@ -208,14 +231,18 @@ class _GoogleDriveConnectorState extends State<GoogleDriveConnector> {
                     onPressed: disconnectFromGoogleDrive,
                     icon: const Icon(Icons.logout, size: 16),
                     label: const Text('Desconectar'),
-                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
                   )
                 else
                   ElevatedButton.icon(
                     onPressed: connectToGoogleDrive,
                     icon: const Icon(Icons.login, size: 16),
                     label: const Text('Conectar'),
-                    style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12)),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
                   ),
               ],
             ],
@@ -237,7 +264,10 @@ class _GoogleDriveConnectorState extends State<GoogleDriveConnector> {
                 Icon(Icons.error_outline, color: Colors.red.shade700, size: 16),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(_errorMessage!, style: TextStyle(color: Colors.red.shade700, fontSize: 12)),
+                  child: Text(
+                    _errorMessage!,
+                    style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+                  ),
                 ),
                 TextButton(
                   onPressed: () => setState(() => _errorMessage = null),

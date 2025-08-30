@@ -14,7 +14,10 @@ mixin DebouncedPersistenceMixin on ChangeNotifier {
   DebouncedSave? _debouncedSave;
 
   /// Initialize or replace the debounced save helper.
-  void initDebouncedPersistence(Future<void> Function() saveFunc, {Duration duration = const Duration(seconds: 1)}) {
+  void initDebouncedPersistence(
+    Future<void> Function() saveFunc, {
+    Duration duration = const Duration(seconds: 1),
+  }) {
     _debouncedSave?.dispose();
     _debouncedSave = DebouncedSave(duration, saveFunc);
   }

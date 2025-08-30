@@ -22,6 +22,9 @@ void main() {
 
     expect(restored.aiName, equals(profile.aiName));
     expect(restored.userName, equals(profile.userName));
-    expect(restored.biography['resumen_breve'], equals('Una chica interesante.'));
+    expect(
+      restored.biography['resumen_breve'],
+      equals('Una chica interesante.'),
+    );
   });
 }

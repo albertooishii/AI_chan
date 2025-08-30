@@ -62,7 +62,10 @@ class AudioSubtitleController {
     });
   }
 
-  void setTimeline(List<WordSubtitleUnit> units, {required Duration audioTotal}) {
+  void setTimeline(
+    List<WordSubtitleUnit> units, {
+    required Duration audioTotal,
+  }) {
     _manualMode = false;
     _timeline = List.of(units)..sort((a, b) => a.startMs.compareTo(b.startMs));
     _audioTotal = audioTotal;
@@ -86,7 +89,10 @@ class AudioSubtitleController {
       return;
     }
     _manualMode = true;
-    final ratio = (position.inMilliseconds / total.inMilliseconds).clamp(0.0, 1.0);
+    final ratio = (position.inMilliseconds / total.inMilliseconds).clamp(
+      0.0,
+      1.0,
+    );
     final targetLen = (fullText.length * ratio).floor();
     final revealed = fullText.substring(0, targetLen);
     _manualTextCtrl.add(revealed);
@@ -112,7 +118,12 @@ class WordSubtitleUnit {
   final int startMs;
   final int endMs;
   final bool appendSpace;
-  const WordSubtitleUnit({required this.text, required this.startMs, required this.endMs, this.appendSpace = true});
+  const WordSubtitleUnit({
+    required this.text,
+    required this.startMs,
+    required this.endMs,
+    this.appendSpace = true,
+  });
 }
 
 class FloatingAudioSubtitle extends StatefulWidget {
@@ -125,12 +136,18 @@ class FloatingAudioSubtitle extends StatefulWidget {
   final Duration removalDuration;
   final Alignment alignment;
   final BoxDecoration? decorationOverride;
-  final bool useKatakana; // permitir desactivar katakana si la fuente no soporta
+  final bool
+  useKatakana; // permitir desactivar katakana si la fuente no soporta
 
   const FloatingAudioSubtitle({
     super.key,
     required this.controller,
-    this.style = const TextStyle(color: Colors.cyanAccent, fontSize: 13, fontWeight: FontWeight.w500, height: 1.25),
+    this.style = const TextStyle(
+      color: Colors.cyanAccent,
+      fontSize: 13,
+      fontWeight: FontWeight.w500,
+      height: 1.25,
+    ),
     this.padding = const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
     this.maxWidth = 380,
     this.glassBackground = true,
@@ -188,9 +205,17 @@ class _FloatingAudioSubtitleState extends State<FloatingAudioSubtitle> {
             BoxDecoration(
               // Reemplazo de withOpacity (deprecado) por withValues conservando alpha
               color: Colors.black.withValues(alpha: 0.35),
-              border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.35)),
+              border: Border.all(
+                color: Colors.cyanAccent.withValues(alpha: 0.35),
+              ),
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [BoxShadow(color: Colors.cyanAccent.withValues(alpha: 0.20), blurRadius: 12, spreadRadius: 1)],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.cyanAccent.withValues(alpha: 0.20),
+                  blurRadius: 12,
+                  spreadRadius: 1,
+                ),
+              ],
             ),
         child: child,
       );
@@ -199,7 +224,10 @@ class _FloatingAudioSubtitleState extends State<FloatingAudioSubtitle> {
   }
 }
 
-List<WordSubtitleUnit> buildWordTimeline({required String text, required Duration total}) {
+List<WordSubtitleUnit> buildWordTimeline({
+  required String text,
+  required Duration total,
+}) {
   if (text.trim().isEmpty || total.inMilliseconds <= 0) return const [];
   final words = text.trim().split(RegExp(r'\s+'));
   final totalMs = total.inMilliseconds;

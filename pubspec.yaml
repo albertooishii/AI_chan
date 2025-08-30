@@ -66,6 +66,7 @@ dependencies:
   emoji_picker_flutter: ^4.3.0
   markdown_widget: ^2.3.2+8
   image_picker: ^1.1.2
+  image: ^4.5.4
   # image_gallery_saver_plus: ^4.0.1
   # gallery_saver: ^2.3.2
 

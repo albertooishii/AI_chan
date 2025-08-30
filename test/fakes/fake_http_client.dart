@@ -28,22 +28,42 @@ class FakeHttpClient implements http.Client {
   }
 
   @override
-  Future<http.Response> post(Uri url, {Map<String, String>? headers, Object? body, Encoding? encoding}) async {
+  Future<http.Response> post(
+    Uri url, {
+    Map<String, String>? headers,
+    Object? body,
+    Encoding? encoding,
+  }) async {
     return _findResponse(url);
   }
 
   @override
-  Future<http.Response> put(Uri url, {Object? body, Encoding? encoding, Map<String, String>? headers}) async {
+  Future<http.Response> put(
+    Uri url, {
+    Object? body,
+    Encoding? encoding,
+    Map<String, String>? headers,
+  }) async {
     return _findResponse(url);
   }
 
   @override
-  Future<http.Response> patch(Uri url, {Object? body, Encoding? encoding, Map<String, String>? headers}) async {
+  Future<http.Response> patch(
+    Uri url, {
+    Object? body,
+    Encoding? encoding,
+    Map<String, String>? headers,
+  }) async {
     return _findResponse(url);
   }
 
   @override
-  Future<http.Response> delete(Uri url, {Object? body, Encoding? encoding, Map<String, String>? headers}) async {
+  Future<http.Response> delete(
+    Uri url, {
+    Object? body,
+    Encoding? encoding,
+    Map<String, String>? headers,
+  }) async {
     return _findResponse(url);
   }
 
@@ -73,6 +93,11 @@ class FakeHttpClient implements http.Client {
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final r = _findResponse(request.url);
     final stream = Stream.fromIterable([r.bodyBytes]);
-    return http.StreamedResponse(stream, r.statusCode, headers: r.headers, reasonPhrase: r.reasonPhrase);
+    return http.StreamedResponse(
+      stream,
+      r.statusCode,
+      headers: r.headers,
+      reasonPhrase: r.reasonPhrase,
+    );
   }
 }

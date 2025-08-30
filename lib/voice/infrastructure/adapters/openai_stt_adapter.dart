@@ -2,7 +2,8 @@ import 'dart:io';
 
 import 'package:ai_chan/core/interfaces/i_stt_service.dart';
 import 'package:ai_chan/shared/services/openai_service.dart';
-import 'package:ai_chan/shared/services/ai_runtime_provider.dart' as runtime_factory;
+import 'package:ai_chan/shared/services/ai_runtime_provider.dart'
+    as runtime_factory;
 import 'package:ai_chan/core/config.dart';
 import 'package:flutter/foundation.dart';
 
@@ -36,7 +37,10 @@ class OpenAISttAdapter implements ISttService {
   }
 
   @override
-  Future<String?> transcribeFile({required String filePath, Map<String, dynamic>? options}) async {
+  Future<String?> transcribeFile({
+    required String filePath,
+    Map<String, dynamic>? options,
+  }) async {
     return await transcribeAudio(filePath);
   }
 }

@@ -23,20 +23,26 @@ Future<bool> ensureFirebaseInitialized() async {
   }
 
   try {
-    if (kIsWeb) return false; // web should use default Firebase config in index.html
+    if (kIsWeb) {
+      return false; // web should use default Firebase config in index.html
+    }
     final file = File('google-services.json');
     if (!file.existsSync()) return false;
     final data = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
     final projectInfo = data['project_info'] as Map<String, dynamic>?;
-    final clients = (data['client'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
+    final clients =
+        (data['client'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
     String? apiKey;
     String? appId;
     String? projectId;
     if (projectInfo != null) projectId = projectInfo['project_id'] as String?;
     if (clients.isNotEmpty) {
       final first = clients.first;
-      final apiKeys = (first['api_key'] as List<dynamic>?)?.cast<Map<String, dynamic>>();
-      if (apiKeys != null && apiKeys.isNotEmpty) apiKey = apiKeys.first['current_key'] as String?;
+      final apiKeys = (first['api_key'] as List<dynamic>?)
+          ?.cast<Map<String, dynamic>>();
+      if (apiKeys != null && apiKeys.isNotEmpty) {
+        apiKey = apiKeys.first['current_key'] as String?;
+      }
       final clientInfo = first['client_info'] as Map<String, dynamic>?;
       if (clientInfo != null) appId = clientInfo['mobilesdk_app_id'] as String?;
     }
@@ -45,11 +51,18 @@ Future<bool> ensureFirebaseInitialized() async {
     if ((apiKey == null || apiKey.isEmpty) ||
         (appId == null || appId.isEmpty) ||
         (projectId == null || projectId.isEmpty)) {
-      debugPrint('firebase_init: google-services.json missing required fields apiKey/appId/projectId');
+      debugPrint(
+        'firebase_init: google-services.json missing required fields apiKey/appId/projectId',
+      );
       return false;
     }
 
-    final options = FirebaseOptions(apiKey: apiKey, appId: appId, messagingSenderId: '', projectId: projectId);
+    final options = FirebaseOptions(
+      apiKey: apiKey,
+      appId: appId,
+      messagingSenderId: '',
+      projectId: projectId,
+    );
     await Firebase.initializeApp(options: options);
     return true;
   } catch (e, st) {

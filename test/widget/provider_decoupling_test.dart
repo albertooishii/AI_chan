@@ -43,7 +43,9 @@ void main() {
         final line = lines[i];
         for (final entry in patterns.entries) {
           if (entry.value.hasMatch(line)) {
-            issues.add('Line ${i + 1}: contains "${entry.key}" -> ${line.trim()}');
+            issues.add(
+              'Line ${i + 1}: contains "${entry.key}" -> ${line.trim()}',
+            );
           }
         }
       }
@@ -62,7 +64,9 @@ void main() {
           buffer.writeln('    $it');
         }
       });
-      buffer.writeln('If a screen needs a provider instance, pass it via constructor parameters from a parent widget.');
+      buffer.writeln(
+        'If a screen needs a provider instance, pass it via constructor parameters from a parent widget.',
+      );
       fail(buffer.toString());
     }
   });

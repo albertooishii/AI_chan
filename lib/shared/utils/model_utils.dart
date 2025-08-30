@@ -10,7 +10,10 @@ class ModelUtils {
   }
 
   /// Agrupa una lista de modelos por proveedor. Devuelve un mapa proveedor->[modelIds]
-  static Map<String, List<String>> groupModels(List<String> models, {bool preserveOrder = true}) {
+  static Map<String, List<String>> groupModels(
+    List<String> models, {
+    bool preserveOrder = true,
+  }) {
     final Map<String, List<String>> out = {};
     for (final m in models) {
       final p = detectProvider(m);

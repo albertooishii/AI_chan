@@ -7,7 +7,10 @@ import 'package:ai_chan/chat/domain/interfaces/i_chat_repository.dart';
 class BackupUtils {
   /// Serialize an ImportedChat to JSON. If [repository] is provided, delegate
   /// to it (some repos may return a path instead of raw JSON).
-  static Future<String> exportImportedChatToJson(ImportedChat chat, {IChatRepository? repository}) async {
+  static Future<String> exportImportedChatToJson(
+    ImportedChat chat, {
+    IChatRepository? repository,
+  }) async {
     final map = chat.toJson();
     if (repository != null) {
       try {
@@ -25,7 +28,11 @@ class BackupUtils {
     required List<EventEntry> events,
     IChatRepository? repository,
   }) async {
-    final imported = ImportedChat(profile: profile, messages: messages, events: events);
+    final imported = ImportedChat(
+      profile: profile,
+      messages: messages,
+      events: events,
+    );
     return await exportImportedChatToJson(imported, repository: repository);
   }
 }

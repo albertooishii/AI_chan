@@ -9,7 +9,11 @@ import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 
 // ------------------ Test hooks types (top-level) ------------------
-typedef LocalBackupCreator = Future<File> Function({required String jsonStr, String? destinationDirPath});
+typedef LocalBackupCreator =
+    Future<File> Function({
+      required String jsonStr,
+      String? destinationDirPath,
+    });
 typedef GoogleBackupServiceFactory = GoogleBackupService Function();
 typedef GoogleTokenLoaderFactory = GoogleBackupService Function();
 
@@ -33,11 +37,19 @@ class BackupAutoUploader {
     const coalesceSeconds = 60;
     _lastAttempt ??= 0;
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    if (_lastSuccess != null && (nowMs - _lastSuccess!) < (coalesceSeconds * 1000)) return;
-    if ((nowMs - (_lastAttempt ?? 0)) < 1000) return; // avoid multiple immediate calls
+    if (_lastSuccess != null &&
+        (nowMs - _lastSuccess!) < (coalesceSeconds * 1000)) {
+      return;
+    }
+    if ((nowMs - (_lastAttempt ?? 0)) < 1000) {
+      return; // avoid multiple immediate calls
+    }
     _lastAttempt = nowMs;
     try {
-      Log.i('Automatic backup: triggered; preparing export JSON...', tag: 'BACKUP_AUTO');
+      Log.i(
+        'Automatic backup: triggered; preparing export JSON...',
+        tag: 'BACKUP_AUTO',
+      );
       // Build export JSON from profile/messages/events (null events here)
       final jsonStr = await BackupUtils.exportChatPartsToJson(
         profile: profile,
@@ -64,12 +76,18 @@ class BackupAutoUploader {
 
         final storedToken = await tokenLoader.loadStoredAccessToken();
         if (storedToken == null || storedToken.isEmpty) {
-          Log.w('Automatic backup: no stored access token available; skipping upload', tag: 'BACKUP_AUTO');
+          Log.w(
+            'Automatic backup: no stored access token available; skipping upload',
+            tag: 'BACKUP_AUTO',
+          );
           // Clean up the temp dir we created and exit early.
           try {
             if (tmpDir.existsSync()) tmpDir.deleteSync(recursive: true);
           } catch (e) {
-            Log.w('Automatic backup: failed deleting temp dir during early abort: $e', tag: 'BACKUP_AUTO');
+            Log.w(
+              'Automatic backup: failed deleting temp dir during early abort: $e',
+              tag: 'BACKUP_AUTO',
+            );
           }
           return;
         }
@@ -80,45 +98,77 @@ class BackupAutoUploader {
 
       // Create the zip in the system temp dir to avoid polluting app documents
       final file = await (testLocalBackupCreator != null
-          ? testLocalBackupCreator!(jsonStr: jsonStr, destinationDirPath: tmpDir.path)
-          : BackupService.createLocalBackup(jsonStr: jsonStr, destinationDirPath: tmpDir.path));
+          ? testLocalBackupCreator!(
+              jsonStr: jsonStr,
+              destinationDirPath: tmpDir.path,
+            )
+          : BackupService.createLocalBackup(
+              jsonStr: jsonStr,
+              destinationDirPath: tmpDir.path,
+            ));
 
       // Notify any test harness that an upload attempt is about to happen.
       try {
         testUploadCompleter?.complete();
       } catch (_) {}
       await svc.uploadBackup(file);
-      Log.i('Automatic backup: upload completed successfully to Drive. file=${file.path}', tag: 'BACKUP_AUTO');
+      Log.i(
+        'Automatic backup: upload completed successfully to Drive. file=${file.path}',
+        tag: 'BACKUP_AUTO',
+      );
       // Optionally delete local file after successful upload
       try {
         if (file.existsSync()) {
           file.deleteSync();
-          Log.d('Automatic backup: deleted temp zip ${file.path}', tag: 'BACKUP_AUTO');
+          Log.d(
+            'Automatic backup: deleted temp zip ${file.path}',
+            tag: 'BACKUP_AUTO',
+          );
         }
         // Remove the temp directory as well
         try {
           if (tmpDir.existsSync()) {
             tmpDir.deleteSync(recursive: true);
-            Log.d('Automatic backup: deleted temp dir ${tmpDir.path}', tag: 'BACKUP_AUTO');
+            Log.d(
+              'Automatic backup: deleted temp dir ${tmpDir.path}',
+              tag: 'BACKUP_AUTO',
+            );
           }
         } catch (e) {
-          Log.w('Automatic backup: failed deleting temp dir ${tmpDir.path}: $e', tag: 'BACKUP_AUTO');
+          Log.w(
+            'Automatic backup: failed deleting temp dir ${tmpDir.path}: $e',
+            tag: 'BACKUP_AUTO',
+          );
         }
         // Persist last-success timestamp
         try {
           await PrefsUtils.setLastAutoBackupMs(nowMs);
           _lastSuccess = nowMs;
-          Log.i('Automatic backup: recorded last-success ts=$nowMs', tag: 'BACKUP_AUTO');
+          Log.i(
+            'Automatic backup: recorded last-success ts=$nowMs',
+            tag: 'BACKUP_AUTO',
+          );
         } catch (e) {
-          Log.w('Automatic backup: failed persisting last-success ts: $e', tag: 'BACKUP_AUTO');
+          Log.w(
+            'Automatic backup: failed persisting last-success ts: $e',
+            tag: 'BACKUP_AUTO',
+          );
         }
       } catch (e) {
-        Log.w('Automatic backup: failed deleting temp files: $e', tag: 'BACKUP_AUTO');
+        Log.w(
+          'Automatic backup: failed deleting temp files: $e',
+          tag: 'BACKUP_AUTO',
+        );
       }
     } catch (e, st) {
       // Don't throw: only log. Apps may query logs to detect failures.
       try {
-        Log.e('Automatic backup failed', tag: 'BACKUP_AUTO', error: e, stack: st);
+        Log.e(
+          'Automatic backup failed',
+          tag: 'BACKUP_AUTO',
+          error: e,
+          stack: st,
+        );
       } catch (_) {}
     }
   }

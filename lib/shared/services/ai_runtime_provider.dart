@@ -12,19 +12,26 @@ final Map<String, runtime_ai.AIService> _runtimeAiSingletons = {};
 runtime_ai.AIService getRuntimeAIServiceForModel(String modelId) {
   final normalized = modelId.trim().toLowerCase();
   final defaultModel = Config.getDefaultTextModel().trim().toLowerCase();
-  final key = normalized.isEmpty ? (defaultModel.isEmpty ? 'default' : defaultModel) : normalized;
+  final key = normalized.isEmpty
+      ? (defaultModel.isEmpty ? 'default' : defaultModel)
+      : normalized;
   if (_runtimeAiSingletons.containsKey(key)) {
     final existing = _runtimeAiSingletons[key]!;
     // Sanity check: if the cached singleton type doesn't match the model prefix, replace it
-    if (key.startsWith('gpt-') && existing.runtimeType.toString() != 'OpenAIService') {
-      Log.w('[ai_runtime_provider] Warning: singleton type mismatch for $key (expected OpenAIService). Recreating.');
+    if (key.startsWith('gpt-') &&
+        existing.runtimeType.toString() != 'OpenAIService') {
+      Log.w(
+        '[ai_runtime_provider] Warning: singleton type mismatch for $key (expected OpenAIService). Recreating.',
+      );
       final implNew = OpenAIService();
       _runtimeAiSingletons[key] = implNew;
       return implNew;
     }
     if ((key.startsWith('gemini-') || key.startsWith('imagen-')) &&
         existing.runtimeType.toString() != 'GeminiService') {
-      Log.w('[ai_runtime_provider] Warning: singleton type mismatch for $key (expected GeminiService). Recreating.');
+      Log.w(
+        '[ai_runtime_provider] Warning: singleton type mismatch for $key (expected GeminiService). Recreating.',
+      );
       final implNew = GeminiService();
       _runtimeAiSingletons[key] = implNew;
       return implNew;

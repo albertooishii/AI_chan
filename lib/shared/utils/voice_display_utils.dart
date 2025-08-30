@@ -56,14 +56,21 @@ class VoiceDisplayUtils {
   };
 
   /// Convierte géneros a nombres legibles
-  static final Map<String, String> _genderNames = {'MALE': 'Masculina', 'FEMALE': 'Femenina', 'NEUTRAL': 'Neutral'};
+  static final Map<String, String> _genderNames = {
+    'MALE': 'Masculina',
+    'FEMALE': 'Femenina',
+    'NEUTRAL': 'Neutral',
+  };
 
   /// Devuelve el nombre real tal como lo proporciona la API.
   /// Prioridad: `displayName` / `display_name` (si existe) -> `name`.
   /// NO recorta ni elimina partes del nombre: se presenta exactamente como viene.
   static String getGoogleVoiceFriendlyName(Map<String, dynamic> voice) {
     final display =
-        voice['displayName'] as String? ?? voice['display_name'] as String? ?? voice['name'] as String? ?? '';
+        voice['displayName'] as String? ??
+        voice['display_name'] as String? ??
+        voice['name'] as String? ??
+        '';
     if (display.isEmpty) return 'Voz sin nombre';
     return display;
   }
@@ -91,7 +98,8 @@ class VoiceDisplayUtils {
   /// Genera información de subtítulo para mostrar en la UI
   static String getVoiceSubtitle(Map<String, dynamic> voice) {
     final gender = voice['ssmlGender'] as String? ?? '';
-    final languageCodes = (voice['languageCodes'] as List<dynamic>?)?.cast<String>() ?? [];
+    final languageCodes =
+        (voice['languageCodes'] as List<dynamic>?)?.cast<String>() ?? [];
     final name = voice['name'] as String? ?? '';
 
     final genderName = _genderNames[gender] ?? gender;
@@ -100,7 +108,10 @@ class VoiceDisplayUtils {
     String languageName = '';
     if (languageCodes.isNotEmpty) {
       final cand = _normalizeLangCode(languageCodes.first);
-      languageName = _languageNames[cand] ?? _languageNames[languageCodes.first] ?? languageCodes.first;
+      languageName =
+          _languageNames[cand] ??
+          _languageNames[languageCodes.first] ??
+          languageCodes.first;
     } else {
       // intentar extraer de 'name' formato 'xx-YY-...'
       final parts = name.split('-');
@@ -134,13 +145,17 @@ class VoiceDisplayUtils {
   /// 'Español (España)'. Se basa en la misma tabla usada por
   /// `getVoiceSubtitle` y aplica las mismas reglas de fallback.
   static String getLanguageLabelFromVoice(Map<String, dynamic> voice) {
-    final languageCodes = (voice['languageCodes'] as List<dynamic>?)?.cast<String>() ?? [];
+    final languageCodes =
+        (voice['languageCodes'] as List<dynamic>?)?.cast<String>() ?? [];
     final name = voice['name'] as String? ?? '';
 
     String languageName = '';
     if (languageCodes.isNotEmpty) {
       final cand = _normalizeLangCode(languageCodes.first);
-      languageName = _languageNames[cand] ?? _languageNames[languageCodes.first] ?? languageCodes.first;
+      languageName =
+          _languageNames[cand] ??
+          _languageNames[languageCodes.first] ??
+          languageCodes.first;
     } else {
       final parts = name.split('-');
       if (parts.length >= 2) {
@@ -153,7 +168,9 @@ class VoiceDisplayUtils {
   }
 
   /// Formatea el display para voces tipo Google (nombre amigable + subtítulo)
-  static Map<String, String> formatGoogleVoiceDisplay(Map<String, dynamic> voice) {
+  static Map<String, String> formatGoogleVoiceDisplay(
+    Map<String, dynamic> voice,
+  ) {
     final displayName = getGoogleVoiceFriendlyName(voice);
     final subtitle = getVoiceSubtitle(voice);
     return {'displayName': displayName, 'subtitle': subtitle};

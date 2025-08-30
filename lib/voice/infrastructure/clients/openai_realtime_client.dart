@@ -68,7 +68,9 @@ class OpenAIRealtimeClient implements IRealtimeClient {
     await _transport.connect(options: options ?? {});
     _bytesSinceCommit = 0;
     _hasAppendedSinceConnect = false;
-    _serverTurnDetection = (turnDetectionType == 'server_vad' || turnDetectionType == 'semantic_vad');
+    _serverTurnDetection =
+        (turnDetectionType == 'server_vad' ||
+        turnDetectionType == 'semantic_vad');
     _voice = voice;
     final sessionReady = Completer<void>(); // session.created
     _sessionReadyCompleter = sessionReady;
@@ -109,7 +111,9 @@ class OpenAIRealtimeClient implements IRealtimeClient {
 
     // session.created -> send session.update and complete session completer
     if (type == 'session.created') {
-      if (kDebugMode) Log.d('Realtime: session.created recibido, aplicando voice="$_voice"');
+      if (kDebugMode) {
+        Log.d('Realtime: session.created recibido, aplicando voice="$_voice"');
+      }
       _transport.sendEvent({
         'type': 'session.update',
         'session': {
@@ -117,7 +121,10 @@ class OpenAIRealtimeClient implements IRealtimeClient {
           'modalities': ['audio', 'text'],
           'input_audio_format': 'pcm16',
           'output_audio_format': 'pcm16',
-          'input_audio_transcription': {'model': Config.getOpenAISttModel(), 'language': 'es'},
+          'input_audio_transcription': {
+            'model': Config.getOpenAISttModel(),
+            'language': 'es',
+          },
           'voice': _voice,
         },
       });
@@ -128,10 +135,14 @@ class OpenAIRealtimeClient implements IRealtimeClient {
     }
 
     if (kDebugMode) {
-      final noisy = type.startsWith('response.audio_transcript.') || type == 'response.audio.delta';
+      final noisy =
+          type.startsWith('response.audio_transcript.') ||
+          type == 'response.audio.delta';
       if (!noisy) Log.d('Realtime IN: type=$type');
       if (type == 'response.created') {
-        final mods = (evt['response'] is Map) ? (evt['response']['modalities']) : null;
+        final mods = (evt['response'] is Map)
+            ? (evt['response']['modalities'])
+            : null;
         Log.d('Realtime IN: response.created modalities=${mods ?? 'unknown'}');
       }
     }
@@ -143,7 +154,8 @@ class OpenAIRealtimeClient implements IRealtimeClient {
     }
 
     // Transcriptions
-    if (type.startsWith('response.audio_transcript.') && evt['delta'] is String) {
+    if (type.startsWith('response.audio_transcript.') &&
+        evt['delta'] is String) {
       final tx = (evt['delta'] as String).trim();
       if (tx.isNotEmpty) onText?.call(tx);
     }
@@ -156,12 +168,14 @@ class OpenAIRealtimeClient implements IRealtimeClient {
     final delta = evt['delta'];
     if (delta is Map) {
       final dType = (delta['type'] ?? '').toString();
-      if ((dType.contains('output_text') || dType.contains('text')) && delta['text'] is String) {
+      if ((dType.contains('output_text') || dType.contains('text')) &&
+          delta['text'] is String) {
         onText?.call(delta['text']);
         handledText = true;
       }
       final isAudioEvent = type.startsWith('response.audio.');
-      if ((isAudioEvent || dType.contains('output_audio')) && delta['audio'] is String) {
+      if ((isAudioEvent || dType.contains('output_audio')) &&
+          delta['audio'] is String) {
         try {
           final bytes = base64Decode(delta['audio']);
           onAudio?.call(bytes);
@@ -192,11 +206,13 @@ class OpenAIRealtimeClient implements IRealtimeClient {
       for (final part in output) {
         if (part is Map) {
           final pType = (part['type'] ?? '').toString();
-          if ((pType.contains('output_text') || pType.contains('text')) && part['text'] is String) {
+          if ((pType.contains('output_text') || pType.contains('text')) &&
+              part['text'] is String) {
             if (!handledText) onText?.call(part['text']);
             handledText = true;
           }
-          if ((pType.contains('output_audio') || pType.contains('audio')) && part['audio'] is String) {
+          if ((pType.contains('output_audio') || pType.contains('audio')) &&
+              part['audio'] is String) {
             try {
               if (!handledAudio) {
                 final bytes = base64Decode(part['audio']);
@@ -220,7 +236,8 @@ class OpenAIRealtimeClient implements IRealtimeClient {
         for (final part in rOutput) {
           if (part is Map) {
             final pType = (part['type'] ?? '').toString();
-            if ((pType.contains('output_text') || pType.contains('text')) && part['text'] is String) {
+            if ((pType.contains('output_text') || pType.contains('text')) &&
+                part['text'] is String) {
               if (!handledText) onText?.call(part['text']);
               handledText = true;
             }
@@ -228,11 +245,13 @@ class OpenAIRealtimeClient implements IRealtimeClient {
               for (final c in (part['content'] as List)) {
                 if (c is Map) {
                   final ct = (c['type'] ?? '').toString();
-                  if ((ct.contains('output_text') || ct.contains('text')) && c['text'] is String) {
+                  if ((ct.contains('output_text') || ct.contains('text')) &&
+                      c['text'] is String) {
                     if (!handledText) onText?.call(c['text']);
                     handledText = true;
                   }
-                  if ((ct.contains('output_audio') || ct.contains('audio')) && c['audio'] is String) {
+                  if ((ct.contains('output_audio') || ct.contains('audio')) &&
+                      c['audio'] is String) {
                     try {
                       if (!handledAudio) {
                         final bytes = base64Decode(c['audio']);
@@ -246,7 +265,8 @@ class OpenAIRealtimeClient implements IRealtimeClient {
                 }
               }
             }
-            if ((pType.contains('output_audio') || pType.contains('audio')) && part['audio'] is String) {
+            if ((pType.contains('output_audio') || pType.contains('audio')) &&
+                part['audio'] is String) {
               try {
                 if (!handledAudio) {
                   final bytes = base64Decode(part['audio']);
@@ -265,10 +285,12 @@ class OpenAIRealtimeClient implements IRealtimeClient {
         for (final c in rContent) {
           if (c is Map) {
             final ct = (c['type'] ?? '').toString();
-            if ((ct.contains('output_text') || ct.contains('text')) && c['text'] is String) {
+            if ((ct.contains('output_text') || ct.contains('text')) &&
+                c['text'] is String) {
               onText?.call(c['text']);
             }
-            if ((ct.contains('output_audio') || ct.contains('audio')) && c['audio'] is String) {
+            if ((ct.contains('output_audio') || ct.contains('audio')) &&
+                c['audio'] is String) {
               try {
                 final bytes = base64Decode(c['audio']);
                 onAudio?.call(bytes);
@@ -285,7 +307,9 @@ class OpenAIRealtimeClient implements IRealtimeClient {
     if (type.startsWith('response.audio.') && !handledAudio) {
       String? b64;
       if (evt['audio'] is String) b64 = evt['audio'];
-      if (b64 == null && evt['delta'] is Map && evt['delta']['audio'] is String) {
+      if (b64 == null &&
+          evt['delta'] is Map &&
+          evt['delta']['audio'] is String) {
         b64 = evt['delta']['audio'];
       }
       if (b64 == null && evt['delta'] is String) {
@@ -309,7 +333,9 @@ class OpenAIRealtimeClient implements IRealtimeClient {
       if (resp2 is Map) {
         final status = (resp2['status'] ?? '').toString();
         if (status == 'failed') {
-          final err = (resp2['status_details'] is Map) ? resp2['status_details']['error'] : null;
+          final err = (resp2['status_details'] is Map)
+              ? resp2['status_details']['error']
+              : null;
           final code = (err is Map) ? (err['code'] ?? '').toString() : '';
           final msg = (err is Map) ? (err['message'] ?? '').toString() : '';
           if (kDebugMode) debugPrint('Realtime response failed: $code $msg');
@@ -324,7 +350,8 @@ class OpenAIRealtimeClient implements IRealtimeClient {
       if (!_hasActiveResponse) requestResponse(audio: true, text: true);
     }
     if (!_serverTurnDetection &&
-        (type == 'input_audio_buffer.committed' || type == 'input_audio_buffer.speech_stopped')) {
+        (type == 'input_audio_buffer.committed' ||
+            type == 'input_audio_buffer.speech_stopped')) {
       requestResponse(audio: true, text: true);
     }
 
@@ -334,7 +361,9 @@ class OpenAIRealtimeClient implements IRealtimeClient {
       if (transcript.isNotEmpty) {
         onUserTranscription?.call(transcript);
       } else {
-        final altTranscript = (evt['text'] ?? evt['content'] ?? '').toString().trim();
+        final altTranscript = (evt['text'] ?? evt['content'] ?? '')
+            .toString()
+            .trim();
         if (altTranscript.isNotEmpty) onUserTranscription?.call(altTranscript);
       }
     }
@@ -397,7 +426,9 @@ class OpenAIRealtimeClient implements IRealtimeClient {
     }
     // Debounce: esperar a que el servidor procese los append (>=120ms desde el último append)
     final now = DateTime.now();
-    final sinceMs = _lastAppendAt == null ? 9999 : now.difference(_lastAppendAt!).inMilliseconds;
+    final sinceMs = _lastAppendAt == null
+        ? 9999
+        : now.difference(_lastAppendAt!).inMilliseconds;
     if (sinceMs < 120) {
       if (_commitScheduled) return;
       final waitMs = 120 - sinceMs;
@@ -406,13 +437,17 @@ class OpenAIRealtimeClient implements IRealtimeClient {
         if (!isConnected) return;
         if (_bytesSinceCommit < 3200) {
           if (kDebugMode) {
-            debugPrint('Realtime: commit diferido cancelado por bytes insuficientes ($_bytesSinceCommit)');
+            debugPrint(
+              'Realtime: commit diferido cancelado por bytes insuficientes ($_bytesSinceCommit)',
+            );
           }
           _commitScheduled = false;
           return;
         }
         if (kDebugMode) {
-          debugPrint('Realtime OUT (deferred): input_audio_buffer.commit bytes=$_bytesSinceCommit');
+          debugPrint(
+            'Realtime OUT (deferred): input_audio_buffer.commit bytes=$_bytesSinceCommit',
+          );
         }
         _transport.commitAudio();
         _bytesSinceCommit = 0;
@@ -421,7 +456,9 @@ class OpenAIRealtimeClient implements IRealtimeClient {
       return;
     }
     if (kDebugMode) {
-      debugPrint('Realtime OUT: input_audio_buffer.commit bytes=$_bytesSinceCommit');
+      debugPrint(
+        'Realtime OUT: input_audio_buffer.commit bytes=$_bytesSinceCommit',
+      );
     }
     _transport.commitAudio();
     _bytesSinceCommit = 0;
@@ -461,7 +498,9 @@ class OpenAIRealtimeClient implements IRealtimeClient {
       if (!isConnected) return;
       if (_hasActiveResponse) {
         if (kDebugMode) {
-          debugPrint('Realtime: cancelado response.create (respuesta activa detectada)');
+          debugPrint(
+            'Realtime: cancelado response.create (respuesta activa detectada)',
+          );
         }
         return;
       }
@@ -564,7 +603,9 @@ extension _RespExtract on OpenAIRealtimeClient {
 
     scan(resp);
     if (kDebugMode) {
-      debugPrint('Realtime: resp extract -> texts=${texts.length}, audioChunks=${audioChunks.length}');
+      debugPrint(
+        'Realtime: resp extract -> texts=${texts.length}, audioChunks=${audioChunks.length}',
+      );
     }
     for (final s in texts) {
       onText?.call(s);

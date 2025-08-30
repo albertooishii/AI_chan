@@ -18,7 +18,8 @@ Future<Directory> getLocalAudioDir() async {
     return Directory('AI_chan_audio');
   }
 
-  final appDoc = (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS))
+  final appDoc =
+      (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS))
       ? await getApplicationSupportDirectory()
       : await getApplicationDocumentsDirectory();
 

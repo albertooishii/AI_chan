@@ -5,11 +5,17 @@ import '../constants/app_colors.dart';
 // all dialogs and overlay controls can align to the same visual grid as
 // the CalendarScreen AppBar.
 const double kAppDialogSidePadding = 12.0;
-const EdgeInsets kAppDialogInnerPadding = EdgeInsets.symmetric(vertical: 16.0, horizontal: kAppDialogSidePadding);
+const EdgeInsets kAppDialogInnerPadding = EdgeInsets.symmetric(
+  vertical: 16.0,
+  horizontal: kAppDialogSidePadding,
+);
 
-double dialogTopOffset(BuildContext context) => MediaQuery.of(context).padding.top + kAppDialogSidePadding;
-double dialogLeftOffset(BuildContext context) => MediaQuery.of(context).padding.left + kAppDialogSidePadding;
-double dialogRightOffset(BuildContext context) => MediaQuery.of(context).padding.right + kAppDialogSidePadding;
+double dialogTopOffset(BuildContext context) =>
+    MediaQuery.of(context).padding.top + kAppDialogSidePadding;
+double dialogLeftOffset(BuildContext context) =>
+    MediaQuery.of(context).padding.left + kAppDialogSidePadding;
+double dialogRightOffset(BuildContext context) =>
+    MediaQuery.of(context).padding.right + kAppDialogSidePadding;
 
 double dialogContentMaxWidth(BuildContext context) {
   final size = MediaQuery.of(context).size;
@@ -27,7 +33,13 @@ class AppAlertDialog extends StatelessWidget {
   /// Widgets que se colocarán en la cabecera (AppBar.actions) del diálogo.
   final List<Widget>? headerActions;
 
-  const AppAlertDialog({super.key, this.title, this.content, this.actions, this.headerActions});
+  const AppAlertDialog({
+    super.key,
+    this.title,
+    this.content,
+    this.actions,
+    this.headerActions,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +52,9 @@ class AppAlertDialog extends StatelessWidget {
 
     // Construir barra de título estilo AppBar (igual que CalendarScreen)
     // AppBar inside a SafeArea will provide correct top/side insets.
-    final closeIcon = Navigator.of(context).canPop() ? Icons.arrow_back : Icons.close;
+    final closeIcon = Navigator.of(context).canPop()
+        ? Icons.arrow_back
+        : Icons.close;
 
     // Si el título es un Text, aplicar estilo por defecto similar al AppBar
     Widget effectiveTitle;
@@ -48,7 +62,13 @@ class AppAlertDialog extends StatelessWidget {
       final t = title as Text;
       effectiveTitle = Text(
         t.data ?? '',
-        style: t.style ?? const TextStyle(color: AppColors.primary, fontSize: 18, fontWeight: FontWeight.bold),
+        style:
+            t.style ??
+            const TextStyle(
+              color: AppColors.primary,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
         textAlign: t.textAlign,
         overflow: t.overflow,
         maxLines: t.maxLines,
@@ -85,8 +105,13 @@ class AppAlertDialog extends StatelessWidget {
               ? null
               : [
                   Padding(
-                    padding: const EdgeInsets.only(right: kAppDialogSidePadding),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: headerActions!),
+                    padding: const EdgeInsets.only(
+                      right: kAppDialogSidePadding,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: headerActions!,
+                    ),
                   ),
                 ],
         ),

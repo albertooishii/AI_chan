@@ -20,10 +20,16 @@ class BaseFakeAIService implements AIService {
     if (enableImageGeneration) {
       const onePixelPngBase64 =
           'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAAWgmWQ0AAAAASUVORK5CYII=';
-      return AIResponse(text: '', base64: onePixelPngBase64, seed: 'fake-seed', prompt: 'fake-prompt');
+      return AIResponse(
+        text: '',
+        base64: onePixelPngBase64,
+        seed: 'fake-seed',
+        prompt: 'fake-prompt',
+      );
     }
     // Default simple JSON response for profile/appearance generation
-    final json = '{"resumen_breve":"Resumen de prueba","datos_personales":{"nombre_completo":"Ai Test"}}';
+    final json =
+        '{"resumen_breve":"Resumen de prueba","datos_personales":{"nombre_completo":"Ai Test"}}';
     return AIResponse(text: json, base64: '', seed: '', prompt: '');
   }
 
@@ -46,7 +52,12 @@ class LocalImageFake extends BaseFakeAIService {
     if (enableImageGeneration) {
       const onePixelPngBase64 =
           'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAAWgmWQ0AAAAASUVORK5CYII=';
-      return AIResponse(text: '', base64: onePixelPngBase64, seed: 'fake-seed', prompt: 'fake-prompt');
+      return AIResponse(
+        text: '',
+        base64: onePixelPngBase64,
+        seed: 'fake-seed',
+        prompt: 'fake-prompt',
+      );
     }
     return super.sendMessageImpl(
       history,
@@ -83,11 +94,19 @@ void main() {
     // filesystem dependencies and adapter fallback to placeholder. This makes the test
     // fail if the generator didn't produce an image (avoids false positives).
     final generator = IAAppearanceGenerator();
-    final appearance = await generator.generateAppearancePrompt(profile, aiService: AIService.testOverride!);
+    final appearance = await generator.generateAppearancePrompt(
+      profile,
+      aiService: AIService.testOverride!,
+    );
     final updatedProfile = profile.copyWith(appearance: appearance);
-    final image = await IAAvatarGenerator().generateAvatarFromAppearance(updatedProfile);
+    final image = await IAAvatarGenerator().generateAvatarFromAppearance(
+      updatedProfile,
+    );
     expect(image, isA<AiImage>());
-    expect(image.url, contains('.png'));
+    expect(
+      image.url,
+      anyOf(contains('.jpg'), contains('.png')),
+    ); // jpg para compresión exitosa, png para fallback
     // Clear override
     AIService.testOverride = null;
   });

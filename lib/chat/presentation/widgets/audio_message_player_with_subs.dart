@@ -8,7 +8,8 @@ import 'floating_audio_subtitle.dart';
 class AudioMessagePlayerWithSubs extends StatefulWidget {
   final Message message;
   final double width;
-  final bool globalOverlay; // muestra subtítulos estilo video ocupando ancho pantalla
+  final bool
+  globalOverlay; // muestra subtítulos estilo video ocupando ancho pantalla
   // Playback callbacks/readers injected by parent to avoid Provider here.
   final bool Function(Message) isPlaying;
   final Future<void> Function(Message) togglePlay;
@@ -30,10 +31,12 @@ class AudioMessagePlayerWithSubs extends StatefulWidget {
   static Future<void> _defaultTogglePlay(Message _) async {}
 
   @override
-  State<AudioMessagePlayerWithSubs> createState() => _AudioMessagePlayerWithSubsState();
+  State<AudioMessagePlayerWithSubs> createState() =>
+      _AudioMessagePlayerWithSubsState();
 }
 
-class _AudioMessagePlayerWithSubsState extends State<AudioMessagePlayerWithSubs> {
+class _AudioMessagePlayerWithSubsState
+    extends State<AudioMessagePlayerWithSubs> {
   late final AudioSubtitleController _subsCtrl;
   String _baseText = '';
   OverlayEntry? _overlayEntry;
@@ -43,8 +46,12 @@ class _AudioMessagePlayerWithSubsState extends State<AudioMessagePlayerWithSubs>
   Timer? _overlayFadeTimer; // timer que inicia el fade-out
   double _overlayOpacity = 1.0; // opacidad animada del overlay
 
-  static const Duration _lingerTotal = Duration(seconds: 2); // tiempo visible tras terminar
-  static const Duration _fadeOutDuration = Duration(milliseconds: 450); // duración del desvanecido final
+  static const Duration _lingerTotal = Duration(
+    seconds: 2,
+  ); // tiempo visible tras terminar
+  static const Duration _fadeOutDuration = Duration(
+    milliseconds: 450,
+  ); // duración del desvanecido final
 
   @override
   void initState() {
@@ -84,7 +91,8 @@ class _AudioMessagePlayerWithSubsState extends State<AudioMessagePlayerWithSubs>
   @override
   void didUpdateWidget(covariant AudioMessagePlayerWithSubs oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.message.audioPath != widget.message.audioPath || oldWidget.message.text != widget.message.text) {
+    if (oldWidget.message.audioPath != widget.message.audioPath ||
+        oldWidget.message.text != widget.message.text) {
       _prepareTimeline();
     }
   }
@@ -240,7 +248,9 @@ class _AudioMessagePlayerWithSubsState extends State<AudioMessagePlayerWithSubs>
     if (isPlaying) {
       // Solo actualizar cuando tengamos duración real y posición > 0 (evita flash de texto completo)
       if (hasRealDuration) {
-        const revealDelay = Duration(milliseconds: 1000); // delay de arranque si no hay timestamps
+        const revealDelay = Duration(
+          milliseconds: 1000,
+        ); // delay de arranque si no hay timestamps
         final bool hasTimeline = false; // por ahora siempre proporcional
         if (!hasTimeline && rawDur > revealDelay) {
           if (pos <= revealDelay) {

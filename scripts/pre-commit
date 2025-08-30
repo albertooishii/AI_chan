@@ -18,6 +18,12 @@ else
 	export LC_ALL=C.UTF-8
 fi
 
+echo "[pre-commit] Formatting code with dart format..."
+dart format lib/ test/ --set-exit-if-changed
+
+echo "[pre-commit] Applying automatic fixes with dart fix..."
+dart fix --apply
+
 echo "[pre-commit] Running flutter analyze..."
 flutter analyze
 

@@ -23,7 +23,8 @@ Future<AiChanProfile> generateAIBiographyWithAI({
   final now = DateTime.now();
   int userAge = now.year - userBirthday.year;
   final hasHadBirthdayThisYear =
-      (now.month > userBirthday.month) || (now.month == userBirthday.month && now.day >= userBirthday.day);
+      (now.month > userBirthday.month) ||
+      (now.month == userBirthday.month && now.day >= userBirthday.day);
   if (!hasHadBirthdayThisYear) userAge -= 1;
   final targetAge = (userAge - 2) < 18 ? 18 : (userAge - 2);
   final aiYear = now.year - targetAge;
@@ -58,9 +59,18 @@ NOTA INTERNA: Considera tu mundo como real y evita mencionar tecnología, IA o m
 No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono excesivamente técnico. Mantén un estilo natural pero coherente con la biografía. Si no tienes datos, invéntalos de forma coherente y realista.
 ''';
 
-  final bioPlace = LocaleUtils.countryNameEs(aiCountryCode, fallback: 'su país');
-  final userPlace = LocaleUtils.countryNameEs(userCountryCode, fallback: 'tu país');
-  final bioLanguages = LocaleUtils.languagesListForPair(aiCountryCode: aiCountryCode, userCountryCode: userCountryCode);
+  final bioPlace = LocaleUtils.countryNameEs(
+    aiCountryCode,
+    fallback: 'su país',
+  );
+  final userPlace = LocaleUtils.countryNameEs(
+    userCountryCode,
+    fallback: 'tu país',
+  );
+  final bioLanguages = LocaleUtils.languagesListForPair(
+    aiCountryCode: aiCountryCode,
+    userCountryCode: userCountryCode,
+  );
   final bioDetails =
       'Eres bastante friki y otaku. Te gusta el anime, los videojuegos de Nintendo clásicos y modernos y las películas de terror japonesas. Trabajas en algo relacionado con la tecnología como desarrolladora de videojuegos, animadora, diseñadora gráfica o algo similar.';
 
@@ -117,7 +127,13 @@ No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono 
       {"actividad": "", "dias": "", "from": "", "to": ""},
     ],
     "familia": [
-      {"nombre": "", "relacion": "", "descripcion": "", "estado": "vivo/fallecido", "fecha_nacimiento": ""},
+      {
+        "nombre": "",
+        "relacion": "",
+        "descripcion": "",
+        "estado": "vivo/fallecido",
+        "fecha_nacimiento": "",
+      },
     ],
     "mascotas": [
       {
@@ -145,7 +161,13 @@ No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono 
       },
     ],
     "relaciones": [
-      {"nombre": "", "tipo": "", "descripcion": "", "fecha_inicio": "", "fecha_fin": ""},
+      {
+        "nombre": "",
+        "tipo": "",
+        "descripcion": "",
+        "fecha_inicio": "",
+        "fecha_fin": "",
+      },
     ],
     "amistades": [
       {"nombre": "", "descripcion": "", "años": ""},
@@ -215,41 +237,64 @@ Identidad: $aiIdentityInstructions
 
   const int maxAttempts = 3;
   String defaultModel = Config.getDefaultTextModel();
-  Log.d('[IABioGenerator] Biografía: intentos JSON (max=$maxAttempts) con $defaultModel');
+  Log.d(
+    '[IABioGenerator] Biografía: intentos JSON (max=$maxAttempts) con $defaultModel',
+  );
   Map<String, dynamic>? bioJson;
   for (int attempt = 0; attempt < maxAttempts; attempt++) {
     Log.d('[IABioGenerator] Biografía: intento ${attempt + 1}/$maxAttempts');
     try {
       // Use existing Log.* calls for structured logging; avoid noisy debugPrints.
       final responseObj = await (aiServiceOverride != null
-          ? aiServiceOverride.sendMessageImpl([], systemPromptObj, model: defaultModel)
+          ? aiServiceOverride.sendMessageImpl(
+              [],
+              systemPromptObj,
+              model: defaultModel,
+            )
           : AIService.sendMessage([], systemPromptObj, model: defaultModel));
       if ((responseObj.text).trim().isEmpty) {
-        Log.w('[IABioGenerator] Biografía: respuesta vacía (posible desconexión), reintentando…');
+        Log.w(
+          '[IABioGenerator] Biografía: respuesta vacía (posible desconexión), reintentando…',
+        );
         continue;
       }
       final extracted = extractJsonBlock(responseObj.text);
       if (!extracted.containsKey('raw')) {
         bioJson = Map<String, dynamic>.from(extracted);
-        Log.d('[IABioGenerator] Biografía: JSON OK en intento ${attempt + 1} (keys=${bioJson.keys.length})');
+        Log.d(
+          '[IABioGenerator] Biografía: JSON OK en intento ${attempt + 1} (keys=${bioJson.keys.length})',
+        );
         break;
       }
-      Log.w('[IABioGenerator] Biografía: intento ${attempt + 1} sin JSON válido, reintentando…');
+      Log.w(
+        '[IABioGenerator] Biografía: intento ${attempt + 1} sin JSON válido, reintentando…',
+      );
     } catch (err) {
       if (handleRuntimeError(err, 'IABioGenerator')) {
         // already logged inside helper
       } else {
-        Log.e('[IABioGenerator] Biografía: error de red/timeout en intento ${attempt + 1}: $err');
+        Log.e(
+          '[IABioGenerator] Biografía: error de red/timeout en intento ${attempt + 1}: $err',
+        );
       }
     }
   }
   if (bioJson == null) {
-    throw Exception('No se pudo generar biografía en formato JSON válido (posible error de conexión).');
+    throw Exception(
+      'No se pudo generar biografía en formato JSON válido (posible error de conexión).',
+    );
   }
 
   final bioModel = AiChanProfile(
     biography: bioJson,
-    timeline: [TimelineEntry(resume: meetStory, startDate: fechaConocieron, endDate: fechaActual, level: -1)],
+    timeline: [
+      TimelineEntry(
+        resume: meetStory,
+        startDate: fechaConocieron,
+        endDate: fechaActual,
+        level: -1,
+      ),
+    ],
     userName: userName,
     aiName: aiName,
     userBirthday: userBirthday,

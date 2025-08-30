@@ -26,13 +26,21 @@ class MessageQueueManager {
   final Duration queuedSendDelay;
   // onFlush receives the full list of queued ids (in order), the last id and the options
   // that were associated with the last enqueued message.
-  final void Function(List<String> ids, String lastLocalId, QueuedSendOptions? options) onFlush;
+  final void Function(
+    List<String> ids,
+    String lastLocalId,
+    QueuedSendOptions? options,
+  )
+  onFlush;
 
   final List<String> _queued = [];
   QueuedSendOptions? _options;
   Timer? _timer;
 
-  MessageQueueManager({required this.onFlush, this.queuedSendDelay = const Duration(seconds: 5)});
+  MessageQueueManager({
+    required this.onFlush,
+    this.queuedSendDelay = const Duration(seconds: 5),
+  });
 
   int get queuedCount => _queued.length;
 

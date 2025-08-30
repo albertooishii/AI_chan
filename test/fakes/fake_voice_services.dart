@@ -6,7 +6,10 @@ class FakeSttService implements ISttService {
   final String transcriptionResult;
   final bool shouldFail;
 
-  FakeSttService({this.transcriptionResult = 'transcripcion de prueba', this.shouldFail = false});
+  FakeSttService({
+    this.transcriptionResult = 'transcripcion de prueba',
+    this.shouldFail = false,
+  });
 
   @override
   Future<String?> transcribeAudio(String path) async {
@@ -15,7 +18,10 @@ class FakeSttService implements ISttService {
   }
 
   @override
-  Future<String?> transcribeFile({required String filePath, Map<String, dynamic>? options}) async {
+  Future<String?> transcribeFile({
+    required String filePath,
+    Map<String, dynamic>? options,
+  }) async {
     return await transcribeAudio(filePath);
   }
 }
@@ -25,7 +31,10 @@ class FakeCallsAiService implements IAIService {
   final String response;
   final List<String> models;
 
-  FakeCallsAiService({this.response = 'respuesta generada por ai', this.models = const ['gemi-test']});
+  FakeCallsAiService({
+    this.response = 'respuesta generada por ai',
+    this.models = const ['gemi-test'],
+  });
 
   @override
   Future<Map<String, dynamic>> sendMessage({

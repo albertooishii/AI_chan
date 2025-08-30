@@ -17,7 +17,8 @@ class OpenAITransport implements RealtimeTransportService {
   @override
   bool get isConnected => _connected;
 
-  OpenAITransport({String? model}) : model = model ?? Config.requireOpenAIRealtimeModel();
+  OpenAITransport({String? model})
+    : model = model ?? Config.requireOpenAIRealtimeModel();
 
   @override
   Future<void> connect({required Map<String, dynamic> options}) async {
@@ -27,7 +28,10 @@ class OpenAITransport implements RealtimeTransportService {
     // Use injectable connector so tests can override and avoid real network
     _channel = WebSocketConnector.connect(
       uri,
-      headers: {'Authorization': 'Bearer $apiKey', 'OpenAI-Beta': 'realtime=v1'},
+      headers: {
+        'Authorization': 'Bearer $apiKey',
+        'OpenAI-Beta': 'realtime=v1',
+      },
     );
     _connected = true;
     _channel!.stream.listen(
@@ -81,7 +85,10 @@ class OpenAITransport implements RealtimeTransportService {
     try {
       // OpenAI accepts base64 in JSON events; adapters may choose to send
       // via sendEvent with input_audio_buffer.append or via binary frames.
-      sendEvent({'type': 'input_audio_buffer.append', 'audio': base64Encode(bytes)});
+      sendEvent({
+        'type': 'input_audio_buffer.append',
+        'audio': base64Encode(bytes),
+      });
     } catch (e) {
       onError?.call(e);
     }

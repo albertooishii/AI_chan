@@ -40,7 +40,12 @@ abstract class IAudioChatService {
   Future<void> togglePlay(Message message, OnStateChanged onState);
 
   /// Synthesize text to speech and return audio file
-  Future<File?> synthesizeTts(String text, {String voice = 'sage', String? languageCode, bool forDialogDemo = false});
+  Future<File?> synthesizeTts(
+    String text, {
+    String voice = 'sage',
+    String? languageCode,
+    bool forDialogDemo = false,
+  });
 
   /// Dispose of resources
   void dispose();

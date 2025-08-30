@@ -15,7 +15,8 @@ class PrefsUtils {
   // --- Dynamic key factories ---
   static String voiceMessagesKey(String callId) => 'voice_messages_$callId';
   static String voiceCallKey(String callId) => 'voice_call_$callId';
-  static String selectedVoiceKeyForProvider(String provider) => 'selected_voice_${provider.toLowerCase()}';
+  static String selectedVoiceKeyForProvider(String provider) =>
+      'selected_voice_${provider.toLowerCase()}';
 
   /// Ensure default values for audio provider and model keys exist.
   static Future<void> ensureDefaults() async {
@@ -42,7 +43,9 @@ class PrefsUtils {
         }
       }
 
-      final provider = prefs.getString('selected_audio_provider') ?? Config.getAudioProvider().toLowerCase();
+      final provider =
+          prefs.getString('selected_audio_provider') ??
+          Config.getAudioProvider().toLowerCase();
       final providerKey = 'selected_voice_$provider';
       final providerVoice = prefs.getString(providerKey);
       if (providerVoice == null || providerVoice.isEmpty) {
@@ -114,7 +117,10 @@ class PrefsUtils {
     } catch (_) {}
   }
 
-  static Future<void> setSelectedVoiceForProvider(String provider, String voice) async {
+  static Future<void> setSelectedVoiceForProvider(
+    String provider,
+    String voice,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final providerKey = 'selected_voice_${provider.toLowerCase()}';
@@ -154,7 +160,12 @@ class PrefsUtils {
   }
 
   // --- Google account convenience helpers ---
-  static Future<void> setGoogleAccountInfo({String? email, String? avatar, String? name, required bool linked}) async {
+  static Future<void> setGoogleAccountInfo({
+    String? email,
+    String? avatar,
+    String? name,
+    required bool linked,
+  }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (email != null) {

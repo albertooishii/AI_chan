@@ -35,7 +35,10 @@ Future<void> showErrorDialog(String error) async {
   final navState = navigatorKey.currentState;
   if (navState == null) {
     // Fallback: mostrar SnackBar si no hay contexto válido
-    Log.w('No hay contexto válido para mostrar el diálogo de error: $error', tag: 'DIALOG_UTILS');
+    Log.w(
+      'No hay contexto válido para mostrar el diálogo de error: $error',
+      tag: 'DIALOG_UTILS',
+    );
     showAppSnackBar(error, isError: true);
     return;
   }
@@ -47,7 +50,10 @@ Future<void> showErrorDialog(String error) async {
       content: Text(error, style: const TextStyle(color: AppColors.primary)),
       actions: [
         TextButton(
-          child: const Text('Cerrar', style: TextStyle(color: AppColors.primary)),
+          child: const Text(
+            'Cerrar',
+            style: TextStyle(color: AppColors.primary),
+          ),
           onPressed: () => Navigator.of(ctx2).pop(),
         ),
       ],
@@ -81,7 +87,9 @@ void showAppSnackBar(
     _currentOverlaySnackBarEntry = null;
     final messenger = ScaffoldMessenger.of(ctx);
 
-    final resolvedBackground = isError ? AppColors.secondary : AppColors.cyberpunkYellow;
+    final resolvedBackground = isError
+        ? AppColors.secondary
+        : AppColors.cyberpunkYellow;
     final resolvedText = isError ? Colors.white : Colors.black;
 
     final snack = SnackBar(
@@ -95,7 +103,12 @@ void showAppSnackBar(
 
     messenger.showSnackBar(snack);
   } else {
-    _showOverlaySnackBar(message, isError: isError, duration: duration, action: action);
+    _showOverlaySnackBar(
+      message,
+      isError: isError,
+      duration: duration,
+      action: action,
+    );
   }
 }
 
@@ -136,10 +149,16 @@ void _showOverlaySnackBar(
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
               decoration: BoxDecoration(
-                color: isError ? AppColors.secondary : AppColors.cyberpunkYellow,
+                color: isError
+                    ? AppColors.secondary
+                    : AppColors.cyberpunkYellow,
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 8, offset: const Offset(0, 2)),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.4),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
                 ],
               ),
               child: Row(
@@ -148,7 +167,9 @@ void _showOverlaySnackBar(
                   Expanded(
                     child: Text(
                       message,
-                      style: TextStyle(color: isError ? Colors.white : Colors.black),
+                      style: TextStyle(
+                        color: isError ? Colors.white : Colors.black,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -165,7 +186,12 @@ void _showOverlaySnackBar(
                           _currentOverlaySnackBarEntry = null;
                         }
                       },
-                      child: Text(action.label, style: TextStyle(color: isError ? Colors.white : Colors.black)),
+                      child: Text(
+                        action.label,
+                        style: TextStyle(
+                          color: isError ? Colors.white : Colors.black,
+                        ),
+                      ),
                     ),
                 ],
               ),
@@ -206,13 +232,15 @@ Future<T?> showAppDialog<T>({
   final navState = navigatorKey.currentState;
   if (navState == null) return Future.value(null);
   final ctx = navState.overlay?.context ?? navState.context;
-  // Wrap the caller's builder result in a Theme that sets a tighter
+  // Wrap the caller's builder result in a Theme that sets a responsive
   // dialog insetPadding so dialogs appear closer to the screen edges on
   // small devices. This centralizes margin behavior for all dialogs shown
   // through showAppDialog.
   final baseTheme = Theme.of(ctx);
+  final screenWidth = MediaQuery.of(ctx).size.width;
+  final horizontalMargin = screenWidth > 800 ? 40.0 : 4.0;
   final DialogThemeData tightened = baseTheme.dialogTheme.copyWith(
-    insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+    insetPadding: EdgeInsets.symmetric(horizontal: horizontalMargin),
   );
 
   return showDialog<T>(

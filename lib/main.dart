@@ -12,18 +12,17 @@ import 'dart:convert';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'core/di.dart' as di;
 import 'core/di_bootstrap.dart' as di_bootstrap;
-import 'package:ai_chan/chat/application/utils/profile_persist_utils.dart' as profile_persist_utils;
+import 'package:ai_chan/chat/application/utils/profile_persist_utils.dart'
+    as profile_persist_utils;
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
+import 'package:ai_chan/shared/utils/app_data_utils.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:ai_chan/shared/services/firebase_init.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
-
-Future<void> clearAppData() async {
-  await PrefsUtils.clearAll();
-}
+final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -96,7 +95,10 @@ class _RootAppState extends State<RootApp> {
         title: Config.getAppName(),
         theme: ThemeData(
           brightness: Brightness.dark,
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.pinkAccent, brightness: Brightness.dark),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.pinkAccent,
+            brightness: Brightness.dark,
+          ),
           scaffoldBackgroundColor: Colors.black,
           useMaterial3: true,
         ),
@@ -124,7 +126,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   ChatProvider? _chatProvider;
   Future<void> resetApp() async {
     Log.i('resetApp llamado', tag: 'APP');
-    await clearAppData();
+    await AppDataUtils.clearAllAppData();
     Log.i('resetApp completado', tag: 'APP');
     if (mounted) {
       widget.onboardingProvider.reset();
@@ -145,7 +147,11 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
           await Permission.storage.request();
         }
       } catch (e) {
-        Log.e('Error solicitando permisos de almacenamiento', tag: 'PERM', error: e);
+        Log.e(
+          'Error solicitando permisos de almacenamiento',
+          tag: 'PERM',
+          error: e,
+        );
       }
       setState(() {
         _initialized = true;
@@ -198,23 +204,24 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 MaterialPageRoute(
                   fullscreenDialog: true,
                   builder: (_) => InitializingScreen(
-                    bioFutureFactory: ([void Function(String)? onProgress]) async {
-                      await onboardingProvider.generateAndSaveBiography(
-                        context: context,
-                        userName: userName,
-                        aiName: aiName,
-                        userBirthday: userBirthday,
-                        meetStory: meetStory,
-                        userCountryCode: userCountryCode,
-                        aiCountryCode: aiCountryCode,
-                        appearance: appearance,
-                        onProgress: onProgress,
-                      );
-                      if (onboardingProvider.generatedBiography == null) {
-                        throw Exception('No se pudo generar la biografía');
-                      }
-                      return onboardingProvider.generatedBiography!;
-                    },
+                    bioFutureFactory:
+                        ([void Function(String)? onProgress]) async {
+                          await onboardingProvider.generateAndSaveBiography(
+                            context: context,
+                            userName: userName,
+                            aiName: aiName,
+                            userBirthday: userBirthday,
+                            meetStory: meetStory,
+                            userCountryCode: userCountryCode,
+                            aiCountryCode: aiCountryCode,
+                            appearance: appearance,
+                            onProgress: onProgress,
+                          );
+                          if (onboardingProvider.generatedBiography == null) {
+                            throw Exception('No se pudo generar la biografía');
+                          }
+                          return onboardingProvider.generatedBiography!;
+                        },
                   ),
                 ),
               );
@@ -223,10 +230,11 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
         onClearAllDebug: resetApp,
         onImportJson: (importedChat) async {
           final jsonStr = jsonEncode(importedChat.toJson());
-          final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
-            jsonStr,
-            onError: (err) => onboardingProvider.setImportError(err),
-          );
+          final imported =
+              await chat_json_utils.ChatJsonUtils.importAllFromJson(
+                jsonStr,
+                onError: (err) => onboardingProvider.setImportError(err),
+              );
           if (imported != null) {
             await onboardingProvider.applyImportedChat(imported);
             if (mounted) setState(() {});
@@ -240,7 +248,10 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (_chatProvider == null) {
       final repo = di.getChatRepository();
       _chatProvider = ChatProvider(repository: repo);
-      profile_persist_utils.setOnboardingDataAndPersist(_chatProvider!, onboardingProvider.generatedBiography!);
+      profile_persist_utils.setOnboardingDataAndPersist(
+        _chatProvider!,
+        onboardingProvider.generatedBiography!,
+      );
       _chatProvider!.loadAll();
     }
 
@@ -254,10 +265,11 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
         onImportJson: (importedChat) async {
           final ob = onboardingProvider;
           final jsonStr = jsonEncode(importedChat.toJson());
-          final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
-            jsonStr,
-            onError: (err) => ob.setImportError(err),
-          );
+          final imported =
+              await chat_json_utils.ChatJsonUtils.importAllFromJson(
+                jsonStr,
+                onError: (err) => ob.setImportError(err),
+              );
           if (imported != null) {
             await ob.applyImportedChat(imported);
           }

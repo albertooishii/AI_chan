@@ -37,5 +37,8 @@ class AudioProcessingResult {
   final bool ttsRequested;
   final String cleanedText;
 
-  AudioProcessingResult({required this.ttsRequested, required this.cleanedText});
+  AudioProcessingResult({
+    required this.ttsRequested,
+    required this.cleanedText,
+  });
 }

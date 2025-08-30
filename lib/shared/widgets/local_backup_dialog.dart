@@ -17,7 +17,12 @@ class LocalBackupDialog extends StatefulWidget {
   // Optional error callback for parse errors.
   final void Function(String error)? onImportError;
 
-  const LocalBackupDialog({super.key, this.requestExportJson, this.onImportedJson, this.onImportError});
+  const LocalBackupDialog({
+    super.key,
+    this.requestExportJson,
+    this.onImportedJson,
+    this.onImportError,
+  });
 
   @override
   State<LocalBackupDialog> createState() => _LocalBackupDialogState();
@@ -50,11 +55,16 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
       }
       if (widget.requestExportJson == null) throw 'No export callback provided';
       final jsonStr = await widget.requestExportJson!.call();
-      final file = await BackupService.createLocalBackup(jsonStr: jsonStr, destinationDirPath: selectedDir);
+      final file = await BackupService.createLocalBackup(
+        jsonStr: jsonStr,
+        destinationDirPath: selectedDir,
+      );
       final msg = 'Backup creado: ${file.path}';
       try {
         final navCtx = navigatorKey.currentContext;
-        if (navCtx != null && mounted) showAppSnackBar(msg, preferRootMessenger: true);
+        if (navCtx != null && mounted) {
+          showAppSnackBar(msg, preferRootMessenger: true);
+        }
       } catch (_) {}
       _safeSetState(() {
         _status = msg;
@@ -83,7 +93,9 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
       }
       final f = File(path);
       final jsonStr = await BackupService.restoreAndExtractJson(f);
-      final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
+      final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
+        jsonStr,
+      );
       if (imported != null) {
         if (widget.onImportedJson != null) {
           await widget.onImportedJson!.call(imported);
@@ -112,56 +124,154 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 560,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.sd_storage, size: 20, color: Colors.white),
-                  SizedBox(width: 8),
-                  Text('Copia de seguridad local', style: TextStyle(color: Colors.white, fontSize: 16)),
-                ],
-              ),
-              const Spacer(),
-              IconButton(
-                onPressed: _working ? null : () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.close, color: Colors.white70),
-                tooltip: 'Cerrar',
-              ),
-            ],
+    return Builder(
+      builder: (ctx) {
+        final screenSize = MediaQuery.of(ctx).size;
+        final screenW = screenSize.width;
+        final screenH = screenSize.height;
+
+        // Más generoso en desktop, más compacto en mobile
+        final horizontalMargin = screenW > 800
+            ? 60.0
+            : 4.0; // Reducido aún más en mobile (4px)
+        final maxWidth = screenW > 800
+            ? 900.0
+            : double.infinity; // Más grande en desktop, sin límite en mobile
+
+        final desired = screenW - horizontalMargin;
+        final width = desired.clamp(
+          400.0,
+          maxWidth,
+        ); // Aumentado mínimo a 400px
+
+        return Container(
+          width: width,
+          constraints: BoxConstraints(
+            maxHeight: screenH * 0.9, // Máximo 90% de la altura de pantalla
+            minHeight: 200,
           ),
-          const SizedBox(height: 12),
-          if (_status != null)
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 220),
-              child: SingleChildScrollView(
-                child: Text(_status!, style: const TextStyle(color: Colors.white70)),
-              ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(
+              20.0,
+            ), // Más padding para que se vea más espacioso
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.sd_storage,
+                        size: 20,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Copia de seguridad local',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
+                          // Allow the title to wrap into multiple lines instead of truncating with ellipsis
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: _working
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                        tooltip: 'Cerrar',
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20), // Más espacio después del header
+                if (_status != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 220),
+                      child: SingleChildScrollView(
+                        child: Text(
+                          _status!,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 16), // Más espacio antes de los botones
+                // Layout inteligente y responsivo de botones
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final availableWidth = constraints.maxWidth;
+
+                    // Crear botones con el mismo estilo que el diálogo de Google Drive
+                    final saveButton = ElevatedButton.icon(
+                      onPressed: (_working || widget.requestExportJson == null)
+                          ? null
+                          : _doCreateBackup,
+                      icon: const Icon(Icons.save_alt),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(0, 48), // Botones más altos
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                      ),
+                      label: const Text(
+                        'Guardar archivo de copia de seguridad',
+                      ),
+                    );
+
+                    final restoreButton = ElevatedButton.icon(
+                      onPressed: _working ? null : _doRestoreFromFile,
+                      icon: const Icon(Icons.folder_open),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(0, 48), // Botones más altos
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                      ),
+                      label: const Text('Restaurar desde archivo'),
+                    );
+
+                    // Layout muy estrecho: botones apilados verticalmente
+                    if (availableWidth < 500) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(width: double.infinity, child: saveButton),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: restoreButton,
+                          ),
+                        ],
+                      );
+                    }
+
+                    // Layout ancho: botones en la misma fila
+                    return Wrap(
+                      spacing: 12.0,
+                      runSpacing: 8.0,
+                      children: [saveButton, restoreButton],
+                    );
+                  },
+                ),
+                const SizedBox(height: 12), // Espacio final más generoso
+              ],
             ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              ElevatedButton.icon(
-                onPressed: (_working || widget.requestExportJson == null) ? null : _doCreateBackup,
-                icon: const Icon(Icons.save_alt),
-                label: const Text('Guardar archivo de copia de seguridad'),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                onPressed: _working ? null : _doRestoreFromFile,
-                icon: const Icon(Icons.folder_open),
-                label: const Text('Restaurar desde archivo'),
-              ),
-              const Spacer(),
-            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

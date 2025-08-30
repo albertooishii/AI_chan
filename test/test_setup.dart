@@ -19,12 +19,18 @@ class _FakeTestStt implements ISttService {
   }
 
   @override
-  Future<String?> transcribeFile({required String filePath, Map<String, dynamic>? options}) async {
+  Future<String?> transcribeFile({
+    required String filePath,
+    Map<String, dynamic>? options,
+  }) async {
     return await transcribeAudio(filePath);
   }
 }
 
-Future<void> initializeTestEnvironment({Map<String, Object>? prefs, String? dotenvContents}) async {
+Future<void> initializeTestEnvironment({
+  Map<String, Object>? prefs,
+  String? dotenvContents,
+}) async {
   TestWidgetsFlutterBinding.ensureInitialized();
   // Ensure tests run with minimal noisy logging
   // Create a central temporary base directory for ai_chan tests under systemTemp
@@ -32,9 +38,12 @@ Future<void> initializeTestEnvironment({Map<String, Object>? prefs, String? dote
   if (!baseTmp.existsSync()) baseTmp.createSync(recursive: true);
   // Create temporary directories for image/audio/cache tests inside the central folder
   final suffix = DateTime.now().millisecondsSinceEpoch;
-  final tmpImageDir = Directory('${baseTmp.path}/images_$suffix')..createSync(recursive: true);
-  final tmpAudioDir = Directory('${baseTmp.path}/audio_$suffix')..createSync(recursive: true);
-  final tmpCacheDir = Directory('${baseTmp.path}/cache_$suffix')..createSync(recursive: true);
+  final tmpImageDir = Directory('${baseTmp.path}/images_$suffix')
+    ..createSync(recursive: true);
+  final tmpAudioDir = Directory('${baseTmp.path}/audio_$suffix')
+    ..createSync(recursive: true);
+  final tmpCacheDir = Directory('${baseTmp.path}/cache_$suffix')
+    ..createSync(recursive: true);
   Config.setOverrides({
     'APP_LOG_LEVEL': 'error',
     'TEST_IMAGE_DIR': tmpImageDir.path,

@@ -39,7 +39,8 @@ class Config {
 
   /// Modelo TTS para OpenAI (usado para síntesis de mensajes, no realtime calls).
   /// Valor por defecto alineado con la documentación: 'gpt-4o-mini-tts'.
-  static String getOpenAITtsModel() => _get('OPENAI_TTS_MODEL', 'gpt-4o-mini-tts');
+  static String getOpenAITtsModel() =>
+      _get('OPENAI_TTS_MODEL', 'gpt-4o-mini-tts');
 
   static String requireOpenAITtsModel() {
     final v = getOpenAITtsModel();
@@ -51,7 +52,8 @@ class Config {
 
   /// Modelo STT para OpenAI (usado en transcripción).
   /// Valor por defecto alineado con la documentación: 'gpt-4o-mini-transcribe'.
-  static String getOpenAISttModel() => _get('OPENAI_STT_MODEL', 'gpt-4o-mini-transcribe');
+  static String getOpenAISttModel() =>
+      _get('OPENAI_STT_MODEL', 'gpt-4o-mini-transcribe');
 
   static String requireOpenAISttModel() {
     final v = getOpenAISttModel();

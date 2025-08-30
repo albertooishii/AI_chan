@@ -3,7 +3,12 @@ import 'package:ai_chan/core/models.dart';
 
 void main() {
   test('AiImage serialization roundtrip', () {
-    final img = AiImage(base64: 'AAA', seed: 'seed1', url: 'path/to.png', prompt: 'a prompt');
+    final img = AiImage(
+      base64: 'AAA',
+      seed: 'seed1',
+      url: 'path/to.png',
+      prompt: 'a prompt',
+    );
     final json = img.toJson();
     final restored = AiImage.fromJson(json);
     expect(restored.base64, img.base64);

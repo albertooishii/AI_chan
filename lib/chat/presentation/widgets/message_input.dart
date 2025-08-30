@@ -4,7 +4,8 @@ import 'package:flutter/services.dart';
 // Provider usage removed from this widget: use ChatInputController for state/actions
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kIsWeb, debugPrint;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, TargetPlatform, kIsWeb, debugPrint;
 import 'dart:io';
 import 'dart:convert';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
@@ -38,7 +39,8 @@ class _MessageInputState extends State<MessageInput> {
   bool _showEmojiPicker = false;
   final FocusNode _textFieldFocusNode = FocusNode();
   bool _hasRecentEmojis = false;
-  final GlobalKey<EmojiPickerState> _emojiPickerKey = GlobalKey<EmojiPickerState>();
+  final GlobalKey<EmojiPickerState> _emojiPickerKey =
+      GlobalKey<EmojiPickerState>();
 
   Future<void> _updateHasRecentEmojis() async {
     try {
@@ -83,7 +85,9 @@ class _MessageInputState extends State<MessageInput> {
 
   bool _isMobile(BuildContext context) {
     final isNativeMobile =
-        !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
+        !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS);
     if (isNativeMobile) return true;
     if (kIsWeb) {
       final shortest = MediaQuery.of(context).size.shortestSide;
@@ -107,7 +111,10 @@ class _MessageInputState extends State<MessageInput> {
                 title: const Text('Tomar foto'),
                 onTap: () async {
                   Navigator.of(ctx).pop();
-                  final pickedFile = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
+                  final pickedFile = await picker.pickImage(
+                    source: ImageSource.camera,
+                    imageQuality: 85,
+                  );
                   if (pickedFile != null) {
                     final file = File(pickedFile.path);
                     final bytes = await file.readAsBytes();
@@ -127,7 +134,10 @@ class _MessageInputState extends State<MessageInput> {
                 title: const Text('Elegir de la galería'),
                 onTap: () async {
                   Navigator.of(ctx).pop();
-                  final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                  final pickedFile = await picker.pickImage(
+                    source: ImageSource.gallery,
+                    imageQuality: 85,
+                  );
                   if (pickedFile != null) {
                     final file = File(pickedFile.path);
                     final bytes = await file.readAsBytes();
@@ -157,7 +167,9 @@ class _MessageInputState extends State<MessageInput> {
                 title: const Text('Elegir de la galería'),
                 onTap: () async {
                   Navigator.of(ctx).pop();
-                  final result = await FilePicker.platform.pickFiles(type: FileType.image);
+                  final result = await FilePicker.platform.pickFiles(
+                    type: FileType.image,
+                  );
                   if (result != null && result.files.single.path != null) {
                     final file = File(result.files.single.path!);
                     final bytes = await file.readAsBytes();
@@ -201,14 +213,18 @@ class _MessageInputState extends State<MessageInput> {
 
   Future<void> _send() async {
     final text = _controller.text.trim();
-    final hasImage = _attachedImageBase64 != null && _attachedImageBase64!.isNotEmpty;
+    final hasImage =
+        _attachedImageBase64 != null && _attachedImageBase64!.isNotEmpty;
     if (text.isEmpty && !hasImage) return;
 
     // Delegate sending to injected controller (parent created it and wired to provider)
     AiImage? imageToSend;
     String? imageMimeType = _attachedImageMime;
     if (hasImage) {
-      final savedPath = await saveBase64ImageToFile(_attachedImageBase64!, prefix: 'img_user');
+      final savedPath = await saveBase64ImageToFile(
+        _attachedImageBase64!,
+        prefix: 'img_user',
+      );
       if (savedPath != null) {
         final fileName = savedPath.split('/').last;
         imageToSend = AiImage(url: fileName, base64: _attachedImageBase64!);
@@ -218,7 +234,8 @@ class _MessageInputState extends State<MessageInput> {
             : imageMimeType == 'image/webp'
             ? 'webp'
             : 'png';
-        final fileName = 'img_user_${DateTime.now().millisecondsSinceEpoch}.$ext';
+        final fileName =
+            'img_user_${DateTime.now().millisecondsSinceEpoch}.$ext';
         imageToSend = AiImage(url: fileName, base64: _attachedImageBase64!);
       }
     }
@@ -231,11 +248,16 @@ class _MessageInputState extends State<MessageInput> {
       });
     }
     // Delegate to controller
-    await widget.controller.scheduleSend(text, image: imageToSend, imageMimeType: imageMimeType);
+    await widget.controller.scheduleSend(
+      text,
+      image: imageToSend,
+      imageMimeType: imageMimeType,
+    );
   }
 
   bool get _hasText => _controller.text.trim().isNotEmpty;
-  bool get _hasImage => _attachedImageBase64 != null && _attachedImageBase64!.isNotEmpty;
+  bool get _hasImage =>
+      _attachedImageBase64 != null && _attachedImageBase64!.isNotEmpty;
   Icon _primaryIcon() => const Icon(Icons.send, color: AppColors.primary);
   String _primaryTooltip() => 'Enviar mensaje';
   Future<void> _onPrimaryPressed() async {
@@ -261,13 +283,21 @@ class _MessageInputState extends State<MessageInput> {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.file(_attachedImage!, width: 56, height: 56, fit: BoxFit.cover),
+                        child: Image.file(
+                          _attachedImage!,
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           'Imagen adjunta',
-                          style: TextStyle(color: AppColors.secondary, fontSize: 14),
+                          style: TextStyle(
+                            color: AppColors.secondary,
+                            fontSize: 14,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -328,13 +358,18 @@ class _MessageInputState extends State<MessageInput> {
                   fillColor: Colors.black,
                   hintStyle: const TextStyle(color: AppColors.secondary),
                   border: OutlineInputBorder(borderSide: BorderSide.none),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
                 ),
                 // Forzar tema para la barra de categorías (selector de tipo de emoji)
                 bottomNavigationBarTheme: BottomNavigationBarThemeData(
                   backgroundColor: Colors.black,
                   selectedIconTheme: const IconThemeData(color: Colors.white),
-                  unselectedIconTheme: IconThemeData(color: AppColors.secondary),
+                  unselectedIconTheme: IconThemeData(
+                    color: AppColors.secondary,
+                  ),
                   selectedLabelStyle: const TextStyle(color: Colors.white),
                   unselectedLabelStyle: TextStyle(color: AppColors.secondary),
                 ),
@@ -346,11 +381,16 @@ class _MessageInputState extends State<MessageInput> {
                     key: _emojiPickerKey,
                     onEmojiSelected: (category, emoji) async {
                       _controller.text += emoji.emoji;
-                      _controller.selection = TextSelection.fromPosition(TextPosition(offset: _controller.text.length));
+                      _controller.selection = TextSelection.fromPosition(
+                        TextPosition(offset: _controller.text.length),
+                      );
                       // Registrar en recents para futuras aperturas
                       try {
                         // El API expone addEmojiToRecentlyUsed(key: GlobalKey<EmojiPickerState>, emoji: Emoji)
-                        EmojiPickerUtils().addEmojiToRecentlyUsed(key: _emojiPickerKey, emoji: emoji);
+                        EmojiPickerUtils().addEmojiToRecentlyUsed(
+                          key: _emojiPickerKey,
+                          emoji: emoji,
+                        );
                       } catch (_) {}
                       if (!mounted) return;
                       setState(() {
@@ -371,7 +411,10 @@ class _MessageInputState extends State<MessageInput> {
                       emojiViewConfig: EmojiViewConfig(
                         emojiSizeMax: 28,
                         backgroundColor: Colors.black, // negro app
-                        gridPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                        gridPadding: const EdgeInsets.symmetric(
+                          horizontal: 2,
+                          vertical: 2,
+                        ),
                         recentsLimit: 24,
                       ),
                       categoryViewConfig: CategoryViewConfig(
@@ -380,7 +423,9 @@ class _MessageInputState extends State<MessageInput> {
                         iconColorSelected: Colors.white,
                         backspaceColor: AppColors.secondary,
                         backgroundColor: Colors.black, // negro barra
-                        recentTabBehavior: _hasRecentEmojis ? RecentTabBehavior.RECENT : RecentTabBehavior.NONE,
+                        recentTabBehavior: _hasRecentEmojis
+                            ? RecentTabBehavior.RECENT
+                            : RecentTabBehavior.NONE,
                       ),
                       skinToneConfig: SkinToneConfig(
                         dialogBackgroundColor: Colors.black,
@@ -392,7 +437,13 @@ class _MessageInputState extends State<MessageInput> {
                   // Overlay negro para cubrir la barra de tipo/categorías / buscador
                   // Si el picker renderiza el buscador fuera del área, extendemos
                   // la overlay hacia abajo con bottom negativo para cubrirlo visualmente.
-                  Positioned(bottom: 0, left: 0, right: 0, height: 56, child: Container(color: Colors.black)),
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: 56,
+                    child: Container(color: Colors.black),
+                  ),
                 ],
               ),
             ),
@@ -452,7 +503,8 @@ class _RecordingOrTextBar extends StatelessWidget {
       controller: controller,
       style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
       decoration: InputDecoration(
-        hintText: 'Escribe tu mensaje...${attachedImage != null ? ' (opcional)' : ''}',
+        hintText:
+            'Escribe tu mensaje...${attachedImage != null ? ' (opcional)' : ''}',
         hintStyle: const TextStyle(color: AppColors.secondary),
         enabledBorder: OutlineInputBorder(
           borderSide: BorderSide(color: AppColors.secondary),
@@ -464,11 +516,17 @@ class _RecordingOrTextBar extends StatelessWidget {
         ),
         filled: true,
         fillColor: Colors.black,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 10,
+        ),
         prefixIcon: IconButton(
           icon: showEmojiPicker
               ? const Icon(Icons.close, color: AppColors.secondary)
-              : const Icon(Icons.emoji_emotions_outlined, color: AppColors.secondary),
+              : const Icon(
+                  Icons.emoji_emotions_outlined,
+                  color: AppColors.secondary,
+                ),
           onPressed: onToggleEmojis,
           tooltip: showEmojiPicker ? 'Cerrar emojis' : 'Emojis',
         ),
@@ -478,7 +536,9 @@ class _RecordingOrTextBar extends StatelessWidget {
           tooltip: 'Foto o galería',
         ),
       ),
-      textInputAction: isMobile ? TextInputAction.send : TextInputAction.newline,
+      textInputAction: isMobile
+          ? TextInputAction.send
+          : TextInputAction.newline,
       onSubmitted: (_) async {
         if (!isMobile) {
           return; // Desktop/web: envío sólo vía shortcut Enter sin Shift
@@ -493,8 +553,10 @@ class _RecordingOrTextBar extends StatelessWidget {
     );
     field = Shortcuts(
       shortcuts: <ShortcutActivator, Intent>{
-        const SingleActivator(LogicalKeyboardKey.enter): const SendMessageIntent(),
-        const SingleActivator(LogicalKeyboardKey.enter, shift: true): const InsertNewlineIntent(),
+        const SingleActivator(LogicalKeyboardKey.enter):
+            const SendMessageIntent(),
+        const SingleActivator(LogicalKeyboardKey.enter, shift: true):
+            const InsertNewlineIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
@@ -530,7 +592,9 @@ class _RecordingOrTextBar extends StatelessWidget {
           height: 44,
           child: IconButton(
             padding: EdgeInsets.zero,
-            icon: hasText || hasImage ? buildSendIcon() : const Icon(Icons.mic, color: AppColors.secondary),
+            icon: hasText || hasImage
+                ? buildSendIcon()
+                : const Icon(Icons.mic, color: AppColors.secondary),
             tooltip: hasText || hasImage ? sendTooltip : 'Grabar nota de voz',
             onPressed: () async {
               if (hasText || hasImage) {
@@ -576,11 +640,20 @@ class _RecordingOrTextBar extends StatelessWidget {
                       builder: (ctx4, snapL) {
                         final live = snapL.data ?? '';
                         return Container(
-                          constraints: const BoxConstraints(minHeight: 60, maxHeight: 122),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          constraints: const BoxConstraints(
+                            minHeight: 60,
+                            maxHeight: 122,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.black,
-                            border: Border.all(color: Colors.redAccent, width: 1.5),
+                            border: Border.all(
+                              color: Colors.redAccent,
+                              width: 1.5,
+                            ),
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Column(
@@ -591,8 +664,12 @@ class _RecordingOrTextBar extends StatelessWidget {
                                 children: [
                                   IconButton(
                                     tooltip: 'Cancelar',
-                                    icon: const Icon(Icons.close, color: Colors.redAccent),
-                                    onPressed: () async => ic.cancelRecording?.call(),
+                                    icon: const Icon(
+                                      Icons.close,
+                                      color: Colors.redAccent,
+                                    ),
+                                    onPressed: () async =>
+                                        ic.cancelRecording?.call(),
                                   ),
                                   const SizedBox(width: 4),
                                   Expanded(
@@ -602,7 +679,10 @@ class _RecordingOrTextBar extends StatelessWidget {
                                         const SizedBox(width: 8),
                                         Text(
                                           fmt(elapsed),
-                                          style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+                                          style: const TextStyle(
+                                            color: Colors.redAccent,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                         const SizedBox(width: 12),
                                         Expanded(
@@ -612,60 +692,118 @@ class _RecordingOrTextBar extends StatelessWidget {
                                               builder: (context, constraints) {
                                                 const double barWidth = 6.0;
                                                 const double gap = 2.0;
-                                                final int maxFit = ((constraints.maxWidth + gap) / (barWidth + gap))
-                                                    .floor()
-                                                    .clamp(1, 256);
+                                                final int maxFit =
+                                                    ((constraints.maxWidth +
+                                                                gap) /
+                                                            (barWidth + gap))
+                                                        .floor()
+                                                        .clamp(1, 256);
                                                 final int showCount = maxFit;
                                                 List<int> display;
                                                 if (raw.isEmpty) {
-                                                  display = List<int>.filled(showCount, 0);
-                                                } else if (raw.length >= showCount) {
-                                                  display = raw.sublist(raw.length - showCount);
+                                                  display = List<int>.filled(
+                                                    showCount,
+                                                    0,
+                                                  );
+                                                } else if (raw.length >=
+                                                    showCount) {
+                                                  display = raw.sublist(
+                                                    raw.length - showCount,
+                                                  );
                                                 } else {
-                                                  display = List<int>.generate(showCount, (i) {
-                                                    final idx = (i * raw.length / showCount).floor();
-                                                    return raw[idx.clamp(0, raw.length - 1)];
-                                                  });
+                                                  display = List<int>.generate(
+                                                    showCount,
+                                                    (i) {
+                                                      final idx =
+                                                          (i *
+                                                                  raw.length /
+                                                                  showCount)
+                                                              .floor();
+                                                      return raw[idx.clamp(
+                                                        0,
+                                                        raw.length - 1,
+                                                      )];
+                                                    },
+                                                  );
                                                 }
-                                                final int count = display.length;
+                                                final int count =
+                                                    display.length;
                                                 if (count <= 1) {
-                                                  final v = count == 1 ? display.first : 0;
+                                                  final v = count == 1
+                                                      ? display.first
+                                                      : 0;
                                                   return Align(
                                                     alignment: Alignment.center,
                                                     child: SizedBox(
                                                       width: barWidth,
                                                       child: AnimatedContainer(
-                                                        duration: const Duration(milliseconds: 240),
-                                                        height: 4 + (v / 100) * 22,
+                                                        duration:
+                                                            const Duration(
+                                                              milliseconds: 240,
+                                                            ),
+                                                        height:
+                                                            4 + (v / 100) * 22,
                                                         decoration: BoxDecoration(
-                                                          color: Colors.redAccent.withAlpha((0.55 * 255).round()),
-                                                          borderRadius: BorderRadius.circular(2),
+                                                          color: Colors
+                                                              .redAccent
+                                                              .withAlpha(
+                                                                (0.55 * 255)
+                                                                    .round(),
+                                                              ),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                2,
+                                                              ),
                                                         ),
                                                       ),
                                                     ),
                                                   );
                                                 }
-                                                final List<int> toShow = display;
+                                                final List<int> toShow =
+                                                    display;
                                                 return Row(
-                                                  mainAxisAlignment: MainAxisAlignment.end,
-                                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                                  children: List<Widget>.generate(toShow.length * 2 - 1, (i) {
-                                                    if (i.isEven) {
-                                                      final val = toShow[i ~/ 2];
-                                                      return SizedBox(
-                                                        width: barWidth,
-                                                        child: AnimatedContainer(
-                                                          duration: const Duration(milliseconds: 240),
-                                                          height: 4 + (val / 100) * 22,
-                                                          decoration: BoxDecoration(
-                                                            color: Colors.redAccent.withAlpha((0.55 * 255).round()),
-                                                            borderRadius: BorderRadius.circular(2),
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.end,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.end,
+                                                  children: List<Widget>.generate(
+                                                    toShow.length * 2 - 1,
+                                                    (i) {
+                                                      if (i.isEven) {
+                                                        final val =
+                                                            toShow[i ~/ 2];
+                                                        return SizedBox(
+                                                          width: barWidth,
+                                                          child: AnimatedContainer(
+                                                            duration:
+                                                                const Duration(
+                                                                  milliseconds:
+                                                                      240,
+                                                                ),
+                                                            height:
+                                                                4 +
+                                                                (val / 100) *
+                                                                    22,
+                                                            decoration: BoxDecoration(
+                                                              color: Colors
+                                                                  .redAccent
+                                                                  .withAlpha(
+                                                                    (0.55 * 255)
+                                                                        .round(),
+                                                                  ),
+                                                              borderRadius:
+                                                                  BorderRadius.circular(
+                                                                    2,
+                                                                  ),
+                                                            ),
                                                           ),
-                                                        ),
+                                                        );
+                                                      }
+                                                      return SizedBox(
+                                                        width: gap,
                                                       );
-                                                    }
-                                                    return SizedBox(width: gap);
-                                                  }),
+                                                    },
+                                                  ),
                                                 );
                                               },
                                             ),
@@ -678,14 +816,23 @@ class _RecordingOrTextBar extends StatelessWidget {
                                   IconButton(
                                     padding: EdgeInsets.zero,
                                     tooltip: 'Detener y enviar',
-                                    icon: const Icon(Icons.stop_circle, color: Colors.redAccent, size: 34),
-                                    onPressed: () async => ic.stopAndSendRecording?.call(),
+                                    icon: const Icon(
+                                      Icons.stop_circle,
+                                      color: Colors.redAccent,
+                                      size: 34,
+                                    ),
+                                    onPressed: () async =>
+                                        ic.stopAndSendRecording?.call(),
                                   ),
                                 ],
                               ),
                               if (live.isNotEmpty)
                                 Padding(
-                                  padding: const EdgeInsets.only(left: 8, right: 8, top: 4),
+                                  padding: const EdgeInsets.only(
+                                    left: 8,
+                                    right: 8,
+                                    top: 4,
+                                  ),
                                   child: AnimatedOpacity(
                                     opacity: 1,
                                     duration: const Duration(milliseconds: 200),
@@ -735,7 +882,8 @@ class _RecordingOrTextBar extends StatelessWidget {
       controller: controller,
       style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
       decoration: InputDecoration(
-        hintText: 'Escribe tu mensaje...${attachedImage != null ? ' (opcional)' : ''}',
+        hintText:
+            'Escribe tu mensaje...${attachedImage != null ? ' (opcional)' : ''}',
         hintStyle: const TextStyle(color: AppColors.secondary),
         enabledBorder: OutlineInputBorder(
           borderSide: BorderSide(color: AppColors.secondary),
@@ -747,11 +895,17 @@ class _RecordingOrTextBar extends StatelessWidget {
         ),
         filled: true,
         fillColor: Colors.black,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 10,
+        ),
         prefixIcon: IconButton(
           icon: showEmojiPicker
               ? const Icon(Icons.close, color: AppColors.secondary)
-              : const Icon(Icons.emoji_emotions_outlined, color: AppColors.secondary),
+              : const Icon(
+                  Icons.emoji_emotions_outlined,
+                  color: AppColors.secondary,
+                ),
           onPressed: onToggleEmojis,
           tooltip: showEmojiPicker ? 'Cerrar emojis' : 'Emojis',
         ),
@@ -761,7 +915,9 @@ class _RecordingOrTextBar extends StatelessWidget {
           tooltip: 'Foto o galería',
         ),
       ),
-      textInputAction: isMobile ? TextInputAction.send : TextInputAction.newline,
+      textInputAction: isMobile
+          ? TextInputAction.send
+          : TextInputAction.newline,
       onSubmitted: (_) async {
         if (!isMobile) {
           return; // Desktop/web: envío sólo vía shortcut Enter sin Shift
@@ -776,8 +932,10 @@ class _RecordingOrTextBar extends StatelessWidget {
     );
     field = Shortcuts(
       shortcuts: <ShortcutActivator, Intent>{
-        const SingleActivator(LogicalKeyboardKey.enter): const SendMessageIntent(),
-        const SingleActivator(LogicalKeyboardKey.enter, shift: true): const InsertNewlineIntent(),
+        const SingleActivator(LogicalKeyboardKey.enter):
+            const SendMessageIntent(),
+        const SingleActivator(LogicalKeyboardKey.enter, shift: true):
+            const InsertNewlineIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
@@ -813,7 +971,9 @@ class _RecordingOrTextBar extends StatelessWidget {
           height: 44,
           child: IconButton(
             padding: EdgeInsets.zero,
-            icon: hasText || hasImage ? buildSendIcon() : const Icon(Icons.mic, color: AppColors.secondary),
+            icon: hasText || hasImage
+                ? buildSendIcon()
+                : const Icon(Icons.mic, color: AppColors.secondary),
             tooltip: hasText || hasImage ? sendTooltip : 'Grabar nota de voz',
             onPressed: () async {
               if (hasText || hasImage) {

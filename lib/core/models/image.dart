@@ -18,7 +18,9 @@ class AiImage {
       prompt: json['prompt'] as String?,
       createdAtMs: json['createdAtMs'] is int
           ? json['createdAtMs'] as int
-          : (json['createdAtMs'] is String ? int.tryParse(json['createdAtMs']) : null),
+          : (json['createdAtMs'] is String
+                ? int.tryParse(json['createdAtMs'])
+                : null),
     );
   }
 
@@ -30,7 +32,13 @@ class AiImage {
     if (createdAtMs != null) 'createdAtMs': createdAtMs,
   };
 
-  AiImage copyWith({String? base64, String? seed, String? url, String? prompt, int? createdAtMs}) {
+  AiImage copyWith({
+    String? base64,
+    String? seed,
+    String? url,
+    String? prompt,
+    int? createdAtMs,
+  }) {
     return AiImage(
       base64: base64 ?? this.base64,
       seed: seed ?? this.seed,
@@ -39,7 +47,6 @@ class AiImage {
       createdAtMs: createdAtMs ?? this.createdAtMs,
     );
   }
-
 }
 
 // It was removed to avoid ambiguity with Flutter's Image widget. Use `AiImage` explicitly.

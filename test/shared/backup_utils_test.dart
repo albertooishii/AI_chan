@@ -23,13 +23,19 @@ void main() {
       status: MessageStatus.read,
     );
 
-    final imported = ImportedChat(profile: profile, messages: [msg], events: []);
+    final imported = ImportedChat(
+      profile: profile,
+      messages: [msg],
+      events: [],
+    );
 
     final jsonStr = await BackupUtils.exportImportedChatToJson(imported);
     expect(jsonStr, isNotNull);
     expect(jsonStr, isNotEmpty);
 
-    final parsed = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
+    final parsed = await chat_json_utils.ChatJsonUtils.importAllFromJson(
+      jsonStr,
+    );
     expect(parsed, isNotNull);
     expect(parsed!.profile.userName, equals('TestUser'));
     expect(parsed.messages.length, equals(1));

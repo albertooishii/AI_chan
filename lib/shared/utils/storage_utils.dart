@@ -9,10 +9,14 @@ class StorageUtils {
     // Use SharedPreferences to persist the provided ImportedChat in canonical keys.
     // Use PrefsUtils to centralize key names and error handling
     await PrefsUtils.setOnboardingData(jsonEncode(imported.toJson()));
-    await PrefsUtils.setChatHistory(jsonEncode(imported.messages.map((m) => m.toJson()).toList()));
+    await PrefsUtils.setChatHistory(
+      jsonEncode(imported.messages.map((m) => m.toJson()).toList()),
+    );
     // Guardar eventos programados tambi9n para compatibilidad con ChatProvider
     try {
-      await PrefsUtils.setEvents(jsonEncode(imported.events.map((e) => e.toJson()).toList()));
+      await PrefsUtils.setEvents(
+        jsonEncode(imported.events.map((e) => e.toJson()).toList()),
+      );
     } catch (_) {}
   }
 }

@@ -1,7 +1,8 @@
 // dotenv no se usa aquí; la configuración se centraliza en runtime_factory / Config
 import '../utils/debug_call_logger/debug_call_logger.dart';
 import 'package:flutter/foundation.dart';
-import 'package:ai_chan/shared/services/ai_runtime_provider.dart' as runtime_factory;
+import 'package:ai_chan/shared/services/ai_runtime_provider.dart'
+    as runtime_factory;
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/model_utils.dart';
@@ -50,7 +51,9 @@ abstract class AIService {
 
     // Log which model and runtime implementation we're using (helpful for debugging)
     try {
-      debugPrint('[AIService] sendMessage -> model="$model", runtime="${aiService.runtimeType}"');
+      debugPrint(
+        '[AIService] sendMessage -> model="$model", runtime="${aiService.runtimeType}"',
+      );
     } catch (_) {}
 
     // Sanity: asegurar que el runtime seleccionado coincide con el prefijo del modelo
@@ -60,11 +63,16 @@ abstract class AIService {
       // IMPORTANT: If a test override is set, do not replace it. Tests rely on testOverride fakes.
       if (AIService.testOverride == null) {
         if (modelNorm.startsWith('gpt-') && implType != 'OpenAIService') {
-          debugPrint('[AIService] Runtime mismatch: recreating OpenAIService for $modelNorm');
+          debugPrint(
+            '[AIService] Runtime mismatch: recreating OpenAIService for $modelNorm',
+          );
           aiService = runtime_factory.getRuntimeAIServiceForModel(modelNorm);
-        } else if ((modelNorm.startsWith('gemini-') || modelNorm.startsWith('imagen-')) &&
+        } else if ((modelNorm.startsWith('gemini-') ||
+                modelNorm.startsWith('imagen-')) &&
             implType != 'GeminiService') {
-          debugPrint('[AIService] Runtime mismatch: recreating GeminiService for $modelNorm');
+          debugPrint(
+            '[AIService] Runtime mismatch: recreating GeminiService for $modelNorm',
+          );
           aiService = runtime_factory.getRuntimeAIServiceForModel(modelNorm);
         }
       } else {
@@ -86,7 +94,9 @@ abstract class AIService {
         'systemPrompt': sysJson,
         if (imageBase64 != null) 'image_base64_length': imageBase64.length,
         if (imageBase64 != null)
-          'image_base64_preview': imageBase64.length > 400 ? '${imageBase64.substring(0, 400)}...' : imageBase64,
+          'image_base64_preview': imageBase64.length > 400
+              ? '${imageBase64.substring(0, 400)}...'
+              : imageBase64,
         if (imageMimeType != null) 'image_mime_type': imageMimeType,
         'timestamp': DateTime.now().toIso8601String(),
       });
@@ -108,7 +118,11 @@ abstract class AIService {
     // el prompt extraído; si no, no se guarda nada sobre la imagen (solo se limpia el texto).
     if (response.text.trim().isNotEmpty) {
       try {
-        final tagRegex = RegExp(r'\[img_caption\](.*?)\[/img_caption\]', caseSensitive: false, dotAll: true);
+        final tagRegex = RegExp(
+          r'\[img_caption\](.*?)\[/img_caption\]',
+          caseSensitive: false,
+          dotAll: true,
+        );
         final match = tagRegex.firstMatch(response.text);
         final cleanedText = response.text.replaceAll(tagRegex, '').trim();
         // Además: si el servicio devolvió un `revised_prompt` dentro del texto y
@@ -120,9 +134,18 @@ abstract class AIService {
             final patterns = [
               RegExp(r'"revised_prompt"\s*:\s*"([^"]+)"', caseSensitive: false),
               RegExp(r"'revised_prompt'\s*:\s*'([^']+)'", caseSensitive: false),
-              RegExp(r'\brevised_prompt\b\s*[:=]\s*"([^"]+)"', caseSensitive: false),
-              RegExp(r'\brevisedPrompt\b\s*[:=]\s*"([^"]+)"', caseSensitive: false),
-              RegExp(r'\brevised_prompt\b\s*[:=]\s*([^\n\r]+)', caseSensitive: false),
+              RegExp(
+                r'\brevised_prompt\b\s*[:=]\s*"([^"]+)"',
+                caseSensitive: false,
+              ),
+              RegExp(
+                r'\brevisedPrompt\b\s*[:=]\s*"([^"]+)"',
+                caseSensitive: false,
+              ),
+              RegExp(
+                r'\brevised_prompt\b\s*[:=]\s*([^\n\r]+)',
+                caseSensitive: false,
+              ),
             ];
             for (final p in patterns) {
               final m = p.firstMatch(response.text);
@@ -134,7 +157,9 @@ abstract class AIService {
           } catch (_) {}
         }
         // Determinar si la respuesta incluye una imagen (generada por la IA)
-        final bool responseHasImage = response.base64.trim().isNotEmpty || response.seed.trim().isNotEmpty;
+        final bool responseHasImage =
+            response.base64.trim().isNotEmpty ||
+            response.seed.trim().isNotEmpty;
         if (match != null && match.groupCount >= 1) {
           final raw = match.group(1);
           if (raw != null && raw.trim().isNotEmpty) {
@@ -152,7 +177,12 @@ abstract class AIService {
           // No hay match; si ni la petición original ni la respuesta tienen imagen, borrar prompt por seguridad
           if (!requestHadImage && !responseHasImage) finalPrompt = '';
         }
-        response = AIResponse(text: cleanedText, base64: response.base64, seed: response.seed, prompt: finalPrompt);
+        response = AIResponse(
+          text: cleanedText,
+          base64: response.base64,
+          seed: response.seed,
+          prompt: finalPrompt,
+        );
       } catch (_) {}
     }
     // Guardar la respuesta usando debugLogCallPrompt con un preview seguro.
@@ -198,7 +228,9 @@ Future<List<String>> getAllAIModels({bool forceRefresh = false}) async {
   String representativeForProvider(String provider) {
     switch (provider) {
       case 'Google':
-        return Config.getDefaultTextModel().startsWith('gemini-') ? Config.getDefaultTextModel() : 'gemini-2.5-pro';
+        return Config.getDefaultTextModel().startsWith('gemini-')
+            ? Config.getDefaultTextModel()
+            : 'gemini-2.5-pro';
       case 'Grok':
         return 'grok-3';
       case 'OpenAI':
@@ -238,7 +270,9 @@ Future<List<String>> getAllAIModels({bool forceRefresh = false}) async {
       bool shouldUseCache = !forceRefresh;
       if (shouldUseCache) {
         try {
-          final cached = await CacheService.getCachedModels(provider: providerName);
+          final cached = await CacheService.getCachedModels(
+            provider: providerName,
+          );
           if (cached != null && cached.isNotEmpty) {
             // Verificar si la caché parece incompleta
             if (isCacheIncomplete(providerName, cached)) {
@@ -259,7 +293,10 @@ Future<List<String>> getAllAIModels({bool forceRefresh = false}) async {
           if (models.isNotEmpty) {
             allModels.addAll(models);
             try {
-              await CacheService.saveModelsToCache(models: models, provider: providerName);
+              await CacheService.saveModelsToCache(
+                models: models,
+                provider: providerName,
+              );
             } catch (_) {}
           }
         } catch (_) {}
@@ -270,11 +307,17 @@ Future<List<String>> getAllAIModels({bool forceRefresh = false}) async {
   }
 
   // Probe defaults for any runtimes not covered above
-  final extras = {Config.requireDefaultImageModel(), Config.requireDefaultTextModel()};
+  final extras = {
+    Config.requireDefaultImageModel(),
+    Config.requireDefaultTextModel(),
+  };
   for (final ex in extras) {
     final n = ex.trim().toLowerCase();
     if (n.startsWith('gpt-') && providerOrder.contains('OpenAI')) continue;
-    if ((n.startsWith('gemini-') || n.startsWith('imagen-')) && providerOrder.contains('Google')) continue;
+    if ((n.startsWith('gemini-') || n.startsWith('imagen-')) &&
+        providerOrder.contains('Google')) {
+      continue;
+    }
     if (n.startsWith('grok-') && providerOrder.contains('Grok')) continue;
     try {
       final s = runtime_factory.getRuntimeAIServiceForModel(ex);
@@ -282,7 +325,9 @@ Future<List<String>> getAllAIModels({bool forceRefresh = false}) async {
       bool shouldUseCache = !forceRefresh;
       if (shouldUseCache) {
         try {
-          final cached = await CacheService.getCachedModels(provider: providerName);
+          final cached = await CacheService.getCachedModels(
+            provider: providerName,
+          );
           if (cached != null && cached.isNotEmpty) {
             // Verificar si la caché parece incompleta
             if (isCacheIncomplete(providerName, cached)) {
@@ -299,7 +344,10 @@ Future<List<String>> getAllAIModels({bool forceRefresh = false}) async {
         if (models.isNotEmpty) {
           allModels.addAll(models);
           try {
-            await CacheService.saveModelsToCache(models: models, provider: providerName);
+            await CacheService.saveModelsToCache(
+              models: models,
+              provider: providerName,
+            );
           } catch (_) {}
         }
       }

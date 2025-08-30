@@ -7,7 +7,12 @@ class ImageRequestResult {
   final String matchedPhrase;
   final int score; // 0..100
 
-  ImageRequestResult({required this.detected, this.reason = '', this.matchedPhrase = '', this.score = 0});
+  ImageRequestResult({
+    required this.detected,
+    this.reason = '',
+    this.matchedPhrase = '',
+    this.score = 0,
+  });
 
   @override
   String toString() =>
@@ -77,9 +82,19 @@ class ImageRequestService {
   // corto/poco informativo (un followup) y si hay una promesa pendiente del
   // asistente en el historial reciente.
 
-  static ImageRequestResult detectImageRequest({required String text, List<Message>? history}) {
+  static ImageRequestResult detectImageRequest({
+    required String text,
+    List<Message>? history,
+  }) {
     final trimmed = text.trim();
-    if (trimmed.isEmpty) return ImageRequestResult(detected: false, reason: 'empty', matchedPhrase: '', score: 0);
+    if (trimmed.isEmpty) {
+      return ImageRequestResult(
+        detected: false,
+        reason: 'empty',
+        matchedPhrase: '',
+        score: 0,
+      );
+    }
     final lower = trimmed.toLowerCase();
 
     final negM = _negativePatternsRegex.firstMatch(lower);
@@ -94,7 +109,12 @@ class ImageRequestService {
 
     // Alta confianza si el texto contiene una acción de envío y una palabra de imagen.
     if (_sendVerbRegex.hasMatch(lower) && _imageWordRegex.hasMatch(lower)) {
-      return ImageRequestResult(detected: true, reason: 'high_confidence_regex', matchedPhrase: lower, score: 95);
+      return ImageRequestResult(
+        detected: true,
+        reason: 'high_confidence_regex',
+        matchedPhrase: lower,
+        score: 95,
+      );
     }
 
     // Nueva regla simple y conservadora:
@@ -128,7 +148,12 @@ class ImageRequestService {
     // contiene una frase de alta confianza o la estructura sugiere petición,
     // la marcamos.
     if (_structureSuggestsRequest(lower)) {
-      return ImageRequestResult(detected: true, reason: 'structural_request', matchedPhrase: lower, score: 85);
+      return ImageRequestResult(
+        detected: true,
+        reason: 'structural_request',
+        matchedPhrase: lower,
+        score: 85,
+      );
     }
 
     final mAnother = _anotherPhotoRegex.firstMatch(lower);
@@ -157,7 +182,10 @@ class ImageRequestService {
       );
       final ctx = 30;
       final idx = (mType.start - ctx).clamp(0, lower.length);
-      final window = lower.substring(idx, (mType.end + ctx).clamp(0, lower.length));
+      final window = lower.substring(
+        idx,
+        (mType.end + ctx).clamp(0, lower.length),
+      );
       if (verbNear.hasMatch(window)) {
         return ImageRequestResult(
           detected: true,
@@ -172,7 +200,12 @@ class ImageRequestService {
       final m = _imageWordRegex.firstMatch(lower);
       final kw = m?.group(0) ?? '';
       if (kw.isNotEmpty && _isAmbiguousShort(lower, kw)) {
-        return ImageRequestResult(detected: false, reason: 'ambiguous_short', matchedPhrase: kw, score: 5);
+        return ImageRequestResult(
+          detected: false,
+          reason: 'ambiguous_short',
+          matchedPhrase: kw,
+          score: 5,
+        );
       }
       if (_structureSuggestsRequest(lower)) {
         return ImageRequestResult(
@@ -218,7 +251,12 @@ class ImageRequestService {
     // la imagen previa (p. ej. "qué bonita la foto") NO deben considerarse
     // como petición. Las peticiones explícitas como "envíame otra foto" ya
     // quedan cubiertas por `_anotherPhotoRegex` arriba.
-    final res = ImageRequestResult(detected: false, reason: 'none', matchedPhrase: '', score: 0);
+    final res = ImageRequestResult(
+      detected: false,
+      reason: 'none',
+      matchedPhrase: '',
+      score: 0,
+    );
     Log.d('ImageRequestService.detectImageRequest -> $res', tag: 'IMAGE_REQ');
     return res;
   }
@@ -260,13 +298,17 @@ class ImageRequestService {
   // una palabra relacionada con imagen y que no sea ya un mensaje de imagen.
   static String? _lastAssistantImageMention(List<Message>? history) {
     if (history == null || history.isEmpty) return null;
-    final recent = history.length <= 8 ? history : history.sublist(history.length - 8);
+    final recent = history.length <= 8
+        ? history
+        : history.sublist(history.length - 8);
     for (final m in recent.reversed) {
       if (m.sender == MessageSender.assistant) {
         if (m.isImage) continue; // ya envió imagen, no contamos
         final l = m.text.toLowerCase();
         // si contiene palabra relacionada con imagen o un verbo de envío
-        if (_imageWordRegex.hasMatch(l) || _sendVerbRegex.hasMatch(l)) return m.text;
+        if (_imageWordRegex.hasMatch(l) || _sendVerbRegex.hasMatch(l)) {
+          return m.text;
+        }
       }
     }
     return null;
@@ -287,7 +329,9 @@ class ImageRequestService {
     if (tokens.isEmpty) return false;
     // Si el mensaje es muy corto (<=3 tokens) y contiene cualquiera de las
     // afirmativas, lo consideramos confirmación.
-    if (tokens.length <= 3 && _affirmativeRegexWide.hasMatch(lowerText)) return true;
+    if (tokens.length <= 3 && _affirmativeRegexWide.hasMatch(lowerText)) {
+      return true;
+    }
     // También aceptar frases que empiezan con una afirmación larga ("sí, envíamela")
     if (RegExp(
       r"^\s*(?:si|sí|claro|vale|ok|perfecto|por supuesto|dale|venga)\b",
@@ -302,7 +346,12 @@ class ImageRequestService {
     final t = lowerText.trim();
     if (_negativeRegexWide.hasMatch(t)) return true;
     // exact match or start
-    if (RegExp(r"^\s*(?:no|nop|nope|no gracias|nah)\b", caseSensitive: false).hasMatch(t)) return true;
+    if (RegExp(
+      r"^\s*(?:no|nop|nope|no gracias|nah)\b",
+      caseSensitive: false,
+    ).hasMatch(t)) {
+      return true;
+    }
     return false;
   }
 
@@ -324,7 +373,9 @@ class ImageRequestService {
 
   static bool _historyContainsImageRequest(List<Message>? history) {
     if (history == null || history.isEmpty) return false;
-    final recent = history.length <= 5 ? history : history.sublist(history.length - 5);
+    final recent = history.length <= 5
+        ? history
+        : history.sublist(history.length - 5);
     for (final m in recent.reversed) {
       // Si el asistente ya envió una imagen, consideramos que hay imagen previa
       if (m.sender == MessageSender.assistant && m.isImage) return true;
@@ -340,16 +391,23 @@ class ImageRequestService {
     // registrar si hay una frase coincidente en el historial (para diagnóstico)
     final matched = _lastHistoryMatch(history);
     if (matched != null) {
-      Log.d('ImageRequestService.history matched phrase: $matched', tag: 'IMAGE_REQ');
+      Log.d(
+        'ImageRequestService.history matched phrase: $matched',
+        tag: 'IMAGE_REQ',
+      );
     }
     return false;
   }
 
   static String? _lastHistoryMatch(List<Message>? history) {
     if (history == null || history.isEmpty) return null;
-    final recent = history.length <= 10 ? history : history.sublist(history.length - 10);
+    final recent = history.length <= 10
+        ? history
+        : history.sublist(history.length - 10);
     for (final m in recent.reversed) {
-      if (m.sender == MessageSender.assistant && m.isImage) return m.text.isNotEmpty ? m.text : 'assistant_image';
+      if (m.sender == MessageSender.assistant && m.isImage) {
+        return m.text.isNotEmpty ? m.text : 'assistant_image';
+      }
       final l = m.text.toLowerCase();
       if ((_sendVerbRegex.hasMatch(l) && _imageWordRegex.hasMatch(l)) ||
           _imageWordRegex.hasMatch(l) ||
@@ -363,7 +421,9 @@ class ImageRequestService {
   static bool _assistantPromisedImage(List<Message>? history) {
     if (history == null || history.isEmpty) return false;
     // Buscamos en los últimos 5 mensajes para promesas pendientes.
-    final recent = history.length <= 5 ? history : history.sublist(history.length - 5);
+    final recent = history.length <= 5
+        ? history
+        : history.sublist(history.length - 5);
     bool foundPromise = false;
     for (final m in recent.reversed) {
       if (m.sender == MessageSender.assistant) {

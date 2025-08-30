@@ -13,7 +13,12 @@ class VadService {
   bool _inSpeech = false;
   Timer? _endTimer;
 
-  VadService({this.onSpeechStart, this.onSpeechEnd, this.thresholdRms = 0.02, this.silenceMs = 220});
+  VadService({
+    this.onSpeechStart,
+    this.onSpeechEnd,
+    this.thresholdRms = 0.02,
+    this.silenceMs = 220,
+  });
 
   /// Feed raw PCM16LE bytes (mono). Computes RMS over the chunk and updates state.
   void feed(Uint8List pcm16Bytes) {

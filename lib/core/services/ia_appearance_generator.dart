@@ -7,7 +7,10 @@ import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/core/ai_runtime_guard.dart';
 
 class IAAppearanceGenerator {
-  Future<Map<String, dynamic>> generateAppearancePrompt(AiChanProfile bio, {AIService? aiService}) async {
+  Future<Map<String, dynamic>> generateAppearancePrompt(
+    AiChanProfile bio, {
+    AIService? aiService,
+  }) async {
     final usedModel = Config.getDefaultTextModel();
 
     // Bloque de formato JSON para la apariencia física
@@ -27,8 +30,22 @@ class IAAppearanceGenerator {
         "distancia_entre_ojos": "",
         "pestañas": {"longitud": "", "densidad": "", "curvatura": ""},
       },
-      "cejas": {"forma": "", "grosor": "", "color": "", "distancia_entre_cejas": "", "longitud": ""},
-      "nariz": {"forma": "", "tamaño": "", "detalle": "", "puente": "", "ancho": "", "longitud": "", "orificios": ""},
+      "cejas": {
+        "forma": "",
+        "grosor": "",
+        "color": "",
+        "distancia_entre_cejas": "",
+        "longitud": "",
+      },
+      "nariz": {
+        "forma": "",
+        "tamaño": "",
+        "detalle": "",
+        "puente": "",
+        "ancho": "",
+        "longitud": "",
+        "orificios": "",
+      },
       "boca": {
         "forma": "",
         "tamaño": "",
@@ -39,7 +56,13 @@ class IAAppearanceGenerator {
         "distancia_a_nariz": "",
       },
       "dientes": {"color": "", "alineacion": "", "tamaño": "", "detalle": ""},
-      "orejas": {"forma": "", "tamaño": "", "detalle": "", "posicion": "", "lóbulo": ""},
+      "orejas": {
+        "forma": "",
+        "tamaño": "",
+        "detalle": "",
+        "posicion": "",
+        "lóbulo": "",
+      },
       "cabello": {
         "color": "",
         "largo": "",
@@ -54,7 +77,8 @@ class IAAppearanceGenerator {
         "tinte": {
           "aplica": false,
           "tipo": "", // e.g. permanente, semipermanente, baño de color
-          "colores": [], // lista de colores aplicados (orden principal -> secundario)
+          "colores":
+              [], // lista de colores aplicados (orden principal -> secundario)
           "intensidad": "", // suave/medio/intenso
           "zona": "", // todo el cabello / raíces / medios / puntas
           "detalle": "",
@@ -75,8 +99,21 @@ class IAAppearanceGenerator {
         "detalle": "",
       },
       "piel": {"textura": "", "brillo": "", "poros": "", "detalle": ""},
-      "pechos": {"tamaño": "", "forma": "", "detalle": "", "separacion": "", "proporción": ""},
-      "genitales": {"tipo": "", "tamaño": "", "forma": "", "detalle": "", "color": "", "vello_pubico": ""},
+      "pechos": {
+        "tamaño": "",
+        "forma": "",
+        "detalle": "",
+        "separacion": "",
+        "proporción": "",
+      },
+      "genitales": {
+        "tipo": "",
+        "tamaño": "",
+        "forma": "",
+        "detalle": "",
+        "color": "",
+        "vello_pubico": "",
+      },
       "piernas": {
         "longitud": "",
         "forma": "",
@@ -99,7 +136,12 @@ class IAAppearanceGenerator {
       "ropa": [],
       "estilo": [],
       "accesorios": [],
-      "paleta_color": {"piel": "", "cabello": "", "labios": "", "base_vestuario": ""},
+      "paleta_color": {
+        "piel": "",
+        "cabello": "",
+        "labios": "",
+        "base_vestuario": "",
+      },
       "maquillaje_base": {"habitual": "", "alternativo": ""},
       "accesorios_firma": [],
       "expresion_general": "",
@@ -159,17 +201,31 @@ class IAAppearanceGenerator {
     );
 
     // Reintentos con el mismo prompt/modelo para obtener JSON válido
-    Log.d('[IAAppearanceGenerator] Apariencia: intentos JSON (max=3) con modelo $usedModel');
+    Log.d(
+      '[IAAppearanceGenerator] Apariencia: intentos JSON (max=3) con modelo $usedModel',
+    );
     const int maxJsonAttempts = 3;
     Map<String, dynamic>? appearanceMap;
     for (int attempt = 0; attempt < maxJsonAttempts; attempt++) {
-      Log.d('[IAAppearanceGenerator] Apariencia: intento ${attempt + 1}/$maxJsonAttempts (modelo=$usedModel)');
+      Log.d(
+        '[IAAppearanceGenerator] Apariencia: intento ${attempt + 1}/$maxJsonAttempts (modelo=$usedModel)',
+      );
       try {
         final AIResponse resp = await (aiService != null
-            ? aiService.sendMessageImpl([], systemPromptAppearance, model: usedModel)
-            : AIService.sendMessage([], systemPromptAppearance, model: usedModel));
+            ? aiService.sendMessageImpl(
+                [],
+                systemPromptAppearance,
+                model: usedModel,
+              )
+            : AIService.sendMessage(
+                [],
+                systemPromptAppearance,
+                model: usedModel,
+              ));
         if ((resp.text).trim().isEmpty) {
-          Log.w('[IAAppearanceGenerator] Apariencia: respuesta vacía (posible desconexión), reintentando…');
+          Log.w(
+            '[IAAppearanceGenerator] Apariencia: respuesta vacía (posible desconexión), reintentando…',
+          );
           // backoff ligero
           await Future.delayed(Duration(milliseconds: 300 * (attempt + 1)));
           continue;
@@ -183,12 +239,16 @@ class IAAppearanceGenerator {
           );
           break;
         }
-        Log.w('[IAAppearanceGenerator] Apariencia: intento ${attempt + 1} sin JSON válido, reintentando…');
+        Log.w(
+          '[IAAppearanceGenerator] Apariencia: intento ${attempt + 1} sin JSON válido, reintentando…',
+        );
       } catch (err) {
         if (handleRuntimeError(err, 'IAAppearanceGenerator')) {
           // logged by helper
         } else {
-          Log.e('[IAAppearanceGenerator] Apariencia: error de red/timeout en intento ${attempt + 1}: $err');
+          Log.e(
+            '[IAAppearanceGenerator] Apariencia: error de red/timeout en intento ${attempt + 1}: $err',
+          );
         }
       }
 
@@ -198,7 +258,9 @@ class IAAppearanceGenerator {
     }
     // Si tras los intentos no hay JSON válido, cancelar sin fallback
     if (appearanceMap == null || appearanceMap.isEmpty) {
-      throw Exception('No se pudo generar la apariencia en formato JSON válido.');
+      throw Exception(
+        'No se pudo generar la apariencia en formato JSON válido.',
+      );
     }
     // Forzar edad_aparente=25 por consistencia (si el modelo no la puso o puso otro valor)
     try {

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:ai_chan/shared/utils/string_utils.dart';
 
 /// Controlador sencillo para manejar subtítulos de IA y usuario.
 /// Encapsula timers de auto-clear, normalización mínima y logging opcional.
@@ -31,15 +32,6 @@ class SubtitleController {
     if (user.value.isNotEmpty) user.value = '';
   }
 
-  /// Normalización mínima de texto para mostrar al usuario.
-  String _normalize(String raw) {
-    var cleaned = raw.trim();
-    if (cleaned.isEmpty) return '';
-    cleaned = cleaned.replaceAll(RegExp(r'\s{2,}'), ' ');
-    cleaned = cleaned.replaceAllMapped(RegExp(r'([¡¿])\s+([A-Za-zÁÉÍÓÚáéíóúÑñ])'), (m) => '${m.group(1)}${m.group(2)}');
-    return cleaned;
-  }
-
   void _logRaw(String text) {
     if (!_debug) return;
     debugPrint('👁️ [SUB-RAW] len=${text.length} -> "$text"');
@@ -48,13 +40,17 @@ class SubtitleController {
   /// Actualiza fragmento de IA aplicando gating externo.
   /// [firstAudioReceived] evita mostrar texto antes de oír la IA.
   /// [suppressFurther] permite cortar tras end_call / rechazo.
-  void handleAiChunk(String chunk, {required bool firstAudioReceived, required bool suppressFurther}) {
+  void handleAiChunk(
+    String chunk, {
+    required bool firstAudioReceived,
+    required bool suppressFurther,
+  }) {
     _logRaw(chunk);
     if (chunk == '__REVEAL__') return; // sentinel antiguo (ignorar)
     if (!firstAudioReceived) return; // no mostrar antes del primer audio
     if (suppressFurther) return; // suprimido tras end_call/rechazo
 
-    final cleaned = _normalize(chunk);
+    final cleaned = StringUtils.cleanSubtitleText(chunk);
     if (cleaned.isEmpty) return;
 
     // Modo súper simple: mostrar exactamente el último fragmento normalizado (sin heurísticas de crecimiento)
@@ -81,8 +77,12 @@ class SubtitleController {
       r'subt[íi]tulos\s+realizados\s+por\s+la\s+comunidad\s+de\s+amara\.org',
       caseSensitive: false,
     );
-    if (blocked.contains(lower) || blockedRegex.hasMatch(raw) || lower.startsWith('🎤 user transcription received')) {
-      if (_debug) debugPrint('👁️ [SUB-UI][user] suprimido watermark/artefacto: "$raw"');
+    if (blocked.contains(lower) ||
+        blockedRegex.hasMatch(raw) ||
+        lower.startsWith('🎤 user transcription received')) {
+      if (_debug) {
+        debugPrint('👁️ [SUB-UI][user] suprimido watermark/artefacto: "$raw"');
+      }
       return;
     }
 

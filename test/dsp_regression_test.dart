@@ -8,7 +8,7 @@ void main() {
     test('key DSP params remain stable', () async {
       // Initialize test environment with mocked audio playback
       await initializeTestEnvironment();
-      
+
       final fakeAi = FakeCallsAiService();
       final c = VoiceCallController(aiService: fakeAi);
 

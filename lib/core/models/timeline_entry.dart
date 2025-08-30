@@ -5,7 +5,12 @@ class TimelineEntry {
   final String? endDate;
   final int level;
 
-  TimelineEntry({required this.resume, this.startDate, this.endDate, this.level = 0});
+  TimelineEntry({
+    required this.resume,
+    this.startDate,
+    this.endDate,
+    this.level = 0,
+  });
 
   factory TimelineEntry.fromJson(Map<String, dynamic> json) {
     return TimelineEntry(

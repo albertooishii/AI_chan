@@ -16,7 +16,9 @@ void main() {
       if (!path.endsWith('.dart')) continue;
       // allow files under test/fakes/ (canonical location) and test/disabled
       // match both absolute and relative paths by checking without a leading slash
-      if (path.contains('test/fakes/') || path.contains('test/disabled/')) continue;
+      if (path.contains('test/fakes/') || path.contains('test/disabled/')) {
+        continue;
+      }
 
       final lines = ent.readAsLinesSync();
       for (var i = 0; i < lines.length; i++) {

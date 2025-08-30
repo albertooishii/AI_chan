@@ -25,7 +25,12 @@ void main() {
       if (url.contains('/token')) {
         // return token on first poll
         return http.Response(
-          jsonEncode({'access_token': 'atk', 'refresh_token': 'rtk', 'expires_in': 3600, 'token_type': 'Bearer'}),
+          jsonEncode({
+            'access_token': 'atk',
+            'refresh_token': 'rtk',
+            'expires_in': 3600,
+            'token_type': 'Bearer',
+          }),
           200,
         );
       }
@@ -33,7 +38,11 @@ void main() {
           request.method == 'POST' &&
           request.headers['X-Upload-Content-Type'] == 'application/zip') {
         // initiation returns location header
-        return http.Response('{}', 200, headers: {'location': 'https://upload.example.com/session/abc'});
+        return http.Response(
+          '{}',
+          200,
+          headers: {'location': 'https://upload.example.com/session/abc'},
+        );
       }
       if (url.contains('upload.example.com') && request.method == 'PUT') {
         return http.Response(jsonEncode({'id': 'file123'}), 200);
@@ -53,7 +62,10 @@ void main() {
     await f.writeAsBytes([0, 1, 2, 3, 4]);
 
     // create a new service instance that holds the access token
-    final serviceWithToken = GoogleBackupService(accessToken: token['access_token'], httpClient: client);
+    final serviceWithToken = GoogleBackupService(
+      accessToken: token['access_token'],
+      httpClient: client,
+    );
     final id = await serviceWithToken.uploadBackupResumable(f);
     expect(id, 'file123');
 

@@ -38,7 +38,9 @@ class AndroidNativeTtsService {
     try {
       final voices = await _flutterTts.getVoices;
       if (voices == null) return [];
-      return (voices as List<dynamic>).map((v) => Map<String, dynamic>.from(v as Map)).toList();
+      return (voices as List<dynamic>)
+          .map((v) => Map<String, dynamic>.from(v as Map))
+          .toList();
     } catch (e) {
       Log.e('[AndroidTTS] Error obteniendo voces (flutter_tts): $e');
       return [];
@@ -46,7 +48,9 @@ class AndroidNativeTtsService {
   }
 
   /// Obtiene voces filtradas por idioma
-  static Future<List<Map<String, dynamic>>> getVoicesForLanguage(String languageCode) async {
+  static Future<List<Map<String, dynamic>>> getVoicesForLanguage(
+    String languageCode,
+  ) async {
     final allVoices = await getAvailableVoices();
 
     // Normalizar requested code: reemplazar '_' por '-' y pasar a minúsculas
@@ -56,7 +60,9 @@ class AndroidNativeTtsService {
     final requestedParts = requested.split('-');
     if (requestedParts.length >= 2) {
       final exact = allVoices.where((voice) {
-        final locale = (voice['locale'] as String?)?.replaceAll('_', '-').toLowerCase();
+        final locale = (voice['locale'] as String?)
+            ?.replaceAll('_', '-')
+            .toLowerCase();
         if (locale == null) return false;
         return locale == requested;
       }).toList();
@@ -68,7 +74,9 @@ class AndroidNativeTtsService {
     // Fallback: comparar solo la parte de idioma (ej: 'es' coincide con 'es-ES', 'es-MX', etc.)
     final lang = requested.split('-').first.toLowerCase();
     return allVoices.where((voice) {
-      final locale = (voice['locale'] as String?)?.replaceAll('_', '-').toLowerCase();
+      final locale = (voice['locale'] as String?)
+          ?.replaceAll('_', '-')
+          .toLowerCase();
       if (locale == null) return false;
       final voiceLang = locale.split('-').first.toLowerCase();
       return voiceLang == lang;
@@ -113,7 +121,9 @@ class AndroidNativeTtsService {
       if (hasExactRegion) {
         final exactTargets = targetCodes.where((t) => t.contains('-')).toSet();
         if (voiceLangCodes.isNotEmpty) {
-          if (voiceLangCodes.any((vlc) => exactTargets.contains(vlc))) return true;
+          if (voiceLangCodes.any((vlc) => exactTargets.contains(vlc))) {
+            return true;
+          }
         }
         if (locale.isNotEmpty && exactTargets.contains(locale)) return true;
         return false;
@@ -122,7 +132,11 @@ class AndroidNativeTtsService {
       if (voiceLangCodes.isNotEmpty) {
         for (final t in targetCodes) {
           final tLang = t.split('-').first;
-          if (voiceLangCodes.any((vlc) => vlc == tLang || vlc.startsWith('$tLang-'))) return true;
+          if (voiceLangCodes.any(
+            (vlc) => vlc == tLang || vlc.startsWith('$tLang-'),
+          )) {
+            return true;
+          }
         }
       }
 
@@ -142,14 +156,19 @@ class AndroidNativeTtsService {
   ///
   /// Uso: AndroidNativeTtsService.dumpVoicesJsonForLanguage('es-ES');
   /// Si `exactOnly` es true, requerirá coincidencia exacta de región (ej. 'es-ES').
-  static Future<String> dumpVoicesJsonForLanguage(String languageCode, {bool exactOnly = false}) async {
+  static Future<String> dumpVoicesJsonForLanguage(
+    String languageCode, {
+    bool exactOnly = false,
+  }) async {
     final all = await getAvailableVoices();
     final requested = languageCode.replaceAll('_', '-').toLowerCase();
 
     List<Map<String, dynamic>> matched;
     if (exactOnly) {
       matched = all.where((voice) {
-        final locale = (voice['locale'] as String?)?.replaceAll('_', '-').toLowerCase();
+        final locale = (voice['locale'] as String?)
+            ?.replaceAll('_', '-')
+            .toLowerCase();
         return locale != null && locale == requested;
       }).toList();
     } else {
@@ -157,7 +176,11 @@ class AndroidNativeTtsService {
       matched = await getVoicesForLanguage(languageCode);
     }
 
-    final out = jsonEncode({'requested': requested, 'count': matched.length, 'voices': matched});
+    final out = jsonEncode({
+      'requested': requested,
+      'count': matched.length,
+      'voices': matched,
+    });
     return out;
   }
 
@@ -206,7 +229,9 @@ class AndroidNativeTtsService {
     if (!isAndroid) return null;
     try {
       await _flutterTts.setLanguage(languageCode);
-      if (voiceName != null) await _flutterTts.setVoice({'name': voiceName, 'locale': languageCode});
+      if (voiceName != null) {
+        await _flutterTts.setVoice({'name': voiceName, 'locale': languageCode});
+      }
       await _flutterTts.setPitch(pitch);
       try {
         final normalized = await _normalizeSpeechRate(speechRate);
@@ -224,7 +249,11 @@ class AndroidNativeTtsService {
       final isFullPath = outputPath.startsWith('/');
       final fileName = outputPath;
 
-      final res = await _flutterTts.synthesizeToFile(text, fileName, isFullPath);
+      final res = await _flutterTts.synthesizeToFile(
+        text,
+        fileName,
+        isFullPath,
+      );
 
       // If plugin wrote to the given path, verify size
       try {
@@ -232,10 +261,14 @@ class AndroidNativeTtsService {
         if (await f.exists()) {
           final len = await f.length();
           if (len > 0) {
-            Log.d('[AndroidTTS] synthesizeToFile produced file: $outputPath (size=$len)');
+            Log.d(
+              '[AndroidTTS] synthesizeToFile produced file: $outputPath (size=$len)',
+            );
             return outputPath;
           } else {
-            Log.e('[AndroidTTS] synthesizeToFile produced zero-length file: $outputPath');
+            Log.e(
+              '[AndroidTTS] synthesizeToFile produced zero-length file: $outputPath',
+            );
             try {
               await f.delete();
             } catch (_) {}
@@ -285,7 +318,9 @@ class AndroidNativeTtsService {
     if (!isAndroid) return [];
 
     try {
-      final result = await _channel.invokeMethod<List<dynamic>>('getDownloadableLanguages');
+      final result = await _channel.invokeMethod<List<dynamic>>(
+        'getDownloadableLanguages',
+      );
       if (result == null) return [];
 
       return result.map((lang) => Map<String, dynamic>.from(lang)).toList();
@@ -300,7 +335,9 @@ class AndroidNativeTtsService {
     if (!isAndroid) return false;
 
     try {
-      final result = await _channel.invokeMethod<bool>('requestDownload', {'languageCode': languageCode});
+      final result = await _channel.invokeMethod<bool>('requestDownload', {
+        'languageCode': languageCode,
+      });
 
       return result ?? false;
     } catch (e) {
@@ -314,7 +351,9 @@ class AndroidNativeTtsService {
     if (!isAndroid) return 'not_supported';
 
     try {
-      final result = await _channel.invokeMethod<String>('getDownloadStatus', {'languageCode': languageCode});
+      final result = await _channel.invokeMethod<String>('getDownloadStatus', {
+        'languageCode': languageCode,
+      });
 
       return result ?? 'unknown';
     } catch (e) {

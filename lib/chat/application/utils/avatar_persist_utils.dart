@@ -4,10 +4,16 @@ import 'package:ai_chan/core/models.dart';
 /// Adds or replaces an avatar in the provider's profile, persists and
 /// notifies listeners. Kept in application layer to avoid presentation ->
 /// application dependency violations.
-Future<void> addAvatarAndPersist(ChatProvider chatProvider, AiImage avatar, {bool replace = false}) async {
+Future<void> addAvatarAndPersist(
+  ChatProvider chatProvider,
+  AiImage avatar, {
+  bool replace = false,
+}) async {
   try {
     if (replace) {
-      chatProvider.onboardingData = chatProvider.onboardingData.copyWith(avatars: [avatar]);
+      chatProvider.onboardingData = chatProvider.onboardingData.copyWith(
+        avatars: [avatar],
+      );
     } else {
       chatProvider.onboardingData = chatProvider.onboardingData.copyWith(
         avatars: [...(chatProvider.onboardingData.avatars ?? []), avatar],
@@ -34,7 +40,10 @@ Future<void> addAvatarAndPersist(ChatProvider chatProvider, AiImage avatar, {boo
 /// Removes an AiImage (if non-null) from the provider's onboardingData,
 /// persists and notifies listeners. This centralizes the logic used in
 /// multiple UI places when the user deletes an image that could be an avatar.
-Future<void> removeImageFromProfileAndPersist(ChatProvider chatProvider, AiImage? deleted) async {
+Future<void> removeImageFromProfileAndPersist(
+  ChatProvider chatProvider,
+  AiImage? deleted,
+) async {
   if (deleted == null) return;
   try {
     final current = chatProvider.onboardingData;

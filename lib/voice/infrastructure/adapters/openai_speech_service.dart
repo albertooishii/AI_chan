@@ -24,7 +24,9 @@ class OpenAISpeechService {
     bool forceRefresh = false,
     bool femaleOnly = false,
   }) async {
-    _maybeDebugPrint('fetchOpenAIVoices - start (forceRefresh=$forceRefresh, femaleOnly=$femaleOnly)');
+    _maybeDebugPrint(
+      'fetchOpenAIVoices - start (forceRefresh=$forceRefresh, femaleOnly=$femaleOnly)',
+    );
 
     final apiKey = Config.getOpenAIKey();
 
@@ -36,21 +38,28 @@ class OpenAISpeechService {
         final resp = await http
             .get(
               Uri.parse('https://api.openai.com/v1/audio/voices'),
-              headers: {'Authorization': 'Bearer $apiKey', 'Accept': 'application/json'},
+              headers: {
+                'Authorization': 'Bearer $apiKey',
+                'Accept': 'application/json',
+              },
             )
             .timeout(const Duration(seconds: 8));
 
         if (resp.statusCode == 200) {
           final body = json.decode(resp.body);
           if (body is Map && body['data'] is List) {
-            final remote = (body['data'] as List).map<Map<String, dynamic>>((item) {
+            final remote = (body['data'] as List).map<Map<String, dynamic>>((
+              item,
+            ) {
               if (item is Map) {
                 return {
                   'name': item['name'] ?? item['id'] ?? 'unknown',
                   'description': item['description'] ?? item['name'] ?? '',
                   'gender': (item['gender'] ?? 'unknown').toString(),
                   'languageCodes': (item['language_codes'] is List)
-                      ? List<String>.from(item['language_codes'].map((e) => e.toString()))
+                      ? List<String>.from(
+                          item['language_codes'].map((e) => e.toString()),
+                        )
                       : <String>[],
                 };
               }
@@ -64,19 +73,30 @@ class OpenAISpeechService {
 
             _maybeDebugPrint('Remote fetch succeeded: ${remote.length} voices');
             final filtered = femaleOnly
-                ? remote.where((v) => (v['gender'] as String).toLowerCase() == 'female').toList()
+                ? remote
+                      .where(
+                        (v) =>
+                            (v['gender'] as String).toLowerCase() == 'female',
+                      )
+                      .toList()
                 : remote;
             return Future.value(filtered);
           }
 
-          _maybeDebugPrint('Remote response format unexpected, falling back to static list');
+          _maybeDebugPrint(
+            'Remote response format unexpected, falling back to static list',
+          );
         } else {
-          _maybeDebugPrint('Remote fetch failed: status=${resp.statusCode} body=${resp.body}');
+          _maybeDebugPrint(
+            'Remote fetch failed: status=${resp.statusCode} body=${resp.body}',
+          );
           // Si el endpoint no existe, marcamos como no disponible para evitar
           // reintentos continuos. Se puede forzar reintento con forceRefresh.
           if (resp.statusCode == 404) {
             _remoteVoicesUnavailable = true;
-            _maybeDebugPrint('Remote voices endpoint returned 404; disabling remote fetch until forceRefresh=true');
+            _maybeDebugPrint(
+              'Remote voices endpoint returned 404; disabling remote fetch until forceRefresh=true',
+            );
           }
         }
       } catch (e, st) {
@@ -93,7 +113,8 @@ class OpenAISpeechService {
     // Fallback local static list derived from the voice gender map
     final all = kOpenAIVoices.map((name) {
       final genderLabel = kOpenAIVoiceGender[name];
-      final isFemale = (genderLabel != null && genderLabel.toLowerCase().contains('femen'));
+      final isFemale =
+          (genderLabel != null && genderLabel.toLowerCase().contains('femen'));
       return {
         'name': name,
         'description': name,
@@ -103,7 +124,11 @@ class OpenAISpeechService {
     }).toList();
 
     if (femaleOnly) {
-      return Future.value(all.where((v) => (v['gender'] as String).toLowerCase() == 'female').toList());
+      return Future.value(
+        all
+            .where((v) => (v['gender'] as String).toLowerCase() == 'female')
+            .toList(),
+      );
     }
 
     return Future.value(all);

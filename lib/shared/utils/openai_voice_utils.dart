@@ -6,7 +6,9 @@ import 'package:ai_chan/shared.dart';
 class OpenAiVoiceUtils {
   /// Devuelve la lista estática de voces OpenAI en el formato que usa el UI
   static List<Map<String, dynamic>> loadStaticOpenAiVoices() {
-    return kOpenAIVoices.map((v) => {'name': v, 'description': v, 'languageCodes': <String>[]}).toList();
+    return kOpenAIVoices
+        .map((v) => {'name': v, 'description': v, 'languageCodes': <String>[]})
+        .toList();
   }
 
   /// Formatea nombre y subtítulo legible para el UI.
@@ -14,9 +16,12 @@ class OpenAiVoiceUtils {
   static Map<String, String> formatVoiceDisplay(Map<String, dynamic> voice) {
     final token = (voice['name'] as String? ?? '').trim();
     String displayName = token;
-    if (token.isNotEmpty) displayName = '${token[0].toUpperCase()}${token.substring(1)}';
+    if (token.isNotEmpty) {
+      displayName = '${token[0].toUpperCase()}${token.substring(1)}';
+    }
 
-    final genderLabel = (kOpenAIVoiceGender[token.toLowerCase()] ?? '').toString();
+    final genderLabel = (kOpenAIVoiceGender[token.toLowerCase()] ?? '')
+        .toString();
     final genderPart = genderLabel.isNotEmpty ? genderLabel : '';
     final parts = <String>[];
     if (genderPart.isNotEmpty) parts.add(genderPart);

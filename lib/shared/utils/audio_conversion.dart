@@ -13,14 +13,19 @@ class AudioConversion {
     }
   }
 
-  static Future<File?> convertFileToFormat(File src, String format, {List<String>? extraArgs}) async {
+  static Future<File?> convertFileToFormat(
+    File src,
+    String format, {
+    List<String>? extraArgs,
+  }) async {
     if (!await ffmpegAvailable()) return null;
     try {
       // Use the local audio dir for temporary conversion outputs so that
       // converted files live on the same filesystem as persisted audio and
       // avoid EXDEV when callers move/rename them into the audio directory.
       final tmpDir = await audio_utils.getLocalAudioDir();
-      final outPath = '${tmpDir.path}/${src.path.split('/').last}.converted.$format';
+      final outPath =
+          '${tmpDir.path}/${src.path.split('/').last}.converted.$format';
       final args = <String>['-y', '-i', src.path];
       if (extraArgs != null) args.addAll(extraArgs);
       args.add(outPath);
@@ -30,17 +35,25 @@ class AudioConversion {
         if (await outFile.exists()) return outFile;
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('[AudioConversion] convertFileToFormat exception: $e');
+      if (kDebugMode) {
+        debugPrint('[AudioConversion] convertFileToFormat exception: $e');
+      }
     }
     return null;
   }
 
-  static Future<Uint8List?> convertBytesToFormat(Uint8List inputBytes, String format, {List<String>? extraArgs}) async {
+  static Future<Uint8List?> convertBytesToFormat(
+    Uint8List inputBytes,
+    String format, {
+    List<String>? extraArgs,
+  }) async {
     if (!await ffmpegAvailable()) return null;
     try {
       final tmpDir = await audio_utils.getLocalAudioDir();
-      final inPath = '${tmpDir.path}/tts_in_${DateTime.now().millisecondsSinceEpoch}.bin';
-      final outPath = '${tmpDir.path}/tts_out_${DateTime.now().millisecondsSinceEpoch}.$format';
+      final inPath =
+          '${tmpDir.path}/tts_in_${DateTime.now().millisecondsSinceEpoch}.bin';
+      final outPath =
+          '${tmpDir.path}/tts_out_${DateTime.now().millisecondsSinceEpoch}.$format';
       final inFile = File(inPath);
       await inFile.writeAsBytes(inputBytes);
       final args = <String>['-y', '-i', inFile.path];
@@ -59,26 +72,44 @@ class AudioConversion {
         }
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('[AudioConversion] convertBytesToFormat exception: $e');
+      if (kDebugMode) {
+        debugPrint('[AudioConversion] convertBytesToFormat exception: $e');
+      }
     }
     return null;
   }
 
   static Future<File?> convertToWavIfPossible(File src) async {
-    return await convertFileToFormat(src, 'wav', extraArgs: ['-ac', '1', '-ar', '16000', '-acodec', 'pcm_s16le']);
+    return await convertFileToFormat(
+      src,
+      'wav',
+      extraArgs: ['-ac', '1', '-ar', '16000', '-acodec', 'pcm_s16le'],
+    );
   }
 
   static Future<File?> convertToMp3IfPossible(File src) async {
     return await convertFileToFormat(
       src,
       'mp3',
-      extraArgs: ['-ac', '1', '-ar', '16000', '-b:a', '64k', '-codec:a', 'libmp3lame'],
+      extraArgs: [
+        '-ac',
+        '1',
+        '-ar',
+        '16000',
+        '-b:a',
+        '64k',
+        '-codec:a',
+        'libmp3lame',
+      ],
     );
   }
 
   /// Convert to a preferred compressed container (mp3 or m4a). Respects
   /// preferredFormat; returns converted File or null on failure.
-  static Future<File?> convertToPreferredCompressed(File src, String preferredFormat) async {
+  static Future<File?> convertToPreferredCompressed(
+    File src,
+    String preferredFormat,
+  ) async {
     final pref = preferredFormat.trim().toLowerCase();
     if (pref == 'm4a') {
       return await convertFileToFormat(
@@ -91,15 +122,31 @@ class AudioConversion {
   }
 
   /// Convert bytes to a preferred compressed container (mp3 or m4a).
-  static Future<Uint8List?> convertBytesToPreferredCompressed(Uint8List inputBytes, String preferredFormat) async {
+  static Future<Uint8List?> convertBytesToPreferredCompressed(
+    Uint8List inputBytes,
+    String preferredFormat,
+  ) async {
     final pref = preferredFormat.trim().toLowerCase();
     if (pref == 'm4a') {
-      return await convertBytesToFormat(inputBytes, 'm4a', extraArgs: ['-c:a', 'aac', '-b:a', '96k']);
+      return await convertBytesToFormat(
+        inputBytes,
+        'm4a',
+        extraArgs: ['-c:a', 'aac', '-b:a', '96k'],
+      );
     }
     return await convertBytesToFormat(
       inputBytes,
       'mp3',
-      extraArgs: ['-ac', '1', '-ar', '16000', '-b:a', '64k', '-codec:a', 'libmp3lame'],
+      extraArgs: [
+        '-ac',
+        '1',
+        '-ar',
+        '16000',
+        '-b:a',
+        '64k',
+        '-codec:a',
+        'libmp3lame',
+      ],
     );
   }
 }

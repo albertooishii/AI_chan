@@ -2,7 +2,8 @@
 /// Incluye la lista japonesa ya usada y colecciones básicas por regiones.
 class FemaleNamesRepo {
   // Helpers para definir listas largas como CSV compacto
-  static List<String> _csv(String csv) => csv.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+  static List<String> _csv(String csv) =>
+      csv.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
 
   // Listas ampliadas por idioma (CSV para evitar un nombre por línea)
   static final List<String> es = _csv(

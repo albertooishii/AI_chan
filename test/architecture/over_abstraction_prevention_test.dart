@@ -10,14 +10,18 @@ void main() {
       final violations = <String>[];
 
       for (final file in libDir.listSync(recursive: true)) {
-        if (file is File && file.path.endsWith('.dart') && file.path.contains('/adapters/')) {
+        if (file is File &&
+            file.path.endsWith('.dart') &&
+            file.path.contains('/adapters/')) {
           final content = file.readAsStringSync();
 
           // Skip files that clearly have substantial logic (indicators)
           if (_hasSubstantialLogic(content)) continue;
 
           // Look for adapter pattern: class XAdapter implements IInterface
-          final adapterMatch = RegExp(r'class\s+(\w*Adapter)\s+implements\s+(\w+)').firstMatch(content);
+          final adapterMatch = RegExp(
+            r'class\s+(\w*Adapter)\s+implements\s+(\w+)',
+          ).firstMatch(content);
           if (adapterMatch == null) continue;
 
           final adapterName = adapterMatch.group(1)!;
@@ -52,7 +56,8 @@ void main() {
         if (file is File && file.path.endsWith('.dart')) {
           allFiles.add(file);
 
-          if (file.path.contains('/domain/') && file.path.contains('interfaces')) {
+          if (file.path.contains('/domain/') &&
+              file.path.contains('interfaces')) {
             final content = file.readAsStringSync();
             final interfaces = RegExp(
               r'abstract\s+(?:interface\s+)?class\s+(\w+)',
@@ -69,7 +74,10 @@ void main() {
 
         // Check if interface is used anywhere (implements, type annotation, etc.)
         for (final file in allFiles) {
-          if (file.path.contains('/domain/') && file.path.contains('interfaces')) continue; // Skip definition file
+          if (file.path.contains('/domain/') &&
+              file.path.contains('interfaces')) {
+            continue; // Skip definition file
+          }
 
           final content = file.readAsStringSync();
           if (content.contains('implements $interface') ||
@@ -88,13 +96,18 @@ void main() {
       }
 
       // Allow some interfaces to be defined but not used yet (work in progress)
-      final allowedOrphans = ['IRealtimeVoiceClient']; // Add interfaces that are intentionally unused
-      final realOrphans = orphanedInterfaces.where((i) => !allowedOrphans.contains(i)).toList();
+      final allowedOrphans = [
+        'IRealtimeVoiceClient',
+      ]; // Add interfaces that are intentionally unused
+      final realOrphans = orphanedInterfaces
+          .where((i) => !allowedOrphans.contains(i))
+          .toList();
 
       expect(
         realOrphans,
         isEmpty,
-        reason: 'Orphaned domain interfaces detected (no consumers found):\n${realOrphans.join('\n')}',
+        reason:
+            'Orphaned domain interfaces detected (no consumers found):\n${realOrphans.join('\n')}',
       );
     });
 
@@ -108,13 +121,19 @@ void main() {
       for (final file in libDir.listSync(recursive: true)) {
         if (file is File && file.path.endsWith('.dart')) {
           final content = file.readAsStringSync();
-          final exportLines = content.split('\n').where((line) => line.trim().startsWith('export ')).toList();
+          final exportLines = content
+              .split('\n')
+              .where((line) => line.trim().startsWith('export '))
+              .toList();
 
           if (exportLines.isNotEmpty) {
             // Only consider it a barrel if exports dominate the file content
             final nonCommentLines = content
                 .split('\n')
-                .where((line) => line.trim().isNotEmpty && !line.trim().startsWith('//'))
+                .where(
+                  (line) =>
+                      line.trim().isNotEmpty && !line.trim().startsWith('//'),
+                )
                 .length;
 
             if (exportLines.length / nonCommentLines > 0.6) {
@@ -129,7 +148,9 @@ void main() {
       // Check for barrels that export the same things
       final exportGroups = <String, List<String>>{};
       barrelFiles.forEach((path, exports) {
-        final sortedExports = exports.join('|'); // Create a signature from exports
+        final sortedExports = exports.join(
+          '|',
+        ); // Create a signature from exports
         if (exportGroups.containsKey(sortedExports)) {
           exportGroups[sortedExports]!.add(path);
         } else {
@@ -139,14 +160,17 @@ void main() {
 
       exportGroups.forEach((signature, paths) {
         if (paths.length > 1) {
-          redundantBarrels.addAll(paths.skip(1)); // Keep first, flag others as redundant
+          redundantBarrels.addAll(
+            paths.skip(1),
+          ); // Keep first, flag others as redundant
         }
       });
 
       expect(
         redundantBarrels,
         isEmpty,
-        reason: 'Redundant export barrel files detected:\n${redundantBarrels.join('\n')}',
+        reason:
+            'Redundant export barrel files detected:\n${redundantBarrels.join('\n')}',
       );
     });
 
@@ -154,7 +178,11 @@ void main() {
       final libDir = Directory('lib');
       if (!libDir.existsSync()) return;
 
-      final bannedAdapters = ['voice_ai_adapter.dart', 'voice_stt_adapter.dart', 'voice_tts_adapter.dart'];
+      final bannedAdapters = [
+        'voice_ai_adapter.dart',
+        'voice_stt_adapter.dart',
+        'voice_tts_adapter.dart',
+      ];
 
       final violations = <String>[];
 
@@ -162,7 +190,9 @@ void main() {
         if (file is File) {
           final fileName = file.path.split('/').last;
           if (bannedAdapters.contains(fileName)) {
-            violations.add('${file.path}: Previously eliminated adapter has reappeared');
+            violations.add(
+              '${file.path}: Previously eliminated adapter has reappeared',
+            );
           }
         }
       }
@@ -170,31 +200,43 @@ void main() {
       expect(
         violations,
         isEmpty,
-        reason: 'Previously eliminated redundant adapters have reappeared:\n${violations.join('\n')}',
+        reason:
+            'Previously eliminated redundant adapters have reappeared:\n${violations.join('\n')}',
       );
     });
 
     test('eliminated interfaces should not reappear in voice_interfaces.dart', () {
-      final voiceInterfacesFile = File('lib/voice/domain/interfaces/voice_interfaces.dart');
+      final voiceInterfacesFile = File(
+        'lib/voice/domain/interfaces/voice_interfaces.dart',
+      );
       if (!voiceInterfacesFile.existsSync()) return;
 
       final content = voiceInterfacesFile.readAsStringSync();
-      final bannedInterfaces = ['IVoiceAiService', 'IVoiceSttService', 'IVoiceTtsService'];
+      final bannedInterfaces = [
+        'IVoiceAiService',
+        'IVoiceSttService',
+        'IVoiceTtsService',
+      ];
 
       final violations = <String>[];
 
       for (final bannedInterface in bannedInterfaces) {
         // Check if interface is actually defined (not just mentioned in comments)
-        final interfaceDefinitionPattern = RegExp(r'abstract\s+(?:interface\s+)?class\s+' + bannedInterface);
+        final interfaceDefinitionPattern = RegExp(
+          r'abstract\s+(?:interface\s+)?class\s+' + bannedInterface,
+        );
         if (interfaceDefinitionPattern.hasMatch(content)) {
-          violations.add('Previously eliminated interface $bannedInterface has reappeared in voice_interfaces.dart');
+          violations.add(
+            'Previously eliminated interface $bannedInterface has reappeared in voice_interfaces.dart',
+          );
         }
       }
 
       expect(
         violations,
         isEmpty,
-        reason: 'Previously eliminated redundant interfaces have reappeared:\n${violations.join('\n')}',
+        reason:
+            'Previously eliminated redundant interfaces have reappeared:\n${violations.join('\n')}',
       );
     });
   });
@@ -223,7 +265,11 @@ bool _hasSubstantialLogic(String content) {
 }
 
 /// Checks if adapter is just doing 1:1 method mapping
-bool _isSimpleMappingAdapter(String content, String adapterName, String interfaceName) {
+bool _isSimpleMappingAdapter(
+  String content,
+  String adapterName,
+  String interfaceName,
+) {
   // Look for constructor that takes a single dependency
   final constructorPattern = RegExp(r'$adapterName\s*\(\s*this\._\w+\s*\)');
   if (!constructorPattern.hasMatch(content)) return false;

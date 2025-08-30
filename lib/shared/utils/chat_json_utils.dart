@@ -13,7 +13,9 @@ import '../widgets/app_dialog.dart';
 /// Utilities to export/import chat JSON and show a preview dialog with copy/save actions.
 class ChatJsonUtils {
   /// Guarda un ImportedChat en un archivo seleccionado por el usuario y retorna éxito o error
-  static Future<(bool success, String? error)> saveJsonFile(ImportedChat chat) async {
+  static Future<(bool success, String? error)> saveJsonFile(
+    ImportedChat chat,
+  ) async {
     try {
       final map = chat.toJson();
       final encoder = JsonEncoder.withIndent('  ');
@@ -40,7 +42,9 @@ class ChatJsonUtils {
       // FilePicker ya escribió los bytes correctamente y retornamos éxito.
       if (!kIsWeb && Platform.isAndroid) {
         final lower = path.toLowerCase();
-        if (lower.startsWith('/document') || lower.startsWith('content://') || lower.contains('primary:')) {
+        if (lower.startsWith('/document') ||
+            lower.startsWith('content://') ||
+            lower.contains('primary:')) {
           // No intentar abrir con File(path) porque fallará con PathNotFoundException.
           return (true, null);
         }
@@ -57,14 +61,20 @@ class ChatJsonUtils {
               if (!req.isGranted) {
                 final storageReq = await Permission.storage.request();
                 if (!storageReq.isGranted) {
-                  return (false, 'Permiso de almacenamiento denegado. Habilítalo en ajustes para guardar archivos.');
+                  return (
+                    false,
+                    'Permiso de almacenamiento denegado. Habilítalo en ajustes para guardar archivos.',
+                  );
                 }
               }
             }
           } catch (_) {
             final storageReq = await Permission.storage.request();
             if (!storageReq.isGranted) {
-              return (false, 'Permiso de almacenamiento denegado. Habilítalo en ajustes para guardar archivos.');
+              return (
+                false,
+                'Permiso de almacenamiento denegado. Habilítalo en ajustes para guardar archivos.',
+              );
             }
           }
         }
@@ -78,7 +88,10 @@ class ChatJsonUtils {
       } catch (e) {
         // Proveer mensaje más útil en Android
         if (!kIsWeb && Platform.isAndroid) {
-          return (false, 'Error escribiendo archivo en Android. Comprueba permisos y el almacenamiento:\n$e');
+          return (
+            false,
+            'Error escribiendo archivo en Android. Comprueba permisos y el almacenamiento:\n$e',
+          );
         }
         return (false, 'Error escribiendo archivo en disco:\n$e');
       }
@@ -89,7 +102,10 @@ class ChatJsonUtils {
   }
 
   /// Importa perfil y mensajes desde un JSON plano y devuelve un ImportedChat (async)
-  static Future<ImportedChat?> importAllFromJson(String jsonStr, {void Function(String error)? onError}) async {
+  static Future<ImportedChat?> importAllFromJson(
+    String jsonStr, {
+    void Function(String error)? onError,
+  }) async {
     try {
       final decoded = jsonDecode(jsonStr);
       if (decoded is! Map<String, dynamic> ||
@@ -99,13 +115,19 @@ class ChatJsonUtils {
           !decoded.containsKey('appearance') ||
           !decoded.containsKey('timeline') ||
           !decoded.containsKey('messages')) {
-        onError?.call('Estructura de JSON inválida. Debe tener todos los campos del perfil y mensajes al mismo nivel.');
+        onError?.call(
+          'Estructura de JSON inválida. Debe tener todos los campos del perfil y mensajes al mismo nivel.',
+        );
         return null;
       }
       final imported = ImportedChat.fromJson(decoded);
       final profile = imported.profile;
       AiChanProfile updatedProfile = profile;
-      final result = ImportedChat(profile: updatedProfile, messages: imported.messages, events: imported.events);
+      final result = ImportedChat(
+        profile: updatedProfile,
+        messages: imported.messages,
+        events: imported.events,
+      );
       if (result.profile.userName.isEmpty) {
         onError?.call('userName');
         return null;
@@ -122,7 +144,10 @@ class ChatJsonUtils {
 
   /// Muestra un diálogo con la vista previa del JSON (formateado). Permite copiar o guardar.
   /// Si se pasa [chat], el guardado usará la representación de modelo (evita reserializar en el caller).
-  static Future<void> showExportedJsonDialog(String json, {ImportedChat? chat}) async {
+  static Future<void> showExportedJsonDialog(
+    String json, {
+    ImportedChat? chat,
+  }) async {
     String preview = json;
     try {
       final decoded = jsonDecode(json);
@@ -142,7 +167,11 @@ class ChatJsonUtils {
         return AppAlertDialog(
           title: const Text(
             'Vista previa JSON exportado',
-            style: TextStyle(color: AppColors.secondary, fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: AppColors.secondary,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           headerActions: [
             IconButton(
@@ -152,15 +181,21 @@ class ChatJsonUtils {
                 // Close dialog and trigger save flow
                 Navigator.of(ctx).pop();
                 if (chat != null) {
-                  final (success, error) = await ChatJsonUtils.saveJsonFile(chat);
+                  final (success, error) = await ChatJsonUtils.saveJsonFile(
+                    chat,
+                  );
                   if (error != null) {
                     showErrorDialog(error);
                   } else if (success) {
-                    showAppSnackBar('Archivo guardado correctamente.', preferRootMessenger: true);
+                    showAppSnackBar(
+                      'Archivo guardado correctamente.',
+                      preferRootMessenger: true,
+                    );
                   }
                 } else {
                   try {
-                    final unixDate = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+                    final unixDate =
+                        DateTime.now().millisecondsSinceEpoch ~/ 1000;
                     final defaultName = 'ai_chan_$unixDate.json';
                     final result = await FilePicker.platform.saveFile(
                       dialogTitle: 'Guardar chat como JSON',
@@ -171,14 +206,19 @@ class ChatJsonUtils {
                     );
                     if (result == null) return; // cancelado
                     var path = result;
-                    if (!path.toLowerCase().endsWith('.json')) path = '$path.json';
+                    if (!path.toLowerCase().endsWith('.json')) {
+                      path = '$path.json';
+                    }
 
                     if (!kIsWeb && Platform.isAndroid) {
                       final lower = path.toLowerCase();
                       if (lower.startsWith('/document') ||
                           lower.startsWith('content://') ||
                           lower.contains('primary:')) {
-                        showAppSnackBar('Archivo guardado correctamente.', preferRootMessenger: true);
+                        showAppSnackBar(
+                          'Archivo guardado correctamente.',
+                          preferRootMessenger: true,
+                        );
                         return;
                       }
                     }
@@ -188,15 +228,24 @@ class ChatJsonUtils {
                       await file.writeAsString(preview);
                       final exists = await file.exists();
                       if (!exists) {
-                        showErrorDialog('No se pudo crear el archivo en: $path');
+                        showErrorDialog(
+                          'No se pudo crear el archivo en: $path',
+                        );
                       } else {
-                        showAppSnackBar('Archivo guardado correctamente.', preferRootMessenger: true);
+                        showAppSnackBar(
+                          'Archivo guardado correctamente.',
+                          preferRootMessenger: true,
+                        );
                       }
                     } catch (e) {
-                      showErrorDialog('Error guardando archivo:\n${e.toString()}');
+                      showErrorDialog(
+                        'Error guardando archivo:\n${e.toString()}',
+                      );
                     }
                   } catch (e) {
-                    showErrorDialog('Error guardando archivo:\n${e.toString()}');
+                    showErrorDialog(
+                      'Error guardando archivo:\n${e.toString()}',
+                    );
                   }
                 }
               },
@@ -206,7 +255,10 @@ class ChatJsonUtils {
               icon: const Icon(Icons.copy, color: AppColors.primary),
               onPressed: () async {
                 await Clipboard.setData(ClipboardData(text: preview));
-                showAppSnackBar('JSON copiado al portapapeles', preferRootMessenger: true);
+                showAppSnackBar(
+                  'JSON copiado al portapapeles',
+                  preferRootMessenger: true,
+                );
               },
             ),
           ],
@@ -217,7 +269,11 @@ class ChatJsonUtils {
                 padding: EdgeInsets.only(bottom: 8.0, left: leftOffset),
                 child: const Text(
                   'Contenido del archivo JSON:',
-                  style: TextStyle(color: AppColors.primary, fontSize: 14, fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
               Flexible(
@@ -226,7 +282,10 @@ class ChatJsonUtils {
                     return Align(
                       alignment: Alignment.topLeft,
                       child: Padding(
-                        padding: EdgeInsets.only(left: leftOffset, right: rightOffset),
+                        padding: EdgeInsets.only(
+                          left: leftOffset,
+                          right: rightOffset,
+                        ),
                         child: ConstrainedBox(
                           constraints: BoxConstraints(maxWidth: maxWidth),
                           child: Container(

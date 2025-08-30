@@ -10,7 +10,11 @@ void main() {
 
   test('getLocalCacheDir respects TEST_CACHE_DIR override', () async {
     final expected = Config.get('TEST_CACHE_DIR', '');
-    expect(expected.isNotEmpty, isTrue, reason: 'test setup must provide TEST_CACHE_DIR');
+    expect(
+      expected.isNotEmpty,
+      isTrue,
+      reason: 'test setup must provide TEST_CACHE_DIR',
+    );
 
     final dir = await getLocalCacheDir();
     expect(dir.path, equals(expected));

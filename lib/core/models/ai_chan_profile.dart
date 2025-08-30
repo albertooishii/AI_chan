@@ -36,22 +36,26 @@ class AiChanProfile {
   });
 
   /// Backwards-compat getter: última avatar si existe.
-  AiImage? get avatar => (avatars != null && avatars!.isNotEmpty) ? avatars!.last : null;
+  AiImage? get avatar =>
+      (avatars != null && avatars!.isNotEmpty) ? avatars!.last : null;
 
   /// Nuevo getter explícito para obtener el PRIMER avatar (avatars[0])
   /// Use esto cuando se desea la versión histórica/primera del avatar.
-  AiImage? get firstAvatar => (avatars != null && avatars!.isNotEmpty) ? avatars!.first : null;
+  AiImage? get firstAvatar =>
+      (avatars != null && avatars!.isNotEmpty) ? avatars!.first : null;
 
   factory AiChanProfile.fromJson(Map<String, dynamic> json) {
     final events = (json['events'] as List<dynamic>? ?? [])
         .map((e) => EventEntry.fromJson(e as Map<String, dynamic>))
         .toList();
     DateTime? birth;
-    if (json['userBirthday'] is String && (json['userBirthday'] as String).isNotEmpty) {
+    if (json['userBirthday'] is String &&
+        (json['userBirthday'] as String).isNotEmpty) {
       birth = DateTime.tryParse(json['userBirthday']);
     }
     DateTime? aiBirth;
-    if (json['aiBirthday'] is String && (json['aiBirthday'] as String).isNotEmpty) {
+    if (json['aiBirthday'] is String &&
+        (json['aiBirthday'] as String).isNotEmpty) {
       aiBirth = DateTime.tryParse(json['aiBirthday']);
     }
     return AiChanProfile(
@@ -87,7 +91,13 @@ class AiChanProfile {
   /// Versión segura: devuelve null y borra datos corruptos si el perfil no es válido (estructura plana)
   static Future<AiChanProfile?> tryFromJson(Map<String, dynamic> json) async {
     // Estructura esperada: todos los campos al mismo nivel
-    final expectedKeys = ['userName', 'aiName', 'biography', 'appearance', 'timeline'];
+    final expectedKeys = [
+      'userName',
+      'aiName',
+      'biography',
+      'appearance',
+      'timeline',
+    ];
     bool valid = true;
     for (final key in expectedKeys) {
       if (!json.containsKey(key)) {

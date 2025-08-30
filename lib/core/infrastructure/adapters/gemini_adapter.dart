@@ -1,4 +1,5 @@
-import 'package:ai_chan/shared/services/ai_runtime_provider.dart' as runtime_factory;
+import 'package:ai_chan/shared/services/ai_runtime_provider.dart'
+    as runtime_factory;
 import 'package:ai_chan/core/interfaces/ai_service.dart';
 import 'package:ai_chan/core/config.dart';
 
@@ -6,13 +7,17 @@ class GeminiAdapter implements IAIService {
   final String modelId;
   final dynamic runtime;
 
-  const GeminiAdapter({String? modelId, this.runtime}) : modelId = modelId ?? '';
+  const GeminiAdapter({String? modelId, this.runtime})
+    : modelId = modelId ?? '';
 
   dynamic get _impl {
     final resolvedModel = modelId.isNotEmpty
         ? modelId
-        : (Config.getDefaultImageModel().isNotEmpty ? Config.getDefaultImageModel() : 'gemini-2.5-flash');
-    return runtime ?? runtime_factory.getRuntimeAIServiceForModel(resolvedModel);
+        : (Config.getDefaultImageModel().isNotEmpty
+              ? Config.getDefaultImageModel()
+              : 'gemini-2.5-flash');
+    return runtime ??
+        runtime_factory.getRuntimeAIServiceForModel(resolvedModel);
   }
 
   @override
@@ -33,7 +38,8 @@ class GeminiAdapter implements IAIService {
       final model = options?['model'] as String?;
       final imageBase64 = options?['imageBase64'] as String?;
       final imageMimeType = options?['imageMimeType'] as String?;
-      final enableImageGeneration = options?['enableImageGeneration'] as bool? ?? false;
+      final enableImageGeneration =
+          options?['enableImageGeneration'] as bool? ?? false;
 
       final resp = await _impl.sendMessageImpl(
         messages.cast<Map<String, String>>(),

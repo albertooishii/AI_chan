@@ -31,15 +31,25 @@ class PeriodicIaMessageScheduler {
         final messages = messagesGetter();
         final now = DateTime.now();
         final tipo = _getCurrentScheduleType(now, profile);
-        Log.d('Timer @ ${now.toIso8601String()} tipo=$tipo', tag: 'PERIODIC_IA');
+        Log.d(
+          'Timer @ ${now.toIso8601String()} tipo=$tipo',
+          tag: 'PERIODIC_IA',
+        );
         if (tipo != 'sleep' && tipo != 'work' && tipo != 'busy') {
           final lastMsg = messages.isNotEmpty ? messages.last : null;
           final lastMsgTime = lastMsg?.dateTime;
-          final diffMinutes = lastMsgTime != null ? now.difference(lastMsgTime).inMinutes : 9999;
+          final diffMinutes = lastMsgTime != null
+              ? now.difference(lastMsgTime).inMinutes
+              : 9999;
           final streak = _autoStreak;
           // Base 60 + 60 por cada auto extra (cap 8h) => mismo comportamiento original
-          final minWait = (60 + (streak > 0 ? (streak * 60) : 0)).clamp(60, 480);
-          final cooldownOk = _lastAutoIa == null || now.difference(_lastAutoIa!).inMinutes >= 30;
+          final minWait = (60 + (streak > 0 ? (streak * 60) : 0)).clamp(
+            60,
+            480,
+          );
+          final cooldownOk =
+              _lastAutoIa == null ||
+              now.difference(_lastAutoIa!).inMinutes >= 30;
           if (diffMinutes >= minWait && cooldownOk) {
             final prompts = _autoPrompts();
             final idx = nowMs % prompts.length;
@@ -49,7 +59,10 @@ class PeriodicIaMessageScheduler {
             _lastAutoIa = now;
             _autoStreak = (_autoStreak + 1).clamp(0, 20);
           } else {
-            Log.d('Skip auto diff=$diffMinutes minWait=$minWait cooldown=$cooldownOk', tag: 'PERIODIC_IA');
+            Log.d(
+              'Skip auto diff=$diffMinutes minWait=$minWait cooldown=$cooldownOk',
+              tag: 'PERIODIC_IA',
+            );
           }
         } else {
           Log.d('Skip por horario: $tipo', tag: 'PERIODIC_IA');
@@ -88,7 +101,11 @@ class PeriodicIaMessageScheduler {
     bool inRange(Map m) {
       final String from = (m['from']?.toString() ?? '');
       final String to = (m['to']?.toString() ?? '');
-      final res = ScheduleUtils.isTimeInRange(currentMinutes: currentMinutes, from: from, to: to);
+      final res = ScheduleUtils.isTimeInRange(
+        currentMinutes: currentMinutes,
+        from: from,
+        to: to,
+      );
       return res ?? false;
     }
 
@@ -123,7 +140,10 @@ class PeriodicIaMessageScheduler {
   }
 
   /// Determina si se debe enviar un mensaje automático (para compatibilidad)
-  bool shouldSendAutomaticMessage(List<Message> messages, AiChanProfile profile) {
+  bool shouldSendAutomaticMessage(
+    List<Message> messages,
+    AiChanProfile profile,
+  ) {
     final now = DateTime.now();
     final tipo = _getCurrentScheduleType(now, profile);
     if (tipo == 'sleep' || tipo == 'work' || tipo == 'busy') {
@@ -132,10 +152,16 @@ class PeriodicIaMessageScheduler {
 
     final lastMsg = messages.isNotEmpty ? messages.last : null;
     final lastMsgTime = lastMsg?.dateTime;
-    final diffMinutes = lastMsgTime != null ? now.difference(lastMsgTime).inMinutes : 9999;
+    final diffMinutes = lastMsgTime != null
+        ? now.difference(lastMsgTime).inMinutes
+        : 9999;
 
-    final minWait = (60 + (_autoStreak > 0 ? (_autoStreak * 60) : 0)).clamp(60, 480);
-    final cooldownOk = _lastAutoIa == null || now.difference(_lastAutoIa!).inMinutes >= 30;
+    final minWait = (60 + (_autoStreak > 0 ? (_autoStreak * 60) : 0)).clamp(
+      60,
+      480,
+    );
+    final cooldownOk =
+        _lastAutoIa == null || now.difference(_lastAutoIa!).inMinutes >= 30;
 
     return diffMinutes >= minWait && cooldownOk;
   }

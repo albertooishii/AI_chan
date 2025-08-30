@@ -21,7 +21,10 @@ void main() {
         )
         .toList();
 
-    final patterns = [RegExp(r'\bOpenAIService\s*\('), RegExp(r'\bGeminiService\s*\(')];
+    final patterns = [
+      RegExp(r'\bOpenAIService\s*\('),
+      RegExp(r'\bGeminiService\s*\('),
+    ];
     final offenders = <String>[];
 
     for (final f in files) {
@@ -29,7 +32,9 @@ void main() {
       for (final p in patterns) {
         final m = p.firstMatch(content);
         if (m != null) {
-          offenders.add('${f.path}:${_lineInfo(content, m.start)} -> ${p.pattern}');
+          offenders.add(
+            '${f.path}:${_lineInfo(content, m.start)} -> ${p.pattern}',
+          );
         }
       }
     }
@@ -37,7 +42,8 @@ void main() {
     expect(
       offenders,
       isEmpty,
-      reason: 'Direct runtime instantiations found outside runtime_factory:\n${offenders.join('\n')}',
+      reason:
+          'Direct runtime instantiations found outside runtime_factory:\n${offenders.join('\n')}',
     );
   });
 }

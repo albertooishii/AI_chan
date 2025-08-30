@@ -11,7 +11,11 @@ class GoogleAppAuthMobileAdapter {
   final String? redirectUri;
   final FlutterAppAuth _appAuth = const FlutterAppAuth();
 
-  GoogleAppAuthMobileAdapter({required this.scopes, required this.clientId, this.redirectUri});
+  GoogleAppAuthMobileAdapter({
+    required this.scopes,
+    required this.clientId,
+    this.redirectUri,
+  });
 
   Future<Map<String, dynamic>> signIn({List<String>? scopes}) async {
     final usedScopes = (scopes ?? this.scopes);
@@ -33,7 +37,8 @@ class GoogleAppAuthMobileAdapter {
       }
     } catch (_) {}
 
-    const discovery = 'https://accounts.google.com/.well-known/openid-configuration';
+    const discovery =
+        'https://accounts.google.com/.well-known/openid-configuration';
     Log.d(
       'GoogleAppAuthMobileAdapter: using discoveryUrl=$discovery redirect=$redirect clientIdLength=${clientId.length}',
       tag: 'GoogleAppAuthMobile',
@@ -60,7 +65,9 @@ class GoogleAppAuthMobileAdapter {
         'access_token': result.accessToken,
         'id_token': result.idToken,
         'refresh_token': result.refreshToken,
-        'expires_in': result.accessTokenExpirationDateTime?.difference(DateTime.now()).inSeconds,
+        'expires_in': result.accessTokenExpirationDateTime
+            ?.difference(DateTime.now())
+            .inSeconds,
         'token_type': 'Bearer',
         'scope': usedScopes.join(' '),
       };
@@ -71,21 +78,34 @@ class GoogleAppAuthMobileAdapter {
         final idToken = map['id_token'] as String?;
         final accessToken = map['access_token'] as String?;
         if (idToken != null || accessToken != null) {
-          final credential = GoogleAuthProvider.credential(idToken: idToken, accessToken: accessToken);
-          final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+          final credential = GoogleAuthProvider.credential(
+            idToken: idToken,
+            accessToken: accessToken,
+          );
+          final userCred = await FirebaseAuth.instance.signInWithCredential(
+            credential,
+          );
           final refreshToken = userCred.user?.refreshToken;
           if (refreshToken != null && refreshToken.isNotEmpty) {
             map['refresh_token'] = refreshToken;
           }
         }
       } catch (e) {
-        Log.w('GoogleAppAuthMobileAdapter: Firebase sign-in after AppAuth failed: $e', tag: 'GoogleAppAuthMobile');
+        Log.w(
+          'GoogleAppAuthMobileAdapter: Firebase sign-in after AppAuth failed: $e',
+          tag: 'GoogleAppAuthMobile',
+        );
       }
 
       return map;
     } catch (e, st) {
       // Surface a clearer error for common Google "access blocked"/config issues.
-      Log.e('GoogleAppAuthMobileAdapter: AppAuth flow failed: $e', tag: 'GoogleAppAuthMobile', error: e, stack: st);
+      Log.e(
+        'GoogleAppAuthMobileAdapter: AppAuth flow failed: $e',
+        tag: 'GoogleAppAuthMobile',
+        error: e,
+        stack: st,
+      );
       final msg = e.toString();
       String help =
           '\nHints: '

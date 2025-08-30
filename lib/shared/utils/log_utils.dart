@@ -90,15 +90,24 @@ class Log {
   }
 
   // Helpers principales
-  static void e(String message, {String tag = 'APP', Object? error, StackTrace? stack}) {
+  static void e(
+    String message, {
+    String tag = 'APP',
+    Object? error,
+    StackTrace? stack,
+  }) {
     final msg = error != null ? '$message | error=$error' : message;
     _out(LogLevel.error, tag, msg + (stack != null ? '\n$stack' : ''));
   }
 
-  static void w(String message, {String tag = 'APP'}) => _out(LogLevel.warn, tag, message);
-  static void i(String message, {String tag = 'APP'}) => _out(LogLevel.info, tag, message);
-  static void d(String message, {String tag = 'APP'}) => _out(LogLevel.debug, tag, message);
-  static void t(String message, {String tag = 'APP'}) => _out(LogLevel.trace, tag, message);
+  static void w(String message, {String tag = 'APP'}) =>
+      _out(LogLevel.warn, tag, message);
+  static void i(String message, {String tag = 'APP'}) =>
+      _out(LogLevel.info, tag, message);
+  static void d(String message, {String tag = 'APP'}) =>
+      _out(LogLevel.debug, tag, message);
+  static void t(String message, {String tag = 'APP'}) =>
+      _out(LogLevel.trace, tag, message);
 
   // Versiones lazy para evitar construir strings costosas
   static void dLazy(String Function() builder, {String tag = 'APP'}) {
@@ -110,7 +119,12 @@ class Log {
   }
 
   // Registro de excepción estándar
-  static void ex(Object error, StackTrace stack, {String tag = 'APP', String? context}) {
+  static void ex(
+    Object error,
+    StackTrace stack, {
+    String tag = 'APP',
+    String? context,
+  }) {
     e(context ?? 'Excepción capturada', tag: tag, error: error, stack: stack);
   }
 }

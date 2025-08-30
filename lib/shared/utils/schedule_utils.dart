@@ -18,7 +18,11 @@ class ScheduleUtils {
   /// Devuelve true si currentMinutes (minutos desde 00:00) cae dentro del rango [from, to),
   /// donde from y to son cadenas HH:mm. Maneja rangos que cruzan medianoche.
   /// Si el rango es inválido, devuelve null.
-  static bool? isTimeInRange({required int currentMinutes, required String from, required String to}) {
+  static bool? isTimeInRange({
+    required int currentMinutes,
+    required String from,
+    required String to,
+  }) {
     if (from.isEmpty || to.isEmpty) {
       return null;
     }
@@ -108,7 +112,13 @@ class ScheduleUtils {
     DateTime? startDate;
 
     // Detectar patrones "cada X semanas/meses/días"
-    final wordToNum = <String, int>{'uno': 1, 'dos': 2, 'tres': 3, 'cuatro': 4, 'cinco': 5};
+    final wordToNum = <String, int>{
+      'uno': 1,
+      'dos': 2,
+      'tres': 3,
+      'cuatro': 4,
+      'cinco': 5,
+    };
     final re = RegExp(
       r'cada\s+(\d+|uno|dos|tres|cuatro|cinco)\s*(semanas|semana|meses|mes|d[ií]as|dias)?',
       caseSensitive: false,
@@ -134,7 +144,10 @@ class ScheduleUtils {
     }
 
     // Buscar una fecha base explícita 'a partir de 2025-09-02' o 'desde 02/09/2025'
-    final reIso = RegExp(r'(?:a partir de|desde)\s*(\d{4}-\d{2}-\d{2})', caseSensitive: false);
+    final reIso = RegExp(
+      r'(?:a partir de|desde)\s*(\d{4}-\d{2}-\d{2})',
+      caseSensitive: false,
+    );
     final m2 = reIso.firstMatch(s);
     if (m2 != null) {
       try {
@@ -142,7 +155,10 @@ class ScheduleUtils {
       } catch (_) {}
     } else {
       // formato dd/mm/yyyy
-      final re2 = RegExp(r'(?:a partir de|desde)\s*(\d{1,2})/(\d{1,2})/(\d{4})', caseSensitive: false);
+      final re2 = RegExp(
+        r'(?:a partir de|desde)\s*(\d{1,2})/(\d{1,2})/(\d{4})',
+        caseSensitive: false,
+      );
       final m3 = re2.firstMatch(s);
       if (m3 != null) {
         try {
@@ -154,7 +170,12 @@ class ScheduleUtils {
       }
     }
 
-    return ScheduleSpec(days: days, interval: interval, unit: unit, startDate: startDate);
+    return ScheduleSpec(
+      days: days,
+      interval: interval,
+      unit: unit,
+      startDate: startDate,
+    );
   }
 
   static bool matchesDateWithInterval(DateTime date, ScheduleSpec spec) {
@@ -173,7 +194,8 @@ class ScheduleUtils {
       final weeks = (daysDiff / 7).floor();
       return (weeks % spec.interval!) == 0;
     } else if (spec.unit == 'months') {
-      final monthsDiff = (date.year - start.year) * 12 + (date.month - start.month);
+      final monthsDiff =
+          (date.year - start.year) * 12 + (date.month - start.month);
       return (monthsDiff % spec.interval!) == 0;
     } else if (spec.unit == 'days') {
       final daysDiff = date.difference(start).inDays;

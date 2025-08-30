@@ -16,13 +16,15 @@ class BlinkingDot extends StatefulWidget {
   State<BlinkingDot> createState() => _BlinkingDotState();
 }
 
-class _BlinkingDotState extends State<BlinkingDot> with SingleTickerProviderStateMixin {
+class _BlinkingDotState extends State<BlinkingDot>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _c;
 
   @override
   void initState() {
     super.initState();
-    _c = AnimationController(vsync: this, duration: widget.duration)..repeat(reverse: true);
+    _c = AnimationController(vsync: this, duration: widget.duration)
+      ..repeat(reverse: true);
   }
 
   @override
@@ -60,13 +62,15 @@ class ThreeDotsIndicator extends StatefulWidget {
   State<ThreeDotsIndicator> createState() => _ThreeDotsIndicatorState();
 }
 
-class _ThreeDotsIndicatorState extends State<ThreeDotsIndicator> with SingleTickerProviderStateMixin {
+class _ThreeDotsIndicatorState extends State<ThreeDotsIndicator>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: widget.duration)..repeat();
+    _ctrl = AnimationController(vsync: this, duration: widget.duration)
+      ..repeat();
   }
 
   @override
@@ -92,7 +96,9 @@ class _ThreeDotsIndicatorState extends State<ThreeDotsIndicator> with SingleTick
                 width: widget.dotSize,
                 height: widget.dotSize,
                 decoration: BoxDecoration(
-                  color: widget.color.withAlpha(on ? 255 : (0.25 * 255).round()),
+                  color: widget.color.withAlpha(
+                    on ? 255 : (0.25 * 255).round(),
+                  ),
                   shape: BoxShape.circle,
                 ),
               ),

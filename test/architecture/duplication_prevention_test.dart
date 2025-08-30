@@ -25,11 +25,88 @@ void main() {
         hashToFiles.putIfAbsent(hash, () => []).add(path);
       }
 
-      final duplicates = hashToFiles.values.where((files) => files.length > 1).toList();
+      final duplicates = hashToFiles.values
+          .where((files) => files.length > 1)
+          .toList();
 
       if (duplicates.isNotEmpty) {
         final message = _buildDuplicateFilesReport(duplicates);
         fail(message);
+      }
+    });
+
+    test('⚙️ No duplicate utility functions across files', () {
+      final allDartFiles = _collectDartFiles();
+      final functionsBySignature = <String, List<String>>{};
+      final violations = <String>[];
+
+      for (final file in allDartFiles) {
+        final path = _getRelativePath(file.path);
+        final content = file.readAsStringSync();
+
+        // Extraer funciones utilitarias
+        final utilityFunctions = _extractUtilityFunctions(content, path);
+        for (final func in utilityFunctions) {
+          final signature = func['signature'] as String;
+          final name = func['name'] as String;
+          final location = func['location'] as String;
+
+          functionsBySignature
+              .putIfAbsent(signature, () => [])
+              .add('$name in $location');
+        }
+      }
+
+      // Detectar funciones duplicadas por funcionalidad similar
+      for (final entry in functionsBySignature.entries) {
+        if (entry.value.length > 1) {
+          // Filtrar falsos positivos (funciones en tests, métodos de widgets, etc.)
+          final realDuplicates = entry.value
+              .where(
+                (func) =>
+                    !func.contains('test/') &&
+                    !func.contains('build(') &&
+                    !func.contains('_build') &&
+                    !func.contains('Widget'),
+              )
+              .toList();
+
+          if (realDuplicates.length > 1) {
+            violations.add(
+              '⚙️ Duplicate utility function detected:\n'
+              '   Function: ${entry.key.split('|').first}\n'
+              '   Found in: ${realDuplicates.join(', ')}\n'
+              '   💡 Consolidate into shared/utils/',
+            );
+          }
+        }
+      }
+
+      if (violations.isNotEmpty) {
+        fail(
+          '⚙️ Duplicate utility functions found:\n\n${violations.join('\n\n')}',
+        );
+      }
+    });
+
+    test('🏠 No misplaced utility functions (utilities in wrong layers)', () {
+      final allDartFiles = _collectDartFiles();
+      final violations = <String>[];
+
+      for (final file in allDartFiles) {
+        final path = _getRelativePath(file.path);
+        final content = file.readAsStringSync();
+
+        // Buscar funciones utilitarias en lugares incorrectos
+        final misplacedFunctions = _findMisplacedUtilities(content, path);
+        violations.addAll(misplacedFunctions);
+      }
+
+      if (violations.isNotEmpty) {
+        fail(
+          '🏠 Misplaced utility functions found:\n\n${violations.join('\n\n')}\n\n'
+          '💡 Move these functions to appropriate utils/ files or create new utility classes.',
+        );
       }
     });
 
@@ -49,7 +126,9 @@ void main() {
           final methodSignature = serviceClass['methods'] as String;
 
           final key = signature + methodSignature;
-          servicesBySignature.putIfAbsent(key, () => []).add('$className ($path)');
+          servicesBySignature
+              .putIfAbsent(key, () => [])
+              .add('$className ($path)');
         }
       }
 
@@ -83,22 +162,30 @@ void main() {
           final className = model['name'] as String;
 
           if (fields.isNotEmpty && !_isFlutterWidgetPair(className)) {
-            modelsByFields.putIfAbsent(fields, () => []).add('$className ($path)');
+            modelsByFields
+                .putIfAbsent(fields, () => [])
+                .add('$className ($path)');
           }
         }
       }
 
       for (final entry in modelsByFields.entries) {
         if (entry.value.length > 1) {
-          final paths = entry.value.map((s) => s.split('(').last.replaceAll(')', ''));
-          final hasTestAndProduction = paths.any((p) => p.contains('test/')) && paths.any((p) => !p.contains('test/'));
+          final paths = entry.value.map(
+            (s) => s.split('(').last.replaceAll(')', ''),
+          );
+          final hasTestAndProduction =
+              paths.any((p) => p.contains('test/')) &&
+              paths.any((p) => !p.contains('test/'));
 
           // Filtrar clases que están en el mismo archivo (es normal tener múltiples clases relacionadas)
           final uniquePaths = paths.toSet();
           final isSameFileClasses = uniquePaths.length == 1;
 
           // Solo considerar duplicación real si están en archivos diferentes
-          if (!hasTestAndProduction && !isSameFileClasses && !_areRelatedClasses(entry.value)) {
+          if (!hasTestAndProduction &&
+              !isSameFileClasses &&
+              !_areRelatedClasses(entry.value)) {
             final violations = entry.value.map((s) => '   - $s').join('\n');
             modelViolations.add('⚠️  Similar models detected:\n$violations');
           }
@@ -137,7 +224,9 @@ void main() {
       final violations = <String>[];
 
       if (emptyBarrels.isNotEmpty) {
-        violations.add('🗑️ Empty barrel files found:\n${emptyBarrels.map((f) => '   - $f').join('\n')}');
+        violations.add(
+          '🗑️ Empty barrel files found:\n${emptyBarrels.map((f) => '   - $f').join('\n')}',
+        );
       }
 
       if (shimsAndDeprecated.isNotEmpty) {
@@ -147,7 +236,10 @@ void main() {
       }
 
       if (violations.isNotEmpty) {
-        final rmCommands = [...emptyBarrels, ...shimsAndDeprecated].map((f) => 'rm \'$f\'').join('\n');
+        final rmCommands = [
+          ...emptyBarrels,
+          ...shimsAndDeprecated,
+        ].map((f) => 'rm \'$f\'').join('\n');
         fail(
           '${violations.join('\n\n')}\n\n'
           '💡 Clean up commands:\n$rmCommands',
@@ -202,9 +294,13 @@ void main() {
             final exportPath = _extractExportPath(line);
             if (exportPath != null) {
               final fileDir = File(file.path).parent;
-              final resolvedPath = _resolveRelativePath(fileDir.path, exportPath);
+              final resolvedPath = _resolveRelativePath(
+                fileDir.path,
+                exportPath,
+              );
 
-              if (!File('$resolvedPath.dart').existsSync() && !File(resolvedPath).existsSync()) {
+              if (!File('$resolvedPath.dart').existsSync() &&
+                  !File(resolvedPath).existsSync()) {
                 violations.add(
                   '❌ Broken export in $path:$lineNumber\n   $line\n   → Target file does not exist: $exportPath',
                 );
@@ -228,7 +324,9 @@ void main() {
 
 bool _isEmptyBarrel(String content, String path) {
   // Detectar archivos que son principalmente barrel exports pero están completamente vacíos
-  if (!path.endsWith('.dart') || path.contains('test/') || path.endsWith('main.dart')) {
+  if (!path.endsWith('.dart') ||
+      path.contains('test/') ||
+      path.endsWith('main.dart')) {
     return false;
   }
 
@@ -281,7 +379,11 @@ bool _isEmptyBarrel(String content, String path) {
 
   // Solo considerar vacío si NO tiene exports activos Y es completamente vacío
   return meaningfulLines.isEmpty &&
-      content.trim().split('\n').where((line) => line.trim().startsWith('export ')).isEmpty;
+      content
+          .trim()
+          .split('\n')
+          .where((line) => line.trim().startsWith('export '))
+          .isEmpty;
 }
 
 bool _isDeprecatedShimOrMigration(String content, String path) {
@@ -342,26 +444,33 @@ bool _hasObsoleteComment(String line) {
 
   // Comentarios que referencian métodos/archivos antiguos
   if (trimmed.startsWith('//') || trimmed.startsWith('*')) {
-    return trimmed.contains('// moved to') && !File(_extractMovedToPath(line) ?? '').existsSync() ||
+    return trimmed.contains('// moved to') &&
+            !File(_extractMovedToPath(line) ?? '').existsSync() ||
         trimmed.contains('// removed') ||
         trimmed.contains('// use core version') ||
         trimmed.contains('// todo: migrate') ||
         trimmed.contains('// fixme: update') ||
         trimmed.contains('// old:') ||
         trimmed.contains('// deprecated:') ||
-        trimmed.contains('// generated as part of') && trimmed.contains('migration') ||
+        trimmed.contains('// generated as part of') &&
+            trimmed.contains('migration') ||
         trimmed.contains('// legacy') ||
         trimmed.contains('// temporary') ||
         (trimmed.contains('todo') &&
-            (trimmed.contains('remove') || trimmed.contains('clean') || trimmed.contains('delete'))) ||
-        (trimmed.contains('fixme') && (trimmed.contains('remove') || trimmed.contains('clean')));
+            (trimmed.contains('remove') ||
+                trimmed.contains('clean') ||
+                trimmed.contains('delete'))) ||
+        (trimmed.contains('fixme') &&
+            (trimmed.contains('remove') || trimmed.contains('clean')));
   }
 
   return false;
 }
 
 String? _extractMovedToPath(String comment) {
-  final match = RegExp(r'moved to (.+\.dart)').firstMatch(comment.toLowerCase());
+  final match = RegExp(
+    r'moved to (.+\.dart)',
+  ).firstMatch(comment.toLowerCase());
   return match?.group(1);
 }
 
@@ -402,7 +511,9 @@ List<File> _collectDartFiles() {
     for (final entity in dir.listSync(recursive: true)) {
       if (entity is File && entity.path.endsWith('.dart')) {
         final path = entity.path.replaceAll(r'\', '/');
-        if (path.contains('.g.dart') || path.contains('.freezed.dart') || path.contains('.mocks.dart')) {
+        if (path.contains('.g.dart') ||
+            path.contains('.freezed.dart') ||
+            path.contains('.mocks.dart')) {
           continue;
         }
         files.add(entity);
@@ -461,7 +572,12 @@ List<Map<String, String>> _extractServiceClasses(String content, String path) {
         final className = words[1];
         final methodSignatures = _extractMethodSignatures(content, className);
 
-        services.add({'name': className, 'signature': className, 'methods': methodSignatures, 'path': path});
+        services.add({
+          'name': className,
+          'signature': className,
+          'methods': methodSignatures,
+          'path': path,
+        });
       }
     }
   }
@@ -497,7 +613,9 @@ String _extractMethodSignatures(String content, String className) {
 
   for (final line in lines) {
     final trimmed = line.trim();
-    if (trimmed.contains('(') && !trimmed.startsWith('//') && !trimmed.startsWith('/*')) {
+    if (trimmed.contains('(') &&
+        !trimmed.startsWith('//') &&
+        !trimmed.startsWith('/*')) {
       final words = trimmed.split(' ');
       for (int i = 0; i < words.length - 1; i++) {
         if (words[i + 1].contains('(') && !words[i + 1].startsWith('_')) {
@@ -541,8 +659,14 @@ String _extractFields(String content, String className) {
       if (trimmed.startsWith('final ') || trimmed.startsWith('const ')) {
         final words = trimmed.split(' ');
         if (words.length >= 3) {
-          final fieldName = words[2].replaceAll('?', '').replaceAll(';', '').replaceAll('=', '').split('=')[0];
-          if (!fieldName.startsWith('_') && !fieldName.contains('(') && fieldName.isNotEmpty) {
+          final fieldName = words[2]
+              .replaceAll('?', '')
+              .replaceAll(';', '')
+              .replaceAll('=', '')
+              .split('=')[0];
+          if (!fieldName.startsWith('_') &&
+              !fieldName.contains('(') &&
+              fieldName.isNotEmpty) {
             fields.add(fieldName);
           }
         }
@@ -640,7 +764,8 @@ bool _areRelatedClasses(List<String> classNames) {
   final hasUtils = types.any((t) => t.contains('utils'));
   final hasUseCase = types.any((t) => t.contains('usecase'));
 
-  if ((hasAdapter || hasService || hasUtils || hasUseCase) && types.length > 1) {
+  if ((hasAdapter || hasService || hasUtils || hasUseCase) &&
+      types.length > 1) {
     return true; // Son tipos diferentes, no duplicados reales
   }
 
@@ -655,10 +780,243 @@ bool _areRelatedClasses(List<String> classNames) {
     }
 
     // Casos como "AiChanProfile" vs "AiChanProfile" (mismo concepto, diferentes ubicaciones)
-    if (name1.replaceAll('ai', '').replaceAll('chan', '') == name2.replaceAll('ai', '').replaceAll('chan', '')) {
+    if (name1.replaceAll('ai', '').replaceAll('chan', '') ==
+        name2.replaceAll('ai', '').replaceAll('chan', '')) {
       return false; // SON duplicados reales
     }
   }
 
   return true; // Por defecto, asumir que están relacionados (no son duplicados reales)
+}
+
+// ===================== UTILITY FUNCTION DETECTION =====================
+
+List<Map<String, String>> _extractUtilityFunctions(
+  String content,
+  String path,
+) {
+  final functions = <Map<String, String>>[];
+  final lines = content.split('\n');
+
+  for (int i = 0; i < lines.length; i++) {
+    final line = lines[i].trim();
+
+    // Buscar declaraciones de funciones que parecen utilitarias
+    if (_isUtilityFunction(line)) {
+      final functionName = _extractFunctionName(line);
+      if (functionName != null) {
+        final functionBody = _extractFunctionBody(lines, i);
+        final signature = _generateFunctionSignature(
+          functionName,
+          functionBody,
+        );
+
+        functions.add({
+          'name': functionName,
+          'signature': signature,
+          'location': path,
+          'body': functionBody,
+        });
+      }
+    }
+  }
+
+  return functions;
+}
+
+bool _isUtilityFunction(String line) {
+  // Detectar funciones que parecen utilitarias por nombre y patrón
+  final utilityPatterns = [
+    // Funciones de formateo
+    r'(String|int|double)\s+\w*[Ff]ormat\w*\s*\(',
+    r'String\s+\w*[Hh]uman\w*\s*\(',
+    r'String\s+\w*[Ss]ize\w*\s*\(',
+
+    // Funciones de normalización
+    r'String\s+\w*[Nn]ormali[zs]e\w*\s*\(',
+    r'String\s+_normalize\s*\(',
+
+    // Funciones de conversión
+    r'(String|int|double)\s+\w*[Cc]onvert\w*\s*\(',
+    r'(String|int)\s+\w*[Pp]arse\w*\s*\(',
+
+    // Funciones de validación
+    r'bool\s+\w*[Vv]alidate\w*\s*\(',
+    r'bool\s+\w*[Cc]heck\w*\s*\(',
+
+    // Funciones de limpieza/sanitización
+    r'(String|void)\s+\w*[Cc]lean\w*\s*\(',
+    r'(String|void)\s+\w*[Ss]anitize\w*\s*\(',
+  ];
+
+  for (final pattern in utilityPatterns) {
+    if (RegExp(pattern, caseSensitive: false).hasMatch(line)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+String? _extractFunctionName(String line) {
+  // Extraer nombre de función de declaraciones como "String formatBytes(int bytes)"
+  final match = RegExp(r'\b(\w+)\s*\(').firstMatch(line);
+  if (match != null) {
+    final name = match.group(1)!;
+    // Evitar matches con keywords de Dart
+    if (!['if', 'for', 'while', 'switch', 'return'].contains(name)) {
+      return name;
+    }
+  }
+  return null;
+}
+
+String _extractFunctionBody(List<String> lines, int startIndex) {
+  final bodyLines = <String>[];
+  int braceCount = 0;
+  bool foundOpeningBrace = false;
+
+  for (int i = startIndex; i < lines.length; i++) {
+    final line = lines[i];
+    bodyLines.add(line.trim());
+
+    // Contar llaves para saber cuándo termina la función
+    for (final char in line.split('')) {
+      if (char == '{') {
+        braceCount++;
+        foundOpeningBrace = true;
+      } else if (char == '}') {
+        braceCount--;
+        if (foundOpeningBrace && braceCount == 0) {
+          return bodyLines.join('\n');
+        }
+      }
+    }
+
+    // Limitar la extracción del cuerpo a 50 líneas por función
+    if (bodyLines.length > 50) break;
+  }
+
+  return bodyLines.join('\n');
+}
+
+String _generateFunctionSignature(String functionName, String functionBody) {
+  // Crear una firma basada en el nombre y los patrones clave del cuerpo
+  final keyPatterns = <String>[];
+
+  // Detectar patrones comunes en funciones utilitarias
+  if (functionBody.contains('toLowerCase()') ||
+      functionBody.contains('toUpperCase()')) {
+    keyPatterns.add('case_conversion');
+  }
+  if (functionBody.contains('replaceAll') || functionBody.contains('replace')) {
+    keyPatterns.add('string_replacement');
+  }
+  if (functionBody.contains('RegExp') || functionBody.contains('Pattern')) {
+    keyPatterns.add('regex_processing');
+  }
+  if (functionBody.contains('1024') || functionBody.contains('pow(')) {
+    keyPatterns.add('byte_calculation');
+  }
+  if (functionBody.contains('toStringAsFixed') ||
+      functionBody.contains('toFixed')) {
+    keyPatterns.add('number_formatting');
+  }
+  if (functionBody.contains('[') && functionBody.contains(']')) {
+    keyPatterns.add('array_processing');
+  }
+
+  // Si no hay patrones específicos, usar conteo de líneas significativas
+  if (keyPatterns.isEmpty) {
+    final significantLines = functionBody
+        .split('\n')
+        .where(
+          (line) => line.trim().isNotEmpty && !line.trim().startsWith('//'),
+        )
+        .length;
+    keyPatterns.add('lines_$significantLines');
+  }
+
+  return '$functionName|${keyPatterns.join('_')}';
+}
+
+List<String> _findMisplacedUtilities(String content, String path) {
+  final violations = <String>[];
+  final lines = content.split('\n');
+
+  // Solo revisar archivos que NO deberían contener utilitarios
+  final shouldNotContainUtils = [
+    RegExp(r'lib/\w+/presentation/widgets/.*\.dart$'),
+    RegExp(r'lib/\w+/presentation/screens/.*\.dart$'),
+    RegExp(r'lib/\w+/infrastructure/adapters/.*\.dart$'),
+    RegExp(r'lib/main\.dart$'),
+  ];
+
+  bool isWrongLocation = false;
+  for (final pattern in shouldNotContainUtils) {
+    if (pattern.hasMatch(path)) {
+      isWrongLocation = true;
+      break;
+    }
+  }
+
+  if (!isWrongLocation) return violations;
+
+  // Buscar funciones que claramente deberían estar en utils
+  for (int i = 0; i < lines.length; i++) {
+    final line = lines[i].trim();
+
+    // Detectar funciones de formateo de bytes/tamaños
+    if (_isByteFormattingFunction(line)) {
+      violations.add(
+        '📦 Byte formatting function in $path:${i + 1}\n'
+        '   "$line"\n'
+        '   💡 Move to shared/utils/app_data_utils.dart',
+      );
+    }
+
+    // Detectar funciones de normalización de strings
+    if (_isStringNormalizationFunction(line)) {
+      violations.add(
+        '🔤 String normalization function in $path:${i + 1}\n'
+        '   "$line"\n'
+        '   💡 Move to shared/utils/string_utils.dart',
+      );
+    }
+
+    // Detectar funciones matemáticas/conversión
+    if (_isMathConversionFunction(line)) {
+      violations.add(
+        '🔢 Math/conversion function in $path:${i + 1}\n'
+        '   "$line"\n'
+        '   💡 Move to appropriate utils/ file',
+      );
+    }
+  }
+
+  return violations;
+}
+
+bool _isByteFormattingFunction(String line) {
+  return RegExp(
+        r'String\s+\w*([Hh]uman|[Ff]ormat|[Ss]ize)\w*.*\(.*int.*\)',
+        caseSensitive: false,
+      ).hasMatch(line) &&
+      (line.contains('bytes') || line.contains('size') || line.contains('B'));
+}
+
+bool _isStringNormalizationFunction(String line) {
+  return RegExp(
+        r'String\s+\w*[Nn]ormali[zs]e\w*\s*\(.*String',
+        caseSensitive: false,
+      ).hasMatch(line) ||
+      (line.contains('_normalize') &&
+          line.contains('String') &&
+          line.contains('('));
+}
+
+bool _isMathConversionFunction(String line) {
+  return RegExp(
+    r'(int|double|num)\s+\w*([Cc]onvert|[Cc]alculate|[Pp]arse)\w*\s*\(',
+  ).hasMatch(line);
 }

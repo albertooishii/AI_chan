@@ -31,7 +31,8 @@ class OpenAITransportAdapter implements IRealtimeClient {
     try {
       if (msg is Map) {
         final type = (msg['type'] ?? '').toString();
-        if (type.startsWith('response.audio_transcript.') && msg['delta'] is String) {
+        if (type.startsWith('response.audio_transcript.') &&
+            msg['delta'] is String) {
           final tx = (msg['delta'] as String).trim();
           if (tx.isNotEmpty) onText?.call(tx);
         }
@@ -84,7 +85,8 @@ class OpenAITransportAdapter implements IRealtimeClient {
   });
 
   @override
-  void appendAudio(List<int> bytes) => _transport.appendAudio(Uint8List.fromList(bytes));
+  void appendAudio(List<int> bytes) =>
+      _transport.appendAudio(Uint8List.fromList(bytes));
 
   @override
   void requestResponse({bool audio = true, bool text = true}) {

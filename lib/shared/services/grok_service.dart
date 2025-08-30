@@ -27,7 +27,10 @@ class GrokService implements AIService {
       final url = Uri.parse('https://api.x.ai/v1/models');
       final resp = await HttpConnector.client.get(
         url,
-        headers: {'Authorization': 'Bearer $_apiKey', 'Content-Type': 'application/json'},
+        headers: {
+          'Authorization': 'Bearer $_apiKey',
+          'Content-Type': 'application/json',
+        },
       );
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);
@@ -65,7 +68,9 @@ class GrokService implements AIService {
     bool enableImageGeneration = false,
   }) async {
     if (_apiKey.trim().isEmpty) {
-      return AIResponse(text: 'Error: Falta la API key de Grok. Configura GROK_API_KEY.');
+      return AIResponse(
+        text: 'Error: Falta la API key de Grok. Configura GROK_API_KEY.',
+      );
     }
 
     final selectedModel = (model ?? 'grok-3').trim();
@@ -74,7 +79,10 @@ class GrokService implements AIService {
     final messages = <Map<String, dynamic>>[];
 
     // Agregar mensaje del sistema
-    messages.add({'role': 'system', 'content': jsonEncode(systemPrompt.toJson())});
+    messages.add({
+      'role': 'system',
+      'content': jsonEncode(systemPrompt.toJson()),
+    });
 
     // Agregar historial de mensajes
     for (final msg in history) {
@@ -85,7 +93,10 @@ class GrokService implements AIService {
       messages.add({'role': validRole, 'content': content});
     }
 
-    final Map<String, dynamic> body = {'model': selectedModel, 'messages': messages};
+    final Map<String, dynamic> body = {
+      'model': selectedModel,
+      'messages': messages,
+    };
 
     // Si el usuario adjunta imagen, la incluimos en el último mensaje de usuario
     if (imageBase64 != null && imageBase64.isNotEmpty) {
@@ -98,7 +109,9 @@ class GrokService implements AIService {
           {'type': 'text', 'text': lastUserMessage['content']},
           {
             'type': 'image_url',
-            'image_url': {'url': 'data:${imageMimeType ?? 'image/png'};base64,$imageBase64'},
+            'image_url': {
+              'url': 'data:${imageMimeType ?? 'image/png'};base64,$imageBase64',
+            },
           },
         ];
       }
@@ -109,7 +122,10 @@ class GrokService implements AIService {
       final url = Uri.parse('https://api.x.ai/v1/chat/completions');
       final resp = await HttpConnector.client.post(
         url,
-        headers: {'Authorization': 'Bearer $_apiKey', 'Content-Type': 'application/json'},
+        headers: {
+          'Authorization': 'Bearer $_apiKey',
+          'Content-Type': 'application/json',
+        },
         body: jsonEncode(body),
       );
 
@@ -132,7 +148,9 @@ class GrokService implements AIService {
               } else if (content is List) {
                 for (final c in content) {
                   try {
-                    if (c is Map && c['type'] != null && (c['type'] == 'output_text' || c['type'] == 'text')) {
+                    if (c is Map &&
+                        c['type'] != null &&
+                        (c['type'] == 'output_text' || c['type'] == 'text')) {
                       text = c['text'] ?? c['content'] ?? text;
                       if (text.isNotEmpty) break;
                     }
@@ -142,8 +160,10 @@ class GrokService implements AIService {
             }
             // Some implementations include image data inside choice/result blocks
             try {
-              if (first['image'] != null && first['image']['base64'] != null) outBase64 = first['image']['base64'];
-              if (first['image_base64'] != null) outBase64 = first['image_base64'];
+              if (first['image'] != null && first['image']['base64'] != null)
+                outBase64 = first['image']['base64'];
+              if (first['image_base64'] != null)
+                outBase64 = first['image_base64'];
             } catch (_) {}
           }
 
@@ -158,7 +178,8 @@ class GrokService implements AIService {
           }
           if (outBase64.isEmpty) {
             if (data['image_base64'] != null) outBase64 = data['image_base64'];
-            if (data['image'] is Map && data['image']['base64'] != null) outBase64 = data['image']['base64'];
+            if (data['image'] is Map && data['image']['base64'] != null)
+              outBase64 = data['image']['base64'];
           }
           if (seed.isEmpty) {
             if (data['id'] != null)
@@ -167,10 +188,17 @@ class GrokService implements AIService {
               seed = data['response_id'].toString();
           }
         } catch (_) {}
-        return AIResponse(text: text, base64: outBase64, seed: seed, prompt: '');
+        return AIResponse(
+          text: text,
+          base64: outBase64,
+          seed: seed,
+          prompt: '',
+        );
       } else {
         Log.e('[GrokService] Error ${resp.statusCode}: ${resp.body}');
-        return AIResponse(text: 'Error al conectar con Grok: ${resp.statusCode} ${resp.body}');
+        return AIResponse(
+          text: 'Error al conectar con Grok: ${resp.statusCode} ${resp.body}',
+        );
       }
     } catch (e) {
       Log.e('[GrokService] Exception: $e');
@@ -178,7 +206,10 @@ class GrokService implements AIService {
     }
   }
 
-  int estimateTokens(List<Map<String, String>> history, SystemPrompt systemPrompt) {
+  int estimateTokens(
+    List<Map<String, String>> history,
+    SystemPrompt systemPrompt,
+  ) {
     int charCount = jsonEncode(systemPrompt.toJson()).length;
     for (var msg in history) {
       charCount += msg['content']?.length ?? 0;

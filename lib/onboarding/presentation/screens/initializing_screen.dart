@@ -6,7 +6,8 @@ import 'package:ai_chan/core/models.dart';
 
 class InitializingScreen extends StatefulWidget {
   /// bioFutureFactory can accept an optional progress callback: (String key) -> void
-  final Future<AiChanProfile> Function([void Function(String)? onProgress]) bioFutureFactory;
+  final Future<AiChanProfile> Function([void Function(String)? onProgress])
+  bioFutureFactory;
   const InitializingScreen({super.key, required this.bioFutureFactory});
 
   @override
@@ -114,7 +115,8 @@ class _InitializingScreenState extends State<InitializingScreen> {
                 currentStep = idx;
               });
             }
-            if (key == 'appearance' && !appearanceStartedCompleter.isCompleted) {
+            if (key == 'appearance' &&
+                !appearanceStartedCompleter.isCompleted) {
               appearanceStartedCompleter.complete();
             }
             if (key == 'avatar' && !avatarStartedCompleter.isCompleted) {
@@ -148,7 +150,9 @@ class _InitializingScreenState extends State<InitializingScreen> {
       }();
 
       // Phase 2: once 'appearance' signaled, animate appearance steps (12..13)
-      final appearancePhaseFuture = appearanceStartedCompleter.future.then((_) async {
+      final appearancePhaseFuture = appearanceStartedCompleter.future.then((
+        _,
+      ) async {
         for (var i = 12; i <= 13; i++) {
           if (!mounted || _cancel) return;
           // If avatar has started, stop appearance animation early
@@ -184,7 +188,13 @@ class _InitializingScreenState extends State<InitializingScreen> {
       });
 
       // Esperar a que la bio generation y las fases de animación completen
-      await Future.wait([bioFuture, bioAnimFuture, appearancePhaseFuture, avatarPhaseFuture, finalizeFuture]);
+      await Future.wait([
+        bioFuture,
+        bioAnimFuture,
+        appearancePhaseFuture,
+        avatarPhaseFuture,
+        finalizeFuture,
+      ]);
       stepsDone = true;
       if (bioReady && _generatedBio != null && mounted) {
         Navigator.of(context, rootNavigator: true).pop(_generatedBio);
@@ -194,7 +204,8 @@ class _InitializingScreenState extends State<InitializingScreen> {
     } catch (e) {
       // Si el error proviene de IAAvatarGenerator por agotar intentos, mostrar opciones en UI
       final msg = e.toString();
-      if (msg.contains('No se pudo generar el avatar') || msg.contains('No se pudo generar el avatar tras')) {
+      if (msg.contains('No se pudo generar el avatar') ||
+          msg.contains('No se pudo generar el avatar tras')) {
         if (!mounted) return;
         setState(() {
           _cancel = true;
@@ -207,7 +218,9 @@ class _InitializingScreenState extends State<InitializingScreen> {
     }
   }
 
-  Future<AiChanProfile> _runGenerationOnceWithProgress(void Function(String) onProgress) async {
+  Future<AiChanProfile> _runGenerationOnceWithProgress(
+    void Function(String) onProgress,
+  ) async {
     return await widget.bioFutureFactory(onProgress);
   }
 
@@ -217,18 +230,30 @@ class _InitializingScreenState extends State<InitializingScreen> {
     final choice = await showAppDialog<String>(
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
-        title: const Text('No se pudo completar la configuración', style: TextStyle(color: AppColors.secondary)),
+        title: const Text(
+          'No se pudo completar la configuración',
+          style: TextStyle(color: AppColors.secondary),
+        ),
         content: SingleChildScrollView(
-          child: Text(e.toString(), style: const TextStyle(color: AppColors.primary)),
+          child: Text(
+            e.toString(),
+            style: const TextStyle(color: AppColors.primary),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop('cancel'),
-            child: const Text('Volver', style: TextStyle(color: AppColors.primary)),
+            child: const Text(
+              'Volver',
+              style: TextStyle(color: AppColors.primary),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop('retry'),
-            child: const Text('Reintentar', style: TextStyle(color: AppColors.secondary)),
+            child: const Text(
+              'Reintentar',
+              style: TextStyle(color: AppColors.secondary),
+            ),
           ),
         ],
       ),
@@ -321,7 +346,9 @@ class _InitializingScreenState extends State<InitializingScreen> {
                       });
                       _autoAdvanceInitialSteps();
                     },
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary,
+                    ),
                     child: const Text('Reintentar'),
                   ),
                   const SizedBox(width: 16),
@@ -338,7 +365,10 @@ class _InitializingScreenState extends State<InitializingScreen> {
               SizedBox(
                 width: 36,
                 height: 36,
-                child: CircularProgressIndicator(color: AppColors.secondary, strokeWidth: 4),
+                child: CircularProgressIndicator(
+                  color: AppColors.secondary,
+                  strokeWidth: 4,
+                ),
               ),
               const SizedBox(height: 24),
             ],

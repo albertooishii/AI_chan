@@ -9,13 +9,19 @@ import 'package:ai_chan/shared/utils/log_utils.dart';
 class ProviderPersistUtils {
   /// Persist an ImportedChat using the provided repository if available,
   /// falling back to SharedPreferences via StorageUtils.
-  static Future<void> saveImportedChat(ImportedChat imported, {IChatRepository? repository}) async {
+  static Future<void> saveImportedChat(
+    ImportedChat imported, {
+    IChatRepository? repository,
+  }) async {
     if (repository != null) {
       try {
         await repository.saveAll(imported.toJson());
         return;
       } catch (e) {
-        Log.w('IChatRepository.saveAll failed, falling back to SharedPreferences: $e', tag: 'PERSIST');
+        Log.w(
+          'IChatRepository.saveAll failed, falling back to SharedPreferences: $e',
+          tag: 'PERSIST',
+        );
       }
     }
 
@@ -27,13 +33,18 @@ class ProviderPersistUtils {
   }
 
   /// Lightweight loader: try repository first, then prefs; returns null if nothing found or parse fails.
-  static Future<ImportedChat?> loadImportedChat({IChatRepository? repository}) async {
+  static Future<ImportedChat?> loadImportedChat({
+    IChatRepository? repository,
+  }) async {
     if (repository != null) {
       try {
         final Map<String, dynamic>? data = await repository.loadAll();
         if (data != null) return ImportedChat.fromJson(data);
       } catch (e) {
-        Log.w('IChatRepository.loadAll failed, falling back to Prefs: $e', tag: 'PERSIST');
+        Log.w(
+          'IChatRepository.loadAll failed, falling back to Prefs: $e',
+          tag: 'PERSIST',
+        );
       }
     }
 
@@ -41,7 +52,9 @@ class ProviderPersistUtils {
       final bioString = await PrefsUtils.getOnboardingData();
       final jsonString = await PrefsUtils.getChatHistory();
       final eventsString = await PrefsUtils.getEvents();
-      if (bioString == null && jsonString == null && eventsString == null) return null;
+      if (bioString == null && jsonString == null && eventsString == null) {
+        return null;
+      }
       final profile = bioString != null
           ? AiChanProfile.fromJson(jsonDecode(bioString))
           : AiChanProfile(

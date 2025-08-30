@@ -37,11 +37,12 @@ abstract class AudioPlayback implements AudioPlaybackService {
 
 class RealAudioPlayback implements AudioPlayback {
   final ap.AudioPlayer _player;
-  RealAudioPlayback([ap.AudioPlayer? player]) : _player = player ?? ap.AudioPlayer();
+  RealAudioPlayback([ap.AudioPlayer? player])
+    : _player = player ?? ap.AudioPlayer();
 
   @override
   // ignore: avoid_returning_null_for_void
-  Stream<void> get onPlayerComplete => _player.onPlayerComplete.map((_) => null);
+  Stream<void> get onPlayerComplete => _player.onPlayerComplete.map((_) {});
   @override
   Stream<Duration> get onDurationChanged => _player.onDurationChanged;
   @override
@@ -78,7 +79,9 @@ class RealAudioPlayback implements AudioPlayback {
                 } catch (e) {
                   // DeviceFileSource failed for this device; fall through to bytes option.
                   try {
-                    debugPrint('[AudioPlayback] DeviceFileSource failed, will try BytesSource for $path: $e');
+                    debugPrint(
+                      '[AudioPlayback] DeviceFileSource failed, will try BytesSource for $path: $e',
+                    );
                   } catch (_) {}
                 }
 
@@ -91,7 +94,9 @@ class RealAudioPlayback implements AudioPlayback {
                   return;
                 } catch (e) {
                   try {
-                    debugPrint('[AudioPlayback] BytesSource fallback failed for $path: $e');
+                    debugPrint(
+                      '[AudioPlayback] BytesSource fallback failed for $path: $e',
+                    );
                   } catch (_) {}
                   // final fallback: try DeviceFileSource again (best-effort)
                   src = ap.DeviceFileSource(path);
@@ -99,7 +104,10 @@ class RealAudioPlayback implements AudioPlayback {
                   // content:// URI via platform FileProvider and play via UrlSource.
                   try {
                     final channel = MethodChannel('ai_chan/file_provider');
-                    final contentUri = await channel.invokeMethod<String>('getContentUriForFile', {'path': path});
+                    final contentUri = await channel.invokeMethod<String>(
+                      'getContentUriForFile',
+                      {'path': path},
+                    );
                     if (contentUri != null && contentUri.isNotEmpty) {
                       try {
                         final urlSrc = ap.UrlSource(contentUri);
@@ -108,13 +116,17 @@ class RealAudioPlayback implements AudioPlayback {
                         return;
                       } catch (e) {
                         try {
-                          debugPrint('[AudioPlayback] UrlSource(FileProvider) failed for $contentUri: $e');
+                          debugPrint(
+                            '[AudioPlayback] UrlSource(FileProvider) failed for $contentUri: $e',
+                          );
                         } catch (_) {}
                       }
                     }
                   } catch (e) {
                     try {
-                      debugPrint('[AudioPlayback] FileProvider content URI step failed for $path: $e');
+                      debugPrint(
+                        '[AudioPlayback] FileProvider content URI step failed for $path: $e',
+                      );
                     } catch (_) {}
                   }
                 }
@@ -126,7 +138,9 @@ class RealAudioPlayback implements AudioPlayback {
               // If any unexpected error happens, fallback to converting to string
               // and trying DeviceFileSource.
               try {
-                debugPrint('[AudioPlayback] Error preparing local file source: $e');
+                debugPrint(
+                  '[AudioPlayback] Error preparing local file source: $e',
+                );
               } catch (_) {}
               src = ap.DeviceFileSource(source.toString());
             }
@@ -153,7 +167,9 @@ class RealAudioPlayback implements AudioPlayback {
       },
       (error, stack) {
         try {
-          debugPrint('[AudioPlayback] uncaught async error in playback zone: $error');
+          debugPrint(
+            '[AudioPlayback] uncaught async error in playback zone: $error',
+          );
         } catch (_) {}
         // Ensure the future completes even if an async uncaught error occurred
         // so callers awaiting the play() future don't block forever.
@@ -174,5 +190,6 @@ class RealAudioPlayback implements AudioPlayback {
   Future<void> dispose() async => _player.dispose();
 
   @override
-  Future<void> setReleaseMode(dynamic mode) async => _player.setReleaseMode(mode);
+  Future<void> setReleaseMode(dynamic mode) async =>
+      _player.setReleaseMode(mode);
 }

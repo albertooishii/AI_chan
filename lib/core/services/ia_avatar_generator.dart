@@ -14,10 +14,15 @@ class IAAvatarGenerator {
   /// - [appendAvatar]: si es true, reutiliza la seed del primer avatar (si existe)
   ///   para mantener identidad y añade el nuevo avatar al histórico.
   ///   Si es false, se genera un avatar completamente nuevo y reemplaza el histórico.
-  Future<AiImage> generateAvatarFromAppearance(AiChanProfile bio, {bool appendAvatar = false}) async {
+  Future<AiImage> generateAvatarFromAppearance(
+    AiChanProfile bio, {
+    bool appendAvatar = false,
+  }) async {
     final String forcedImageModel = Config.getDefaultImageModel();
     final String forcedTextModel = Config.getDefaultTextModel();
-    Log.d('[IAAvatarGenerator] Avatar: generando imagen con modelo $forcedImageModel');
+    Log.d(
+      '[IAAvatarGenerator] Avatar: generando imagen con modelo $forcedImageModel',
+    );
 
     // Obtener la apariencia desde el perfil; los llamadores deben actualizar
     // el perfil (bio) con la nueva appearance antes de llamar a esta función
@@ -42,16 +47,25 @@ class IAAvatarGenerator {
         },
         "estetica": {
           "estilo": "instagram portrait, divertida y natural",
-          "iluminacion": "calida, direccional, balance de blancos cálido, contraste medio-alto",
+          "iluminacion":
+              "calida, direccional, balance de blancos cálido, contraste medio-alto",
           "postprocesado":
               "bokeh, viñeteado sutil, nitidez en ojos, suavizado de piel realista, colores ligeramente saturados",
         },
-        "camara": {"objetivo_preferido": "50mm", "apertura": "f/1.8-f/2.8", "iso": "bajo-medio"},
+        "camara": {
+          "objetivo_preferido": "50mm",
+          "apertura": "f/1.8-f/2.8",
+          "iso": "bajo-medio",
+        },
         "parametros_tecnicos": {
           "negative_prompt":
               "Evitar watermark, texto, logos, firmas, baja resolución, deformaciones o elementos irreales.",
         },
-        "image_request": {"size": "1024x1024", "aspect_ratio": "1:1", "fidelity": 0.25},
+        "image_request": {
+          "size": "1024x1024",
+          "aspect_ratio": "1:1",
+          "fidelity": 0.25,
+        },
       },
       "identidad": {"edad_aparente": 25, "genero": "mujer"},
       "rasgos_fisicos": {
@@ -99,19 +113,26 @@ class IAAvatarGenerator {
           "Tienes la lista de 'ropa' en 'appearance', selecciona el conjunto que mejor concuerde con la actividad indicada en la biografía. Reproducir texturas, materiales y colores tal como aparecen en 'appearance'. Mostrar tatuajes, cicatrices o pecas en la ubicación y tamaño descritos si existen.",
       "actividad_y_pose":
           "Basarse en la biografía en general para seleccionar una actividad. La foto debe ser divertida y natural: la persona puede aparecer realizando una acción o gesto gracioso (gestos cómicos con las manos, una risa espontánea, una pequeña pose dinámica o movimiento alegre) mostrando disfrute y naturalidad. Añadir props o elementos coherentes con el contexto biográfico, evitando elementos anacrónicos o que contradigan 'appearance'. Si el perfil incluye una mascota, puede aparecer en la imagen; representa la mascota respetando su especie, tamaño y características descritas en la biografía.",
-      "entorno": "Fondo coherente con la actividad descrita en la biografía. Mantener props y entorno contemporáneos.",
+      "entorno":
+          "Fondo coherente con la actividad descrita en la biografía. Mantener props y entorno contemporáneos.",
       "restricciones": [
         "No texto en la imagen",
         "Sin marcas de agua, pie de foto ni logos, solamente la foto",
         "Sin elementos anacrónicos",
         "Sólo una persona en el encuadre",
       ],
-      "salida": "Usa la herramienta de generación de imágenes y devuelve únicamente la imagen en base64.",
+      "salida":
+          "Usa la herramienta de generación de imágenes y devuelve únicamente la imagen en base64.",
       "notas":
           "Lee 'appearance' fielmente para ropa, colores, texturas y accesorios. Usa 'biography' solo para elegir la actividad y contexto; prioriza 'appearance' ante contradicciones. La imagen debe tener edad aparente EXACTA = 25.",
     };
 
-    AIResponse imageResponse = AIResponse(text: '', base64: '', seed: '', prompt: '');
+    AIResponse imageResponse = AIResponse(
+      text: '',
+      base64: '',
+      seed: '',
+      prompt: '',
+    );
     const int maxImageAttemptsPerModel = 3;
 
     // Decide seed internamente: si appendAvatar==true y el perfil tiene avatars,
@@ -119,7 +140,9 @@ class IAAvatarGenerator {
     String? seedToUse;
     if (appendAvatar) {
       final firstAvatar = bio.firstAvatar;
-      seedToUse = (firstAvatar != null && (firstAvatar.seed ?? '').isNotEmpty) ? firstAvatar.seed : null;
+      seedToUse = (firstAvatar != null && (firstAvatar.seed ?? '').isNotEmpty)
+          ? firstAvatar.seed
+          : null;
     } else {
       seedToUse = null;
     }
@@ -140,8 +163,10 @@ class IAAvatarGenerator {
       if (bio.timeline.isNotEmpty) {
         final sorted = List<TimelineEntry>.from(bio.timeline);
         sorted.sort((a, b) {
-          final aMs = DateTime.tryParse(a.startDate ?? '')?.millisecondsSinceEpoch ?? 0;
-          final bMs = DateTime.tryParse(b.startDate ?? '')?.millisecondsSinceEpoch ?? 0;
+          final aMs =
+              DateTime.tryParse(a.startDate ?? '')?.millisecondsSinceEpoch ?? 0;
+          final bMs =
+              DateTime.tryParse(b.startDate ?? '')?.millisecondsSinceEpoch ?? 0;
           return bMs.compareTo(aMs);
         });
         recentTimelineEntries = sorted.take(5).toList();
@@ -183,9 +208,12 @@ class IAAvatarGenerator {
           enableImageGeneration: false,
         );
         // genResp.text is non-nullable; prefer it when non-empty, otherwise use prompt
-        generatedPromptText = (genResp.text.isNotEmpty ? genResp.text : (genResp.prompt)).trim();
+        generatedPromptText =
+            (genResp.text.isNotEmpty ? genResp.text : (genResp.prompt)).trim();
         // Log para depuración: ver el prompt textual generado por el modelo de texto
-        Log.d('[IAAvatarGenerator] Prompt generado por modelo de texto: $generatedPromptText');
+        Log.d(
+          '[IAAvatarGenerator] Prompt generado por modelo de texto: $generatedPromptText',
+        );
       } catch (e) {
         Log.w('[IAAvatarGenerator] Prompt generator failed: $e');
       }
@@ -204,7 +232,9 @@ class IAAvatarGenerator {
           'salida': basePromptMap['salida'],
         };
       } else {
-        Log.w('[IAAvatarGenerator] Prompt generator returned empty; usando basePromptMap como fallback');
+        Log.w(
+          '[IAAvatarGenerator] Prompt generator returned empty; usando basePromptMap como fallback',
+        );
         promptToSend = basePromptMap;
       }
     } else {
@@ -224,7 +254,9 @@ class IAAvatarGenerator {
     );
 
     for (int attempt = 0; attempt < maxImageAttemptsPerModel; attempt++) {
-      Log.d('[IAAvatarGenerator] Avatar: intento ${attempt + 1}/$maxImageAttemptsPerModel con $forcedImageModel');
+      Log.d(
+        '[IAAvatarGenerator] Avatar: intento ${attempt + 1}/$maxImageAttemptsPerModel con $forcedImageModel',
+      );
       try {
         final systemPromptImage = SystemPrompt(
           profile: profileForPrompt,
@@ -241,7 +273,9 @@ class IAAvatarGenerator {
 
         if (resp.base64.isNotEmpty) {
           imageResponse = resp;
-          Log.d('[IAAvatarGenerator] Avatar: imagen obtenida en intento ${attempt + 1}');
+          Log.d(
+            '[IAAvatarGenerator] Avatar: imagen obtenida en intento ${attempt + 1}',
+          );
           break;
         }
         Log.w('[IAAvatarGenerator] Avatar: intento ${attempt + 1} sin imagen');
@@ -249,7 +283,9 @@ class IAAvatarGenerator {
         if (handleRuntimeError(err, 'IAAvatarGenerator')) {
           // logged
         } else {
-          Log.e('[IAAvatarGenerator] Avatar: error en intento ${attempt + 1}: $err');
+          Log.e(
+            '[IAAvatarGenerator] Avatar: error en intento ${attempt + 1}: $err',
+          );
         }
       }
 
@@ -260,29 +296,43 @@ class IAAvatarGenerator {
     }
 
     if (imageResponse.base64.isEmpty) {
-      throw Exception('No se pudo generar el avatar tras $maxImageAttemptsPerModel intentos.');
+      throw Exception(
+        'No se pudo generar el avatar tras $maxImageAttemptsPerModel intentos.',
+      );
     }
 
     // Guardar imagen
     String? imageUrl;
     try {
-      imageUrl = await saveBase64ImageToFile(imageResponse.base64, prefix: 'ai_avatar');
+      imageUrl = await saveBase64ImageToFile(
+        imageResponse.base64,
+        prefix: 'ai_avatar',
+      );
     } catch (e) {
       imageUrl = null;
     }
 
     if (imageUrl == null || imageUrl.isEmpty) {
-      throw Exception('Se generó el avatar pero no se pudo guardar la imagen en el dispositivo.');
+      throw Exception(
+        'Se generó el avatar pero no se pudo guardar la imagen en el dispositivo.',
+      );
     }
 
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     // Prefer the seed returned by the image service when available. Si la API
     // devolvió una nueva seed, usarla; si no, usar la seed interna decidida.
-    final String usedSeed = (imageResponse.seed.isNotEmpty) ? imageResponse.seed : (seedToUse ?? '');
+    final String usedSeed = (imageResponse.seed.isNotEmpty)
+        ? imageResponse.seed
+        : (seedToUse ?? '');
 
     Log.d('[IAAvatarGenerator] Avatar: usada seed final: $usedSeed');
 
-    final avatar = AiImage(seed: usedSeed, prompt: imageResponse.prompt, url: imageUrl, createdAtMs: nowMs);
+    final avatar = AiImage(
+      seed: usedSeed,
+      prompt: imageResponse.prompt,
+      url: imageUrl,
+      createdAtMs: nowMs,
+    );
 
     // Nota: no modificamos ni persistimos onboardingData aquí. El llamador
     // deberá incorporar el avatar a su `AiChanProfile` y persistir si procede.

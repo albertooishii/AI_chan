@@ -28,6 +28,9 @@ class MemoryManager {
       timeline: timeline,
       superbloqueEntry: superbloqueEntry,
     );
-    return MemoryProcessingResult(timeline: result.timeline, superbloqueEntry: result.superbloqueEntry);
+    return MemoryProcessingResult(
+      timeline: result.timeline,
+      superbloqueEntry: result.superbloqueEntry,
+    );
   }
 }

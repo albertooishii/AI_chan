@@ -50,15 +50,19 @@ class _IoSocketAdapter implements SocketLike {
   void destroy() => _inner.destroy();
 }
 
-typedef WsConnectFn = WsChannel Function(Uri uri, {Map<String, String>? headers});
-typedef SocketConnectFn = Future<SocketLike> Function(String host, int port, {Duration? timeout});
+typedef WsConnectFn =
+    WsChannel Function(Uri uri, {Map<String, String>? headers});
+typedef SocketConnectFn =
+    Future<SocketLike> Function(String host, int port, {Duration? timeout});
 
 class WebSocketConnector {
   // default implementation uses IOWebSocketChannel wrapped in adapter
-  static WsConnectFn connectImpl = (uri, {headers}) =>
-      _IoWsChannelAdapter(wsio.IOWebSocketChannel.connect(uri, headers: headers));
+  static WsConnectFn connectImpl = (uri, {headers}) => _IoWsChannelAdapter(
+    wsio.IOWebSocketChannel.connect(uri, headers: headers),
+  );
 
-  static WsChannel connect(Uri uri, {Map<String, String>? headers}) => connectImpl(uri, headers: headers);
+  static WsChannel connect(Uri uri, {Map<String, String>? headers}) =>
+      connectImpl(uri, headers: headers);
 
   /// Tests can replace the implementation to return a fake channel-like object
   static void setConnectImpl(WsConnectFn impl) {
@@ -67,11 +71,15 @@ class WebSocketConnector {
 }
 
 class SocketConnector {
-  static SocketConnectFn connectImpl = (host, port, {Duration? timeout}) async =>
-      _IoSocketAdapter(await Socket.connect(host, port, timeout: timeout));
+  static SocketConnectFn connectImpl =
+      (host, port, {Duration? timeout}) async =>
+          _IoSocketAdapter(await Socket.connect(host, port, timeout: timeout));
 
-  static Future<SocketLike> connect(String host, int port, {Duration? timeout}) =>
-      connectImpl(host, port, timeout: timeout);
+  static Future<SocketLike> connect(
+    String host,
+    int port, {
+    Duration? timeout,
+  }) => connectImpl(host, port, timeout: timeout);
 
   static void setConnectImpl(SocketConnectFn impl) {
     connectImpl = impl;

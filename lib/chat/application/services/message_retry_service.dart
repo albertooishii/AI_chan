@@ -23,7 +23,9 @@ class MessageRetryService {
     );
 
     int retry = 0;
-    while ((!hasValidText(response) || !hasValidAllowedTagsStructure(response.text)) && retry < maxRetries) {
+    while ((!hasValidText(response) ||
+            !hasValidAllowedTagsStructure(response.text)) &&
+        retry < maxRetries) {
       final waitSeconds = _extractWaitSeconds(response.text);
       await Future.delayed(Duration(seconds: waitSeconds));
 
@@ -75,7 +77,9 @@ class MessageRetryService {
       if (!allowed.contains(tk)) return false;
     }
     if (trimmed.contains('[call]') || trimmed.contains('[end_call]')) {
-      final simpleTagPattern = RegExp(r'^\s*(\[(?:call|end_call)\]\s*\[/(?:call|end_call)\])\s*$');
+      final simpleTagPattern = RegExp(
+        r'^\s*(\[(?:call|end_call)\]\s*\[/(?:call|end_call)\])\s*$',
+      );
       if (!simpleTagPattern.hasMatch(trimmed)) return false;
       return true;
     }
@@ -84,9 +88,14 @@ class MessageRetryService {
     if (trimmed.contains(imgCaptionOpen)) {
       final firstIdx = trimmed.indexOf(imgCaptionOpen);
       if (firstIdx != 0) return false;
-      final closeIdx = trimmed.indexOf(imgCaptionClose, firstIdx + imgCaptionOpen.length);
+      final closeIdx = trimmed.indexOf(
+        imgCaptionClose,
+        firstIdx + imgCaptionOpen.length,
+      );
       if (closeIdx < 0) return false;
-      final after = trimmed.substring(closeIdx + imgCaptionClose.length).trimLeft();
+      final after = trimmed
+          .substring(closeIdx + imgCaptionClose.length)
+          .trimLeft();
       if (after.contains(imgCaptionOpen)) return false;
     }
     final audioOpen = '[audio]';
@@ -95,7 +104,9 @@ class MessageRetryService {
       final openIdx = trimmed.indexOf(audioOpen);
       final closeIdx = trimmed.indexOf(audioClose, openIdx + audioOpen.length);
       if (closeIdx < 0) return false;
-      final inner = trimmed.substring(openIdx + audioOpen.length, closeIdx).trim();
+      final inner = trimmed
+          .substring(openIdx + audioOpen.length, closeIdx)
+          .trim();
       if (inner.isEmpty) return false;
       if (inner.startsWith('[')) return false;
       final afterAudio = trimmed.substring(closeIdx + audioClose.length);

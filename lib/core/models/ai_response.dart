@@ -4,7 +4,12 @@ class AIResponse {
   final String seed;
   final String prompt;
 
-  AIResponse({required this.text, this.base64 = '', this.seed = '', this.prompt = ''});
+  AIResponse({
+    required this.text,
+    this.base64 = '',
+    this.seed = '',
+    this.prompt = '',
+  });
 
   factory AIResponse.fromJson(Map<String, dynamic> json) {
     final image = json['image'] ?? {};

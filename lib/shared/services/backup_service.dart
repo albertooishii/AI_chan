@@ -16,9 +16,15 @@ import 'package:archive/archive_io.dart';
 ///   de la app corre a cargo del llamador.
 class BackupService {
   /// Crea un backup local y devuelve el archivo guardado.
-  static Future<File> createLocalBackup({required String jsonStr, String? destinationDirPath}) async {
+  static Future<File> createLocalBackup({
+    required String jsonStr,
+    String? destinationDirPath,
+  }) async {
     // By default create a ZIP including JSON + media. Caller must provide JSON.
-    final safeTs = DateTime.now().toIso8601String().replaceAll(RegExp(r'[:.]'), '-');
+    final safeTs = DateTime.now().toIso8601String().replaceAll(
+      RegExp(r'[:.]'),
+      '-',
+    );
     final filename = 'ai_chan_backup_$safeTs.zip';
 
     final archive = Archive();
@@ -33,7 +39,9 @@ class BackupService {
         for (final f in files) {
           try {
             final bytes = f.readAsBytesSync();
-            final name = f.uri.pathSegments.isNotEmpty ? f.uri.pathSegments.last : f.path;
+            final name = f.uri.pathSegments.isNotEmpty
+                ? f.uri.pathSegments.last
+                : f.path;
             archive.addFile(ArchiveFile('images/$name', bytes.length, bytes));
           } catch (_) {}
         }
@@ -48,7 +56,9 @@ class BackupService {
         for (final f in files) {
           try {
             final bytes = f.readAsBytesSync();
-            final name = f.uri.pathSegments.isNotEmpty ? f.uri.pathSegments.last : f.path;
+            final name = f.uri.pathSegments.isNotEmpty
+                ? f.uri.pathSegments.last
+                : f.path;
             archive.addFile(ArchiveFile('audio/$name', bytes.length, bytes));
           } catch (_) {}
         }
@@ -114,7 +124,9 @@ class BackupService {
           }
         }
       }
-      if (jsonStr == null) throw StateError('backup.json no encontrado en el ZIP');
+      if (jsonStr == null) {
+        throw StateError('backup.json no encontrado en el ZIP');
+      }
       return jsonStr;
     } else if (backupFile.path.toLowerCase().endsWith('.gz')) {
       final decompressed = GZipDecoder().decodeBytes(bytes);

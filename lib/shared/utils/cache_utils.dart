@@ -22,7 +22,9 @@ Future<Directory> getLocalCacheDir() async {
   // data (e.g. /tmp/AI_chan_cache).
   try {
     final tmp = await getTemporaryDirectory();
-    final cacheDir = Directory('${tmp.path}${Platform.pathSeparator}AI_chan_cache');
+    final cacheDir = Directory(
+      '${tmp.path}${Platform.pathSeparator}AI_chan_cache',
+    );
     if (!await cacheDir.exists()) await cacheDir.create(recursive: true);
     return cacheDir;
   } catch (e) {
@@ -31,7 +33,9 @@ Future<Directory> getLocalCacheDir() async {
     if (kDebugMode) {
       try {
         final systemTmp = Directory.systemTemp;
-        final cacheDir = Directory('${systemTmp.path}${Platform.pathSeparator}AI_chan_cache_fallback');
+        final cacheDir = Directory(
+          '${systemTmp.path}${Platform.pathSeparator}AI_chan_cache_fallback',
+        );
         if (!await cacheDir.exists()) await cacheDir.create(recursive: true);
         return cacheDir;
       } catch (_) {
@@ -41,7 +45,9 @@ Future<Directory> getLocalCacheDir() async {
 
     // Fallback to application support directory if tmp not available
     final support = await getApplicationSupportDirectory();
-    final cacheDir = Directory('${support.path}${Platform.pathSeparator}AI_chan_cache');
+    final cacheDir = Directory(
+      '${support.path}${Platform.pathSeparator}AI_chan_cache',
+    );
     if (!await cacheDir.exists()) await cacheDir.create(recursive: true);
     return cacheDir;
   }

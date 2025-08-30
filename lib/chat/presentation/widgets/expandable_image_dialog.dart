@@ -52,7 +52,8 @@ class _GalleryImageViewerDialog extends StatefulWidget {
   });
 
   @override
-  State<_GalleryImageViewerDialog> createState() => _GalleryImageViewerDialogState();
+  State<_GalleryImageViewerDialog> createState() =>
+      _GalleryImageViewerDialogState();
 }
 
 class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
@@ -62,12 +63,19 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
     // If the widget is no longer mounted (dialog dismissed), skip the description dialog
     if (!mounted) return;
     showAppDialog(
-      useRootNavigator: true, // ✅ Asegurar que aparece encima del dialog de imagen
+      useRootNavigator:
+          true, // ✅ Asegurar que aparece encima del dialog de imagen
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
-        title: const Text('Descripción de la imagen', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Descripción de la imagen',
+          style: TextStyle(color: Colors.white),
+        ),
         content: SingleChildScrollView(
-          child: Text(description ?? 'Sin descripción.', style: const TextStyle(color: Colors.white)),
+          child: Text(
+            description ?? 'Sin descripción.',
+            style: const TextStyle(color: Colors.white),
+          ),
         ),
         actions: [
           TextButton(
@@ -123,14 +131,23 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
     // Ignorar eventos duplicados en menos de 100ms
     if (event is KeyDownEvent) {
       final now = DateTime.now();
-      if (_lastKeyTime != null && now.difference(_lastKeyTime!).inMilliseconds < 100) {
+      if (_lastKeyTime != null &&
+          now.difference(_lastKeyTime!).inMilliseconds < 100) {
         return;
       }
       _lastKeyTime = now;
-      if (event.logicalKey == LogicalKeyboardKey.arrowRight && _currentIndex < widget.images.length - 1) {
-        _controller.nextPage(duration: const Duration(milliseconds: 200), curve: Curves.easeInOut);
-      } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft && _currentIndex > 0) {
-        _controller.previousPage(duration: const Duration(milliseconds: 200), curve: Curves.easeInOut);
+      if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
+          _currentIndex < widget.images.length - 1) {
+        _controller.nextPage(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+        );
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
+          _currentIndex > 0) {
+        _controller.previousPage(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+        );
       }
     }
   }
@@ -145,10 +162,18 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
       useRootNavigator: true,
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar imagen'),
-        content: const Text('¿Estás seguro de que deseas eliminar esta imagen? Esta acción no se puede deshacer.'),
+        content: const Text(
+          '¿Estás seguro de que deseas eliminar esta imagen? Esta acción no se puede deshacer.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Eliminar')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Eliminar'),
+          ),
         ],
       ),
     );
@@ -165,7 +190,10 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
         }
       } catch (e) {
         // Mostrar aviso, pero continuar con la eliminación de la lista
-        showAppSnackBar('Advertencia: no se pudo borrar el archivo de imagen: $e', isError: true);
+        showAppSnackBar(
+          'Advertencia: no se pudo borrar el archivo de imagen: $e',
+          isError: true,
+        );
       }
     }
 
@@ -175,7 +203,10 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
       final removed = widget.images.removeAt(_currentIndex);
       deletedImg = removed.image;
       if (_currentIndex >= widget.images.length) {
-        _currentIndex = (widget.images.length - 1).clamp(0, widget.images.length - 1);
+        _currentIndex = (widget.images.length - 1).clamp(
+          0,
+          widget.images.length - 1,
+        );
       }
       // Reconstruir el PageController en la nueva posición para evitar inconsistencias
       _controller = PageController(initialPage: _currentIndex);
@@ -209,9 +240,13 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
 
     // Mantener _currentIndex dentro de los límites válidos.
     if (_currentIndex < 0) _currentIndex = 0;
-    if (_currentIndex >= widget.images.length) _currentIndex = widget.images.length - 1;
+    if (_currentIndex >= widget.images.length) {
+      _currentIndex = widget.images.length - 1;
+    }
 
-    final hasText = widget.images[_currentIndex].text.isNotEmpty && widget.images[_currentIndex].text.trim() != '';
+    final hasText =
+        widget.images[_currentIndex].text.isNotEmpty &&
+        widget.images[_currentIndex].text.trim() != '';
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: EdgeInsets.zero,
@@ -236,7 +271,9 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                     opacity: _showText ? 1.0 : 0.0,
                     duration: const Duration(milliseconds: 180),
                     curve: Curves.easeInOut,
-                    child: Container(color: Colors.black.withValues(alpha: 0.2)),
+                    child: Container(
+                      color: Colors.black.withValues(alpha: 0.2),
+                    ),
                   ),
                 ),
               ),
@@ -256,7 +293,9 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                     itemBuilder: (context, idx) {
                       final msg = widget.images[idx];
                       final relPath = msg.image?.url;
-                      if (widget.imageDir == null || relPath == null || relPath.isEmpty) {
+                      if (widget.imageDir == null ||
+                          relPath == null ||
+                          relPath.isEmpty) {
                         return GestureDetector(
                           behavior: HitTestBehavior.translucent,
                           onTap: () => Navigator.of(context).pop(),
@@ -265,12 +304,17 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                               color: Colors.grey[900],
                               width: 200,
                               height: 200,
-                              child: const Icon(Icons.broken_image, color: Colors.grey, size: 80),
+                              child: const Icon(
+                                Icons.broken_image,
+                                color: Colors.grey,
+                                size: 80,
+                              ),
                             ),
                           ),
                         );
                       }
-                      final absPath = '${widget.imageDir!.path}/${relPath.split('/').last}';
+                      final absPath =
+                          '${widget.imageDir!.path}/${relPath.split('/').last}';
                       final file = File(absPath);
                       final exists = file.existsSync();
                       if (exists) {
@@ -313,18 +357,29 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                                   final img = msg.image;
                                   // Considerar avatar solo si tiene createdAtMs; muchas imágenes normales
                                   // pueden tener seed pero no createdAtMs.
-                                  final bool isAvatar = img?.createdAtMs != null;
+                                  final bool isAvatar =
+                                      img?.createdAtMs != null;
                                   final total = widget.images.length;
-                                  final index = (_currentIndex + 1).clamp(1, total);
+                                  final index = (_currentIndex + 1).clamp(
+                                    1,
+                                    total,
+                                  );
 
                                   // decidir prefijo
-                                  String label = isAvatar ? 'Avatar $index/$total' : 'Foto $index/$total';
+                                  String label = isAvatar
+                                      ? 'Avatar $index/$total'
+                                      : 'Foto $index/$total';
 
                                   // fecha: para avatar preferir createdAtMs, para imágenes normales usar message.dateTime
-                                  int? ms = isAvatar ? img?.createdAtMs : msg.dateTime.millisecondsSinceEpoch;
+                                  int? ms = isAvatar
+                                      ? img?.createdAtMs
+                                      : msg.dateTime.millisecondsSinceEpoch;
                                   if (ms != null) {
-                                    final dt = DateTime.fromMillisecondsSinceEpoch(ms);
-                                    final formatted = DateFormat('dd/MM/yyyy HH:mm').format(dt);
+                                    final dt =
+                                        DateTime.fromMillisecondsSinceEpoch(ms);
+                                    final formatted = DateFormat(
+                                      'dd/MM/yyyy HH:mm',
+                                    ).format(dt);
                                     label = '$label · $formatted';
                                   }
 
@@ -332,12 +387,25 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                                     left: 12,
                                     bottom: 12,
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 4,
+                                        horizontal: 8,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: Colors.black.withValues(alpha: (0.45 * 255).round().toDouble()),
+                                        color: Colors.black.withValues(
+                                          alpha: (0.45 * 255)
+                                              .round()
+                                              .toDouble(),
+                                        ),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
-                                      child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                                      child: Text(
+                                        label,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                        ),
+                                      ),
                                     ),
                                   );
                                 },
@@ -353,7 +421,11 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                             color: Colors.grey[900],
                             width: 200,
                             height: 200,
-                            child: const Icon(Icons.broken_image, color: Colors.grey, size: 80),
+                            child: const Icon(
+                              Icons.broken_image,
+                              color: Colors.grey,
+                              size: 80,
+                            ),
                           ),
                         ),
                       );
@@ -374,7 +446,11 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                   curve: Curves.easeInOut,
                   child: IconButton(
                     padding: const EdgeInsets.all(8),
-                    icon: const Icon(Icons.close, color: AppColors.primary, size: 24),
+                    icon: const Icon(
+                      Icons.close,
+                      color: AppColors.primary,
+                      size: 24,
+                    ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ),
@@ -395,36 +471,59 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                     children: [
                       IconButton(
                         padding: const EdgeInsets.all(8),
-                        icon: const Icon(Icons.download, color: AppColors.primary, size: 24),
+                        icon: const Icon(
+                          Icons.download,
+                          color: AppColors.primary,
+                          size: 24,
+                        ),
                         tooltip: 'Descargar imagen',
                         onPressed: () async {
-                          final relPath = widget.images[_currentIndex].image?.url;
-                          if (relPath != null && relPath.isNotEmpty && widget.imageDir != null) {
+                          final relPath =
+                              widget.images[_currentIndex].image?.url;
+                          if (relPath != null &&
+                              relPath.isNotEmpty &&
+                              widget.imageDir != null) {
                             // Construir ruta completa
-                            final absPath = '${widget.imageDir!.path}/${relPath.split('/').last}';
+                            final absPath =
+                                '${widget.imageDir!.path}/${relPath.split('/').last}';
                             final result = await downloadImage(absPath);
 
                             if (!mounted) return; // State no longer mounted
 
                             if (!result.$1 && result.$2 != null) {
                               // Hay error específico
-                              showAppSnackBar('Error al descargar: ${result.$2}', isError: true);
+                              showAppSnackBar(
+                                'Error al descargar: ${result.$2}',
+                                isError: true,
+                              );
                             } else if (result.$1) {
                               // Éxito
-                              showAppSnackBar('✅ Imagen guardada correctamente', isError: false);
+                              showAppSnackBar(
+                                '✅ Imagen guardada correctamente',
+                                isError: false,
+                              );
                             }
                             // Si !result.$1 && result.$2 == null significa que el usuario canceló - no hacer nada
                           } else {
-                            showAppSnackBar('Error: No se encontró la imagen', isError: true);
+                            showAppSnackBar(
+                              'Error: No se encontró la imagen',
+                              isError: true,
+                            );
                           }
                         },
                       ),
                       PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert, color: AppColors.primary, size: 24),
+                        icon: const Icon(
+                          Icons.more_vert,
+                          color: AppColors.primary,
+                          size: 24,
+                        ),
                         tooltip: 'Opciones',
                         onSelected: (value) async {
                           if (value == 'description') {
-                            _showImageDescriptionDialog(widget.images[_currentIndex].image?.prompt);
+                            _showImageDescriptionDialog(
+                              widget.images[_currentIndex].image?.prompt,
+                            );
                           } else if (value == 'delete') {
                             await _confirmAndDeleteCurrentImage();
                           }
@@ -433,11 +532,17 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                           return [
                             const PopupMenuItem<String>(
                               value: 'description',
-                              child: Text('Ver descripción', style: TextStyle(color: AppColors.primary)),
+                              child: Text(
+                                'Ver descripción',
+                                style: TextStyle(color: AppColors.primary),
+                              ),
                             ),
                             const PopupMenuItem<String>(
                               value: 'delete',
-                              child: Text('Eliminar', style: TextStyle(color: AppColors.primary)),
+                              child: Text(
+                                'Eliminar',
+                                style: TextStyle(color: AppColors.primary),
+                              ),
                             ),
                           ];
                         },
@@ -459,7 +564,10 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                   duration: const Duration(milliseconds: 180),
                   curve: Curves.easeInOut,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 18,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color.fromRGBO(0, 0, 0, 0.7),
                       borderRadius: BorderRadius.circular(14),

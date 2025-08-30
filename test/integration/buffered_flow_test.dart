@@ -72,8 +72,15 @@ void main() {
     test('VAD commit triggers STT and user transcription callback', () async {
       // Install a DI factory that returns our fake buffered client wired to
       // the callbacks VoiceCallController expects
-      di.setTestRealtimeClientFactory((provider,
-          {model, onText, onAudio, onCompleted, onError, onUserTranscription}) {
+      di.setTestRealtimeClientFactory((
+        provider, {
+        model,
+        onText,
+        onAudio,
+        onCompleted,
+        onError,
+        onUserTranscription,
+      }) {
         return _FakeBufferedClient(onUserTranscription: onUserTranscription);
       });
 
