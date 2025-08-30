@@ -92,11 +92,11 @@ void main() {
         if (entry.value.length > 1) {
           final paths = entry.value.map((s) => s.split('(').last.replaceAll(')', ''));
           final hasTestAndProduction = paths.any((p) => p.contains('test/')) && paths.any((p) => !p.contains('test/'));
-          
+
           // Filtrar clases que están en el mismo archivo (es normal tener múltiples clases relacionadas)
           final uniquePaths = paths.toSet();
           final isSameFileClasses = uniquePaths.length == 1;
-          
+
           // Solo considerar duplicación real si están en archivos diferentes
           if (!hasTestAndProduction && !isSameFileClasses && !_areRelatedClasses(entry.value)) {
             final violations = entry.value.map((s) => '   - $s').join('\n');
@@ -106,24 +106,11 @@ void main() {
       }
 
       if (modelViolations.isNotEmpty) {
-        // Solo mostrar como warning, no fallar el test para permitir commit
-        // ignore: avoid_print
-        print('🎯 Potential duplicate models found (review recommended):');
-        // ignore: avoid_print
-        print('');
-        for (final violation in modelViolations) {
-          // ignore: avoid_print
-          print(violation);
-          // ignore: avoid_print
-          print('');
-        }
-        // ignore: avoid_print
-        print('💡 Consider consolidating these models or moving them to the correct bounded context.');
-        // ignore: avoid_print
-        print('');
-        
-        // Comentar esta línea para no fallar el test:
-        // fail('🎯 Duplicate model definitions found:\n\n${modelViolations.join('\n\n')}\n\n💡 Consider consolidating these models or moving them to the correct bounded context.');
+        // Fallar el test cuando hay duplicados reales detectados
+        fail(
+          '🎯 Duplicate model definitions found:\n\n${modelViolations.join('\n\n')}\n\n'
+          '💡 Consider consolidating these models or moving them to the correct bounded context.',
+        );
       }
     });
 
@@ -536,19 +523,19 @@ String _extractFields(String content, String className) {
 
   for (final line in lines) {
     final trimmed = line.trim();
-    
+
     // Detectar inicio de clase
     if (trimmed.startsWith('class $className')) {
       inClass = true;
       currentClass = className;
       continue;
     }
-    
+
     // Detectar fin de clase
     if (inClass && trimmed == '}' && currentClass == className) {
       break;
     }
-    
+
     // Solo extraer fields de la clase correcta
     if (inClass && currentClass == className) {
       if (trimmed.startsWith('final ') || trimmed.startsWith('const ')) {
@@ -645,33 +632,33 @@ bool _isFlutterWidgetPair(String className) {
 bool _areRelatedClasses(List<String> classNames) {
   // Verificar si las clases son claramente relacionadas (e.g., diferentes versiones del mismo concepto)
   final names = classNames.map((s) => s.split('(')[0]).toList();
-  
+
   // Si las clases son de diferentes tipos (adapter, service, utils, etc.) - no son duplicados
   final types = names.map((n) => n.toLowerCase());
   final hasAdapter = types.any((t) => t.contains('adapter'));
   final hasService = types.any((t) => t.contains('service'));
   final hasUtils = types.any((t) => t.contains('utils'));
   final hasUseCase = types.any((t) => t.contains('usecase'));
-  
+
   if ((hasAdapter || hasService || hasUtils || hasUseCase) && types.length > 1) {
     return true; // Son tipos diferentes, no duplicados reales
   }
-  
+
   // Si solo hay 2 clases y una es versión específica de la otra
   if (names.length == 2) {
     final name1 = names[0].toLowerCase();
     final name2 = names[1].toLowerCase();
-    
+
     // Casos como "ChatExport" vs "ChatExport" (mismo nombre exacto, diferentes ubicaciones - son duplicados reales)
     if (name1 == name2) {
       return false; // SON duplicados reales
     }
-    
+
     // Casos como "AiChanProfile" vs "AiChanProfile" (mismo concepto, diferentes ubicaciones)
     if (name1.replaceAll('ai', '').replaceAll('chan', '') == name2.replaceAll('ai', '').replaceAll('chan', '')) {
       return false; // SON duplicados reales
     }
   }
-  
+
   return true; // Por defecto, asumir que están relacionados (no son duplicados reales)
 }

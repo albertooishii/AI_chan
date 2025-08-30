@@ -33,81 +33,16 @@ abstract interface class IVoiceCallRepository {
   Future<List<VoiceMessage>> getCallMessages(String callId);
 }
 
-/// Servicio de Speech-to-Text para convertir audio a texto
-abstract interface class IVoiceSttService {
-  /// Convierte audio a texto desde datos binarios
-  Future<String?> transcribeFromBytes(
-    Uint8List audioData, {
-    String languageCode = 'es-ES',
-    Map<String, dynamic>? options,
-  });
-
-  /// Convierte audio a texto desde archivo
-  Future<String?> transcribeFromFile(
-    String audioFilePath, {
-    String languageCode = 'es-ES',
-    Map<String, dynamic>? options,
-  });
-
-  /// Verifica si el servicio está disponible
-  bool get isAvailable;
-
-  /// Obtiene los idiomas soportados
-  Future<List<String>> getSupportedLanguages();
-}
-
-/// Servicio de Text-to-Speech para convertir texto a audio
-abstract interface class IVoiceTtsService {
-  /// Convierte texto a audio y lo guarda en archivo
-  Future<String?> synthesizeToFile({
-    required String text,
-    String voice = 'sage',
-    String languageCode = 'es-ES',
-    Map<String, dynamic>? options,
-  });
-
-  /// Convierte texto a audio y devuelve bytes
-  Future<Uint8List?> synthesizeToBytes({
-    required String text,
-    String voice = 'sage',
-    String languageCode = 'es-ES',
-    Map<String, dynamic>? options,
-  });
-
-  /// Obtiene las voces disponibles
-  Future<List<Map<String, dynamic>>> getAvailableVoices();
-
-  /// Verifica si el servicio está disponible
-  bool get isAvailable;
-
-  /// Obtiene los idiomas soportados
-  Future<List<String>> getSupportedLanguages();
-}
-
-/// Servicio de IA conversacional para generar respuestas
-abstract interface class IVoiceAiService {
-  /// Envía un mensaje y recibe una respuesta
-  Future<String> sendMessage({
-    required String message,
-    List<Map<String, String>>? conversationHistory,
-    Map<String, dynamic>? options,
-  });
-
-  /// Verifica si el servicio está disponible
-  bool get isAvailable;
-
-  /// Obtiene los modelos disponibles
-  Future<List<String>> getAvailableModels();
-}
+// Nota: Las interfaces IVoiceSttService, IVoiceTtsService e IVoiceAiService
+// fueron eliminadas para reducir sobre-abstracción. Se usan directamente:
+// - ISttService de core/interfaces/i_stt_service.dart
+// - ITtsService de core/interfaces/tts_service.dart
+// - IAIService de core/interfaces/ai_service.dart
 
 /// Cliente de tiempo real para comunicación bidireccional
 abstract interface class IRealtimeVoiceClient {
   /// Conecta al servicio de tiempo real
-  Future<void> connect({
-    required String systemPrompt,
-    String voice = 'default',
-    Map<String, dynamic>? options,
-  });
+  Future<void> connect({required String systemPrompt, String voice = 'default', Map<String, dynamic>? options});
 
   /// Desconecta del servicio
   Future<void> disconnect();

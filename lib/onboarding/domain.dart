@@ -1,7 +1,7 @@
 // Onboarding Domain Layer Barrel Export
 
-// Models
-export 'domain/models/ai_chan_profile.dart';
+// Models - use canonical version from core
+export 'package:ai_chan/core/models/ai_chan_profile.dart';
 
 // Interfaces - moved to core/interfaces/
 
