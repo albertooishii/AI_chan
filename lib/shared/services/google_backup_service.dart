@@ -311,8 +311,29 @@ class GoogleBackupService {
     // being created on desktop and reduces race conditions when callers
     // re-open the dialog rapidly.
     if (_inflightLinkCompleter != null) {
-      Log.d('GoogleBackupService.linkAccount: awaiting existing in-flight link', tag: 'GoogleBackup');
-      return _inflightLinkCompleter!.future;
+      // If callers explicitly request the google_sign_in path on Android,
+      // allow starting a fresh interactive flow even if another flow is
+      // marked in-flight. This covers the UX case where the native chooser
+      // needs to be re-opened after the dialog was closed. For other
+      // platforms or when not forcing google_sign_in, await the existing
+      // in-flight completer to avoid creating multiple concurrent loopback
+      // servers on desktop.
+      try {
+        if (forceUseGoogleSignIn && !kIsWeb && Platform.isAndroid) {
+          Log.d(
+            'GoogleBackupService.linkAccount: forceUseGoogleSignIn on Android - starting new flow',
+            tag: 'GoogleBackup',
+          );
+          // fall-through to start a new flow
+        } else {
+          Log.d('GoogleBackupService.linkAccount: awaiting existing in-flight link', tag: 'GoogleBackup');
+          return _inflightLinkCompleter!.future;
+        }
+      } catch (_) {
+        // If platform checks fail for any reason, conservatively await
+        // the existing flow.
+        return _inflightLinkCompleter!.future;
+      }
     }
 
     _inflightLinkCompleter = Completer<Map<String, dynamic>>();
@@ -348,6 +369,12 @@ class GoogleBackupService {
             'GoogleBackupService.linkAccount: stored credentials found, returning cached token',
             tag: 'GoogleBackup',
           );
+          // Complete the inflight completer so subsequent callers awaiting
+          // the in-flight flow do not hang. Then clear it.
+          try {
+            _inflightLinkCompleter?.complete(stored);
+          } catch (_) {}
+          _inflightLinkCompleter = null;
           return stored;
         }
       }
@@ -362,6 +389,12 @@ class GoogleBackupService {
         );
         if (tokenMap['access_token'] != null) {
           await _persistCredentialsSecure(tokenMap);
+          // Ensure any awaiters on the inflight completer get the result and
+          // the completer is cleared so future flows can start immediately.
+          try {
+            _inflightLinkCompleter?.complete(tokenMap);
+          } catch (_) {}
+          _inflightLinkCompleter = null;
           return tokenMap;
         }
       }
@@ -400,6 +433,10 @@ class GoogleBackupService {
           final tokenMap = await authenticateWithAppAuth(clientId: desktopCid, redirectUri: null, scopes: usedScopes);
           if (tokenMap['access_token'] != null) {
             await _persistCredentialsSecure(tokenMap);
+            try {
+              _inflightLinkCompleter?.complete(tokenMap);
+            } catch (_) {}
+            _inflightLinkCompleter = null;
             return tokenMap;
           }
         } catch (e, st) {

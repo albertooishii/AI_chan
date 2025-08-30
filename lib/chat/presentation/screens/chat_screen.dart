@@ -588,53 +588,17 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                 ),
               ),
-              // Google Drive: show linked status like Onboarding
-              if (!chatProvider.googleLinked)
-                PopupMenuItem<String>(
-                  value: 'backup_google',
-                  child: Row(
-                    children: const [
-                      Icon(Icons.add_to_drive, size: 20, color: AppColors.primary),
-                      SizedBox(width: 8),
-                      Text('Copia de seguridad en Google Drive', style: TextStyle(color: AppColors.primary)),
-                    ],
-                  ),
-                )
-              else
-                PopupMenuItem<String>(
-                  value: 'backup_status',
-                  child: Row(
-                    children: [
-                      if (chatProvider.googleAvatarUrl != null && chatProvider.googleAvatarUrl!.isNotEmpty)
-                        CircleAvatar(radius: 16, backgroundImage: NetworkImage(chatProvider.googleAvatarUrl!))
-                      else
-                        const Icon(Icons.account_circle, size: 28, color: AppColors.primary),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (chatProvider.googleName != null && chatProvider.googleName!.isNotEmpty)
-                              Text(
-                                chatProvider.googleName!,
-                                style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            const SizedBox(height: 4),
-                            Text(
-                              chatProvider.googleEmail ?? 'Cuenta Google',
-                              style: const TextStyle(color: AppColors.secondary, fontSize: 12),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+              // Google Drive menu entry: always show a simple label (no avatar/email)
+              PopupMenuItem<String>(
+                value: chatProvider.googleLinked ? 'backup_status' : 'backup_google',
+                child: Row(
+                  children: const [
+                    Icon(Icons.add_to_drive, size: 20, color: AppColors.primary),
+                    SizedBox(width: 8),
+                    Text('Copia de seguridad en Google Drive', style: TextStyle(color: AppColors.primary)),
+                  ],
                 ),
+              ),
               const PopupMenuDivider(),
               // Debug: Vista previa JSON
               PopupMenuItem<String>(
@@ -723,24 +687,21 @@ class _ChatScreenState extends State<ChatScreen> {
                 await showAppDialog<void>(
                   builder: (ctx) => AlertDialog(
                     backgroundColor: Colors.black,
-                    content: SizedBox(
-                      width: 560,
-                      child: LocalBackupDialog(
-                        requestExportJson: () async {
-                          return await BackupUtils.exportChatPartsToJson(
-                            profile: widget.chatProvider.onboardingData,
-                            messages: widget.chatProvider.messages,
-                            events: widget.chatProvider.events,
-                          );
-                        },
-                        onImportedJson: (imported) async {
-                          await widget.chatProvider.applyImportedChat(imported);
-                          if (mounted) setState(() {});
-                        },
-                        onImportError: (err) {
-                          showErrorDialog(err);
-                        },
-                      ),
+                    content: LocalBackupDialog(
+                      requestExportJson: () async {
+                        return await BackupUtils.exportChatPartsToJson(
+                          profile: widget.chatProvider.onboardingData,
+                          messages: widget.chatProvider.messages,
+                          events: widget.chatProvider.events,
+                        );
+                      },
+                      onImportedJson: (imported) async {
+                        await widget.chatProvider.applyImportedChat(imported);
+                        if (mounted) setState(() {});
+                      },
+                      onImportError: (err) {
+                        showErrorDialog(err);
+                      },
                     ),
                   ),
                 );
@@ -871,32 +832,29 @@ class _ChatScreenState extends State<ChatScreen> {
                 await showAppDialog<void>(
                   builder: (ctx) => AlertDialog(
                     backgroundColor: Colors.black,
-                    content: SizedBox(
-                      width: 560,
-                      child: GoogleDriveBackupDialog(
-                        clientId: 'YOUR_GOOGLE_CLIENT_ID',
-                        requestBackupJson: () async => await BackupUtils.exportChatPartsToJson(
-                          profile: chatProvider.onboardingData,
-                          messages: chatProvider.messages,
-                          events: chatProvider.events,
-                        ),
-                        onImportedJson: (jsonStr) async {
-                          final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
-                          if (imported != null) {
-                            await widget.chatProvider.applyImportedChat(imported);
-                          }
-                        },
-                        onAccountInfoUpdated:
-                            ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
-                              await chatProvider.updateGoogleAccountInfo(
-                                email: email,
-                                avatarUrl: avatarUrl,
-                                name: name,
-                                linked: linked,
-                              );
-                            },
-                        onClearAccountInfo: () => chatProvider.clearGoogleAccountInfo(),
+                    content: GoogleDriveBackupDialog(
+                      clientId: 'YOUR_GOOGLE_CLIENT_ID',
+                      requestBackupJson: () async => await BackupUtils.exportChatPartsToJson(
+                        profile: chatProvider.onboardingData,
+                        messages: chatProvider.messages,
+                        events: chatProvider.events,
                       ),
+                      onImportedJson: (jsonStr) async {
+                        final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
+                        if (imported != null) {
+                          await widget.chatProvider.applyImportedChat(imported);
+                        }
+                      },
+                      onAccountInfoUpdated:
+                          ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
+                            await chatProvider.updateGoogleAccountInfo(
+                              email: email,
+                              avatarUrl: avatarUrl,
+                              name: name,
+                              linked: linked,
+                            );
+                          },
+                      onClearAccountInfo: () => chatProvider.clearGoogleAccountInfo(),
                     ),
                   ),
                 );
@@ -907,32 +865,29 @@ class _ChatScreenState extends State<ChatScreen> {
                 await showAppDialog<void>(
                   builder: (ctx) => AlertDialog(
                     backgroundColor: Colors.black,
-                    content: SizedBox(
-                      width: 560,
-                      child: GoogleDriveBackupDialog(
-                        clientId: 'YOUR_GOOGLE_CLIENT_ID',
-                        requestBackupJson: () async => await BackupUtils.exportChatPartsToJson(
-                          profile: widget.chatProvider.onboardingData,
-                          messages: widget.chatProvider.messages,
-                          events: widget.chatProvider.events,
-                        ),
-                        onImportedJson: (jsonStr) async {
-                          final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
-                          if (imported != null) {
-                            await widget.chatProvider.applyImportedChat(imported);
-                          }
-                        },
-                        onAccountInfoUpdated:
-                            ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
-                              await widget.chatProvider.updateGoogleAccountInfo(
-                                email: email,
-                                avatarUrl: avatarUrl,
-                                name: name,
-                                linked: linked,
-                              );
-                            },
-                        onClearAccountInfo: () => widget.chatProvider.clearGoogleAccountInfo(),
+                    content: GoogleDriveBackupDialog(
+                      clientId: 'YOUR_GOOGLE_CLIENT_ID',
+                      requestBackupJson: () async => await BackupUtils.exportChatPartsToJson(
+                        profile: widget.chatProvider.onboardingData,
+                        messages: widget.chatProvider.messages,
+                        events: widget.chatProvider.events,
                       ),
+                      onImportedJson: (jsonStr) async {
+                        final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
+                        if (imported != null) {
+                          await widget.chatProvider.applyImportedChat(imported);
+                        }
+                      },
+                      onAccountInfoUpdated:
+                          ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
+                            await widget.chatProvider.updateGoogleAccountInfo(
+                              email: email,
+                              avatarUrl: avatarUrl,
+                              name: name,
+                              linked: linked,
+                            );
+                          },
+                      onClearAccountInfo: () => chatProvider.clearGoogleAccountInfo(),
                     ),
                   ),
                 );

@@ -206,9 +206,30 @@ Future<T?> showAppDialog<T>({
   final navState = navigatorKey.currentState;
   if (navState == null) return Future.value(null);
   final ctx = navState.overlay?.context ?? navState.context;
+  // Wrap the caller's builder result in a Theme that sets a tighter
+  // dialog insetPadding so dialogs appear closer to the screen edges on
+  // small devices. This centralizes margin behavior for all dialogs shown
+  // through showAppDialog.
+  final baseTheme = Theme.of(ctx);
+  final DialogThemeData tightened = baseTheme.dialogTheme.copyWith(
+    insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+  );
+
   return showDialog<T>(
     context: ctx,
-    builder: builder,
+    builder: (dialogCtx) {
+      return Theme(
+        data: baseTheme.copyWith(dialogTheme: tightened),
+        child: Builder(
+          builder: (innerCtx) {
+            // Invoke the original builder using an inner context so the
+            // Theme we just inserted is visible to widgets that read
+            // Theme.of(context) during their build (for example AlertDialog).
+            return builder(innerCtx);
+          },
+        ),
+      );
+    },
     barrierDismissible: barrierDismissible,
     barrierColor: barrierColor,
     barrierLabel: barrierLabel,
