@@ -8,11 +8,10 @@ import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_repository.dart';
-import 'package:ai_chan/core/interfaces/ai_service.dart';
+import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/core/services/memory_summary_service.dart';
 import 'dart:io';
 import 'package:ai_chan/core/services/ia_appearance_generator.dart';
-import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/core/services/ia_avatar_generator.dart';
 import 'package:ai_chan/chat/application/utils/avatar_persist_utils.dart';
 import 'package:ai_chan/core/services/image_request_service.dart';
@@ -39,7 +38,7 @@ import 'package:ai_chan/chat/application/services/timeline_updater.dart';
 
 class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
   final IChatRepository? repository;
-  final IAIService? aiService;
+  final AIService? aiService;
   SendMessageUseCase? sendMessageUseCase;
   TtsService? ttsService;
 

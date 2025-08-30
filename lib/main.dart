@@ -16,6 +16,7 @@ import 'package:ai_chan/chat/application/utils/profile_persist_utils.dart' as pr
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:ai_chan/shared/services/firebase_init.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
@@ -27,6 +28,33 @@ Future<void> clearAppData() async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Config.initialize();
+  // Initialize Firebase early so adapters using FirebaseAuth can work.
+  // Use the helper that tries native init first and falls back to parsing
+  // google-services.json when necessary. Retry a few times to surface
+  // intermittent initialization race conditions.
+  bool firebaseReady = false;
+  const int maxAttempts = 3;
+  for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      debugPrint('firebase_init: initialize attempt $attempt/$maxAttempts');
+      final ok = await ensureFirebaseInitialized();
+      debugPrint('firebase_init: ensureFirebaseInitialized -> $ok');
+      if (ok) {
+        firebaseReady = true;
+        break;
+      }
+    } catch (e, st) {
+      debugPrint('firebase_init: exception on attempt $attempt: $e');
+      debugPrint('$st');
+    }
+    // small backoff
+    await Future.delayed(Duration(milliseconds: 200 * attempt));
+  }
+  if (!firebaseReady) {
+    debugPrint(
+      'firebase_init: WARNING - failed to initialize Firebase after $maxAttempts attempts. FirebaseAuth calls may throw CONFIGURATION_NOT_FOUND.',
+    );
+  }
   di_bootstrap.registerDefaultRealtimeClientFactories();
 
   await PrefsUtils.ensureDefaults();

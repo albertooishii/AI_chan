@@ -1,4 +1,3 @@
-// Removed local userinfo fetch imports; uses GoogleBackupService.fetchUserInfoIfTokenValid()
 import 'package:ai_chan/core/presentation/widgets/cyberpunk_button.dart';
 // onboarding_provider imported once below; avoid duplicate import
 import 'package:ai_chan/chat/application/providers/chat_provider.dart';

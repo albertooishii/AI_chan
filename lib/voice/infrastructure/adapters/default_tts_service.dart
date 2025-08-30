@@ -7,7 +7,6 @@ import 'package:ai_chan/core/interfaces/tts_service.dart';
 import 'package:ai_chan/core/infrastructure/adapters/openai_adapter.dart';
 import 'package:ai_chan/core/infrastructure/adapters/gemini_adapter.dart';
 // dotenv usage removed — use Config getters instead
-// removed unused runtime/openai imports: use OpenAIAdapter wrapper instead
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/shared/services/ai_runtime_provider.dart' as runtime_factory;

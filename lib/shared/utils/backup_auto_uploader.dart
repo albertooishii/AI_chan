@@ -62,35 +62,7 @@ class BackupAutoUploader {
             ? testTokenLoaderFactory!()
             : GoogleBackupService(accessToken: null);
 
-        var storedToken = await tokenLoader.loadStoredAccessToken();
-        if (storedToken == null || storedToken.isEmpty) {
-          // Attempt to load full stored credentials to check for a refresh_token.
-          try {
-            final creds = await tokenLoader.loadStoredCredentials();
-            final refreshToken = creds?['refresh_token'] as String?;
-            if (refreshToken != null && refreshToken.isNotEmpty) {
-              // Try to refresh using configured client id/secret via public API.
-              try {
-                final cid = await GoogleBackupService.resolveClientId('');
-                final csecret = await GoogleBackupService.resolveClientSecret();
-                if (cid.isNotEmpty) {
-                  final refreshed = await tokenLoader.refreshAccessToken(clientId: cid, clientSecret: csecret);
-                  final newAccess = refreshed['access_token'] as String?;
-                  if (newAccess != null && newAccess.isNotEmpty) {
-                    storedToken = newAccess;
-                  }
-                } else {
-                  Log.w('Automatic backup: no client id configured for refresh', tag: 'BACKUP_AUTO');
-                }
-              } catch (e) {
-                Log.w('Automatic backup: refresh attempt failed: $e', tag: 'BACKUP_AUTO');
-              }
-            }
-          } catch (e) {
-            Log.w('Automatic backup: failed loading stored credentials: $e', tag: 'BACKUP_AUTO');
-          }
-        }
-
+        final storedToken = await tokenLoader.loadStoredAccessToken();
         if (storedToken == null || storedToken.isEmpty) {
           Log.w('Automatic backup: no stored access token available; skipping upload', tag: 'BACKUP_AUTO');
           // Clean up the temp dir we created and exit early.

@@ -8,7 +8,6 @@ export 'domain/domain.dart';
 export 'infrastructure/infrastructure.dart';
 
 // Application Layer
-export 'application/application.dart';
 
 // Presentation Layer
 export 'presentation/presentation.dart';
