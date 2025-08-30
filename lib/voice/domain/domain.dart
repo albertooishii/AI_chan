@@ -7,5 +7,6 @@ export 'models/voice_provider.dart';
 // Interfaces
 export 'interfaces/voice_interfaces.dart';
 
-// Services
+// Services - consolidated from voice/domain.dart
 export 'services/voice_call_service.dart';
+export 'services/voice_call_summary_service.dart';
