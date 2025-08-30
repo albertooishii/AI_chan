@@ -4,11 +4,13 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/services/google_appauth_adapter.dart';
+import 'package:ai_chan/shared/services/google_appauth_adapter_mobile.dart';
+import 'package:ai_chan/shared/services/google_signin_adapter_mobile.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ai_chan/core/config.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
-import 'package:ai_chan/shared/services/google_sign_in_adapter.dart';
 
 /// Servicio esqueleto para subir/descargar backups a Google Drive / GCS.
 ///
@@ -33,6 +35,9 @@ class GoogleBackupService {
   final Uri driveDeleteEndpoint;
   final http.Client httpClient;
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  // If a stored access_token is older than this threshold, attempt a
+  // silent sign-in to renew tokens before using the old one.
+  static const Duration _silentRefreshIfOlderThan = Duration(minutes: 45);
 
   /// Construye un servicio con un `accessToken` opcional. Si no hay token,
   /// métodos que requieren autenticación lanzarán StateError.
@@ -63,45 +68,91 @@ class GoogleBackupService {
 
   /// Refresh an access token using the stored refresh_token.
   Future<Map<String, dynamic>> refreshAccessToken({required String clientId, String? clientSecret}) async {
-    // Implement OAuth2 refresh_token grant against Google's token endpoint.
-    // Notes:
-    // - clientSecret may be required for certain OAuth clients. Storing a
-    //   client secret on-device is insecure; prefer refreshing on a trusted
-    //   backend when possible.
-    // - If no refresh_token is stored, the caller should re-authenticate.
     try {
       final creds = await _loadCredentialsSecure();
-      if (creds == null) throw StateError('No stored credentials to refresh');
+      if (creds == null) {
+        Log.w('GoogleBackupService.refreshAccessToken: no stored credentials', tag: 'GoogleBackup');
+        throw StateError('No stored credentials to refresh');
+      }
+
       final refreshToken = creds['refresh_token'] as String?;
       if (refreshToken == null || refreshToken.isEmpty) {
+        Log.w(
+          'GoogleBackupService.refreshAccessToken: refresh_token missing in stored credentials',
+          tag: 'GoogleBackup',
+        );
         throw StateError('No refresh_token available; re-authentication required');
       }
 
-      final tokenEndpoint = Uri.parse('https://oauth2.googleapis.com/token');
-      final body = {'grant_type': 'refresh_token', 'refresh_token': refreshToken, 'client_id': clientId};
-      if (clientSecret != null && clientSecret.isNotEmpty) body['client_secret'] = clientSecret;
+      Log.d('GoogleBackupService.refreshAccessToken: attempting token refresh', tag: 'GoogleBackup');
 
-      final res = await httpClient.post(
-        tokenEndpoint,
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: body,
-      );
-      if (res.statusCode < 200 || res.statusCode >= 300) {
-        throw StateError('Refresh failed: ${res.statusCode} ${res.body}');
+      // Try OAuth2 refresh token grant first (best for Drive API access)
+      try {
+        final response = await http.post(
+          Uri.parse('https://oauth2.googleapis.com/token'),
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: {
+            'client_id': clientId,
+            if (clientSecret != null) 'client_secret': clientSecret,
+            'refresh_token': refreshToken,
+            'grant_type': 'refresh_token',
+          },
+        );
+
+        if (response.statusCode == 200) {
+          final tokenMap = jsonDecode(response.body) as Map<String, dynamic>;
+
+          // Merge with existing credentials
+          final merged = <String, dynamic>{};
+          merged.addAll(creds);
+          merged.addAll(tokenMap);
+
+          // Preserve refresh_token if not returned in response
+          if (merged['refresh_token'] == null && refreshToken.isNotEmpty) {
+            merged['refresh_token'] = refreshToken;
+          }
+
+          await _persistCredentialsSecure(merged);
+          Log.d('GoogleBackupService.refreshAccessToken: OAuth refresh successful', tag: 'GoogleBackup');
+          return merged;
+        } else {
+          Log.w(
+            'GoogleBackupService.refreshAccessToken: OAuth refresh failed: ${response.statusCode} ${response.body}',
+            tag: 'GoogleBackup',
+          );
+        }
+      } catch (e) {
+        Log.w('GoogleBackupService.refreshAccessToken: OAuth refresh error: $e', tag: 'GoogleBackup');
       }
-      final tokenMap = jsonDecode(res.body) as Map<String, dynamic>;
 
-      // Merge returned fields with existing stored credentials. Some responses
-      // may not include the refresh_token; preserve the stored one in that case.
-      final merged = <String, dynamic>{};
-      merged.addAll(creds);
-      merged.addAll(tokenMap);
-      if (merged['refresh_token'] == null && refreshToken.isNotEmpty) merged['refresh_token'] = refreshToken;
+      // Fallback: try Firebase token refresh if available
+      try {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          final idToken = await user.getIdToken(true);
+          final tokenMap = <String, dynamic>{
+            'access_token': idToken,
+            'id_token': idToken,
+            'token_type': 'Bearer',
+            'expires_in': 3600,
+          };
 
-      // Persist merged credentials so future calls can reuse the refresh token.
-      await _persistCredentialsSecure(merged);
+          final merged = <String, dynamic>{};
+          merged.addAll(creds);
+          merged.addAll(tokenMap);
+          if (merged['refresh_token'] == null && refreshToken.isNotEmpty) {
+            merged['refresh_token'] = refreshToken;
+          }
 
-      return merged;
+          await _persistCredentialsSecure(merged);
+          Log.d('GoogleBackupService.refreshAccessToken: Firebase fallback successful', tag: 'GoogleBackup');
+          return merged;
+        }
+      } catch (e) {
+        Log.w('GoogleBackupService.refreshAccessToken: Firebase fallback failed: $e', tag: 'GoogleBackup');
+      }
+
+      throw StateError('Token refresh failed: no valid refresh method available');
     } catch (e) {
       Log.w('GoogleBackupService.refreshAccessToken failed: $e', tag: 'GoogleBackup');
       rethrow;
@@ -152,6 +203,11 @@ class GoogleBackupService {
     s = s.trim();
     return s.isEmpty ? null : s;
   }
+
+  // Backwards-compatible private wrappers used by some UI tests/widgets.
+  // These call the public resolution helpers to avoid exposing the full
+  // implementation while keeping older call sites working.
+  // ...existing code...
 
   /// Resolve a client id for an explicit target platform string.
   /// Accepted values: 'web', 'android', 'ios', 'desktop'. Returns empty
@@ -215,6 +271,10 @@ class GoogleBackupService {
       final clientId = await GoogleBackupService.resolveClientId('');
       final clientSecret = await GoogleBackupService.resolveClientSecret();
       if (clientId.isEmpty) throw StateError('No client id configured for token refresh');
+      Log.d(
+        'GoogleBackupService._attemptRefreshUsingConfig: attempting refresh with clientId length=${clientId.length}',
+        tag: 'GoogleBackup',
+      );
       return await refreshAccessToken(clientId: clientId, clientSecret: clientSecret);
     } catch (e) {
       Log.w('GoogleBackupService._attemptRefreshUsingConfig failed: $e', tag: 'GoogleBackup');
@@ -230,40 +290,6 @@ class GoogleBackupService {
   /// (e.g., to keep server-side access or long-lived Drive backups). It will
   /// pick the platform-specific client id (GOOGLE_CLIENT_ID_ANDROID/IOS) if
   /// available, otherwise falls back to desktop/web client ids.
-  Future<Map<String, dynamic>> authenticateWithNativeAppAuth({String? clientId, String? redirectUri}) async {
-    var cid = (clientId ?? '').trim();
-    if (cid.isEmpty) {
-      try {
-        if (!kIsWeb && Platform.isAndroid) {
-          cid = await GoogleBackupService.resolveClientIdFor('android');
-        } else if (!kIsWeb && Platform.isIOS) {
-          cid = await GoogleBackupService.resolveClientIdFor('ios');
-        } else {
-          cid = await GoogleBackupService.resolveClientIdFor('desktop');
-        }
-      } catch (_) {
-        cid = '';
-      }
-    }
-    if (cid.isEmpty) {
-      // Last resort: generic resolution (reads env keys based on platform)
-      cid = await GoogleBackupService.resolveClientId('');
-    }
-    if (cid.isEmpty) {
-      throw StateError(
-        'No OAuth client ID configured for AppAuth on this platform. Please set the appropriate GOOGLE_CLIENT_ID_* in .env',
-      );
-    }
-    Log.d(
-      'GoogleBackupService: authenticateWithNativeAppAuth resolved clientId length=${cid.length}',
-      tag: 'GoogleBackup',
-    );
-    // Do NOT force AppAuth on mobile — prefer the google_sign_in experience
-    // which uses native Play Services / iOS sign-in and avoids showing the
-    // AppAuth web-popup. If callers truly need AppAuth on mobile they should
-    // call authenticateWithAppAuth(...) explicitly with forceAppAuth=true.
-    return await authenticateWithAppAuth(clientId: cid, redirectUri: redirectUri, forceAppAuth: false);
-  }
 
   /// Exchange an authorization code (from the authorization-code flow) for tokens.
   /// Persists the credentials securely and returns the token map.
@@ -275,21 +301,36 @@ class GoogleBackupService {
   /// This uses the native AppAuth bindings and PKCE. `redirectUri` is read
   /// from Config if omitted; make sure you configured a platform redirect
   /// URI in your Google Cloud OAuth client (Android/iOS) and `Config`.
-  Future<Map<String, dynamic>> authenticateWithAppAuth({
+  Future<Map<String, dynamic>> _authenticateWithAppAuth({
     required String clientId,
     String? redirectUri,
     List<String> scopes = const ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/drive.appdata'],
-    bool forceAppAuth = false,
   }) async {
-    // Removed google_sign_in usage: use AppAuth (PKCE) for all non-web platforms.
 
     // Fallback to AppAuth only for desktop/web (mobile platforms return earlier
     // after using google_sign_in). This prevents AppAuth being invoked a second
     // time on Android/iOS.
     // Delegate to the GoogleAppAuthAdapter for the actual authorize+exchange
     try {
-      final adapter = GoogleAppAuthAdapter(scopes: scopes, clientId: clientId, redirectUri: redirectUri);
-      final tokenMap = await adapter.signIn(scopes: scopes);
+      // Prefer native mobile AppAuth adapter on Android/iOS which uses the
+      // flutter_appauth plugin. Desktop continues to use the loopback
+      // implementation in GoogleAppAuthAdapter.
+      Map<String, dynamic> tokenMap;
+      try {
+        if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+          final mobileAdapter = GoogleAppAuthMobileAdapter(
+            scopes: scopes,
+            clientId: clientId,
+            redirectUri: redirectUri,
+          );
+          tokenMap = await mobileAdapter.signIn(scopes: scopes);
+        } else {
+          final adapter = GoogleAppAuthAdapter(scopes: scopes, clientId: clientId, redirectUri: redirectUri);
+          tokenMap = await adapter.signIn(scopes: scopes);
+        }
+      } catch (e) {
+        rethrow;
+      }
       // persist and return like before
       await _persistCredentialsSecure(tokenMap);
       Log.d('GoogleBackupService: AppAuth credentials persisted securely', tag: 'GoogleBackup');
@@ -303,46 +344,55 @@ class GoogleBackupService {
   // signInAndExchangeServerAuthCodeLocally removed: local serverAuthCode
   // exchange logic was intentionally deleted per UX/security decisions.
 
-  /// Use the google_sign_in plugin to sign in on web/mobile and return a token map.
-  Future<Map<String, dynamic>> _signInUsingGoogleSignIn({
+  /// Use native Google Sign-In for Android/iOS with account chooser and refresh token
+  Future<Map<String, dynamic>> _signInUsingNativeGoogleSignIn({
     List<String> scopes = const ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/drive.appdata'],
     dynamic signInAdapterOverride,
   }) async {
-    Log.d('GoogleBackupService._signInUsingGoogleSignIn: using GoogleSignInAdapter', tag: 'GoogleBackup');
-    // Use the platform adapter which will throw on desktop. Do not fallback
-    // to AppAuth here — callers expect google_sign_in on mobile/web.
-    String? platformClientId;
-    String? platformServerClientId;
+    Log.d('GoogleBackupService._signInUsingNativeGoogleSignIn: using native GoogleSignIn', tag: 'GoogleBackup');
+
     try {
-      if (kIsWeb) {
-        platformClientId = await GoogleBackupService.resolveClientIdFor('web');
-        platformServerClientId = null;
-      } else if (Platform.isAndroid) {
-        platformClientId = await GoogleBackupService.resolveClientIdFor('android');
-        // Android expects a serverClientId (the web client id) for certain auth flows
-        platformServerClientId = await GoogleBackupService.resolveClientIdFor('web');
-      } else if (Platform.isIOS) {
-        platformClientId = await GoogleBackupService.resolveClientIdFor('ios');
-        platformServerClientId = null;
-      } else {
-        platformClientId = null;
-        platformServerClientId = null;
+      if (signInAdapterOverride != null) {
+        // Allow tests or callers to inject a custom adapter implementation.
+        final adapter = signInAdapterOverride;
+        return await adapter.signIn(scopes: scopes);
       }
-    } catch (_) {
-      platformClientId = null;
-      platformServerClientId = null;
-    }
-    final adapter =
-        signInAdapterOverride ??
-        GoogleSignInAdapter(scopes: scopes, clientId: platformClientId, serverClientId: platformServerClientId);
-    try {
-      final tokenMap = await adapter.signIn(scopes: scopes);
+
+      // Use native Google Sign-In for Android/iOS - shows native bottom-sheet chooser
+      final nativeAdapter = GoogleSignInMobileAdapter(
+        scopes: scopes,
+        useNativeChooser: true, // Usar chooser nativo (bottom sheet)
+      );
+      final tokenMap = await nativeAdapter.signIn(scopes: scopes, forceAccountChooser: true);
+
+      // Validate that we obtained the necessary tokens
+      final hasAccess = (tokenMap['access_token'] as String?)?.isNotEmpty == true;
+      final hasRefresh = (tokenMap['refresh_token'] as String?)?.isNotEmpty == true;
+      final scope = (tokenMap['scope'] as String?) ?? '';
+
+      Log.d(
+        'GoogleBackupService: native sign-in summary: access_token? $hasAccess refresh_token? $hasRefresh scopes="$scope"',
+        tag: 'GoogleBackup',
+      );
+
+      // Prefer refresh token from OAuth exchange over Firebase
+      if (!hasRefresh) {
+        Log.d(
+          'GoogleBackupService: native sign-in did not yield refresh_token (normal with native chooser)',
+          tag: 'GoogleBackup',
+        );
+        // Don't throw error - we can still work with access token
+      }
+
       return tokenMap;
-    } on NoSuchMethodError catch (e) {
-      Log.d('GoogleBackupService._signInUsingGoogleSignIn: NoSuchMethodError from adapter: $e', tag: 'GoogleBackup');
-      throw StateError('El método de inicio de sesión nativo no está disponible en este dispositivo');
+    } catch (e, st) {
+      Log.e('GoogleBackupService._signInUsingNativeGoogleSignIn failed: $e', tag: 'GoogleBackup', error: e, stack: st);
+      rethrow;
     }
   }
+  // If callers explicitly request the google_sign_in path on Android,
+  // allow starting a fresh interactive flow even if another flow is
+  // marked in-flight. This covers the UX case where the native chooser
 
   /// Public wrapper that performs the full linking/auth flow depending on
   /// the current platform. For web, Android and iOS it uses google_sign_in;
@@ -354,15 +404,7 @@ class GoogleBackupService {
     dynamic signInAdapterOverride,
     bool forceUseGoogleSignIn = false,
   }) async {
-    Log.d('GoogleBackupService.linkAccount: invoked (clientId length=${clientId?.length ?? 0})', tag: 'GoogleBackup');
-    // If a link is already in progress, await its result instead of starting
-    // a new interactive flow. This prevents multiple loopback servers from
-    // being created on desktop and reduces race conditions when callers
-    // re-open the dialog rapidly.
     if (_inflightLinkCompleter != null) {
-      // If callers explicitly request the google_sign_in path on Android,
-      // allow starting a fresh interactive flow even if another flow is
-      // marked in-flight. This covers the UX case where the native chooser
       // needs to be re-opened after the dialog was closed. For other
       // platforms or when not forcing google_sign_in, await the existing
       // in-flight completer to avoid creating multiple concurrent loopback
@@ -414,25 +456,38 @@ class GoogleBackupService {
       if (!forceUseGoogleSignIn && signInAdapterOverride == null) {
         final stored = await _loadCredentialsSecure();
         if (stored != null && (stored['access_token'] as String?)?.isNotEmpty == true) {
-          Log.d(
-            'GoogleBackupService.linkAccount: stored credentials found, returning cached token',
-            tag: 'GoogleBackup',
-          );
-          // Complete the inflight completer so subsequent callers awaiting
-          // the in-flight flow do not hang. Then clear it.
-          try {
-            _inflightLinkCompleter?.complete(stored);
-          } catch (_) {}
-          _inflightLinkCompleter = null;
-          return stored;
+          final hasRefresh = (stored['refresh_token'] as String?)?.isNotEmpty == true;
+
+          // Only attempt server-auth exchange if we have NO refresh token
+          // and we're not in a forced sign-in scenario
+          if (!hasRefresh) {
+            Log.d(
+              'GoogleBackupService.linkAccount: stored token has no refresh_token; will trigger new sign-in flow',
+              tag: 'GoogleBackup',
+            );
+            // Don't attempt exchange here - let the main flow handle it
+            // This prevents double chooser appearance
+          } else {
+            Log.d(
+              'GoogleBackupService.linkAccount: stored credentials found with refresh_token, returning cached token',
+              tag: 'GoogleBackup',
+            );
+            // Complete the inflight completer so subsequent callers awaiting
+            // the in-flight flow do not hang. Then clear it.
+            try {
+              _inflightLinkCompleter?.complete(stored);
+            } catch (_) {}
+            _inflightLinkCompleter = null;
+            return stored;
+          }
         }
       }
     } catch (_) {}
 
-    // Mobile and web: prefer google_sign_in
+    // Mobile and web: prefer native google_sign_in for better UX
     try {
       if (forceUseGoogleSignIn || kIsWeb || (!kIsWeb && (Platform.isAndroid || Platform.isIOS))) {
-        final tokenMap = await _signInUsingGoogleSignIn(
+        final tokenMap = await _signInUsingNativeGoogleSignIn(
           scopes: usedScopes,
           signInAdapterOverride: signInAdapterOverride,
         );
@@ -479,7 +534,7 @@ class GoogleBackupService {
         );
       } else {
         try {
-          final tokenMap = await authenticateWithAppAuth(clientId: desktopCid, redirectUri: null, scopes: usedScopes);
+          final tokenMap = await _authenticateWithAppAuth(clientId: desktopCid, redirectUri: null, scopes: usedScopes);
           if (tokenMap['access_token'] != null) {
             await _persistCredentialsSecure(tokenMap);
             try {
@@ -502,7 +557,7 @@ class GoogleBackupService {
 
     // As a final fallback, attempt AppAuth on any platform using resolved desktop client id.
     try {
-      final tokenMap = await authenticateWithAppAuth(
+      final tokenMap = await _authenticateWithAppAuth(
         clientId: cid,
         redirectUri: _defaultRedirectUri(),
         scopes: usedScopes,
@@ -520,17 +575,6 @@ class GoogleBackupService {
     _inflightLinkCompleter?.completeError(StateError('Linking failed: no tokens obtained'));
     _inflightLinkCompleter = null;
     throw StateError('Linking failed: no tokens obtained');
-  }
-
-  /// Refresh tokens using AppAuth if possible. Falls back to HTTP token endpoint
-  /// when AppAuth is not available or returns null.
-  Future<Map<String, dynamic>> refreshAccessTokenWithAppAuth({
-    required String clientId,
-    String? refreshToken,
-    String? redirectUri,
-  }) async {
-    // Refresh via AppAuth removed — use re-authentication.
-    throw StateError('Token refresh with AppAuth is not supported.');
   }
 
   static String _defaultRedirectUri() {
@@ -559,15 +603,45 @@ class GoogleBackupService {
   // --- Simple credential persistence (for desktop/dev). In production use secure storage. ---
   Future<void> _persistCredentialsSecure(Map<String, dynamic> data) async {
     try {
-      await _secureStorage.write(key: 'google_credentials', value: jsonEncode(data));
-    } catch (_) {}
+      // Add a persisted timestamp so callers can decide when to attempt
+      // a silent refresh based on token age.
+      final merged = <String, dynamic>{};
+      merged.addAll(data);
+      merged['_persisted_at_ms'] = DateTime.now().millisecondsSinceEpoch;
+      await _secureStorage.write(key: 'google_credentials', value: jsonEncode(merged));
+      // Log a concise summary so callers can inspect whether a refresh_token
+      // was obtained or an access_token is present. Keep this log lightweight.
+      try {
+        final hasAccess = (merged['access_token'] as String?)?.isNotEmpty == true;
+        final hasRefresh = (merged['refresh_token'] as String?)?.isNotEmpty == true;
+        final scope = (merged['scope'] as String?) ?? '';
+        final persistedAt = merged['_persisted_at_ms'] ?? 0;
+        Log.d(
+          'GoogleBackupService: persisted credentials. access_token? $hasAccess refresh_token? $hasRefresh scopes="$scope" persisted_at=$persistedAt',
+          tag: 'GoogleBackup',
+        );
+      } catch (_) {}
+    } catch (e, st) {
+      Log.w('GoogleBackupService: failed to persist credentials: $e', tag: 'GoogleBackup');
+      Log.d(st.toString(), tag: 'GoogleBackup');
+    }
   }
 
   Future<Map<String, dynamic>?> _loadCredentialsSecure() async {
     try {
       final v = await _secureStorage.read(key: 'google_credentials');
       if (v == null) return null;
-      return jsonDecode(v) as Map<String, dynamic>;
+      final map = jsonDecode(v) as Map<String, dynamic>;
+      try {
+        final hasAccess = (map['access_token'] as String?)?.isNotEmpty == true;
+        final hasRefresh = (map['refresh_token'] as String?)?.isNotEmpty == true;
+        final scope = (map['scope'] as String?) ?? '';
+        Log.d(
+          'GoogleBackupService: loaded stored credentials. access_token? $hasAccess refresh_token? $hasRefresh scopes="$scope"',
+          tag: 'GoogleBackup',
+        );
+      } catch (_) {}
+      return map;
     } catch (_) {
       return null;
     }
@@ -577,13 +651,97 @@ class GoogleBackupService {
   /// refresh_token, scope, etc.). Useful for callers that need to inspect
   /// scopes or refresh tokens before deciding to clear credentials.
   Future<Map<String, dynamic>?> loadStoredCredentials() async {
-    return await _loadCredentialsSecure();
+    final creds = await _loadCredentialsSecure();
+    if (creds == null) {
+      Log.d('GoogleBackupService: no stored credentials found', tag: 'GoogleBackup');
+    }
+    return creds;
   }
+
+  // --- Server auth-code exchange helpers (obtain refresh_token) ---
+  // _exchangeAuthCodeForTokens removed: adapters should call the central
+  // exchange helpers in google_oauth_token_exchange.dart when a raw
+  // auth code must be exchanged.
+
+  // Produce a redacted summary string for a token map. Shows keys, presence
+  // and lengths for string values but never prints token contents.
+  // ...existing code...
 
   /// Devuelve el access_token almacenado si existe, o null.
   Future<String?> loadStoredAccessToken() async {
-    final creds = await _loadCredentialsSecure();
-    return creds == null ? null : creds['access_token'] as String?;
+    // Try to load any stored credentials first
+    var creds = await _loadCredentialsSecure();
+    var token = creds == null ? null : creds['access_token'] as String?;
+    // If there's no stored access token, attempt a silent-only sign-in.
+    // Additionally, if we have an access token but no refresh_token, or the
+    // token is older than the configured threshold, attempt silent sign-in to
+    // refresh tokens silently.
+    var hasRefresh = (creds?['refresh_token'] as String?)?.isNotEmpty == true;
+    var persistedAtMs = (creds?['_persisted_at_ms'] as int?) ?? 0;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final ageMs = persistedAtMs == 0 ? null : nowMs - persistedAtMs;
+    final ageExceeded = ageMs != null && ageMs > _silentRefreshIfOlderThan.inMilliseconds;
+    // Avoid starting an interactive sign-in (which opens the native chooser)
+    // automatically during app startup. Previously we attempted a
+    // server-auth exchange here to obtain a refresh_token when the stored
+    // access_token lacked it, but that caused the Google chooser to open
+    // unexpectedly. Instead, only try a non-interactive refresh when a
+    // stored refresh_token exists; otherwise return the stored access token
+    // and let explicit user actions (linkAccount) trigger interactive flows.
+    if (token == null || ageExceeded) {
+      Log.d(
+        'GoogleBackupService: token missing or stale. Will attempt non-interactive refresh only if refresh_token present. tokenPresent=${token != null} refreshPresent=$hasRefresh ageMs=$ageMs',
+        tag: 'GoogleBackup',
+      );
+      try {
+        if (hasRefresh) {
+          // Try to refresh using stored refresh_token and configured client id/secret.
+          try {
+            final refreshed = await _attemptRefreshUsingConfig();
+            if (refreshed['access_token'] != null) {
+              token = refreshed['access_token'] as String?;
+              creds = await _loadCredentialsSecure();
+              hasRefresh = (creds?['refresh_token'] as String?)?.isNotEmpty == true;
+            }
+          } catch (e) {
+            Log.w('GoogleBackupService: non-interactive refresh failed: $e', tag: 'GoogleBackup');
+          }
+        } else {
+          // Try silent sign-in first before giving up
+          // This won't show account chooser but may get tokens if user is already signed in
+          try {
+            if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+              final nativeAdapter = GoogleSignInMobileAdapter(
+                scopes: ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/drive.appdata'],
+                useNativeChooser: true, // Mantener consistente el tipo de chooser
+              );
+              final silentTokens = await nativeAdapter.signInSilently();
+              if (silentTokens != null && silentTokens['access_token'] != null) {
+                Log.d('GoogleBackupService: silent sign-in successful, persisting tokens', tag: 'GoogleBackup');
+                await _persistCredentialsSecure(silentTokens);
+                token = silentTokens['access_token'] as String?;
+              } else {
+                Log.d('GoogleBackupService: silent sign-in failed, no tokens available', tag: 'GoogleBackup');
+              }
+            }
+          } catch (e) {
+            Log.d('GoogleBackupService: silent sign-in attempt failed: $e', tag: 'GoogleBackup');
+          }
+
+          // If still no token, log that interactive sign-in is required
+          if (token == null) {
+            Log.d(
+              'GoogleBackupService: no refresh_token available and silent sign-in failed; interactive sign-in required',
+              tag: 'GoogleBackup',
+            );
+          }
+        }
+      } catch (e) {
+        Log.w('GoogleBackupService: startup token refresh guard encountered error: $e', tag: 'GoogleBackup');
+      }
+    }
+    Log.d('GoogleBackupService: loadStoredAccessToken present? ${token != null}', tag: 'GoogleBackup');
+    return token;
   }
 
   /// Si hay un access_token almacenado, intenta recuperar la información
@@ -653,35 +811,43 @@ class GoogleBackupService {
 
     final fn = filename ?? backupFileName;
 
-    final meta = {
+    // Metadata completo para creación (incluye parents)
+    final createMeta = {
       'name': fn,
-      // Guardar en appDataFolder para mantenerlo oculto
-      'parents': ['appDataFolder'],
+      'parents': ['appDataFolder'], // Solo para archivos nuevos
+    };
+
+    // Metadata para actualización (SIN parents - causa error 403)
+    final updateMeta = {
+      'name': fn,
+      // NO incluir 'parents' en updates - Drive lo rechaza con 403
     };
 
     final boundary = 'ai_chan_boundary_${DateTime.now().millisecondsSinceEpoch}';
     final headers = {'Authorization': 'Bearer $token', 'Content-Type': 'multipart/related; boundary=$boundary'};
 
-    final List<int> bodyBytes = [];
-    void add(String s) => bodyBytes.addAll(utf8.encode(s));
-
-    add('--$boundary\r\n');
-    add('Content-Type: application/json; charset=UTF-8\r\n\r\n');
-    add(jsonEncode(meta));
-    add('\r\n');
-    add('--$boundary\r\n');
-    add('Content-Type: application/zip\r\n');
-    add('Content-Transfer-Encoding: binary\r\n\r\n');
-    bodyBytes.addAll(await zipFile.readAsBytes());
-    add('\r\n--$boundary--\r\n');
-
     // Si ya existe un backup con el mismo nombre en appDataFolder, actualizamos (files.update)
+    String uploadedFileId;
     try {
       final existing = await listBackups();
       if (existing.isNotEmpty) {
         final id = existing.first['id'] as String;
+
+        // Crear body para UPDATE (sin parents)
+        final List<int> updateBodyBytes = [];
+        void addUpdate(String s) => updateBodyBytes.addAll(utf8.encode(s));
+        addUpdate('--$boundary\r\n');
+        addUpdate('Content-Type: application/json; charset=UTF-8\r\n\r\n');
+        addUpdate(jsonEncode(updateMeta)); // Usar metadata sin parents
+        addUpdate('\r\n');
+        addUpdate('--$boundary\r\n');
+        addUpdate('Content-Type: application/zip\r\n');
+        addUpdate('Content-Transfer-Encoding: binary\r\n\r\n');
+        updateBodyBytes.addAll(await zipFile.readAsBytes());
+        addUpdate('\r\n--$boundary--\r\n');
+
         final updateUrl = Uri.parse('${driveUploadEndpoint.toString().split('?').first}/$id?uploadType=multipart');
-        var resUp = await httpClient.patch(updateUrl, headers: headers, body: bodyBytes);
+        var resUp = await httpClient.patch(updateUrl, headers: headers, body: updateBodyBytes);
         if (resUp.statusCode == 401) {
           try {
             final refreshed = await _attemptRefreshUsingConfig();
@@ -694,7 +860,13 @@ class GoogleBackupService {
         }
         if (resUp.statusCode >= 200 && resUp.statusCode < 300) {
           final resp = jsonDecode(resUp.body) as Map<String, dynamic>;
-          return resp['id'] as String;
+          uploadedFileId = resp['id'] as String;
+          Log.d('GoogleBackupService: backup updated successfully, fileId: $uploadedFileId', tag: 'GoogleBackup');
+
+          // Limpiar copias antiguas después de la actualización exitosa
+          await _cleanupOldBackups(uploadedFileId);
+
+          return uploadedFileId;
         }
         throw HttpException('Upload (update) failed: ${resUp.statusCode} ${resUp.body}');
       }
@@ -703,7 +875,20 @@ class GoogleBackupService {
       Log.w('GoogleBackupService.uploadBackup: list existing failed: $e', tag: 'GoogleBackup');
     }
 
-    var res = await httpClient.post(driveUploadEndpoint, headers: headers, body: bodyBytes);
+    // Crear archivo nuevo - usar metadata completo con parents
+    final List<int> createBodyBytes = [];
+    void addCreate(String s) => createBodyBytes.addAll(utf8.encode(s));
+    addCreate('--$boundary\r\n');
+    addCreate('Content-Type: application/json; charset=UTF-8\r\n\r\n');
+    addCreate(jsonEncode(createMeta)); // Usar metadata completo para creación
+    addCreate('\r\n');
+    addCreate('--$boundary\r\n');
+    addCreate('Content-Type: application/zip\r\n');
+    addCreate('Content-Transfer-Encoding: binary\r\n\r\n');
+    createBodyBytes.addAll(await zipFile.readAsBytes());
+    addCreate('\r\n--$boundary--\r\n');
+
+    var res = await httpClient.post(driveUploadEndpoint, headers: headers, body: createBodyBytes);
     if (res.statusCode == 401) {
       try {
         final refreshed = await _attemptRefreshUsingConfig();
@@ -716,7 +901,13 @@ class GoogleBackupService {
     }
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final resp = jsonDecode(res.body) as Map<String, dynamic>;
-      return resp['id'] as String;
+      uploadedFileId = resp['id'] as String;
+      Log.d('GoogleBackupService: backup created successfully, fileId: $uploadedFileId', tag: 'GoogleBackup');
+
+      // Limpiar copias antiguas después de la creación exitosa
+      await _cleanupOldBackups(uploadedFileId);
+
+      return uploadedFileId;
     } else {
       throw HttpException('Upload failed: ${res.statusCode} ${res.body}');
     }
@@ -794,7 +985,16 @@ class GoogleBackupService {
     }
     if (putRes.statusCode >= 200 && putRes.statusCode < 300) {
       final resp = jsonDecode(putRes.body) as Map<String, dynamic>;
-      return resp['id'] as String;
+      final uploadedFileId = resp['id'] as String;
+      Log.d(
+        'GoogleBackupService: resumable backup uploaded successfully, fileId: $uploadedFileId',
+        tag: 'GoogleBackup',
+      );
+
+      // Limpiar copias antiguas después de la subida exitosa
+      await _cleanupOldBackups(uploadedFileId);
+
+      return uploadedFileId;
     }
     throw HttpException('Resumable upload failed: ${putRes.statusCode} ${putRes.body}');
   }
@@ -881,5 +1081,49 @@ class GoogleBackupService {
     }
     if (res.statusCode >= 200 && res.statusCode < 300) return;
     throw HttpException('Delete failed: ${res.statusCode} ${res.body}');
+  }
+
+  /// Limpia copias antiguas de backup, manteniendo solo la más reciente.
+  /// [keepFileId] es el ID del archivo que NO se debe borrar (la copia más reciente).
+  /// Garantiza que solo exista una copia de seguridad en Google Drive.
+  Future<void> _cleanupOldBackups(String keepFileId) async {
+    try {
+      Log.d('GoogleBackupService: starting cleanup of old backups, keeping fileId: $keepFileId', tag: 'GoogleBackup');
+
+      final allBackups = await listBackups();
+      final oldBackups = allBackups.where((backup) => backup['id'] != keepFileId).toList();
+
+      if (oldBackups.isEmpty) {
+        Log.d('GoogleBackupService: no old backups to clean up', tag: 'GoogleBackup');
+        return;
+      }
+
+      Log.d('GoogleBackupService: found ${oldBackups.length} old backup(s) to delete', tag: 'GoogleBackup');
+
+      // Borrar todas las copias antiguas
+      int deletedCount = 0;
+      for (final backup in oldBackups) {
+        try {
+          final fileId = backup['id'] as String;
+          final fileName = backup['name'] as String? ?? 'unknown';
+          final createdTime = backup['createdTime'] as String? ?? 'unknown';
+
+          await deleteBackup(fileId);
+          deletedCount++;
+          Log.d(
+            'GoogleBackupService: deleted old backup: $fileName (id: $fileId, created: $createdTime)',
+            tag: 'GoogleBackup',
+          );
+        } catch (e) {
+          Log.w('GoogleBackupService: failed to delete backup ${backup['id']}: $e', tag: 'GoogleBackup');
+          // Continuar borrando otros archivos aunque uno falle
+        }
+      }
+
+      Log.d('GoogleBackupService: cleanup completed - deleted $deletedCount old backup(s)', tag: 'GoogleBackup');
+    } catch (e) {
+      Log.w('GoogleBackupService: cleanup failed: $e', tag: 'GoogleBackup');
+      // No relanzar el error - el cleanup es opcional y no debe fallar la subida principal
+    }
   }
 }

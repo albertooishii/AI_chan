@@ -72,4 +72,8 @@
 
         <!-- flutter_callkit_incoming eliminado: solo UI personalizada -->
     </application>
+    <!-- Allow querying Google Services for sign-in -->
+    <queries>
+        <package android:name="com.google.android.gms" />
+    </queries>
 </manifest>

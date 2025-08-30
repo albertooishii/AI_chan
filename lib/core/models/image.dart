@@ -40,8 +40,6 @@ class AiImage {
     );
   }
 
-  // Legacy compatibility removed: use `fromJson` instead of legacy shims.
 }
 
-// Deprecated: previously provided a typedef `Image = AiImage` for compatibility.
 // It was removed to avoid ambiguity with Flutter's Image widget. Use `AiImage` explicitly.

@@ -1,5 +1,4 @@
 // Shared Utils Barrel Export
-// Generated as part of DDD + Hexagonal Architecture migration
 
 export 'utils/audio_utils.dart';
 export 'utils/cache_utils.dart';

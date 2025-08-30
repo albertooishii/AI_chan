@@ -2,12 +2,8 @@
 // Repositories
 export 'repositories/local_voice_call_repository.dart';
 
-// Adapters
-export 'adapters/voice_stt_adapter.dart';
-export 'adapters/voice_tts_adapter.dart';
-export 'adapters/voice_ai_adapter.dart';
+// Adapters - simplified (removed voice adapters)
 export 'adapters/voice_call_controller.dart';
-export 'adapters/voice_call_summary_service.dart';
 export 'adapters/subtitle_controller.dart';
 export 'adapters/tone_service.dart';
 export 'adapters/google_speech_service.dart';

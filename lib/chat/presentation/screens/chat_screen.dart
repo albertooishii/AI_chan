@@ -340,8 +340,6 @@ class _ChatScreenState extends State<ChatScreen> {
     showErrorDialog(error);
   }
 
-  // Removed local _regenerateAppearanceOnce; use ChatProvider.createAvatarFromAppearance instead.
-  // Removed local _regenerateAppearanceOnce; use ChatProvider.createAvatarFromAppearance instead.
 
   @override
   Widget build(BuildContext context) {

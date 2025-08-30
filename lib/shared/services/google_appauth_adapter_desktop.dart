@@ -5,6 +5,9 @@ import 'dart:math';
 
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:http/http.dart' as http;
+// token exchange now handled inline or via Firebase; helper removed
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:crypto/crypto.dart';
 
@@ -154,7 +157,20 @@ class GoogleAppAuthAdapter {
 
     // Exchange code for tokens via HTTP POST
     try {
-      final tokenEndpoint = Uri.parse('https://oauth2.googleapis.com/token');
+      String? clientSecret;
+      try {
+        clientSecret = Config.get('GOOGLE_CLIENT_SECRET_DESKTOP', '').trim();
+        if (clientSecret.isEmpty) clientSecret = Config.get('GOOGLE_CLIENT_SECRET_WEB', '').trim();
+        if (clientSecret.isEmpty) clientSecret = null;
+        if (clientSecret != null) {
+          Log.d('GoogleAppAuthAdapter: included client_secret in token request (masked)', tag: 'GoogleAppAuth');
+        }
+      } catch (_) {
+        clientSecret = null;
+      }
+
+      // Exchange authorization code for tokens via Google's token endpoint.
+      final tokenUrl = Uri.parse('https://oauth2.googleapis.com/token');
       final body = {
         'grant_type': 'authorization_code',
         'code': code,
@@ -162,32 +178,32 @@ class GoogleAppAuthAdapter {
         'redirect_uri': authRedirect.toString(),
         'code_verifier': codeVerifier,
       };
-      // Optionally include client_secret if the OAuth client requires it
-      try {
-        var clientSecret = Config.get('GOOGLE_CLIENT_SECRET_DESKTOP', '').trim();
-        if (clientSecret.isEmpty) {
-          clientSecret = Config.get('GOOGLE_CLIENT_SECRET_WEB', '').trim();
-        }
-        if (clientSecret.isNotEmpty) {
-          body['client_secret'] = clientSecret;
-          Log.d('GoogleAppAuthAdapter: included client_secret in token request (masked)', tag: 'GoogleAppAuth');
-        }
-      } catch (_) {}
-      final req = await HttpClient().postUrl(tokenEndpoint);
-      req.headers.contentType = ContentType('application', 'x-www-form-urlencoded');
-      req.write(
-        body.keys.map((k) => '${Uri.encodeQueryComponent(k)}=${Uri.encodeQueryComponent(body[k] ?? '')}').join('&'),
+      if (clientSecret != null && clientSecret.isNotEmpty) body['client_secret'] = clientSecret;
+      final tokenRes = await http.post(
+        tokenUrl,
+        headers: {'content-type': 'application/x-www-form-urlencoded'},
+        body: body,
       );
-      final resp = await req.close();
-      final respBody = await resp.transform(utf8.decoder).join();
-      if (resp.statusCode < 200 || resp.statusCode >= 300) {
-        Log.e('GoogleAppAuthAdapter: token exchange failed ${resp.statusCode} $respBody', tag: 'GoogleAppAuth');
-        throw StateError('Token exchange failed: ${resp.statusCode}');
+      if (tokenRes.statusCode < 200 || tokenRes.statusCode >= 300) {
+        throw StateError('Token exchange failed: ${tokenRes.statusCode} ${tokenRes.body}');
       }
-      final map = jsonDecode(respBody) as Map<String, dynamic>;
-      // Close loopback
+      final map = Map<String, dynamic>.of(jsonDecode(tokenRes.body));
       try {
         await server.close(force: true);
+      } catch (_) {}
+      // Use Firebase to sign in with the obtained id_token/access_token so
+      // Firebase can provide a refresh_token which we include in the returned map.
+      try {
+        final idToken = map['id_token'] as String?;
+        final accessToken = map['access_token'] as String?;
+        if (idToken != null || accessToken != null) {
+          final credential = GoogleAuthProvider.credential(idToken: idToken, accessToken: accessToken);
+          final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+          final refreshToken = userCred.user?.refreshToken;
+          if (refreshToken != null && refreshToken.isNotEmpty) {
+            map['refresh_token'] = refreshToken;
+          }
+        }
       } catch (_) {}
       return map;
     } catch (e, st) {

@@ -37,6 +37,8 @@ dependencies:
   intl: ^0.20.2
   table_calendar: ^3.1.2
   shared_preferences: ^2.2.2
+  firebase_auth: ^6.0.1
+  firebase_core: ^4.0.0
   flutter_localizations:
     sdk: flutter
   cupertino_icons: ^1.0.8
@@ -58,7 +60,7 @@ dependencies:
   url_launcher: ^6.1.10
   qr_flutter: ^4.0.0
   flutter_appauth: ^9.0.1
-  google_sign_in: ^7.1.1
+  google_sign_in: ^6.2.1
   # image_picker: ^1.1.2
   characters: ^1.4.0
   emoji_picker_flutter: ^4.3.0
