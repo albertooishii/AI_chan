@@ -1,12 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/voice/infrastructure/adapters/voice_call_controller.dart';
 import 'fakes/fake_voice_services.dart';
+import 'test_setup.dart';
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
   group('DSP regression safety', () {
-    test('key DSP params remain stable', () {
+    test('key DSP params remain stable', () async {
+      // Initialize test environment with mocked audio playback
+      await initializeTestEnvironment();
+      
       final fakeAi = FakeCallsAiService();
       final c = VoiceCallController(aiService: fakeAi);
 

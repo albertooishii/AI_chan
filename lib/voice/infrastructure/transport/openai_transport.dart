@@ -3,12 +3,12 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:ai_chan/core/network_connectors.dart';
-import 'realtime_transport.dart';
 import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/voice/domain/interfaces/realtime_transport_service.dart';
 
 /// Skeleton OpenAI transport: handles WebSocket connection and forwards raw
 /// messages to the adapter via onMessage/onError/onDone callbacks.
-class OpenAITransport implements RealtimeTransport {
+class OpenAITransport implements RealtimeTransportService {
   final String model;
   WsChannel? _channel;
   bool _connected = false;
@@ -87,6 +87,7 @@ class OpenAITransport implements RealtimeTransport {
     }
   }
 
+  @override
   @override
   Future<void> commitAudio() async {
     if (!_connected) return;

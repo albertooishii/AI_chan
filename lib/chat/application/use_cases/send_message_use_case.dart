@@ -1,23 +1,31 @@
 import 'package:ai_chan/chat/domain/models/chat_result.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/shared/services/ai_service.dart' show AIService;
 import 'package:ai_chan/shared/domain/services/event_timeline_service.dart';
-import 'package:ai_chan/shared/utils/image_utils.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/core/config.dart';
 
+// Import new services
+import '../services/message_retry_service.dart';
+import '../services/message_image_processing_service.dart';
+import '../services/message_audio_processing_service.dart';
+import '../services/message_sanitization_service.dart';
+
 /// Send Message Use Case - Chat Application Layer
-/// Orquesta el proceso completo de envío de mensaje incluyendo:
-/// - Validación del mensaje
-/// - Adición a la conversación
-/// - Procesamiento de respuesta de IA
-/// - Actualización de estado
-/// Caso de uso ligero para encapsular la llamada al servicio de respuesta.
-/// La intención es mantener aquí la construcción del payload y el mapeo
-/// del resultado a un `ChatResult`. La lógica de estado UI y persistencia
-/// permanece en `ChatProvider`.
+/// Orquesta el proceso completo de envío de mensaje usando servicios especializados
 class SendMessageUseCase {
-  SendMessageUseCase();
+  final MessageRetryService _retryService;
+  final MessageImageProcessingService _imageService;
+  final MessageAudioProcessingService _audioService;
+  final MessageSanitizationService _sanitizationService;
+
+  SendMessageUseCase({
+    MessageRetryService? retryService,
+    MessageImageProcessingService? imageService,
+    MessageAudioProcessingService? audioService,
+    MessageSanitizationService? sanitizationService,
+  }) : _retryService = retryService ?? MessageRetryService(),
+       _imageService = imageService ?? MessageImageProcessingService(),
+       _audioService = audioService ?? MessageAudioProcessingService(),
+       _sanitizationService = sanitizationService ?? MessageSanitizationService();
 
   Future<SendMessageOutcome> sendChat({
     required List<Message> recentMessages,
@@ -29,7 +37,64 @@ class SendMessageUseCase {
     AiChanProfile? onboardingData,
     Future<void> Function()? saveAll,
   }) async {
-    final msgs = recentMessages
+    // Convert messages to history format
+    final history = _buildMessageHistory(recentMessages);
+
+    // Handle image generation model switching
+    String selectedModel = await _selectOptimalModel(model, enableImageGeneration);
+
+    // Send message with retry logic
+    final response = await _retryService.sendWithRetries(
+      history: history,
+      systemPrompt: systemPromptObj,
+      model: selectedModel,
+      imageBase64: imageBase64,
+      imageMimeType: imageMimeType,
+      enableImageGeneration: enableImageGeneration,
+    );
+
+    // Handle failed responses
+    if (!_retryService.hasValidText(response) || !_retryService.hasValidAllowedTagsStructure(response.text)) {
+      return _handleFailedResponse(response, selectedModel);
+    }
+
+    // Process image response
+    final imageResult = await _imageService.processImageResponse(response);
+
+    // Sanitize text content
+    String processedText = _imageService.sanitizeImageUrls(imageResult.processedText);
+
+    // Process audio tags
+    final audioResult = _audioService.processAudioTags(processedText);
+
+    // Build final result
+    final chatResult = ChatResult(
+      text: audioResult.cleanedText,
+      isImage: imageResult.isImage,
+      imagePath: imageResult.imagePath,
+      prompt: response.prompt,
+      seed: response.seed,
+      finalModelUsed: selectedModel,
+    );
+
+    final assistantMessage = _buildAssistantMessage(chatResult);
+
+    // Handle event processing if onboarding data provided
+    AiChanProfile? updatedProfile;
+    if (onboardingData != null) {
+      updatedProfile = await _processEvents(recentMessages, chatResult, onboardingData, saveAll);
+    }
+
+    return SendMessageOutcome(
+      result: chatResult,
+      assistantMessage: assistantMessage,
+      ttsRequested: audioResult.ttsRequested,
+      updatedProfile: updatedProfile,
+    );
+  }
+
+  List<Map<String, String>> _buildMessageHistory(List<Message> messages) {
+    return messages
         .map(
           (m) => {
             'role': m.sender == MessageSender.user
@@ -40,293 +105,79 @@ class SendMessageUseCase {
           },
         )
         .toList();
+  }
 
-    // Preserve retries, image-detection and sanitization behavior when calling AIService.
-    final RegExp imageGenPattern = RegExp(r'tools.*(image_generation|Image Generation)', caseSensitive: false);
-    final RegExp markdownImagePattern = RegExp(r'!\[.*?\]\((https?:\/\/.*?)\)');
-    final RegExp urlInTextPattern = RegExp(r'https?:\/\/\S+\.(jpg|jpeg|png|webp|gif)');
-
-    int extractWaitSeconds(String text) {
-      final regex = RegExp(r'try again in ([\d\.]+)s');
-      final match = regex.firstMatch(text);
-      if (match != null && match.groupCount > 0) {
-        return double.tryParse(match.group(1) ?? '8')?.round() ?? 8;
-      }
-      return 8;
-    }
-
-    bool hasValidText(AIResponse r) {
-      final t = r.text.trim();
-      if (t.isEmpty) return r.base64.isNotEmpty; // allow only image
-      final lower = t.toLowerCase();
-      if (lower.contains('error al conectar con la ia')) return false;
-      if (lower.contains('"error"')) return false;
-      return true;
-    }
-
-    bool hasValidAllowedTagsStructure(String text) {
-      final trimmed = text.trim();
-      if (trimmed.isEmpty) return true;
-      final tagToken = RegExp(r'\[/?([a-zA-Z0-9_]+)\]');
-      final matches = tagToken.allMatches(trimmed).toList();
-      final allowed = {'audio', 'img_caption', 'call', 'end_call', 'no_reply'};
-      final tokens = <String>[];
-      for (final m in matches) {
-        final name = m.group(1);
-        if (name == null) continue;
-        tokens.add(name.toLowerCase());
-      }
-      for (final tk in tokens) {
-        if (!allowed.contains(tk)) return false;
-      }
-      if (trimmed.contains('[call]') || trimmed.contains('[end_call]')) {
-        final simpleTagPattern = RegExp(r'^\s*(\[(?:call|end_call)\]\s*\[/(?:call|end_call)\])\s*$');
-        if (!simpleTagPattern.hasMatch(trimmed)) return false;
-        return true;
-      }
-      final imgCaptionOpen = '[img_caption]';
-      final imgCaptionClose = '[/img_caption]';
-      if (trimmed.contains(imgCaptionOpen)) {
-        final firstIdx = trimmed.indexOf(imgCaptionOpen);
-        if (firstIdx != 0) return false;
-        final closeIdx = trimmed.indexOf(imgCaptionClose, firstIdx + imgCaptionOpen.length);
-        if (closeIdx < 0) return false;
-        final after = trimmed.substring(closeIdx + imgCaptionClose.length).trimLeft();
-        if (after.contains(imgCaptionOpen)) return false;
-      }
-      final audioOpen = '[audio]';
-      final audioClose = '[/audio]';
-      if (trimmed.contains(audioOpen)) {
-        final openIdx = trimmed.indexOf(audioOpen);
-        final closeIdx = trimmed.indexOf(audioClose, openIdx + audioOpen.length);
-        if (closeIdx < 0) return false;
-        final inner = trimmed.substring(openIdx + audioOpen.length, closeIdx).trim();
-        if (inner.isEmpty) return false;
-        if (inner.startsWith('[')) return false;
-        final afterAudio = trimmed.substring(closeIdx + audioClose.length);
-        if (afterAudio.contains(audioOpen)) return false;
-      }
-      bool balanced(String name) {
-        final openCount = RegExp('\\[$name\\]').allMatches(trimmed).length;
-        final closeCount = RegExp('\\[/$name\\]').allMatches(trimmed).length;
-        return openCount == closeCount;
-      }
-
-      for (final name in ['audio', 'img_caption']) {
-        if (!balanced(name)) return false;
-      }
-      return true;
-    }
-
-    // Map msgs to history required by AIService (List<Map<String,String>>)
-    final history = msgs
-        .map<Map<String, String>>((m) => {'role': m['role']!, 'content': m['content']!, 'datetime': m['datetime']!})
-        .toList();
-
+  Future<String> _selectOptimalModel(String model, bool enableImageGeneration) async {
     String selected = model;
-    AIResponse response = await AIService.sendMessage(
-      history,
-      systemPromptObj,
-      model: selected,
-      imageBase64: imageBase64,
-      imageMimeType: imageMimeType,
-      enableImageGeneration: enableImageGeneration,
-    );
 
-    // If the response suggests tool image_generation and model isn't GPT/Gemini, re-send with default image model
-    if (imageGenPattern.hasMatch(response.text)) {
+    // Check if we need to switch to image-capable model
+    if (enableImageGeneration) {
       final lower = selected.toLowerCase();
       final isGpt = lower.startsWith('gpt-');
       final isGemini = lower.startsWith('gemini-');
       if (!isGpt && !isGemini) {
-        final cfgModel = Config.requireDefaultImageModel();
-        selected = cfgModel;
-        response = await AIService.sendMessage(
-          history,
-          systemPromptObj,
-          model: selected,
-          imageBase64: imageBase64,
-          imageMimeType: imageMimeType,
-          enableImageGeneration: true,
-        );
+        selected = Config.requireDefaultImageModel();
       }
     }
 
-    int retry = 0;
-    while ((!hasValidText(response) || !hasValidAllowedTagsStructure(response.text)) && retry < 3) {
-      final waitSeconds = extractWaitSeconds(response.text);
-      await Future.delayed(Duration(seconds: waitSeconds));
-      response = await AIService.sendMessage(
-        history,
-        systemPromptObj,
-        model: selected,
-        imageBase64: imageBase64,
-        imageMimeType: imageMimeType,
-        enableImageGeneration: enableImageGeneration,
-      );
-      retry++;
+    return selected;
+  }
+
+  SendMessageOutcome _handleFailedResponse(AIResponse response, String model) {
+    // Check for API errors that should throw exceptions
+    if (_sanitizationService.isApiError(response.text)) {
+      throw Exception('API Error: ${response.text}');
     }
 
-    if (!hasValidText(response) || !hasValidAllowedTagsStructure(response.text)) {
-      // Detectar si es un error de API que debería marcar el mensaje como failed
-      final errorPatterns = [
-        RegExp(r'error.*\d{3}'), // Errores HTTP con códigos
-        RegExp(r'unknown variant'), // Errores de deserialización
-        RegExp(r'failed to deserialize'), // Errores de JSON
-        RegExp(r'invalid.*request'), // Solicitudes inválidas
-        RegExp(r'unauthorized'), // No autorizado
-        RegExp(r'forbidden'), // Prohibido
-        RegExp(r'rate limit'), // Límite de tasa
-        RegExp(r'quota exceeded'), // Cuota excedida
-        RegExp(r'insufficient.*funds'), // Fondos insuficientes
-      ];
-
-      bool isApiError = errorPatterns.any((pattern) => pattern.hasMatch(response.text.toLowerCase()));
-
-      if (isApiError) {
-        // Lanzar excepción para que sea manejada como error en ChatProvider
-        throw Exception('API Error: ${response.text}');
-      }
-
-      String sanitized = response.text;
-      sanitized = sanitized.replaceAll(RegExp(r'\[(?!/?(?:audio|img_caption|call|end_call)\b)[^\]\[]+\]'), '');
-      final chatResultFail = ChatResult(
-        text: sanitized,
-        isImage: false,
-        imagePath: null,
-        prompt: response.prompt,
-        seed: response.seed,
-        finalModelUsed: selected,
-      );
-      // Build assistantMessage and return outcome
-      final assistantMessageFail = Message(
-        text: chatResultFail.text,
-        sender: MessageSender.assistant,
-        dateTime: DateTime.now(),
-        isImage: chatResultFail.isImage,
-        image: chatResultFail.isImage
-            ? AiImage(url: chatResultFail.imagePath ?? '', seed: chatResultFail.seed, prompt: chatResultFail.prompt)
-            : null,
-        status: MessageStatus.read,
-      );
-      return SendMessageOutcome(
-        result: chatResultFail,
-        assistantMessage: assistantMessageFail,
-        ttsRequested: false,
-        updatedProfile: null,
-      );
-    }
-    bool isImageResp = response.base64.isNotEmpty;
-    String? imagePathResp;
-    String textResponse = response.text;
-
-    if (isImageResp) {
-      final urlPattern = RegExp(r'^(https?:\/\/|file:|\/|[A-Za-z]:\\)');
-      if (urlPattern.hasMatch(response.base64)) {
-        Log.e('La IA envió una URL/ruta en vez de imagen base64', tag: 'AI_CHAT_RESPONSE');
-        textResponse += '\n[ERROR: La IA envió una URL/ruta en vez de imagen. Pide la foto de nuevo.]';
-        isImageResp = false;
-      } else {
-        try {
-          imagePathResp = await saveBase64ImageToFile(response.base64, prefix: 'img');
-          if (imagePathResp == null) {
-            Log.e('No se pudo guardar la imagen localmente', tag: 'AI_CHAT_RESPONSE');
-            isImageResp = false;
-          }
-        } catch (e) {
-          Log.e('Fallo guardando imagen', tag: 'AI_CHAT_RESPONSE', error: e);
-          isImageResp = false;
-          imagePathResp = null;
-        }
-      }
-    }
-
-    if (markdownImagePattern.hasMatch(textResponse) || urlInTextPattern.hasMatch(textResponse)) {
-      Log.e('La IA envió una imagen Markdown o URL en el texto', tag: 'AI_CHAT_RESPONSE');
-      textResponse += '\n[ERROR: La IA envió una imagen como enlace o Markdown. Pide la foto de nuevo.]';
-    }
-
+    final sanitized = _sanitizationService.sanitizeMessage(response.text);
     final chatResult = ChatResult(
-      text: textResponse,
-      isImage: isImageResp,
-      imagePath: imagePathResp,
+      text: sanitized,
+      isImage: false,
+      imagePath: null,
       prompt: response.prompt,
       seed: response.seed,
-      finalModelUsed: selected,
+      finalModelUsed: model,
     );
 
-    // Detect and extract [audio]...[/audio] here so callers (providers/widgets)
-    // receive a cleaned text and a boolean flag indicating TTS is required.
-    String assistantRawText = chatResult.text;
-    final openTag = '[audio]';
-    final closeTag = '[/audio]';
-    bool ttsRequested = false;
+    final assistantMessage = _buildAssistantMessage(chatResult);
 
-    final lowerText = assistantRawText.toLowerCase();
-    final hasOpen = lowerText.contains(openTag);
-    final hasClose = lowerText.contains(closeTag);
-    if (hasOpen && hasClose) {
-      final start = lowerText.indexOf(openTag) + openTag.length;
-      final end = lowerText.indexOf(closeTag, start);
-      if (end > start) {
-        final inner = assistantRawText.substring(start, end).trim();
-        if (inner.isNotEmpty) {
-          ttsRequested = true;
-          assistantRawText = inner; // replace full tagged text with inner content
-        }
-      }
-    }
+    return SendMessageOutcome(
+      result: chatResult,
+      assistantMessage: assistantMessage,
+      ttsRequested: false,
+      updatedProfile: null,
+    );
+  }
 
-    // If TTS was requested, produce a new ChatResult with cleaned text so
-    // storage/consumers don't keep the [audio] tags.
-    final ChatResult processedChatResult = ttsRequested
-        ? ChatResult(
-            text: assistantRawText,
-            isImage: chatResult.isImage,
-            imagePath: chatResult.imagePath,
-            prompt: chatResult.prompt,
-            seed: chatResult.seed,
-            finalModelUsed: chatResult.finalModelUsed,
-          )
-        : chatResult;
-
-    final assistantMessage = Message(
-      text: assistantRawText,
+  Message _buildAssistantMessage(ChatResult chatResult) {
+    return Message(
+      text: chatResult.text,
       sender: MessageSender.assistant,
       dateTime: DateTime.now(),
-      isImage: processedChatResult.isImage,
-      image: processedChatResult.isImage
-          ? AiImage(
-              url: processedChatResult.imagePath ?? '',
-              seed: processedChatResult.seed,
-              prompt: processedChatResult.prompt,
-            )
+      isImage: chatResult.isImage,
+      image: chatResult.isImage
+          ? AiImage(url: chatResult.imagePath ?? '', seed: chatResult.seed, prompt: chatResult.prompt)
           : null,
       status: MessageStatus.read,
     );
+  }
 
-    // Run event detection/save if onboardingData provided. Use the processed
-    // text so event detection doesn't see the [audio] tags.
-    AiChanProfile? updatedProfile;
-    if (onboardingData != null) {
-      try {
-        updatedProfile = await EventTimelineService.detectAndSaveEventAndSchedule(
-          text: recentMessages.isNotEmpty ? recentMessages.last.text : '',
-          textResponse: processedChatResult.text,
-          onboardingData: onboardingData,
-          saveAll: saveAll ?? () async {},
-        );
-      } catch (_) {
-        updatedProfile = null;
-      }
+  Future<AiChanProfile?> _processEvents(
+    List<Message> recentMessages,
+    ChatResult chatResult,
+    AiChanProfile onboardingData,
+    Future<void> Function()? saveAll,
+  ) async {
+    try {
+      return await EventTimelineService.detectAndSaveEventAndSchedule(
+        text: recentMessages.isNotEmpty ? recentMessages.last.text : '',
+        textResponse: chatResult.text,
+        onboardingData: onboardingData,
+        saveAll: saveAll ?? () async {},
+      );
+    } catch (_) {
+      return null;
     }
-
-    return SendMessageOutcome(
-      result: processedChatResult,
-      assistantMessage: assistantMessage,
-      ttsRequested: ttsRequested,
-      updatedProfile: updatedProfile,
-    );
   }
 }
 

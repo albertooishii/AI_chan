@@ -25,7 +25,20 @@ Future<Directory> getLocalCacheDir() async {
     final cacheDir = Directory('${tmp.path}${Platform.pathSeparator}AI_chan_cache');
     if (!await cacheDir.exists()) await cacheDir.create(recursive: true);
     return cacheDir;
-  } catch (_) {
+  } catch (e) {
+    // In tests, path_provider plugin may not be available.
+    // Create a fallback directory in system temp.
+    if (kDebugMode) {
+      try {
+        final systemTmp = Directory.systemTemp;
+        final cacheDir = Directory('${systemTmp.path}${Platform.pathSeparator}AI_chan_cache_fallback');
+        if (!await cacheDir.exists()) await cacheDir.create(recursive: true);
+        return cacheDir;
+      } catch (_) {
+        // Last resort fallback
+      }
+    }
+
     // Fallback to application support directory if tmp not available
     final support = await getApplicationSupportDirectory();
     final cacheDir = Directory('${support.path}${Platform.pathSeparator}AI_chan_cache');

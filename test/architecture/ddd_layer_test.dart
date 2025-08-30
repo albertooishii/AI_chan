@@ -65,32 +65,90 @@ void main() {
     });
 
     test('use cases should follow single responsibility principle', () {
-      final useCaseFiles = <String>[];
+      final violations = <String>[];
       final libDir = Directory('lib');
-
       if (!libDir.existsSync()) return;
 
       for (final file in libDir.listSync(recursive: true)) {
-        if (file is File &&
-            file.path.endsWith('.dart') &&
-            (file.path.contains('/application/use_cases/') || file.path.contains('/usecases/'))) {
-          useCaseFiles.add(file.path);
-
+        if (file is File && file.path.endsWith('.dart') && file.path.contains('/use_case')) {
           final content = file.readAsStringSync();
 
-          // Use cases should have a single public execute/call method
-          final publicMethods = RegExp(r'\s+[A-Z]\w*\s+\w+\s*\(').allMatches(content).length;
-          final executeMethods = RegExp(r'(execute|call)\s*\(').allMatches(content).length;
+          // Count methods (simplified heuristic) - exclude constructors and throws
+          final methodMatches = RegExp(
+            r'^\s+(?:Future<[^>]+>|[A-Z][a-zA-Z0-9<>]*)\s+([a-z]\w*)\s*\([^)]*\)\s*(?:async\s*)?\{',
+            multiLine: true,
+          );
+          final publicMethods = methodMatches.allMatches(content).length;
 
-          // This is informational - proper validation would require AST analysis
-          if (publicMethods > 2 && executeMethods == 0) {
-            debugPrint('${file.path}: Potential SRP violation - multiple public methods without execute/call');
+          // Check if main method is too long (> 100 lines is a red flag)
+          final lines = content.split('\n');
+          bool inMethod = false;
+          int methodLines = 0;
+          int maxMethodLength = 0;
+
+          for (final line in lines) {
+            if (line.contains('async {') || line.contains(') {')) {
+              inMethod = true;
+              methodLines = 0;
+            } else if (inMethod && line.trim() == '}') {
+              inMethod = false;
+              if (methodLines > maxMethodLength) {
+                maxMethodLength = methodLines;
+              }
+            } else if (inMethod) {
+              methodLines++;
+            }
+          }
+
+          // Flag potential SRP violations
+          if (maxMethodLength > 100) {
+            violations.add('${file.path}: Method too long ($maxMethodLength lines) - potential SRP violation');
+          }
+
+          if (publicMethods > 6) {
+            violations.add(
+              '${file.path}: Too many public methods ($publicMethods) - should focus on single responsibility',
+            );
+          }
+
+          // Check for multiple distinct responsibilities in one use case
+          final responsibilities = <String>[];
+
+          // Only count as responsibility if NOT delegated to service
+          bool hasService(String servicePattern) {
+            return content.contains(servicePattern) || content.contains('Service');
+          }
+
+          if ((content.contains('validation') || content.contains('validate')) && !hasService('ValidationsService')) {
+            responsibilities.add('validation');
+          }
+          if ((content.contains('retry') || content.contains('attempt')) && !hasService('RetryService')) {
+            responsibilities.add('retry-logic');
+          }
+          if ((content.contains('image') && content.contains('save')) && !hasService('ImageService')) {
+            responsibilities.add('image-processing');
+          }
+          if ((content.contains('audio') || content.contains('tts')) && !hasService('AudioService')) {
+            responsibilities.add('audio-processing');
+          }
+          if ((content.contains('event') && content.contains('timeline')) && !hasService('EventService')) {
+            responsibilities.add('event-processing');
+          }
+          if ((content.contains('sanitize') || content.contains('clean')) && !hasService('SanitizationService')) {
+            responsibilities.add('sanitization');
+          }
+
+          if (responsibilities.length > 2) {
+            violations.add('${file.path}: Multiple responsibilities detected: ${responsibilities.join(', ')}');
           }
         }
       }
 
-      debugPrint('Found ${useCaseFiles.length} use case files');
-      expect(useCaseFiles.isNotEmpty, isTrue, reason: 'Should have use case files in application layer');
+      expect(
+        violations,
+        isEmpty,
+        reason: 'Single Responsibility Principle violations detected:\n${violations.join('\n')}',
+      );
     });
 
     test('repositories should be in domain and implemented in infrastructure', () {

@@ -3,16 +3,24 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'package:flutter/services.dart';
+import 'package:ai_chan/voice/domain/interfaces/audio_playback_service.dart';
 
 /// Abstraction over audio playback so production code can use the real
 /// audioplayers implementation while tests inject a lightweight fake.
-abstract class AudioPlayback {
+abstract class AudioPlayback implements AudioPlaybackService {
+  @override
   Stream<void> get onPlayerComplete;
+  @override
   Stream<Duration> get onDurationChanged;
+  @override
   Stream<Duration> get onPositionChanged;
+  @override
   Future<void> play(dynamic source);
+  @override
   Future<void> stop();
+  @override
   Future<void> dispose();
+  @override
   Future<void> setReleaseMode(dynamic mode);
 
   /// Helper to adapt either an existing [ap.AudioPlayer] or an [AudioPlayback]

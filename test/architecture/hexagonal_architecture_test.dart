@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -17,45 +16,64 @@ void main() {
         if (file is File && file.path.endsWith('.dart') && file.path.contains('/domain/')) {
           final content = file.readAsStringSync();
 
-          // Check for repository or service interfaces
-          if (content.contains('Repository') || content.contains('Service')) {
-            // If it's not abstract and doesn't have abstract methods, it might be a violation
-            if (!content.contains('abstract class') &&
-                !content.contains('abstract') &&
-                content.contains('class ') &&
-                !content.contains('{') &&
-                !content.contains('}')) {
-              // This is a simple heuristic - in practice you'd want more sophisticated parsing
-              final className = RegExp(r'class\s+(\w+)').firstMatch(content)?.group(1);
-              if (className != null && (className.contains('Repository') || className.contains('Service'))) {
-                violations.add('${file.path}: $className should be abstract interface');
-              }
+          // Look for concrete classes in domain layer that should be interfaces
+          final concreteClassPattern = RegExp(r'class\s+(\w+)(?!\s+extends|\s+implements)');
+          final matches = concreteClassPattern.allMatches(content);
+
+          for (final match in matches) {
+            final className = match.group(1)!;
+
+            // Skip if it's already abstract
+            if (content.contains('abstract class $className') ||
+                content.contains('abstract interface class $className')) {
+              continue;
+            }
+
+            // Check if it's a domain service, repository, or entity that should be abstract
+            if ((className.endsWith('Service') || className.endsWith('Repository')) &&
+                file.path.contains('/domain/interfaces/')) {
+              violations.add('${file.path}: $className should be abstract interface (domain layer)');
+            }
+
+            // Check if it has only abstract/unimplemented methods (should be interface)
+            final methodPattern = RegExp(r'\w+\s+\w+\s*\([^)]*\)\s*\{[^}]*\}');
+            final implementedMethods = methodPattern.allMatches(content).length;
+            final abstractMethods = RegExp(r'\w+\s+\w+\s*\([^)]*\);').allMatches(content).length;
+
+            if (abstractMethods > 0 && implementedMethods == 0 && !content.contains('abstract')) {
+              violations.add('${file.path}: $className has only abstract methods but is not marked as abstract');
             }
           }
         }
       }
 
-      // This test is informational for now - architectural review needed
-      debugPrint('Domain interfaces found: ${violations.length} potential improvements');
+      expect(violations, isEmpty, reason: 'Domain layer concrete class violations:\n${violations.join('\n')}');
     });
 
     test('adapters should implement domain interfaces', () {
+      final violations = <String>[];
       final adapterFiles = <File>[];
       final domainInterfaces = <String>[];
 
       final libDir = Directory('lib');
       if (!libDir.existsSync()) return;
 
-      // Find adapter files
+      // Find adapter files and domain interfaces
       for (final file in libDir.listSync(recursive: true)) {
         if (file is File && file.path.endsWith('.dart')) {
-          if (file.path.contains('/adapters/') || file.path.contains('/infrastructure/')) {
+          final content = file.readAsStringSync();
+
+          // Find actual adapter implementations
+          if (file.path.contains('/infrastructure/') && content.contains('implements') && content.contains('class')) {
             adapterFiles.add(file);
           }
-          if (file.path.contains('/domain/')) {
-            final content = file.readAsStringSync();
-            // Look for abstract classes (interfaces)
-            final matches = RegExp(r'abstract class\s+(\w+)').allMatches(content);
+
+          // Find domain interfaces (search in both /domain/ and /core/interfaces/)
+          if (file.path.contains('/domain/interfaces/') ||
+              file.path.contains('/core/interfaces/') ||
+              (file.path.contains('/domain/') &&
+                  (content.contains('abstract class') || content.contains('abstract interface')))) {
+            final matches = RegExp(r'abstract (?:interface )?class\s+(\w+)').allMatches(content);
             for (final match in matches) {
               domainInterfaces.add(match.group(1)!);
             }
@@ -63,14 +81,35 @@ void main() {
         }
       }
 
-      debugPrint('Found ${adapterFiles.length} adapter files and ${domainInterfaces.length} domain interfaces');
+      // Check that each adapter actually implements a domain interface
+      for (final adapter in adapterFiles) {
+        final content = adapter.readAsStringSync();
+        final implementsPattern = RegExp(r'implements\s+(\w+)');
+        final matches = implementsPattern.allMatches(content);
 
-      // This is informational - proper validation would require AST parsing
-      expect(
-        adapterFiles.isNotEmpty || domainInterfaces.isNotEmpty,
-        isTrue,
-        reason: 'Should have adapters implementing domain interfaces',
-      );
+        bool implementsDomainInterface = false;
+        for (final match in matches) {
+          final implementedInterface = match.group(1)!;
+          if (domainInterfaces.contains(implementedInterface)) {
+            implementsDomainInterface = true;
+            break;
+          }
+        }
+
+        if (!implementsDomainInterface) {
+          violations.add('${adapter.path}: Adapter does not implement any known domain interface');
+        }
+      }
+
+      // Reasonable ratio check: too many adapters suggests over-engineering
+      final ratio = adapterFiles.length / (domainInterfaces.isNotEmpty ? domainInterfaces.length : 1);
+      if (ratio > 3.0) {
+        violations.add(
+          'Architecture concern: ${adapterFiles.length} adapters vs ${domainInterfaces.length} domain interfaces (${ratio.toStringAsFixed(1)}:1). Consider consolidation.',
+        );
+      }
+
+      expect(violations, isEmpty, reason: 'Adapter implementation violations:\n${violations.join('\n')}');
     });
 
     test('presentation layer should depend on domain, not infrastructure', () {
