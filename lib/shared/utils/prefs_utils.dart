@@ -310,4 +310,26 @@ class PrefsUtils {
       await prefs.clear();
     } catch (_) {}
   }
+
+  // --- Auto-backup timestamp helpers ---
+  static const kLastAutoBackupMs = 'last_auto_backup_ms';
+
+  /// Returns the milliseconds-since-epoch of the last successful automatic
+  /// backup, or null if never set.
+  static Future<int?> getLastAutoBackupMs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getInt(kLastAutoBackupMs);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Persist the timestamp (ms since epoch) of the last successful automatic backup.
+  static Future<void> setLastAutoBackupMs(int ms) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(kLastAutoBackupMs, ms);
+    } catch (_) {}
+  }
 }

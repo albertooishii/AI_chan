@@ -30,6 +30,8 @@ import 'package:ai_chan/chat/application/use_cases/send_message_use_case.dart';
 import 'package:ai_chan/shared/mixins/debounced_persistence_mixin.dart';
 import 'package:ai_chan/chat/application/services/message_queue_manager.dart';
 import 'package:ai_chan/chat/application/services/memory_manager.dart';
+import 'package:ai_chan/shared/utils/backup_auto_uploader.dart';
+import 'package:ai_chan/shared/services/google_backup_service.dart';
 import 'package:ai_chan/chat/application/services/timeline_updater.dart';
 
 // Using external MessageQueueManager. Queue options type lives in the
@@ -533,6 +535,10 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
           !textResp.trim().toLowerCase().contains('"error"')) {
         try {
           final memManager = memoryManager ?? MemoryManager(profile: onboardingData);
+          final oldLevel0Keys = (onboardingData.timeline)
+              .where((t) => t.level == 0)
+              .map((t) => '${t.startDate ?? ''}|${t.endDate ?? ''}')
+              .toSet();
           final memResult = await memManager.processAllSummariesAndSuperblock(
             messages: messages,
             timeline: onboardingData.timeline,
@@ -544,6 +550,18 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
             superbloqueEntry: memResult.superbloqueEntry,
           );
           superbloqueEntry = memResult.superbloqueEntry;
+          if (_hasNewLevel0EntriesFromKeys(oldLevel0Keys, memResult.timeline)) {
+            Log.d(
+              'Auto-backup: trigger scheduled (post-finalizeAssistantResponse) — new summary block detected',
+              tag: 'BACKUP_AUTO',
+            );
+            unawaited(_maybeTriggerAutoBackup());
+          } else {
+            Log.d(
+              'Auto-backup: no new level-0 blocks; skip trigger (post-finalizeAssistantResponse)',
+              tag: 'BACKUP_AUTO',
+            );
+          }
         } catch (e) {
           Log.w('[AI-chan][WARN] Falló actualización de memoria post-IA (finalize): $e');
         }
@@ -1037,6 +1055,10 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     // Actualizar memoria/cronología igual que tras respuestas IA normales
     try {
       final memManager = memoryManager ?? MemoryManager(profile: onboardingData);
+      final oldLevel0Keys = (onboardingData.timeline)
+          .where((t) => t.level == 0)
+          .map((t) => '${t.startDate ?? ''}|${t.endDate ?? ''}')
+          .toSet();
       final memResult = await memManager.processAllSummariesAndSuperblock(
         messages: messages,
         timeline: onboardingData.timeline,
@@ -1048,6 +1070,12 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
         superbloqueEntry: memResult.superbloqueEntry,
       );
       superbloqueEntry = memResult.superbloqueEntry;
+      if (_hasNewLevel0EntriesFromKeys(oldLevel0Keys, memResult.timeline)) {
+        Log.d('Auto-backup: trigger scheduled (addAssistantMessage) — new summary block detected', tag: 'BACKUP_AUTO');
+        unawaited(_maybeTriggerAutoBackup());
+      } else {
+        Log.d('Auto-backup: no new level-0 blocks; skip trigger (addAssistantMessage)', tag: 'BACKUP_AUTO');
+      }
       notifyListeners();
     } catch (e) {
       Log.w('[AI-chan][WARN] Falló actualización de memoria post-voz: $e');
@@ -1093,6 +1121,10 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     notifyListeners();
     try {
       final memManager = memoryManager ?? MemoryManager(profile: onboardingData);
+      final oldLevel0Keys = (onboardingData.timeline)
+          .where((t) => t.level == 0)
+          .map((t) => '${t.startDate ?? ''}|${t.endDate ?? ''}')
+          .toSet();
       final memResult = await memManager.processAllSummariesAndSuperblock(
         messages: messages,
         timeline: onboardingData.timeline,
@@ -1104,6 +1136,15 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
         superbloqueEntry: memResult.superbloqueEntry,
       );
       superbloqueEntry = memResult.superbloqueEntry;
+      if (_hasNewLevel0EntriesFromKeys(oldLevel0Keys, memResult.timeline)) {
+        Log.d(
+          'Auto-backup: trigger scheduled (updateOrAddCallStatusMessage) — new summary block detected',
+          tag: 'BACKUP_AUTO',
+        );
+        unawaited(_maybeTriggerAutoBackup());
+      } else {
+        Log.d('Auto-backup: no new level-0 blocks; skip trigger (updateOrAddCallStatusMessage)', tag: 'BACKUP_AUTO');
+      }
       notifyListeners();
     } catch (e) {
       Log.w('[AI-chan][WARN] Falló actualización de memoria post-updateCallStatus: $e');
@@ -1174,6 +1215,10 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     () async {
       try {
         final memManager = memoryManager ?? MemoryManager(profile: onboardingData);
+        final oldLevel0Keys = (onboardingData.timeline)
+            .where((t) => t.level == 0)
+            .map((t) => '${t.startDate ?? ''}|${t.endDate ?? ''}')
+            .toSet();
         final memResult = await memManager.processAllSummariesAndSuperblock(
           messages: messages,
           timeline: onboardingData.timeline,
@@ -1185,6 +1230,18 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
           superbloqueEntry: memResult.superbloqueEntry,
         );
         superbloqueEntry = memResult.superbloqueEntry;
+        if (_hasNewLevel0EntriesFromKeys(oldLevel0Keys, memResult.timeline)) {
+          Log.d(
+            'Auto-backup: trigger scheduled (replaceIncomingCallPlaceholder) — new summary block detected',
+            tag: 'BACKUP_AUTO',
+          );
+          unawaited(_maybeTriggerAutoBackup());
+        } else {
+          Log.d(
+            'Auto-backup: no new level-0 blocks; skip trigger (replaceIncomingCallPlaceholder)',
+            tag: 'BACKUP_AUTO',
+          );
+        }
         notifyListeners();
       } catch (e) {
         Log.w('[AI-chan][WARN] Falló actualización de memoria post-replace-call: $e');
@@ -1210,6 +1267,10 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     () async {
       try {
         final memoryService = MemorySummaryService(profile: onboardingData);
+        final oldLevel0Keys = (onboardingData.timeline)
+            .where((t) => t.level == 0)
+            .map((t) => '${t.startDate ?? ''}|${t.endDate ?? ''}')
+            .toSet();
         final result = await memoryService.processAllSummariesAndSuperblock(
           messages: messages,
           timeline: onboardingData.timeline,
@@ -1217,6 +1278,15 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
         );
         onboardingData = onboardingData.copyWith(timeline: result.timeline);
         superbloqueEntry = result.superbloqueEntry;
+        if (_hasNewLevel0EntriesFromKeys(oldLevel0Keys, result.timeline)) {
+          Log.d(
+            'Auto-backup: trigger scheduled (rejectIncomingCallPlaceholder) — new summary block detected',
+            tag: 'BACKUP_AUTO',
+          );
+          unawaited(_maybeTriggerAutoBackup());
+        } else {
+          Log.d('Auto-backup: no new level-0 blocks; skip trigger (rejectIncomingCallPlaceholder)', tag: 'BACKUP_AUTO');
+        }
         notifyListeners();
       } catch (e) {
         Log.w('[AI-chan][WARN] Falló actualización de memoria post-reject-call: $e');
@@ -1247,6 +1317,34 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
   }
 
   TimelineEntry? superbloqueEntry;
+
+  /// Helper privado: intenta subir backup si la cuenta Google está vinculada.
+  Future<void> _maybeTriggerAutoBackup() async {
+    try {
+      await BackupAutoUploader.maybeUploadAfterSummary(
+        profile: onboardingData,
+        messages: messages,
+        timeline: onboardingData.timeline,
+        googleLinked: googleLinked,
+        repository: repository,
+      );
+    } catch (e) {
+      // swallow errors: uploader logs internally
+    }
+  }
+
+  /// Comprueba si el timeline nuevo contiene nuevas entradas de level 0
+  /// que no estaban en el conjunto de claves precomputadas `oldKeys`.
+  bool _hasNewLevel0EntriesFromKeys(Set<String> oldKeys, List<TimelineEntry> newTimeline) {
+    try {
+      for (final t in newTimeline.where((t) => t.level == 0)) {
+        final key = '${t.startDate ?? ''}|${t.endDate ?? ''}';
+        if (!oldKeys.contains(key)) return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
   // Generador de apariencia desacoplado
   final IAAppearanceGenerator iaAppearanceGenerator = IAAppearanceGenerator();
 
@@ -1456,6 +1554,24 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       await PrefsUtils.setGoogleAccountInfo(email: email, avatar: avatarUrl, name: name, linked: linked);
     } catch (_) {}
     notifyListeners();
+    // If the account was just linked and we have no record of a previous
+    // automatic backup, trigger one immediately. Fire-and-forget to avoid
+    // blocking the caller/UI. This covers the case where the user links
+    // Drive after loading a chat that may already contain messages but
+    // has never been backed up.
+    if (linked) {
+      try {
+        unawaited(() async {
+          try {
+            final lastMs = await PrefsUtils.getLastAutoBackupMs();
+            if (lastMs == null) {
+              Log.d('Auto-backup: trigger scheduled (updateGoogleAccountInfo)', tag: 'BACKUP_AUTO');
+              await _maybeTriggerAutoBackup();
+            }
+          } catch (_) {}
+        }());
+      } catch (_) {}
+    }
   }
 
   /// Clear stored Google account info both in memory and persisted prefs.
@@ -1514,6 +1630,68 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
             await loadSelectedModel();
             _promiseService.restoreFromEvents();
             notifyListeners();
+            // Si cargamos desde repository, asegurarnos de forzar copia automática
+            // en el primer arranque si procede (misma lógica que más abajo).
+            try {
+              () async {
+                try {
+                  final g = await PrefsUtils.getGoogleAccountInfo();
+                  googleEmail = g['email'] as String?;
+                  googleAvatarUrl = g['avatar'] as String?;
+                  googleName = g['name'] as String?;
+                  googleLinked = g['linked'] as bool? ?? false;
+                } catch (_) {}
+                if (googleLinked) {
+                  try {
+                    // Trigger an automatic backup at load when either there is
+                    // no recorded previous automatic backup or the last one
+                    // is older than 24h. This ensures a daily backup at app
+                    // open even if the chat already contains messages.
+                    final lastMs = await PrefsUtils.getLastAutoBackupMs();
+                    final nowMs = DateTime.now().millisecondsSinceEpoch;
+                    final twentyFourHoursMs = Duration(hours: 24).inMilliseconds;
+                    if (lastMs == null || (nowMs - lastMs) > twentyFourHoursMs) {
+                      Log.d(
+                        'Auto-backup: trigger scheduled (loadAll repository branch) lastAutoBackupMs=$lastMs messages=${messages.length}',
+                        tag: 'BACKUP_AUTO',
+                      );
+                      await _maybeTriggerAutoBackup();
+                    } else {
+                      Log.d(
+                        'Auto-backup: recent lastAutoBackupMs=$lastMs; verifying remote presence',
+                        tag: 'BACKUP_AUTO',
+                      );
+                      // Verify that the backup actually exists in Drive. There are
+                      // cases where local prefs record a timestamp but the remote
+                      // backup was deleted or never completed successfully. If no
+                      // remote backup is found, force a new upload.
+                      try {
+                        unawaited(() async {
+                          try {
+                            final tokenLoader = GoogleBackupService(accessToken: null);
+                            final stored = await tokenLoader.loadStoredAccessToken();
+                            if (stored == null || stored.isEmpty) return;
+                            final svc = GoogleBackupService(accessToken: stored);
+                            final files = await svc.listBackups();
+                            if (files.isEmpty) {
+                              Log.d(
+                                'Auto-backup: no remote backups found despite recent local ts; forcing upload',
+                                tag: 'BACKUP_AUTO',
+                              );
+                              await _maybeTriggerAutoBackup();
+                            } else {
+                              Log.d('Auto-backup: remote backup present; skipping upload', tag: 'BACKUP_AUTO');
+                            }
+                          } catch (e) {
+                            Log.w('Auto-backup: remote verification failed: $e', tag: 'BACKUP_AUTO');
+                          }
+                        }());
+                      } catch (_) {}
+                    }
+                  } catch (_) {}
+                }
+              }();
+            } catch (_) {}
             return;
           } catch (e) {
             Log.w('Failed to parse repository.loadAll result: $e', tag: 'PERSIST');
@@ -1627,7 +1805,40 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       googleName = g['name'] as String?;
       googleLinked = g['linked'] as bool? ?? false;
     } catch (_) {}
+    // Diagnostic logging: record state relevant for initial automatic backup
+    try {
+      final lastMs = await PrefsUtils.getLastAutoBackupMs();
+      Log.d(
+        'Auto-backup diagnostic: googleLinked=$googleLinked messages=${messages.length} lastAutoBackupMs=$lastMs',
+        tag: 'BACKUP_AUTO',
+      );
+    } catch (_) {}
     notifyListeners();
+    // If linked to Google Drive, force a backup if last successful auto-backup
+    // is older than 24h. Fire-and-forget to avoid blocking load.
+    try {
+      if (googleLinked) {
+        () async {
+          try {
+            final lastMs = await PrefsUtils.getLastAutoBackupMs();
+            final nowMs = DateTime.now().millisecondsSinceEpoch;
+            final twentyFourHoursMs = Duration(hours: 24).inMilliseconds;
+            if (lastMs == null || (nowMs - lastMs) > twentyFourHoursMs) {
+              Log.d(
+                'Auto-backup: trigger scheduled (loadAll prefs branch) lastAutoBackupMs=$lastMs messages=${messages.length}',
+                tag: 'BACKUP_AUTO',
+              );
+              await _maybeTriggerAutoBackup();
+            } else {
+              Log.d(
+                'Auto-backup: skip loadAll daily check (recent backup) lastAutoBackupMs=$lastMs messages=${messages.length}',
+                tag: 'BACKUP_AUTO',
+              );
+            }
+          } catch (_) {}
+        }();
+      }
+    } catch (_) {}
     // Nota: no arrancar el scheduler automáticamente al cargar; el caller/UI
     // debe decidir cuándo iniciar el envío periódico. Esto mejora testeo y
     // evita side-effects durante carga.

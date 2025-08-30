@@ -10,12 +10,13 @@ import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import '../widgets/birth_date_field.dart';
 import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dart';
-import 'package:ai_chan/shared/utils/prefs_utils.dart';
+// import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/locale_utils.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
+import 'dart:math';
 // archive and convert handled by BackupService
 import 'package:ai_chan/shared/services/backup_service.dart';
 import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
@@ -120,11 +121,7 @@ class _OnboardingScreenContent extends StatefulWidget {
 }
 
 class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
-  // Persisted Google account fallback (used when ChatProvider isn't available)
-  bool _persistedGoogleLinked = false;
-  String? _persistedGoogleEmail;
-  String? _persistedGoogleName;
-  String? _persistedGoogleAvatar;
+  // Persisted Google account fallback (removed: menu now shows a static entry)
   // Helper: normaliza strings para búsquedas sin acentos
   String _normalize(String s) => s
       .toLowerCase()
@@ -293,22 +290,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
     _userNameController = TextEditingController(text: widget.onboardingProvider.userNameController.text);
     // Register a listener to refresh the UI whenever the provider notifies listeners.
     widget.onboardingProvider.addListener(_onProviderChanged);
-    // El estado de cuenta Google se lee desde ChatProvider en tiempo de build
-    // Además, precargamos cualquier cuenta persistida para mostrarla en el
-    // menú durante onboarding cuando no exista un ChatProvider.
-    () async {
-      try {
-        final info = await PrefsUtils.getGoogleAccountInfo();
-        if (mounted) {
-          setState(() {
-            _persistedGoogleLinked = info['linked'] as bool? ?? false;
-            _persistedGoogleEmail = info['email'] as String?;
-            _persistedGoogleName = info['name'] as String?;
-            _persistedGoogleAvatar = info['avatar'] as String?;
-          });
-        }
-      } catch (_) {}
-    }();
+    // No preload persisted Google account info: menu shows a static label now.
   }
 
   @override
@@ -362,63 +344,22 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                   ),
                 ),
               );
-              final ChatProvider? chatProvider = widget.chatProvider;
-              final effectiveLinked = chatProvider?.googleLinked ?? _persistedGoogleLinked;
-              final effectiveEmail = chatProvider?.googleEmail ?? _persistedGoogleEmail;
-              final effectiveName = chatProvider?.googleName ?? _persistedGoogleName;
-              final effectiveAvatar = chatProvider?.googleAvatarUrl ?? _persistedGoogleAvatar;
-
-              if (!effectiveLinked) {
-                items.add(
-                  PopupMenuItem<String>(
-                    value: 'backup_google',
-                    child: Row(
-                      children: [
-                        const Icon(Icons.add_to_drive, size: 20, color: AppColors.primary),
-                        const SizedBox(width: 8),
-                        Text('Copia de seguridad en Google Drive', style: TextStyle(color: AppColors.primary)),
-                      ],
-                    ),
+              // ChatProvider may be provided by the parent; we don't read it here.
+              // Render a single menu entry that resolves the persisted prefs
+              // at menu-open time; if a ChatProvider is provided prefer its
+              // runtime values which are authoritative.
+              items.add(
+                PopupMenuItem<String>(
+                  value: 'backup_status',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.add_to_drive, size: 20, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Text('Copia de seguridad en Google Drive', style: TextStyle(color: AppColors.primary)),
+                    ],
                   ),
-                );
-              } else {
-                items.add(
-                  PopupMenuItem<String>(
-                    value: 'backup_status',
-                    child: Row(
-                      children: [
-                        if (effectiveAvatar != null && effectiveAvatar.isNotEmpty)
-                          CircleAvatar(radius: 16, backgroundImage: NetworkImage(effectiveAvatar))
-                        else
-                          const Icon(Icons.account_circle, size: 28, color: AppColors.primary),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (effectiveName != null && effectiveName.isNotEmpty)
-                                Text(
-                                  effectiveName,
-                                  style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              const SizedBox(height: 4),
-                              Text(
-                                effectiveEmail ?? 'Cuenta Google',
-                                style: const TextStyle(color: AppColors.secondary, fontSize: 12),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }
+                ),
+              );
               return items;
             },
             onSelected: (value) async {
@@ -428,43 +369,48 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                 final res = await showAppDialog<dynamic>(
                   builder: (ctx) => AlertDialog(
                     backgroundColor: Colors.black,
-                    content: SizedBox(
-                      width: 560,
-                      child: GoogleDriveBackupDialog(
-                        clientId: 'YOUR_GOOGLE_CLIENT_ID',
-                        disableAutoRestore: true,
-                        requestBackupJson: cp != null
-                            ? () async {
-                                final captured = cp;
-                                return await BackupUtils.exportChatPartsToJson(
-                                  profile: captured.onboardingData,
-                                  messages: captured.messages,
-                                  events: captured.events,
-                                );
-                              }
-                            : null,
-                        onImportedJson: cp != null
-                            ? (jsonStr) async {
-                                final captured = cp;
-                                final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
-                                if (imported != null) {
-                                  await captured.applyImportedChat(imported);
-                                }
-                              }
-                            : null,
-                        onAccountInfoUpdated: cp != null
-                            ? ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
-                                final captured = cp;
-                                await captured.updateGoogleAccountInfo(
-                                  email: email,
-                                  avatarUrl: avatarUrl,
-                                  name: name,
-                                  linked: linked,
-                                );
-                              }
-                            : null,
-                        onClearAccountInfo: cp != null ? () => cp.clearGoogleAccountInfo() : null,
-                      ),
+                    content: Builder(
+                      builder: (ctxInner) {
+                        final dialogWidth = min(MediaQuery.of(ctxInner).size.width - 16, 560).toDouble();
+                        return SizedBox(
+                          width: dialogWidth,
+                          child: GoogleDriveBackupDialog(
+                            clientId: 'YOUR_GOOGLE_CLIENT_ID',
+                            disableAutoRestore: true,
+                            requestBackupJson: cp != null
+                                ? () async {
+                                    final captured = cp;
+                                    return await BackupUtils.exportChatPartsToJson(
+                                      profile: captured.onboardingData,
+                                      messages: captured.messages,
+                                      events: captured.events,
+                                    );
+                                  }
+                                : null,
+                            onImportedJson: cp != null
+                                ? (jsonStr) async {
+                                    final captured = cp;
+                                    final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
+                                    if (imported != null) {
+                                      await captured.applyImportedChat(imported);
+                                    }
+                                  }
+                                : null,
+                            onAccountInfoUpdated: cp != null
+                                ? ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
+                                    final captured = cp;
+                                    await captured.updateGoogleAccountInfo(
+                                      email: email,
+                                      avatarUrl: avatarUrl,
+                                      name: name,
+                                      linked: linked,
+                                    );
+                                  }
+                                : null,
+                            onClearAccountInfo: cp != null ? () => cp.clearGoogleAccountInfo() : null,
+                          ),
+                        );
+                      },
                     ),
                   ),
                 );
@@ -523,42 +469,47 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                 final res2 = await showAppDialog<dynamic>(
                   builder: (ctx) => AlertDialog(
                     backgroundColor: Colors.black,
-                    content: SizedBox(
-                      width: 560,
-                      child: GoogleDriveBackupDialog(
-                        clientId: 'YOUR_GOOGLE_CLIENT_ID',
-                        requestBackupJson: cp != null
-                            ? () async {
-                                final captured = cp;
-                                return await BackupUtils.exportChatPartsToJson(
-                                  profile: captured.onboardingData,
-                                  messages: captured.messages,
-                                  events: captured.events,
-                                );
-                              }
-                            : null,
-                        onImportedJson: cp != null
-                            ? (jsonStr) async {
-                                final captured = cp;
-                                final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
-                                if (imported != null) {
-                                  await captured.applyImportedChat(imported);
-                                }
-                              }
-                            : null,
-                        onAccountInfoUpdated: cp != null
-                            ? ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
-                                final captured = cp;
-                                await captured.updateGoogleAccountInfo(
-                                  email: email,
-                                  avatarUrl: avatarUrl,
-                                  name: name,
-                                  linked: linked,
-                                );
-                              }
-                            : null,
-                        onClearAccountInfo: cp != null ? () => cp.clearGoogleAccountInfo() : null,
-                      ),
+                    content: Builder(
+                      builder: (ctxInner) {
+                        final dialogWidth = min(MediaQuery.of(ctxInner).size.width - 16, 560).toDouble();
+                        return SizedBox(
+                          width: dialogWidth,
+                          child: GoogleDriveBackupDialog(
+                            clientId: 'YOUR_GOOGLE_CLIENT_ID',
+                            requestBackupJson: cp != null
+                                ? () async {
+                                    final captured = cp;
+                                    return await BackupUtils.exportChatPartsToJson(
+                                      profile: captured.onboardingData,
+                                      messages: captured.messages,
+                                      events: captured.events,
+                                    );
+                                  }
+                                : null,
+                            onImportedJson: cp != null
+                                ? (jsonStr) async {
+                                    final captured = cp;
+                                    final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
+                                    if (imported != null) {
+                                      await captured.applyImportedChat(imported);
+                                    }
+                                  }
+                                : null,
+                            onAccountInfoUpdated: cp != null
+                                ? ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
+                                    final captured = cp;
+                                    await captured.updateGoogleAccountInfo(
+                                      email: email,
+                                      avatarUrl: avatarUrl,
+                                      name: name,
+                                      linked: linked,
+                                    );
+                                  }
+                                : null,
+                            onClearAccountInfo: cp != null ? () => cp.clearGoogleAccountInfo() : null,
+                          ),
+                        );
+                      },
                     ),
                   ),
                 );

@@ -21,7 +21,9 @@ class GoogleSignInAdapter {
         // authenticate not present on this plugin build; mark and try fallbacks below
         authenticateMissing = true;
       } catch (e) {
-        // If the error looks like a user cancellation, stop and surface as cancelled.
+        // If the error looks like a user cancellation, try to clear any
+        // intermediate sign-in state so subsequent attempts show the
+        // native chooser again, then surface as cancelled.
         final msg = e.toString().toLowerCase();
         if (msg.contains('cancel') ||
             msg.contains('user cancelled') ||
@@ -31,6 +33,9 @@ class GoogleSignInAdapter {
             msg.contains('getcredentialresponse') ||
             msg.contains('ime') ||
             msg.contains('chooser')) {
+          try {
+            await signInInstance.signOut();
+          } catch (_) {}
           throw StateError('User cancelled Google sign-in');
         }
         // Unknown error: rethrow to be handled by caller
@@ -59,13 +64,21 @@ class GoogleSignInAdapter {
               msg.contains('getcredentialresponse') ||
               msg.contains('ime') ||
               msg.contains('chooser')) {
+            try {
+              await signInInstance.signOut();
+            } catch (_) {}
             throw StateError('User cancelled Google sign-in');
           }
           rethrow;
         }
       }
 
-      if (account == null) throw StateError('User cancelled Google sign-in');
+      if (account == null) {
+        try {
+          await signInInstance.signOut();
+        } catch (_) {}
+        throw StateError('User cancelled Google sign-in');
+      }
 
       // Try to obtain authorization/access token for requested scopes
       try {

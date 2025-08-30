@@ -63,8 +63,49 @@ class GoogleBackupService {
 
   /// Refresh an access token using the stored refresh_token.
   Future<Map<String, dynamic>> refreshAccessToken({required String clientId, String? clientSecret}) async {
-    // Token refresh is not supported in this build by design.
-    throw StateError('Token refresh is not supported. Store short-lived tokens and re-authenticate when needed.');
+    // Implement OAuth2 refresh_token grant against Google's token endpoint.
+    // Notes:
+    // - clientSecret may be required for certain OAuth clients. Storing a
+    //   client secret on-device is insecure; prefer refreshing on a trusted
+    //   backend when possible.
+    // - If no refresh_token is stored, the caller should re-authenticate.
+    try {
+      final creds = await _loadCredentialsSecure();
+      if (creds == null) throw StateError('No stored credentials to refresh');
+      final refreshToken = creds['refresh_token'] as String?;
+      if (refreshToken == null || refreshToken.isEmpty) {
+        throw StateError('No refresh_token available; re-authentication required');
+      }
+
+      final tokenEndpoint = Uri.parse('https://oauth2.googleapis.com/token');
+      final body = {'grant_type': 'refresh_token', 'refresh_token': refreshToken, 'client_id': clientId};
+      if (clientSecret != null && clientSecret.isNotEmpty) body['client_secret'] = clientSecret;
+
+      final res = await httpClient.post(
+        tokenEndpoint,
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: body,
+      );
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        throw StateError('Refresh failed: ${res.statusCode} ${res.body}');
+      }
+      final tokenMap = jsonDecode(res.body) as Map<String, dynamic>;
+
+      // Merge returned fields with existing stored credentials. Some responses
+      // may not include the refresh_token; preserve the stored one in that case.
+      final merged = <String, dynamic>{};
+      merged.addAll(creds);
+      merged.addAll(tokenMap);
+      if (merged['refresh_token'] == null && refreshToken.isNotEmpty) merged['refresh_token'] = refreshToken;
+
+      // Persist merged credentials so future calls can reuse the refresh token.
+      await _persistCredentialsSecure(merged);
+
+      return merged;
+    } catch (e) {
+      Log.w('GoogleBackupService.refreshAccessToken failed: $e', tag: 'GoogleBackup');
+      rethrow;
+    }
   }
 
   // Resolve client id/secret from app config based on the current platform.
@@ -169,8 +210,16 @@ class GoogleBackupService {
   /// Attempt to refresh stored credentials using config client id/secret.
   /// Returns the refreshed token map on success.
   Future<Map<String, dynamic>> _attemptRefreshUsingConfig() async {
-    // Token refresh removed: callers should re-authenticate instead.
-    throw StateError('Token refresh not supported in this build');
+    try {
+      // Resolve client id/secret from config for current platform.
+      final clientId = await GoogleBackupService.resolveClientId('');
+      final clientSecret = await GoogleBackupService.resolveClientSecret();
+      if (clientId.isEmpty) throw StateError('No client id configured for token refresh');
+      return await refreshAccessToken(clientId: clientId, clientSecret: clientSecret);
+    } catch (e) {
+      Log.w('GoogleBackupService._attemptRefreshUsingConfig failed: $e', tag: 'GoogleBackup');
+      rethrow;
+    }
   }
 
   /// Convenience helper: force the native AppAuth authorization code flow on
@@ -311,8 +360,29 @@ class GoogleBackupService {
     // being created on desktop and reduces race conditions when callers
     // re-open the dialog rapidly.
     if (_inflightLinkCompleter != null) {
-      Log.d('GoogleBackupService.linkAccount: awaiting existing in-flight link', tag: 'GoogleBackup');
-      return _inflightLinkCompleter!.future;
+      // If callers explicitly request the google_sign_in path on Android,
+      // allow starting a fresh interactive flow even if another flow is
+      // marked in-flight. This covers the UX case where the native chooser
+      // needs to be re-opened after the dialog was closed. For other
+      // platforms or when not forcing google_sign_in, await the existing
+      // in-flight completer to avoid creating multiple concurrent loopback
+      // servers on desktop.
+      try {
+        if (forceUseGoogleSignIn && !kIsWeb && Platform.isAndroid) {
+          Log.d(
+            'GoogleBackupService.linkAccount: forceUseGoogleSignIn on Android - starting new flow',
+            tag: 'GoogleBackup',
+          );
+          // fall-through to start a new flow
+        } else {
+          Log.d('GoogleBackupService.linkAccount: awaiting existing in-flight link', tag: 'GoogleBackup');
+          return _inflightLinkCompleter!.future;
+        }
+      } catch (_) {
+        // If platform checks fail for any reason, conservatively await
+        // the existing flow.
+        return _inflightLinkCompleter!.future;
+      }
     }
 
     _inflightLinkCompleter = Completer<Map<String, dynamic>>();
@@ -348,6 +418,12 @@ class GoogleBackupService {
             'GoogleBackupService.linkAccount: stored credentials found, returning cached token',
             tag: 'GoogleBackup',
           );
+          // Complete the inflight completer so subsequent callers awaiting
+          // the in-flight flow do not hang. Then clear it.
+          try {
+            _inflightLinkCompleter?.complete(stored);
+          } catch (_) {}
+          _inflightLinkCompleter = null;
           return stored;
         }
       }
@@ -362,6 +438,12 @@ class GoogleBackupService {
         );
         if (tokenMap['access_token'] != null) {
           await _persistCredentialsSecure(tokenMap);
+          // Ensure any awaiters on the inflight completer get the result and
+          // the completer is cleared so future flows can start immediately.
+          try {
+            _inflightLinkCompleter?.complete(tokenMap);
+          } catch (_) {}
+          _inflightLinkCompleter = null;
           return tokenMap;
         }
       }
@@ -400,6 +482,10 @@ class GoogleBackupService {
           final tokenMap = await authenticateWithAppAuth(clientId: desktopCid, redirectUri: null, scopes: usedScopes);
           if (tokenMap['access_token'] != null) {
             await _persistCredentialsSecure(tokenMap);
+            try {
+              _inflightLinkCompleter?.complete(tokenMap);
+            } catch (_) {}
+            _inflightLinkCompleter = null;
             return tokenMap;
           }
         } catch (e, st) {
