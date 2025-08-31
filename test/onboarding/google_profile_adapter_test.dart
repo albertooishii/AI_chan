@@ -94,7 +94,7 @@ void main() {
     // filesystem dependencies and adapter fallback to placeholder. This makes the test
     // fail if the generator didn't produce an image (avoids false positives).
     final generator = IAAppearanceGenerator();
-    final appearance = await generator.generateAppearancePrompt(
+    final appearance = await generator.generateAppearanceFromBiography(
       profile,
       aiService: AIService.testOverride!,
     );

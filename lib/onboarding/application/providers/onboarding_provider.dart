@@ -18,8 +18,7 @@ class OnboardingProvider extends ChangeNotifier {
   bool loadingStory = false;
   DateTime? userBirthday;
   final IProfileService _profileService = di.getProfileServiceForProvider();
-  final Future<String?> Function(String base64, {String prefix})?
-  saveImageFunc = null;
+  final Future<String?> Function(String base64, {String prefix})? saveImageFunc = null;
 
   OnboardingProvider() {
     // Inicialización asíncrona que carga datos guardados y actualiza `loading`
@@ -114,8 +113,7 @@ class OnboardingProvider extends ChangeNotifier {
       // Generar apariencia y avatar
       // Señalizamos el inicio de la generación de apariencia (índice 12)
       onProgress?.call('appearance');
-      final appearanceMap = await IAAppearanceGenerator()
-          .generateAppearancePrompt(biography);
+      final appearanceMap = await IAAppearanceGenerator().generateAppearanceFromBiography(biography);
       // Señalizamos la fase de estilo de apariencia (índice 13)
       onProgress?.call('style');
       // Preparar fases de generación de avatar: 'avatar' (índice 14)
@@ -125,10 +123,7 @@ class OnboardingProvider extends ChangeNotifier {
       onProgress?.call('finish');
       // Generate avatar (replace existing) and attach to biography
       final updatedBiography = biography.copyWith(appearance: appearanceMap);
-      final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(
-        updatedBiography,
-        appendAvatar: false,
-      );
+      final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(updatedBiography, appendAvatar: false);
       final biographyWithAvatar = updatedBiography.copyWith(avatars: [avatar]);
       // Tras completarse la creación del avatar, emitir 'finalize' (índice 16)
       // y mantener ese estado visible unos segundos para la transición UX.
@@ -150,12 +145,7 @@ class OnboardingProvider extends ChangeNotifier {
         builder: (ctx) => AlertDialog(
           title: const Text('Error al crear biografía'),
           content: Text(e.toString()),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('OK'),
-            ),
-          ],
+          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
         ),
       );
     }
@@ -194,10 +184,7 @@ class OnboardingProvider extends ChangeNotifier {
   void setAiName(String value) {
     if (aiNameController != null && aiNameController!.text != value) {
       aiNameController!.text = value;
-      Log.i(
-        'setAiName: aiNameController.text forzado a: "$value"',
-        tag: 'ONBOARD',
-      );
+      Log.i('setAiName: aiNameController.text forzado a: "$value"', tag: 'ONBOARD');
     }
     // notifyListeners(); // Solo si necesitas refresco inmediato en la UI
   }
@@ -255,14 +242,10 @@ class OnboardingProvider extends ChangeNotifier {
   }
 
   Future<void> suggestStory(BuildContext context) async {
-    if (userNameController.text.isNotEmpty &&
-        aiNameController?.text.isNotEmpty == true) {
+    if (userNameController.text.isNotEmpty && aiNameController?.text.isNotEmpty == true) {
       setLoadingStory(true);
       meetStoryController.text = "Generando historia...";
-      final paisIA = LocaleUtils.countryNameEs(
-        aiCountryCode,
-        fallback: 'su país',
-      );
+      final paisIA = LocaleUtils.countryNameEs(aiCountryCode, fallback: 'su país');
       final prompt =
           "Inventa una breve historia romántica y realista de cómo se conocieron "
           "${userNameController.text} y ${aiNameController?.text}. La chica vive en una tierra digital, una réplica alternativa y compleja de la Tierra real, separada por una barrera tecnológica invisible. Su existencia es digital, pero nunca lo admite ni lo menciona al usuario, ni insinúa que es diferente a una persona real. Solo puede comunicarse por chat y llamada, pero sueña con que algún día podrán verse gracias a la realidad aumentada o a nuevas tecnologías. Hazlo creíble y simpático, como el inicio de una relación real, en 3-5 frases. La chica es nativa de "
@@ -287,11 +270,7 @@ class OnboardingProvider extends ChangeNotifier {
       try {
         // Usar AIService.sendMessage directamente (respeta AIService.testOverride en tests)
         final history = [
-          {
-            "role": "user",
-            "content": prompt,
-            "datetime": DateTime.now().toIso8601String(),
-          },
+          {"role": "user", "content": prompt, "datetime": DateTime.now().toIso8601String()},
         ];
         final resp = await ai_service.AIService.sendMessage(
           history,
@@ -331,12 +310,7 @@ class OnboardingProvider extends ChangeNotifier {
         builder: (ctx) => AlertDialog(
           title: const Text('Error al leer archivo'),
           content: Text(error),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('OK'),
-            ),
-          ],
+          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
         ),
       );
       return;
@@ -355,12 +329,7 @@ class OnboardingProvider extends ChangeNotifier {
           builder: (ctx) => AlertDialog(
             title: const Text('Error al importar'),
             content: Text(importError ?? 'Error desconocido al importar JSON'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('OK'),
-              ),
-            ],
+            actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
           ),
         );
         return;

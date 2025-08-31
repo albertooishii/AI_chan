@@ -30,8 +30,7 @@ class ProfileAdapter implements IProfileService {
       final defaultModel = Config.getDefaultTextModel().trim().toLowerCase();
       final implType = _aiService.runtimeType.toString();
       if (defaultModel.startsWith('gpt-') && implType == 'OpenAIService') {
-      } else if ((defaultModel.startsWith('gemini-') ||
-              defaultModel.startsWith('imagen-')) &&
+      } else if ((defaultModel.startsWith('gemini-') || defaultModel.startsWith('imagen-')) &&
           implType == 'GeminiService') {
       } else {}
       // Delegar a la función existente que resolverá el runtime correctamente
@@ -51,8 +50,7 @@ class ProfileAdapter implements IProfileService {
         userBirthday: userBirthday,
         aiBirthday: DateTime.now(),
         biography: {
-          'summary':
-              'Generated fallback biography for $aiName due to unavailable remote service.',
+          'summary': 'Generated fallback biography for $aiName due to unavailable remote service.',
           'note': e.toString(),
         },
         appearance: {'style': 'fallback'},
@@ -65,20 +63,13 @@ class ProfileAdapter implements IProfileService {
   Future<AiImage?> generateAppearance(AiChanProfile profile) async {
     try {
       final generator = IAAppearanceGenerator();
-      final appearanceMap = await generator.generateAppearancePrompt(profile);
+      final appearanceMap = await generator.generateAppearanceFromBiography(profile);
       // Generate avatar (replace existing) and return it
       final updatedProfile = profile.copyWith(appearance: appearanceMap);
-      final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(
-        updatedProfile,
-        appendAvatar: false,
-      );
+      final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(updatedProfile, appendAvatar: false);
       return avatar;
     } catch (e) {
-      return AiImage(
-        url: 'https://example.com/avatar_placeholder.png',
-        seed: 'fallback-seed',
-        prompt: 'fallback',
-      );
+      return AiImage(url: 'https://example.com/avatar_placeholder.png', seed: 'fallback-seed', prompt: 'fallback');
     }
   }
 

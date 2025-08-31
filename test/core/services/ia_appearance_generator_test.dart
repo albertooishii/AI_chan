@@ -6,7 +6,7 @@ import 'package:ai_chan/core/models.dart';
 
 void main() {
   test(
-    'generateAppearancePrompt parses JSON and forces edad_aparente=25',
+    'generateAppearanceFromBiography parses JSON and forces edad_aparente=25',
     () async {
       // Respuesta simulada que incluye un bloque JSON válido
       final jsonText =
@@ -26,7 +26,7 @@ void main() {
         avatars: null,
         timeline: [],
       );
-      final map = await gen.generateAppearancePrompt(profile);
+      final map = await gen.generateAppearanceFromBiography(profile);
       expect(map, isNotNull);
       expect(map['edad_aparente'], 25);
       expect(map['genero'], 'femenino');

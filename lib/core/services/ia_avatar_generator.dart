@@ -14,28 +14,58 @@ class IAAvatarGenerator {
   /// - [appendAvatar]: si es true, reutiliza la seed del primer avatar (si existe)
   ///   para mantener identidad y añade el nuevo avatar al histórico.
   ///   Si es false, se genera un avatar completamente nuevo y reemplaza el histórico.
-  Future<AiImage> generateAvatarFromAppearance(
-    AiChanProfile bio, {
-    bool appendAvatar = false,
-  }) async {
+  Future<AiImage> generateAvatarFromAppearance(AiChanProfile bio, {bool appendAvatar = false}) async {
     final String forcedImageModel = Config.getDefaultImageModel();
     final String forcedTextModel = Config.getDefaultTextModel();
-    Log.d(
-      '[IAAvatarGenerator] Avatar: generando imagen con modelo $forcedImageModel',
+    Log.d('[IAAvatarGenerator] Avatar: generando imagen con modelo $forcedImageModel');
+
+    // Decidir seed y preparar contexto para el prompt
+    final seedToUse = _determineSeed(bio, appendAvatar);
+    final promptToSend = await _buildPromptForGeneration(bio, seedToUse, forcedTextModel);
+    final profileForPrompt = _buildProfileForPrompt(bio, seedToUse);
+
+    // Generar imagen con reintentos
+    final imageResponse = await _generateImageWithRetries(promptToSend, profileForPrompt, forcedImageModel);
+
+    // Guardar y crear objeto final
+    return await _saveAndCreateAvatar(imageResponse, seedToUse);
+  }
+
+  /// Determina qué seed usar según el parámetro appendAvatar
+  String? _determineSeed(AiChanProfile bio, bool appendAvatar) {
+    if (!appendAvatar) return null;
+    final firstAvatar = bio.firstAvatar;
+    return (firstAvatar != null && (firstAvatar.seed ?? '').isNotEmpty) ? firstAvatar.seed : null;
+  }
+
+  /// Construye el prompt final para generación, incluyendo lógica para seeds existentes
+  Future<dynamic> _buildPromptForGeneration(AiChanProfile bio, String? seedToUse, String textModel) async {
+    final basePrompt = _createBasePrompt();
+
+    if (seedToUse == null) {
+      return basePrompt;
+    }
+
+    // Para seeds existentes, generar prompt contextual usando modelo de texto
+    final recentTimeline = _getRecentTimelineEntries(bio);
+    final contextProfile = AiChanProfile(
+      biography: bio.biography,
+      userName: bio.userName,
+      aiName: bio.aiName,
+      userBirthday: null,
+      aiBirthday: null,
+      appearance: bio.appearance,
+      avatars: bio.avatars,
+      timeline: recentTimeline,
     );
 
-    // Obtener la apariencia desde el perfil; los llamadores deben actualizar
-    // el perfil (bio) con la nueva appearance antes de llamar a esta función
-    final Map<String, dynamic> appearance = bio.appearance;
+    final generatedPrompt = await _generateContextualPrompt(contextProfile, textModel);
+    return generatedPrompt.isNotEmpty ? _createPromptWithGenerated(generatedPrompt) : basePrompt;
+  }
 
-    // Usamos el wrapper estático `AIService.sendMessage` que ya respeta
-    // `AIService.testOverride` para tests y realiza la resolución del runtime
-    // internamente. Evitamos usar la fábrica `runtime_factory` directamente
-    // desde aquí para reducir acoplamiento.
-
-    final Map<String, dynamic> basePromptMap = {
-      // Marca explícita para facilitar la detección en el servicio de envío
-      // Indica que este prompt es para generar un AVATAR/foto de personaje
+  /// Crea el prompt base con todas las configuraciones visuales y reglas
+  Map<String, dynamic> _createBasePrompt() {
+    return {
       "is_avatar": true,
       "descripcion":
           "[IMAGEN REQUERIDA]: Genera una imagen usando tu herramienta de generación de imágenes 'image_generation' teniendo en cuenta el máximo detalle de 'appearance' y la conversación actual.",
@@ -47,61 +77,23 @@ class IAAvatarGenerator {
         },
         "estetica": {
           "estilo": "instagram portrait, divertida y natural",
-          "iluminacion":
-              "calida, direccional, balance de blancos cálido, contraste medio-alto",
+          "iluminacion": "calida, direccional, balance de blancos cálido, contraste medio-alto",
           "postprocesado":
               "bokeh, viñeteado sutil, nitidez en ojos, suavizado de piel realista, colores ligeramente saturados",
         },
-        "camara": {
-          "objetivo_preferido": "50mm",
-          "apertura": "f/1.8-f/2.8",
-          "iso": "bajo-medio",
-        },
+        "camara": {"objetivo_preferido": "50mm", "apertura": "f/1.8-f/2.8", "iso": "bajo-medio"},
         "parametros_tecnicos": {
           "negative_prompt":
               "Evitar watermark, texto, logos, firmas, baja resolución, deformaciones o elementos irreales.",
         },
-        "image_request": {
-          "size": "1024x1024",
-          "aspect_ratio": "1:1",
-          "fidelity": 0.25,
-        },
+        "image_request": {"size": "1024x1024", "aspect_ratio": "1:1", "fidelity": 0.25},
       },
       "identidad": {"edad_aparente": 25, "genero": "mujer"},
       "rasgos_fisicos": {
-        "instruccion_general":
-            "Representa fielmente los rasgos físicos descritos en 'appearance'. Usa las claves exactas del JSON de apariencia para mapear cada atributo visual.",
-        "campos_a_usar": [
-          "edad_aparente",
-          "genero",
-          "origen_etnico",
-          "altura",
-          "peso",
-          "complexion",
-          "color_piel",
-          "ojos",
-          "cejas",
-          "nariz",
-          "boca",
-          "dientes",
-          "orejas",
-          "cabello",
-          "manos",
-          "piel",
-          "pechos",
-          "piernas",
-          "tatuajes",
-          "cicatrices",
-          "pecas",
-          "lunares",
-          "arrugas",
-          "paleta_color",
-          "maquillaje_base",
-          "expresion_general",
-          "rasgos_unicos",
-        ],
-        "detalle":
-            "Para cada campo visual, aplica las especificaciones exactas: medidas/proporciones para 'altura' y 'peso', 'complexion' como forma corporal, 'ojos' (color, forma, tamaño, expresión, distancia entre ojos, pestañas), cejas (forma/grosor), nariz (forma/tamaño), boca (forma/labios/expresión), cabello (color/largo/peinado/volumen/textura) y marcas (tatuajes/cicatrices/pecas/lunares) en ubicación y tamaño indicados. Ajusta la iluminación y el encuadre para resaltar el rostro y respetar proporciones reales. Presta especial atención a las manos: representarlas con dedos proporcionados y en poses naturales; evitar manos deformes o poco realistas. Si aparece una pantalla o dispositivo con botones en la escena, asegúrate de que la pantalla y los botones estén orientados hacia la persona/usuario y sean visibles (no hacia la parte trasera), con una disposición coherente. No inventes rasgos fuera de los campos listados; si algún campo está vacío, usa un fallback realista y coherente con 'estilo' y 'paleta_color'.",
+        "fidelidad_appearance":
+            "Representa fielmente cada detalle del JSON 'appearance' con precisión milimétrica. Ojos: color, forma, tamaño, expresión, distancia, pestañas (longitud, densidad, curvatura). Cabello: color, largo, volumen, densidad, y si existe tinte/mechas verificar 'aplica=true'. Rostro: cejas, nariz, boca, dientes, orejas según especificaciones exactas. Cuerpo: altura, peso, complexión, piel, manos, pechos. Marcas: tatuajes, cicatrices, pecas, lunares en ubicación exacta.",
+        "ropa_y_maquillaje":
+            "Seleccionar de 'ropa' el conjunto que mejor concuerde con la actividad biográfica. Reproducir fielmente: prendas, colores, materiales, texturas, accesorios incluidos. Usar 'paleta_color' y aplicar 'maquillaje_base' según la situación.",
       },
       "fuentes": {
         "appearance":
@@ -109,233 +101,152 @@ class IAAvatarGenerator {
         "biography":
             "Usar 'biography' únicamente para elegir la actividad/hobby principal que aparecerá en la imagen. No extraer rasgos físicos desde la biografía si contradicen 'appearance'.",
       },
-      "instrucciones_apariencia":
-          "Tienes la lista de 'ropa' en 'appearance', selecciona el conjunto que mejor concuerde con la actividad indicada en la biografía. Reproducir texturas, materiales y colores tal como aparecen en 'appearance'. Mostrar tatuajes, cicatrices o pecas en la ubicación y tamaño descritos si existen.",
-      "actividad_y_pose":
-          "Basarse en la biografía en general para seleccionar una actividad. La foto debe ser divertida y natural: la persona puede aparecer realizando una acción o gesto gracioso (gestos cómicos con las manos, una risa espontánea, una pequeña pose dinámica o movimiento alegre) mostrando disfrute y naturalidad. Añadir props o elementos coherentes con el contexto biográfico, evitando elementos anacrónicos o que contradigan 'appearance'. Si el perfil incluye una mascota, puede aparecer en la imagen; representa la mascota respetando su especie, tamaño y características descritas en la biografía.",
-      "entorno":
-          "Fondo coherente con la actividad descrita en la biografía. Mantener props y entorno contemporáneos.",
+      "actividad_y_pose": {
+        "seleccion_actividad":
+            "Analiza detalladamente las secciones 'intereses_y_aficiones', 'horarios_actividades', 'trayectoria_profesional' e 'historia_personal' de la biografía. Extrae la actividad o hobby más característico y representativo de esta persona específica. Prioriza actividades que reflejen su personalidad geek/otaku/friki si está presente en la biografía. Usa únicamente lo que está explícitamente mencionado en estos campos, no añadas actividades genéricas.",
+        "poses_y_gestos":
+            "La pose debe reflejar naturalmente la actividad elegida y su personalidad. Si la biografía indica una personalidad otaku/friki/geek, incorpora gestos y expresiones que muestren esa pasión auténtica por sus hobbies. La foto debe ser espontánea y mostrar disfrute genuino, con la energía característica de alguien que disfruta intensamente de sus aficiones.",
+        "props_y_elementos":
+            "Incluye únicamente objetos y elementos que estén directamente relacionados con las actividades, hobbies o profesión mencionados en la biografía. Si la biografía revela intereses otaku/friki/geek, asegúrate de que los props reflejen esa cultura de manera auténtica y específica según lo descrito en su historia personal.",
+        "mascotas_y_entorno":
+            "Si la sección 'mascotas' incluye animales, pueden aparecer interactuando naturalmente con la actividad. Representa exactamente las características descritas. El entorno debe ser coherente con la actividad y personalidad: si es una persona otaku/friki según su biografía, el espacio puede reflejar esa cultura de manera sutil y natural, sin elementos que contradigan su contexto personal.",
+      },
       "restricciones": [
         "No texto en la imagen",
         "Sin marcas de agua, pie de foto ni logos, solamente la foto",
         "Sin elementos anacrónicos",
         "Sólo una persona en el encuadre",
       ],
-      "salida":
-          "Usa la herramienta de generación de imágenes y devuelve únicamente la imagen en base64.",
+      "salida": "Usa la herramienta de generación de imágenes y devuelve únicamente la imagen en base64.",
       "notas":
           "Lee 'appearance' fielmente para ropa, colores, texturas y accesorios. Usa 'biography' solo para elegir la actividad y contexto; prioriza 'appearance' ante contradicciones. La imagen debe tener edad aparente EXACTA = 25.",
     };
+  }
 
-    AIResponse imageResponse = AIResponse(
-      text: '',
-      base64: '',
-      seed: '',
-      prompt: '',
-    );
-    const int maxImageAttemptsPerModel = 3;
+  /// Obtiene las 5 entradas más recientes del timeline para contexto
+  List<TimelineEntry> _getRecentTimelineEntries(AiChanProfile bio) {
+    if (bio.timeline.isEmpty) return [];
 
-    // Decide seed internamente: si appendAvatar==true y el perfil tiene avatars,
-    // usamos la seed del primer avatar para mantener identidad. Si no, generamos fresh.
-    String? seedToUse;
-    if (appendAvatar) {
-      final firstAvatar = bio.firstAvatar;
-      seedToUse = (firstAvatar != null && (firstAvatar.seed ?? '').isNotEmpty)
-          ? firstAvatar.seed
-          : null;
-    } else {
-      seedToUse = null;
+    final sorted = List<TimelineEntry>.from(bio.timeline);
+    sorted.sort((a, b) {
+      final aMs = DateTime.tryParse(a.startDate ?? '')?.millisecondsSinceEpoch ?? 0;
+      final bMs = DateTime.tryParse(b.startDate ?? '')?.millisecondsSinceEpoch ?? 0;
+      return bMs.compareTo(aMs);
+    });
+    return sorted.take(5).toList();
+  }
+
+  /// Genera prompt contextual usando modelo de texto
+  Future<String> _generateContextualPrompt(AiChanProfile profile, String textModel) async {
+    final instructions = {
+      'task': 'generate_image_prompt',
+      'description':
+          '''Genera UN SOLO prompt de imagen listo para el generador (una frase larga, separada por comas). Debe ser SUPER-DETALLADO: extrae y utiliza toda la información visual disponible del `appearance` del `profile` adjunto (usar como única fuente de verdad para rasgos físicos, ropa, colores, texturas y marcas), de la `biography` (actividad, gustos, contexto) y del `timeline` (entradas recientes) para incluir props, lugares o escenas relacionadas con acciones recientes. No repitas el tema o estilo de avatares anteriores (avatars). Forzar edad_aparente = 25.''',
+      'identidad': {"edad_aparente": 25, "genero": "mujer"},
+      'restricciones': ["No texto en la imagen", "Sin marcas de agua", "Sólo una persona en el encuadre"],
+    };
+
+    try {
+      final systemPrompt = SystemPrompt(profile: profile, dateTime: DateTime.now(), instructions: instructions);
+      final response = await AIService.sendMessage([], systemPrompt, model: textModel, enableImageGeneration: false);
+      final generated = (response.text.isNotEmpty ? response.text : response.prompt).trim();
+      Log.d('[IAAvatarGenerator] Prompt generado por modelo de texto: $generated');
+      return generated;
+    } catch (e) {
+      Log.w('[IAAvatarGenerator] Prompt generator failed: $e');
+      return '';
     }
+  }
 
-    // Preparar contenedor para posibles últimas entradas del timeline que se
-    // incluirán en el profileForPrompt cuando se reutilice una seed.
-    List<TimelineEntry> recentTimelineEntries = [];
+  /// Crea prompt usando el texto generado por el modelo
+  Map<String, dynamic> _createPromptWithGenerated(String generatedText) {
+    final basePrompt = _createBasePrompt();
+    return {
+      "is_avatar": true,
+      "descripcion":
+          "[IMAGEN REQUERIDA]: Genera una imagen usando tu herramienta de generación de imágenes 'image_generation' utilizando el prompt 'image_prompt'",
+      'image_prompt': generatedText,
+      'visual_settings': basePrompt['visual_settings'],
+      'restricciones': basePrompt['restricciones'],
+      'salida': basePrompt['salida'],
+    };
+  }
 
-    // Prompt final (no cambia entre intentos). Si hay seed, añadimos instrucciones específicas
-    // de variación que incluyan el resumen de avatares previos para evitar replicarlos.
-    dynamic promptToSend;
-    if (seedToUse != null) {
-      // No recopilamos ni enviamos avatares previos para evitar señales que
-      // produzcan repeticiones del fondo, ropa o props anteriores.
-      // Construir lista de hasta 5 TimelineEntry más recientes para incluirla
-      // en el profileForPrompt (no en el variationBlock). Mantener objetos
-      // TimelineEntry para que el profileForPrompt sea consistente.
-      if (bio.timeline.isNotEmpty) {
-        final sorted = List<TimelineEntry>.from(bio.timeline);
-        sorted.sort((a, b) {
-          final aMs =
-              DateTime.tryParse(a.startDate ?? '')?.millisecondsSinceEpoch ?? 0;
-          final bMs =
-              DateTime.tryParse(b.startDate ?? '')?.millisecondsSinceEpoch ?? 0;
-          return bMs.compareTo(aMs);
-        });
-        recentTimelineEntries = sorted.take(5).toList();
-      }
-
-      // Construir profileForPrompt mínimo para pasar contexto al generador
-      final profileForPromptGen = AiChanProfile(
-        biography: bio.biography,
-        userName: bio.userName,
-        aiName: bio.aiName,
-        userBirthday: null,
-        aiBirthday: null,
-        appearance: appearance,
-        avatars: bio.avatars,
-        timeline: recentTimelineEntries,
-      );
-
-      // Preparar instrucciones para generar el prompt textual
-      final generatorInstructions = {
-        'task': 'generate_image_prompt',
-        'description':
-            '''Genera UN SOLO prompt de imagen listo para el generador (una frase larga, separada por comas). Debe ser SUPER-DETALLADO: extrae y utiliza toda la información visual disponible del `appearance` del `profile` adjunto (usar como única fuente de verdad para rasgos físicos, ropa, colores, texturas y marcas), de la `biography` (actividad, gustos, contexto) y del `timeline` (entradas recientes) para incluir props, lugares o escenas relacionadas con acciones recientes. No repitas el tema o estilo de avatares anteriores (avatars). Forzar edad_aparente = 25.''',
-        'identidad': basePromptMap['identidad'],
-        'restricciones': basePromptMap['restricciones'],
-      };
-
-      // Enviar petición al servicio de IA para generar el prompt textual
-      String generatedPromptText = '';
-      try {
-        final systemPromptGen = SystemPrompt(
-          profile: profileForPromptGen,
-          dateTime: DateTime.now(),
-          instructions: generatorInstructions,
-        );
-        final genResp = await AIService.sendMessage(
-          [],
-          systemPromptGen,
-          model: forcedTextModel,
-          enableImageGeneration: false,
-        );
-        // genResp.text is non-nullable; prefer it when non-empty, otherwise use prompt
-        generatedPromptText =
-            (genResp.text.isNotEmpty ? genResp.text : (genResp.prompt)).trim();
-        // Log para depuración: ver el prompt textual generado por el modelo de texto
-        Log.d(
-          '[IAAvatarGenerator] Prompt generado por modelo de texto: $generatedPromptText',
-        );
-      } catch (e) {
-        Log.w('[IAAvatarGenerator] Prompt generator failed: $e');
-      }
-
-      if (generatedPromptText.isNotEmpty) {
-        // Usar el prompt textual generado como instrucción principal para
-        // la generación de imagen. Conservamos restricciones y metadata.
-        promptToSend = {
-          "is_avatar": true,
-          "descripcion":
-              "[IMAGEN REQUERIDA]: Genera una imagen usando tu herramienta de generación de imágenes 'image_generation' utilizando el prompt 'image_prompt'",
-          'image_prompt': generatedPromptText,
-          'detalle': basePromptMap['detalle'],
-          'visual_settings': basePromptMap['visual_settings'],
-          'restricciones': basePromptMap['restricciones'],
-          'salida': basePromptMap['salida'],
-        };
-      } else {
-        Log.w(
-          '[IAAvatarGenerator] Prompt generator returned empty; usando basePromptMap como fallback',
-        );
-        promptToSend = basePromptMap;
-      }
-    } else {
-      promptToSend = basePromptMap;
-    }
-
-    // Construir profileForPrompt también fuera del bucle (no cambia entre intentos)
-    final profileForPrompt = AiChanProfile(
+  /// Construye el perfil que se enviará al generador
+  AiChanProfile _buildProfileForPrompt(AiChanProfile bio, String? seedToUse) {
+    return AiChanProfile(
       biography: bio.biography,
       userName: bio.userName,
       aiName: bio.aiName,
       userBirthday: null,
       aiBirthday: null,
-      appearance: appearance,
+      appearance: bio.appearance,
       avatars: seedToUse != null ? bio.avatars : [],
-      timeline: seedToUse != null ? recentTimelineEntries : [],
+      timeline: seedToUse != null ? _getRecentTimelineEntries(bio) : [],
     );
+  }
 
-    for (int attempt = 0; attempt < maxImageAttemptsPerModel; attempt++) {
-      Log.d(
-        '[IAAvatarGenerator] Avatar: intento ${attempt + 1}/$maxImageAttemptsPerModel con $forcedImageModel',
-      );
+  /// Genera la imagen con reintentos automáticos
+  Future<AIResponse> _generateImageWithRetries(
+    dynamic promptToSend,
+    AiChanProfile profileForPrompt,
+    String imageModel,
+  ) async {
+    const int maxAttempts = 3;
+
+    for (int attempt = 0; attempt < maxAttempts; attempt++) {
+      Log.d('[IAAvatarGenerator] Avatar: intento ${attempt + 1}/$maxAttempts con $imageModel');
+
       try {
-        final systemPromptImage = SystemPrompt(
+        final systemPrompt = SystemPrompt(
           profile: profileForPrompt,
           dateTime: DateTime.now(),
           instructions: promptToSend,
         );
 
-        final resp = await AIService.sendMessage(
-          [],
-          systemPromptImage,
-          model: forcedImageModel,
-          enableImageGeneration: true,
-        );
+        final response = await AIService.sendMessage([], systemPrompt, model: imageModel, enableImageGeneration: true);
 
-        if (resp.base64.isNotEmpty) {
-          imageResponse = resp;
-          Log.d(
-            '[IAAvatarGenerator] Avatar: imagen obtenida en intento ${attempt + 1}',
-          );
-          break;
+        if (response.base64.isNotEmpty) {
+          Log.d('[IAAvatarGenerator] Avatar: imagen obtenida en intento ${attempt + 1}');
+          return response;
         }
         Log.w('[IAAvatarGenerator] Avatar: intento ${attempt + 1} sin imagen');
       } catch (err) {
         if (handleRuntimeError(err, 'IAAvatarGenerator')) {
           // logged
         } else {
-          Log.e(
-            '[IAAvatarGenerator] Avatar: error en intento ${attempt + 1}: $err',
-          );
+          Log.e('[IAAvatarGenerator] Avatar: error en intento ${attempt + 1}: $err');
         }
       }
 
-      // Backoff progresivo entre intentos para evitar ráfagas
-      if (attempt < maxImageAttemptsPerModel - 1) {
+      // Backoff progresivo entre intentos
+      if (attempt < maxAttempts - 1) {
         await Future.delayed(Duration(milliseconds: 400 * (attempt + 1)));
       }
     }
 
-    if (imageResponse.base64.isEmpty) {
-      throw Exception(
-        'No se pudo generar el avatar tras $maxImageAttemptsPerModel intentos.',
-      );
-    }
+    throw Exception('No se pudo generar el avatar tras $maxAttempts intentos.');
+  }
 
+  /// Guarda la imagen y crea el objeto AiImage final
+  Future<AiImage> _saveAndCreateAvatar(AIResponse imageResponse, String? seedToUse) async {
     // Guardar imagen
     String? imageUrl;
     try {
-      imageUrl = await saveBase64ImageToFile(
-        imageResponse.base64,
-        prefix: 'ai_avatar',
-      );
+      imageUrl = await saveBase64ImageToFile(imageResponse.base64, prefix: 'ai_avatar');
     } catch (e) {
       imageUrl = null;
     }
 
     if (imageUrl == null || imageUrl.isEmpty) {
-      throw Exception(
-        'Se generó el avatar pero no se pudo guardar la imagen en el dispositivo.',
-      );
+      throw Exception('Se generó el avatar pero no se pudo guardar la imagen en el dispositivo.');
     }
 
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    // Prefer the seed returned by the image service when available. Si la API
-    // devolvió una nueva seed, usarla; si no, usar la seed interna decidida.
-    final String usedSeed = (imageResponse.seed.isNotEmpty)
-        ? imageResponse.seed
-        : (seedToUse ?? '');
+    final usedSeed = (imageResponse.seed.isNotEmpty) ? imageResponse.seed : (seedToUse ?? '');
 
     Log.d('[IAAvatarGenerator] Avatar: usada seed final: $usedSeed');
 
-    final avatar = AiImage(
-      seed: usedSeed,
-      prompt: imageResponse.prompt,
-      url: imageUrl,
-      createdAtMs: nowMs,
-    );
-
-    // Nota: no modificamos ni persistimos onboardingData aquí. El llamador
-    // deberá incorporar el avatar a su `AiChanProfile` y persistir si procede.
-    return avatar;
+    return AiImage(seed: usedSeed, prompt: imageResponse.prompt, url: imageUrl, createdAtMs: nowMs);
   }
 }

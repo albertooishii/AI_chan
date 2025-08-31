@@ -4,7 +4,7 @@ import 'package:ai_chan/shared/services/ai_service.dart';
 
 class FakeAppearanceGenerator extends IAAppearanceGenerator {
   @override
-  Future<Map<String, dynamic>> generateAppearancePrompt(
+  Future<Map<String, dynamic>> generateAppearanceFromBiography(
     AiChanProfile bio, {
     AIService? aiService,
     Future<String?> Function(String base64, {String prefix})? saveImageFunc,
