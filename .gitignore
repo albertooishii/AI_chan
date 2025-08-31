@@ -1,5 +1,7 @@
-# Ignorar archivos de entorno
+# Ignorar archivos de entorno y credenciales
 .env
+google-services.json
+android/app/google-services.json
 # Miscellaneous
 *.class
 *.log
