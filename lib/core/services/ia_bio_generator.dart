@@ -202,6 +202,11 @@ $promptHeader
 
 $interesesSection
 
+CONTEXTO DEL ENCUENTRO CON EL USUARIO:
+La historia de cómo se conocieron fue: "$meetStory"
+
+IMPORTANTE: Usa este contexto para enriquecer y dar coherencia a la biografía. Si el encuentro menciona mascotas (gato, perro, etc.), inclúyelas en la sección "mascotas". Si habla de trabajo específico, refléjalo en "trayectoria_profesional". Si menciona aficiones, estudios, familia o cualquier detalle personal, incorpóralo de manera natural en las secciones correspondientes. La biografía debe ser coherente con lo que se reveló durante el encuentro, pero sin duplicar la información - expande y desarrolla esos elementos mencionados.
+
 Formato:
 $bioJsonTemplate
 

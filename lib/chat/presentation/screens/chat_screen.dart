@@ -503,7 +503,11 @@ class _ChatScreenState extends State<ChatScreen> {
                               const SizedBox(height: 2),
                               Text(
                                 selected,
-                                style: const TextStyle(color: AppColors.secondary, fontSize: 11),
+                                style: const TextStyle(
+                                  color: AppColors.secondary,
+                                  fontSize: 11,
+                                  fontFamily: 'monospace',
+                                ),
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
                               ),
@@ -548,7 +552,11 @@ class _ChatScreenState extends State<ChatScreen> {
                                       }
                                       return Text(
                                         p.toUpperCase(),
-                                        style: const TextStyle(color: AppColors.secondary, fontSize: 11),
+                                        style: const TextStyle(
+                                          color: AppColors.secondary,
+                                          fontSize: 11,
+                                          fontFamily: 'monospace',
+                                        ),
                                         overflow: TextOverflow.ellipsis,
                                         maxLines: 1,
                                       );
@@ -565,7 +573,11 @@ class _ChatScreenState extends State<ChatScreen> {
                                         padding: const EdgeInsets.only(left: 8.0),
                                         child: Text(
                                           v,
-                                          style: const TextStyle(color: AppColors.secondary, fontSize: 11),
+                                          style: const TextStyle(
+                                            color: AppColors.secondary,
+                                            fontSize: 11,
+                                            fontFamily: 'monospace',
+                                          ),
                                           overflow: TextOverflow.ellipsis,
                                           maxLines: 1,
                                         ),

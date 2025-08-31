@@ -624,6 +624,8 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                   width: double.infinity,
                   child: Row(
                     children: [
+                      const Icon(Icons.add_to_drive, size: 20, color: Colors.white),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'GOOGLE_DRIVE_INTERFACE // クラウドアーカイブカンリ',
@@ -747,7 +749,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                     setState(() => _insufficientScope = false);
                                     await _checkStatusOnly(); // Just check status, don't do additional auth
                                   },
-                            child: const Text('ESTABLISH_CONNECTION // ストレージアクセスキョカ'),
+                            child: const Text('ESTABLISH_CONNECTION'),
                           ),
                         ),
                       // The main link button: Android uses the native chooser (always visible).
@@ -966,7 +968,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         ),
                         onPressed: _working ? null : _restoreLatestNow,
-                        label: const Text('RESTORE_DATA // アーカイブダウンロード'),
+                        label: const Text('RESTORE_DATA'),
                       );
 
                       final createButton = ElevatedButton.icon(
@@ -976,7 +978,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         ),
                         onPressed: _working ? null : _createBackupNow,
-                        label: const Text('UPLOAD_DATA // バックアップアーカイブサクセイ'),
+                        label: const Text('UPLOAD_DATA'),
                       );
 
                       final deleteButton = OutlinedButton.icon(
@@ -1029,7 +1031,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                   _safeSetState(() => _working = false);
                                 }
                               },
-                        label: const Text('DELETE_ARCHIVE // データショウキョ', style: TextStyle(color: Colors.redAccent)),
+                        label: const Text('DELETE_ARCHIVE', style: TextStyle(color: Colors.redAccent)),
                       );
 
                       // Layout inteligente y responsivo de botones

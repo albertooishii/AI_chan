@@ -17,12 +17,7 @@ class LocalBackupDialog extends StatefulWidget {
   // Optional error callback for parse errors.
   final void Function(String error)? onImportError;
 
-  const LocalBackupDialog({
-    super.key,
-    this.requestExportJson,
-    this.onImportedJson,
-    this.onImportError,
-  });
+  const LocalBackupDialog({super.key, this.requestExportJson, this.onImportedJson, this.onImportError});
 
   @override
   State<LocalBackupDialog> createState() => _LocalBackupDialogState();
@@ -55,10 +50,7 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
       }
       if (widget.requestExportJson == null) throw 'No export callback provided';
       final jsonStr = await widget.requestExportJson!.call();
-      final file = await BackupService.createLocalBackup(
-        jsonStr: jsonStr,
-        destinationDirPath: selectedDir,
-      );
+      final file = await BackupService.createLocalBackup(jsonStr: jsonStr, destinationDirPath: selectedDir);
       final msg = 'Backup creado: ${file.path}';
       try {
         final navCtx = navigatorKey.currentContext;
@@ -93,9 +85,7 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
       }
       final f = File(path);
       final jsonStr = await BackupService.restoreAndExtractJson(f);
-      final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
-        jsonStr,
-      );
+      final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
       if (imported != null) {
         if (widget.onImportedJson != null) {
           await widget.onImportedJson!.call(imported);
@@ -131,18 +121,11 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
         final screenH = screenSize.height;
 
         // Más generoso en desktop, más compacto en mobile
-        final horizontalMargin = screenW > 800
-            ? 60.0
-            : 4.0; // Reducido aún más en mobile (4px)
-        final maxWidth = screenW > 800
-            ? 900.0
-            : double.infinity; // Más grande en desktop, sin límite en mobile
+        final horizontalMargin = screenW > 800 ? 60.0 : 4.0; // Reducido aún más en mobile (4px)
+        final maxWidth = screenW > 800 ? 900.0 : double.infinity; // Más grande en desktop, sin límite en mobile
 
         final desired = screenW - horizontalMargin;
-        final width = desired.clamp(
-          400.0,
-          maxWidth,
-        ); // Aumentado mínimo a 400px
+        final width = desired.clamp(400.0, maxWidth); // Aumentado mínimo a 400px
 
         return Container(
           width: width,
@@ -151,9 +134,7 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
             minHeight: 200,
           ),
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(
-              20.0,
-            ), // Más padding para que se vea más espacioso
+            padding: const EdgeInsets.all(20.0), // Más padding para que se vea más espacioso
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -162,26 +143,22 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
                   width: double.infinity,
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.sd_storage,
-                        size: 20,
-                        color: Colors.white,
-                      ),
+                      const Icon(Icons.sd_storage, size: 20, color: Colors.white),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Copia de seguridad local',
+                          'LOCAL_BACKUP_INTERFACE // ローカルストレージカンリ',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.w600,
                           ),
                           // Allow the title to wrap into multiple lines instead of truncating with ellipsis
                         ),
                       ),
                       IconButton(
-                        onPressed: _working
-                            ? null
-                            : () => Navigator.of(context).pop(),
+                        onPressed: _working ? null : () => Navigator.of(context).pop(),
                         icon: const Icon(Icons.close, color: Colors.white70),
                         tooltip: 'Cerrar',
                       ),
@@ -189,19 +166,21 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
                   ),
                 ),
                 const SizedBox(height: 20), // Más espacio después del header
+                // Descripción del diálogo
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: Text(
+                    '[LOCAL_STORAGE] // Gestión de archivos locales del dispositivo',
+                    style: const TextStyle(color: Colors.white70, fontSize: 15, fontFamily: 'monospace'),
+                  ),
+                ),
                 if (_status != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16.0),
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxHeight: 220),
                       child: SingleChildScrollView(
-                        child: Text(
-                          _status!,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 15,
-                          ),
-                        ),
+                        child: Text(_status!, style: const TextStyle(color: Colors.white70, fontSize: 15)),
                       ),
                     ),
                   ),
@@ -212,34 +191,28 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
                     final availableWidth = constraints.maxWidth;
 
                     // Crear botones con el mismo estilo que el diálogo de Google Drive
-                    final saveButton = ElevatedButton.icon(
-                      onPressed: (_working || widget.requestExportJson == null)
-                          ? null
-                          : _doCreateBackup,
-                      icon: const Icon(Icons.save_alt),
+                    final saveButton = ElevatedButton(
+                      onPressed: (_working || widget.requestExportJson == null) ? null : _doCreateBackup,
                       style: ElevatedButton.styleFrom(
                         minimumSize: const Size(0, 48), // Botones más altos
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       ),
-                      label: const Text(
-                        'Guardar archivo de copia de seguridad',
+                      child: const Text(
+                        'SAVE_DATA',
+                        style: TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w600),
                       ),
                     );
 
-                    final restoreButton = ElevatedButton.icon(
+                    final restoreButton = ElevatedButton(
                       onPressed: _working ? null : _doRestoreFromFile,
-                      icon: const Icon(Icons.folder_open),
                       style: ElevatedButton.styleFrom(
                         minimumSize: const Size(0, 48), // Botones más altos
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       ),
-                      label: const Text('Restaurar desde archivo'),
+                      child: const Text(
+                        'RESTORE_DATA',
+                        style: TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w600),
+                      ),
                     );
 
                     // Layout muy estrecho: botones apilados verticalmente
@@ -250,20 +223,13 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
                         children: [
                           SizedBox(width: double.infinity, child: saveButton),
                           const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: restoreButton,
-                          ),
+                          SizedBox(width: double.infinity, child: restoreButton),
                         ],
                       );
                     }
 
                     // Layout ancho: botones en la misma fila
-                    return Wrap(
-                      spacing: 12.0,
-                      runSpacing: 8.0,
-                      children: [saveButton, restoreButton],
-                    );
+                    return Wrap(spacing: 12.0, runSpacing: 8.0, children: [saveButton, restoreButton]);
                   },
                 ),
                 const SizedBox(height: 12), // Espacio final más generoso
