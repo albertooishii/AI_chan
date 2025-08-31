@@ -4,7 +4,7 @@ import 'package:ai_chan/shared/utils/prefs_utils.dart';
 
 import 'package:ai_chan/voice/domain/interfaces/voice_interfaces.dart';
 import 'package:ai_chan/voice/domain/models/voice_call.dart';
-import 'package:ai_chan/voice/domain/models/voice_message.dart';
+import 'package:ai_chan/voice/domain/models/call_message.dart';
 
 /// Repositorio que persiste llamadas de voz usando SharedPreferences
 class LocalVoiceCallRepository implements IVoiceCallRepository {
@@ -122,7 +122,7 @@ class LocalVoiceCallRepository implements IVoiceCallRepository {
   }
 
   @override
-  Future<void> addMessageToCall(String callId, VoiceMessage message) async {
+  Future<void> addMessageToCall(String callId, CallMessage message) async {
     final call = await getCall(callId);
     if (call == null) return;
 
@@ -133,7 +133,7 @@ class LocalVoiceCallRepository implements IVoiceCallRepository {
   }
 
   @override
-  Future<List<VoiceMessage>> getCallMessages(String callId) async {
+  Future<List<CallMessage>> getCallMessages(String callId) async {
     try {
       final messagesJson = await PrefsUtils.getRawString(
         PrefsUtils.voiceMessagesKey(callId),
@@ -142,7 +142,7 @@ class LocalVoiceCallRepository implements IVoiceCallRepository {
 
       try {
         final messagesMap = jsonDecode(messagesJson) as Map<String, dynamic>;
-        final messages = <VoiceMessage>[];
+        final messages = <CallMessage>[];
 
         // Ordenar por índice para mantener el orden
         final sortedEntries = messagesMap.entries.toList()
@@ -150,7 +150,7 @@ class LocalVoiceCallRepository implements IVoiceCallRepository {
 
         for (final entry in sortedEntries) {
           final messageData = entry.value as Map<String, dynamic>;
-          messages.add(VoiceMessage.fromMap(messageData));
+          messages.add(CallMessage.fromMap(messageData));
         }
 
         return messages;

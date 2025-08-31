@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 import 'package:ai_chan/core/models.dart';
 
-/// Mensaje de voz dentro de una llamada
-class VoiceMessage {
+/// Mensaje dentro de una llamada de voz
+class CallMessage {
   final String id;
   final MessageType type;
   final MessageSender sender;
@@ -13,7 +13,7 @@ class VoiceMessage {
   final Duration? audioDuration;
   final Map<String, dynamic>? metadata;
 
-  const VoiceMessage({
+  const CallMessage({
     required this.id,
     required this.type,
     required this.sender,
@@ -38,13 +38,13 @@ class VoiceMessage {
   bool get isFromAssistant => sender == MessageSender.assistant;
 
   /// Helper interno para crear mensaje de texto
-  static VoiceMessage _createTextMessage({
+  static CallMessage _createTextMessage({
     required String id,
     required String text,
     required MessageSender sender,
     Map<String, dynamic>? metadata,
   }) {
-    return VoiceMessage(
+    return CallMessage(
       id: id,
       type: MessageType.text,
       sender: sender,
@@ -55,7 +55,7 @@ class VoiceMessage {
   }
 
   /// Helper interno para crear mensaje de audio
-  static VoiceMessage _createAudioMessage({
+  static CallMessage _createAudioMessage({
     required String id,
     required MessageSender sender,
     Uint8List? audioData,
@@ -63,7 +63,7 @@ class VoiceMessage {
     Duration? audioDuration,
     Map<String, dynamic>? metadata,
   }) {
-    return VoiceMessage(
+    return CallMessage(
       id: id,
       type: MessageType.audio,
       sender: sender,
@@ -76,12 +76,12 @@ class VoiceMessage {
   }
 
   /// Crea un mensaje de texto del usuario
-  factory VoiceMessage.userText({required String id, required String text, Map<String, dynamic>? metadata}) {
+  factory CallMessage.userText({required String id, required String text, Map<String, dynamic>? metadata}) {
     return _createTextMessage(id: id, text: text, sender: MessageSender.user, metadata: metadata);
   }
 
   /// Crea un mensaje de audio del usuario
-  factory VoiceMessage.userAudio({
+  factory CallMessage.userAudio({
     required String id,
     Uint8List? audioData,
     String? audioPath,
@@ -99,12 +99,12 @@ class VoiceMessage {
   }
 
   /// Crea un mensaje de texto del asistente
-  factory VoiceMessage.assistantText({required String id, required String text, Map<String, dynamic>? metadata}) {
+  factory CallMessage.assistantText({required String id, required String text, Map<String, dynamic>? metadata}) {
     return _createTextMessage(id: id, text: text, sender: MessageSender.assistant, metadata: metadata);
   }
 
   /// Crea un mensaje de audio del asistente
-  factory VoiceMessage.assistantAudio({
+  factory CallMessage.assistantAudio({
     required String id,
     Uint8List? audioData,
     String? audioPath,
@@ -122,7 +122,7 @@ class VoiceMessage {
   }
 
   /// Crea un mensaje mixto (texto + audio) del asistente
-  factory VoiceMessage.assistantMixed({
+  factory CallMessage.assistantMixed({
     required String id,
     required String text,
     Uint8List? audioData,
@@ -130,7 +130,7 @@ class VoiceMessage {
     Duration? audioDuration,
     Map<String, dynamic>? metadata,
   }) {
-    return VoiceMessage(
+    return CallMessage(
       id: id,
       type: MessageType.mixed,
       sender: MessageSender.assistant,
@@ -144,7 +144,7 @@ class VoiceMessage {
   }
 
   /// Copia con nuevos valores
-  VoiceMessage copyWith({
+  CallMessage copyWith({
     String? id,
     MessageType? type,
     MessageSender? sender,
@@ -155,7 +155,7 @@ class VoiceMessage {
     Duration? audioDuration,
     Map<String, dynamic>? metadata,
   }) {
-    return VoiceMessage(
+    return CallMessage(
       id: id ?? this.id,
       type: type ?? this.type,
       sender: sender ?? this.sender,
@@ -184,8 +184,8 @@ class VoiceMessage {
   }
 
   /// Crea desde mapa
-  factory VoiceMessage.fromMap(Map<String, dynamic> map) {
-    return VoiceMessage(
+  factory CallMessage.fromMap(Map<String, dynamic> map) {
+    return CallMessage(
       id: map['id'] as String,
       type: MessageTypeExtension.fromString(map['type'] as String),
       sender: MessageSenderExtension.fromString(map['sender'] as String),
@@ -200,13 +200,13 @@ class VoiceMessage {
 
   @override
   String toString() {
-    return 'VoiceMessage(id: $id, type: ${type.name}, sender: ${sender.name}, hasText: $hasText, hasAudio: $hasAudio)';
+    return 'CallMessage(id: $id, type: ${type.name}, sender: ${sender.name}, hasText: $hasText, hasAudio: $hasAudio)';
   }
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is VoiceMessage && other.id == id;
+    return other is CallMessage && other.id == id;
   }
 
   @override

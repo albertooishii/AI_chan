@@ -30,7 +30,7 @@ class ProcessAssistantResponseUseCase {
     }
 
     // Crear mensaje del asistente
-    final message = VoiceMessage.assistantText(
+    final message = CallMessage.assistantText(
       id: _generateMessageId(),
       text: text.trim(),
       metadata: {
@@ -69,7 +69,7 @@ class ProcessAssistantResponseUseCase {
     }
 
     // Crear mensaje del asistente
-    final message = VoiceMessage.assistantAudio(
+    final message = CallMessage.assistantAudio(
       id: _generateMessageId(),
       audioData: audioData.isNotEmpty ? Uint8List.fromList(audioData) : null,
       audioPath: audioPath,
@@ -112,7 +112,7 @@ class ProcessAssistantResponseUseCase {
     }
 
     // Crear mensaje mixto del asistente
-    final message = VoiceMessage.assistantMixed(
+    final message = CallMessage.assistantMixed(
       id: _generateMessageId(),
       text: text.trim(),
       audioData: audioData.isNotEmpty ? Uint8List.fromList(audioData) : null,
@@ -153,7 +153,7 @@ class ProcessAssistantResponseUseCase {
     }
 
     // Crear mensaje del usuario basado en transcripción
-    final message = VoiceMessage.userText(
+    final message = CallMessage.userText(
       id: _generateMessageId(),
       text: transcription.trim(),
       metadata: {

@@ -1,5 +1,5 @@
 import 'package:ai_chan/voice/domain/models/voice_call.dart';
-import 'package:ai_chan/voice/domain/models/voice_message.dart';
+import 'package:ai_chan/voice/domain/models/call_message.dart';
 import 'package:ai_chan/voice/domain/models/voice_provider.dart';
 import 'package:ai_chan/core/models.dart';
 
@@ -31,7 +31,7 @@ class VoiceCallValidationService {
   }
 
   /// Valida si un mensaje de voz es válido
-  static bool isMessageValid(VoiceMessage message) {
+  static bool isMessageValid(CallMessage message) {
     // ID no puede estar vacío
     if (message.id.trim().isEmpty) {
       return false;
@@ -192,7 +192,7 @@ class VoiceCallOrchestrationService {
   }
 
   /// Agrega un mensaje a una llamada
-  static VoiceCall addMessageToCall(VoiceCall call, VoiceMessage message) {
+  static VoiceCall addMessageToCall(VoiceCall call, CallMessage message) {
     if (!VoiceCallValidationService.isMessageValid(message)) {
       throw ArgumentError('Invalid message');
     }

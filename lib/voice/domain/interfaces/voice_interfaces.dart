@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:ai_chan/voice/domain/models/voice_call.dart';
-import 'package:ai_chan/voice/domain/models/voice_message.dart';
+import 'package:ai_chan/voice/domain/models/call_message.dart';
 
 /// Repositorio para persistir y recuperar llamadas de voz
 abstract interface class IVoiceCallRepository {
@@ -27,10 +27,10 @@ abstract interface class IVoiceCallRepository {
   Future<void> updateCall(VoiceCall call);
 
   /// Agrega un mensaje a una llamada existente
-  Future<void> addMessageToCall(String callId, VoiceMessage message);
+  Future<void> addMessageToCall(String callId, CallMessage message);
 
   /// Obtiene el historial de mensajes de una llamada
-  Future<List<VoiceMessage>> getCallMessages(String callId);
+  Future<List<CallMessage>> getCallMessages(String callId);
 }
 
 // Nota: Las interfaces IVoiceSttService, IVoiceTtsService e IVoiceAiService

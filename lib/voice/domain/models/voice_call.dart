@@ -1,5 +1,5 @@
 import 'package:ai_chan/voice/domain/models/voice_provider.dart';
-import 'package:ai_chan/voice/domain/models/voice_message.dart';
+import 'package:ai_chan/voice/domain/models/call_message.dart';
 import 'package:ai_chan/core/models.dart';
 
 /// Agregado de dominio que representa una llamada de voz completa
@@ -11,7 +11,7 @@ class VoiceCall {
   final String model;
   final String voice;
   final String languageCode;
-  final List<VoiceMessage> messages;
+  final List<CallMessage> messages;
   final CallStatus status;
   final CallConfig config;
   final Map<String, dynamic>? metadata;
@@ -75,7 +75,7 @@ class VoiceCall {
     String? model,
     String? voice,
     String? languageCode,
-    List<VoiceMessage>? messages,
+    List<CallMessage>? messages,
     CallStatus? status,
     CallConfig? config,
     Map<String, dynamic>? metadata,
@@ -125,7 +125,7 @@ class VoiceCall {
       voice: map['voice'] as String,
       languageCode: map['languageCode'] as String,
       messages: (map['messages'] as List<dynamic>)
-          .map((m) => VoiceMessage.fromMap(m as Map<String, dynamic>))
+          .map((m) => CallMessage.fromMap(m as Map<String, dynamic>))
           .toList(),
       status: CallStatusExtension.fromString(map['status'] as String),
       config: CallConfig.fromMap(map['config'] as Map<String, dynamic>),

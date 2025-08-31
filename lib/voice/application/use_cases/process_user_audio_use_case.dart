@@ -55,7 +55,7 @@ class ProcessUserAudioUseCase {
     }
 
     // Crear mensaje de usuario
-    final message = VoiceMessage.userText(
+    final message = CallMessage.userText(
       id: _generateMessageId(),
       text: text.trim(),
       metadata: {'inputMethod': 'text'},

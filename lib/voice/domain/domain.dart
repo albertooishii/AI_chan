@@ -1,7 +1,7 @@
 // Voice domain barrel export
 // Models
 export 'models/voice_call.dart';
-export 'models/voice_message.dart';
+export 'models/call_message.dart';
 export 'models/voice_provider.dart';
 
 // Interfaces
