@@ -48,8 +48,7 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   Directory? _imageDir;
-  bool _isRegeneratingAppearance =
-      false; // Muestra spinner en avatar durante la regeneración
+  bool _isRegeneratingAppearance = false; // Muestra spinner en avatar durante la regeneración
   // Google Drive linked account state is now provided by ChatProvider
   // Pagination / lazy loading for messages
   late final ScrollController _scrollController;
@@ -93,16 +92,11 @@ class _ChatScreenState extends State<ChatScreen> {
         final provider = widget.chatProvider;
         _chatInputController = ChatInputController(
           scheduleSend: (text, {image, imageMimeType}) async {
-            provider.scheduleSendMessage(
-              text,
-              image: image,
-              imageMimeType: imageMimeType,
-            );
+            provider.scheduleSendMessage(text, image: image, imageMimeType: imageMimeType);
             return Future.value();
           },
           startRecording: () async => await provider.startRecording(),
-          stopAndSendRecording: () async =>
-              await provider.stopAndSendRecording(),
+          stopAndSendRecording: () async => await provider.stopAndSendRecording(),
           cancelRecording: () async => await provider.cancelRecording(),
           onUserTyping: (text) => provider.onUserTyping(text),
         );
@@ -136,9 +130,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final chatProvider = widget.chatProvider;
     final filtered = chatProvider.messages
         .where(
-          (m) =>
-              m.sender != MessageSender.system ||
-              (m.sender == MessageSender.system && m.text.contains('[call]')),
+          (m) => m.sender != MessageSender.system || (m.sender == MessageSender.system && m.text.contains('[call]')),
         )
         .toList();
     if (filtered.length <= _displayedCount) return;
@@ -175,8 +167,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _showImportDialog(ChatProvider chatProvider) async {
-    final (jsonStr, error) =
-        await chat_json_utils.ChatJsonUtils.importJsonFile();
+    final (jsonStr, error) = await chat_json_utils.ChatJsonUtils.importJsonFile();
     if (error != null) {
       showErrorDialog(error);
       return;
@@ -184,9 +175,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (jsonStr != null && jsonStr.trim().isNotEmpty) {
       try {
-        final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
-          jsonStr,
-        );
+        final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
         if (widget.onImportJson != null && imported != null) {
           await widget.onImportJson!.call(imported);
         } else {
@@ -222,34 +211,22 @@ class _ChatScreenState extends State<ChatScreen> {
             if (localLoading) return;
             setStateDialog(() => localLoading = true);
             try {
-              final fetched = await chatProvider.getAllModels(
-                forceRefresh: true,
-              );
+              final fetched = await chatProvider.getAllModels(forceRefresh: true);
               setStateDialog(() => localModels = fetched);
             } catch (e) {
               // show error inside dialog
-              showAppSnackBar(
-                'Error al actualizar modelos: $e',
-                preferRootMessenger: true,
-              );
+              showAppSnackBar('Error al actualizar modelos: $e', preferRootMessenger: true);
             } finally {
               setStateDialog(() => localLoading = false);
             }
           }
 
           return AppAlertDialog(
-            title: const Text(
-              'Modelo de texto',
-              style: TextStyle(color: AppColors.primary),
-            ),
+            title: const Text('Modelo de texto', style: TextStyle(color: AppColors.primary)),
             headerActions: [
               IconButton(
                 icon: localLoading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.refresh, color: AppColors.primary),
                 tooltip: 'Actualizar modelos',
                 onPressed: () {
@@ -258,10 +235,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ],
             content: localModels.isEmpty
-                ? const Text(
-                    'No se encontraron modelos disponibles.',
-                    style: TextStyle(color: AppColors.primary),
-                  )
+                ? const Text('No se encontraron modelos disponibles.', style: TextStyle(color: AppColors.primary))
                 : Builder(
                     builder: (innerCtx) {
                       final double maxWidth = dialogContentMaxWidth(innerCtx);
@@ -276,33 +250,17 @@ class _ChatScreenState extends State<ChatScreen> {
                             shrinkWrap: true,
                             children: () {
                               // Agrupar modelos por proveedor usando heurísticas sencillas.
-                              final grouped = ModelUtils.groupModels(
-                                localModels,
-                              );
+                              final grouped = ModelUtils.groupModels(localModels);
                               final preferred = ModelUtils.preferredOrder();
-                              final others =
-                                  grouped.keys
-                                      .where((k) => !preferred.contains(k))
-                                      .toList()
-                                    ..sort();
-                              final order = [
-                                ...preferred.where(
-                                  (k) => grouped.containsKey(k),
-                                ),
-                                ...others,
-                              ];
+                              final others = grouped.keys.where((k) => !preferred.contains(k)).toList()..sort();
+                              final order = [...preferred.where((k) => grouped.containsKey(k)), ...others];
                               final widgets = <Widget>[];
                               for (final grp in order) {
                                 final items = grouped[grp] ?? [];
                                 if (items.isEmpty) continue;
                                 widgets.add(
                                   Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      12.0,
-                                      8.0,
-                                      12.0,
-                                      8.0,
-                                    ),
+                                    padding: const EdgeInsets.fromLTRB(12.0, 8.0, 12.0, 8.0),
                                     child: Text(
                                       grp,
                                       style: const TextStyle(
@@ -316,38 +274,16 @@ class _ChatScreenState extends State<ChatScreen> {
                                 widgets.addAll(
                                   items.map(
                                     (m) => ListTile(
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                            horizontal: 12.0,
-                                            vertical: 4.0,
-                                          ),
-                                      title: Text(
-                                        m,
-                                        style: const TextStyle(
-                                          color: AppColors.primary,
-                                        ),
-                                      ),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+                                      title: Text(m, style: const TextStyle(color: AppColors.primary)),
                                       trailing: initialModel == m
-                                          ? const Icon(
-                                              Icons.radio_button_checked,
-                                              color: AppColors.secondary,
-                                            )
-                                          : const Icon(
-                                              Icons.radio_button_off,
-                                              color: AppColors.primary,
-                                            ),
-                                      onTap: () =>
-                                          Navigator.of(dialogCtxInner).pop(m),
+                                          ? const Icon(Icons.radio_button_checked, color: AppColors.secondary)
+                                          : const Icon(Icons.radio_button_off, color: AppColors.primary),
+                                      onTap: () => Navigator.of(dialogCtxInner).pop(m),
                                     ),
                                   ),
                                 );
-                                widgets.add(
-                                  const Divider(
-                                    color: AppColors.secondary,
-                                    thickness: 1,
-                                    height: 24,
-                                  ),
-                                );
+                                widgets.add(const Divider(color: AppColors.secondary, thickness: 1, height: 24));
                               }
                               return widgets;
                             }(),
@@ -363,11 +299,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  void _setSelectedModel(
-    String? selected,
-    String? current,
-    ChatProvider chatProvider,
-  ) {
+  void _setSelectedModel(String? selected, String? current, ChatProvider chatProvider) {
     if (!mounted) return;
     if (selected != null && selected != current) {
       chatProvider.selectedModel = selected;
@@ -387,10 +319,7 @@ class _ChatScreenState extends State<ChatScreen> {
       events: chatProvider.events,
     );
     // Delegate to shared util which shows preview and offers copy/save
-    chat_json_utils.ChatJsonUtils.showExportedJsonDialog(
-      jsonStr,
-      chat: importedChat,
-    );
+    chat_json_utils.ChatJsonUtils.showExportedJsonDialog(jsonStr, chat: importedChat);
   }
 
   // Central handler para eliminaciones de imagenes desde los viewers/galería.
@@ -421,17 +350,11 @@ class _ChatScreenState extends State<ChatScreen> {
       final navigator = Navigator.of(navCtx);
       if (chatProvider.isCalling) {
         // Abrir VoiceCallChat en modo incoming solo si no hay ya otra ruta de llamada
-        final alreadyOpen =
-            navigator.widget is VoiceCallChat; // heurístico simple
+        final alreadyOpen = navigator.widget is VoiceCallChat; // heurístico simple
         if (!alreadyOpen) {
           // Clear the calling flag to avoid reopening while the screen is active.
           chatProvider.clearPendingIncomingCall();
-          navigator.push(
-            MaterialPageRoute(
-              builder: (_) =>
-                  VoiceCallChat(incoming: true, chatProvider: chatProvider),
-            ),
-          );
+          navigator.push(MaterialPageRoute(builder: (_) => VoiceCallChat(incoming: true, chatProvider: chatProvider)));
         }
       }
     });
@@ -444,9 +367,7 @@ class _ChatScreenState extends State<ChatScreen> {
         shadowColor: Colors.transparent,
         surfaceTintColor: Colors.black,
         title: Padding(
-          padding: EdgeInsets.only(
-            right: MediaQuery.of(context).padding.right + 8.0,
-          ),
+          padding: EdgeInsets.only(right: MediaQuery.of(context).padding.right + 8.0),
           child: Row(
             children: [
               if (_isRegeneratingAppearance)
@@ -459,9 +380,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     height: 18,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        AppColors.primary,
-                      ),
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                     ),
                   ),
                 )
@@ -477,12 +396,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           final messages = avatars.map((a) {
                             final filename = a.url?.split('/').last ?? '';
                             return Message(
-                              image: AiImage(
-                                url: filename,
-                                seed: a.seed,
-                                prompt: a.prompt,
-                                createdAtMs: a.createdAtMs,
-                              ),
+                              image: AiImage(url: filename, seed: a.seed, prompt: a.prompt, createdAtMs: a.createdAtMs),
                               text: '',
                               sender: MessageSender.assistant,
                               isImage: true,
@@ -534,11 +448,7 @@ class _ChatScreenState extends State<ChatScreen> {
             tooltip: 'Llamada de voz',
             onPressed: () {
               final existing = widget.chatProvider;
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => VoiceCallChat(chatProvider: existing),
-                ),
-              );
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => VoiceCallChat(chatProvider: existing)));
             },
           ),
           PopupMenuButton<String>(
@@ -549,16 +459,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 value: 'gallery',
                 child: Row(
                   children: const [
-                    Icon(
-                      Icons.photo_library,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
+                    Icon(Icons.photo_library, color: AppColors.primary, size: 20),
                     SizedBox(width: 8),
-                    Text(
-                      'Ver galería de fotos',
-                      style: TextStyle(color: AppColors.primary),
-                    ),
+                    Text('Ver galería de fotos', style: TextStyle(color: AppColors.primary)),
                   ],
                 ),
               ),
@@ -567,16 +470,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 value: 'calendar',
                 child: Row(
                   children: const [
-                    Icon(
-                      Icons.calendar_month,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
+                    Icon(Icons.calendar_month, color: AppColors.primary, size: 20),
                     SizedBox(width: 8),
-                    Text(
-                      'Abrir calendario',
-                      style: TextStyle(color: AppColors.primary),
-                    ),
+                    Text('Abrir calendario', style: TextStyle(color: AppColors.primary)),
                   ],
                 ),
               ),
@@ -587,39 +483,27 @@ class _ChatScreenState extends State<ChatScreen> {
                 value: 'select_model',
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.memory,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
+                    const Icon(Icons.memory, color: AppColors.primary, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Builder(
                         builder: (context) {
                           final defaultModel = Config.getDefaultTextModel();
-                          final selected =
-                              chatProvider.selectedModel ?? defaultModel;
+                          final selected = chatProvider.selectedModel ?? defaultModel;
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                _loadingModels
-                                    ? 'Cargando modelos...'
-                                    : 'Modelo de texto',
-                                style: const TextStyle(
-                                  color: AppColors.primary,
-                                ),
+                                _loadingModels ? 'Cargando modelos...' : 'Modelo de texto',
+                                style: const TextStyle(color: AppColors.primary),
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 selected,
-                                style: const TextStyle(
-                                  color: AppColors.secondary,
-                                  fontSize: 11,
-                                ),
+                                style: const TextStyle(color: AppColors.secondary, fontSize: 11),
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
                               ),
@@ -637,11 +521,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 value: 'select_voice',
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.settings_voice,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
+                    const Icon(Icons.settings_voice, color: AppColors.primary, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Builder(
@@ -652,9 +532,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             children: [
                               Text(
                                 'Modelo de voz',
-                                style: const TextStyle(
-                                  color: AppColors.primary,
-                                ),
+                                style: const TextStyle(color: AppColors.primary),
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
                               ),
@@ -670,10 +548,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                       }
                                       return Text(
                                         p.toUpperCase(),
-                                        style: const TextStyle(
-                                          color: AppColors.secondary,
-                                          fontSize: 11,
-                                        ),
+                                        style: const TextStyle(color: AppColors.secondary, fontSize: 11),
                                         overflow: TextOverflow.ellipsis,
                                         maxLines: 1,
                                       );
@@ -687,15 +562,10 @@ class _ChatScreenState extends State<ChatScreen> {
                                         return const SizedBox.shrink();
                                       }
                                       return Padding(
-                                        padding: const EdgeInsets.only(
-                                          left: 8.0,
-                                        ),
+                                        padding: const EdgeInsets.only(left: 8.0),
                                         child: Text(
                                           v,
-                                          style: const TextStyle(
-                                            color: AppColors.secondary,
-                                            fontSize: 11,
-                                          ),
+                                          style: const TextStyle(color: AppColors.secondary, fontSize: 11),
                                           overflow: TextOverflow.ellipsis,
                                           maxLines: 1,
                                         ),
@@ -720,30 +590,18 @@ class _ChatScreenState extends State<ChatScreen> {
                   children: const [
                     Icon(Icons.sd_storage, color: AppColors.primary, size: 20),
                     SizedBox(width: 8),
-                    Text(
-                      'Copia de seguridad local',
-                      style: TextStyle(color: AppColors.primary),
-                    ),
+                    Text('Copia de seguridad local', style: TextStyle(color: AppColors.primary)),
                   ],
                 ),
               ),
               // Google Drive menu entry: always show a simple label (no avatar/email)
               PopupMenuItem<String>(
-                value: chatProvider.googleLinked
-                    ? 'backup_status'
-                    : 'backup_google',
+                value: chatProvider.googleLinked ? 'backup_status' : 'backup_google',
                 child: Row(
                   children: const [
-                    Icon(
-                      Icons.add_to_drive,
-                      size: 20,
-                      color: AppColors.primary,
-                    ),
+                    Icon(Icons.add_to_drive, size: 20, color: AppColors.primary),
                     SizedBox(width: 8),
-                    Text(
-                      'Copia de seguridad en Google Drive',
-                      style: TextStyle(color: AppColors.primary),
-                    ),
+                    Text('Copia de seguridad en Google Drive', style: TextStyle(color: AppColors.primary)),
                   ],
                 ),
               ),
@@ -755,10 +613,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   children: const [
                     Icon(Icons.code, color: Colors.redAccent, size: 20),
                     SizedBox(width: 8),
-                    Text(
-                      'Vista previa JSON (debug)',
-                      style: TextStyle(color: Colors.redAccent),
-                    ),
+                    Text('Vista previa JSON (debug)', style: TextStyle(color: Colors.redAccent)),
                   ],
                 ),
               ),
@@ -769,10 +624,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   children: const [
                     Icon(Icons.refresh, color: Colors.redAccent, size: 20),
                     SizedBox(width: 8),
-                    Text(
-                      'Regenerar apariencia IA (debug)',
-                      style: TextStyle(color: Colors.redAccent),
-                    ),
+                    Text('Regenerar apariencia IA (debug)', style: TextStyle(color: Colors.redAccent)),
                   ],
                 ),
               ),
@@ -783,10 +635,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   children: const [
                     Icon(Icons.add_a_photo, color: Colors.redAccent, size: 20),
                     SizedBox(width: 8),
-                    Text(
-                      'Añadir un nuevo avatar (debug)',
-                      style: TextStyle(color: Colors.redAccent),
-                    ),
+                    Text('Añadir un nuevo avatar (debug)', style: TextStyle(color: Colors.redAccent)),
                   ],
                 ),
               ),
@@ -795,16 +644,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 value: 'clear_debug',
                 child: Row(
                   children: const [
-                    Icon(
-                      Icons.delete_forever,
-                      color: Colors.redAccent,
-                      size: 20,
-                    ),
+                    Icon(Icons.delete_forever, color: Colors.redAccent, size: 20),
                     SizedBox(width: 8),
-                    Text(
-                      'Borrar todo (debug)',
-                      style: TextStyle(color: Colors.redAccent),
-                    ),
+                    Text('Borrar todo (debug)', style: TextStyle(color: Colors.redAccent)),
                   ],
                 ),
               ),
@@ -813,33 +655,21 @@ class _ChatScreenState extends State<ChatScreen> {
             onSelected: (value) async {
               if (value == 'gallery') {
                 final images = chatProvider.messages
-                    .where(
-                      (m) =>
-                          m.isImage &&
-                          m.image != null &&
-                          m.image!.url != null &&
-                          m.image!.url!.isNotEmpty,
-                    )
+                    .where((m) => m.isImage && m.image != null && m.image!.url != null && m.image!.url!.isNotEmpty)
                     .toList();
                 final navCtx = navigatorKey.currentContext;
                 if (navCtx == null) return;
                 Navigator.of(navCtx).push(
                   MaterialPageRoute(
-                    builder: (_) => GalleryScreen(
-                      images: images,
-                      onImageDeleted: _handleImageDeleted,
-                    ),
+                    builder: (_) => GalleryScreen(images: images, onImageDeleted: _handleImageDeleted),
                   ),
                 );
               } else if (value == 'calendar') {
                 final navCtx = navigatorKey.currentContext;
                 if (navCtx == null) return;
-                Navigator.of(navCtx).push(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        CalendarScreen(chatProvider: widget.chatProvider),
-                  ),
-                );
+                Navigator.of(
+                  navCtx,
+                ).push(MaterialPageRoute(builder: (_) => CalendarScreen(chatProvider: widget.chatProvider)));
               } else if (value == 'export_json') {
                 try {
                   final jsonStr = await BackupUtils.exportChatPartsToJson(
@@ -851,11 +681,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   if (navCtx == null) return;
                   _showExportDialog(jsonStr, chatProvider);
                 } catch (e) {
-                  Log.e(
-                    'Error al exportar biografía',
-                    tag: 'CHAT_SCREEN',
-                    error: e,
-                  );
+                  Log.e('Error al exportar biografía', tag: 'CHAT_SCREEN', error: e);
                   // showErrorDialog resolves context via navigatorKey internally
                   showErrorDialog(e.toString());
                 }
@@ -903,9 +729,7 @@ class _ChatScreenState extends State<ChatScreen> {
               } else if (value == 'add_new_avatar') {
                 setState(() => _isRegeneratingAppearance = true);
                 try {
-                  await widget.chatProvider.generateAvatarFromAppearance(
-                    replace: false,
-                  );
+                  await widget.chatProvider.generateAvatarFromAppearance(replace: false);
                 } catch (e) {
                   if (!mounted) return;
                   showErrorDialog('Error al generar avatar:\n$e');
@@ -920,27 +744,18 @@ class _ChatScreenState extends State<ChatScreen> {
                 final confirm = await showAppDialog<bool>(
                   builder: (ctx) => AlertDialog(
                     backgroundColor: Colors.black,
-                    title: const Text(
-                      'Borrar todo (debug)',
-                      style: TextStyle(color: Colors.redAccent),
-                    ),
+                    title: const Text('Borrar todo (debug)', style: TextStyle(color: Colors.redAccent)),
                     content: const Text(
                       '¿Seguro que quieres borrar absolutamente todos los datos de la app? Esta acción no se puede deshacer.',
                       style: TextStyle(color: AppColors.primary),
                     ),
                     actions: [
                       TextButton(
-                        child: const Text(
-                          'Cancelar',
-                          style: TextStyle(color: AppColors.primary),
-                        ),
+                        child: const Text('Cancelar', style: TextStyle(color: AppColors.primary)),
                         onPressed: () => Navigator.of(navCtx).pop(false),
                       ),
                       TextButton(
-                        child: const Text(
-                          'Borrar todo (debug)',
-                          style: TextStyle(color: Colors.redAccent),
-                        ),
+                        child: const Text('Borrar todo (debug)', style: TextStyle(color: Colors.redAccent)),
                         onPressed: () => Navigator.of(navCtx).pop(true),
                       ),
                     ],
@@ -975,14 +790,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 final defaultModel = Config.getDefaultTextModel();
                 final initialModel =
                     current ??
-                    (models.contains(defaultModel)
-                        ? defaultModel
-                        : (models.isNotEmpty ? models.first : null));
-                final selected = await _showModelSelectionDialog(
-                  models,
-                  initialModel,
-                  widget.chatProvider,
-                );
+                    (models.contains(defaultModel) ? defaultModel : (models.isNotEmpty ? models.first : null));
+                final selected = await _showModelSelectionDialog(models, initialModel, widget.chatProvider);
                 if (!mounted) return;
                 _setSelectedModel(selected, current, chatProvider);
               } else if (value == 'select_voice') {
@@ -990,17 +799,13 @@ class _ChatScreenState extends State<ChatScreen> {
                 final userCountry = widget.bio.userCountryCode;
                 List<String> userLangCodes = [];
                 if (userCountry != null && userCountry.trim().isNotEmpty) {
-                  userLangCodes = LocaleUtils.officialLanguageCodesForCountry(
-                    userCountry.trim().toUpperCase(),
-                  );
+                  userLangCodes = LocaleUtils.officialLanguageCodesForCountry(userCountry.trim().toUpperCase());
                 }
 
                 final aiCountry = widget.bio.aiCountryCode;
                 List<String> aiLangCodes = [];
                 if (aiCountry != null && aiCountry.trim().isNotEmpty) {
-                  aiLangCodes = LocaleUtils.officialLanguageCodesForCountry(
-                    aiCountry.trim().toUpperCase(),
-                  );
+                  aiLangCodes = LocaleUtils.officialLanguageCodesForCountry(aiCountry.trim().toUpperCase());
                 }
 
                 // Mostrar configuración de TTS en diálogo consistente con AppAlertDialog
@@ -1010,26 +815,19 @@ class _ChatScreenState extends State<ChatScreen> {
                   navCtx,
                   userLangCodes: userLangCodes,
                   aiLangCodes: aiLangCodes,
-                  synthesizeTts:
-                      (
-                        phrase, {
-                        required voice,
-                        required language,
-                        required forDialogDemo,
-                      }) async {
-                        try {
-                          final file = await widget.chatProvider.audioService
-                              .synthesizeTts(
-                                phrase,
-                                voice: voice,
-                                languageCode: language,
-                                forDialogDemo: forDialogDemo,
-                              );
-                          return file;
-                        } catch (e) {
-                          return null;
-                        }
-                      },
+                  synthesizeTts: (phrase, {required voice, required language, required forDialogDemo}) async {
+                    try {
+                      final file = await widget.chatProvider.audioService.synthesizeTts(
+                        phrase,
+                        voice: voice,
+                        languageCode: language,
+                        forDialogDemo: forDialogDemo,
+                      );
+                      return file;
+                    } catch (e) {
+                      return null;
+                    }
+                  },
                   onSettingsChanged: () {
                     if (mounted) setState(() {});
                   },
@@ -1046,26 +844,19 @@ class _ChatScreenState extends State<ChatScreen> {
                     backgroundColor: Colors.black,
                     content: GoogleDriveBackupDialog(
                       clientId: 'YOUR_GOOGLE_CLIENT_ID',
-                      requestBackupJson: () async =>
-                          await BackupUtils.exportChatPartsToJson(
-                            profile: chatProvider.onboardingData,
-                            messages: chatProvider.messages,
-                            events: chatProvider.events,
-                          ),
+                      requestBackupJson: () async => await BackupUtils.exportChatPartsToJson(
+                        profile: chatProvider.onboardingData,
+                        messages: chatProvider.messages,
+                        events: chatProvider.events,
+                      ),
                       onImportedJson: (jsonStr) async {
-                        final imported = await chat_json_utils
-                            .ChatJsonUtils.importAllFromJson(jsonStr);
+                        final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
                         if (imported != null) {
                           await widget.chatProvider.applyImportedChat(imported);
                         }
                       },
                       onAccountInfoUpdated:
-                          ({
-                            String? email,
-                            String? avatarUrl,
-                            String? name,
-                            bool linked = false,
-                          }) async {
+                          ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
                             await chatProvider.updateGoogleAccountInfo(
                               email: email,
                               avatarUrl: avatarUrl,
@@ -1073,8 +864,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               linked: linked,
                             );
                           },
-                      onClearAccountInfo: () =>
-                          chatProvider.clearGoogleAccountInfo(),
+                      onClearAccountInfo: () => chatProvider.clearGoogleAccountInfo(),
                     ),
                   ),
                 );
@@ -1087,26 +877,19 @@ class _ChatScreenState extends State<ChatScreen> {
                     backgroundColor: Colors.black,
                     content: GoogleDriveBackupDialog(
                       clientId: 'YOUR_GOOGLE_CLIENT_ID',
-                      requestBackupJson: () async =>
-                          await BackupUtils.exportChatPartsToJson(
-                            profile: widget.chatProvider.onboardingData,
-                            messages: widget.chatProvider.messages,
-                            events: widget.chatProvider.events,
-                          ),
+                      requestBackupJson: () async => await BackupUtils.exportChatPartsToJson(
+                        profile: widget.chatProvider.onboardingData,
+                        messages: widget.chatProvider.messages,
+                        events: widget.chatProvider.events,
+                      ),
                       onImportedJson: (jsonStr) async {
-                        final imported = await chat_json_utils
-                            .ChatJsonUtils.importAllFromJson(jsonStr);
+                        final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
                         if (imported != null) {
                           await widget.chatProvider.applyImportedChat(imported);
                         }
                       },
                       onAccountInfoUpdated:
-                          ({
-                            String? email,
-                            String? avatarUrl,
-                            String? name,
-                            bool linked = false,
-                          }) async {
+                          ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
                             await widget.chatProvider.updateGoogleAccountInfo(
                               email: email,
                               avatarUrl: avatarUrl,
@@ -1114,8 +897,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               linked: linked,
                             );
                           },
-                      onClearAccountInfo: () =>
-                          chatProvider.clearGoogleAccountInfo(),
+                      onClearAccountInfo: () => chatProvider.clearGoogleAccountInfo(),
                     ),
                   ),
                 );
@@ -1136,8 +918,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       .where(
                         (m) =>
                             m.sender != MessageSender.system ||
-                            (m.sender == MessageSender.system &&
-                                m.text.contains('[call]')),
+                            (m.sender == MessageSender.system && m.text.contains('[call]')),
                       )
                       .toList();
                   if (filteredMessages.isEmpty) return const SizedBox.shrink();
@@ -1145,9 +926,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   final int take = filteredMessages.length <= _displayedCount
                       ? filteredMessages.length
                       : _displayedCount;
-                  final shown = filteredMessages.sublist(
-                    filteredMessages.length - take,
-                  );
+                  final shown = filteredMessages.sublist(filteredMessages.length - take);
                   final reversedShown = shown.reversed.toList();
                   final hasMore = filteredMessages.length > shown.length;
                   final totalCount = reversedShown.length + (hasMore ? 1 : 0);
@@ -1155,10 +934,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   return ListView.builder(
                     controller: _scrollController,
                     reverse: true,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 8,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
                     itemCount: totalCount,
                     itemBuilder: (context, index) {
                       if (index == reversedShown.length && hasMore) {
@@ -1169,18 +945,9 @@ class _ChatScreenState extends State<ChatScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: const [
-                                SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                ),
+                                SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
                                 SizedBox(width: 8),
-                                Text(
-                                  'Cargando mensajes antiguos...',
-                                  style: TextStyle(color: AppColors.primary),
-                                ),
+                                Text('Cargando mensajes antiguos...', style: TextStyle(color: AppColors.primary)),
                               ],
                             ),
                           ),
@@ -1190,9 +957,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       final message = reversedShown[index];
                       bool isLastUserMessage = false;
                       if (message.sender == MessageSender.user) {
-                        isLastUserMessage = !reversedShown
-                            .skip(index + 1)
-                            .any((m) => m.sender == MessageSender.user);
+                        isLastUserMessage = !reversedShown.skip(index + 1).any((m) => m.sender == MessageSender.user);
                       }
                       return ChatBubble(
                         message: message,
@@ -1200,9 +965,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         imageDir: _imageDir,
                         onRetry: () async {
                           try {
-                            chatProvider.retryLastFailedMessage(
-                              onError: (e) {},
-                            );
+                            chatProvider.retryLastFailedMessage(onError: (e) {});
                           } catch (_) {}
                         },
                         onImageTap: () async {
@@ -1210,15 +973,10 @@ class _ChatScreenState extends State<ChatScreen> {
                             final images = chatProvider.messages
                                 .where(
                                   (m) =>
-                                      m.isImage &&
-                                      m.image != null &&
-                                      m.image!.url != null &&
-                                      m.image!.url!.isNotEmpty,
+                                      m.isImage && m.image != null && m.image!.url != null && m.image!.url!.isNotEmpty,
                                 )
                                 .toList();
-                            final idx = images.indexWhere(
-                              (m) => m.image?.url == message.image?.url,
-                            );
+                            final idx = images.indexWhere((m) => m.image?.url == message.image?.url);
                             if (idx != -1) {
                               ExpandableImageDialog.show(
                                 images,
@@ -1242,20 +1000,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 6,
-                        horizontal: 14,
-                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 14),
                       decoration: BoxDecoration(
-                        color: AppColors.secondary.withAlpha(
-                          (0.18 * 255).round(),
-                        ),
+                        color: AppColors.secondary.withAlpha((0.18 * 255).round()),
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.secondary.withAlpha(
-                              (0.12 * 255).round(),
-                            ),
+                            color: AppColors.secondary.withAlpha((0.12 * 255).round()),
                             blurRadius: 8.0,
                             offset: Offset(0, 2),
                           ),
@@ -1263,19 +1014,11 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.photo_camera,
-                            color: AppColors.secondary,
-                            size: 22,
-                          ),
+                          const Icon(Icons.photo_camera, color: AppColors.secondary, size: 22),
                           const SizedBox(width: 10),
                           Text(
                             'Enviando imagen...',
-                            style: TextStyle(
-                              color: AppColors.secondary,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 15,
-                            ),
+                            style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w500, fontSize: 15),
                           ),
                         ],
                       ),
@@ -1290,20 +1033,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 6,
-                        horizontal: 14,
-                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 14),
                       decoration: BoxDecoration(
-                        color: AppColors.secondary.withAlpha(
-                          (0.18 * 255).round(),
-                        ),
+                        color: AppColors.secondary.withAlpha((0.18 * 255).round()),
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.secondary.withAlpha(
-                              (0.12 * 255).round(),
-                            ),
+                            color: AppColors.secondary.withAlpha((0.12 * 255).round()),
                             blurRadius: 8.0,
                             offset: const Offset(0, 2),
                           ),
@@ -1311,17 +1047,11 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.mic_external_on,
-                            color: AppColors.secondary,
-                            size: 22,
-                          ),
+                          const Icon(Icons.mic_external_on, color: AppColors.secondary, size: 22),
                           const SizedBox(width: 10),
                           Row(
                             children: [
-                              const ThreeDotsIndicator(
-                                color: AppColors.secondary,
-                              ),
+                              const ThreeDotsIndicator(color: AppColors.secondary),
                               const SizedBox(width: 8),
                               Text(
                                 'Grabando nota de voz...',
@@ -1346,20 +1076,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 6,
-                        horizontal: 14,
-                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 14),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withAlpha(
-                          (0.18 * 255).round(),
-                        ),
+                        color: AppColors.primary.withAlpha((0.18 * 255).round()),
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withAlpha(
-                              (0.12 * 255).round(),
-                            ),
+                            color: AppColors.primary.withAlpha((0.12 * 255).round()),
                             blurRadius: 8.0,
                             offset: Offset(0, 2),
                           ),
@@ -1367,11 +1090,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.keyboard_alt,
-                            color: AppColors.primary,
-                            size: 22,
-                          ),
+                          const Icon(Icons.keyboard_alt, color: AppColors.primary, size: 22),
                           const SizedBox(width: 10),
                           const TypingAnimation(),
                         ],
@@ -1385,19 +1104,12 @@ class _ChatScreenState extends State<ChatScreen> {
                   _chatInputController ??
                   ChatInputController(
                     scheduleSend: (text, {image, imageMimeType}) async {
-                      chatProvider.scheduleSendMessage(
-                        text,
-                        image: image,
-                        imageMimeType: imageMimeType,
-                      );
+                      chatProvider.scheduleSendMessage(text, image: image, imageMimeType: imageMimeType);
                       return Future.value();
                     },
-                    startRecording: () async =>
-                        await chatProvider.startRecording(),
-                    stopAndSendRecording: () async =>
-                        await chatProvider.stopAndSendRecording(),
-                    cancelRecording: () async =>
-                        await chatProvider.cancelRecording(),
+                    startRecording: () async => await chatProvider.startRecording(),
+                    stopAndSendRecording: () async => await chatProvider.stopAndSendRecording(),
+                    cancelRecording: () async => await chatProvider.cancelRecording(),
                     onUserTyping: (text) => chatProvider.onUserTyping(text),
                   ),
             ),
@@ -1407,9 +1119,7 @@ class _ChatScreenState extends State<ChatScreen> {
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: _showScrollToBottomButton
           ? Padding(
-              padding: const EdgeInsets.only(
-                bottom: 70.0,
-              ), // bajar un poco el FAB
+              padding: const EdgeInsets.only(bottom: 70.0), // bajar un poco el FAB
               child: FloatingActionButton(
                 backgroundColor: AppColors.primary,
                 child: const Icon(Icons.arrow_downward, color: Colors.black),

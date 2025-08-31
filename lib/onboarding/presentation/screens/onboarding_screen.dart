@@ -117,8 +117,7 @@ class _OnboardingScreenContent extends StatefulWidget {
   });
 
   @override
-  State<_OnboardingScreenContent> createState() =>
-      _OnboardingScreenContentState();
+  State<_OnboardingScreenContent> createState() => _OnboardingScreenContentState();
 }
 
 class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
@@ -130,14 +129,10 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
       if (focusNode.hasFocus) {
         final original = controller.text;
         controller.text = ' ';
-        controller.selection = TextSelection.collapsed(
-          offset: controller.text.length,
-        );
+        controller.selection = TextSelection.collapsed(offset: controller.text.length);
         Future.microtask(() {
           controller.text = original;
-          controller.selection = TextSelection.collapsed(
-            offset: controller.text.length,
-          );
+          controller.selection = TextSelection.collapsed(offset: controller.text.length);
         });
       }
     });
@@ -154,18 +149,10 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (icon != null) ...[
-                Icon(icon, size: 14, color: subtleColor),
-                const SizedBox(width: 6),
-              ],
+              if (icon != null) ...[Icon(icon, size: 14, color: subtleColor), const SizedBox(width: 6)],
               Text(
                 title,
-                style: TextStyle(
-                  color: subtleColor,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 17,
-                  letterSpacing: 0.3,
-                ),
+                style: TextStyle(color: subtleColor, fontWeight: FontWeight.w600, fontSize: 17, letterSpacing: 0.3),
               ),
             ],
           ),
@@ -186,19 +173,12 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
         builder: (ctx) => AlertDialog(
           title: const Text('Error al leer archivo'),
           content: Text(error),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('OK'),
-            ),
-          ],
+          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
         ),
       );
       return;
     }
-    if (jsonStr != null &&
-        jsonStr.trim().isNotEmpty &&
-        widget.onImportJson != null) {
+    if (jsonStr != null && jsonStr.trim().isNotEmpty && widget.onImportJson != null) {
       String? importError;
       final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
         jsonStr,
@@ -212,12 +192,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
             content: Text(
               'No se pudo importar la biografía: campo problemático: ${importError ?? 'Error desconocido'}',
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('OK'),
-              ),
-            ],
+            actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
           ),
         );
         return;
@@ -242,12 +217,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
           builder: (ctx) => AlertDialog(
             title: const Text('Error'),
             content: const Text('Archivo vacío o no contiene JSON'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('OK'),
-              ),
-            ],
+            actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
           ),
         );
         return;
@@ -262,12 +232,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
           builder: (ctx) => AlertDialog(
             title: const Text('Error al importar'),
             content: Text(provider.importError ?? 'Error desconocido'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('OK'),
-              ),
-            ],
+            actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
           ),
         );
         return;
@@ -282,12 +247,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
         builder: (ctx) => AlertDialog(
           title: const Text('Restauración completada'),
           content: const Text('Biografía, imágenes y audios restaurados.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('OK'),
-            ),
-          ],
+          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
         ),
       );
       if (mounted) setState(() {});
@@ -296,12 +256,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
         builder: (ctx) => AlertDialog(
           title: const Text('Error'),
           content: Text(e.toString()),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('OK'),
-            ),
-          ],
+          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
         ),
       );
     }
@@ -322,9 +277,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
   @override
   void initState() {
     super.initState();
-    _userNameController = TextEditingController(
-      text: widget.onboardingProvider.userNameController.text,
-    );
+    _userNameController = TextEditingController(text: widget.onboardingProvider.userNameController.text);
     // Register a listener to refresh the UI whenever the provider notifies listeners.
     widget.onboardingProvider.addListener(_onProviderChanged);
     // No preload persisted Google account info: menu shows a static label now.
@@ -376,10 +329,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                     children: [
                       Icon(Icons.file_upload, color: AppColors.primary),
                       const SizedBox(width: 8),
-                      Text(
-                        'Restaurar desde archivo local',
-                        style: TextStyle(color: AppColors.primary),
-                      ),
+                      Text('Restaurar desde archivo local', style: TextStyle(color: AppColors.primary)),
                     ],
                   ),
                 ),
@@ -393,16 +343,9 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                   value: 'backup_status',
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.add_to_drive,
-                        size: 20,
-                        color: AppColors.primary,
-                      ),
+                      const Icon(Icons.add_to_drive, size: 20, color: AppColors.primary),
                       const SizedBox(width: 8),
-                      Text(
-                        'Copia de seguridad en Google Drive',
-                        style: TextStyle(color: AppColors.primary),
-                      ),
+                      Text('Copia de seguridad en Google Drive', style: TextStyle(color: AppColors.primary)),
                     ],
                   ),
                 ),
@@ -420,13 +363,8 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                       builder: (ctxInner) {
                         final screenWidth = MediaQuery.of(ctxInner).size.width;
                         final margin = screenWidth > 800 ? 32.0 : 4.0;
-                        final maxWidth = screenWidth > 800
-                            ? 900.0
-                            : double.infinity;
-                        final dialogWidth = min(
-                          screenWidth - margin,
-                          maxWidth,
-                        ).toDouble();
+                        final maxWidth = screenWidth > 800 ? 900.0 : double.infinity;
+                        final dialogWidth = min(screenWidth - margin, maxWidth).toDouble();
                         return SizedBox(
                           width: dialogWidth,
                           child: GoogleDriveBackupDialog(
@@ -445,25 +383,14 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                             onImportedJson: cp != null
                                 ? (jsonStr) async {
                                     final captured = cp;
-                                    final imported =
-                                        await chat_json_utils
-                                            .ChatJsonUtils.importAllFromJson(
-                                          jsonStr,
-                                        );
+                                    final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
                                     if (imported != null) {
-                                      await captured.applyImportedChat(
-                                        imported,
-                                      );
+                                      await captured.applyImportedChat(imported);
                                     }
                                   }
                                 : null,
                             onAccountInfoUpdated: cp != null
-                                ? ({
-                                    String? email,
-                                    String? avatarUrl,
-                                    String? name,
-                                    bool linked = false,
-                                  }) async {
+                                ? ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
                                     final captured = cp;
                                     await captured.updateGoogleAccountInfo(
                                       email: email,
@@ -473,9 +400,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                                     );
                                   }
                                 : null,
-                            onClearAccountInfo: cp != null
-                                ? () => cp.clearGoogleAccountInfo()
-                                : null,
+                            onClearAccountInfo: cp != null ? () => cp.clearGoogleAccountInfo() : null,
                           ),
                         );
                       },
@@ -486,11 +411,10 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                 if (res is Map && res['restoredJson'] is String && cp == null) {
                   final jsonStr = res['restoredJson'] as String;
                   try {
-                    final imported =
-                        await chat_json_utils.ChatJsonUtils.importAllFromJson(
-                          jsonStr,
-                          onError: (err) => op.setImportError(err),
-                        );
+                    final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
+                      jsonStr,
+                      onError: (err) => op.setImportError(err),
+                    );
                     if (imported != null) {
                       await op.applyImportedChat(imported);
                       if (widget.onImportJson != null) {
@@ -502,12 +426,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                         builder: (ctx) => AlertDialog(
                           title: const Text('Error al importar'),
                           content: Text(op.importError ?? 'Error desconocido'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(ctx).pop(),
-                              child: const Text('OK'),
-                            ),
-                          ],
+                          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
                         ),
                       );
                     }
@@ -516,12 +435,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                       builder: (ctx) => AlertDialog(
                         title: const Text('Error'),
                         content: Text(e.toString()),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(ctx).pop(),
-                            child: const Text('OK'),
-                          ),
-                        ],
+                        actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
                       ),
                     );
                   }
@@ -554,13 +468,8 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                       builder: (ctxInner) {
                         final screenWidth = MediaQuery.of(ctxInner).size.width;
                         final margin = screenWidth > 800 ? 32.0 : 4.0;
-                        final maxWidth = screenWidth > 800
-                            ? 900.0
-                            : double.infinity;
-                        final dialogWidth = min(
-                          screenWidth - margin,
-                          maxWidth,
-                        ).toDouble();
+                        final maxWidth = screenWidth > 800 ? 900.0 : double.infinity;
+                        final dialogWidth = min(screenWidth - margin, maxWidth).toDouble();
                         return SizedBox(
                           width: dialogWidth,
                           child: GoogleDriveBackupDialog(
@@ -578,25 +487,14 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                             onImportedJson: cp != null
                                 ? (jsonStr) async {
                                     final captured = cp;
-                                    final imported =
-                                        await chat_json_utils
-                                            .ChatJsonUtils.importAllFromJson(
-                                          jsonStr,
-                                        );
+                                    final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
                                     if (imported != null) {
-                                      await captured.applyImportedChat(
-                                        imported,
-                                      );
+                                      await captured.applyImportedChat(imported);
                                     }
                                   }
                                 : null,
                             onAccountInfoUpdated: cp != null
-                                ? ({
-                                    String? email,
-                                    String? avatarUrl,
-                                    String? name,
-                                    bool linked = false,
-                                  }) async {
+                                ? ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
                                     final captured = cp;
                                     await captured.updateGoogleAccountInfo(
                                       email: email,
@@ -606,25 +504,20 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                                     );
                                   }
                                 : null,
-                            onClearAccountInfo: cp != null
-                                ? () => cp.clearGoogleAccountInfo()
-                                : null,
+                            onClearAccountInfo: cp != null ? () => cp.clearGoogleAccountInfo() : null,
                           ),
                         );
                       },
                     ),
                   ),
                 );
-                if (res2 is Map &&
-                    res2['restoredJson'] is String &&
-                    cp == null) {
+                if (res2 is Map && res2['restoredJson'] is String && cp == null) {
                   final jsonStr = res2['restoredJson'] as String;
                   try {
-                    final imported =
-                        await chat_json_utils.ChatJsonUtils.importAllFromJson(
-                          jsonStr,
-                          onError: (err) => op.setImportError(err),
-                        );
+                    final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
+                      jsonStr,
+                      onError: (err) => op.setImportError(err),
+                    );
                     if (imported != null) {
                       await op.applyImportedChat(imported);
                       if (widget.onImportJson != null) {
@@ -636,12 +529,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                         builder: (ctx) => AlertDialog(
                           title: const Text('Error al importar'),
                           content: Text(op.importError ?? 'Error desconocido'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(ctx).pop(),
-                              child: const Text('OK'),
-                            ),
-                          ],
+                          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
                         ),
                       );
                     }
@@ -650,12 +538,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                       builder: (ctx) => AlertDialog(
                         title: const Text('Error'),
                         content: Text(e.toString()),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(ctx).pop(),
-                            child: const Text('OK'),
-                          ),
-                        ],
+                        actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
                       ),
                     );
                   }
@@ -678,31 +561,22 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               Autocomplete<String>(
                 optionsBuilder: (TextEditingValue textEditingValue) {
                   final items = List<CountryItem>.from(CountriesEs.items);
-                  final q = StringUtils.normalizeForSearch(
-                    textEditingValue.text.trim(),
-                  );
+                  final q = StringUtils.normalizeForSearch(textEditingValue.text.trim());
                   final opts = items.map((c) {
                     final flag = LocaleUtils.flagEmojiForCountry(c.iso2);
                     return '${flag.isNotEmpty ? '$flag ' : ''}${c.nameEs} (${c.iso2})';
                   });
                   if (q.isEmpty) return opts.take(50);
-                  return opts
-                      .where(
-                        (o) => StringUtils.normalizeForSearch(o).contains(q),
-                      )
-                      .take(50);
+                  return opts.where((o) => StringUtils.normalizeForSearch(o).contains(q)).take(50);
                 },
                 fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
                   // Inicializa el texto si ya hay código guardado
                   final code = provider.userCountryCode;
-                  if ((controller.text.isEmpty) &&
-                      code != null &&
-                      code.isNotEmpty) {
+                  if ((controller.text.isEmpty) && code != null && code.isNotEmpty) {
                     final name = CountriesEs.codeToName[code.toUpperCase()];
                     if (name != null) {
                       final flag = LocaleUtils.flagEmojiForCountry(code);
-                      controller.text =
-                          '${flag.isNotEmpty ? '$flag ' : ''}$name ($code)';
+                      controller.text = '${flag.isNotEmpty ? '$flag ' : ''}$name ($code)';
                     }
                   }
                   // Abrir opciones al enfocar (inserta un espacio temporal y lo revierte)
@@ -710,26 +584,13 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                   return TextFormField(
                     controller: controller,
                     focusNode: focusNode,
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontFamily: 'FiraMono',
-                    ),
+                    style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
                     decoration: InputDecoration(
                       labelText: 'Tu país',
                       labelStyle: const TextStyle(color: AppColors.secondary),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: AppColors.secondary),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
-                          color: AppColors.primary,
-                          width: 2,
-                        ),
-                      ),
-                      prefixIcon: const Icon(
-                        Icons.flag,
-                        color: AppColors.secondary,
-                      ),
+                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
+                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
+                      prefixIcon: const Icon(Icons.flag, color: AppColors.secondary),
                       helperText: provider.userCountryCode?.isNotEmpty == true
                           ? 'Idioma: ${LocaleUtils.languageNameEsForCountry(provider.userCountryCode!)}'
                           : null,
@@ -737,10 +598,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                       fillColor: Colors.black,
                       filled: true,
                     ),
-                    validator: (_) =>
-                        provider.userCountryCode?.isNotEmpty == true
-                        ? null
-                        : 'Obligatorio',
+                    validator: (_) => provider.userCountryCode?.isNotEmpty == true ? null : 'Obligatorio',
                     onEditingComplete: onEditingComplete,
                   );
                 },
@@ -759,23 +617,13 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                 onChanged: (value) {
                   provider.setUserName(value);
                 },
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontFamily: 'FiraMono',
-                ),
+                style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
                 decoration: InputDecoration(
                   labelText: "Tu nombre",
                   labelStyle: const TextStyle(color: AppColors.secondary),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: AppColors.secondary),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: AppColors.primary, width: 2),
-                  ),
-                  prefixIcon: const Icon(
-                    Icons.person,
-                    color: AppColors.secondary,
-                  ),
+                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
+                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
+                  prefixIcon: const Icon(Icons.person, color: AppColors.secondary),
                   fillColor: Colors.black,
                   filled: true,
                 ),
@@ -828,31 +676,22 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                       items.insert(0, it);
                     }
                   }
-                  final q = StringUtils.normalizeForSearch(
-                    textEditingValue.text.trim(),
-                  );
+                  final q = StringUtils.normalizeForSearch(textEditingValue.text.trim());
                   final opts = items.map((c) {
                     final flag = LocaleUtils.flagEmojiForCountry(c.iso2);
                     return '${flag.isNotEmpty ? '$flag ' : ''}${c.nameEs} (${c.iso2})';
                   });
                   if (q.isEmpty) return opts.take(50);
-                  return opts
-                      .where(
-                        (o) => StringUtils.normalizeForSearch(o).contains(q),
-                      )
-                      .take(50);
+                  return opts.where((o) => StringUtils.normalizeForSearch(o).contains(q)).take(50);
                 },
                 fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
                   // Inicializa el texto si ya hay código guardado
                   final code = provider.aiCountryCode;
-                  if ((controller.text.isEmpty) &&
-                      code != null &&
-                      code.isNotEmpty) {
+                  if ((controller.text.isEmpty) && code != null && code.isNotEmpty) {
                     final name = CountriesEs.codeToName[code.toUpperCase()];
                     if (name != null) {
                       final flag = LocaleUtils.flagEmojiForCountry(code);
-                      controller.text =
-                          '${flag.isNotEmpty ? '$flag ' : ''}$name ($code)';
+                      controller.text = '${flag.isNotEmpty ? '$flag ' : ''}$name ($code)';
                     }
                   }
                   // Abrir opciones al enfocar (inserta un espacio temporal y lo revierte)
@@ -860,26 +699,13 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                   return TextFormField(
                     controller: controller,
                     focusNode: focusNode,
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontFamily: 'FiraMono',
-                    ),
+                    style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
                     decoration: InputDecoration(
                       labelText: 'País de la AI-Chan',
                       labelStyle: const TextStyle(color: AppColors.secondary),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: AppColors.secondary),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
-                          color: AppColors.primary,
-                          width: 2,
-                        ),
-                      ),
-                      prefixIcon: const Icon(
-                        Icons.flag,
-                        color: AppColors.secondary,
-                      ),
+                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
+                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
+                      prefixIcon: const Icon(Icons.flag, color: AppColors.secondary),
                       helperText: provider.aiCountryCode?.isNotEmpty == true
                           ? 'Idioma: ${LocaleUtils.languageNameEsForCountry(provider.aiCountryCode!)}'
                           : null,
@@ -887,9 +713,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                       fillColor: Colors.black,
                       filled: true,
                     ),
-                    validator: (_) => provider.aiCountryCode?.isNotEmpty == true
-                        ? null
-                        : 'Obligatorio',
+                    validator: (_) => provider.aiCountryCode?.isNotEmpty == true ? null : 'Obligatorio',
                     onEditingComplete: onEditingComplete,
                   );
                 },
@@ -907,68 +731,41 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                 optionsBuilder: (TextEditingValue textEditingValue) {
                   if (textEditingValue.text == '') {
                     // Sugerencias base por país de la IA si no hay texto
-                    final base = FemaleNamesRepo.forCountry(
-                      provider.aiCountryCode,
-                    );
+                    final base = FemaleNamesRepo.forCountry(provider.aiCountryCode);
                     return base.take(20);
                   }
-                  final source = FemaleNamesRepo.forCountry(
-                    provider.aiCountryCode,
-                  );
+                  final source = FemaleNamesRepo.forCountry(provider.aiCountryCode);
                   return source
-                      .where(
-                        (option) => option.toLowerCase().contains(
-                          textEditingValue.text.toLowerCase(),
-                        ),
-                      )
+                      .where((option) => option.toLowerCase().contains(textEditingValue.text.toLowerCase()))
                       .take(50);
                 },
-                fieldViewBuilder:
-                    (context, controller, focusNode, onEditingComplete) {
-                      // Enlaza el controller al provider para que nunca sea null
-                      provider.setAiNameController(controller);
-                      // Sincroniza el valor inicial solo si está vacío
-                      if (controller.text.isEmpty &&
-                          (provider.aiNameController?.text.isNotEmpty ??
-                              false)) {
-                        controller.text = provider.aiNameController!.text;
-                      }
-                      return TextFormField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        onChanged: (value) {
-                          provider.setAiName(value);
-                        },
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontFamily: 'FiraMono',
-                        ),
-                        decoration: InputDecoration(
-                          labelText: "Nombre de la AI-Chan",
-                          labelStyle: const TextStyle(
-                            color: AppColors.secondary,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: AppColors.secondary),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                              color: AppColors.primary,
-                              width: 2,
-                            ),
-                          ),
-                          prefixIcon: const Icon(
-                            Icons.smart_toy,
-                            color: AppColors.secondary,
-                          ),
-                          fillColor: Colors.black,
-                          filled: true,
-                        ),
-                        validator: (v) =>
-                            v == null || v.isEmpty ? "Obligatorio" : null,
-                        onEditingComplete: onEditingComplete,
-                      );
+                fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                  // Enlaza el controller al provider para que nunca sea null
+                  provider.setAiNameController(controller);
+                  // Sincroniza el valor inicial solo si está vacío
+                  if (controller.text.isEmpty && (provider.aiNameController?.text.isNotEmpty ?? false)) {
+                    controller.text = provider.aiNameController!.text;
+                  }
+                  return TextFormField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    onChanged: (value) {
+                      provider.setAiName(value);
                     },
+                    style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
+                    decoration: InputDecoration(
+                      labelText: "Nombre de la AI-Chan",
+                      labelStyle: const TextStyle(color: AppColors.secondary),
+                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
+                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
+                      prefixIcon: const Icon(Icons.smart_toy, color: AppColors.secondary),
+                      fillColor: Colors.black,
+                      filled: true,
+                    ),
+                    validator: (v) => v == null || v.isEmpty ? "Obligatorio" : null,
+                    onEditingComplete: onEditingComplete,
+                  );
+                },
                 onSelected: (selection) {
                   provider.setAiName(selection);
                 },
@@ -979,24 +776,14 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               TextFormField(
                 controller: provider.meetStoryController,
                 onChanged: onMeetStoryChanged,
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontFamily: 'FiraMono',
-                ),
+                style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
                 decoration: InputDecoration(
                   labelText: "¿Cómo os conocísteis?",
                   hintText: "Escribe o pulsa sugerir",
                   labelStyle: const TextStyle(color: AppColors.secondary),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: AppColors.secondary),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: AppColors.primary, width: 2),
-                  ),
-                  prefixIcon: const Icon(
-                    Icons.favorite,
-                    color: AppColors.secondary,
-                  ),
+                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
+                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
+                  prefixIcon: const Icon(Icons.favorite, color: AppColors.secondary),
                   fillColor: Colors.black,
                   filled: true,
                 ),
@@ -1005,18 +792,13 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               ),
               const SizedBox(height: 8),
               CyberpunkButton(
-                onPressed: provider.loadingStory
-                    ? null
-                    : () => provider.suggestStory(context),
+                onPressed: provider.loadingStory ? null : () => provider.suggestStory(context),
                 text: "Sugerir historia",
                 icon: provider.loadingStory
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(
-                          color: AppColors.secondary,
-                          strokeWidth: 2,
-                        ),
+                        child: CircularProgressIndicator(color: AppColors.secondary, strokeWidth: 2),
                       )
                     : null,
               ),
@@ -1026,21 +808,13 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                     ? () async {
                         // Forzar sincronización de todos los valores del formulario
                         provider.setUserName(provider.userNameController.text);
-                        provider.setAiName(
-                          provider.aiNameController?.text ?? '',
-                        );
-                        provider.setMeetStory(
-                          provider.meetStoryController.text,
-                        );
+                        provider.setAiName(provider.aiNameController?.text ?? '');
+                        provider.setMeetStory(provider.meetStoryController.text);
                         final birthText = provider.birthDateController.text;
                         if (birthText.isNotEmpty) {
                           final parts = birthText.split('/');
                           if (parts.length == 3) {
-                            final parsed = DateTime(
-                              int.parse(parts[2]),
-                              int.parse(parts[1]),
-                              int.parse(parts[0]),
-                            );
+                            final parsed = DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
                             provider.setUserBirthday(parsed);
                           }
                         }

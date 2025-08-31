@@ -90,7 +90,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
     } catch (_) {}
 
     // Mensaje dinámico basado en si se pueden crear backups
-    final prefix = _canCreateBackups() ? '[DATA_FOUND] Backup localizado' : '[ARCHIVE_DETECTED] Backup de datos disponible';
+    final prefix = _canCreateBackups()
+        ? '[DATA_FOUND] Backup localizado'
+        : '[ARCHIVE_DETECTED] Backup de datos disponible';
 
     return human.isNotEmpty ? '$prefix: $human' : prefix;
   }
@@ -210,7 +212,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
           _safeSetState(() {
             _working = false;
           });
-          _updateStatus('[AUTH_RETRY] Intento de autenticación anterior falló. Ejecuta "LOGIN_SEQUENCE" para reintentar conexión.');
+          _updateStatus(
+            '[AUTH_RETRY] Intento de autenticación anterior falló. Ejecuta "LOGIN_SEQUENCE" para reintentar conexión.',
+          );
           return;
         }
       }
@@ -756,11 +760,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                       padding: const EdgeInsets.only(bottom: 16.0),
                       child: Text(
                         _status!,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 15,
-                          fontFamily: 'monospace',
-                        ),
+                        style: const TextStyle(color: Colors.white70, fontSize: 15, fontFamily: 'monospace'),
                       ),
                     ),
                 ],
