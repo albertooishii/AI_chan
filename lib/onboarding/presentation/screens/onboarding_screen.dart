@@ -361,7 +361,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               color: AppColors.primary,
               fontWeight: FontWeight.bold,
               fontSize: 22,
-              fontFamily: 'FiraMono',
+              fontFamily: 'monospace',
             ),
           ),
         ),

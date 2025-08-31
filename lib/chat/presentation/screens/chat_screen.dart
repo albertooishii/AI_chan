@@ -520,6 +520,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     color: AppColors.primary,
                     fontSize: 20,
                     fontWeight: FontWeight.w500,
+                    fontFamily: 'monospace',
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),

@@ -11,20 +11,16 @@ class CyberpunkRealtimeSubtitle extends StatefulWidget {
   final String text;
   final TextStyle style;
   final Duration scramblePerChar; // duración de scramble por caracter
-  final Duration
-  removalDuration; // duración para desvanecer caracteres eliminados
+  final Duration removalDuration; // duración para desvanecer caracteres eliminados
   final bool enabled;
-  final double
-  glitchProbability; // probabilidad de aplicar leve tint/flicker a un char activo
+  final double glitchProbability; // probabilidad de aplicar leve tint/flicker a un char activo
   final bool useKatakana; // usar set katakana para fase de glitch
 
   const CyberpunkRealtimeSubtitle({
     super.key,
     required this.text,
     required this.style,
-    this.scramblePerChar = const Duration(
-      milliseconds: 140,
-    ), // más rápido para sincronizar audio
+    this.scramblePerChar = const Duration(milliseconds: 140), // más rápido para sincronizar audio
     this.removalDuration = const Duration(milliseconds: 200),
     this.enabled = true,
     this.glitchProbability = 0.22,
@@ -32,8 +28,7 @@ class CyberpunkRealtimeSubtitle extends StatefulWidget {
   });
 
   @override
-  State<CyberpunkRealtimeSubtitle> createState() =>
-      _CyberpunkRealtimeSubtitleState();
+  State<CyberpunkRealtimeSubtitle> createState() => _CyberpunkRealtimeSubtitleState();
 }
 
 class _CharAnim {
@@ -43,20 +38,14 @@ class _CharAnim {
   bool locked; // ya fijado en target
   bool removing; // en proceso de desaparecer
   double removalProgress; // 0..1
-  _CharAnim({
-    required this.target,
-    required this.current,
-    required this.start,
-    this.locked = false,
-  }) : removing = false,
-       removalProgress = 0.0;
+  _CharAnim({required this.target, required this.current, required this.start, this.locked = false})
+    : removing = false,
+      removalProgress = 0.0;
 }
 
-class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
-    with SingleTickerProviderStateMixin {
+class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle> with SingleTickerProviderStateMixin {
   // Conjuntos para efecto de traducción (katakana → español)
-  static const String _katakana =
-      'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワガギグゲゴザジズゼゾダヂヅデドパピプペポバビブベボャュョッー';
+  static const String _katakana = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワガギグゲゴザジズゼゾダヂヅデドパピプペポバビブベボャュョッー';
   // Mapeo silábico / transliteración aproximada español -> katakana.
   // Ampliado para reducir al mínimo el uso de fallback aleatorio.
   static const Map<String, String> _syllableToKana = {
@@ -195,9 +184,7 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
 
     // Encontrar prefijo común en unidades
     int prefix = 0;
-    final minLen = oldUnits.length < newUnits.length
-        ? oldUnits.length
-        : newUnits.length;
+    final minLen = oldUnits.length < newUnits.length ? oldUnits.length : newUnits.length;
     while (prefix < minLen && oldUnits[prefix] == newUnits[prefix]) {
       prefix++;
     }
@@ -230,10 +217,7 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
           updated.add(
             _CharAnim(
               target: target,
-              current: _randomScrambleChar(
-                replaceWith: target,
-                useKatakana: widget.useKatakana,
-              ),
+              current: _randomScrambleChar(replaceWith: target, useKatakana: widget.useKatakana),
               start: now,
               locked: false,
             ),
@@ -250,10 +234,7 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
         updated.add(
           _CharAnim(
             target: target,
-            current: _randomScrambleChar(
-              replaceWith: target,
-              useKatakana: widget.useKatakana,
-            ),
+            current: _randomScrambleChar(replaceWith: target, useKatakana: widget.useKatakana),
             start: now,
             locked: false,
           ),
@@ -285,8 +266,7 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
       for (final pat in _orderedPatterns) {
         if (pat.length <= lower.length - i) {
           final slice = lower.substring(i, i + pat.length);
-          if (slice == pat ||
-              StringUtils.removeAccents(slice).toLowerCase() == pat) {
+          if (slice == pat || StringUtils.removeAccents(slice).toLowerCase() == pat) {
             match = text.substring(i, i + pat.length);
             break;
           }
@@ -308,14 +288,8 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
     return units;
   }
 
-  static String _randomScrambleChar({
-    String? replaceWith,
-    required bool useKatakana,
-  }) {
-    if (replaceWith != null &&
-        RegExp(r'[\s.,;:!?¡¿"()\[\]{}…-]').hasMatch(replaceWith)) {
-      return replaceWith;
-    }
+  static String _randomScrambleChar({String? replaceWith, required bool useKatakana}) {
+    if (replaceWith != null && RegExp(r'[\s.,;:!?¡¿"()\[\]{}…-]').hasMatch(replaceWith)) return replaceWith;
     if (!useKatakana) return _katakana[_rand.nextInt(_katakana.length)];
     if (replaceWith != null && replaceWith.isNotEmpty) {
       final lower = replaceWith.toLowerCase();
@@ -363,8 +337,7 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
     for (final ch in _chars) {
       if (ch.removing) {
         final dt = now.difference(ch.start);
-        final p = (dt.inMilliseconds / widget.removalDuration.inMilliseconds)
-            .clamp(0.0, 1.0);
+        final p = (dt.inMilliseconds / widget.removalDuration.inMilliseconds).clamp(0.0, 1.0);
         if (p != ch.removalProgress) {
           ch.removalProgress = p;
           needsSetState = true;
@@ -382,10 +355,7 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
           if (dt.inMilliseconds % 38 < 18) {
             // ticks algo más rápidos
             final prev = ch.current;
-            ch.current = _randomScrambleChar(
-              replaceWith: ch.target,
-              useKatakana: widget.useKatakana,
-            );
+            ch.current = _randomScrambleChar(replaceWith: ch.target, useKatakana: widget.useKatakana);
             if (ch.current != prev) needsSetState = true;
           }
         }
@@ -415,13 +385,9 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
 
     final spans = <InlineSpan>[];
     for (final ch in _chars) {
-      final isGlitching =
-          !ch.locked &&
-          !ch.removing &&
-          _rand.nextDouble() < widget.glitchProbability;
+      final isGlitching = !ch.locked && !ch.removing && _rand.nextDouble() < widget.glitchProbability;
       final baseColor = widget.style.color!;
-      Color computeAlpha(Color c, double alpha) =>
-          c.withValues(alpha: (c.a * alpha));
+      Color computeAlpha(Color c, double alpha) => c.withValues(alpha: (c.a * alpha));
       final color = ch.removing
           ? computeAlpha(baseColor, 1.0 - ch.removalProgress)
           : isGlitching
@@ -429,9 +395,7 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
           : ch.locked
           ? baseColor
           : computeAlpha(baseColor, 0.75);
-      final scale = ch.removing
-          ? 1.0 - (0.2 * ch.removalProgress)
-          : (isGlitching ? 1.05 : 1.0);
+      final scale = ch.removing ? 1.0 - (0.2 * ch.removalProgress) : (isGlitching ? 1.05 : 1.0);
       spans.add(
         WidgetSpan(
           alignment: PlaceholderAlignment.middle,
@@ -441,9 +405,7 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
               ch.current,
               style: widget.style.copyWith(
                 color: color,
-                shadows: isGlitching
-                    ? [const Shadow(blurRadius: 8, color: Colors.pinkAccent)]
-                    : null,
+                shadows: isGlitching ? [const Shadow(blurRadius: 8, color: Colors.pinkAccent)] : null,
               ),
             ),
           ),
