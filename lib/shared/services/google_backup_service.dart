@@ -35,17 +35,23 @@ class GoogleBackupService {
   // 🚨 EMERGENCY STOP: Evitar loop infinito con desvinculación INMEDIATA
   static int _consecutiveRefreshFailures = 0;
   static DateTime? _lastRefreshFailure;
-  static const int _maxConsecutiveFailures = 1; // ¡SOLO 1 FALLO!
-  static const Duration _circuitBreakerCooldown = Duration(minutes: 1);
+  static const int _maxConsecutiveFailures = 3; // Permitir más intentos antes de desvincular
+  static const Duration _circuitBreakerCooldown = Duration(minutes: 5); // Más tiempo de espera
 
   /// Registrar un fallo de refresh para el circuit breaker
-  static void _recordRefreshFailure() {
+  /// Solo para fallos que realmente indican problemas serios
+  static void _recordRefreshFailure([String? reason]) {
     _consecutiveRefreshFailures++;
     _lastRefreshFailure = DateTime.now();
     Log.e(
-      '🚨 EMERGENCY: OAuth refresh failed #$_consecutiveRefreshFailures - DESVINCULANDO INMEDIATAMENTE!',
+      '🚨 EMERGENCY: OAuth refresh failed #$_consecutiveRefreshFailures${reason != null ? ' - $reason' : ''} - POSIBLE DESVINCULACIÓN!',
       tag: 'GoogleBackup',
     );
+  }
+
+  /// Registrar fallo leve que NO activa circuit breaker
+  static void _recordMinorRefreshIssue(String reason) {
+    Log.w('OAuth refresh issue (no emergency): $reason', tag: 'GoogleBackup');
   }
 
   /// Verificar si necesitamos forzar desvinculación
@@ -176,8 +182,7 @@ class GoogleBackupService {
       final creds = await _loadCredentialsSecure();
       if (creds == null) {
         Log.w('GoogleBackupService.refreshAccessToken: no stored credentials', tag: 'GoogleBackup');
-        _recordRefreshFailure();
-        await _checkForceUnlink();
+        _recordMinorRefreshIssue('no stored credentials');
         throw StateError('No stored credentials to refresh');
       }
 
@@ -187,8 +192,7 @@ class GoogleBackupService {
           'GoogleBackupService.refreshAccessToken: refresh_token missing in stored credentials',
           tag: 'GoogleBackup',
         );
-        _recordRefreshFailure();
-        await _checkForceUnlink();
+        _recordMinorRefreshIssue('refresh_token missing');
         throw StateError('No refresh_token available; re-authentication required');
       }
 
@@ -233,29 +237,28 @@ class GoogleBackupService {
             'GoogleBackupService.refreshAccessToken: OAuth refresh failed: ${response.statusCode} ${response.body}',
             tag: 'GoogleBackup',
           );
-          // 🚨 REGISTRAR FALLO INMEDIATAMENTE - SIN ESPERAR FIREBASE
-          _recordRefreshFailure();
-          await _checkForceUnlink();
+          // Solo registrar como fallo grave si es un error que indica problema serio
+          if (response.statusCode == 400 && response.body.contains('invalid_grant')) {
+            // Token expirado permanentemente - problema serio
+            _recordRefreshFailure('invalid_grant - token permanently expired');
+            await _checkForceUnlink();
+          } else {
+            // Otros errores 401/403 podrían ser temporales
+            _recordMinorRefreshIssue('HTTP ${response.statusCode} - might be temporary');
+          }
         }
       } catch (e) {
         Log.w('GoogleBackupService.refreshAccessToken: OAuth refresh error: $e', tag: 'GoogleBackup');
-        // 🚨 REGISTRAR FALLO TAMBIÉN EN EXCEPCIONES
-        _recordRefreshFailure();
-        await _checkForceUnlink();
+        // Solo registrar como emergencia si es error de red persistente
+        _recordMinorRefreshIssue('network error: $e');
       }
 
-      // 🚨 Si llegamos aquí, OAuth falló completamente
-      _recordRefreshFailure();
-      await _checkForceUnlink();
+      // Si llegamos aquí, OAuth falló pero no necesariamente es emergencia
+      _recordMinorRefreshIssue('OAuth failed but not emergency-level');
 
       throw StateError('OAuth token refresh failed: no valid refresh method available');
     } catch (e) {
-      // 🚨 Registrar fallo si no es un StateError que ya lo registró
-      if (e is! StateError) {
-        _recordRefreshFailure();
-        await _checkForceUnlink();
-      }
-
+      // Solo registrar fallo si es un StateError grave que no fue manejado arriba
       Log.w('GoogleBackupService.refreshAccessToken failed: $e', tag: 'GoogleBackup');
       rethrow;
     }

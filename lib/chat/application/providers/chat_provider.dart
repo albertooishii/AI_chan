@@ -1,6 +1,7 @@
 import 'package:ai_chan/shared/domain/services/promise_service.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:ai_chan/shared/utils/provider_persist_utils.dart';
+import 'package:ai_chan/shared/utils/audio_duration_utils.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -355,7 +356,7 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
           text: messageData.message.text,
           image: messageData.message.image,
           isAudio: messageData.message.isAudio,
-          audioPath: messageData.message.audioPath,
+          audio: messageData.message.audio,
         );
       } else {
         messages.add(messageData.message);
@@ -369,6 +370,12 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
           );
         } catch (_) {}
       }
+
+      // Calcular duración del audio del usuario en segundo plano
+      if (messageData.message.audio?.url != null && messageData.message.audio!.url!.isNotEmpty) {
+        _calculateUserAudioDuration(messageData.message);
+      }
+
       notifyListeners();
     }
 
@@ -895,7 +902,11 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
   Duration get playingDuration => audioService.currentDuration;
 
   Future<void> generateTtsForMessage(Message msg, {String voice = 'nova'}) async {
-    if (msg.sender != MessageSender.assistant || msg.isAudio) return;
+    // Solo procesar mensajes del asistente que NO tengan audio ya generado
+    if (msg.sender != MessageSender.assistant ||
+        (msg.isAudio && msg.audio?.url != null && msg.audio!.url!.isNotEmpty)) {
+      return;
+    }
     // Indicar que la IA está generando audio hasta que tengamos audioPath
     isSendingAudio = true;
     notifyListeners();
@@ -905,13 +916,39 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       final path = await tts.synthesizeAndPersist(msg.text, voice: voice);
       final idx = messages.indexOf(msg);
       if (path != null) {
+        // Obtener la duración real del archivo de audio generado
+        Log.d('🔍 [DEBUG][TTS] generateTtsForMessage: calculating duration for file: $path', tag: 'TTS');
+        final audioDuration = await AudioDurationUtils.getAudioDuration(path);
+        Log.d(
+          '🔍 [DEBUG][TTS] Real duration calculated: ${audioDuration?.inMilliseconds}ms, stored in message.audioDuration',
+          tag: 'TTS',
+        );
+
         if (idx != -1) {
-          messages[idx] = messages[idx].copyWith(isAudio: true, audioPath: path, autoTts: true);
+          // Create AiAudio object with the new data
+          final audioObj = AiAudio(
+            url: path,
+            transcript: msg.text,
+            durationMs: audioDuration?.inMilliseconds,
+            isAutoTts: true,
+            createdAtMs: DateTime.now().millisecondsSinceEpoch,
+          );
+          messages[idx] = messages[idx].copyWith(isAudio: true, audio: audioObj);
+          Log.d(
+            '🔍 [DEBUG][TTS] Message updated - final audioDuration: ${messages[idx].audio?.duration?.inMilliseconds}ms',
+            tag: 'TTS',
+          );
         }
       } else {
+        Log.d('🔍 [DEBUG][TTS] Failed to generate TTS - no path returned', tag: 'TTS');
         // Mark as audio requested but no path returned (error case handled below)
         if (idx != -1) {
-          messages[idx] = messages[idx].copyWith(isAudio: true, autoTts: true);
+          final audioObj = AiAudio(
+            transcript: msg.text,
+            isAutoTts: true,
+            createdAtMs: DateTime.now().millisecondsSinceEpoch,
+          );
+          messages[idx] = messages[idx].copyWith(isAudio: true, audio: audioObj);
         }
       }
       // Ya tenemos resultado (positivo o negativo), desactivar indicador
@@ -921,12 +958,49 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       debugPrint('[Audio][TTS] Error generating TTS: $e');
       final idx = messages.indexOf(msg);
       if (idx != -1) {
-        messages[idx] = messages[idx].copyWith(isAudio: true, autoTts: true);
+        final audioObj = AiAudio(
+          transcript: msg.text,
+          isAutoTts: true,
+          createdAtMs: DateTime.now().millisecondsSinceEpoch,
+        );
+        messages[idx] = messages[idx].copyWith(isAudio: true, audio: audioObj);
       }
       isSendingAudio = false;
       if (idx != -1) notifyListeners();
     }
   }
+
+  /// Calcula y actualiza la duración del audio grabado por el usuario
+  Future<void> _calculateUserAudioDuration(Message message) async {
+    if (message.audio?.url == null || message.audio!.url!.isEmpty) return;
+
+    try {
+      final audioDuration = await AudioDurationUtils.getAudioDuration(message.audio!.url!);
+      final messageIndex = messages.indexOf(message);
+
+      if (messageIndex != -1 && audioDuration != null) {
+        // Update the audio object with the new duration
+        final currentAudio = messages[messageIndex].audio;
+        final updatedAudio =
+            currentAudio?.copyWith(durationMs: audioDuration.inMilliseconds) ??
+            AiAudio(
+              url: message.audio!.url,
+              durationMs: audioDuration.inMilliseconds,
+              createdAtMs: DateTime.now().millisecondsSinceEpoch,
+            );
+
+        messages[messageIndex] = messages[messageIndex].copyWith(audio: updatedAudio);
+        notifyListeners();
+        Log.d(
+          'Audio: User audio duration calculated=${audioDuration.inMilliseconds}ms for ${message.audio!.url}',
+          tag: 'AUDIO',
+        );
+      }
+    } catch (e) {
+      Log.w('Failed to calculate user audio duration: $e', tag: 'AUDIO');
+    }
+  }
+
   // =======================================================
 
   /// Aplica un SendMessageOutcome: añade el assistantMessage a la lista,
@@ -963,24 +1037,33 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
         final String cleaned = assistantMessage.text.trim();
 
         try {
-          final tts = ttsService ?? TtsService(audioService);
-          final path = await tts.synthesizeAndPersist(cleaned);
-          if (path != null && path.isNotEmpty) {
-            final msgWithAudio = assistantMessage.copyWith(
-              text: cleaned,
-              isAudio: true,
-              audioPath: path,
-              status: MessageStatus.read,
-              autoTts: true,
-            );
-            messages.add(msgWithAudio);
-          } else {
-            // Fallback a texto si no se generó audio
-            messages.add(assistantMessage.copyWith(text: cleaned, status: MessageStatus.read));
-          }
+          // Crear mensaje como audio desde el inicio para evitar parpadeo visual
+          final audioObj = AiAudio(
+            transcript: cleaned,
+            isAutoTts: true,
+            createdAtMs: DateTime.now().millisecondsSinceEpoch,
+          );
+          final msgForTts = assistantMessage.copyWith(
+            text: cleaned,
+            isAudio: true, // Marcado como audio desde el inicio
+            status: MessageStatus.read,
+            audio: audioObj,
+          );
+
+          // Agregar el mensaje a la lista ANTES de generar TTS
+          // (generateTtsForMessage necesita encontrar el mensaje en messages)
+          messages.add(msgForTts);
+
+          // Generar TTS y calcular duración real - esto actualizará audioPath y audioDuration
+          await generateTtsForMessage(msgForTts);
         } catch (e, st) {
           Log.w('TTS failed while applying outcome: $e\n$st', tag: 'CHAT');
-          messages.add(assistantMessage.copyWith(text: cleaned, status: MessageStatus.read));
+          // Si ya se agregó el mensaje pero falló TTS, mantenerlo como audio sin audioPath
+          // La UI debería manejar esto mostrando un estado de error
+          if (messages.isEmpty || messages.last.text != cleaned) {
+            // Fallback: agregar como texto normal si algo salió mal
+            messages.add(assistantMessage.copyWith(text: cleaned, status: MessageStatus.read));
+          }
         } finally {
           isSendingAudio = false;
           notifyListeners();
@@ -1253,6 +1336,16 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       imageForHistory = AiImage(url: image.url, seed: image.seed, prompt: image.prompt);
     }
 
+    // Create AiAudio object if audio path provided
+    AiAudio? audioObj;
+    if (userAudioPath != null) {
+      audioObj = AiAudio(
+        url: userAudioPath,
+        transcript: displayText,
+        createdAtMs: DateTime.now().millisecondsSinceEpoch,
+      );
+    }
+
     return Message(
       text: displayText,
       sender: isAutomaticPrompt ? MessageSender.system : MessageSender.user,
@@ -1260,7 +1353,7 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       isImage: hasImage,
       image: imageForHistory,
       isAudio: userAudioPath != null,
-      audioPath: userAudioPath,
+      audio: audioObj,
       status: MessageStatus.sending,
     );
   }
@@ -1663,26 +1756,32 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
   }
 
   /// Update the global Google account info and persist to SharedPreferences.
-  Future<void> updateGoogleAccountInfo({String? email, String? avatarUrl, String? name, bool linked = true}) async {
+  /// [triggerAutoBackup]: Si true, puede disparar backup automático cuando linked=true.
+  /// Debe ser false cuando se llama desde verificaciones de estado en diálogos.
+  Future<void> updateGoogleAccountInfo({
+    String? email,
+    String? avatarUrl,
+    String? name,
+    bool linked = true,
+    bool triggerAutoBackup = false,
+  }) async {
     googleEmail = email;
     googleAvatarUrl = avatarUrl;
     googleName = name;
     googleLinked = linked;
     try {
       if (kDebugMode) {
-        debugPrint('updateGoogleAccountInfo called: email=$email name=$name avatar=$avatarUrl linked=$linked');
+        debugPrint(
+          'updateGoogleAccountInfo called: email=$email name=$name avatar=$avatarUrl linked=$linked triggerAutoBackup=$triggerAutoBackup',
+        );
       }
     } catch (_) {}
     try {
       await PrefsUtils.setGoogleAccountInfo(email: email, avatar: avatarUrl, name: name, linked: linked);
     } catch (_) {}
     notifyListeners();
-    // If the account was just linked and we have no record of a previous
-    // automatic backup, trigger one immediately. Fire-and-forget to avoid
-    // blocking the caller/UI. This covers the case where the user links
-    // Drive after loading a chat that may already contain messages but
-    // has never been backed up.
-    if (linked) {
+    // Solo disparar backup automático si se autoriza explícitamente (ej: desde loadAll, no desde diálogos)
+    if (linked && triggerAutoBackup) {
       try {
         unawaited(() async {
           try {
@@ -1730,6 +1829,8 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
           }
         }());
       } catch (_) {}
+    } else if (linked && !triggerAutoBackup) {
+      Log.d('Auto-backup: skip trigger (updateGoogleAccountInfo called from dialog verification)', tag: 'BACKUP_AUTO');
     }
   }
 

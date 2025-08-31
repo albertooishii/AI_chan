@@ -19,7 +19,8 @@ class GoogleDriveBackupDialog extends StatefulWidget {
   final String clientId;
   final Future<String?> Function()? requestBackupJson;
   final Future<void> Function(String json)? onImportedJson;
-  final Future<void> Function({String? email, String? avatarUrl, String? name, bool linked})? onAccountInfoUpdated;
+  final Future<void> Function({String? email, String? avatarUrl, String? name, bool linked, bool triggerAutoBackup})?
+  onAccountInfoUpdated;
   final VoidCallback? onClearAccountInfo;
   final bool disableAutoRestore;
 
@@ -392,7 +393,13 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         });
         try {
           if (widget.onAccountInfoUpdated != null) {
-            await widget.onAccountInfoUpdated!(email: _email, avatarUrl: _avatarUrl, name: _name, linked: true);
+            await widget.onAccountInfoUpdated!(
+              email: _email,
+              avatarUrl: _avatarUrl,
+              name: _name,
+              linked: true,
+              triggerAutoBackup: false, // No disparar backup automático desde verificaciones de diálogo
+            );
           }
         } catch (e) {
           if (kDebugMode) {

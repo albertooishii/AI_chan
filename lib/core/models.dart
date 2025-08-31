@@ -1,6 +1,7 @@
 // Barrel file: re-export canonical models directly.
 export 'models/ai_chan_profile.dart';
 export 'models/ai_response.dart';
+export 'models/audio.dart';
 export '../chat/domain/models/chat_export.dart'; // ChatExport moved to chat domain
 export 'models/image.dart';
 // Chat models migrated to chat/domain - re-export for compatibility

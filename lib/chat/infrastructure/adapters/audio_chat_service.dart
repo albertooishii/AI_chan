@@ -29,9 +29,7 @@ class AudioChatService implements IAudioChatService {
   @override
   String get liveTranscript => _liveTranscript;
   @override
-  Duration get recordingElapsed => _recordStart == null
-      ? Duration.zero
-      : DateTime.now().difference(_recordStart!);
+  Duration get recordingElapsed => _recordStart == null ? Duration.zero : DateTime.now().difference(_recordStart!);
 
   Timer? _partialTxTimer;
   bool _isPartialTranscribing = false;
@@ -42,7 +40,7 @@ class AudioChatService implements IAudioChatService {
   final AudioPlayback _audioPlayer = di.getAudioPlayback();
   String? _currentPlayingId;
   @override
-  bool isPlayingMessage(Message m) => _currentPlayingId == m.audioPath;
+  bool isPlayingMessage(Message m) => _currentPlayingId == m.audio?.url;
   // Tracking posición/duración para subtítulos flotantes
   Duration _currentPosition = Duration.zero;
   Duration _currentDuration = Duration.zero;
@@ -71,12 +69,8 @@ class AudioChatService implements IAudioChatService {
     // AUDIO_DIR can fail with EXDEV). The filename uses the start timestamp
     // so it stays stable for logs and later correlation.
     final localDir = await audio_utils.getLocalAudioDir();
-    final path =
-        '${localDir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-    await _recorder.start(
-      const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 96000),
-      path: path,
-    );
+    final path = '${localDir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 96000), path: path);
     isRecording = true;
     _recordCancelled = false;
     _currentWaveform.clear();
@@ -91,18 +85,14 @@ class AudioChatService implements IAudioChatService {
         // fall back to the file-based partial loop.
         try {
           _speech = stt.SpeechToText();
-          final initialized = await _speech!.initialize(
-            onStatus: (s) {},
-            onError: (e) {},
-          );
+          final initialized = await _speech!.initialize(onStatus: (s) {}, onError: (e) {});
           if (initialized) {
             _isNativeListening = true;
             _speech!.listen(
               onResult: (r) {
                 try {
                   final text = r.recognizedWords.trim();
-                  if (text.isNotEmpty &&
-                      text.length > _liveTranscript.trim().length) {
+                  if (text.isNotEmpty && text.length > _liveTranscript.trim().length) {
                     _liveTranscript = text;
                     onStateChanged();
                   }
@@ -126,9 +116,7 @@ class AudioChatService implements IAudioChatService {
             _startPartialLoop();
           }
         } catch (e) {
-          debugPrint(
-            '[Audio] native STT init error: $e; falling back to file partials',
-          );
+          debugPrint('[Audio] native STT init error: $e; falling back to file partials');
           _speech = null;
           _startPartialLoop();
         }
@@ -140,17 +128,15 @@ class AudioChatService implements IAudioChatService {
     }
     try {
       await _ampSub?.cancel();
-      _ampSub = _recorder
-          .onAmplitudeChanged(const Duration(milliseconds: 120))
-          .listen((amp) {
-            final value = amp.current;
-            double norm = (value + 45) / 45;
-            norm = norm.clamp(0, 1);
-            _currentWaveform.add((norm * 100).round());
-            if (_currentWaveform.length > 160) _currentWaveform.removeAt(0);
-            onWaveform(List.unmodifiable(_currentWaveform));
-            onStateChanged();
-          });
+      _ampSub = _recorder.onAmplitudeChanged(const Duration(milliseconds: 120)).listen((amp) {
+        final value = amp.current;
+        double norm = (value + 45) / 45;
+        norm = norm.clamp(0, 1);
+        _currentWaveform.add((norm * 100).round());
+        if (_currentWaveform.length > 160) _currentWaveform.removeAt(0);
+        onWaveform(List.unmodifiable(_currentWaveform));
+        onStateChanged();
+      });
     } catch (_) {}
     onStateChanged();
   }
@@ -190,49 +176,35 @@ class AudioChatService implements IAudioChatService {
       try {
         final dir = await audio_utils.getLocalAudioDir();
         if (path.startsWith(dir.path)) {
-          debugPrint(
-            '[Audio] stopRecording: recording already in audio dir: $path',
-          );
+          debugPrint('[Audio] stopRecording: recording already in audio dir: $path');
           result = path;
         } else {
           // Fallback: try to move into audio dir (rare, kept for safety)
-          final ts =
-              _recordStart?.millisecondsSinceEpoch ??
-              DateTime.now().millisecondsSinceEpoch;
+          final ts = _recordStart?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch;
           final dest = '${dir.path}/voice_$ts.m4a';
           final f = File(path);
           if (await f.exists()) {
             try {
               await f.rename(dest);
               final newLen = await File(dest).length();
-              debugPrint(
-                '[Audio] stopRecording moved file to $dest (size=$newLen bytes)',
-              );
+              debugPrint('[Audio] stopRecording moved file to $dest (size=$newLen bytes)');
               result = dest;
             } catch (e) {
-              debugPrint(
-                '[Audio] stopRecording rename failed: $e; falling back to copy',
-              );
+              debugPrint('[Audio] stopRecording rename failed: $e; falling back to copy');
               try {
                 await f.copy(dest);
                 final newLen = await File(dest).length();
-                debugPrint(
-                  '[Audio] stopRecording copied file to $dest (size=$newLen bytes)',
-                );
+                debugPrint('[Audio] stopRecording copied file to $dest (size=$newLen bytes)');
                 try {
                   final srcLen = await f.length();
                   final dstLen = await File(dest).length();
                   if (srcLen == dstLen) {
                     try {
                       await f.delete();
-                      debugPrint(
-                        '[Audio] stopRecording deleted original file $path after verify',
-                      );
+                      debugPrint('[Audio] stopRecording deleted original file $path after verify');
                     } catch (_) {}
                   } else {
-                    debugPrint(
-                      '[Audio] stopRecording copy size mismatch src=$srcLen dst=$dstLen; keeping original',
-                    );
+                    debugPrint('[Audio] stopRecording copy size mismatch src=$srcLen dst=$dstLen; keeping original');
                   }
                 } catch (e2) {
                   debugPrint('[Audio] stopRecording verify error: $e2');
@@ -243,9 +215,7 @@ class AudioChatService implements IAudioChatService {
               }
             }
           } else {
-            debugPrint(
-              '[Audio] stopRecording: original file not found for copy: $path',
-            );
+            debugPrint('[Audio] stopRecording: original file not found for copy: $path');
           }
         }
       } catch (e) {
@@ -280,10 +250,7 @@ class AudioChatService implements IAudioChatService {
 
   void _startPartialLoop() {
     _partialTxTimer?.cancel();
-    _partialTxTimer = Timer.periodic(
-      const Duration(seconds: 4),
-      (_) => _attemptPartial(),
-    );
+    _partialTxTimer = Timer.periodic(const Duration(seconds: 4), (_) => _attemptPartial());
   }
 
   void _stopPartialLoop() {
@@ -311,9 +278,7 @@ class AudioChatService implements IAudioChatService {
       _isPartialTranscribing = true;
       // Respect user-selected audio provider for partial transcription
       final provider = await PrefsUtils.getSelectedAudioProvider();
-      final stt = di.getSttServiceForProvider(
-        provider.isEmpty ? 'google' : provider,
-      );
+      final stt = di.getSttServiceForProvider(provider.isEmpty ? 'google' : provider);
       final partial = await stt.transcribeAudio(path);
       if (partial != null && partial.trim().isNotEmpty) {
         if (partial.trim().length > _liveTranscript.trim().length) {
@@ -330,10 +295,10 @@ class AudioChatService implements IAudioChatService {
 
   @override
   Future<void> togglePlay(Message msg, OnStateChanged onState) async {
-    if (!msg.isAudio || msg.audioPath == null) return;
-    debugPrint('[Audio] togglePlay called, audioPath=${msg.audioPath}');
+    if (!msg.isAudio || msg.audio?.url == null) return;
+    debugPrint('[Audio] togglePlay called, audioPath=${msg.audio?.url}');
     try {
-      final fcheck = File(msg.audioPath!);
+      final fcheck = File(msg.audio!.url!);
       debugPrint(
         '[Audio] togglePlay file exists=${fcheck.existsSync()}, size=${fcheck.existsSync() ? fcheck.lengthSync() : 0}',
       );
@@ -343,7 +308,7 @@ class AudioChatService implements IAudioChatService {
     // invoking platform audio APIs with non-existent paths which can emit
     // uncaught PlatformExceptions from the plugin.
     try {
-      final path = msg.audioPath;
+      final path = msg.audio?.url;
       if (path == null) return;
       final f = File(path);
       if (!await f.exists()) {
@@ -354,7 +319,7 @@ class AudioChatService implements IAudioChatService {
       // Rethrow so the provider can catch and show a user-friendly message.
       rethrow;
     }
-    if (_currentPlayingId == msg.audioPath) {
+    if (_currentPlayingId == msg.audio?.url) {
       await _audioPlayer.stop();
       _currentPlayingId = null;
       _currentPosition = Duration.zero;
@@ -366,12 +331,12 @@ class AudioChatService implements IAudioChatService {
     }
     try {
       await _audioPlayer.stop();
-      _currentPlayingId = msg.audioPath;
+      _currentPlayingId = msg.audio?.url;
       _currentPosition = Duration.zero;
       _currentDuration = Duration.zero;
       await _posSub?.cancel();
       await _durSub?.cancel();
-      await _audioPlayer.play(msg.audioPath!);
+      await _audioPlayer.play(msg.audio!.url!);
       _durSub = _audioPlayer.onDurationChanged.listen((d) {
         _currentDuration = d;
         onState();
@@ -414,9 +379,7 @@ class AudioChatService implements IAudioChatService {
     String? languageCode,
     bool forDialogDemo = false,
   }) async {
-    debugPrint(
-      '[Audio][TTS] synthesizeTts called - voice: $voice, languageCode: $languageCode',
-    );
+    debugPrint('[Audio][TTS] synthesizeTts called - voice: $voice, languageCode: $languageCode');
 
     // Prepare the actual text that will be sent to the TTS providers.
     // - For assistant message TTS (not dialog demos), if the text is wrapped
@@ -442,9 +405,7 @@ class AudioChatService implements IAudioChatService {
             final inner = after.substring(0, end).trim();
             if (inner.isNotEmpty) {
               synthText = inner;
-              debugPrint(
-                '[Audio][TTS] Stripped [audio] tags for synthesis, len=${synthText.length}',
-              );
+              debugPrint('[Audio][TTS] Stripped [audio] tags for synthesis, len=${synthText.length}');
             }
           }
         }
@@ -452,16 +413,11 @@ class AudioChatService implements IAudioChatService {
         // Remove any call control tags and if nothing remains, skip TTS.
         try {
           final withoutCalls = synthText
-              .replaceAll(
-                RegExp(r'\[\/?start_call\]', caseSensitive: false),
-                '',
-              )
+              .replaceAll(RegExp(r'\[\/?start_call\]', caseSensitive: false), '')
               .replaceAll(RegExp(r'\[\/?end_call\]', caseSensitive: false), '')
               .trim();
           if (withoutCalls.isEmpty) {
-            debugPrint(
-              '[Audio][TTS] Message contains only call control tags; skipping synthesis',
-            );
+            debugPrint('[Audio][TTS] Message contains only call control tags; skipping synthesis');
             return null;
           }
         } catch (_) {}
@@ -471,22 +427,13 @@ class AudioChatService implements IAudioChatService {
     try {
       // Delegate provider and voice resolution to PrefsUtils
       final provider = await PrefsUtils.getSelectedAudioProvider();
-      final preferredVoice = await PrefsUtils.getPreferredVoice(
-        fallback: voice,
-      );
-      debugPrint(
-        '[Audio][TTS] Using provider: $provider for voice: $preferredVoice',
-      );
+      final preferredVoice = await PrefsUtils.getPreferredVoice(fallback: voice);
+      debugPrint('[Audio][TTS] Using provider: $provider for voice: $preferredVoice');
 
       // Probar TTS nativo de Android primero si está disponible - PERO SOLO para voces que no son de OpenAI ni Google Cloud
-      if (provider != 'openai' &&
-          provider != 'google' &&
-          AndroidNativeTtsService.isAndroid) {
-        debugPrint(
-          '[Audio][TTS] Trying Android native TTS for non-OpenAI/non-Google voice: $voice',
-        );
-        final isNativeAvailable =
-            await AndroidNativeTtsService.isNativeTtsAvailable();
+      if (provider != 'openai' && provider != 'google' && AndroidNativeTtsService.isAndroid) {
+        debugPrint('[Audio][TTS] Trying Android native TTS for non-OpenAI/non-Google voice: $voice');
+        final isNativeAvailable = await AndroidNativeTtsService.isNativeTtsAvailable();
         if (isNativeAvailable) {
           // Buscar caché primero
           final cachedFile = await CacheService.getCachedAudioFile(
@@ -505,8 +452,7 @@ class AudioChatService implements IAudioChatService {
           // Generar con TTS nativo si no está en caché
           try {
             final cacheDir = await CacheService.getAudioCacheDirectory();
-            final outputPath =
-                '${cacheDir.path}/android_native_${DateTime.now().millisecondsSinceEpoch}.mp3';
+            final outputPath = '${cacheDir.path}/android_native_${DateTime.now().millisecondsSinceEpoch}.mp3';
 
             final result = await AndroidNativeTtsService.synthesizeToFile(
               text: synthText,
@@ -518,9 +464,7 @@ class AudioChatService implements IAudioChatService {
             if (result != null) {
               final file = File(result);
               if (await file.exists()) {
-                debugPrint(
-                  '[Audio][TTS] Audio generado con TTS nativo Android',
-                );
+                debugPrint('[Audio][TTS] Audio generado con TTS nativo Android');
 
                 // Guardar referencia en caché
                 try {
@@ -534,28 +478,20 @@ class AudioChatService implements IAudioChatService {
                     extension: 'mp3',
                   );
                 } catch (e) {
-                  debugPrint(
-                    '[Audio][TTS] Warning: Error guardando TTS nativo en caché: $e',
-                  );
+                  debugPrint('[Audio][TTS] Warning: Error guardando TTS nativo en caché: $e');
                 }
 
                 return file;
               }
             }
           } catch (e) {
-            debugPrint(
-              '[Audio][TTS] Error con TTS nativo Android, continuando con $provider: $e',
-            );
+            debugPrint('[Audio][TTS] Error con TTS nativo Android, continuando con $provider: $e');
           }
         }
       } else if (provider == 'openai') {
-        debugPrint(
-          '[Audio][TTS] Skipping Android native TTS for OpenAI voice: $voice',
-        );
+        debugPrint('[Audio][TTS] Skipping Android native TTS for OpenAI voice: $voice');
       } else if (provider == 'google') {
-        debugPrint(
-          '[Audio][TTS] Skipping Android native TTS for Google Cloud voice: $voice',
-        );
+        debugPrint('[Audio][TTS] Skipping Android native TTS for Google Cloud voice: $voice');
       }
 
       if (provider == 'google') {
@@ -586,9 +522,7 @@ class AudioChatService implements IAudioChatService {
 
                   try {
                     await oldFile.rename(destPath);
-                    debugPrint(
-                      '[Audio][TTS] Moved Google TTS file to $destPath',
-                    );
+                    debugPrint('[Audio][TTS] Moved Google TTS file to $destPath');
                     return File(destPath);
                   } catch (e) {
                     debugPrint('[Audio][TTS] rename failed: $e; trying copy');
@@ -603,56 +537,39 @@ class AudioChatService implements IAudioChatService {
                             await oldFile.delete();
                           } catch (_) {}
                         } else {
-                          debugPrint(
-                            '[Audio][TTS] copy size mismatch src=$srcLen dst=$dstLen; keeping original',
-                          );
+                          debugPrint('[Audio][TTS] copy size mismatch src=$srcLen dst=$dstLen; keeping original');
                         }
                       } catch (e2) {
                         debugPrint('[Audio][TTS] verify error after copy: $e2');
                       }
                       return File(destPath);
                     } catch (e2) {
-                      debugPrint(
-                        '[Audio][TTS] copy failed: $e2; returning original file',
-                      );
+                      debugPrint('[Audio][TTS] copy failed: $e2; returning original file');
                       return oldFile;
                     }
                   }
                 } catch (e) {
-                  debugPrint(
-                    '[Audio][TTS] Error moving Google TTS file to audio dir: $e; returning original file',
-                  );
+                  debugPrint('[Audio][TTS] Error moving Google TTS file to audio dir: $e; returning original file');
                   return file;
                 }
               }
 
               return file;
             }
-            debugPrint(
-              '[Audio][TTS] Google TTS returned null file, falling back to DI service',
-            );
+            debugPrint('[Audio][TTS] Google TTS returned null file, falling back to DI service');
           } catch (e) {
-            debugPrint(
-              '[Audio][TTS] Google TTS error: $e — falling back to DI service',
-            );
+            debugPrint('[Audio][TTS] Google TTS error: $e — falling back to DI service');
           }
         } else {
-          debugPrint(
-            '[Audio][TTS] Google TTS not configured (no API key) — falling back to DI service',
-          );
+          debugPrint('[Audio][TTS] Google TTS not configured (no API key) — falling back to DI service');
         }
       } else if (provider == 'openai') {
         // Para voces de OpenAI, usar directamente el OpenAI adapter
         debugPrint('[Audio][TTS] Using OpenAI adapter for voice: $voice');
         try {
           // Usar el adapter de OpenAI que ya está configurado
-          final aiService = di.getAIServiceForModel(
-            'gpt-4o-mini',
-          ); // Usar un modelo GPT para forzar OpenAI
-          final filePath = await aiService.textToSpeech(
-            synthText,
-            voice: voice,
-          );
+          final aiService = di.getAIServiceForModel('gpt-4o-mini'); // Usar un modelo GPT para forzar OpenAI
+          final filePath = await aiService.textToSpeech(synthText, voice: voice);
           if (filePath != null) {
             final file = File(filePath);
             if (await file.exists()) {
@@ -660,13 +577,9 @@ class AudioChatService implements IAudioChatService {
               return file;
             }
           }
-          debugPrint(
-            '[Audio][TTS] OpenAI adapter returned null, falling back to DI service',
-          );
+          debugPrint('[Audio][TTS] OpenAI adapter returned null, falling back to DI service');
         } catch (e) {
-          debugPrint(
-            '[Audio][TTS] OpenAI adapter error: $e — falling back to DI service',
-          );
+          debugPrint('[Audio][TTS] OpenAI adapter error: $e — falling back to DI service');
         }
       }
 

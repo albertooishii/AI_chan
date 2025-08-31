@@ -187,11 +187,7 @@ class VoiceCallOrchestrationService {
     return call.copyWith(
       status: CallStatus.failed,
       endTime: DateTime.now(),
-      metadata: {
-        ...?call.metadata,
-        'failureReason': reason,
-        'failureTime': DateTime.now().toIso8601String(),
-      },
+      metadata: {...?call.metadata, 'failureReason': reason, 'failureTime': DateTime.now().toIso8601String()},
     );
   }
 
@@ -208,9 +204,7 @@ class VoiceCallOrchestrationService {
   /// Calcula estadísticas de una llamada
   static Map<String, dynamic> calculateCallStats(VoiceCall call) {
     final userMessages = call.messages.where((m) => m.isFromUser).length;
-    final assistantMessages = call.messages
-        .where((m) => m.isFromAssistant)
-        .length;
+    final assistantMessages = call.messages.where((m) => m.isFromAssistant).length;
     final audioMessages = call.messages.where((m) => m.hasAudio).length;
     final textMessages = call.messages.where((m) => m.hasText).length;
 
@@ -248,10 +242,7 @@ class VoiceCallOrchestrationService {
 
     if (responseTimes.isEmpty) return Duration.zero;
 
-    final totalMs = responseTimes.fold<int>(
-      0,
-      (sum, duration) => sum + duration.inMilliseconds,
-    );
+    final totalMs = responseTimes.fold<int>(0, (sum, duration) => sum + duration.inMilliseconds);
 
     return Duration(milliseconds: totalMs ~/ responseTimes.length);
   }

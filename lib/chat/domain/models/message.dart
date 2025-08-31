@@ -9,17 +9,9 @@ class VoiceCallMessage {
   final bool isUser;
   final DateTime timestamp;
 
-  VoiceCallMessage({
-    required this.text,
-    required this.isUser,
-    required this.timestamp,
-  });
+  VoiceCallMessage({required this.text, required this.isUser, required this.timestamp});
 
-  Map<String, dynamic> toJson() => {
-    'text': text,
-    'isUser': isUser,
-    'timestamp': timestamp.toIso8601String(),
-  };
+  Map<String, dynamic> toJson() => {'text': text, 'isUser': isUser, 'timestamp': timestamp.toIso8601String()};
 
   factory VoiceCallMessage.fromJson(Map<String, dynamic> json) {
     return VoiceCallMessage(
@@ -86,8 +78,7 @@ class Message {
   MessageStatus status;
   final String localId;
   final bool isAudio;
-  final String? audioPath;
-  final bool autoTts;
+  final AiAudio? audio;
   final Duration? callDuration;
   final DateTime? callEndTime;
   final CallStatus? callStatus; // null si no es mensaje de llamada
@@ -101,18 +92,14 @@ class Message {
     this.status = MessageStatus.sending,
     String? localId,
     this.isAudio = false,
-    this.audioPath,
-    this.autoTts = false,
+    this.audio,
     this.callDuration,
     this.callEndTime,
     this.callStatus,
-  }) : localId =
-           localId ??
-           '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 32)}';
+  }) : localId = localId ?? '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 32)}';
 
   /// Determina si este mensaje es un resumen de llamada de voz
-  bool get isVoiceCallSummary =>
-      callStatus == CallStatus.completed && callDuration != null;
+  bool get isVoiceCallSummary => callStatus == CallStatus.completed && callDuration != null;
 
   /// Formatea la duración de llamada si existe
   String get formattedCallDuration {
@@ -134,8 +121,7 @@ class Message {
     MessageStatus? status,
     String? localId,
     bool? isAudio,
-    String? audioPath,
-    bool? autoTts,
+    AiAudio? audio,
     Duration? callDuration,
     DateTime? callEndTime,
     CallStatus? callStatus,
@@ -149,8 +135,7 @@ class Message {
       status: status ?? this.status,
       localId: localId ?? this.localId,
       isAudio: isAudio ?? this.isAudio,
-      audioPath: audioPath ?? this.audioPath,
-      autoTts: autoTts ?? this.autoTts,
+      audio: audio ?? this.audio,
       callDuration: callDuration ?? this.callDuration,
       callEndTime: callEndTime ?? this.callEndTime,
       callStatus: callStatus ?? this.callStatus,
@@ -170,35 +155,33 @@ class Message {
     'status': status.name,
     if (image != null) 'image': image!.toJson(),
     if (isAudio) 'isAudio': isAudio,
-    if (audioPath != null) 'audioPath': audioPath,
-    if (autoTts) 'autoTts': autoTts,
+    if (audio != null) 'audio': audio!.toJson(),
     if (callDuration != null) 'callDuration': callDuration!.inMilliseconds,
     if (callEndTime != null) 'callEndTime': callEndTime!.toIso8601String(),
     if (callStatus != null) 'callStatus': callStatus!.name,
   };
 
   factory Message.fromJson(Map<String, dynamic> json) {
-    final imageObj = json['image'] != null
-        ? AiImage.fromJson(json['image'])
-        : null;
-    final bool isAudio =
-        json['isAudio'] == true || json.containsKey('audioPath');
+    final imageObj = json['image'] != null ? AiImage.fromJson(json['image']) : null;
+    final bool isAudio = json['isAudio'] == true;
     final String localId =
-        (json['localId'] as String?) ??
-        '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 32)}';
+        (json['localId'] as String?) ?? '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 32)}';
+
+    // Load AiAudio object from new format
+    AiAudio? audioObj;
+    if (json['audio'] != null) {
+      audioObj = AiAudio.fromJson(json['audio']);
+    }
+
     return Message(
       text: json['text'] ?? '',
       sender: json['sender'] == 'user'
           ? MessageSender.user
-          : (json['sender'] == 'system'
-                ? MessageSender.system
-                : MessageSender.assistant),
+          : (json['sender'] == 'system' ? MessageSender.system : MessageSender.assistant),
       dateTime: json['dateTime'] != null && json['dateTime'] is String
           ? DateTime.tryParse(json['dateTime']) ?? DateTime.now()
           : DateTime.now(),
-      isImage: json['isImage'] is bool
-          ? json['isImage'] as bool
-          : (json['isImage'] == true),
+      isImage: json['isImage'] is bool ? json['isImage'] as bool : (json['isImage'] == true),
       image: imageObj,
       status: MessageStatus.values.firstWhere(
         (e) => e.name == (json['status'] ?? 'sent'),
@@ -206,11 +189,8 @@ class Message {
       ),
       localId: localId,
       isAudio: isAudio,
-      audioPath: json['audioPath'] as String?,
-      autoTts: json['autoTts'] == true,
-      callDuration: json['callDuration'] != null
-          ? Duration(milliseconds: json['callDuration'])
-          : null,
+      audio: audioObj,
+      callDuration: json['callDuration'] != null ? Duration(milliseconds: json['callDuration']) : null,
       callEndTime: json['callEndTime'] != null && json['callEndTime'] is String
           ? DateTime.tryParse(json['callEndTime'])
           : null,

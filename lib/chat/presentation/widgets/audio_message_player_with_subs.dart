@@ -8,8 +8,7 @@ import 'floating_audio_subtitle.dart';
 class AudioMessagePlayerWithSubs extends StatefulWidget {
   final Message message;
   final double width;
-  final bool
-  globalOverlay; // muestra subtítulos estilo video ocupando ancho pantalla
+  final bool globalOverlay; // muestra subtítulos estilo video ocupando ancho pantalla
   // Playback callbacks/readers injected by parent to avoid Provider here.
   final bool Function(Message) isPlaying;
   final Future<void> Function(Message) togglePlay;
@@ -31,12 +30,10 @@ class AudioMessagePlayerWithSubs extends StatefulWidget {
   static Future<void> _defaultTogglePlay(Message _) async {}
 
   @override
-  State<AudioMessagePlayerWithSubs> createState() =>
-      _AudioMessagePlayerWithSubsState();
+  State<AudioMessagePlayerWithSubs> createState() => _AudioMessagePlayerWithSubsState();
 }
 
-class _AudioMessagePlayerWithSubsState
-    extends State<AudioMessagePlayerWithSubs> {
+class _AudioMessagePlayerWithSubsState extends State<AudioMessagePlayerWithSubs> {
   late final AudioSubtitleController _subsCtrl;
   String _baseText = '';
   OverlayEntry? _overlayEntry;
@@ -46,12 +43,8 @@ class _AudioMessagePlayerWithSubsState
   Timer? _overlayFadeTimer; // timer que inicia el fade-out
   double _overlayOpacity = 1.0; // opacidad animada del overlay
 
-  static const Duration _lingerTotal = Duration(
-    seconds: 2,
-  ); // tiempo visible tras terminar
-  static const Duration _fadeOutDuration = Duration(
-    milliseconds: 450,
-  ); // duración del desvanecido final
+  static const Duration _lingerTotal = Duration(seconds: 2); // tiempo visible tras terminar
+  static const Duration _fadeOutDuration = Duration(milliseconds: 450); // duración del desvanecido final
 
   @override
   void initState() {
@@ -91,8 +84,7 @@ class _AudioMessagePlayerWithSubsState
   @override
   void didUpdateWidget(covariant AudioMessagePlayerWithSubs oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.message.audioPath != widget.message.audioPath ||
-        oldWidget.message.text != widget.message.text) {
+    if (oldWidget.message.audio?.url != widget.message.audio?.url || oldWidget.message.text != widget.message.text) {
       _prepareTimeline();
     }
   }
@@ -209,7 +201,28 @@ class _AudioMessagePlayerWithSubsState
     final pos = widget.getPlayingPosition?.call() ?? Duration.zero;
     final rawDur = widget.getPlayingDuration?.call() ?? Duration.zero;
     final hasRealDuration = rawDur.inMilliseconds > 0;
-    final dur = hasRealDuration ? rawDur : const Duration(milliseconds: 1);
+
+    // Prioridad de duración: real del AudioPlayer > almacenada en mensaje > estimada
+    Duration dur;
+    if (hasRealDuration) {
+      dur = rawDur;
+    } else if (widget.message.audio?.duration != null) {
+      dur = widget.message.audio!.duration!;
+      debugPrint('[Subs] Using stored message duration: ${dur.inMilliseconds}ms');
+    } else if (isPlaying && pos.inMilliseconds > 0) {
+      // Estimar duración basada en el progreso actual (asumiendo ~10s promedio)
+      dur = const Duration(seconds: 10);
+      debugPrint('[Subs] Using estimated duration for progressive reveal');
+    } else {
+      dur = const Duration(milliseconds: 1);
+    }
+
+    // Debug temporal - mostrar valores actuales
+    if (isPlaying) {
+      debugPrint(
+        '[Subs] isPlaying=$isPlaying, pos=${pos.inMilliseconds}ms, rawDur=${rawDur.inMilliseconds}ms, msgDur=${widget.message.audio?.duration?.inMilliseconds}ms, finalDur=${dur.inMilliseconds}ms, hasReal=$hasRealDuration, textLen=${_baseText.length}',
+      );
+    }
 
     // Gestionar overlay/global o subtítulo embebido estilo video
     final prevWasPlaying = _wasPlaying;
@@ -223,10 +236,8 @@ class _AudioMessagePlayerWithSubsState
         _showGlobalOverlay();
       }
     } else if (!isPlaying && prevWasPlaying) {
-      // Acaba de terminar: mostrar texto completo (si existe) y programar limpieza
-      if (_baseText.isNotEmpty) {
-        _subsCtrl.showFullTextInstant(_baseText);
-      }
+      // Acaba de terminar: mantener estado actual de subtítulos
+      debugPrint('[Subs] Playback stopped - maintaining current subtitle state');
       if (widget.globalOverlay) {
         // comportamiento previo: fade + removal del overlay global
         _scheduleOverlayRemoval();
@@ -245,42 +256,49 @@ class _AudioMessagePlayerWithSubsState
 
     _wasPlaying = isPlaying;
 
+    // Actualizar subtítulos durante la reproducción
     if (isPlaying) {
-      // Solo actualizar cuando tengamos duración real y posición > 0 (evita flash de texto completo)
-      if (hasRealDuration) {
-        const revealDelay = Duration(
-          milliseconds: 1000,
-        ); // delay de arranque si no hay timestamps
-        final bool hasTimeline = false; // por ahora siempre proporcional
-        if (!hasTimeline && rawDur > revealDelay) {
+      // Intentar progressive reveal si tenemos posición válida y texto
+      if (pos >= Duration.zero && _baseText.isNotEmpty) {
+        debugPrint('[Subs] Progressive reveal conditions met - starting subtitle update logic');
+        // Pequeño delay inicial para evitar flash de texto completo
+        const revealDelay = Duration(milliseconds: 500);
+
+        if (dur > revealDelay) {
           if (pos <= revealDelay) {
-            // Aún dentro del delay inicial: mantener limpio
+            // Durante el delay inicial: mantener subtítulos limpios
             if (_throttleTimer == null || !_throttleTimer!.isActive) {
+              debugPrint('[Subs] In delay period: clearing subtitles');
               _subsCtrl.clear();
-              _throttleTimer = Timer(const Duration(milliseconds: 45), () {});
+              _throttleTimer = Timer(const Duration(milliseconds: 100), () {});
             }
           } else {
+            // Después del delay: mostrar progresivamente
             final effectivePos = pos - revealDelay;
-            final adjustedTotal = rawDur - revealDelay;
+            final adjustedDur = dur - revealDelay;
             if (_throttleTimer == null || !_throttleTimer!.isActive) {
-              _subsCtrl.updateProportional(
-                effectivePos,
-                _baseText,
-                adjustedTotal > Duration.zero ? adjustedTotal : rawDur,
+              debugPrint(
+                '[Subs] Progressive reveal: effectivePos=${effectivePos.inMilliseconds}ms, adjustedDur=${adjustedDur.inMilliseconds}ms',
               );
-              _throttleTimer = Timer(const Duration(milliseconds: 45), () {});
+              _subsCtrl.updateProportional(effectivePos, _baseText, adjustedDur);
+              _throttleTimer = Timer(const Duration(milliseconds: 100), () {});
             }
           }
         } else {
-          // Duración demasiado corta o hay timeline real: iniciar enseguida
+          // Audio muy corto: mostrar inmediatamente sin delay
           if (pos > Duration.zero) {
             if (_throttleTimer == null || !_throttleTimer!.isActive) {
+              debugPrint('[Subs] Short audio: immediate reveal');
               _subsCtrl.updateProportional(pos, _baseText, dur);
-              _throttleTimer = Timer(const Duration(milliseconds: 45), () {});
+              _throttleTimer = Timer(const Duration(milliseconds: 100), () {});
             }
           }
         }
+      } else {
+        debugPrint('[Subs] Cannot do progressive reveal: pos=${pos.inMilliseconds}ms, textEmpty=${_baseText.isEmpty}');
       }
+    } else {
+      debugPrint('[Subs] Not playing - no subtitle updates');
     }
 
     if (widget.globalOverlay) {

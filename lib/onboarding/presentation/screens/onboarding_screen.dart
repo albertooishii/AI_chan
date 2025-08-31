@@ -384,13 +384,20 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                                   }
                                 : null,
                             onAccountInfoUpdated: cp != null
-                                ? ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
+                                ? ({
+                                    String? email,
+                                    String? avatarUrl,
+                                    String? name,
+                                    bool linked = false,
+                                    bool triggerAutoBackup = false,
+                                  }) async {
                                     final captured = cp;
                                     await captured.updateGoogleAccountInfo(
                                       email: email,
                                       avatarUrl: avatarUrl,
                                       name: name,
                                       linked: linked,
+                                      triggerAutoBackup: triggerAutoBackup,
                                     );
                                   }
                                 : null,
@@ -488,13 +495,20 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                                   }
                                 : null,
                             onAccountInfoUpdated: cp != null
-                                ? ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
+                                ? ({
+                                    String? email,
+                                    String? avatarUrl,
+                                    String? name,
+                                    bool linked = false,
+                                    bool triggerAutoBackup = false,
+                                  }) async {
                                     final captured = cp;
                                     await captured.updateGoogleAccountInfo(
                                       email: email,
                                       avatarUrl: avatarUrl,
                                       name: name,
                                       linked: linked,
+                                      triggerAutoBackup: triggerAutoBackup,
                                     );
                                   }
                                 : null,

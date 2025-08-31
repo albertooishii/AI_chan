@@ -17,7 +17,7 @@ class ChatValidationService {
     }
 
     // Mensajes de audio deben tener ruta de audio válida
-    if (message.isAudio && (message.audioPath?.trim().isEmpty ?? true)) {
+    if (message.isAudio && (message.audio?.url?.trim().isEmpty ?? true)) {
       return false;
     }
 

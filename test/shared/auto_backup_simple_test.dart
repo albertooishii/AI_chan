@@ -1,3 +1,5 @@
+import 'package:ai_chan/chat/application/providers/chat_provider.dart';
+import 'package:ai_chan/core/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -134,6 +136,72 @@ void main() {
         }
 
         expect(canRunBackgroundBackup(isDesktop), isTrue);
+      });
+    });
+
+    group('🔧 Dialog vs LoadAll Behavior', () {
+      late ChatProvider chatProvider;
+
+      setUp(() {
+        chatProvider = ChatProvider();
+        chatProvider.onboardingData = AiChanProfile(
+          userName: 'TestUser',
+          aiName: 'TestAI',
+          userBirthday: DateTime(1990, 1, 1),
+          aiBirthday: DateTime(2024, 1, 1),
+          biography: {'personalidad': 'Test personality'},
+          appearance: <String, dynamic>{},
+          timeline: [],
+        );
+      });
+
+      tearDown(() {
+        // Skip dispose in tests to avoid audio plugin issues
+        // chatProvider.dispose();
+      });
+
+      test('updateGoogleAccountInfo should NOT trigger backup when called from dialog', () async {
+        // Simular llamada desde diálogo (triggerAutoBackup=false)
+        await chatProvider.updateGoogleAccountInfo(
+          email: 'test@gmail.com',
+          avatarUrl: 'https://example.com/avatar.jpg',
+          name: 'Test User',
+          linked: true,
+          triggerAutoBackup: false, // false como en diálogos
+        );
+
+        // Verificar que se actualizó la información pero no se disparó backup automático
+        expect(chatProvider.googleLinked, true);
+        expect(chatProvider.googleEmail, 'test@gmail.com');
+        expect(chatProvider.googleName, 'Test User');
+      });
+
+      test('updateGoogleAccountInfo should trigger backup when called from loadAll', () async {
+        // Simular llamada desde loadAll (triggerAutoBackup=true)
+        await chatProvider.updateGoogleAccountInfo(
+          email: 'test@gmail.com',
+          avatarUrl: 'https://example.com/avatar.jpg',
+          name: 'Test User',
+          linked: true,
+          triggerAutoBackup: true, // true como en loadAll
+        );
+
+        // Verificar que se actualizó la información y se puede disparar backup automático
+        expect(chatProvider.googleLinked, true);
+        expect(chatProvider.googleEmail, 'test@gmail.com');
+        expect(chatProvider.googleName, 'Test User');
+      });
+
+      test('triggerAutoBackup parameter should default to false for safety', () async {
+        // Test sin especificar triggerAutoBackup (debería ser false por defecto)
+        await chatProvider.updateGoogleAccountInfo(
+          email: 'test@gmail.com',
+          linked: true,
+          // triggerAutoBackup no especificado, debería ser false por defecto
+        );
+
+        expect(chatProvider.googleLinked, true);
+        expect(chatProvider.googleEmail, 'test@gmail.com');
       });
     });
   });

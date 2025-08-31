@@ -107,7 +107,7 @@ class _ChatScreenState extends State<ChatScreen> {
           try {
             // Push recording-related updates into the input controller when present.
             if (_chatInputController != null) {
-              _chatInputController!.pushIsRecording(provider.isSendingAudio);
+              _chatInputController!.pushIsRecording(provider.isRecording);
               _chatInputController!.pushWaveform(provider.currentWaveform);
               _chatInputController!.pushElapsed(provider.recordingElapsed);
               _chatInputController!.pushLiveTranscript(provider.liveTranscript);
@@ -915,6 +915,10 @@ class _ChatScreenState extends State<ChatScreen> {
                             }
                           } catch (_) {}
                         },
+                        isAudioPlaying: (msg) => chatProvider.isPlaying(msg),
+                        onToggleAudio: (msg) => chatProvider.togglePlayAudio(msg, context),
+                        getAudioPosition: () => chatProvider.playingPosition,
+                        getAudioDuration: () => chatProvider.playingDuration,
                       );
                     },
                   );
@@ -1133,9 +1137,22 @@ class _ChatScreenState extends State<ChatScreen> {
           await widget.chatProvider.applyImportedChat(imported);
         }
       },
-      onAccountInfoUpdated: ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
-        await provider.updateGoogleAccountInfo(email: email, avatarUrl: avatarUrl, name: name, linked: linked);
-      },
+      onAccountInfoUpdated:
+          ({
+            String? email,
+            String? avatarUrl,
+            String? name,
+            bool linked = false,
+            bool triggerAutoBackup = false,
+          }) async {
+            await provider.updateGoogleAccountInfo(
+              email: email,
+              avatarUrl: avatarUrl,
+              name: name,
+              linked: linked,
+              triggerAutoBackup: triggerAutoBackup,
+            );
+          },
       onClearAccountInfo: () => provider.clearGoogleAccountInfo(),
     );
   }
