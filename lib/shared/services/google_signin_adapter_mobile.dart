@@ -17,9 +17,12 @@ class GoogleSignInMobileAdapter {
   GoogleSignInAccount? _currentUser;
   StreamSubscription<GoogleSignInAuthenticationEvent>? _authSubscription;
 
-  GoogleSignInMobileAdapter({required this.scopes, this.clientId, this.serverClientId});
+  late final GoogleSignIn _signIn;
 
-  GoogleSignIn get _signIn => GoogleSignIn.instance;
+  GoogleSignInMobileAdapter({required this.scopes, this.clientId, this.serverClientId}) {
+    // Create GoogleSignIn instance configured with our scopes for proper consent flow
+    _signIn = GoogleSignIn.instance;
+  }
 
   /// Initialize the adapter and configure GoogleSignIn
   Future<void> initialize() async {
@@ -120,37 +123,45 @@ class GoogleSignInMobileAdapter {
       // Ensure initialized
       await initialize();
 
-      // Disconnect first to force account chooser if requested
-      if (forceAccountChooser) {
-        await _signIn.disconnect();
-        Log.d('GoogleSignInMobileAdapter: disconnected to force account chooser', tag: 'GoogleSignIn');
+      Log.d('GoogleSignInMobileAdapter: using direct authorization flow (single consent screen)', tag: 'GoogleSignIn');
+
+      // Try to get existing account without UI
+      final GoogleSignInAccount? existingAccount = _currentUser;
+
+      if (existingAccount != null) {
+        Log.d('GoogleSignInMobileAdapter: found existing account: ${existingAccount.email}', tag: 'GoogleSignIn');
+
+        // Go directly to consent screen with existing account
+        try {
+          final authorization = await existingAccount.authorizationClient.authorizeScopes(usedScopes);
+          Log.d('GoogleSignInMobileAdapter: consent completed successfully', tag: 'GoogleSignIn');
+          return await _buildTokenMap(existingAccount, authorization, usedScopes);
+        } catch (e) {
+          Log.d(
+            'GoogleSignInMobileAdapter: existing account consent failed, clearing and retrying: $e',
+            tag: 'GoogleSignIn',
+          );
+          // Clear existing account and start fresh
+          await _signIn.disconnect();
+        }
       }
 
-      // Authenticate the user
-      await _signIn.authenticate();
+      // Create a temporary account just to get authorizationClient access
+      // Use authenticate with scope hint - this will handle sign-in + consent in one flow
+      Log.d('GoogleSignInMobileAdapter: authenticating with scope hint', tag: 'GoogleSignIn');
 
-      // Wait for authentication event to set _currentUser
-      await Future.delayed(const Duration(milliseconds: 100));
+      final GoogleSignInAccount tempAccount = await _signIn.authenticate(scopeHint: usedScopes);
 
-      final GoogleSignInAccount? account = _currentUser;
-      if (account == null) {
-        throw StateError('User cancelled sign-in');
-      }
-
-      Log.d('GoogleSignInMobileAdapter: signed in as ${account.email}', tag: 'GoogleSignIn');
-
-      // Get authorization for required scopes
-      final GoogleSignInClientAuthorization? authorization = await account.authorizationClient.authorizationForScopes(
-        usedScopes,
+      Log.d(
+        'GoogleSignInMobileAdapter: got account ${tempAccount.email}, proceeding to authorization',
+        tag: 'GoogleSignIn',
       );
 
-      if (authorization == null) {
-        // Request authorization for the scopes
-        final newAuth = await account.authorizationClient.authorizeScopes(usedScopes);
-        return await _buildTokenMap(account, newAuth, usedScopes);
-      }
+      // Go directly to consent screen for Drive scopes
+      final authorization = await tempAccount.authorizationClient.authorizeScopes(usedScopes);
+      Log.d('GoogleSignInMobileAdapter: authorization completed successfully', tag: 'GoogleSignIn');
 
-      return await _buildTokenMap(account, authorization, usedScopes);
+      return await _buildTokenMap(tempAccount, authorization, usedScopes);
     } catch (e, st) {
       Log.e('GoogleSignInMobileAdapter: sign-in failed: $e', tag: 'GoogleSignIn', error: e, stack: st);
 

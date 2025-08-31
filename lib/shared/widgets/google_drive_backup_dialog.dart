@@ -49,8 +49,6 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
   bool _working = false;
   bool _insufficientScope = false;
   bool _linkInProgress = false;
-  bool _userCancelledSignIn = false;
-  DateTime? _lastAuthFailureAt;
   String? _lastSeenAuthUrl;
   Timer? _authUrlWatcher;
 
@@ -124,8 +122,84 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
     // linkAccount flow races and completes quickly.
     _startAuthUrlWatcher();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _ensureLinkedAndCheck();
+      // Use the same method as the "Conectar" button for consistency
+      try {
+        _safeSetState(() {
+          _working = true;
+        });
+
+        final candidateCid = await _resolveClientId(widget.clientId);
+        // On Android explicitly force the google_sign_in path so the
+        // native account chooser is shown even if cached credentials
+        // exist. This ensures auto-link uses the same flow as the button.
+        await GoogleBackupService(accessToken: null).linkAccount(clientId: candidateCid, forceUseGoogleSignIn: true);
+        Log.d('GoogleDriveBackupDialog: Auto-link completed', tag: 'GoogleBackup');
+        await _checkStatusOnly(); // Just check status, don't do additional auth
+      } catch (e) {
+        Log.d('GoogleDriveBackupDialog: Auto-link failed: $e', tag: 'GoogleBackup');
+        // Don't show error for auto-link failures, just let user click button
+        _safeSetState(() {
+          _working = false;
+        });
+      }
     });
+  }
+
+  /// Simple status check without additional authentication attempts
+  Future<void> _checkStatusOnly() async {
+    Log.d('GoogleDriveBackupDialog: _checkStatusOnly start', tag: 'GoogleBackup');
+    if (!mounted) return;
+
+    try {
+      final svc = GoogleBackupService(accessToken: null);
+      final token = await svc.loadStoredAccessToken();
+
+      if (token != null) {
+        Log.d('GoogleDriveBackupDialog: Found stored token, checking validity', tag: 'GoogleBackup');
+        _service = GoogleBackupService(accessToken: token);
+
+        // Fetch account info and check for backups like the original method did
+        try {
+          await _fetchAccountInfo(token, attemptRefresh: true);
+        } catch (_) {}
+
+        _safeSetState(() {
+          _working = false;
+        });
+        _updateStatus('Cuenta ya vinculada');
+
+        // Check for backups and maybe restore
+        try {
+          await _checkForBackupAndMaybeRestore();
+        } catch (e) {
+          // If we detect an unauthorized state, clear stored credentials
+          if (e is StateError && e.message == 'Unauthorized') {
+            try {
+              await GoogleBackupService(accessToken: null).clearStoredCredentials();
+            } catch (_) {}
+            _safeSetState(() {
+              _service = null;
+              _working = false;
+            });
+            _updateStatus('No vinculada');
+            return;
+          }
+          rethrow;
+        }
+      } else {
+        Log.d('GoogleDriveBackupDialog: No stored token found', tag: 'GoogleBackup');
+        _safeSetState(() {
+          _service = null;
+          _working = false;
+        });
+      }
+    } catch (e) {
+      Log.d('GoogleDriveBackupDialog: _checkStatusOnly failed: $e', tag: 'GoogleBackup');
+      _safeSetState(() {
+        _service = null;
+        _working = false;
+      });
+    }
   }
 
   void _safeSetState(VoidCallback fn) {
@@ -145,170 +219,6 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
 
   Future<String> _resolveClientId(String rawCid) async => await GoogleBackupService.resolveClientId(rawCid);
   Future<String?> _resolveClientSecret() async => await GoogleBackupService.resolveClientSecret();
-
-  Future<void> _ensureLinkedAndCheck() async {
-    Log.d('GoogleDriveBackupDialog: _ensureLinkedAndCheck start', tag: 'GoogleBackup');
-    if (!mounted) return;
-    if (_linkInProgress) return;
-    _safeSetState(() {
-      _linkInProgress = true;
-      // Do not set a transient 'Iniciando vinculación...' status here; keep status updates
-      // minimal to avoid flicker. The UI will update with persistent states like
-      // 'Cuenta ya vinculada' or error messages.
-      _working = true;
-    });
-
-    try {
-      final candidateCid = await _resolveClientId(widget.clientId);
-      final svc = GoogleBackupService(accessToken: null);
-      final token = await svc.loadStoredAccessToken();
-
-      if (token != null) {
-        // Reuse stored credentials instead of clearing them on dialog open.
-        // Clearing should only happen on explicit user action or when we
-        // detect invalid scopes/expired tokens during an operation.
-        _service = GoogleBackupService(accessToken: token);
-        try {
-          await _fetchAccountInfo(token, attemptRefresh: true);
-        } catch (_) {}
-        _safeSetState(() {});
-        _updateStatus('Cuenta ya vinculada');
-        try {
-          await _checkForBackupAndMaybeRestore();
-        } catch (e) {
-          // If we detect an unauthorized state while checking backups, clear stored credentials
-          if (e is StateError && e.message == 'Unauthorized') {
-            try {
-              await GoogleBackupService(accessToken: null).clearStoredCredentials();
-            } catch (_) {}
-            _safeSetState(() {
-              _service = null;
-              _working = false;
-            });
-            _updateStatus('No vinculada');
-            return;
-          }
-          rethrow;
-        }
-        return;
-      }
-
-      // If the user previously cancelled the native chooser, don't reopen it automatically.
-      if (_userCancelledSignIn) {
-        _safeSetState(() {
-          _working = false;
-        });
-        _updateStatus('No vinculada');
-        return;
-      }
-
-      // If we recently failed an AppAuth attempt, avoid automatically restarting
-      // another one immediately when the dialog is reopened. This prevents
-      // repeated loopback bindings and timeouts. Allow manual retry via the
-      // 'Iniciar sesión' button.
-      if (_lastAuthFailureAt != null) {
-        final diff = DateTime.now().difference(_lastAuthFailureAt!);
-        if (diff.inSeconds < 30) {
-          _safeSetState(() {
-            _working = false;
-          });
-          _updateStatus(
-            '[AUTH_RETRY] Intento de autenticación anterior falló. Ejecuta "LOGIN_SEQUENCE" para reintentar conexión.',
-          );
-          return;
-        }
-      }
-
-      // Intentionally do not set a generic 'Iniciando vinculación...' status; the click
-      // handler now sets a clearer 'Iniciando vinculación manual...' when appropriate.
-
-      try {
-        // Start watching the adapter's static `lastAuthUrl` while an
-        // automatic linking flow is running. This covers the case where
-        // linkAccount constructs the authorization URL after the dialog
-        // started and the UI would otherwise not show the copy/sign-in
-        // buttons.
-        _startAuthUrlWatcher();
-
-        // If we're on desktop and an auth URL is already available (for
-        // example because a previous link attempt constructed it), try to
-        // open the browser proactively. This handles the case where the
-        // dialog was closed while a linkAccount flow was in-flight and the
-        // system browser was opened earlier — reopening the dialog should
-        // also try to bring up the browser so the user continues the flow.
-        try {
-          final isDesktop = !kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
-          final hasAuthUrlLocal =
-              ((GoogleAppAuthAdapter.lastAuthUrl != null && GoogleAppAuthAdapter.lastAuthUrl!.isNotEmpty) ||
-              (_lastSeenAuthUrl != null && _lastSeenAuthUrl!.isNotEmpty));
-          if (isDesktop && hasAuthUrlLocal) {
-            final copyUrl = (GoogleAppAuthAdapter.lastAuthUrl != null && GoogleAppAuthAdapter.lastAuthUrl!.isNotEmpty)
-                ? GoogleAppAuthAdapter.lastAuthUrl!
-                : (_lastSeenAuthUrl ?? '');
-            if (copyUrl.isNotEmpty) {
-              try {
-                Log.d('GoogleDriveBackupDialog: trying to re-open browser for desktop auth', tag: 'GoogleBackup');
-                await GoogleAppAuthAdapter.openBrowser(copyUrl);
-                Log.d('GoogleDriveBackupDialog: re-opened browser for desktop auth', tag: 'GoogleBackup');
-              } catch (e) {
-                Log.w('GoogleDriveBackupDialog: re-open browser failed: $e', tag: 'GoogleBackup');
-              }
-            }
-          }
-        } catch (_) {}
-
-        final isAndroid = !kIsWeb && Platform.isAndroid;
-        // On Android we want the native account chooser to open automatically
-        // whenever the dialog starts an automatic linking flow.
-        final tokenMap = await GoogleBackupService(
-          accessToken: null,
-        ).linkAccount(clientId: candidateCid, forceUseGoogleSignIn: isAndroid);
-        if (tokenMap['access_token'] != null) {
-          _service = GoogleBackupService(accessToken: tokenMap['access_token'] as String?);
-          unawaited(_fetchAccountInfo(tokenMap['access_token'] as String?));
-          _safeSetState(() {});
-          _updateStatus('[CONNECTION_SUCCESS] Account interface established');
-          await _checkForBackupAndMaybeRestore();
-          return;
-        }
-      } catch (e) {
-        debugPrint('ensureLinkedAndCheck: linkAccount failed: $e');
-        String statusMsg = 'Fallo al vincular';
-        try {
-          final raw = (e is StateError) ? e.message.toString() : e.toString();
-          final m = raw.toLowerCase();
-          // Broadly detect cancellation-like messages from various plugin versions
-          if (m.contains('cancel') ||
-              m.contains('user cancelled') ||
-              m.contains('user canceled') ||
-              m.contains('user_cancel')) {
-            statusMsg = '[USER_ABORT] Authentication sequence cancelled';
-            _userCancelledSignIn = true;
-          }
-          // Detect AppAuth timeouts/failures and record timestamp to avoid
-          // immediately retrying when the dialog is reopened.
-          if (m.contains('appauth') || m.contains('timeout') || m.contains('fallo en la autenticación')) {
-            _lastAuthFailureAt = DateTime.now();
-          }
-        } catch (_) {}
-        _safeSetState(() {
-          _working = false;
-        });
-        _updateStatus(statusMsg);
-      }
-    } catch (e) {
-      debugPrint('ensureLinkedAndCheck error: $e');
-      _safeSetState(() {
-        _working = false;
-      });
-      _updateStatus('[LINK_ERROR] Connection establishment failed');
-    } finally {
-      _stopAuthUrlWatcher();
-      _safeSetState(() {
-        _linkInProgress = false;
-      });
-    }
-  }
 
   void _startAuthUrlWatcher() {
     try {
@@ -815,7 +725,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                       await GoogleBackupService(accessToken: null).clearStoredCredentials();
                                     } catch (_) {}
                                     setState(() => _insufficientScope = false);
-                                    await _ensureLinkedAndCheck();
+                                    await _checkStatusOnly(); // Just check status, don't do additional auth
                                   },
                             child: const Text('ESTABLISH_CONNECTION // ストレージアクセスキョカ'),
                           ),
@@ -827,7 +737,6 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                         ElevatedButton.icon(
                           onPressed: () async {
                             Log.d('GoogleDriveBackupDialog: Iniciar sesión (Android) pressed', tag: 'GoogleBackup');
-                            _userCancelledSignIn = false;
                             _safeSetState(() => _working = true);
                             if (_linkInProgress) {
                               _safeSetState(() => _linkInProgress = false);
@@ -850,7 +759,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                 accessToken: null,
                               ).linkAccount(clientId: candidateCid, forceUseGoogleSignIn: true);
                               Log.d('GoogleDriveBackupDialog: Android linkAccount returned', tag: 'GoogleBackup');
-                              await _ensureLinkedAndCheck();
+                              await _checkStatusOnly(); // Just check status, don't do additional auth
                             } catch (e, st) {
                               // Log and treat user cancellations specially so the UI
                               // does not present an error for an intentional cancel.
@@ -862,7 +771,6 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                   raw.contains('cancel')) {
                                 _safeSetState(() {
                                   _working = false;
-                                  _userCancelledSignIn = true;
                                   Log.d(
                                     'GoogleDriveBackupDialog: status=Vinculación cancelada por el usuario',
                                     tag: 'GoogleBackup',
@@ -871,7 +779,6 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                               } else {
                                 _safeSetState(() {
                                   _working = false;
-                                  _lastAuthFailureAt = DateTime.now();
                                   Log.d(
                                     'GoogleDriveBackupDialog: status=Error iniciando vinculaci\u00f3n',
                                     tag: 'GoogleBackup',
@@ -887,7 +794,6 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                         ElevatedButton.icon(
                           onPressed: () async {
                             Log.d('GoogleDriveBackupDialog: Iniciar sesión (Desktop) pressed', tag: 'GoogleBackup');
-                            _userCancelledSignIn = false;
                             _safeSetState(() => _working = true);
                             if (_linkInProgress) {
                               _safeSetState(() => _linkInProgress = false);
@@ -935,7 +841,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                               final candidateCid = await _resolveClientId(widget.clientId);
                               await GoogleBackupService(accessToken: null).linkAccount(clientId: candidateCid);
                               Log.d('GoogleDriveBackupDialog: Desktop linkAccount returned', tag: 'GoogleBackup');
-                              await _ensureLinkedAndCheck();
+                              await _checkStatusOnly(); // Just check status, don't do additional auth
                             } catch (e, st) {
                               Log.d('GoogleDriveBackupDialog: Desktop linkAccount threw: $e', tag: 'GoogleBackup');
                               debugPrint('Desktop sign-in error: $e\n$st');

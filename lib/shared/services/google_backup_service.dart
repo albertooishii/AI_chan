@@ -11,6 +11,13 @@ import 'package:ai_chan/core/config.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
+/// Status of Google OAuth consent for Drive API access
+enum ConsentStatus {
+  notAuthenticated, // User not signed in to any Google account
+  authenticatedNoDriveScopes, // User signed in but missing Drive API authorization
+  authenticatedWithDriveScopes, // User signed in with full Drive API access
+}
+
 /// Servicio esqueleto para subir/descargar backups a Google Drive / GCS.
 ///
 /// NOTA: Esta implementación no realiza OAuth. Está pensada como "punto
@@ -454,9 +461,9 @@ class GoogleBackupService {
         return await adapter.signIn(scopes: scopes);
       }
 
-      // Use native Google Sign-In for Android/iOS - shows standard chooser with refresh_token support
+      // Use native Google Sign-In for Android/iOS - try without forcing chooser first
       final nativeAdapter = GoogleSignInMobileAdapter(scopes: scopes);
-      final tokenMap = await nativeAdapter.signIn(scopes: scopes, forceAccountChooser: true);
+      final tokenMap = await nativeAdapter.signIn(scopes: scopes, forceAccountChooser: false);
 
       // Validate that we obtained the necessary tokens
       final hasAccess = (tokenMap['access_token'] as String?)?.isNotEmpty == true;
@@ -871,6 +878,42 @@ class GoogleBackupService {
     }
     Log.d('GoogleBackupService: loadStoredAccessToken present? ${token != null}', tag: 'GoogleBackup');
     return token;
+  }
+
+  /// Check the current Google OAuth consent status for Drive API access
+  /// This helps determine if user is authenticated but missing Drive scopes
+  Future<ConsentStatus> checkConsentStatus() async {
+    try {
+      // First, check if we already have stored credentials with Drive access
+      final storedToken = await loadStoredAccessToken();
+      if (storedToken != null) {
+        // We have stored credentials, assume they include Drive scopes
+        return ConsentStatus.authenticatedWithDriveScopes;
+      }
+
+      // SIMPLIFIED: Check if we have stored credentials without full token validation
+      // This avoids creating additional GoogleSignInMobileAdapter instances that interfere
+      try {
+        final creds = await _loadCredentialsSecure();
+        if (creds == null) {
+          // No stored credentials, but we need to check if user is authenticated to Google
+          // at the OS level without creating new adapters
+          Log.d('GoogleBackupService: no stored credentials found in checkConsentStatus', tag: 'GoogleBackup');
+          // We can't reliably determine authentication status without interfering
+          // with the main flow, so return notAuthenticated and let the main flow handle it
+          return ConsentStatus.notAuthenticated;
+        }
+      } catch (e) {
+        Log.w('GoogleBackupService: checkConsentStatus credential check error: $e', tag: 'GoogleBackup');
+      }
+
+      // Default to not authenticated to avoid interfering with the main flow
+      return ConsentStatus.notAuthenticated;
+    } catch (e) {
+      Log.w('GoogleBackupService: checkConsentStatus error: $e', tag: 'GoogleBackup');
+      // Default to not authenticated on error
+      return ConsentStatus.notAuthenticated;
+    }
   }
 
   /// Si hay un access_token almacenado, intenta recuperar la información
