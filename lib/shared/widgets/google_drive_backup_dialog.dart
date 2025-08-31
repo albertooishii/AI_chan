@@ -122,7 +122,23 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
     // linkAccount flow races and completes quickly.
     _startAuthUrlWatcher();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Use the same method as the "Conectar" button for consistency
+      // First, check if we already have stored credentials
+      try {
+        final svc = GoogleBackupService(accessToken: null);
+        final token = await svc.loadStoredAccessToken();
+
+        if (token != null) {
+          // We already have credentials - just load them without auto-link
+          Log.d('GoogleDriveBackupDialog: Found existing credentials, loading without auto-link', tag: 'GoogleBackup');
+          await _checkStatusOnly();
+          return;
+        }
+      } catch (e) {
+        Log.d('GoogleDriveBackupDialog: Failed to check existing credentials: $e', tag: 'GoogleBackup');
+      }
+
+      // No existing credentials - proceed with auto-link
+      Log.d('GoogleDriveBackupDialog: No existing credentials, starting auto-link', tag: 'GoogleBackup');
       try {
         _safeSetState(() {
           _working = true;
@@ -160,8 +176,12 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
 
         // Fetch account info and check for backups like the original method did
         try {
+          Log.d('GoogleDriveBackupDialog: calling _fetchAccountInfo', tag: 'GoogleBackup');
           await _fetchAccountInfo(token, attemptRefresh: true);
-        } catch (_) {}
+          Log.d('GoogleDriveBackupDialog: _fetchAccountInfo completed successfully', tag: 'GoogleBackup');
+        } catch (e) {
+          Log.w('GoogleDriveBackupDialog: _fetchAccountInfo failed: $e', tag: 'GoogleBackup');
+        }
 
         _safeSetState(() {
           _working = false;
