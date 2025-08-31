@@ -22,6 +22,7 @@ import 'package:ai_chan/main.dart';
 import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
 // google_backup_service not used directly in this file; ChatProvider exposes necessary state
 import 'package:ai_chan/shared/widgets/local_backup_dialog.dart';
+import 'package:ai_chan/shared/widgets/backup_diagnostics_dialog.dart';
 import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
 
 class ChatScreen extends StatefulWidget {
@@ -455,27 +456,9 @@ class _ChatScreenState extends State<ChatScreen> {
             icon: const Icon(Icons.more_vert, color: AppColors.primary),
             itemBuilder: (context) => [
               // Galería primero
-              PopupMenuItem<String>(
-                value: 'gallery',
-                child: Row(
-                  children: const [
-                    Icon(Icons.photo_library, color: AppColors.primary, size: 20),
-                    SizedBox(width: 8),
-                    Text('Ver galería de fotos', style: TextStyle(color: AppColors.primary)),
-                  ],
-                ),
-              ),
+              _buildMenuItem(value: 'gallery', icon: Icons.photo_library, text: 'Ver galería de fotos'),
               // Abrir calendario (opción normal, arriba de debug)
-              PopupMenuItem<String>(
-                value: 'calendar',
-                child: Row(
-                  children: const [
-                    Icon(Icons.calendar_month, color: AppColors.primary, size: 20),
-                    SizedBox(width: 8),
-                    Text('Abrir calendario', style: TextStyle(color: AppColors.primary)),
-                  ],
-                ),
-              ),
+              _buildMenuItem(value: 'calendar', icon: Icons.calendar_month, text: 'Abrir calendario'),
               // (Eliminado) Selector de países
               // Seleccionar modelo
               PopupMenuItem<String>(
@@ -596,71 +579,48 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               const PopupMenuDivider(),
               // Copia de seguridad local (unificada)
-              PopupMenuItem<String>(
-                value: 'local_backup',
-                child: Row(
-                  children: const [
-                    Icon(Icons.sd_storage, color: AppColors.primary, size: 20),
-                    SizedBox(width: 8),
-                    Text('Copia de seguridad local', style: TextStyle(color: AppColors.primary)),
-                  ],
-                ),
-              ),
+              _buildMenuItem(value: 'local_backup', icon: Icons.sd_storage, text: 'Copia de seguridad local'),
               // Google Drive menu entry: always show a simple label (no avatar/email)
-              PopupMenuItem<String>(
+              _buildMenuItem(
                 value: chatProvider.googleLinked ? 'backup_status' : 'backup_google',
-                child: Row(
-                  children: const [
-                    Icon(Icons.add_to_drive, size: 20, color: AppColors.primary),
-                    SizedBox(width: 8),
-                    Text('Copia de seguridad en Google Drive', style: TextStyle(color: AppColors.primary)),
-                  ],
-                ),
+                icon: Icons.add_to_drive,
+                text: 'Copia de seguridad en Google Drive',
               ),
               const PopupMenuDivider(),
               // Debug: Vista previa JSON
-              PopupMenuItem<String>(
+              _buildMenuItem(
                 value: 'export_json',
-                child: Row(
-                  children: const [
-                    Icon(Icons.code, color: Colors.redAccent, size: 20),
-                    SizedBox(width: 8),
-                    Text('Vista previa JSON (debug)', style: TextStyle(color: Colors.redAccent)),
-                  ],
-                ),
+                icon: Icons.code,
+                text: 'Vista previa JSON (debug)',
+                color: Colors.redAccent,
               ),
               // Debug: regenerar apariencia
-              PopupMenuItem<String>(
+              _buildMenuItem(
                 value: 'regenAppearance',
-                child: Row(
-                  children: const [
-                    Icon(Icons.refresh, color: Colors.redAccent, size: 20),
-                    SizedBox(width: 8),
-                    Text('Regenerar apariencia IA (debug)', style: TextStyle(color: Colors.redAccent)),
-                  ],
-                ),
+                icon: Icons.refresh,
+                text: 'Regenerar apariencia IA (debug)',
+                color: Colors.redAccent,
               ),
               // Debug: añadir un nuevo avatar (añade al array de avatars)
-              PopupMenuItem<String>(
+              _buildMenuItem(
                 value: 'add_new_avatar',
-                child: Row(
-                  children: const [
-                    Icon(Icons.add_a_photo, color: Colors.redAccent, size: 20),
-                    SizedBox(width: 8),
-                    Text('Añadir un nuevo avatar (debug)', style: TextStyle(color: Colors.redAccent)),
-                  ],
-                ),
+                icon: Icons.add_a_photo,
+                text: 'Añadir un nuevo avatar (debug)',
+                color: Colors.redAccent,
               ),
               // Debug: borrar todo (debug) - reintroducido solo en ChatScreen
-              PopupMenuItem<String>(
+              _buildMenuItem(
                 value: 'clear_debug',
-                child: Row(
-                  children: const [
-                    Icon(Icons.delete_forever, color: Colors.redAccent, size: 20),
-                    SizedBox(width: 8),
-                    Text('Borrar todo (debug)', style: TextStyle(color: Colors.redAccent)),
-                  ],
-                ),
+                icon: Icons.delete_forever,
+                text: 'Borrar todo (debug)',
+                color: Colors.redAccent,
+              ),
+              // Diagnóstico de backup automático
+              _buildMenuItem(
+                value: 'backup_diagnostics',
+                icon: Icons.health_and_safety,
+                text: 'Diagnóstico Backup',
+                color: Colors.orangeAccent,
               ),
               // Debug options removed: import chat and clear all not applicable in release flows
             ],
@@ -785,6 +745,10 @@ class _ChatScreenState extends State<ChatScreen> {
                     _showErrorDialog(e.toString());
                   }
                 }
+              } else if (value == 'backup_diagnostics') {
+                final navCtx = navigatorKey.currentContext;
+                if (navCtx == null) return;
+                await showAppDialog<void>(builder: (ctx) => const BackupDiagnosticsDialog());
               } else if (value == 'select_model') {
                 if (_loadingModels) return;
                 setState(() => _loadingModels = true);
@@ -852,33 +816,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 final navCtx = navigatorKey.currentContext;
                 if (navCtx == null) return;
                 await showAppDialog<void>(
-                  builder: (ctx) => AlertDialog(
-                    backgroundColor: Colors.black,
-                    content: GoogleDriveBackupDialog(
-                      clientId: 'YOUR_GOOGLE_CLIENT_ID',
-                      requestBackupJson: () async => await BackupUtils.exportChatPartsToJson(
-                        profile: chatProvider.onboardingData,
-                        messages: chatProvider.messages,
-                        events: chatProvider.events,
-                      ),
-                      onImportedJson: (jsonStr) async {
-                        final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
-                        if (imported != null) {
-                          await widget.chatProvider.applyImportedChat(imported);
-                        }
-                      },
-                      onAccountInfoUpdated:
-                          ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
-                            await chatProvider.updateGoogleAccountInfo(
-                              email: email,
-                              avatarUrl: avatarUrl,
-                              name: name,
-                              linked: linked,
-                            );
-                          },
-                      onClearAccountInfo: () => chatProvider.clearGoogleAccountInfo(),
-                    ),
-                  ),
+                  builder: (ctx) =>
+                      AlertDialog(backgroundColor: Colors.black, content: _buildGoogleDriveBackupDialog(chatProvider)),
                 );
                 // ChatProvider will be updated by the dialog; no local refresh needed.
               } else if (value == 'backup_status') {
@@ -887,30 +826,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 await showAppDialog<void>(
                   builder: (ctx) => AlertDialog(
                     backgroundColor: Colors.black,
-                    content: GoogleDriveBackupDialog(
-                      clientId: 'YOUR_GOOGLE_CLIENT_ID',
-                      requestBackupJson: () async => await BackupUtils.exportChatPartsToJson(
-                        profile: widget.chatProvider.onboardingData,
-                        messages: widget.chatProvider.messages,
-                        events: widget.chatProvider.events,
-                      ),
-                      onImportedJson: (jsonStr) async {
-                        final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
-                        if (imported != null) {
-                          await widget.chatProvider.applyImportedChat(imported);
-                        }
-                      },
-                      onAccountInfoUpdated:
-                          ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
-                            await widget.chatProvider.updateGoogleAccountInfo(
-                              email: email,
-                              avatarUrl: avatarUrl,
-                              name: name,
-                              linked: linked,
-                            );
-                          },
-                      onClearAccountInfo: () => chatProvider.clearGoogleAccountInfo(),
-                    ),
+                    content: _buildGoogleDriveBackupDialog(widget.chatProvider),
                   ),
                 );
                 return;
@@ -1178,6 +1094,50 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (_) {
       return 'google';
     }
+  }
+
+  /// Helper para crear PopupMenuItems con el patrón estándar de icono + texto
+  PopupMenuItem<String> _buildMenuItem({
+    required String value,
+    required IconData icon,
+    required String text,
+    bool enabled = true,
+    Color? color,
+  }) {
+    final itemColor = color ?? AppColors.primary;
+    return PopupMenuItem<String>(
+      value: value,
+      enabled: enabled,
+      child: Row(
+        children: [
+          Icon(icon, color: itemColor, size: 20),
+          const SizedBox(width: 8),
+          Text(text, style: TextStyle(color: itemColor)),
+        ],
+      ),
+    );
+  }
+
+  /// Helper para crear GoogleDriveBackupDialog con callbacks estandarizados
+  GoogleDriveBackupDialog _buildGoogleDriveBackupDialog(ChatProvider provider) {
+    return GoogleDriveBackupDialog(
+      clientId: 'YOUR_GOOGLE_CLIENT_ID',
+      requestBackupJson: () async => await BackupUtils.exportChatPartsToJson(
+        profile: provider.onboardingData,
+        messages: provider.messages,
+        events: provider.events,
+      ),
+      onImportedJson: (jsonStr) async {
+        final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
+        if (imported != null) {
+          await widget.chatProvider.applyImportedChat(imported);
+        }
+      },
+      onAccountInfoUpdated: ({String? email, String? avatarUrl, String? name, bool linked = false}) async {
+        await provider.updateGoogleAccountInfo(email: email, avatarUrl: avatarUrl, name: name, linked: linked);
+      },
+      onClearAccountInfo: () => provider.clearGoogleAccountInfo(),
+    );
   }
 
   @override

@@ -22,17 +22,20 @@ import 'package:ai_chan/shared/services/backup_service.dart';
 import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
 import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
 
+/// Callback typedef para finalizar el onboarding
+typedef OnboardingFinishCallback =
+    Future<void> Function({
+      required String userName,
+      required String aiName,
+      required DateTime userBirthday,
+      required String meetStory,
+      String? userCountryCode,
+      String? aiCountryCode,
+      Map<String, dynamic>? appearance,
+    });
+
 class OnboardingScreen extends StatefulWidget {
-  final Future<void> Function({
-    required String userName,
-    required String aiName,
-    required DateTime userBirthday,
-    required String meetStory,
-    String? userCountryCode,
-    String? aiCountryCode,
-    Map<String, dynamic>? appearance,
-  })
-  onFinish;
+  final OnboardingFinishCallback onFinish;
   final void Function()? onClearAllDebug;
   final Future<void> Function(ImportedChat importedChat)? onImportJson;
   // Optional external provider instance (presentation widgets should avoid creating providers internally when possible)
@@ -95,16 +98,7 @@ class _OnboardingScreenContent extends StatefulWidget {
   final OnboardingProvider onboardingProvider;
   // Optional chat provider instance passed from the parent to avoid Provider.of inside presentation.
   final ChatProvider? chatProvider;
-  final Future<void> Function({
-    required String userName,
-    required String aiName,
-    required DateTime userBirthday,
-    required String meetStory,
-    String? userCountryCode,
-    String? aiCountryCode,
-    Map<String, dynamic>? appearance,
-  })
-  onFinish;
+  final OnboardingFinishCallback onFinish;
   final void Function()? onClearAllDebug;
   final Future<void> Function(ImportedChat importedChat)? onImportJson;
 

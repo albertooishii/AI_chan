@@ -37,20 +37,47 @@ class VoiceMessage {
   /// Verifica si es un mensaje del asistente
   bool get isFromAssistant => sender == MessageSender.assistant;
 
-  /// Crea un mensaje de texto del usuario
-  factory VoiceMessage.userText({
+  /// Helper interno para crear mensaje de texto
+  static VoiceMessage _createTextMessage({
     required String id,
     required String text,
+    required MessageSender sender,
     Map<String, dynamic>? metadata,
   }) {
     return VoiceMessage(
       id: id,
       type: MessageType.text,
-      sender: MessageSender.user,
+      sender: sender,
       timestamp: DateTime.now(),
       text: text,
       metadata: metadata,
     );
+  }
+
+  /// Helper interno para crear mensaje de audio
+  static VoiceMessage _createAudioMessage({
+    required String id,
+    required MessageSender sender,
+    Uint8List? audioData,
+    String? audioPath,
+    Duration? audioDuration,
+    Map<String, dynamic>? metadata,
+  }) {
+    return VoiceMessage(
+      id: id,
+      type: MessageType.audio,
+      sender: sender,
+      timestamp: DateTime.now(),
+      audioData: audioData,
+      audioPath: audioPath,
+      audioDuration: audioDuration,
+      metadata: metadata,
+    );
+  }
+
+  /// Crea un mensaje de texto del usuario
+  factory VoiceMessage.userText({required String id, required String text, Map<String, dynamic>? metadata}) {
+    return _createTextMessage(id: id, text: text, sender: MessageSender.user, metadata: metadata);
   }
 
   /// Crea un mensaje de audio del usuario
@@ -61,11 +88,9 @@ class VoiceMessage {
     Duration? audioDuration,
     Map<String, dynamic>? metadata,
   }) {
-    return VoiceMessage(
+    return _createAudioMessage(
       id: id,
-      type: MessageType.audio,
       sender: MessageSender.user,
-      timestamp: DateTime.now(),
       audioData: audioData,
       audioPath: audioPath,
       audioDuration: audioDuration,
@@ -74,19 +99,8 @@ class VoiceMessage {
   }
 
   /// Crea un mensaje de texto del asistente
-  factory VoiceMessage.assistantText({
-    required String id,
-    required String text,
-    Map<String, dynamic>? metadata,
-  }) {
-    return VoiceMessage(
-      id: id,
-      type: MessageType.text,
-      sender: MessageSender.assistant,
-      timestamp: DateTime.now(),
-      text: text,
-      metadata: metadata,
-    );
+  factory VoiceMessage.assistantText({required String id, required String text, Map<String, dynamic>? metadata}) {
+    return _createTextMessage(id: id, text: text, sender: MessageSender.assistant, metadata: metadata);
   }
 
   /// Crea un mensaje de audio del asistente
@@ -97,11 +111,9 @@ class VoiceMessage {
     Duration? audioDuration,
     Map<String, dynamic>? metadata,
   }) {
-    return VoiceMessage(
+    return _createAudioMessage(
       id: id,
-      type: MessageType.audio,
       sender: MessageSender.assistant,
-      timestamp: DateTime.now(),
       audioData: audioData,
       audioPath: audioPath,
       audioDuration: audioDuration,
@@ -179,13 +191,9 @@ class VoiceMessage {
       sender: MessageSenderExtension.fromString(map['sender'] as String),
       timestamp: DateTime.parse(map['timestamp'] as String),
       text: map['text'] as String?,
-      audioData: map['audioData'] != null
-          ? Uint8List.fromList((map['audioData'] as List<dynamic>).cast<int>())
-          : null,
+      audioData: map['audioData'] != null ? Uint8List.fromList((map['audioData'] as List<dynamic>).cast<int>()) : null,
       audioPath: map['audioPath'] as String?,
-      audioDuration: map['audioDuration'] != null
-          ? Duration(milliseconds: map['audioDuration'] as int)
-          : null,
+      audioDuration: map['audioDuration'] != null ? Duration(milliseconds: map['audioDuration'] as int) : null,
       metadata: map['metadata'] as Map<String, dynamic>?,
     );
   }

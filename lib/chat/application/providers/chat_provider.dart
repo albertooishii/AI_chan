@@ -79,32 +79,18 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     String? userAudioPath,
   }) {
     final now = DateTime.now();
-    final bool hasImage = image != null && (((image.base64 ?? '').isNotEmpty) || ((image.url ?? '').isNotEmpty));
-    final isAutomaticPrompt = text.trim().isEmpty && (callPrompt != null && callPrompt.isNotEmpty);
-    AiImage? imageForHistory;
-    if (hasImage) {
-      imageForHistory = AiImage(url: image.url, seed: image.seed, prompt: image.prompt);
-    }
-    String displayText;
-    if (isAutomaticPrompt) {
-      displayText = callPrompt;
-    } else {
-      displayText = preTranscribedText ?? text;
-    }
-
-    final msg = Message(
-      text: displayText,
-      sender: isAutomaticPrompt ? MessageSender.system : MessageSender.user,
+    final result = _createMessageWithValidation(
+      text: text,
+      preTranscribedText: preTranscribedText,
+      callPrompt: callPrompt,
       dateTime: now,
-      isImage: hasImage,
-      image: imageForHistory,
-      isAudio: userAudioPath != null,
-      audioPath: userAudioPath,
-      status: MessageStatus.sending,
+      image: image,
+      userAudioPath: userAudioPath,
     );
-    if (text.trim().isNotEmpty || hasImage || isAutomaticPrompt || userAudioPath != null) {
-      messages.add(msg);
-      final lid = msg.localId;
+
+    if (result.shouldAdd) {
+      messages.add(result.message);
+      final lid = result.message.localId;
       // Encolar y dejar que MessageQueueManager controle el temporizador
       final opts = QueuedSendOptions(
         model: model,
@@ -350,45 +336,29 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     // Reset racha si hay actividad real del usuario (texto no vacío o imagen) y no es prompt automático
     // Racha de autos ahora gestionada dentro de PeriodicIaMessageScheduler; no se requiere flag local aquí
     // Detectar si es mensaje con imagen
-    final bool hasImage = image != null && (((image.base64 ?? '').isNotEmpty) || ((image.url ?? '').isNotEmpty));
-    // Solo añadir el mensaje si no es vacío (o si tiene imagen)
-    // Si es mensaje automático (callPrompt, texto vacío), NO añadir a la lista de mensajes enviados
-    final isAutomaticPrompt = text.trim().isEmpty && (callPrompt != null && callPrompt.isNotEmpty);
-    // Si el mensaje tiene imagen, NO guardar el base64 en el historial, solo la URL local
-    AiImage? imageForHistory;
-    if (hasImage) {
-      imageForHistory = AiImage(url: image.url, seed: image.seed, prompt: image.prompt);
-    }
-    // Guardar siempre el texto (incluida transcripción) para contexto IA; la UI decide mostrarlo (audio oculto).
-    String displayText;
-    if (isAutomaticPrompt) {
-      // isAutomaticPrompt implica callPrompt != null y no vacío
-      displayText = callPrompt; // safe: isAutomaticPrompt asegura no null
-    } else {
-      displayText = preTranscribedText ?? text;
-    }
-    final msg = Message(
-      text: displayText,
-      sender: isAutomaticPrompt ? MessageSender.system : MessageSender.user,
+    final messageData = _createMessageWithValidation(
+      text: text,
+      preTranscribedText: preTranscribedText,
+      callPrompt: callPrompt,
       dateTime: now,
-      isImage: hasImage,
-      image: imageForHistory,
-      isAudio: userAudioPath != null,
-      audioPath: userAudioPath,
-      status: MessageStatus.sending,
+      image: image,
+      userAudioPath: userAudioPath,
     );
-    if (text.trim().isNotEmpty || hasImage || isAutomaticPrompt || userAudioPath != null) {
+    final bool hasImage = image != null && (((image.base64 ?? '').isNotEmpty) || ((image.url ?? '').isNotEmpty));
+    final isAutomaticPrompt = text.trim().isEmpty && (callPrompt != null && callPrompt.isNotEmpty);
+
+    if (messageData.shouldAdd) {
       if (existingMessageIndex != null && existingMessageIndex >= 0 && existingMessageIndex < messages.length) {
         // Reintento: sobrescribir estado del mensaje existente en lugar de añadir uno nuevo
         messages[existingMessageIndex] = messages[existingMessageIndex].copyWith(
           status: MessageStatus.sending,
-          text: msg.text,
-          image: msg.image,
-          isAudio: msg.isAudio,
-          audioPath: msg.audioPath,
+          text: messageData.message.text,
+          image: messageData.message.image,
+          isAudio: messageData.message.isAudio,
+          audioPath: messageData.message.audioPath,
         );
       } else {
-        messages.add(msg);
+        messages.add(messageData.message);
       }
       if (userAudioPath != null) {
         try {
@@ -1122,36 +1092,7 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       );
     }
     notifyListeners();
-    try {
-      final memManager = memoryManager ?? MemoryManager(profile: onboardingData);
-      final oldLevel0Keys = (onboardingData.timeline)
-          .where((t) => t.level == 0)
-          .map((t) => '${t.startDate ?? ''}|${t.endDate ?? ''}')
-          .toSet();
-      final memResult = await memManager.processAllSummariesAndSuperblock(
-        messages: messages,
-        timeline: onboardingData.timeline,
-        superbloqueEntry: superbloqueEntry,
-      );
-      onboardingData = TimelineUpdater.applyTimelineUpdate(
-        profile: onboardingData,
-        timeline: memResult.timeline,
-        superbloqueEntry: memResult.superbloqueEntry,
-      );
-      superbloqueEntry = memResult.superbloqueEntry;
-      if (_hasNewLevel0EntriesFromKeys(oldLevel0Keys, memResult.timeline)) {
-        Log.d(
-          'Auto-backup: trigger scheduled (updateOrAddCallStatusMessage) — new summary block detected',
-          tag: 'BACKUP_AUTO',
-        );
-        unawaited(_maybeTriggerAutoBackup());
-      } else {
-        Log.d('Auto-backup: no new level-0 blocks; skip trigger (updateOrAddCallStatusMessage)', tag: 'BACKUP_AUTO');
-      }
-      notifyListeners();
-    } catch (e) {
-      Log.w('[AI-chan][WARN] Falló actualización de memoria post-updateCallStatus: $e');
-    }
+    await _updateMemoryAndTimeline(debugContext: 'updateOrAddCallStatusMessage');
   }
 
   /// Añade un mensaje directamente (p.ej., resumen de llamada de voz)
@@ -1216,39 +1157,7 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     notifyListeners();
     // Actualizar memoria igual que otros mensajes
     () async {
-      try {
-        final memManager = memoryManager ?? MemoryManager(profile: onboardingData);
-        final oldLevel0Keys = (onboardingData.timeline)
-            .where((t) => t.level == 0)
-            .map((t) => '${t.startDate ?? ''}|${t.endDate ?? ''}')
-            .toSet();
-        final memResult = await memManager.processAllSummariesAndSuperblock(
-          messages: messages,
-          timeline: onboardingData.timeline,
-          superbloqueEntry: superbloqueEntry,
-        );
-        onboardingData = TimelineUpdater.applyTimelineUpdate(
-          profile: onboardingData,
-          timeline: memResult.timeline,
-          superbloqueEntry: memResult.superbloqueEntry,
-        );
-        superbloqueEntry = memResult.superbloqueEntry;
-        if (_hasNewLevel0EntriesFromKeys(oldLevel0Keys, memResult.timeline)) {
-          Log.d(
-            'Auto-backup: trigger scheduled (replaceIncomingCallPlaceholder) — new summary block detected',
-            tag: 'BACKUP_AUTO',
-          );
-          unawaited(_maybeTriggerAutoBackup());
-        } else {
-          Log.d(
-            'Auto-backup: no new level-0 blocks; skip trigger (replaceIncomingCallPlaceholder)',
-            tag: 'BACKUP_AUTO',
-          );
-        }
-        notifyListeners();
-      } catch (e) {
-        Log.w('[AI-chan][WARN] Falló actualización de memoria post-replace-call: $e');
-      }
+      await _updateMemoryAndTimeline(debugContext: 'replaceIncomingCallPlaceholder');
     }();
   }
 
@@ -1321,7 +1230,91 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
 
   TimelineEntry? superbloqueEntry;
 
-  /// Helper privado: intenta subir backup si la cuenta Google está vinculada.
+  /// Crea un Message con la lógica común de displayText y manejo de imagen
+  Message _createMessage({
+    required String text,
+    String? preTranscribedText,
+    String? callPrompt,
+    bool isAutomaticPrompt = false,
+    required DateTime dateTime,
+    bool hasImage = false,
+    AiImage? image,
+    String? userAudioPath,
+  }) {
+    final String displayText;
+    if (isAutomaticPrompt && callPrompt != null) {
+      displayText = callPrompt;
+    } else {
+      displayText = preTranscribedText ?? text;
+    }
+
+    AiImage? imageForHistory;
+    if (hasImage && image != null) {
+      imageForHistory = AiImage(url: image.url, seed: image.seed, prompt: image.prompt);
+    }
+
+    return Message(
+      text: displayText,
+      sender: isAutomaticPrompt ? MessageSender.system : MessageSender.user,
+      dateTime: dateTime,
+      isImage: hasImage,
+      image: imageForHistory,
+      isAudio: userAudioPath != null,
+      audioPath: userAudioPath,
+      status: MessageStatus.sending,
+    );
+  }
+
+  /// Lógica común para validar y crear mensajes con imagen y prompts automáticos
+  ({Message message, bool shouldAdd}) _createMessageWithValidation({
+    required String text,
+    String? preTranscribedText,
+    String? callPrompt,
+    required DateTime dateTime,
+    AiImage? image,
+    String? userAudioPath,
+  }) {
+    final bool hasImage = image != null && (((image.base64 ?? '').isNotEmpty) || ((image.url ?? '').isNotEmpty));
+    final isAutomaticPrompt = text.trim().isEmpty && (callPrompt != null && callPrompt.isNotEmpty);
+
+    final msg = _createAndCheckMessage(
+      text: text,
+      preTranscribedText: preTranscribedText,
+      callPrompt: callPrompt,
+      isAutomaticPrompt: isAutomaticPrompt,
+      dateTime: dateTime,
+      hasImage: hasImage,
+      image: image,
+      userAudioPath: userAudioPath,
+    );
+
+    final shouldAdd = text.trim().isNotEmpty || hasImage || isAutomaticPrompt || userAudioPath != null;
+    return (message: msg, shouldAdd: shouldAdd);
+  }
+
+  Message _createAndCheckMessage({
+    required String text,
+    String? preTranscribedText,
+    String? callPrompt,
+    bool isAutomaticPrompt = false,
+    required DateTime dateTime,
+    bool hasImage = false,
+    AiImage? image,
+    String? userAudioPath,
+  }) {
+    final msg = _createMessage(
+      text: text,
+      preTranscribedText: preTranscribedText,
+      callPrompt: callPrompt,
+      isAutomaticPrompt: isAutomaticPrompt,
+      dateTime: dateTime,
+      hasImage: hasImage,
+      image: image,
+      userAudioPath: userAudioPath,
+    );
+    return msg;
+  }
+
   Future<void> _maybeTriggerAutoBackup() async {
     try {
       await BackupAutoUploader.maybeUploadAfterSummary(
@@ -1336,7 +1329,134 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     }
   }
 
-  /// Comprueba si el timeline nuevo contiene nuevas entradas de level 0
+  /// Lógica común de backup automático para evitar duplicación entre ramas repository/prefs
+  Future<void> _executeAutoBackupLogic(String branchName) async {
+    if (!googleLinked) {
+      Log.d('Auto-backup: skip (not linked to Google Drive)', tag: 'BACKUP_AUTO');
+      return;
+    }
+
+    try {
+      // Add a small delay to ensure credentials are fully initialized
+      await Future.delayed(Duration(milliseconds: 500));
+
+      // Double-check that we actually have valid credentials
+      final tokenLoader = GoogleBackupService(accessToken: null);
+      final storedToken = await tokenLoader.loadStoredAccessToken();
+
+      if (storedToken == null || storedToken.isEmpty) {
+        Log.w(
+          'Auto-backup: googleLinked=true but no valid token found during loadAll ($branchName). Skipping backup.',
+          tag: 'BACKUP_AUTO',
+        );
+        return;
+      }
+
+      final lastMs = await PrefsUtils.getLastAutoBackupMs();
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final twentyFourHoursMs = Duration(hours: 24).inMilliseconds;
+      final hasMessages = messages.isNotEmpty;
+
+      // Backup logic based on requirements:
+      // 1. Account linked + no backup exists → Always backup
+      // 2. Account not linked → Never backup
+      // 3. Account linked + backup exists + no messages (first init) → DON'T backup (preserve existing)
+      // 4. Account linked + backup >24h + has messages → Backup (update with new info)
+
+      bool shouldBackup = false;
+      String reason = '';
+
+      if (lastMs == null) {
+        // Case 1: No backup exists → Always backup
+        shouldBackup = true;
+        reason = 'no previous backup exists';
+      } else if (!hasMessages) {
+        // Case 3: Has backup + no messages (first initialization) → DON'T backup
+        shouldBackup = false;
+        reason = 'no messages in chat (preserving existing backup for potential restore)';
+      } else if ((nowMs - lastMs) > twentyFourHoursMs) {
+        // Case 4: Has backup >24h + has messages → Update backup
+        shouldBackup = true;
+        final hoursAgo = Duration(milliseconds: nowMs - lastMs).inHours;
+        reason = 'backup is ${hoursAgo}h old and chat has messages';
+      } else {
+        // Recent backup + has messages → Skip to avoid spam
+        shouldBackup = false;
+        final hoursAgo = Duration(milliseconds: nowMs - lastMs).inHours;
+        reason = 'recent backup (${hoursAgo}h ago) exists';
+      }
+
+      if (shouldBackup) {
+        Log.d(
+          'Auto-backup: trigger scheduled (loadAll $branchName) - $reason, messages=${messages.length}, tokenAvailable=${storedToken.isNotEmpty}',
+          tag: 'BACKUP_AUTO',
+        );
+        await _maybeTriggerAutoBackup();
+      } else {
+        Log.d('Auto-backup: skip $branchName ($reason), messages=${messages.length}', tag: 'BACKUP_AUTO');
+
+        // Only do remote verification if we skipped backup due to recent timestamp
+        // but still want to ensure remote backup actually exists
+        if (lastMs != null && hasMessages && branchName == 'repository branch') {
+          try {
+            unawaited(() async {
+              try {
+                final svc = GoogleBackupService(accessToken: storedToken);
+                final files = await svc.listBackups();
+                if (files.isEmpty) {
+                  Log.d(
+                    'Auto-backup: no remote backups found despite recent local ts; forcing upload',
+                    tag: 'BACKUP_AUTO',
+                  );
+                  await _maybeTriggerAutoBackup();
+                } else {
+                  Log.d('Auto-backup: remote backup present; skipping upload', tag: 'BACKUP_AUTO');
+                }
+              } catch (e) {
+                Log.w('Auto-backup: remote verification failed: $e', tag: 'BACKUP_AUTO');
+              }
+            }());
+          } catch (_) {}
+        }
+      }
+    } catch (e) {
+      Log.w('Auto-backup: $branchName failed: $e', tag: 'BACKUP_AUTO');
+    }
+  }
+
+  /// Helper común para actualizar memoria y timeline tras mensajes IA
+  Future<void> _updateMemoryAndTimeline({String debugContext = ''}) async {
+    try {
+      final memManager = memoryManager ?? MemoryManager(profile: onboardingData);
+      final oldLevel0Keys = (onboardingData.timeline)
+          .where((t) => t.level == 0)
+          .map((t) => '${t.startDate ?? ''}|${t.endDate ?? ''}')
+          .toSet();
+      final memResult = await memManager.processAllSummariesAndSuperblock(
+        messages: messages,
+        timeline: onboardingData.timeline,
+        superbloqueEntry: superbloqueEntry,
+      );
+      onboardingData = TimelineUpdater.applyTimelineUpdate(
+        profile: onboardingData,
+        timeline: memResult.timeline,
+        superbloqueEntry: memResult.superbloqueEntry,
+      );
+      superbloqueEntry = memResult.superbloqueEntry;
+      if (_hasNewLevel0EntriesFromKeys(oldLevel0Keys, memResult.timeline)) {
+        final context = debugContext.isNotEmpty ? ' ($debugContext)' : '';
+        Log.d('Auto-backup: trigger scheduled$context — new summary block detected', tag: 'BACKUP_AUTO');
+        unawaited(_maybeTriggerAutoBackup());
+      } else {
+        final context = debugContext.isNotEmpty ? ' ($debugContext)' : '';
+        Log.d('Auto-backup: no new level-0 blocks; skip trigger$context', tag: 'BACKUP_AUTO');
+      }
+      notifyListeners();
+    } catch (e) {
+      Log.w('[AI-chan][WARN] Falló actualización de memoria post-$debugContext: $e');
+    }
+  }
+
   /// que no estaban en el conjunto de claves precomputadas `oldKeys`.
   bool _hasNewLevel0EntriesFromKeys(Set<String> oldKeys, List<TimelineEntry> newTimeline) {
     try {
@@ -1566,12 +1686,48 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       try {
         unawaited(() async {
           try {
-            final lastMs = await PrefsUtils.getLastAutoBackupMs();
-            if (lastMs == null) {
-              Log.d('Auto-backup: trigger scheduled (updateGoogleAccountInfo)', tag: 'BACKUP_AUTO');
-              await _maybeTriggerAutoBackup();
+            // Add a small delay to ensure credentials are fully saved and available
+            await Future.delayed(Duration(seconds: 1));
+
+            // Verify that credentials are actually available
+            final tokenLoader = GoogleBackupService(accessToken: null);
+            final storedToken = await tokenLoader.loadStoredAccessToken();
+
+            if (storedToken == null || storedToken.isEmpty) {
+              Log.w(
+                'Auto-backup: account linked but no valid token available yet. Will retry on next app load.',
+                tag: 'BACKUP_AUTO',
+              );
+              return;
             }
-          } catch (_) {}
+
+            final lastMs = await PrefsUtils.getLastAutoBackupMs();
+            final nowMs = DateTime.now().millisecondsSinceEpoch;
+
+            // When account is JUST linked (this method called), be more aggressive about backing up
+            // Check if we should trigger backup when account linking happens:
+            // 1. Never backed up before (lastMs == null), OR
+            // 2. Last backup is older than 30 minutes (account re-link scenario)
+            final thirtyMinutesMs = Duration(minutes: 30).inMilliseconds;
+            final shouldBackupOnLink = lastMs == null || (nowMs - lastMs) > thirtyMinutesMs;
+
+            if (shouldBackupOnLink) {
+              final timeSince = lastMs != null ? Duration(milliseconds: nowMs - lastMs) : null;
+              Log.d(
+                'Auto-backup: trigger scheduled (updateGoogleAccountInfo) - reason: ${lastMs == null ? 'never backed up' : 'account re-linked after ${timeSince!.inMinutes}m'} tokenAvailable=${storedToken.isNotEmpty}',
+                tag: 'BACKUP_AUTO',
+              );
+              await _maybeTriggerAutoBackup();
+            } else {
+              final timeSince = Duration(milliseconds: nowMs - lastMs);
+              Log.d(
+                'Auto-backup: recent backup (${timeSince.inMinutes}m ago) + fresh link, skipping to avoid spam',
+                tag: 'BACKUP_AUTO',
+              );
+            }
+          } catch (e) {
+            Log.w('Auto-backup: updateGoogleAccountInfo branch failed: $e', tag: 'BACKUP_AUTO');
+          }
         }());
       } catch (_) {}
     }
@@ -1645,53 +1801,7 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
                   googleLinked = g['linked'] as bool? ?? false;
                 } catch (_) {}
                 if (googleLinked) {
-                  try {
-                    // Trigger an automatic backup at load when either there is
-                    // no recorded previous automatic backup or the last one
-                    // is older than 24h. This ensures a daily backup at app
-                    // open even if the chat already contains messages.
-                    final lastMs = await PrefsUtils.getLastAutoBackupMs();
-                    final nowMs = DateTime.now().millisecondsSinceEpoch;
-                    final twentyFourHoursMs = Duration(hours: 24).inMilliseconds;
-                    if (lastMs == null || (nowMs - lastMs) > twentyFourHoursMs) {
-                      Log.d(
-                        'Auto-backup: trigger scheduled (loadAll repository branch) lastAutoBackupMs=$lastMs messages=${messages.length}',
-                        tag: 'BACKUP_AUTO',
-                      );
-                      await _maybeTriggerAutoBackup();
-                    } else {
-                      Log.d(
-                        'Auto-backup: recent lastAutoBackupMs=$lastMs; verifying remote presence',
-                        tag: 'BACKUP_AUTO',
-                      );
-                      // Verify that the backup actually exists in Drive. There are
-                      // cases where local prefs record a timestamp but the remote
-                      // backup was deleted or never completed successfully. If no
-                      // remote backup is found, force a new upload.
-                      try {
-                        unawaited(() async {
-                          try {
-                            final tokenLoader = GoogleBackupService(accessToken: null);
-                            final stored = await tokenLoader.loadStoredAccessToken();
-                            if (stored == null || stored.isEmpty) return;
-                            final svc = GoogleBackupService(accessToken: stored);
-                            final files = await svc.listBackups();
-                            if (files.isEmpty) {
-                              Log.d(
-                                'Auto-backup: no remote backups found despite recent local ts; forcing upload',
-                                tag: 'BACKUP_AUTO',
-                              );
-                              await _maybeTriggerAutoBackup();
-                            } else {
-                              Log.d('Auto-backup: remote backup present; skipping upload', tag: 'BACKUP_AUTO');
-                            }
-                          } catch (e) {
-                            Log.w('Auto-backup: remote verification failed: $e', tag: 'BACKUP_AUTO');
-                          }
-                        }());
-                      } catch (_) {}
-                    }
-                  } catch (_) {}
+                  await _executeAutoBackupLogic('repository branch');
                 }
               }();
             } catch (_) {}
@@ -1822,24 +1932,10 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     try {
       if (googleLinked) {
         () async {
-          try {
-            final lastMs = await PrefsUtils.getLastAutoBackupMs();
-            final nowMs = DateTime.now().millisecondsSinceEpoch;
-            final twentyFourHoursMs = Duration(hours: 24).inMilliseconds;
-            if (lastMs == null || (nowMs - lastMs) > twentyFourHoursMs) {
-              Log.d(
-                'Auto-backup: trigger scheduled (loadAll prefs branch) lastAutoBackupMs=$lastMs messages=${messages.length}',
-                tag: 'BACKUP_AUTO',
-              );
-              await _maybeTriggerAutoBackup();
-            } else {
-              Log.d(
-                'Auto-backup: skip loadAll daily check (recent backup) lastAutoBackupMs=$lastMs messages=${messages.length}',
-                tag: 'BACKUP_AUTO',
-              );
-            }
-          } catch (_) {}
+          await _executeAutoBackupLogic('prefs branch');
         }();
+      } else {
+        Log.d('Auto-backup: skip (not linked to Google Drive)', tag: 'BACKUP_AUTO');
       }
     } catch (_) {}
     // Nota: no arrancar el scheduler automáticamente al cargar; el caller/UI

@@ -8,14 +8,7 @@ import 'package:ai_chan/core/config.dart';
 /// facilita testing / reuso.
 void registerDefaultRealtimeClientFactories() {
   // OpenAI factory
-  di.registerRealtimeClientFactory('openai', ({
-    model,
-    onText,
-    onAudio,
-    onCompleted,
-    onError,
-    onUserTranscription,
-  }) {
+  di.registerRealtimeClientFactory('openai', ({model, onText, onAudio, onCompleted, onError, onUserTranscription}) {
     return OpenAIRealtimeClient(
       model: model ?? Config.requireOpenAIRealtimeModel(),
       onText: onText,
@@ -26,27 +19,14 @@ void registerDefaultRealtimeClientFactories() {
     );
   });
 
-  // Gemini / Google factory: uses a minimal GeminiRealtimeClient skeleton for now.
-  di.registerRealtimeClientFactory('gemini', ({
-    model,
-    onText,
-    onAudio,
-    onCompleted,
-    onError,
-    onUserTranscription,
-  }) {
+  // Factory compartido para Gemini/Google
+  GeminiRealtimeClient geminiFactory({model, onText, onAudio, onCompleted, onError, onUserTranscription}) {
     return GeminiRealtimeClient();
-  });
+  }
+
+  // Gemini factory: uses a minimal GeminiRealtimeClient skeleton for now.
+  di.registerRealtimeClientFactory('gemini', geminiFactory);
 
   // Alias 'google' to the same Gemini factory for backwards compatibility.
-  di.registerRealtimeClientFactory('google', ({
-    model,
-    onText,
-    onAudio,
-    onCompleted,
-    onError,
-    onUserTranscription,
-  }) {
-    return GeminiRealtimeClient();
-  });
+  di.registerRealtimeClientFactory('google', geminiFactory);
 }
