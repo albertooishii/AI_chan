@@ -272,8 +272,8 @@ class _InitializingScreenState extends State<InitializingScreen> {
             Text(
               steps[currentStep][0],
               style: const TextStyle(
-                color: AppColors.cyberpunkYellow,
-                fontSize: 22,
+                color: AppColors.primary,
+                fontSize: 18,
                 fontFamily: 'monospace',
                 letterSpacing: 2,
                 shadows: [Shadow(color: AppColors.secondary, blurRadius: 12)],

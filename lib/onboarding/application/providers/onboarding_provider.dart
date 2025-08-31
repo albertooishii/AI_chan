@@ -199,7 +199,10 @@ class OnboardingProvider extends ChangeNotifier {
   }
 
   void setMeetStory(String value) {
-    meetStoryController.text = value;
+    // Solo actualizar si el valor es diferente para evitar mover el cursor
+    if (meetStoryController.text != value) {
+      meetStoryController.text = value;
+    }
   }
 
   void setUserCountryCode(String value) {
