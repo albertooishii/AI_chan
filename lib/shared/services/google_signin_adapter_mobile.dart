@@ -1,287 +1,290 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/core/config.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 
-/// Native Google Sign-In adapter for Android/iOS with native account chooser
-/// and proper refresh token handling
+/// Native Google Sign-In adapter for Android/iOS with proper token handling
+/// Updated for google_sign_in ^7.1.1 API
 class GoogleSignInMobileAdapter {
   final List<String> scopes;
   final String? clientId;
-  final bool useNativeChooser;
-  GoogleSignIn? _googleSignIn;
+  final String? serverClientId;
 
-  GoogleSignInMobileAdapter({
-    required this.scopes,
-    this.clientId,
-    this.useNativeChooser =
-        false, // CAMBIO: usar chooser estándar para obtener refresh_token
-  });
+  bool _isInitialized = false;
+  GoogleSignInAccount? _currentUser;
+  StreamSubscription<GoogleSignInAuthenticationEvent>? _authSubscription;
 
-  GoogleSignIn get _signIn {
-    if (_googleSignIn != null) return _googleSignIn!;
+  GoogleSignInMobileAdapter({required this.scopes, this.clientId, this.serverClientId});
 
-    // Configure GoogleSignIn with proper scopes and client ID
-    // SIEMPRE usar configuración estándar para obtener serverAuthCode y refresh_token
-    _googleSignIn = GoogleSignIn(
-      scopes: scopes,
-      clientId: _resolveClientId(),
-      forceCodeForRefreshToken: true,
-    );
-    Log.d(
-      'GoogleSignInMobileAdapter: configured for standard chooser to ensure refresh_token',
-      tag: 'GoogleSignIn',
-    );
+  GoogleSignIn get _signIn => GoogleSignIn.instance;
 
-    return _googleSignIn!;
+  /// Initialize the adapter and configure GoogleSignIn
+  Future<void> initialize() async {
+    if (_isInitialized) return;
+
+    try {
+      final resolvedClientId = clientId ?? _resolveClientId();
+      final resolvedServerClientId = serverClientId ?? _resolveServerClientId();
+
+      await _signIn.initialize(clientId: resolvedClientId, serverClientId: resolvedServerClientId);
+
+      // Subscribe to authentication events
+      _authSubscription = _signIn.authenticationEvents.listen(
+        _handleAuthenticationEvent,
+        onError: _handleAuthenticationError,
+      );
+
+      _isInitialized = true;
+
+      Log.d('GoogleSignInMobileAdapter: initialized successfully', tag: 'GoogleSignIn');
+    } catch (e, st) {
+      Log.e('GoogleSignInMobileAdapter: initialization failed: $e', tag: 'GoogleSignIn', error: e, stack: st);
+      throw StateError('Google Sign-In initialization failed: $e');
+    }
   }
 
+  /// Handle authentication events from GoogleSignIn
+  Future<void> _handleAuthenticationEvent(GoogleSignInAuthenticationEvent event) async {
+    switch (event) {
+      case GoogleSignInAuthenticationEventSignIn():
+        _currentUser = event.user;
+        Log.d('GoogleSignInMobileAdapter: user signed in: ${event.user.email}', tag: 'GoogleSignIn');
+        break;
+      case GoogleSignInAuthenticationEventSignOut():
+        _currentUser = null;
+        Log.d('GoogleSignInMobileAdapter: user signed out', tag: 'GoogleSignIn');
+        break;
+    }
+  }
+
+  /// Handle authentication errors
+  Future<void> _handleAuthenticationError(Object error) async {
+    Log.e('GoogleSignInMobileAdapter: authentication error: $error', tag: 'GoogleSignIn', error: error);
+  }
+
+  /// Resolve client ID from configuration
   String? _resolveClientId() {
     if (clientId != null && clientId!.isNotEmpty) return clientId;
 
     try {
-      // SIEMPRE usar web client ID para obtener serverAuthCode en todas las plataformas
-      final webClientId = Config.get('GOOGLE_CLIENT_ID_WEB', '').trim();
-      if (webClientId.isNotEmpty) {
-        Log.d(
-          'GoogleSignInMobileAdapter: using web clientId for serverAuthCode support',
-          tag: 'GoogleSignIn',
-        );
-        return webClientId;
-      }
-
-      // Fallback a platform-specific si web no está disponible
-      if (Platform.isIOS) {
+      // For mobile platforms, use platform-specific client IDs
+      if (Platform.isAndroid) {
+        final androidClientId = Config.get('GOOGLE_CLIENT_ID_ANDROID', '').trim();
+        if (androidClientId.isNotEmpty) return androidClientId;
+      } else if (Platform.isIOS) {
         final iosClientId = Config.get('GOOGLE_CLIENT_ID_IOS', '').trim();
         if (iosClientId.isNotEmpty) return iosClientId;
       }
+
+      // Fallback to web client ID
+      final webClientId = Config.get('GOOGLE_CLIENT_ID_WEB', '').trim();
+      if (webClientId.isNotEmpty) {
+        Log.d('GoogleSignInMobileAdapter: using web clientId as fallback', tag: 'GoogleSignIn');
+        return webClientId;
+      }
     } catch (e) {
-      Log.w(
-        'GoogleSignInMobileAdapter: error resolving clientId: $e',
-        tag: 'GoogleSignIn',
-      );
+      Log.w('GoogleSignInMobileAdapter: error resolving clientId: $e', tag: 'GoogleSignIn');
     }
 
     return null;
   }
 
-  /// Sign in with native Google Sign-In chooser and obtain tokens including refresh_token
-  Future<Map<String, dynamic>> signIn({
-    List<String>? scopes,
-    bool forceAccountChooser = true,
-  }) async {
-    final usedScopes = scopes ?? this.scopes;
-
-    Log.d(
-      'GoogleSignInMobileAdapter: starting native sign-in with scopes: $usedScopes',
-      tag: 'GoogleSignIn',
-    );
+  /// Resolve server client ID for server auth code
+  String? _resolveServerClientId() {
+    if (serverClientId != null && serverClientId!.isNotEmpty) return serverClientId;
 
     try {
-      // Only sign out if we want to force account chooser
+      // Server client ID is always the web client ID
+      final webClientId = Config.get('GOOGLE_CLIENT_ID_WEB', '').trim();
+      if (webClientId.isNotEmpty) {
+        Log.d('GoogleSignInMobileAdapter: using web clientId for server auth code', tag: 'GoogleSignIn');
+        return webClientId;
+      }
+    } catch (e) {
+      Log.w('GoogleSignInMobileAdapter: error resolving server clientId: $e', tag: 'GoogleSignIn');
+    }
+
+    return null;
+  }
+
+  /// Sign in with Google and obtain tokens including refresh_token
+  Future<Map<String, dynamic>> signIn({List<String>? scopes, bool forceAccountChooser = true}) async {
+    final usedScopes = scopes ?? this.scopes;
+
+    Log.d('GoogleSignInMobileAdapter: starting sign-in with scopes: $usedScopes', tag: 'GoogleSignIn');
+
+    try {
+      // Ensure initialized
+      await initialize();
+
+      // Disconnect first to force account chooser if requested
       if (forceAccountChooser) {
-        await _signIn.signOut();
-        Log.d(
-          'GoogleSignInMobileAdapter: signed out to force account chooser',
-          tag: 'GoogleSignIn',
-        );
+        await _signIn.disconnect();
+        Log.d('GoogleSignInMobileAdapter: disconnected to force account chooser', tag: 'GoogleSignIn');
       }
 
-      // Sign in with account chooser (or silently if already signed in)
-      final GoogleSignInAccount? account = await _signIn.signIn();
+      // Authenticate the user
+      await _signIn.authenticate();
+
+      // Wait for authentication event to set _currentUser
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      final GoogleSignInAccount? account = _currentUser;
       if (account == null) {
         throw StateError('User cancelled sign-in');
       }
 
-      Log.d(
-        'GoogleSignInMobileAdapter: signed in as ${account.email}',
-        tag: 'GoogleSignIn',
-      ); // Get authentication tokens
-      final GoogleSignInAuthentication auth = await account.authentication;
+      Log.d('GoogleSignInMobileAdapter: signed in as ${account.email}', tag: 'GoogleSignIn');
 
-      // Get server auth code for refresh token
-      final String? serverAuthCode = account.serverAuthCode;
-
-      Log.d(
-        'GoogleSignInMobileAdapter: obtained tokens - accessToken: ${auth.accessToken != null}, '
-        'idToken: ${auth.idToken != null}, serverAuthCode: ${serverAuthCode != null}',
-        tag: 'GoogleSignIn',
+      // Get authorization for required scopes
+      final GoogleSignInClientAuthorization? authorization = await account.authorizationClient.authorizationForScopes(
+        usedScopes,
       );
 
-      Map<String, dynamic> tokenMap = {
-        'access_token': auth.accessToken,
-        'id_token': auth.idToken,
-        'token_type': 'Bearer',
-        'expires_in': 3600, // Default expiration
-        'scope': usedScopes.join(' '),
-      };
-
-      // Exchange serverAuthCode for refresh token if available
-      // Este paso es CRÍTICO para mantener la sesión persistente
-      if (serverAuthCode != null && serverAuthCode.isNotEmpty) {
-        try {
-          final refreshTokens = await _exchangeServerAuthCode(serverAuthCode);
-          if (refreshTokens['refresh_token'] != null) {
-            tokenMap['refresh_token'] = refreshTokens['refresh_token'];
-            tokenMap['access_token'] =
-                refreshTokens['access_token'] ?? tokenMap['access_token'];
-            if (refreshTokens['expires_in'] != null) {
-              tokenMap['expires_in'] = refreshTokens['expires_in'];
-            }
-            Log.d(
-              'GoogleSignInMobileAdapter: successfully obtained refresh_token',
-              tag: 'GoogleSignIn',
-            );
-          } else {
-            Log.w(
-              'GoogleSignInMobileAdapter: serverAuthCode exchange succeeded but no refresh_token returned',
-              tag: 'GoogleSignIn',
-            );
-          }
-        } catch (e) {
-          Log.w(
-            'GoogleSignInMobileAdapter: serverAuthCode exchange failed: $e',
-            tag: 'GoogleSignIn',
-          );
-          // Continue without refresh token - we still have access token but session won't persist
-        }
-      } else {
-        Log.w(
-          'GoogleSignInMobileAdapter: no serverAuthCode available - session will not persist after access_token expires. '
-          'Verify that web client ID is correctly configured.',
-          tag: 'GoogleSignIn',
-        );
+      if (authorization == null) {
+        // Request authorization for the scopes
+        final newAuth = await account.authorizationClient.authorizeScopes(usedScopes);
+        return await _buildTokenMap(account, newAuth, usedScopes);
       }
 
-      // Also sign in with Firebase to maintain consistency
-      try {
-        if (auth.idToken != null || auth.accessToken != null) {
-          final credential = GoogleAuthProvider.credential(
-            idToken: auth.idToken,
-            accessToken: auth.accessToken,
-          );
-          final userCred = await FirebaseAuth.instance.signInWithCredential(
-            credential,
-          );
-          final firebaseRefreshToken = userCred.user?.refreshToken;
-          if (firebaseRefreshToken != null && firebaseRefreshToken.isNotEmpty) {
-            // Prefer OAuth refresh token over Firebase refresh token for Drive API
-            tokenMap['firebase_refresh_token'] = firebaseRefreshToken;
-          }
-        }
-      } catch (e) {
-        Log.w(
-          'GoogleSignInMobileAdapter: Firebase sign-in failed: $e',
-          tag: 'GoogleSignIn',
-        );
-      }
-
-      return tokenMap;
+      return await _buildTokenMap(account, authorization, usedScopes);
     } catch (e, st) {
-      Log.e(
-        'GoogleSignInMobileAdapter: sign-in failed: $e',
-        tag: 'GoogleSignIn',
-        error: e,
-        stack: st,
-      );
+      Log.e('GoogleSignInMobileAdapter: sign-in failed: $e', tag: 'GoogleSignIn', error: e, stack: st);
 
       String help =
           '\nSoluciones sugeridas:'
           '\n- Verifica que google-services.json esté configurado correctamente'
           '\n- Asegúrate de que el SHA-1 certificate fingerprint esté registrado en Google Cloud Console'
           '\n- Confirma que los scopes solicitados estén habilitados para tu OAuth client'
-          '\n- Si usas un clientId personalizado, verifica que sea del tipo correcto (Web para serverAuthCode)';
+          '\n- Si usas un clientId personalizado, verifica que sea del tipo correcto';
 
       throw StateError('Google Sign-In nativo falló: $e$help');
     }
+  }
+
+  /// Build token map from authorization
+  Future<Map<String, dynamic>> _buildTokenMap(
+    GoogleSignInAccount account,
+    GoogleSignInClientAuthorization authorization,
+    List<String> scopes,
+  ) async {
+    Log.d('GoogleSignInMobileAdapter: building token map for scopes: $scopes', tag: 'GoogleSignIn');
+
+    try {
+      // Get authorization headers (contains access token)
+      final headers = await account.authorizationClient.authorizationHeaders(scopes);
+      final accessToken = _extractAccessTokenFromHeaders(headers);
+
+      // Get ID token if available (through older compatibility API)
+      String? idToken;
+      try {
+        // This might not be available in newer versions, but try for compatibility
+        final auth = account.authentication;
+        idToken = auth.idToken;
+      } catch (e) {
+        Log.d('GoogleSignInMobileAdapter: could not get ID token: $e', tag: 'GoogleSignIn');
+      }
+
+      Map<String, dynamic> tokenMap = {
+        'access_token': accessToken,
+        'token_type': 'Bearer',
+        'expires_in': 3600, // Default expiration
+        'scope': scopes.join(' '),
+      };
+
+      if (idToken != null) {
+        tokenMap['id_token'] = idToken;
+      }
+
+      // Try to get server auth code for refresh token
+      try {
+        final serverAuth = await account.authorizationClient.authorizeServer(scopes);
+        if (serverAuth != null) {
+          final refreshTokens = await _exchangeServerAuthCode(serverAuth.serverAuthCode);
+          if (refreshTokens['refresh_token'] != null) {
+            tokenMap['refresh_token'] = refreshTokens['refresh_token'];
+            tokenMap['access_token'] = refreshTokens['access_token'] ?? tokenMap['access_token'];
+            if (refreshTokens['expires_in'] != null) {
+              tokenMap['expires_in'] = refreshTokens['expires_in'];
+            }
+            Log.d('GoogleSignInMobileAdapter: successfully obtained refresh_token', tag: 'GoogleSignIn');
+          }
+        }
+      } catch (e) {
+        Log.w('GoogleSignInMobileAdapter: server auth code exchange failed: $e', tag: 'GoogleSignIn');
+      }
+
+      return tokenMap;
+    } catch (e, st) {
+      Log.e('GoogleSignInMobileAdapter: failed to build token map: $e', tag: 'GoogleSignIn', error: e, stack: st);
+      rethrow;
+    }
+  }
+
+  /// Extract access token from authorization headers
+  String? _extractAccessTokenFromHeaders(Map<String, String>? headers) {
+    if (headers == null) return null;
+
+    final authHeader = headers['Authorization'];
+    if (authHeader != null && authHeader.startsWith('Bearer ')) {
+      return authHeader.substring(7); // Remove 'Bearer ' prefix
+    }
+
+    return null;
   }
 
   /// Sign in silently without showing account chooser (if possible)
   Future<Map<String, dynamic>?> signInSilently({List<String>? scopes}) async {
     final usedScopes = scopes ?? this.scopes;
 
-    Log.d(
-      'GoogleSignInMobileAdapter: attempting silent sign-in',
-      tag: 'GoogleSignIn',
-    );
+    Log.d('GoogleSignInMobileAdapter: attempting silent sign-in', tag: 'GoogleSignIn');
 
     try {
-      // Try silent sign-in first (no account chooser)
-      final GoogleSignInAccount? account = await _signIn.signInSilently();
+      // Ensure initialized
+      await initialize();
+
+      // Try lightweight authentication first
+      await _signIn.attemptLightweightAuthentication();
+
+      // Check if we have a current user
+      final GoogleSignInAccount? account = _currentUser;
       if (account == null) {
-        Log.d(
-          'GoogleSignInMobileAdapter: silent sign-in failed, no account available',
-          tag: 'GoogleSignIn',
-        );
+        Log.d('GoogleSignInMobileAdapter: silent sign-in failed, no account available', tag: 'GoogleSignIn');
         return null;
       }
 
-      Log.d(
-        'GoogleSignInMobileAdapter: silent sign-in successful as ${account.email}',
-        tag: 'GoogleSignIn',
+      Log.d('GoogleSignInMobileAdapter: silent sign-in successful as ${account.email}', tag: 'GoogleSignIn');
+
+      // Check if we have authorization for the required scopes
+      final GoogleSignInClientAuthorization? authorization = await account.authorizationClient.authorizationForScopes(
+        usedScopes,
       );
 
-      // Get authentication tokens
-      final GoogleSignInAuthentication auth = await account.authentication;
-      final String? serverAuthCode = account.serverAuthCode;
-
-      Map<String, dynamic> tokenMap = {
-        'access_token': auth.accessToken,
-        'id_token': auth.idToken,
-        'token_type': 'Bearer',
-        'expires_in': 3600,
-        'scope': usedScopes.join(' '),
-      };
-
-      // Exchange serverAuthCode for refresh token if available
-      if (serverAuthCode != null && serverAuthCode.isNotEmpty) {
-        try {
-          final refreshTokens = await _exchangeServerAuthCode(serverAuthCode);
-          if (refreshTokens['refresh_token'] != null) {
-            tokenMap['refresh_token'] = refreshTokens['refresh_token'];
-            tokenMap['access_token'] =
-                refreshTokens['access_token'] ?? tokenMap['access_token'];
-            if (refreshTokens['expires_in'] != null) {
-              tokenMap['expires_in'] = refreshTokens['expires_in'];
-            }
-          }
-        } catch (e) {
-          Log.w(
-            'GoogleSignInMobileAdapter: silent serverAuthCode exchange failed: $e',
-            tag: 'GoogleSignIn',
-          );
-        }
+      if (authorization == null) {
+        Log.d('GoogleSignInMobileAdapter: no authorization for required scopes', tag: 'GoogleSignIn');
+        return null;
       }
 
-      return tokenMap;
+      return await _buildTokenMap(account, authorization, usedScopes);
     } catch (e) {
-      Log.w(
-        'GoogleSignInMobileAdapter: silent sign-in failed: $e',
-        tag: 'GoogleSignIn',
-      );
+      Log.w('GoogleSignInMobileAdapter: silent sign-in failed: $e', tag: 'GoogleSignIn');
       return null;
     }
   }
 
   /// Exchange server auth code for refresh token
-  Future<Map<String, dynamic>> _exchangeServerAuthCode(
-    String serverAuthCode,
-  ) async {
+  Future<Map<String, dynamic>> _exchangeServerAuthCode(String serverAuthCode) async {
     final webClientId = Config.get('GOOGLE_CLIENT_ID_WEB', '').trim();
     final webClientSecret = Config.get('GOOGLE_CLIENT_SECRET_WEB', '').trim();
 
     if (webClientId.isEmpty) {
-      throw StateError(
-        'GOOGLE_CLIENT_ID_WEB required for serverAuthCode exchange',
-      );
+      throw StateError('GOOGLE_CLIENT_ID_WEB required for serverAuthCode exchange');
     }
     if (webClientSecret.isEmpty) {
-      throw StateError(
-        'GOOGLE_CLIENT_SECRET_WEB required for serverAuthCode exchange',
-      );
+      throw StateError('GOOGLE_CLIENT_SECRET_WEB required for serverAuthCode exchange');
     }
 
     final response = await http.post(
@@ -297,10 +300,7 @@ class GoogleSignInMobileAdapter {
 
     if (response.statusCode == 200) {
       final tokens = jsonDecode(response.body) as Map<String, dynamic>;
-      Log.d(
-        'GoogleSignInMobileAdapter: serverAuthCode exchange successful',
-        tag: 'GoogleSignIn',
-      );
+      Log.d('GoogleSignInMobileAdapter: serverAuthCode exchange successful', tag: 'GoogleSignIn');
       return tokens;
     } else {
       final error = response.body;
@@ -308,25 +308,18 @@ class GoogleSignInMobileAdapter {
         'GoogleSignInMobileAdapter: serverAuthCode exchange failed: ${response.statusCode} $error',
         tag: 'GoogleSignIn',
       );
-      throw HttpException(
-        'Token exchange failed: ${response.statusCode} $error',
-      );
+      throw HttpException('Token exchange failed: ${response.statusCode} $error');
     }
   }
 
   /// Sign out from Google Sign-In
   Future<void> signOut() async {
     try {
-      await _signIn.signOut();
-      Log.d(
-        'GoogleSignInMobileAdapter: signed out successfully',
-        tag: 'GoogleSignIn',
-      );
+      await _signIn.disconnect();
+      _currentUser = null;
+      Log.d('GoogleSignInMobileAdapter: signed out successfully', tag: 'GoogleSignIn');
     } catch (e) {
-      Log.w(
-        'GoogleSignInMobileAdapter: sign-out failed: $e',
-        tag: 'GoogleSignIn',
-      );
+      Log.w('GoogleSignInMobileAdapter: sign-out failed: $e', tag: 'GoogleSignIn');
       throw StateError('Sign-out failed: $e');
     }
   }
@@ -334,12 +327,10 @@ class GoogleSignInMobileAdapter {
   /// Check if user is currently signed in
   Future<bool> isSignedIn() async {
     try {
-      return await _signIn.isSignedIn();
+      await initialize();
+      return _currentUser != null;
     } catch (e) {
-      Log.w(
-        'GoogleSignInMobileAdapter: isSignedIn check failed: $e',
-        tag: 'GoogleSignIn',
-      );
+      Log.w('GoogleSignInMobileAdapter: isSignedIn check failed: $e', tag: 'GoogleSignIn');
       return false;
     }
   }
@@ -347,13 +338,17 @@ class GoogleSignInMobileAdapter {
   /// Get current signed in account if available
   Future<GoogleSignInAccount?> getCurrentAccount() async {
     try {
-      return await _signIn.signInSilently();
+      await initialize();
+      return _currentUser;
     } catch (e) {
-      Log.w(
-        'GoogleSignInMobileAdapter: getCurrentAccount failed: $e',
-        tag: 'GoogleSignIn',
-      );
+      Log.w('GoogleSignInMobileAdapter: getCurrentAccount failed: $e', tag: 'GoogleSignIn');
       return null;
     }
+  }
+
+  /// Dispose resources
+  void dispose() {
+    _authSubscription?.cancel();
+    _authSubscription = null;
   }
 }

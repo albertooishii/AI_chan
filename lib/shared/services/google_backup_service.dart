@@ -455,10 +455,7 @@ class GoogleBackupService {
       }
 
       // Use native Google Sign-In for Android/iOS - shows standard chooser with refresh_token support
-      final nativeAdapter = GoogleSignInMobileAdapter(
-        scopes: scopes,
-        useNativeChooser: false, // CAMBIO: usar chooser estándar para obtener refresh_token
-      );
+      final nativeAdapter = GoogleSignInMobileAdapter(scopes: scopes);
       final tokenMap = await nativeAdapter.signIn(scopes: scopes, forceAccountChooser: true);
 
       // Validate that we obtained the necessary tokens
@@ -846,7 +843,6 @@ class GoogleBackupService {
             if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
               final nativeAdapter = GoogleSignInMobileAdapter(
                 scopes: ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/drive.appdata'],
-                useNativeChooser: false, // CAMBIO: usar chooser estándar para obtener refresh_token
               );
               final silentTokens = await nativeAdapter.signInSilently();
               if (silentTokens != null && silentTokens['access_token'] != null) {
@@ -927,7 +923,6 @@ class GoogleBackupService {
         if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
           final nativeAdapter = GoogleSignInMobileAdapter(
             scopes: ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/drive.appdata'],
-            useNativeChooser: false,
           );
           await nativeAdapter.signOut();
         }
