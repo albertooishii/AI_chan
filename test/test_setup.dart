@@ -45,7 +45,7 @@ Future<void> initializeTestEnvironment({
   final tmpCacheDir = Directory('${baseTmp.path}/cache_$suffix')
     ..createSync(recursive: true);
   Config.setOverrides({
-    'APP_LOG_LEVEL': 'error',
+    'DEBUG_MODE': 'off',
     'TEST_IMAGE_DIR': tmpImageDir.path,
     'TEST_AUDIO_DIR': tmpAudioDir.path,
     'TEST_CACHE_DIR': tmpCacheDir.path,

@@ -178,8 +178,7 @@ OPENAI_TTS_MODEL=gpt-4o-mini-tts       # Modelo para síntesis de voz
 OPENAI_STT_MODEL=gpt-4o-mini-transcribe # Modelo para transcripción
 
 # --- Configuración avanzada ---
-APP_LOG_LEVEL=debug                    # error|warn|info|debug|trace
-DISABLE_DEBUG_JSON_LOGS=0             # 1 para deshabilitar logs debug JSON
+DEBUG_MODE=full                       # full|basic|minimal|off (controla logs, JSON debug, y opciones UI)
 SUMMARY_BLOCK_SIZE=32                 # Mensajes por bloque de resumen
 APP_NAME=AI-チャン                     # Nombre de la aplicación
 ```

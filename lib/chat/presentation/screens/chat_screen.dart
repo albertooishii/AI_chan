@@ -706,40 +706,44 @@ class _ChatScreenState extends State<ChatScreen> {
                 text: 'Copia de seguridad en Google Drive',
               ),
               const PopupMenuDivider(),
-              // Debug: Vista previa JSON
+              // Opciones de debug - solo mostrar si DEBUG_MODE != 'off'
+              if (Log.showDebugOptions) ...[
+                // Debug: Vista previa JSON
+                _buildMenuItem(
+                  value: 'export_json',
+                  icon: Icons.code,
+                  text: 'Vista previa JSON (debug)',
+                  color: Colors.redAccent,
+                ),
+                // Debug: regenerar apariencia
+                _buildMenuItem(
+                  value: 'regenAppearance',
+                  icon: Icons.refresh,
+                  text: 'Regenerar apariencia IA (debug)',
+                  color: Colors.redAccent,
+                ),
+                // Debug: añadir un nuevo avatar (añade al array de avatars)
+                _buildMenuItem(
+                  value: 'add_new_avatar',
+                  icon: Icons.add_a_photo,
+                  text: 'Añadir un nuevo avatar (debug)',
+                  color: Colors.redAccent,
+                ),
+                // Diagnóstico completo de backup y autenticación Google
+                _buildMenuItem(
+                  value: 'backup_diagnostics',
+                  icon: Icons.health_and_safety,
+                  text: 'Diagnóstico Google Drive',
+                  color: Colors.orangeAccent,
+                ),
+                const PopupMenuDivider(),
+              ],
+              // Cerrar sesión - siempre visible, al final del menú
               _buildMenuItem(
-                value: 'export_json',
-                icon: Icons.code,
-                text: 'Vista previa JSON (debug)',
+                value: 'logout',
+                icon: Icons.logout,
+                text: 'Cerrar sesión',
                 color: Colors.redAccent,
-              ),
-              // Debug: regenerar apariencia
-              _buildMenuItem(
-                value: 'regenAppearance',
-                icon: Icons.refresh,
-                text: 'Regenerar apariencia IA (debug)',
-                color: Colors.redAccent,
-              ),
-              // Debug: añadir un nuevo avatar (añade al array de avatars)
-              _buildMenuItem(
-                value: 'add_new_avatar',
-                icon: Icons.add_a_photo,
-                text: 'Añadir un nuevo avatar (debug)',
-                color: Colors.redAccent,
-              ),
-              // Debug: borrar todo (debug) - reintroducido solo en ChatScreen
-              _buildMenuItem(
-                value: 'clear_debug',
-                icon: Icons.delete_forever,
-                text: 'Borrar todo (debug)',
-                color: Colors.redAccent,
-              ),
-              // Diagnóstico completo de backup y autenticación Google
-              _buildMenuItem(
-                value: 'backup_diagnostics',
-                icon: Icons.health_and_safety,
-                text: 'Diagnóstico Google Drive',
-                color: Colors.orangeAccent,
               ),
               // Debug options removed: import chat and clear all not applicable in release flows
             ],
@@ -847,18 +851,18 @@ class _ChatScreenState extends State<ChatScreen> {
                     setState(() => _isRegeneratingAppearance = false);
                   }
                 }
-              } else if (value == 'clear_debug') {
+              } else if (value == 'logout') {
                 final navCtx = navigatorKey.currentContext;
                 if (navCtx == null) return;
                 final confirm = await showAppDialog<bool>(
                   builder: (ctx) => AlertDialog(
                     backgroundColor: Colors.black,
                     title: const Text(
-                      'Borrar todo (debug)',
+                      'Cerrar sesión',
                       style: TextStyle(color: Colors.redAccent),
                     ),
                     content: const Text(
-                      '¿Seguro que quieres borrar absolutamente todos los datos de la app? Esta acción no se puede deshacer.',
+                      '¿Seguro que quieres cerrar sesión? Se borrarán todos los datos de la app incluyendo conversaciones, configuraciones y credenciales guardadas.\n\nEsta acción no se puede deshacer.',
                       style: TextStyle(color: AppColors.primary),
                     ),
                     actions: [
@@ -871,7 +875,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       TextButton(
                         child: const Text(
-                          'Borrar todo (debug)',
+                          'Cerrar sesión',
                           style: TextStyle(color: Colors.redAccent),
                         ),
                         onPressed: () => Navigator.of(navCtx).pop(true),

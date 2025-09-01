@@ -611,16 +611,60 @@ class GoogleBackupService {
     }
   }
 
-  /// Attempt to refresh stored credentials using config client id/secret.
+  /// Attempt to refresh stored credentials using the original client id/secret
+  /// that was used to obtain the tokens, ensuring consistency.
   /// Returns the refreshed token map on success.
   Future<Map<String, dynamic>> _attemptRefreshUsingConfig() async {
     try {
-      // Resolve client id/secret from config for current platform.
-      final clientId = await GoogleBackupService.resolveClientId('');
-      final clientSecret = await GoogleBackupService.resolveClientSecret();
+      // First try to use the original client_id that was stored with the credentials
+      final storedCreds = await _loadCredentialsSecure();
+      String clientId = '';
+      String? clientSecret;
+
+      if (storedCreds != null &&
+          storedCreds.containsKey('_original_client_id')) {
+        // Use the exact same client_id that was used to obtain the original token
+        clientId = storedCreds['_original_client_id'] as String? ?? '';
+        Log.d(
+          'GoogleBackupService._attemptRefreshUsingConfig: using stored original clientId length=${clientId.length}',
+          tag: 'GoogleBackup',
+        );
+
+        // Determine client secret based on the original client ID pattern
+        if (clientId.contains('android')) {
+          clientSecret = await GoogleBackupService.resolveClientSecretFor(
+            'android',
+          );
+        } else if (clientId.contains('ios')) {
+          clientSecret = await GoogleBackupService.resolveClientSecretFor(
+            'ios',
+          );
+        } else if (clientId.contains('desktop')) {
+          clientSecret = await GoogleBackupService.resolveClientSecretFor(
+            'desktop',
+          );
+        } else {
+          // Assume web/general client
+          clientSecret = await GoogleBackupService.resolveClientSecretFor(
+            'web',
+          );
+        }
+      }
+
+      // Fallback: resolve client id/secret from config for current platform if no original stored
+      if (clientId.isEmpty) {
+        Log.d(
+          'GoogleBackupService._attemptRefreshUsingConfig: no original client_id found, falling back to platform-based resolution',
+          tag: 'GoogleBackup',
+        );
+        clientId = await GoogleBackupService.resolveClientId('');
+        clientSecret = await GoogleBackupService.resolveClientSecret();
+      }
+
       if (clientId.isEmpty) {
         throw StateError('No client id configured for token refresh');
       }
+
       Log.d(
         'GoogleBackupService._attemptRefreshUsingConfig: attempting refresh with clientId length=${clientId.length}',
         tag: 'GoogleBackup',
@@ -695,10 +739,10 @@ class GoogleBackupService {
       } catch (e) {
         rethrow;
       }
-      // persist and return like before
-      await _persistCredentialsSecure(tokenMap);
+      // persist and return like before, storing the clientId for future refresh operations
+      await _persistCredentialsSecure(tokenMap, originalClientId: clientId);
       Log.d(
-        'GoogleBackupService: AppAuth credentials persisted securely',
+        'GoogleBackupService: AppAuth credentials persisted securely with original clientId',
         tag: 'GoogleBackup',
       );
       return tokenMap;
@@ -893,7 +937,24 @@ class GoogleBackupService {
           signInAdapterOverride: signInAdapterOverride,
         );
         if (tokenMap['access_token'] != null) {
-          await _persistCredentialsSecure(tokenMap);
+          // For mobile platforms, determine the appropriate client ID based on platform
+          String? originalClientId;
+          try {
+            if (!kIsWeb && Platform.isAndroid) {
+              originalClientId = await GoogleBackupService.resolveClientIdFor(
+                'android',
+              );
+            } else if (!kIsWeb && Platform.isIOS) {
+              originalClientId = await GoogleBackupService.resolveClientIdFor(
+                'ios',
+              );
+            }
+          } catch (_) {}
+
+          await _persistCredentialsSecure(
+            tokenMap,
+            originalClientId: originalClientId,
+          );
           // Ensure any awaiters on the inflight completer get the result and
           // the completer is cleared so future flows can start immediately.
           try {
@@ -946,7 +1007,10 @@ class GoogleBackupService {
             scopes: usedScopes,
           );
           if (tokenMap['access_token'] != null) {
-            await _persistCredentialsSecure(tokenMap);
+            await _persistCredentialsSecure(
+              tokenMap,
+              originalClientId: desktopCid,
+            );
             try {
               _inflightLinkCompleter?.complete(tokenMap);
             } catch (_) {}
@@ -975,7 +1039,7 @@ class GoogleBackupService {
         scopes: usedScopes,
       );
       if (tokenMap['access_token'] != null) {
-        await _persistCredentialsSecure(tokenMap);
+        await _persistCredentialsSecure(tokenMap, originalClientId: cid);
         _inflightLinkCompleter?.complete(tokenMap);
         _inflightLinkCompleter = null;
         return tokenMap;
@@ -1022,13 +1086,31 @@ class GoogleBackupService {
   }
 
   // --- Simple credential persistence (for desktop/dev). In production use secure storage. ---
-  Future<void> _persistCredentialsSecure(Map<String, dynamic> data) async {
+  Future<void> _persistCredentialsSecure(
+    Map<String, dynamic> data, {
+    String? originalClientId,
+  }) async {
     try {
       // Add a persisted timestamp so callers can decide when to attempt
       // a silent refresh based on token age.
       final merged = <String, dynamic>{};
       merged.addAll(data);
       merged['_persisted_at_ms'] = DateTime.now().millisecondsSinceEpoch;
+
+      // Store the original client_id used to obtain these credentials
+      // so we can use the same one for refresh operations
+      if (originalClientId != null && originalClientId.isNotEmpty) {
+        merged['_original_client_id'] = originalClientId;
+      } else {
+        // Preserve existing original_client_id if we're just updating tokens
+        try {
+          final existing = await _loadCredentialsSecure();
+          if (existing != null && existing.containsKey('_original_client_id')) {
+            merged['_original_client_id'] = existing['_original_client_id'];
+          }
+        } catch (_) {}
+      }
+
       await _secureStorage.write(
         key: 'google_credentials',
         value: jsonEncode(merged),
@@ -1042,8 +1124,10 @@ class GoogleBackupService {
             (merged['refresh_token'] as String?)?.isNotEmpty == true;
         final scope = (merged['scope'] as String?) ?? '';
         final persistedAt = merged['_persisted_at_ms'] ?? 0;
+        final originalClientId =
+            (merged['_original_client_id'] as String?) ?? '';
         Log.d(
-          'GoogleBackupService: persisted credentials. access_token? $hasAccess refresh_token? $hasRefresh scopes="$scope" persisted_at=$persistedAt',
+          'GoogleBackupService: persisted credentials. access_token? $hasAccess refresh_token? $hasRefresh scopes="$scope" persisted_at=$persistedAt original_client_id_length=${originalClientId.length}',
           tag: 'GoogleBackup',
         );
       } catch (_) {}
@@ -1066,8 +1150,9 @@ class GoogleBackupService {
         final hasRefresh =
             (map['refresh_token'] as String?)?.isNotEmpty == true;
         final scope = (map['scope'] as String?) ?? '';
+        final originalClientId = (map['_original_client_id'] as String?) ?? '';
         Log.d(
-          'GoogleBackupService: loaded stored credentials. access_token? $hasAccess refresh_token? $hasRefresh scopes="$scope"',
+          'GoogleBackupService: loaded stored credentials. access_token? $hasAccess refresh_token? $hasRefresh scopes="$scope" original_client_id_length=${originalClientId.length}',
           tag: 'GoogleBackup',
         );
       } catch (_) {}
@@ -1102,6 +1187,8 @@ class GoogleBackupService {
       'scopes': '',
       'persisted_at': null,
       'age_hours': null,
+      'original_client_id': null,
+      'original_client_id_length': 0,
     };
 
     if (creds != null) {
@@ -1112,6 +1199,12 @@ class GoogleBackupService {
       result['has_id_token'] =
           (creds['id_token'] as String?)?.isNotEmpty == true;
       result['scopes'] = (creds['scope'] as String?) ?? '';
+
+      final originalClientId = (creds['_original_client_id'] as String?) ?? '';
+      result['original_client_id'] = originalClientId.isEmpty
+          ? null
+          : '${originalClientId.substring(0, 10)}...${originalClientId.substring(originalClientId.length - 10)}';
+      result['original_client_id_length'] = originalClientId.length;
 
       final persistedAtMs = (creds['_persisted_at_ms'] as int?) ?? 0;
       if (persistedAtMs > 0) {
@@ -1203,7 +1296,22 @@ class GoogleBackupService {
                   'GoogleBackupService: silent sign-in successful, persisting tokens',
                   tag: 'GoogleBackup',
                 );
-                await _persistCredentialsSecure(silentTokens);
+                // For silent sign-in, determine appropriate client ID based on platform
+                String? originalClientId;
+                try {
+                  if (!kIsWeb && Platform.isAndroid) {
+                    originalClientId =
+                        await GoogleBackupService.resolveClientIdFor('android');
+                  } else if (!kIsWeb && Platform.isIOS) {
+                    originalClientId =
+                        await GoogleBackupService.resolveClientIdFor('ios');
+                  }
+                } catch (_) {}
+
+                await _persistCredentialsSecure(
+                  silentTokens,
+                  originalClientId: originalClientId,
+                );
                 token = silentTokens['access_token'] as String?;
               } else {
                 Log.d(
@@ -1239,6 +1347,20 @@ class GoogleBackupService {
       tag: 'GoogleBackup',
     );
     return token;
+  }
+
+  /// Loads stored access token WITHOUT any refresh attempts - for diagnostics only.
+  /// This method is completely passive and never triggers OAuth flows.
+  Future<String?> loadStoredAccessTokenPassive() async {
+    try {
+      const storage = FlutterSecureStorage();
+      final credsStr = await storage.read(key: 'google_credentials');
+      if (credsStr != null && credsStr.isNotEmpty) {
+        final creds = jsonDecode(credsStr);
+        return creds['access_token'] as String?;
+      }
+    } catch (_) {}
+    return null;
   }
 
   /// Check the current Google OAuth consent status for Drive API access

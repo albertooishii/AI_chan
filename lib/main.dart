@@ -27,6 +27,7 @@ final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Config.initialize();
+
   // Initialize Firebase early so adapters using FirebaseAuth can work.
   // Use the helper that tries native init first and falls back to parsing
   // google-services.json when necessary. Retry a few times to surface

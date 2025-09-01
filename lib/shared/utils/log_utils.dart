@@ -7,27 +7,24 @@ import 'dart:developer' as dev;
 enum LogLevel { error, warn, info, debug, trace }
 
 class Log {
-  // Solo APP_LOG_LEVEL controla el nivel de log. APP_DEBUG_LOGS ya no tiene efecto.
+  // DEBUG_MODE controla tanto el nivel de log como otras opciones de debug
   static LogLevel get _configuredLevel {
     String? raw;
     try {
-      raw = Config.get('APP_LOG_LEVEL', '').toLowerCase().trim();
+      raw = Config.get('DEBUG_MODE', '').toLowerCase().trim();
       if (raw.isEmpty) raw = null;
     } catch (_) {
       raw = null;
     }
     switch (raw) {
-      case 'error':
-        return LogLevel.error;
-      case 'warn':
-      case 'warning':
-        return LogLevel.warn;
-      case 'info':
-        return LogLevel.info;
-      case 'trace':
-        return LogLevel.trace;
-      case 'debug':
+      case 'full':
         return LogLevel.debug;
+      case 'basic':
+        return LogLevel.info;
+      case 'minimal':
+        return LogLevel.warn;
+      case 'off':
+        return LogLevel.error;
       default:
         // Si no se define: en debug -> debug, en release -> warn
         return kDebugMode ? LogLevel.debug : LogLevel.warn;
@@ -40,6 +37,21 @@ class Log {
     // Siempre permitir errores (aunque se esté en producción)
     final configured = _configuredLevel;
     return _levelIndex(level) <= _levelIndex(configured);
+  }
+
+  // Helper para que otros módulos puedan consultar el modo debug
+  static String get debugMode {
+    try {
+      return Config.get('DEBUG_MODE', '').toLowerCase().trim();
+    } catch (_) {
+      return kDebugMode ? 'full' : 'basic';
+    }
+  }
+
+  // Helper para verificar si las opciones de debug deben mostrarse en UI
+  static bool get showDebugOptions {
+    final mode = debugMode;
+    return mode != 'off';
   }
 
   static void _out(LogLevel level, String tag, String message) {

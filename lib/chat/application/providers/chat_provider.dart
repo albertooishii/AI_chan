@@ -5,6 +5,7 @@ import 'package:ai_chan/shared/utils/audio_duration_utils.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/config.dart';
@@ -1633,11 +1634,18 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       // Add a small delay to ensure credentials are fully initialized
       await Future.delayed(const Duration(milliseconds: 500));
 
-      // Double-check that we actually have valid credentials
-      final tokenLoader = GoogleBackupService(accessToken: null);
-      final storedToken = await tokenLoader.loadStoredAccessToken();
+      // Double-check that we actually have valid credentials using passive method
+      final storage = const FlutterSecureStorage();
+      final credsStr = await storage.read(key: 'google_credentials');
+      bool hasValidToken = false;
+      String? storedToken;
+      if (credsStr != null && credsStr.isNotEmpty) {
+        final creds = jsonDecode(credsStr);
+        storedToken = creds['access_token'] as String?;
+        hasValidToken = storedToken != null && storedToken.isNotEmpty;
+      }
 
-      if (storedToken == null || storedToken.isEmpty) {
+      if (!hasValidToken) {
         Log.w(
           'Auto-backup: googleLinked=true but no valid token found during loadAll ($branchName). Skipping backup.',
           tag: 'BACKUP_AUTO',
@@ -1682,7 +1690,7 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
 
       if (shouldBackup) {
         Log.d(
-          'Auto-backup: trigger scheduled (loadAll $branchName) - $reason, messages=${messages.length}, tokenAvailable=${storedToken.isNotEmpty}',
+          'Auto-backup: trigger scheduled (loadAll $branchName) - $reason, messages=${messages.length}, tokenAvailable=${storedToken?.isNotEmpty ?? false}',
           tag: 'BACKUP_AUTO',
         );
         await _maybeTriggerAutoBackup();
@@ -2048,11 +2056,17 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
             // Add a small delay to ensure credentials are fully saved and available
             await Future.delayed(const Duration(seconds: 1));
 
-            // Verify that credentials are actually available
-            final tokenLoader = GoogleBackupService(accessToken: null);
-            final storedToken = await tokenLoader.loadStoredAccessToken();
+            // Verify that credentials are actually available using passive method
+            final storage = const FlutterSecureStorage();
+            final credsStr = await storage.read(key: 'google_credentials');
+            bool hasValidToken = false;
+            if (credsStr != null && credsStr.isNotEmpty) {
+              final creds = jsonDecode(credsStr);
+              final accessToken = creds['access_token'] as String?;
+              hasValidToken = accessToken != null && accessToken.isNotEmpty;
+            }
 
-            if (storedToken == null || storedToken.isEmpty) {
+            if (!hasValidToken) {
               Log.w(
                 'Auto-backup: account linked but no valid token available yet. Will retry on next app load.',
                 tag: 'BACKUP_AUTO',
@@ -2076,7 +2090,7 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
                   ? Duration(milliseconds: nowMs - lastMs)
                   : null;
               Log.d(
-                'Auto-backup: trigger scheduled (updateGoogleAccountInfo) - reason: ${lastMs == null ? 'never backed up' : 'account re-linked after ${timeSince!.inMinutes}m'} tokenAvailable=${storedToken.isNotEmpty}',
+                'Auto-backup: trigger scheduled (updateGoogleAccountInfo) - reason: ${lastMs == null ? 'never backed up' : 'account re-linked after ${timeSince!.inMinutes}m'} tokenAvailable=$hasValidToken',
                 tag: 'BACKUP_AUTO',
               );
               await _maybeTriggerAutoBackup();
@@ -2124,12 +2138,20 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     }
 
     try {
-      // Check actual token availability
-      final tokenLoader = GoogleBackupService(accessToken: null);
-      final storedToken = await tokenLoader.loadStoredAccessToken();
-      diagnosis['hasValidToken'] =
-          storedToken != null && storedToken.isNotEmpty;
-      diagnosis['tokenLength'] = storedToken?.length ?? 0;
+      // Check actual token availability using passive method
+      final storage = const FlutterSecureStorage();
+      final credsStr = await storage.read(key: 'google_credentials');
+      bool hasValidToken = false;
+      int tokenLength = 0;
+      if (credsStr != null && credsStr.isNotEmpty) {
+        final creds = jsonDecode(credsStr);
+        final accessToken = creds['access_token'] as String?;
+        hasValidToken = accessToken != null && accessToken.isNotEmpty;
+        tokenLength = accessToken?.length ?? 0;
+      }
+
+      diagnosis['hasValidToken'] = hasValidToken;
+      diagnosis['tokenLength'] = tokenLength;
     } catch (e) {
       diagnosis['tokenCheckError'] = e.toString();
     }
@@ -2418,10 +2440,19 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       final prefsLinked = g['linked'] as bool? ?? false;
       if (prefsLinked) {
         // Verify that we actually have valid tokens before marking as linked
+        // Use passive check that doesn't trigger OAuth flows
         try {
-          final tokenLoader = GoogleBackupService(accessToken: null);
-          final storedToken = await tokenLoader.loadStoredAccessToken();
-          googleLinked = storedToken != null && storedToken.isNotEmpty;
+          // Read stored credentials directly without triggering OAuth
+          final storage = const FlutterSecureStorage();
+          final credsStr = await storage.read(key: 'google_credentials');
+          bool hasValidToken = false;
+          if (credsStr != null && credsStr.isNotEmpty) {
+            final creds = jsonDecode(credsStr);
+            final accessToken = creds['access_token'] as String?;
+            hasValidToken = accessToken != null && accessToken.isNotEmpty;
+          }
+
+          googleLinked = hasValidToken;
 
           if (!googleLinked && prefsLinked) {
             Log.w(

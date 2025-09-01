@@ -145,7 +145,7 @@ class Config {
 DEFAULT_TEXT_MODEL=gemini-2.5-flash
 DEFAULT_IMAGE_MODEL=gpt-4.1-mini
 GOOGLE_REALTIME_MODEL=gemini-2.5-flash
-APP_LOG_LEVEL=trace
+DEBUG_MODE=full
 SUMMARY_BLOCK_SIZE=32
 ''';
       final tmp = await _writeTempEnv(defaultContents);

@@ -105,9 +105,7 @@ echo ""
 echo "📁 Using OS default directories for images/audio/cache. No path overrides will be written to .env."
 
 # Set non-path defaults
-set_key "APP_LOG_LEVEL" "debug"
-# Whether to disable structured debug JSON logs (1 = disable, 0 = allow)
-set_key "DISABLE_DEBUG_JSON_LOGS" "1"
+set_key "DEBUG_MODE" "basic"
 # Preferred audio format for storage and STT fallbacks
 set_key "PREFERRED_AUDIO_FORMAT" "mp3"
 # Application name (do not prompt; use default)

@@ -107,10 +107,10 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
       buffer.writeln('   - Name: ${googleInfo['name'] ?? 'No configurado'}');
       buffer.writeln('   - Linked: ${googleInfo['linked'] ?? false}');
 
-      // 3. Verificar token
+      // 3. Verificar token usando método pasivo para evitar activar OAuth
       buffer.writeln('\n3. Token de acceso:');
       final service = GoogleBackupService(accessToken: null);
-      final token = await service.loadStoredAccessToken();
+      final token = await service.loadStoredAccessTokenPassive();
       final hasToken = token != null && token.isNotEmpty;
       buffer.writeln('   - Token presente: $hasToken');
       if (hasToken) {
