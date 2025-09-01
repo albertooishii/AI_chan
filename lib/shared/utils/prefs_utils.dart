@@ -10,13 +10,16 @@ class PrefsUtils {
   static const kChatHistory = 'chat_history';
   static const kEvents = 'events';
   static const kChatFullExport = 'chat_full_export';
-  static const kVoiceCalls = 'voice_calls';
+  static const kVoiceCalls = 'calls'; // Renombrado de voice_calls a calls
 
   // --- Dynamic key factories ---
-  static String voiceMessagesKey(String callId) => 'voice_messages_$callId';
-  static String voiceCallKey(String callId) => 'voice_call_$callId';
-  static String selectedVoiceKeyForProvider(String provider) =>
-      'selected_voice_${provider.toLowerCase()}';
+  static String callMessagesKey(String callId) => 'call_messages_$callId'; // Renombrado
+  static String callKey(String callId) => 'call_$callId'; // Renombrado
+
+  // Mantener compatibilidad hacia atrás temporalmente
+  static String voiceMessagesKey(String callId) => callMessagesKey(callId);
+  static String voiceCallKey(String callId) => callKey(callId);
+  static String selectedVoiceKeyForProvider(String provider) => 'selected_voice_${provider.toLowerCase()}';
 
   /// Ensure default values for audio provider and model keys exist.
   static Future<void> ensureDefaults() async {
@@ -43,9 +46,7 @@ class PrefsUtils {
         }
       }
 
-      final provider =
-          prefs.getString('selected_audio_provider') ??
-          Config.getAudioProvider().toLowerCase();
+      final provider = prefs.getString('selected_audio_provider') ?? Config.getAudioProvider().toLowerCase();
       final providerKey = 'selected_voice_$provider';
       final providerVoice = prefs.getString(providerKey);
       if (providerVoice == null || providerVoice.isEmpty) {
@@ -117,10 +118,7 @@ class PrefsUtils {
     } catch (_) {}
   }
 
-  static Future<void> setSelectedVoiceForProvider(
-    String provider,
-    String voice,
-  ) async {
+  static Future<void> setSelectedVoiceForProvider(String provider, String voice) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final providerKey = 'selected_voice_${provider.toLowerCase()}';
@@ -160,12 +158,7 @@ class PrefsUtils {
   }
 
   // --- Google account convenience helpers ---
-  static Future<void> setGoogleAccountInfo({
-    String? email,
-    String? avatar,
-    String? name,
-    required bool linked,
-  }) async {
+  static Future<void> setGoogleAccountInfo({String? email, String? avatar, String? name, required bool linked}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (email != null) {

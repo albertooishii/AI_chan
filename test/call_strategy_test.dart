@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ai_chan/voice/infrastructure/adapters/call_strategy.dart';
+import 'package:ai_chan/call/infrastructure/adapters/call_strategy.dart';
 
 void main() {
   test('provider mapping: openai -> realtime', () {

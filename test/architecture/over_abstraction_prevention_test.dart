@@ -97,7 +97,7 @@ void main() {
 
       // Allow some interfaces to be defined but not used yet (work in progress)
       final allowedOrphans = [
-        'IRealtimeVoiceClient',
+        'IRealtimeCallClient',
       ]; // Add interfaces that are intentionally unused
       final realOrphans = orphanedInterfaces
           .where((i) => !allowedOrphans.contains(i))

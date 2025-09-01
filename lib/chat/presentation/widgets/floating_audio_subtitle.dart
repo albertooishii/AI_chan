@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:ai_chan/voice/presentation/widgets/cyberpunk_subtitle.dart';
+import 'package:ai_chan/call/presentation/widgets/cyberpunk_subtitle.dart';
 
 /// Controlador para subtítulos sincronizados con reproducción de audio.
 /// Recibe timeline opcional de palabras (startMs/endMs). Si no hay timeline

@@ -1,21 +1,21 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ai_chan/voice/infrastructure/adapters/voice_call_controller.dart';
+import 'package:ai_chan/call/infrastructure/adapters/call_controller.dart';
 import 'fakes/fake_realtime_impl.dart';
 import 'fakes/fake_voice_services.dart';
 import 'fakes/fake_audio_player.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  group('VoiceCallController basic integration with IRealtimeClient', () {
-    late VoiceCallController controller;
+  group('CallController basic integration with IRealtimeClient', () {
+    late CallController controller;
     late FakeRealtimeIClient fakeClient;
 
     setUp(() async {
-      // Use a minimal fake AI service since VoiceCallController requires an aiService in ctor
+      // Use a minimal fake AI service since CallController requires an aiService in ctor
       final fakeAi = FakeCallsAiService();
-      controller = VoiceCallController(
+      controller = CallController(
         aiService: fakeAi,
         audioPlayer: FakeAudioPlayer(),
         ringPlayer: FakeAudioPlayer(),

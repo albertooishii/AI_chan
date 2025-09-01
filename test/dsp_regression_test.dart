@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ai_chan/voice/infrastructure/adapters/voice_call_controller.dart';
+import 'package:ai_chan/call/infrastructure/adapters/call_controller.dart';
 import 'fakes/fake_voice_services.dart';
 import 'test_setup.dart';
 
@@ -10,7 +10,7 @@ void main() {
       await initializeTestEnvironment();
 
       final fakeAi = FakeCallsAiService();
-      final c = VoiceCallController(aiService: fakeAi);
+      final c = CallController(aiService: fakeAi);
 
       // Expected golden values (update these only after conscious DSP change)
       expect(c.hpCutoffHzForTest, 80.0);

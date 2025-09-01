@@ -8,7 +8,7 @@ import '../../application/providers/chat_provider.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/message_input.dart';
 import '../controllers/chat_input_controller.dart';
-import 'package:ai_chan/voice/presentation/screens/voice_call_screen.dart';
+import 'package:ai_chan/call/presentation/screens/voice_call_screen.dart';
 import '../widgets/typing_animation.dart';
 import '../widgets/expandable_image_dialog.dart';
 import 'package:ai_chan/core/models.dart';

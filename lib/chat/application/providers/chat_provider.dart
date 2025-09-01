@@ -912,7 +912,7 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     notifyListeners();
     // Delegar a TtsService para sintetizar y persistir el audio
     try {
-      final tts = ttsService ?? TtsService(audioService);
+      final tts = ttsService ?? TtsService(audioService, di.getLanguageResolver());
       final path = await tts.synthesizeAndPersist(msg.text, voice: voice);
       final idx = messages.indexOf(msg);
       if (path != null) {

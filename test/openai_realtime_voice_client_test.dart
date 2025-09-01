@@ -3,10 +3,10 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
-import 'package:ai_chan/voice/infrastructure/clients/openai_realtime_voice_client.dart';
+import 'package:ai_chan/call/infrastructure/clients/openai_realtime_call_client.dart';
 
 /// A small controllable fake that calls the provided callbacks so the
-/// OpenAIRealtimeVoiceClient can be tested without networking.
+/// OpenAIRealtimeCallClient can be tested without networking.
 class TestControlledRealtimeClient implements IRealtimeClient {
   final void Function(String)? _onText;
   final void Function(Uint8List)? _onAudio;
@@ -92,97 +92,82 @@ void main() {
     di.setTestRealtimeClientFactory(null);
   });
 
-  test(
-    'OpenAIRealtimeVoiceClient routes provider callbacks to streams and delegates calls',
-    () async {
-      TestControlledRealtimeClient? created;
+  test('OpenAIRealtimeCallClient routes provider callbacks to streams and delegates calls', () async {
+    TestControlledRealtimeClient? created;
 
-      // Install test factory to return our controllable client
-      di.setTestRealtimeClientFactory((
-        provider, {
-        model,
-        onText,
-        onAudio,
-        onCompleted,
-        onError,
-        onUserTranscription,
-      }) {
-        created = TestControlledRealtimeClient(
-          onText: onText,
-          onAudio: onAudio,
-          onCompleted: onCompleted,
-          onError: onError,
-          onUserTranscription: onUserTranscription,
-        );
-        return created!;
-      });
-
-      final client = OpenAIRealtimeVoiceClient(model: 'test-model');
-
-      await client.connect(systemPrompt: 'hello system', voice: 'sage');
-      expect(client.isConnected, true);
-
-      // Listen to streams
-      final textEvents = <String>[];
-      final audioEvents = <List<int>>[];
-      final userTrans = <String>[];
-      final completionEvents = <void>[];
-      final errors = <Object>[];
-
-      final subText = client.textStream.listen((t) => textEvents.add(t));
-      final subAudio = client.audioStream.listen((a) => audioEvents.add(a));
-      final subUser = client.userTranscriptionStream.listen(
-        (s) => userTrans.add(s),
+    // Install test factory to return our controllable client
+    di.setTestRealtimeClientFactory((provider, {model, onText, onAudio, onCompleted, onError, onUserTranscription}) {
+      created = TestControlledRealtimeClient(
+        onText: onText,
+        onAudio: onAudio,
+        onCompleted: onCompleted,
+        onError: onError,
+        onUserTranscription: onUserTranscription,
       );
-      final subComp = client.completionStream.listen(
-        (_) => completionEvents.add(null),
-      );
-      final subErr = client.errorStream.listen((e) => errors.add(e));
+      return created!;
+    });
 
-      // Trigger callbacks from the fake
-      created!.triggerText('partial');
-      created!.triggerUserTranscription('user spoken');
-      created!.triggerAudio([1, 2, 3, 4]);
-      created!.triggerCompleted();
-      created!.triggerError(Exception('test error'));
+    final client = OpenAIRealtimeCallClient(model: 'test-model');
 
-      // Allow event loop
-      await Future.delayed(const Duration(milliseconds: 50));
+    await client.connect(systemPrompt: 'hello system', voice: 'sage');
+    expect(client.isConnected, true);
 
-      expect(textEvents, contains('partial'));
-      expect(userTrans, contains('user spoken'));
-      expect(audioEvents.length, 1);
-      expect(audioEvents.first, [1, 2, 3, 4]);
-      expect(completionEvents.length, 1);
-      expect(errors.isNotEmpty, true);
+    // Listen to streams
+    final textEvents = <String>[];
+    final audioEvents = <List<int>>[];
+    final userTrans = <String>[];
+    final completionEvents = <void>[];
+    final errors = <Object>[];
 
-      // Test delegation: sendAudio should forward to underlying client
-      client.sendAudio([10, 11, 12]);
-      expect(created!.appended.length, 1);
-      expect(created!.appended.first, [10, 11, 12]);
+    final subText = client.textStream.listen((t) => textEvents.add(t));
+    final subAudio = client.audioStream.listen((a) => audioEvents.add(a));
+    final subUser = client.userTranscriptionStream.listen((s) => userTrans.add(s));
+    final subComp = client.completionStream.listen((_) => completionEvents.add(null));
+    final subErr = client.errorStream.listen((e) => errors.add(e));
 
-      // sendText delegates
-      client.sendText('hola');
-      expect(created!.sentTexts, contains('hola'));
+    // Trigger callbacks from the fake
+    created!.triggerText('partial');
+    created!.triggerUserTranscription('user spoken');
+    created!.triggerAudio([1, 2, 3, 4]);
+    created!.triggerCompleted();
+    created!.triggerError(Exception('test error'));
 
-      // requestResponse delegates
-      client.requestResponse(audio: true, text: true);
-      expect(created!.requestCalled, true);
+    // Allow event loop
+    await Future.delayed(const Duration(milliseconds: 50));
 
-      // commitPendingAudio should be called by the controller after auto-commit delay
-      client.sendAudio(List<int>.filled(9000, 1)); // exceed 8192 threshold
-      // wait longer than the scheduled commit debounce (100ms)
-      await Future.delayed(const Duration(milliseconds: 250));
-      expect(created!.commitCalled, true);
+    expect(textEvents, contains('partial'));
+    expect(userTrans, contains('user spoken'));
+    expect(audioEvents.length, 1);
+    expect(audioEvents.first, [1, 2, 3, 4]);
+    expect(completionEvents.length, 1);
+    expect(errors.isNotEmpty, true);
 
-      await subText.cancel();
-      await subAudio.cancel();
-      await subUser.cancel();
-      await subComp.cancel();
-      await subErr.cancel();
+    // Test delegation: sendAudio should forward to underlying client
+    client.sendAudio([10, 11, 12]);
+    expect(created!.appended.length, 1);
+    expect(created!.appended.first, [10, 11, 12]);
 
-      await client.disconnect();
-      expect(client.isConnected, false);
-    },
-  );
+    // sendText delegates
+    client.sendText('hola');
+    expect(created!.sentTexts, contains('hola'));
+
+    // requestResponse delegates
+    client.requestResponse(audio: true, text: true);
+    expect(created!.requestCalled, true);
+
+    // commitPendingAudio should be called by the controller after auto-commit delay
+    client.sendAudio(List<int>.filled(9000, 1)); // exceed 8192 threshold
+    // wait longer than the scheduled commit debounce (100ms)
+    await Future.delayed(const Duration(milliseconds: 250));
+    expect(created!.commitCalled, true);
+
+    await subText.cancel();
+    await subAudio.cancel();
+    await subUser.cancel();
+    await subComp.cancel();
+    await subErr.cancel();
+
+    await client.disconnect();
+    expect(client.isConnected, false);
+  });
 }

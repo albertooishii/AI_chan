@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ai_chan/voice/infrastructure/adapters/voice_call_controller.dart';
+import 'package:ai_chan/call/infrastructure/adapters/call_controller.dart';
 import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
 import '../test_setup.dart';
@@ -7,7 +7,7 @@ import '../fakes/fake_voice_services.dart';
 import '../fakes/fake_audio_player.dart';
 
 /// A minimal fake realtime client that emulates the buffered (Gemini/Google)
-/// orchestrator behavior used by the VoiceCallController in buffered mode.
+/// orchestrator behavior used by the CallController in buffered mode.
 class _FakeBufferedClient implements IRealtimeClient {
   bool connected = false;
   bool commitCalled = false;
@@ -71,7 +71,7 @@ void main() {
 
     test('VAD commit triggers STT and user transcription callback', () async {
       // Install a DI factory that returns our fake buffered client wired to
-      // the callbacks VoiceCallController expects
+      // the callbacks CallController expects
       di.setTestRealtimeClientFactory((
         provider, {
         model,
@@ -86,7 +86,7 @@ void main() {
 
       final fakeAi = FakeCallsAiService();
       final fakePlayer = FakeAudioPlayer();
-      final controller = VoiceCallController(
+      final controller = CallController(
         aiService: fakeAi,
         audioPlayer: fakePlayer,
         ringPlayer: fakePlayer,

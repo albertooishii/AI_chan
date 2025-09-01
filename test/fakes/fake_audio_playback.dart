@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:ai_chan/voice/infrastructure/audio/audio_playback.dart';
+import 'package:ai_chan/call/infrastructure/audio/audio_playback.dart';
 
 /// Minimal fake AudioPlayback for tests: no native plugins, simple streams.
 class FakeAudioPlayback implements AudioPlayback {
