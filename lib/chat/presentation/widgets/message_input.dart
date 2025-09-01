@@ -206,7 +206,7 @@ class _MessageInputState extends State<MessageInput> {
 
     // Delegate sending to injected controller (parent created it and wired to provider)
     AiImage? imageToSend;
-    String? imageMimeType = _attachedImageMime;
+    final String? imageMimeType = _attachedImageMime;
     if (hasImage) {
       final savedPath = await saveBase64ImageToFile(_attachedImageBase64!, prefix: 'img_user');
       if (savedPath != null) {
@@ -264,7 +264,7 @@ class _MessageInputState extends State<MessageInput> {
                         child: Image.file(_attachedImage!, width: 56, height: 56, fit: BoxFit.cover),
                       ),
                       const SizedBox(width: 10),
-                      Expanded(
+                      const Expanded(
                         child: Text(
                           'Imagen adjunta',
                           style: TextStyle(color: AppColors.secondary, fontSize: 14),
@@ -323,19 +323,19 @@ class _MessageInputState extends State<MessageInput> {
               // usando Visibility(visible: false) alrededor de la búsqueda dentro
               // del propio paquete (no accesible aquí) o actualizar el paquete.
               data: Theme.of(context).copyWith(
-                inputDecorationTheme: InputDecorationTheme(
+                inputDecorationTheme: const InputDecorationTheme(
                   filled: true,
                   fillColor: Colors.black,
-                  hintStyle: const TextStyle(color: AppColors.secondary),
+                  hintStyle: TextStyle(color: AppColors.secondary),
                   border: OutlineInputBorder(borderSide: BorderSide.none),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 ),
                 // Forzar tema para la barra de categorías (selector de tipo de emoji)
-                bottomNavigationBarTheme: BottomNavigationBarThemeData(
+                bottomNavigationBarTheme: const BottomNavigationBarThemeData(
                   backgroundColor: Colors.black,
-                  selectedIconTheme: const IconThemeData(color: Colors.white),
+                  selectedIconTheme: IconThemeData(color: Colors.white),
                   unselectedIconTheme: IconThemeData(color: AppColors.secondary),
-                  selectedLabelStyle: const TextStyle(color: Colors.white),
+                  selectedLabelStyle: TextStyle(color: Colors.white),
                   unselectedLabelStyle: TextStyle(color: AppColors.secondary),
                 ),
                 primaryColor: AppColors.secondary,
@@ -359,19 +359,9 @@ class _MessageInputState extends State<MessageInput> {
                     },
                     config: Config(
                       height: 280,
-                      checkPlatformCompatibility: true,
-                      // Restauramos la configuración original (incluye categoryBar)
-                      // y usamos una sobreposición negra para ocultar visualmente la
-                      // barra de categorías; esto evita fallos si la versión del
-                      // paquete requiere valores únicos en ViewOrderConfig.
-                      viewOrderConfig: ViewOrderConfig(
-                        top: EmojiPickerItem.categoryBar,
-                        middle: EmojiPickerItem.emojiView,
-                      ),
-                      emojiViewConfig: EmojiViewConfig(
-                        emojiSizeMax: 28,
+                      emojiViewConfig: const EmojiViewConfig(
                         backgroundColor: Colors.black, // negro app
-                        gridPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                        gridPadding: EdgeInsets.symmetric(horizontal: 2, vertical: 2),
                         recentsLimit: 24,
                       ),
                       categoryViewConfig: CategoryViewConfig(
@@ -382,10 +372,9 @@ class _MessageInputState extends State<MessageInput> {
                         backgroundColor: Colors.black, // negro barra
                         recentTabBehavior: _hasRecentEmojis ? RecentTabBehavior.RECENT : RecentTabBehavior.NONE,
                       ),
-                      skinToneConfig: SkinToneConfig(
+                      skinToneConfig: const SkinToneConfig(
                         dialogBackgroundColor: Colors.black,
                         indicatorColor: AppColors.secondary,
-                        enabled: true,
                       ),
                     ),
                   ),
@@ -457,7 +446,6 @@ class _RecordingOrTextBar extends StatelessWidget {
   Widget _buildInputRow() {
     final textField = _buildTextField();
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(child: textField),
         const SizedBox(width: 6),
@@ -475,11 +463,11 @@ class _RecordingOrTextBar extends StatelessWidget {
         hintText: 'Escribe tu mensaje...${attachedImage != null ? ' (opcional)' : ''}',
         hintStyle: const TextStyle(color: AppColors.secondary),
         enabledBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: AppColors.secondary),
+          borderSide: const BorderSide(color: AppColors.secondary),
           borderRadius: BorderRadius.circular(12),
         ),
         focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: AppColors.primary, width: 2),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
           borderRadius: BorderRadius.circular(12),
         ),
         filled: true,
@@ -645,7 +633,6 @@ class _RecordingOrTextBar extends StatelessWidget {
           if (count <= 1) {
             final v = count == 1 ? display.first : 0;
             return Align(
-              alignment: Alignment.center,
               child: SizedBox(
                 width: barWidth,
                 child: AnimatedContainer(
@@ -678,7 +665,7 @@ class _RecordingOrTextBar extends StatelessWidget {
                   ),
                 );
               }
-              return SizedBox(width: gap);
+              return const SizedBox(width: gap);
             }),
           );
         },
@@ -689,9 +676,9 @@ class _RecordingOrTextBar extends StatelessWidget {
   /// Crea el wrapper Shortcuts/Actions común para TextField con envío y nueva línea
   Widget _wrapWithKeyboardShortcuts(Widget textField) {
     return Shortcuts(
-      shortcuts: <ShortcutActivator, Intent>{
-        const SingleActivator(LogicalKeyboardKey.enter): const SendMessageIntent(),
-        const SingleActivator(LogicalKeyboardKey.enter, shift: true): const InsertNewlineIntent(),
+      shortcuts: const <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.enter): SendMessageIntent(),
+        SingleActivator(LogicalKeyboardKey.enter, shift: true): InsertNewlineIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{

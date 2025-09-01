@@ -122,8 +122,6 @@ class _AudioMessagePlayerWithSubsState extends State<AudioMessagePlayerWithSubs>
                   controller: _subsCtrl,
                   alignment: Alignment.center,
                   maxWidth: maxWidth,
-                  glassBackground: true,
-                  useKatakana: false,
                   style: const TextStyle(
                     color: Colors.cyanAccent,
                     fontSize: 16,

@@ -25,12 +25,11 @@ void main() {
       final profile = AiChanProfile(
         userName: 'u',
         aiName: 'ai',
-        userBirthday: DateTime(2000, 1, 1),
-        aiBirthday: DateTime(2000, 1, 1),
+        userBirthday: DateTime(2000),
+        aiBirthday: DateTime(2000),
         biography: {},
         appearance: {},
         timeline: [],
-        avatars: null,
       );
       final systemPrompt = SystemPrompt(
         profile: profile,
@@ -71,12 +70,11 @@ void main() {
       final profile = AiChanProfile(
         userName: 'u',
         aiName: 'ai',
-        userBirthday: DateTime(2000, 1, 1),
-        aiBirthday: DateTime(2000, 1, 1),
+        userBirthday: DateTime(2000),
+        aiBirthday: DateTime(2000),
         biography: {},
         appearance: {},
         timeline: [],
-        avatars: null,
       );
       final systemPrompt = SystemPrompt(
         profile: profile,
@@ -118,12 +116,11 @@ void main() {
       final profile2 = AiChanProfile(
         userName: 'u',
         aiName: 'ai',
-        userBirthday: DateTime(2000, 1, 1),
-        aiBirthday: DateTime(2000, 1, 1),
+        userBirthday: DateTime(2000),
+        aiBirthday: DateTime(2000),
         biography: {},
         appearance: {},
         timeline: [],
-        avatars: null,
       );
       final systemPrompt2 = SystemPrompt(
         profile: profile2,

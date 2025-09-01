@@ -95,7 +95,6 @@ class GoogleSpeechService {
           text: text,
           voice: voiceName,
           languageCode: languageCode,
-          provider: 'google',
           speakingRate: speakingRate,
           pitch: pitch,
           extension: ext,
@@ -168,7 +167,6 @@ class GoogleSpeechService {
                       text: text,
                       voice: voiceName,
                       languageCode: languageCode,
-                      provider: 'google',
                       speakingRate: speakingRate,
                       pitch: pitch,
                       extension: 'm4a',
@@ -196,7 +194,6 @@ class GoogleSpeechService {
                 text: text,
                 voice: voiceName,
                 languageCode: languageCode,
-                provider: 'google',
                 speakingRate: speakingRate,
                 pitch: pitch,
                 extension: ext,
@@ -271,7 +268,6 @@ class GoogleSpeechService {
           text: text,
           voice: voiceName,
           languageCode: languageCode,
-          provider: 'google',
           speakingRate: speakingRate,
           pitch: pitch,
           extension: audioEncoding.toLowerCase().contains('wav')
@@ -673,7 +669,7 @@ class GoogleSpeechService {
       final url = Uri.parse(
         'https://texttospeech.googleapis.com/v1/voices?key=$_apiKey',
       );
-      final resp = await http.get(url).timeout(Duration(seconds: 30));
+      final resp = await http.get(url).timeout(const Duration(seconds: 30));
       _maybeDebugPrint(
         '[GoogleTTS] Respuesta HTTP recibida: ${resp.statusCode}',
       );
@@ -686,7 +682,6 @@ class GoogleSpeechService {
         // Si hay error, intentar usar caché como fallback
         final fallbackVoices = await CacheService.getCachedVoices(
           provider: 'google',
-          forceRefresh: false,
         );
         if (fallbackVoices != null) {
           _maybeDebugPrint(
@@ -734,7 +729,6 @@ class GoogleSpeechService {
       // Intentar caché como último recurso
       final fallbackVoices = await CacheService.getCachedVoices(
         provider: 'google',
-        forceRefresh: false,
       );
       if (fallbackVoices != null) {
         _maybeDebugPrint(
@@ -772,7 +766,7 @@ class GoogleSpeechService {
       }
     }
 
-    List<Map<String, dynamic>> filtered = [];
+    final List<Map<String, dynamic>> filtered = [];
 
     for (final v in all) {
       final languageCodes = (v['languageCodes'] as List<dynamic>)

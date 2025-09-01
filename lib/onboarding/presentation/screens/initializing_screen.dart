@@ -15,24 +15,24 @@ class InitializingScreen extends StatefulWidget {
 
 class _InitializingScreenState extends State<InitializingScreen> {
   final List<List<String>> steps = [
-    ["Iniciando sistema", "システム"],
-    ["Generando datos básicos", "ベーシック"],
-    ["Configurando país de origen", "コクセッテイ"],
-    ["Ajustando idioma", "ゲンゴ"],
-    ["Creando historia de encuentro", "ストーリー"],
-    ["Generando recuerdos", "メモリー"],
-    ["Analizando personalidad", "パーソナリティ"],
-    ["Configurando emociones", "エモーション"],
-    ["Ajustando empatía", "エンパシー"],
-    ["Configurando intereses", "インタレスト"],
-    ["Seleccionando aficiones favoritas", "アクティビティ"],
-    ["Preparando historia de vida", "ヒストリー"],
-    ["Creando historia de encuentro", "ストーリー"],
-    ["Generando apariencia física", "フィジカル"],
-    ["Seleccionando estilo de ropa", "スタイル"],
-    ["Creando avatar digital", "アバター"],
-    ["Últimos retoques", "フィニッシュ"],
-    ["Finalizando configuración", "コンフィグ"],
+    ['Iniciando sistema', 'システム'],
+    ['Generando datos básicos', 'ベーシック'],
+    ['Configurando país de origen', 'コクセッテイ'],
+    ['Ajustando idioma', 'ゲンゴ'],
+    ['Creando historia de encuentro', 'ストーリー'],
+    ['Generando recuerdos', 'メモリー'],
+    ['Analizando personalidad', 'パーソナリティ'],
+    ['Configurando emociones', 'エモーション'],
+    ['Ajustando empatía', 'エンパシー'],
+    ['Configurando intereses', 'インタレスト'],
+    ['Seleccionando aficiones favoritas', 'アクティビティ'],
+    ['Preparando historia de vida', 'ヒストリー'],
+    ['Creando historia de encuentro', 'ストーリー'],
+    ['Generando apariencia física', 'フィジカル'],
+    ['Seleccionando estilo de ropa', 'スタイル'],
+    ['Creando avatar digital', 'アバター'],
+    ['Últimos retoques', 'フィニッシュ'],
+    ['Finalizando configuración', 'コンフィグ'],
   ];
 
   int currentStep = 0;
@@ -267,7 +267,7 @@ class _InitializingScreenState extends State<InitializingScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.memory, color: AppColors.secondary, size: 64),
+            const Icon(Icons.memory, color: AppColors.secondary, size: 64),
             const SizedBox(height: 32),
             Text(
               steps[currentStep][0],
@@ -335,7 +335,7 @@ class _InitializingScreenState extends State<InitializingScreen> {
               ),
             ] else ...[
               // Spinner normal (cuando no hay fallo de avatar)
-              SizedBox(
+              const SizedBox(
                 width: 36,
                 height: 36,
                 child: CircularProgressIndicator(color: AppColors.secondary, strokeWidth: 4),

@@ -17,106 +17,106 @@ class IAAppearanceGenerator {
 
     // Bloque de formato JSON para la apariencia física
     final appearanceJsonTemplate = jsonEncode({
-      "edad_aparente": "25", // Forzar luego a 25
-      "genero": "",
-      "origen_etnico": "",
-      "altura": "",
-      "peso": "",
-      "complexion": "",
-      "color_piel": "",
-      "ojos": {
-        "color": "",
-        "forma": "",
-        "tamaño": "",
-        "expresion": "",
-        "distancia_entre_ojos": "",
-        "pestañas": {"longitud": "", "densidad": "", "curvatura": ""},
+      'edad_aparente': '25', // Forzar luego a 25
+      'genero': '',
+      'origen_etnico': '',
+      'altura': '',
+      'peso': '',
+      'complexion': '',
+      'color_piel': '',
+      'ojos': {
+        'color': '',
+        'forma': '',
+        'tamaño': '',
+        'expresion': '',
+        'distancia_entre_ojos': '',
+        'pestañas': {'longitud': '', 'densidad': '', 'curvatura': ''},
       },
-      "cejas": {"forma": "", "grosor": "", "color": "", "distancia_entre_cejas": "", "longitud": ""},
-      "nariz": {"forma": "", "tamaño": "", "detalle": "", "puente": "", "ancho": "", "longitud": "", "orificios": ""},
-      "boca": {
-        "forma": "",
-        "tamaño": "",
-        "labios": "",
-        "expresion": "",
-        "grosor_labios": "",
-        "color_labios": "",
-        "distancia_a_nariz": "",
+      'cejas': {'forma': '', 'grosor': '', 'color': '', 'distancia_entre_cejas': '', 'longitud': ''},
+      'nariz': {'forma': '', 'tamaño': '', 'detalle': '', 'puente': '', 'ancho': '', 'longitud': '', 'orificios': ''},
+      'boca': {
+        'forma': '',
+        'tamaño': '',
+        'labios': '',
+        'expresion': '',
+        'grosor_labios': '',
+        'color_labios': '',
+        'distancia_a_nariz': '',
       },
-      "dientes": {"color": "", "alineacion": "", "tamaño": "", "detalle": ""},
-      "orejas": {"forma": "", "tamaño": "", "detalle": "", "posicion": "", "lóbulo": ""},
-      "cabello": {
-        "color": "",
-        "largo": "",
-        "forma": "",
-        "peinados": [],
-        "detalle": "",
-        "volumen": "",
-        "densidad": "",
-        "raiz": "",
-        "puntas": "",
+      'dientes': {'color': '', 'alineacion': '', 'tamaño': '', 'detalle': ''},
+      'orejas': {'forma': '', 'tamaño': '', 'detalle': '', 'posicion': '', 'lóbulo': ''},
+      'cabello': {
+        'color': '',
+        'largo': '',
+        'forma': '',
+        'peinados': [],
+        'detalle': '',
+        'volumen': '',
+        'densidad': '',
+        'raiz': '',
+        'puntas': '',
         // Opcional: tintes y mechas (si aplica)
-        "tinte": {
-          "aplica": false,
-          "tipo": "", // e.g. permanente, semipermanente, baño de color
-          "colores": [], // lista de colores aplicados (orden principal -> secundario)
-          "intensidad": "", // suave/medio/intenso
-          "zona": "", // todo el cabello / raíces / medios / puntas
-          "detalle": "",
+        'tinte': {
+          'aplica': false,
+          'tipo': '', // e.g. permanente, semipermanente, baño de color
+          'colores': [], // lista de colores aplicados (orden principal -> secundario)
+          'intensidad': '', // suave/medio/intenso
+          'zona': '', // todo el cabello / raíces / medios / puntas
+          'detalle': '',
         },
-        "mechas": {
-          "aplica": false,
-          "tipo": "", // e.g. balayage, highlights, babylights, ombré
-          "colores": [],
-          "ubicacion": "", // e.g. frontal, laterales, coronilla, puntas
-          "intensidad": "", // sutil/visible/marcado
-          "detalle": "",
-        },
-      },
-      "manos": {
-        "tamaño": "",
-        "forma": "",
-        "uñas": {"longitud": "", "forma": "", "color": "", "detalle": ""},
-        "detalle": "",
-      },
-      "piel": {"textura": "", "brillo": "", "poros": "", "detalle": ""},
-      "pechos": {"tamaño": "", "forma": "", "detalle": "", "separacion": "", "proporción": ""},
-      "genitales": {"tipo": "", "tamaño": "", "forma": "", "detalle": "", "color": "", "vello_pubico": ""},
-      "piernas": {
-        "longitud": "",
-        "forma": "",
-        "musculatura": "",
-        "detalle": "",
-        "rodillas": "",
-        "tobillos": "",
-        "pies": {
-          "tamaño": "",
-          "forma": "",
-          "detalle": "",
-          "uñas": {"longitud": "", "forma": "", "color": "", "detalle": ""},
+        'mechas': {
+          'aplica': false,
+          'tipo': '', // e.g. balayage, highlights, babylights, ombré
+          'colores': [],
+          'ubicacion': '', // e.g. frontal, laterales, coronilla, puntas
+          'intensidad': '', // sutil/visible/marcado
+          'detalle': '',
         },
       },
-      "tatuajes": "",
-      "cicatrices": "",
-      "pecas": "",
-      "lunares": "",
-      "arrugas": "",
-      "ropa": [],
-      "estilo": [],
-      "accesorios": [],
-      "estilo_otaku_friki": {
-        "referencias_anime": "",
-        "colores_favoritos": "",
-        "prendas_caracteristicas": "",
-        "accesorios_geek": "",
-        "estilo_general": "",
+      'manos': {
+        'tamaño': '',
+        'forma': '',
+        'uñas': {'longitud': '', 'forma': '', 'color': '', 'detalle': ''},
+        'detalle': '',
       },
-      "paleta_color": {"piel": "", "cabello": "", "labios": "", "base_vestuario": ""},
-      "maquillaje_base": {"habitual": "", "alternativo": ""},
-      "accesorios_firma": [],
-      "expresion_general": "",
-      "rasgos_unicos": "",
-      "looks_frecuentes": [],
+      'piel': {'textura': '', 'brillo': '', 'poros': '', 'detalle': ''},
+      'pechos': {'tamaño': '', 'forma': '', 'detalle': '', 'separacion': '', 'proporción': ''},
+      'genitales': {'tipo': '', 'tamaño': '', 'forma': '', 'detalle': '', 'color': '', 'vello_pubico': ''},
+      'piernas': {
+        'longitud': '',
+        'forma': '',
+        'musculatura': '',
+        'detalle': '',
+        'rodillas': '',
+        'tobillos': '',
+        'pies': {
+          'tamaño': '',
+          'forma': '',
+          'detalle': '',
+          'uñas': {'longitud': '', 'forma': '', 'color': '', 'detalle': ''},
+        },
+      },
+      'tatuajes': '',
+      'cicatrices': '',
+      'pecas': '',
+      'lunares': '',
+      'arrugas': '',
+      'ropa': [],
+      'estilo': [],
+      'accesorios': [],
+      'estilo_otaku_friki': {
+        'referencias_anime': '',
+        'colores_favoritos': '',
+        'prendas_caracteristicas': '',
+        'accesorios_geek': '',
+        'estilo_general': '',
+      },
+      'paleta_color': {'piel': '', 'cabello': '', 'labios': '', 'base_vestuario': ''},
+      'maquillaje_base': {'habitual': '', 'alternativo': ''},
+      'accesorios_firma': [],
+      'expresion_general': '',
+      'rasgos_unicos': '',
+      'looks_frecuentes': [],
     });
 
     final culturalNote = isJapanese
@@ -187,7 +187,6 @@ class IAAppearanceGenerator {
         userBirthday: bio.userBirthday,
         aiBirthday: bio.aiBirthday,
         appearance: <String, dynamic>{},
-        avatars: null,
         timeline: [],
       ),
       dateTime: DateTime.now(),

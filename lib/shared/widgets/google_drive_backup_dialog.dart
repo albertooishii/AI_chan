@@ -362,7 +362,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
               final newToken = refreshed['access_token'] as String?;
               if (newToken != null) {
                 _service = GoogleBackupService(accessToken: newToken);
-                unawaited(_fetchAccountInfo(newToken, attemptRefresh: false));
+                unawaited(_fetchAccountInfo(newToken));
                 return;
               }
             } catch (e) {
@@ -417,7 +417,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
           final newToken = refreshed['access_token'] as String?;
           if (newToken != null) {
             _service = GoogleBackupService(accessToken: newToken);
-            unawaited(_fetchAccountInfo(newToken, attemptRefresh: false));
+            unawaited(_fetchAccountInfo(newToken));
             return;
           }
         } catch (e) {
@@ -633,10 +633,10 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                     children: [
                       const Icon(Icons.add_to_drive, size: 20, color: Colors.white),
                       const SizedBox(width: 8),
-                      Expanded(
+                      const Expanded(
                         child: Text(
                           'GOOGLE_DRIVE_INTERFACE // クラウドアーカイブカンリ',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
                             fontFamily: 'monospace',
@@ -709,14 +709,14 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                 if (!linked) ...[
                   // Platform-specific helper text
                   if (isAndroid)
-                    Text(
+                    const Text(
                       '[NATIVE_AUTH] Se abrirá el selector nativo de cuentas de Android. Ejecuta "LOGIN_SEQUENCE" para seleccionar cuenta autorizada.',
-                      style: const TextStyle(color: Colors.white70, fontSize: 15),
+                      style: TextStyle(color: Colors.white70, fontSize: 15),
                     )
                   else
-                    Text(
+                    const Text(
                       '[BROWSER_REDIRECT] Se abrirá la interfaz de autenticación externa. Ejecuta "LOGIN_SEQUENCE" para iniciar el intercambio seguro. Acceso manual a URL disponible si falla el auto-lanzamiento.',
-                      style: const TextStyle(color: Colors.white70, fontSize: 15),
+                      style: TextStyle(color: Colors.white70, fontSize: 15),
                     ),
                   const SizedBox(height: 20),
                   Wrap(

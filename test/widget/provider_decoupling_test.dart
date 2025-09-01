@@ -22,7 +22,7 @@ void main() {
         .toList();
 
     final patterns = <String, RegExp>{
-      'provider import': RegExp(r"package:provider/provider\.dart"),
+      'provider import': RegExp(r'package:provider/provider\.dart'),
       'Provider.of<': RegExp(r'Provider\.of<'),
       'context.watch<': RegExp(r'\bcontext\.watch<'),
       'context.read<': RegExp(r'\bcontext\.read<'),

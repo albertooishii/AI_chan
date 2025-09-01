@@ -8,8 +8,8 @@ void main() {
     final profile = AiChanProfile(
       userName: 'TestUser',
       aiName: 'TestAI',
-      userBirthday: DateTime(1990, 1, 1),
-      aiBirthday: DateTime(2020, 1, 1),
+      userBirthday: DateTime(1990),
+      aiBirthday: DateTime(2020),
       timeline: [],
       biography: {},
       appearance: {},
@@ -19,7 +19,6 @@ void main() {
       text: 'hello',
       sender: MessageSender.user,
       dateTime: DateTime.now(),
-      isImage: false,
       status: MessageStatus.read,
     );
 

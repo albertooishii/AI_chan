@@ -127,7 +127,7 @@ class GoogleAppAuthAdapter {
     String? returnedState;
     try {
       if (server != null) {
-        final req = await server.first.timeout(Duration(minutes: 5));
+        final req = await server.first.timeout(const Duration(minutes: 5));
         final uri = req.uri;
         final params = uri.queryParameters;
         code = params['code'];
@@ -135,7 +135,7 @@ class GoogleAppAuthAdapter {
         // reply a friendly page
         // reply with the packaged oauth_success.html when available
         try {
-          String page = await rootBundle.loadString(
+          final String page = await rootBundle.loadString(
             'assets/oauth_success.html',
           );
           final appName = (Config.get('APP_NAME', '')).toString();

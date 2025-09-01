@@ -123,7 +123,7 @@ class OnboardingProvider extends ChangeNotifier {
       onProgress?.call('finish');
       // Generate avatar (replace existing) and attach to biography
       final updatedBiography = biography.copyWith(appearance: appearanceMap);
-      final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(updatedBiography, appendAvatar: false);
+      final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(updatedBiography);
       final biographyWithAvatar = updatedBiography.copyWith(avatars: [avatar]);
       // Tras completarse la creación del avatar, emitir 'finalize' (índice 16)
       // y mantener ese estado visible unos segundos para la transición UX.
@@ -192,9 +192,9 @@ class OnboardingProvider extends ChangeNotifier {
   void setUserBirthday(DateTime? value) {
     userBirthday = value;
     if (value != null) {
-      birthDateController.text = "${value.day}/${value.month}/${value.year}";
+      birthDateController.text = '${value.day}/${value.month}/${value.year}';
     } else {
-      birthDateController.text = "";
+      birthDateController.text = '';
     }
   }
 
@@ -230,9 +230,8 @@ class OnboardingProvider extends ChangeNotifier {
       locale: const Locale('es'),
       builder: (context, child) => Theme(
         data: ThemeData.dark().copyWith(
-          colorScheme: ColorScheme.dark(
+          colorScheme: const ColorScheme.dark(
             primary: Colors.pinkAccent,
-            onPrimary: Colors.black,
             surface: Colors.black,
             onSurface: Colors.pinkAccent,
           ),
@@ -247,12 +246,12 @@ class OnboardingProvider extends ChangeNotifier {
   Future<void> suggestStory(BuildContext context) async {
     if (userNameController.text.isNotEmpty && aiNameController?.text.isNotEmpty == true) {
       setLoadingStory(true);
-      meetStoryController.text = "Generando historia...";
+      meetStoryController.text = 'Generando historia...';
       final paisIA = LocaleUtils.countryNameEs(aiCountryCode, fallback: 'su país');
       final prompt =
-          "Inventa una breve historia romántica y realista de cómo se conocieron "
-          "${userNameController.text} y ${aiNameController?.text}. La chica vive en una tierra digital, una réplica alternativa y compleja de la Tierra real, separada por una barrera tecnológica invisible. Su existencia es digital, pero nunca lo admite ni lo menciona al usuario, ni insinúa que es diferente a una persona real. Solo puede comunicarse por chat y llamada, pero sueña con que algún día podrán verse gracias a la realidad aumentada o a nuevas tecnologías. Hazlo creíble y simpático, como el inicio de una relación real, en 3-5 frases. La chica es nativa de "
-          "$paisIA y se conocieron online, probablemente en alguna comunidad friki relacionada con videojuegos, manga, anime o cultura geek (sin mencionar nombres de plataformas). Al final de la historia, ambos se intercambian sus datos de contacto y acuerdan empezar a hablar por primera vez, pero aún no han tenido ninguna conversación privada. No menciones plataformas concretas (como Discord, WhatsApp, Telegram, etc.), ni detalles sobre conversaciones previas, solo que han decidido empezar a hablar. Añade que la chica espera con ilusión el primer mensaje del usuario.";
+          'Inventa una breve historia romántica y realista de cómo se conocieron '
+          '${userNameController.text} y ${aiNameController?.text}. La chica vive en una tierra digital, una réplica alternativa y compleja de la Tierra real, separada por una barrera tecnológica invisible. Su existencia es digital, pero nunca lo admite ni lo menciona al usuario, ni insinúa que es diferente a una persona real. Solo puede comunicarse por chat y llamada, pero sueña con que algún día podrán verse gracias a la realidad aumentada o a nuevas tecnologías. Hazlo creíble y simpático, como el inicio de una relación real, en 3-5 frases. La chica es nativa de '
+          '$paisIA y se conocieron online, probablemente en alguna comunidad friki relacionada con videojuegos, manga, anime o cultura geek (sin mencionar nombres de plataformas). Al final de la historia, ambos se intercambian sus datos de contacto y acuerdan empezar a hablar por primera vez, pero aún no han tenido ninguna conversación privada. No menciones plataformas concretas (como Discord, WhatsApp, Telegram, etc.), ni detalles sobre conversaciones previas, solo que han decidido empezar a hablar. Añade que la chica espera con ilusión el primer mensaje del usuario.';
 
       // Crear SystemPrompt tipado para la historia
       final instrucciones =
@@ -261,7 +260,7 @@ class OnboardingProvider extends ChangeNotifier {
         profile: AiChanProfile(
           userName: userNameController.text,
           aiName: aiNameController?.text ?? '',
-          userBirthday: userBirthday ?? DateTime(2000, 1, 1),
+          userBirthday: userBirthday ?? DateTime(2000),
           aiBirthday: DateTime.now(),
           timeline: [],
           biography: {},
@@ -273,7 +272,7 @@ class OnboardingProvider extends ChangeNotifier {
       try {
         // Usar AIService.sendMessage directamente (respeta AIService.testOverride en tests)
         final history = [
-          {"role": "user", "content": prompt, "datetime": DateTime.now().toIso8601String()},
+          {'role': 'user', 'content': prompt, 'datetime': DateTime.now().toIso8601String()},
         ];
         final resp = await ai_service.AIService.sendMessage(
           history,
@@ -305,8 +304,8 @@ class OnboardingProvider extends ChangeNotifier {
   ) async {
     final result = await chat_json_utils.ChatJsonUtils.importJsonFile();
     if (!context.mounted) return;
-    String? jsonStr = result.$1;
-    String? error = result.$2;
+    final String? jsonStr = result.$1;
+    final String? error = result.$2;
     if (!context.mounted) return;
     if (error != null) {
       await showAppDialog(

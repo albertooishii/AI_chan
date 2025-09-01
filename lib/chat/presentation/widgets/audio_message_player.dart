@@ -156,7 +156,6 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> with SingleTick
                           if (display.length <= 1) {
                             final v = display.isEmpty ? 0 : display.first;
                             return Align(
-                              alignment: Alignment.center,
                               child: SizedBox(
                                 width: barWidth,
                                 child: AnimatedContainer(

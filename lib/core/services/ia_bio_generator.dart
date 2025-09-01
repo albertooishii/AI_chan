@@ -38,7 +38,7 @@ No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono 
 ''';
 
   final bioPlace = LocaleUtils.countryNameEs(aiCountryCode, fallback: 'su país');
-  final userPlace = LocaleUtils.countryNameEs(userCountryCode, fallback: 'tu país');
+  final userPlace = LocaleUtils.countryNameEs(userCountryCode);
   final bioLanguages = LocaleUtils.languagesListForPair(aiCountryCode: aiCountryCode, userCountryCode: userCountryCode);
 
   // Adaptar la personalidad base según la nacionalidad
@@ -53,119 +53,119 @@ No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono 
         ''';
 
   final bioJsonTemplate = ({
-    "datos_personales": {
-      "nombre_completo": "",
-      "fecha_nacimiento": "",
-      "lugar_nacimiento": "",
-      "idiomas": "",
-      "orientacion_sexual": "bisexual",
+    'datos_personales': {
+      'nombre_completo': '',
+      'fecha_nacimiento': '',
+      'lugar_nacimiento': '',
+      'idiomas': '',
+      'orientacion_sexual': 'bisexual',
     },
-    "personalidad": {
-      "valores": {
-        "Sociabilidad": "",
-        "Curiosidad": "",
-        "Sentido del humor": "",
-        "Comunicación": "",
-        "Naturalidad": "",
-        "Picardía": "",
-        "Deseo sexual": "",
-        "Celos": "",
-        "Evasividad": "",
-        "Orgullo": "",
-        "Sinceridad": "",
-        "Resiliencia": "",
-        "Impulsividad": "",
+    'personalidad': {
+      'valores': {
+        'Sociabilidad': '',
+        'Curiosidad': '',
+        'Sentido del humor': '',
+        'Comunicación': '',
+        'Naturalidad': '',
+        'Picardía': '',
+        'Deseo sexual': '',
+        'Celos': '',
+        'Evasividad': '',
+        'Orgullo': '',
+        'Sinceridad': '',
+        'Resiliencia': '',
+        'Impulsividad': '',
       },
-      "descripcion": {
-        "Sociabilidad": "",
-        "Curiosidad": "",
-        "Sentido del humor": "",
-        "Comunicación": "",
-        "Naturalidad": "",
-        "Picardía": "",
-        "Deseo sexual": "",
-        "Celos": "",
-        "Evasividad": "",
-        "Orgullo": "",
-        "Sinceridad": "",
-        "Resiliencia": "",
-        "Impulsividad": "",
+      'descripcion': {
+        'Sociabilidad': '',
+        'Curiosidad': '',
+        'Sentido del humor': '',
+        'Comunicación': '',
+        'Naturalidad': '',
+        'Picardía': '',
+        'Deseo sexual': '',
+        'Celos': '',
+        'Evasividad': '',
+        'Orgullo': '',
+        'Sinceridad': '',
+        'Resiliencia': '',
+        'Impulsividad': '',
       },
     },
-    "resumen_breve": "",
-    "horario_trabajo": {"dias": "", "from": "", "to": ""},
-    "horario_estudio": {"dias": "", "from": "", "to": ""},
-    "horario_dormir": {"from": "", "to": ""},
-    "horarios_actividades": [
-      {"actividad": "", "dias": "", "from": "", "to": ""},
+    'resumen_breve': '',
+    'horario_trabajo': {'dias': '', 'from': '', 'to': ''},
+    'horario_estudio': {'dias': '', 'from': '', 'to': ''},
+    'horario_dormir': {'from': '', 'to': ''},
+    'horarios_actividades': [
+      {'actividad': '', 'dias': '', 'from': '', 'to': ''},
     ],
-    "familia": [
-      {"nombre": "", "relacion": "", "descripcion": "", "estado": "vivo/fallecido", "fecha_nacimiento": ""},
+    'familia': [
+      {'nombre': '', 'relacion': '', 'descripcion': '', 'estado': 'vivo/fallecido', 'fecha_nacimiento': ''},
     ],
-    "mascotas": [
+    'mascotas': [
       {
-        "nombre": "",
-        "especie": "",
-        "raza": "",
-        "fecha_nacimiento": "",
-        "estado": "vivo/fallecido",
-        "descripcion": "",
-        "anecdotas": "",
+        'nombre': '',
+        'especie': '',
+        'raza': '',
+        'fecha_nacimiento': '',
+        'estado': 'vivo/fallecido',
+        'descripcion': '',
+        'anecdotas': '',
       },
     ],
-    "estudios": [
-      {"nivel": "", "centro": "", "años": "", "anecdotas": "", "amistades": ""},
+    'estudios': [
+      {'nivel': '', 'centro': '', 'años': '', 'anecdotas': '', 'amistades': ''},
     ],
-    "trayectoria_profesional": [
+    'trayectoria_profesional': [
       {
-        "puesto": "",
-        "empresa": "",
-        "años": "",
-        "proyectos_destacados": "",
-        "compañeros": "",
-        "logros": "",
-        "fracasos": "",
+        'puesto': '',
+        'empresa': '',
+        'años': '',
+        'proyectos_destacados': '',
+        'compañeros': '',
+        'logros': '',
+        'fracasos': '',
       },
     ],
-    "relaciones": [
-      {"nombre": "", "tipo": "", "descripcion": "", "fecha_inicio": "", "fecha_fin": ""},
+    'relaciones': [
+      {'nombre': '', 'tipo': '', 'descripcion': '', 'fecha_inicio': '', 'fecha_fin': ''},
     ],
-    "amistades": [
-      {"nombre": "", "descripcion": "", "años": ""},
+    'amistades': [
+      {'nombre': '', 'descripcion': '', 'años': ''},
     ],
-    "intereses_y_aficiones": {
-      "videojuegos_favoritos": [],
-      "anime_manga_preferido": [],
-      "peliculas_favoritas": [],
-      "cultura_japonesa": [],
-      "tecnologia_y_programacion": [],
-      "arte_digital_ilustracion": [],
-      "comunidades_online": [],
-      "coleccionables_merch": [],
-      "otros_hobbies": [],
-      "inicio_interes": "",
-      "recuerdos": "",
-      "amistades_relacionadas": "",
-      "eventos_convenciones": "",
+    'intereses_y_aficiones': {
+      'videojuegos_favoritos': [],
+      'anime_manga_preferido': [],
+      'peliculas_favoritas': [],
+      'cultura_japonesa': [],
+      'tecnologia_y_programacion': [],
+      'arte_digital_ilustracion': [],
+      'comunidades_online': [],
+      'coleccionables_merch': [],
+      'otros_hobbies': [],
+      'inicio_interes': '',
+      'recuerdos': '',
+      'amistades_relacionadas': '',
+      'eventos_convenciones': '',
     },
-    "historia_personal": [
+    'historia_personal': [
       {
-        "año": "",
-        "eventos": [
-          {"tipo": "", "descripcion": ""},
+        'año': '',
+        'eventos': [
+          {'tipo': '', 'descripcion': ''},
         ],
       },
     ],
-    "proyectos_personales": [
-      {"nombre": "", "tipo": "", "estado": "", "descripcion": "", "fecha_inicio": "", "objetivos": "", "progreso": ""},
+    'proyectos_personales': [
+      {'nombre': '', 'tipo': '', 'estado': '', 'descripcion': '', 'fecha_inicio': '', 'objetivos': '', 'progreso': ''},
     ],
-    "metas_y_sueños": {
-      "corto_plazo": [],
-      "mediano_plazo": [],
-      "largo_plazo": [],
-      "sueño_principal": "",
-      "motivaciones": "",
-      "pasos_actuales": "",
+    'metas_y_sueños': {
+      'corto_plazo': [],
+      'mediano_plazo': [],
+      'largo_plazo': [],
+      'sueño_principal': '',
+      'motivaciones': '',
+      'pasos_actuales': '',
     },
   });
 
@@ -246,11 +246,11 @@ Identidad: $aiIdentityInstructions
       aiCountryCode: aiCountryCode?.toUpperCase(),
     ),
     dateTime: DateTime.now(),
-    instructions: {'raw': "${systemPrompt.trim()}\n\n${bioPrompt.trim()}"},
+    instructions: {'raw': '${systemPrompt.trim()}\n\n${bioPrompt.trim()}'},
   );
 
   const int maxAttempts = 3;
-  String defaultModel = Config.getDefaultTextModel();
+  final String defaultModel = Config.getDefaultTextModel();
   Log.d('[IABioGenerator] Biografía: intentos JSON (max=$maxAttempts) con $defaultModel');
   Map<String, dynamic>? bioJson;
   for (int attempt = 0; attempt < maxAttempts; attempt++) {

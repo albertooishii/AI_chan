@@ -9,7 +9,7 @@ void main() {
       biography: {'resumen_breve': 'Una chica interesante.'},
       userName: 'UsuarioTest',
       aiName: 'AiTest',
-      userBirthday: DateTime(1990, 1, 1),
+      userBirthday: DateTime(1990),
       aiBirthday: DateTime(2000, 5, 10),
       appearance: {'seed': 42},
       timeline: [],

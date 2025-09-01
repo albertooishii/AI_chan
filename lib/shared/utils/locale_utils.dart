@@ -250,8 +250,8 @@ class LocaleUtils {
   static String flagEmojiForCountry(String? iso2) {
     if (iso2 == null || iso2.length != 2) return '';
     final code = iso2.toUpperCase();
-    int base = 0x1F1E6; // Regional Indicator Symbol Letter A
-    int aCode = 'A'.codeUnitAt(0);
+    final int base = 0x1F1E6; // Regional Indicator Symbol Letter A
+    final int aCode = 'A'.codeUnitAt(0);
     final int first = base + (code.codeUnitAt(0) - aCode);
     final int second = base + (code.codeUnitAt(1) - aCode);
     return String.fromCharCode(first) + String.fromCharCode(second);

@@ -168,11 +168,6 @@ class CallConfig {
   factory CallConfig.defaultConfig() {
     return const CallConfig(
       systemPrompt: 'Eres AI-chan, una asistente de voz amigable y útil.',
-      audioEnabled: true,
-      textEnabled: true,
-      turnDetectionType: 'server_vad',
-      temperature: 0.7,
-      maxTokens: 4096,
     );
   }
 

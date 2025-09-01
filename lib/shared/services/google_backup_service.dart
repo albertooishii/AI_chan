@@ -639,7 +639,7 @@ class GoogleBackupService {
         );
       } else {
         try {
-          final tokenMap = await _authenticateWithAppAuth(clientId: desktopCid, redirectUri: null, scopes: usedScopes);
+          final tokenMap = await _authenticateWithAppAuth(clientId: desktopCid, scopes: usedScopes);
           if (tokenMap['access_token'] != null) {
             await _persistCredentialsSecure(tokenMap);
             try {
@@ -817,7 +817,7 @@ class GoogleBackupService {
     // token is older than the configured threshold, attempt silent sign-in to
     // refresh tokens silently.
     var hasRefresh = (creds?['refresh_token'] as String?)?.isNotEmpty == true;
-    var persistedAtMs = (creds?['_persisted_at_ms'] as int?) ?? 0;
+    final persistedAtMs = (creds?['_persisted_at_ms'] as int?) ?? 0;
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final ageMs = persistedAtMs == 0 ? null : nowMs - persistedAtMs;
     final ageExceeded = ageMs != null && ageMs > _silentRefreshIfOlderThan.inMilliseconds;
@@ -1034,7 +1034,7 @@ class GoogleBackupService {
         addUpdate('\r\n--$boundary--\r\n');
 
         final updateUrl = Uri.parse('${driveUploadEndpoint.toString().split('?').first}/$id?uploadType=multipart');
-        var resUp = await httpClient.patch(updateUrl, headers: headers, body: updateBodyBytes);
+        final resUp = await httpClient.patch(updateUrl, headers: headers, body: updateBodyBytes);
         if (resUp.statusCode == 401) {
           try {
             final refreshed = await _attemptRefreshUsingConfig();
@@ -1075,7 +1075,7 @@ class GoogleBackupService {
     createBodyBytes.addAll(await zipFile.readAsBytes());
     addCreate('\r\n--$boundary--\r\n');
 
-    var res = await httpClient.post(driveUploadEndpoint, headers: headers, body: createBodyBytes);
+    final res = await httpClient.post(driveUploadEndpoint, headers: headers, body: createBodyBytes);
     if (res.statusCode == 401) {
       try {
         final refreshed = await _attemptRefreshUsingConfig();
@@ -1131,7 +1131,7 @@ class GoogleBackupService {
       'Content-Type': 'application/json; charset=UTF-8',
       'X-Upload-Content-Type': 'application/zip',
     };
-    var initRes = await httpClient.post(resumableEndpoint, headers: initHeaders, body: jsonEncode(meta));
+    final initRes = await httpClient.post(resumableEndpoint, headers: initHeaders, body: jsonEncode(meta));
     if (!(initRes.statusCode >= 200 && initRes.statusCode < 300)) {
       if (initRes.statusCode == 401) {
         try {
@@ -1159,7 +1159,7 @@ class GoogleBackupService {
       'Content-Length': bytes.length.toString(),
       'Content-Range': 'bytes 0-${bytes.length - 1}/${bytes.length}',
     };
-    var putRes = await httpClient.put(Uri.parse(uploadUrl), headers: putHeaders, body: bytes);
+    final putRes = await httpClient.put(Uri.parse(uploadUrl), headers: putHeaders, body: bytes);
     if (putRes.statusCode == 401) {
       try {
         final refreshed = await _attemptRefreshUsingConfig();
@@ -1198,7 +1198,7 @@ class GoogleBackupService {
       'fields': _backupFields,
     };
     final q = Uri.parse(driveListEndpoint.toString()).replace(queryParameters: params);
-    var res = await httpClient.get(q, headers: _authHeaders());
+    final res = await httpClient.get(q, headers: _authHeaders());
     if (res.statusCode == 401) {
       try {
         final refreshed = await _attemptRefreshUsingConfig();
@@ -1229,7 +1229,7 @@ class GoogleBackupService {
     final d = destDir ?? Directory.systemTemp.path;
     final outFile = File('$d/ai_chan_backup_$fileId.zip');
     final url = Uri.parse('${driveDownloadEndpoint.toString()}/$fileId?alt=media');
-    var res = await httpClient.get(url, headers: _authHeaders());
+    final res = await httpClient.get(url, headers: _authHeaders());
     if (res.statusCode == 401) {
       try {
         final refreshed = await _attemptRefreshUsingConfig();
@@ -1253,7 +1253,7 @@ class GoogleBackupService {
     final token = accessToken;
     if (token == null) throw StateError('No access token set');
     final url = Uri.parse('${driveDeleteEndpoint.toString()}/$fileId');
-    var res = await httpClient.delete(url, headers: _authHeaders());
+    final res = await httpClient.delete(url, headers: _authHeaders());
     if (res.statusCode == 401) {
       try {
         final refreshed = await _attemptRefreshUsingConfig();

@@ -108,7 +108,7 @@ void main() async {
       // Configurar un directorio temporal para guardar el avatar
       Config.setOverrides({'TEST_IMAGE_DIR': '${Directory.systemTemp.path}/ai_chan_test'});
 
-      final avatar = await avatarGenerator.generateAvatarFromAppearance(updatedBio, appendAvatar: false);
+      final avatar = await avatarGenerator.generateAvatarFromAppearance(updatedBio);
 
       expect(avatar, isNotNull);
       expect(avatar.url, isNotEmpty);
@@ -127,12 +127,12 @@ void main() async {
         EventEntry(
           type: 'conocimiento',
           description: 'Primer encuentro en convención de anime',
-          date: DateTime.now().subtract(Duration(days: 30)),
+          date: DateTime.now().subtract(const Duration(days: 30)),
         ),
         EventEntry(
           type: 'promesa',
           description: 'Ver el próximo episodio de anime juntos',
-          date: DateTime.now().add(Duration(days: 1)),
+          date: DateTime.now().add(const Duration(days: 1)),
         ),
       ];
 
@@ -144,13 +144,13 @@ void main() async {
       final userMessage = Message(
         text: 'Hola $aiName, ¡me encanta tu avatar!',
         sender: MessageSender.user,
-        dateTime: DateTime.now().subtract(Duration(minutes: 5)),
+        dateTime: DateTime.now().subtract(const Duration(minutes: 5)),
       );
 
       final aiMessage = Message(
         text: '¡Hola $userName! Gracias, estoy muy emocionada de conocerte después de la convención de anime 😊',
         sender: MessageSender.assistant,
-        dateTime: DateTime.now().subtract(Duration(minutes: 4)),
+        dateTime: DateTime.now().subtract(const Duration(minutes: 4)),
       );
 
       chatProvider.messages.addAll([userMessage, aiMessage]);
@@ -265,7 +265,7 @@ void main() async {
         await generateAIBiographyWithAI(
           userName: 'ErrorTest',
           aiName: 'ErrorAI',
-          userBirthday: DateTime(1990, 1, 1),
+          userBirthday: DateTime(1990),
           meetStory: 'Test error',
           aiServiceOverride: failingService,
         );
@@ -279,8 +279,8 @@ void main() async {
       final fallbackProfile = AiChanProfile(
         userName: 'ErrorTest',
         aiName: 'ErrorAI',
-        userBirthday: DateTime(1990, 1, 1),
-        aiBirthday: DateTime(2024, 1, 1),
+        userBirthday: DateTime(1990),
+        aiBirthday: DateTime(2024),
         biography: {'fallback': 'Perfil de respaldo'},
         appearance: {'fallback': 'Apariencia básica'},
         timeline: [],

@@ -219,7 +219,6 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle> w
               target: target,
               current: _randomScrambleChar(replaceWith: target, useKatakana: widget.useKatakana),
               start: now,
-              locked: false,
             ),
           );
         } else {
@@ -236,7 +235,6 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle> w
             target: target,
             current: _randomScrambleChar(replaceWith: target, useKatakana: widget.useKatakana),
             start: now,
-            locked: false,
           ),
         );
       }

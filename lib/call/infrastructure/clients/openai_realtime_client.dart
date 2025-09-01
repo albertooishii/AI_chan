@@ -347,12 +347,12 @@ class OpenAIRealtimeClient implements IRealtimeClient {
 
     // Server VAD / input committed handling
     if (type == 'input_audio_buffer.committed' && _serverTurnDetection) {
-      if (!_hasActiveResponse) requestResponse(audio: true, text: true);
+      if (!_hasActiveResponse) requestResponse();
     }
     if (!_serverTurnDetection &&
         (type == 'input_audio_buffer.committed' ||
             type == 'input_audio_buffer.speech_stopped')) {
-      requestResponse(audio: true, text: true);
+      requestResponse();
     }
 
     // User transcription

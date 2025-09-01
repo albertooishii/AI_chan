@@ -37,7 +37,6 @@ void main() {
         userBirthday: null,
         aiBirthday: null,
         appearance: <String, dynamic>{},
-        avatars: null,
         timeline: [],
       );
 
@@ -55,8 +54,8 @@ void main() {
 
   test('generateAvatarWithRetries throws when no base64 returned', () async {
     final fake = FakeAIService.withResponses([
-      AIResponse(text: '', base64: '', seed: '', prompt: ''),
-      AIResponse(text: '', base64: '', seed: '', prompt: ''),
+      AIResponse(text: ''),
+      AIResponse(text: ''),
     ]);
     AIService.testOverride = fake;
     final baseTmp = Directory('${Directory.systemTemp.path}/ai_chan');
@@ -74,7 +73,6 @@ void main() {
       userBirthday: null,
       aiBirthday: null,
       appearance: <String, dynamic>{},
-      avatars: null,
       timeline: [],
     );
 

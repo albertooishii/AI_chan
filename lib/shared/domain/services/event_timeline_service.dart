@@ -58,7 +58,6 @@ class EventTimelineService {
           date.day,
           hour,
           minute,
-          0,
         );
       }
       final startDate = dateWithHour.toIso8601String();
@@ -82,7 +81,7 @@ class EventTimelineService {
     final eventEntry = createEventFromText(textResponse);
     if (eventEntry != null) {
       // Convertir TimelineEntry a EventEntry y guardar en events
-      List<EventEntry> updatedEvents = onboardingData.events != null
+      final List<EventEntry> updatedEvents = onboardingData.events != null
           ? List<EventEntry>.from(onboardingData.events)
           : <EventEntry>[];
       // Usar la frase significativa extraída por createEventFromText
@@ -195,12 +194,12 @@ class EventTimelineService {
         '[HORARIO IA] Intentando extraer rango de horas: ${rangoMatch.group(0)}',
       );
       if (tipoHorario.isNotEmpty) {
-        String fromHour = rangoMatch.group(2) ?? '';
-        String fromMin = rangoMatch.group(3) ?? '00';
-        String fromPeriod = (rangoMatch.group(4) ?? '').toLowerCase();
-        String toHour = rangoMatch.group(7) ?? '';
-        String toMin = rangoMatch.group(8) ?? '00';
-        String toPeriod = (rangoMatch.group(9) ?? '').toLowerCase();
+        final String fromHour = rangoMatch.group(2) ?? '';
+        final String fromMin = rangoMatch.group(3) ?? '00';
+        final String fromPeriod = (rangoMatch.group(4) ?? '').toLowerCase();
+        final String toHour = rangoMatch.group(7) ?? '';
+        final String toMin = rangoMatch.group(8) ?? '00';
+        final String toPeriod = (rangoMatch.group(9) ?? '').toLowerCase();
         int fromHourInt = int.tryParse(fromHour) ?? 0;
         int toHourInt = int.tryParse(toHour) ?? 0;
         if (fromPeriod.contains('tarde') ||

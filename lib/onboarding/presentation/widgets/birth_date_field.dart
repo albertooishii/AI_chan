@@ -23,22 +23,22 @@ class BirthDateField extends StatelessWidget {
       readOnly: true,
       controller: controller,
       style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
-      decoration: InputDecoration(
-        labelText: "Tu fecha de nacimiento",
-        labelStyle: const TextStyle(color: AppColors.secondary),
+      decoration: const InputDecoration(
+        labelText: 'Tu fecha de nacimiento',
+        labelStyle: TextStyle(color: AppColors.secondary),
         enabledBorder: OutlineInputBorder(
           borderSide: BorderSide(color: AppColors.secondary),
         ),
         focusedBorder: OutlineInputBorder(
           borderSide: BorderSide(color: AppColors.primary, width: 2),
         ),
-        prefixIcon: const Icon(Icons.cake, color: AppColors.secondary),
+        prefixIcon: Icon(Icons.cake, color: AppColors.secondary),
         fillColor: Colors.black,
         filled: true,
-        hintText: "Selecciona tu fecha",
-        hintStyle: const TextStyle(color: AppColors.primary),
+        hintText: 'Selecciona tu fecha',
+        hintStyle: TextStyle(color: AppColors.primary),
       ),
-      validator: (v) => userBirthday == null ? "Obligatorio" : null,
+      validator: (v) => userBirthday == null ? 'Obligatorio' : null,
       onTap: () async {
         final now = DateTime.now();
         final minAgeDate = DateTime(now.year - 18, now.month, now.day);
@@ -50,9 +50,8 @@ class BirthDateField extends StatelessWidget {
           locale: const Locale('es'),
           builder: (context, child) => Theme(
             data: ThemeData.dark().copyWith(
-              colorScheme: ColorScheme.dark(
+              colorScheme: const ColorScheme.dark(
                 primary: AppColors.secondary,
-                onPrimary: Colors.black,
                 surface: Colors.black,
                 onSurface: AppColors.primary,
               ),

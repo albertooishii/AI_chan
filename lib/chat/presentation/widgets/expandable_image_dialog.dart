@@ -24,7 +24,6 @@ class ExpandableImageDialog {
     final ctx = navigatorKey.currentContext;
     if (ctx == null) return;
     showAppDialog(
-      barrierDismissible: true,
       // Importante: abrir el diálogo en el navigator local (no en el root)
       // para que el ScaffoldMessenger raíz (scaffoldMessengerKey) pueda
       // mostrar SnackBars por encima del diálogo.
@@ -63,8 +62,6 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
     // If the widget is no longer mounted (dialog dismissed), skip the description dialog
     if (!mounted) return;
     showAppDialog(
-      useRootNavigator:
-          true, // ✅ Asegurar que aparece encima del dialog de imagen
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.black,
         title: const Text(
@@ -159,7 +156,6 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
     final relPath = msg.image?.url;
 
     final confirmed = await showAppDialog<bool>(
-      useRootNavigator: true,
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar imagen'),
         content: const Text(
@@ -342,7 +338,6 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                                 child: InteractiveViewer(
                                   minScale: 1.0,
                                   maxScale: 6.0,
-                                  panEnabled: true,
                                   clipBehavior: Clip.none,
                                   child: Image.file(file, fit: BoxFit.contain),
                                 ),
@@ -371,7 +366,7 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                                       : 'Foto $index/$total';
 
                                   // fecha: para avatar preferir createdAtMs, para imágenes normales usar message.dateTime
-                                  int? ms = isAvatar
+                                  final int? ms = isAvatar
                                       ? img?.createdAtMs
                                       : msg.dateTime.millisecondsSinceEpoch;
                                   if (ms != null) {
@@ -500,7 +495,6 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                               // Éxito
                               showAppSnackBar(
                                 '✅ Imagen guardada correctamente',
-                                isError: false,
                               );
                             }
                             // Si !result.$1 && result.$2 == null significa que el usuario canceló - no hacer nada

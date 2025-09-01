@@ -35,7 +35,7 @@ class BackupService {
     try {
       final imgDir = await image_utils.getLocalImageDir();
       if (await imgDir.exists()) {
-        final files = imgDir.listSync(recursive: false).whereType<File>();
+        final files = imgDir.listSync().whereType<File>();
         for (final f in files) {
           try {
             final bytes = f.readAsBytesSync();
@@ -52,7 +52,7 @@ class BackupService {
     try {
       final aDir = await audio_utils.getLocalAudioDir();
       if (await aDir.exists()) {
-        final files = aDir.listSync(recursive: false).whereType<File>();
+        final files = aDir.listSync().whereType<File>();
         for (final f in files) {
           try {
             final bytes = f.readAsBytesSync();
@@ -129,7 +129,7 @@ class BackupService {
       }
       return jsonStr;
     } else if (backupFile.path.toLowerCase().endsWith('.gz')) {
-      final decompressed = GZipDecoder().decodeBytes(bytes);
+      final decompressed = const GZipDecoder().decodeBytes(bytes);
       final jsonStr = utf8.decode(decompressed);
       return jsonStr;
     } else {

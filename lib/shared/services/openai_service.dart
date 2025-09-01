@@ -133,8 +133,8 @@ class OpenAIService implements AIService {
       'Content-Type': 'application/json',
       'OpenAI-Beta': 'assistants=v2',
     };
-    List<Map<String, dynamic>> input = [];
-    StringBuffer allText = StringBuffer();
+    final List<Map<String, dynamic>> input = [];
+    final StringBuffer allText = StringBuffer();
     final systemPromptMap = systemPrompt.toJson();
     // Detectar si la petición es explícitamente para generar un AVATAR.
     bool looksLikeAvatar = false;
@@ -175,9 +175,9 @@ class OpenAIService implements AIService {
     // El contenido del sistema proviene de PromptBuilder; las instrucciones específicas
     // sobre metadatos de imagen ([img_caption]) están definidas allí.
     input.add({
-      "role": "system",
-      "content": [
-        {"type": "input_text", "text": systemPromptStr},
+      'role': 'system',
+      'content': [
+        {'type': 'input_text', 'text': systemPromptStr},
       ],
     });
     for (int i = 0; i < history.length; i++) {
@@ -186,19 +186,19 @@ class OpenAIService implements AIService {
       if (allText.isNotEmpty) allText.write('\n\n');
       allText.write('[$role]: $contentStr');
     }
-    List<dynamic> userContent = [
-      {"type": "input_text", "text": allText.toString()},
+    final List<dynamic> userContent = [
+      {'type': 'input_text', 'text': allText.toString()},
     ];
     if (imageBase64 != null && imageBase64.isNotEmpty) {
       userContent.add({
-        "type": "input_image",
-        "image_url": "data:${imageMimeType ?? 'image/png'};base64,$imageBase64",
+        'type': 'input_image',
+        'image_url': "data:${imageMimeType ?? 'image/png'};base64,$imageBase64",
       });
     }
     // Prefer explicit getter firstAvatar for clarity (primer avatar histórico)
     final avatar = systemPrompt.profile.firstAvatar;
     // El bloque 'role: user' siempre primero
-    input.add({"role": "user", "content": userContent});
+    input.add({'role': 'user', 'content': userContent});
     // Declarar tools vacío
     List<Map<String, dynamic>> tools = [];
     String? previousResponseId;
@@ -207,10 +207,10 @@ class OpenAIService implements AIService {
       Log.i('image_generation ACTIVADO', tag: 'OPENAI_SERVICE');
       tools = [
         {
-          "type": "image_generation",
-          "input_fidelity": "low",
-          "moderation": "low",
-          "background": "opaque",
+          'type': 'image_generation',
+          'input_fidelity': 'low',
+          'moderation': 'low',
+          'background': 'opaque',
         },
       ];
 
@@ -225,7 +225,7 @@ class OpenAIService implements AIService {
           Log.d('Seed es previous response ID: $seed', tag: 'OPENAI_SERVICE');
         } else {
           // Solo inicializar image_generation_call cuando tenemos un seed válido (no response-level)
-          imageGenCall['type'] = "image_generation_call";
+          imageGenCall['type'] = 'image_generation_call';
           imageGenCall['id'] = seed;
           Log.d('Seed es Image ID: $seed', tag: 'OPENAI_SERVICE');
           if (looksLikeAvatar) {
@@ -264,7 +264,7 @@ class OpenAIService implements AIService {
         input.add(imageGenCall);
       }
     }
-    int tokens = estimateTokens(history, systemPrompt);
+    final int tokens = estimateTokens(history, systemPrompt);
     if (tokens > 128000) {
       return AIResponse(
         text:
@@ -272,11 +272,11 @@ class OpenAIService implements AIService {
       );
     }
     final Map<String, dynamic> bodyMap = {
-      "model":
+      'model':
           model ??
           Config.getDefaultImageModel(), // default OpenAI cuando se fuerza imagen
-      "input": input,
-      if (tools.isNotEmpty) "tools": tools,
+      'input': input,
+      if (tools.isNotEmpty) 'tools': tools,
       if (previousResponseId != null)
         'previous_response_id': previousResponseId,
     };
@@ -293,7 +293,7 @@ class OpenAIService implements AIService {
       String imageBase64 = '';
       String imageId = '';
       String revisedPrompt = '';
-      String metaPrompt = '';
+      final String metaPrompt = '';
       final output = data['output'] ?? data['data'];
       String? extractImageBase64FromBlock(dynamic block) {
         try {
@@ -553,7 +553,7 @@ class OpenAIService implements AIService {
           // Respect configured preferred audio format when saving/caching.
           final preferredRaw = Config.get('PREFERRED_AUDIO_FORMAT', 'mp3');
           final preferred = preferredRaw.trim().toLowerCase();
-          String ext = preferred == 'm4a' ? 'm4a' : 'mp3';
+          final String ext = preferred == 'm4a' ? 'm4a' : 'mp3';
           var dataToSave = response.bodyBytes;
           try {
             final converted =

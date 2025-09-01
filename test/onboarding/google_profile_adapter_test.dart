@@ -30,7 +30,7 @@ class BaseFakeAIService implements AIService {
     // Default simple JSON response for profile/appearance generation
     final json =
         '{"resumen_breve":"Resumen de prueba","datos_personales":{"nombre_completo":"Ai Test"}}';
-    return AIResponse(text: json, base64: '', seed: '', prompt: '');
+    return AIResponse(text: json);
   }
 
   @override
@@ -80,7 +80,7 @@ void main() {
     AIService.testOverride = LocalImageFake();
     final adapter = ProfileAdapter(aiService: AIService.testOverride!);
 
-    final now = DateTime(1990, 1, 1);
+    final now = DateTime(1990);
     final profile = await adapter.generateBiography(
       userName: 'User',
       aiName: 'AiChan',

@@ -103,7 +103,7 @@ class RealAudioPlayback implements AudioPlayback {
                   // If both DeviceFileSource and BytesSource failed, attempt to obtain a
                   // content:// URI via platform FileProvider and play via UrlSource.
                   try {
-                    final channel = MethodChannel('ai_chan/file_provider');
+                    final channel = const MethodChannel('ai_chan/file_provider');
                     final contentUri = await channel.invokeMethod<String>(
                       'getContentUriForFile',
                       {'path': path},

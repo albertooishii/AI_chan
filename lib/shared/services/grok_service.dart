@@ -138,7 +138,7 @@ class GrokService implements AIService {
           // Try OpenAI-style choices -> message -> content
           if (data['choices'] is List && data['choices'].isNotEmpty) {
             final first = data['choices'][0];
-            var msg = first['message'] ?? first['delta'];
+            final msg = first['message'] ?? first['delta'];
             if (msg != null) {
               final content = msg['content'];
               if (content is String) {
@@ -192,7 +192,6 @@ class GrokService implements AIService {
           text: text,
           base64: outBase64,
           seed: seed,
-          prompt: '',
         );
       } else {
         Log.e('[GrokService] Error ${resp.statusCode}: ${resp.body}');

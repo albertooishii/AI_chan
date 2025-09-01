@@ -79,7 +79,6 @@ class AppAlertDialog extends StatelessWidget {
 
     // Use AppBar inside a SafeArea so it matches the CalendarScreen AppBar
     final Widget titleBar = SafeArea(
-      top: true,
       bottom: false,
       child: SizedBox(
         height: kToolbarHeight,

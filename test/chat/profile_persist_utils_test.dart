@@ -17,7 +17,7 @@ void main() {
       final profile = AiChanProfile(
         userName: 'User',
         aiName: 'Ai',
-        userBirthday: DateTime(1990, 1, 1),
+        userBirthday: DateTime(1990),
         aiBirthday: null,
         biography: <String, dynamic>{'summary': 'bio'},
         appearance: <String, dynamic>{},

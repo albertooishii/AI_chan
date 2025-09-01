@@ -202,14 +202,14 @@ void main() {
       test('should manage backup retention policy', () {
         // Simulate having multiple backups with dates
         final backups = [
-          {'id': 'backup1', 'created': DateTime.now().subtract(Duration(days: 1))},
-          {'id': 'backup2', 'created': DateTime.now().subtract(Duration(days: 7))},
-          {'id': 'backup3', 'created': DateTime.now().subtract(Duration(days: 14))},
-          {'id': 'backup4', 'created': DateTime.now().subtract(Duration(days: 35))},
+          {'id': 'backup1', 'created': DateTime.now().subtract(const Duration(days: 1))},
+          {'id': 'backup2', 'created': DateTime.now().subtract(const Duration(days: 7))},
+          {'id': 'backup3', 'created': DateTime.now().subtract(const Duration(days: 14))},
+          {'id': 'backup4', 'created': DateTime.now().subtract(const Duration(days: 35))},
         ];
 
         // Keep only backups from last 30 days
-        final cutoffDate = DateTime.now().subtract(Duration(days: 30));
+        final cutoffDate = DateTime.now().subtract(const Duration(days: 30));
         final backupsToKeep = backups.where((backup) => (backup['created'] as DateTime).isAfter(cutoffDate)).toList();
 
         expect(backupsToKeep.length, equals(3)); // Should delete 1 old backup

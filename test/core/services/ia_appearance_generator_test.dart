@@ -11,7 +11,7 @@ void main() {
       // Respuesta simulada que incluye un bloque JSON válido
       final jsonText =
           '{"edad_aparente": 30, "genero": "femenino", "ropa": []}';
-      final resp = AIResponse(text: jsonText, base64: '', seed: '', prompt: '');
+      final resp = AIResponse(text: jsonText);
       final fake = FakeAIService.withResponses([resp]);
       AIService.testOverride = fake;
 
@@ -23,7 +23,6 @@ void main() {
         userBirthday: null,
         aiBirthday: null,
         appearance: <String, dynamic>{},
-        avatars: null,
         timeline: [],
       );
       final map = await gen.generateAppearanceFromBiography(profile);

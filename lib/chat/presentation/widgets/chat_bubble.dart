@@ -15,7 +15,6 @@ class ChatBubble extends StatelessWidget {
     bool showRetry = true,
   }) {
     return Row(
-      mainAxisSize: MainAxisSize.max,
       mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -142,7 +141,6 @@ class ChatBubble extends StatelessWidget {
             color: glowColor.withAlpha((0.4 * 255).round()),
             blurRadius: 12,
             spreadRadius: 1,
-            offset: const Offset(0, 0),
           ),
         ],
       ),
@@ -339,7 +337,6 @@ class ChatBubble extends StatelessWidget {
               AudioMessagePlayerWithSubs(
                 message: message,
                 width: 200,
-                globalOverlay: true,
                 isPlaying: isAudioPlaying ?? ((_) => false),
                 togglePlay: onToggleAudio ?? ((_) async {}),
                 getPlayingPosition: getAudioPosition,
@@ -410,8 +407,6 @@ class ChatBubble extends StatelessWidget {
               // Usar reproductor con subtítulos flotantes reutilizando efecto cyberpunk
               AudioMessagePlayerWithSubs(
                 message: message,
-                width: 180,
-                globalOverlay: true,
                 isPlaying: isAudioPlaying ?? ((_) => false),
                 togglePlay: onToggleAudio ?? ((_) async {}),
                 getPlayingPosition: getAudioPosition,

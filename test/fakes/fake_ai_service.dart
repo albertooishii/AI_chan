@@ -36,7 +36,7 @@ class FakeAIService extends AIService {
     // If a sequence of responses was provided, return them in order.
     if (responses != null) {
       if (_idx >= responses!.length) {
-        return AIResponse(text: '', base64: '', seed: '', prompt: '');
+        return AIResponse(text: '');
       }
       final r = responses![_idx];
       _idx++;
@@ -52,7 +52,7 @@ class FakeAIService extends AIService {
         return AIResponse(text: '', base64: onePixelPngBase64, seed: 'test-seed-123', prompt: 'fake-prompt');
       }
       final json = '{"resumen_breve":"Resumen de prueba","datos_personales":{"nombre_completo":"Ai Test"}}';
-      return AIResponse(text: json, base64: '', seed: '', prompt: '');
+      return AIResponse(text: json);
     }
 
     if (customJsonResponse != null) {
@@ -73,7 +73,7 @@ class FakeAIService extends AIService {
       );
     }
 
-    return AIResponse(text: textResponse ?? 'fake response', base64: '', seed: 'test-seed-123', prompt: 'fake-prompt');
+    return AIResponse(text: textResponse ?? 'fake response', seed: 'test-seed-123', prompt: 'fake-prompt');
   }
 
   @override

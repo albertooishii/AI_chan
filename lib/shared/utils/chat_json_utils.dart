@@ -18,7 +18,7 @@ class ChatJsonUtils {
   ) async {
     try {
       final map = chat.toJson();
-      final encoder = JsonEncoder.withIndent('  ');
+      final encoder = const JsonEncoder.withIndent('  ');
       final exportStr = encoder.convert(map);
       final unixDate = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final defaultName = 'ai_chan_$unixDate.json';
@@ -122,7 +122,7 @@ class ChatJsonUtils {
       }
       final imported = ImportedChat.fromJson(decoded);
       final profile = imported.profile;
-      AiChanProfile updatedProfile = profile;
+      final AiChanProfile updatedProfile = profile;
       final result = ImportedChat(
         profile: updatedProfile,
         messages: imported.messages,
@@ -329,7 +329,7 @@ class ChatJsonUtils {
 
   static Future<(String? json, String? error)> importJsonFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles(type: FileType.any);
+      final result = await FilePicker.platform.pickFiles();
       if (result != null && result.files.single.path != null) {
         final file = File(result.files.single.path!);
         return (await file.readAsString(), null);

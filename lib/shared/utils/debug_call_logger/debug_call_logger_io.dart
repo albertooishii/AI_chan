@@ -30,7 +30,6 @@ Future<void> debugLogCallPrompt(
     final file = File('${dir.path}/call_prompt_${fileBaseName}_$ts.json');
     await file.writeAsString(
       const JsonEncoder.withIndent('  ').convert(jsonObj),
-      mode: FileMode.write,
     );
   } catch (_) {
     // Silencioso en caso de error

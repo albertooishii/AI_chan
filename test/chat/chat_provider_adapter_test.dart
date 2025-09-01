@@ -14,7 +14,7 @@ void main() async {
       // Use AIService.testOverride instead of injecting legacy adapter
       final fake = FakeAIService(textResponse: 'hola desde fake');
       AIService.testOverride = fake;
-      final provider = ChatProvider(repository: null);
+      final provider = ChatProvider();
       provider.onboardingData = AiChanProfile.fromJson({
         'userName': 'u',
         'aiName': 'ai',

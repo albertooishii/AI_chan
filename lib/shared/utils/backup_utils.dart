@@ -17,7 +17,7 @@ class BackupUtils {
         return await repository.exportAllToJson(map);
       } catch (_) {}
     }
-    final encoder = JsonEncoder.withIndent('  ');
+    final encoder = const JsonEncoder.withIndent('  ');
     return encoder.convert(map);
   }
 

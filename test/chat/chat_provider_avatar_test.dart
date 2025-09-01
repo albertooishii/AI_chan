@@ -96,7 +96,7 @@ void main() async {
       );
 
       // First fake: returns no base64 (will cause IAAvatarGenerator to fail)
-      final failResp = AIResponse(text: '', base64: '', seed: '', prompt: '');
+      final failResp = AIResponse(text: '');
       // Second fake: valid image
       const png1x1 =
           'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';

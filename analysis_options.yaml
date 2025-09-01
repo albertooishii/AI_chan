@@ -23,21 +23,44 @@ linter:
   rules:
     # Formatting / style
     lines_longer_than_80_chars: false
-    # prefer_single_quotes: true
-
+    prefer_single_quotes: true  # ✅ Aplicado automáticamente con dart fix
+    
     # Performance / correctness
-    # prefer_const_constructors: true
-    # prefer_const_literals_to_create_immutables: true
+    prefer_const_constructors: true  # ✅ Aplicado automáticamente con dart fix
+    prefer_const_literals_to_create_immutables: true  # ✅ Aplicado automáticamente con dart fix
     prefer_final_fields: true
-    # prefer_final_locals: true
-
-    # Safety / best practices
+    prefer_final_locals: true  # ⚠️ Requiere revisión manual (muchas variables)
+    prefer_is_not_empty: true
+    prefer_is_empty: true
+    
+    # Safety / best practices - CRÍTICAS PARA SEGURIDAD
     avoid_print: true  # Prohibir uso de print() - usar Log.d/w/e en su lugar
     # NOTA: Para debugPrint también usar Log.d/w/e. No hay regla lint específica
     # pero el equipo debe usar consistentemente el sistema Log.* del proyecto
-    # prefer_is_not_empty: true
-    # cancel_subscriptions: true
-    # use_build_context_synchronously: true
+    cancel_subscriptions: true
+    use_build_context_synchronously: true
+    close_sinks: true
+    
+    # Code quality - CRÍTICAS PARA CORRECTNESS
+    avoid_empty_else: true
+    avoid_redundant_argument_values: true  # ✅ Aplicado automáticamente con dart fix
+    avoid_returning_null_for_void: true
+    avoid_unnecessary_containers: true
+    prefer_collection_literals: true
+    prefer_if_null_operators: true
+    prefer_null_aware_operators: true
+    
+    # DDD/Architecture specific
+    # avoid_classes_with_only_static_members: true  # TODO: Evaluar impacto en utility classes
+    one_member_abstracts: false  # Permitimos abstracts de un método para interfaces DDD
+    
+    # Flutter specific
+    use_key_in_widget_constructors: true
+    sized_box_for_whitespace: true
+    avoid_web_libraries_in_flutter: true
+    
+    # Documentation
+    public_member_api_docs: false  # Desactivado por ahora, activar cuando esté listo para documentar APIs públicas
 
 analyzer:
   errors:

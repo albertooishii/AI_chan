@@ -125,9 +125,9 @@ class MyApp extends StatefulWidget {
 class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   ChatProvider? _chatProvider;
   Future<void> resetApp() async {
-    Log.i('resetApp llamado', tag: 'APP');
+    Log.i('resetApp llamado');
     await AppDataUtils.clearAllAppData();
-    Log.i('resetApp completado', tag: 'APP');
+    Log.i('resetApp completado');
     if (mounted) {
       widget.onboardingProvider.reset();
       setState(() {});
@@ -143,7 +143,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     Future.microtask(() async {
       try {
         if (!kIsWeb && Platform.isAndroid) {
-          await Future.delayed(Duration(milliseconds: 500));
+          await Future.delayed(const Duration(milliseconds: 500));
           await Permission.storage.request();
         }
       } catch (e) {

@@ -152,7 +152,7 @@ void main() {
     expect(created!.sentTexts, contains('hola'));
 
     // requestResponse delegates
-    client.requestResponse(audio: true, text: true);
+    client.requestResponse();
     expect(created!.requestCalled, true);
 
     // commitPendingAudio should be called by the controller after auto-commit delay

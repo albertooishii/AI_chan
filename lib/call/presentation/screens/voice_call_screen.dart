@@ -19,29 +19,21 @@ class VoiceCallChat extends StatefulWidget {
   final bool incoming; // true si la llamada es entrante (IA llama al usuario)
   // ChatProvider MUST be passed by the caller to avoid Provider.of in presentation.
   final ChatProvider chatProvider;
-  const VoiceCallChat({
-    super.key,
-    this.incoming = false,
-    required this.chatProvider,
-  });
+  const VoiceCallChat({super.key, this.incoming = false, required this.chatProvider});
 
   @override
   State<VoiceCallChat> createState() => _VoiceCallChatState();
 }
 
-class _VoiceCallChatState extends State<VoiceCallChat>
-    with SingleTickerProviderStateMixin {
+class _VoiceCallChatState extends State<VoiceCallChat> with SingleTickerProviderStateMixin {
   bool _hangupInProgress = false;
   bool _hangupNoticeShown = false;
   bool _incomingAccepted = false; // para distinguir si se respondió
   bool _endCallTagHandled = false; // si la IA emitió [end_call][/end_call]
   bool _forceReject = false; // forzar ruta de rechazo (IA rechazó con etiqueta)
-  bool _startCallTagReceived =
-      false; // si IA aceptó con [start_call][/start_call]
-  bool _implicitRejectHandled =
-      false; // rechazo implícito por texto largo inicial
-  int _earlyPhaseAlnumAccumulated =
-      0; // acumulador de caracteres alfanuméricos en fase temprana para rechazo implícito
+  bool _startCallTagReceived = false; // si IA aceptó con [start_call][/start_call]
+  bool _implicitRejectHandled = false; // rechazo implícito por texto largo inicial
+  int _earlyPhaseAlnumAccumulated = 0; // acumulador de caracteres alfanuméricos en fase temprana para rechazo implícito
   Timer? _noAnswerTimer; // timeout para llamada no contestada
   Timer? _incomingAnswerTimer; // timeout para llamadas entrantes no aceptadas
   // Debug de subtítulos siempre desactivado (control solo por código, sin botón UI)
@@ -92,16 +84,12 @@ class _VoiceCallChatState extends State<VoiceCallChat>
 
     // Determinar si hubo conversación REAL: solo cuenta si hubo audio IA reproducido o el usuario habló.
     // Antes se usaba aiRespondedFlag (texto IA) lo que impedía marcar como "sin contestar" cuando solo llegó texto.
-    final bool hadConversation =
-        controller.userSpokeFlag || controller.firstAudioReceivedFlag;
+    final bool hadConversation = controller.userSpokeFlag || controller.firstAudioReceivedFlag;
     final int? placeholderIndex = chat.pendingIncomingCallMsgIndex;
     // Forzar rechazo si IA emitió [end_call][/end_call] (aunque controller marque que habló)
     // Criterio de "aceptación silenciosa": hubo start_call pero jamás llegó audio IA ni voz usuario.
     // Antes se trataba como rechazo técnico; lo reclasificamos como missed (equivale a que la IA nunca contestó realmente).
-    final bool silentNoAudio =
-        _startCallTagReceived &&
-        !controller.firstAudioReceivedFlag &&
-        !controller.userSpokeFlag;
+    final bool silentNoAudio = _startCallTagReceived && !controller.firstAudioReceivedFlag && !controller.userSpokeFlag;
     // Reglas actualizadas:
     // - Rejected: solo si _forceReject (end_call temprano, rechazo explícito, implícito, timeout forzado)
     // - Missed: (a) no hubo conversación y no se recibió fin, o (b) silentNoAudio
@@ -110,8 +98,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
     if (!markRejected && (silentNoAudio || !hadConversation)) {
       markMissed = true;
     }
-    final bool shouldMarkRejected =
-        markRejected; // alias semántico para claridad posterior
+    final bool shouldMarkRejected = markRejected; // alias semántico para claridad posterior
 
     // Limpieza en background: detener sesión de voz/mic y guardar resumen o marcar rechazo
     unawaited(
@@ -131,15 +118,10 @@ class _VoiceCallChatState extends State<VoiceCallChat>
     int? placeholderIndex,
     String? rejectionText,
   }) async {
-    Log.i(
-      '🧹 Iniciando limpieza en background después de colgar',
-      tag: 'VOICE_CALL',
-    );
+    Log.i('🧹 Iniciando limpieza en background después de colgar', tag: 'VOICE_CALL');
     try {
       Log.d('🧹 Deteniendo controller...', tag: 'VOICE_CALL');
-      await controller
-          .stop(keepFxPlaying: true)
-          .timeout(const Duration(milliseconds: 800));
+      await controller.stop(keepFxPlaying: true).timeout(const Duration(milliseconds: 800));
       Log.d('🧹 Controller detenido', tag: 'VOICE_CALL');
     } catch (e) {
       Log.e('🧹 Error deteniendo controller', tag: 'VOICE_CALL', error: e);
@@ -163,16 +145,10 @@ class _VoiceCallChatState extends State<VoiceCallChat>
 
     if (chat != null) {
       if (markRejected) {
-        Log.d(
-          '🧹 Marcando llamada rechazada (flag markRejected=true)',
-          tag: 'VOICE_CALL',
-        );
+        Log.d('🧹 Marcando llamada rechazada (flag markRejected=true)', tag: 'VOICE_CALL');
         try {
           if (placeholderIndex != null) {
-            chat.rejectIncomingCallPlaceholder(
-              index: placeholderIndex,
-              text: rejectionText ?? 'Llamada rechazada',
-            );
+            chat.rejectIncomingCallPlaceholder(index: placeholderIndex, text: rejectionText ?? 'Llamada rechazada');
           } else {
             // Llamada saliente rechazada / no contestada (no hay placeholder entrante)
             await chat.updateOrAddCallStatusMessage(
@@ -190,10 +166,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
         try {
           if (placeholderIndex != null) {
             // Reemplazar placeholder entrante con estado missed
-            chat.rejectIncomingCallPlaceholder(
-              index: placeholderIndex,
-              text: 'Llamada sin contestar',
-            );
+            chat.rejectIncomingCallPlaceholder(index: placeholderIndex, text: 'Llamada sin contestar');
           } else {
             await chat.updateOrAddCallStatusMessage(
               text: 'Llamada sin contestar',
@@ -231,10 +204,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
             }
             Log.d('🧹 Proceso de resumen completado', tag: 'VOICE_CALL');
           } else {
-            Log.d(
-              '🧹 No se generó resumen (criterios no cumplidos)',
-              tag: 'VOICE_CALL',
-            );
+            Log.d('🧹 No se generó resumen (criterios no cumplidos)', tag: 'VOICE_CALL');
             // Política solicitada:
             // 1. Si fue rechazo (markRejected ya tratado arriba) y llegamos aquí sin summary -> mostrar "Llamada rechazada".
             // 2. Si usuario colgó muy temprano (sin start_call, sin audio IA, sin voz usuario) -> NO registrar nada.
@@ -245,21 +215,16 @@ class _VoiceCallChatState extends State<VoiceCallChat>
                 !controller.userSpokeFlag &&
                 !_endCallTagHandled;
             if (earlyAbort) {
-              Log.d(
-                '🧹 Colgado temprano sin respuesta -> sin registro de mensaje.',
-                tag: 'VOICE_CALL',
-              );
+              Log.d('🧹 Colgado temprano sin respuesta -> sin registro de mensaje.', tag: 'VOICE_CALL');
             } else if (markRejected) {
               try {
                 Log.d(
                   '[RejectFlow] markRejected path: incoming=${widget.incoming} placeholderIndex=${chat.pendingIncomingCallMsgIndex} totalMsgsBefore=${chat.messages.length}',
                   tag: 'VOICE_CALL',
                 );
-                if (widget.incoming &&
-                    chat.pendingIncomingCallMsgIndex != null) {
+                if (widget.incoming && chat.pendingIncomingCallMsgIndex != null) {
                   chat.rejectIncomingCallPlaceholder(
                     index: chat.pendingIncomingCallMsgIndex!,
-                    text: 'Llamada rechazada',
                   );
                   Log.d(
                     '[RejectFlow] Placeholder reemplazado -> totalMsgsAfter=${chat.messages.length}',
@@ -271,48 +236,26 @@ class _VoiceCallChatState extends State<VoiceCallChat>
                     text: 'Llamada rechazada',
                     callStatus: CallStatus.rejected,
                     incoming: widget.incoming,
-                    placeholderIndex: null,
                   );
-                  Log.d(
-                    '[RejectFlow] Mensaje añadido -> totalMsgsAfter=${chat.messages.length}',
-                    tag: 'VOICE_CALL',
-                  );
+                  Log.d('[RejectFlow] Mensaje añadido -> totalMsgsAfter=${chat.messages.length}', tag: 'VOICE_CALL');
                 }
-                Log.d(
-                  '🧹 Registrado mensaje de llamada rechazada (sin resumen)',
-                  tag: 'VOICE_CALL',
-                );
+                Log.d('🧹 Registrado mensaje de llamada rechazada (sin resumen)', tag: 'VOICE_CALL');
               } catch (e) {
-                Log.e(
-                  '⚠️ Error registrando llamada rechazada sin resumen',
-                  tag: 'VOICE_CALL',
-                  error: e,
-                );
+                Log.e('⚠️ Error registrando llamada rechazada sin resumen', tag: 'VOICE_CALL', error: e);
               }
             } else if (markMissed) {
               try {
-                Log.d(
-                  '[MissedFlow] Registrando llamada sin contestar',
-                  tag: 'VOICE_CALL',
-                );
+                Log.d('[MissedFlow] Registrando llamada sin contestar', tag: 'VOICE_CALL');
                 await chat.updateOrAddCallStatusMessage(
                   text: 'Llamada sin contestar',
                   callStatus: CallStatus.missed,
                   incoming: widget.incoming,
-                  placeholderIndex: null,
                 );
               } catch (e) {
-                Log.e(
-                  '⚠️ Error registrando llamada missed',
-                  tag: 'VOICE_CALL',
-                  error: e,
-                );
+                Log.e('⚠️ Error registrando llamada missed', tag: 'VOICE_CALL', error: e);
               }
             } else {
-              Log.d(
-                '🧹 Llamada corta aceptada sin resumen -> no se registra mensaje.',
-                tag: 'VOICE_CALL',
-              );
+              Log.d('🧹 Llamada corta aceptada sin resumen -> no se registra mensaje.', tag: 'VOICE_CALL');
             }
           }
         } catch (e) {
@@ -356,30 +299,20 @@ class _VoiceCallChatState extends State<VoiceCallChat>
   bool _muted = false;
   StreamSubscription<double>? _levelSub;
 
-  Future<(VoiceCallSummary, String)?> _generateCallSummary(
-    ChatProvider? chat,
-  ) async {
+  Future<(VoiceCallSummary, String)?> _generateCallSummary(ChatProvider? chat) async {
     try {
       final callSummary = controller.createCallSummary();
       if (chat == null) return null;
       if (!callSummary.userSpoke) return null;
       if (callSummary.messages.isEmpty) return null;
       if (callSummary.duration.inSeconds < 5) return null;
-      final summaryService = dsummary.CallSummaryService(
-        profile: chat.onboardingData,
-      );
-      final conversationSummary = await summaryService.generateSummaryText(
-        callSummary,
-      );
+      final summaryService = dsummary.CallSummaryService(profile: chat.onboardingData);
+      final conversationSummary = await summaryService.generateSummaryText(callSummary);
       if (conversationSummary.isEmpty) return null;
       controller.clearMessages();
       return (callSummary, conversationSummary);
     } catch (e) {
-      Log.e(
-        '[AI-chan][VoiceCall] Error generando resumen',
-        tag: 'VOICE_CALL',
-        error: e,
-      );
+      Log.e('[AI-chan][VoiceCall] Error generando resumen', tag: 'VOICE_CALL', error: e);
       return null;
     }
   }
@@ -404,22 +337,17 @@ class _VoiceCallChatState extends State<VoiceCallChat>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
     // Resolve AI service via DI based on selected provider/model; use configured default model
     openai = di.getAIServiceForModel(Config.getDefaultTextModel());
     controller = CallController(aiService: openai);
-    _subtitleController = SubtitleController(debug: false);
+    _subtitleController = SubtitleController();
 
     // Cargar / validar voz por defecto inmediatamente para el controlador
     Future.microtask(() async {
       try {
         final savedProvider = await PrefsUtils.getSelectedAudioProvider();
-        final provider = (savedProvider == 'gemini')
-            ? 'google'
-            : savedProvider.toLowerCase();
+        final provider = (savedProvider == 'gemini') ? 'google' : savedProvider.toLowerCase();
         final saved = await PrefsUtils.getSelectedVoiceForProvider(provider);
 
         // Construir lista v e1lida seg fan provider
@@ -428,14 +356,8 @@ class _VoiceCallChatState extends State<VoiceCallChat>
           if (GoogleSpeechService.isConfigured) {
             try {
               // Obtener voces femeninas filtradas para espa f1ol (Espa f1a)
-              final fetchedVoices =
-                  await GoogleSpeechService.voicesForUserAndAi(
-                    ['es-ES'],
-                    ['es-ES'],
-                  );
-              validVoices = fetchedVoices
-                  .map((v) => v['name'] as String)
-                  .toList();
+              final fetchedVoices = await GoogleSpeechService.voicesForUserAndAi(['es-ES'], ['es-ES']);
+              validVoices = fetchedVoices.map((v) => v['name'] as String).toList();
             } catch (e) {
               debugPrint('Error fetching Google voices: $e');
               validVoices = [];
@@ -450,9 +372,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
         final envDefault = Config.getOpenaiVoice();
         final effective = (saved != null && validVoices.contains(saved))
             ? saved
-            : (validVoices.isNotEmpty
-                  ? validVoices.first
-                  : resolveDefaultVoice(envDefault));
+            : (validVoices.isNotEmpty ? validVoices.first : resolveDefaultVoice(envDefault));
         controller.setVoice(effective); // asegurar antes de iniciar llamada
       } catch (_) {
         controller.setVoice(resolveDefaultVoice(Config.getOpenaiVoice()));
@@ -470,9 +390,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
         _incomingAnswerTimer?.cancel();
         _incomingAnswerTimer = Timer(const Duration(seconds: 10), () async {
           if (mounted && !_incomingAccepted && !_hangupInProgress) {
-            debugPrint(
-              '[AI-chan][VoiceCall] Timeout entrante 10s sin aceptar -> marcar no contestada',
-            );
+            debugPrint('[AI-chan][VoiceCall] Timeout entrante 10s sin aceptar -> marcar no contestada');
             final chat = widget.chatProvider;
             // Rechazar placeholder si existe
             if (chat.pendingIncomingCallMsgIndex != null) {
@@ -482,9 +400,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
                   text: 'Llamada no contestada',
                 );
               } catch (e) {
-                debugPrint(
-                  '[AI-chan][VoiceCall] Error marcando no contestada entrante: $e',
-                );
+                debugPrint('[AI-chan][VoiceCall] Error marcando no contestada entrante: $e');
               }
             } else {
               try {
@@ -516,15 +432,11 @@ class _VoiceCallChatState extends State<VoiceCallChat>
         // Update noise floor using EMA when level is below a relaxed threshold
         // Esto evita que voz alta eleve el noise floor rápidamente.
         if (l < 0.5 * (_noiseFloor + _voiceThresholdMargin)) {
-          _noiseFloor =
-              (_noiseFloor * (1 - _noiseFloorAlpha)) + (l * _noiseFloorAlpha);
+          _noiseFloor = (_noiseFloor * (1 - _noiseFloorAlpha)) + (l * _noiseFloorAlpha);
         }
 
         // Determine dynamic threshold
-        final dynamicThreshold = (_noiseFloor + _voiceThresholdMargin).clamp(
-          0.01,
-          1.0,
-        );
+        final dynamicThreshold = (_noiseFloor + _voiceThresholdMargin).clamp(0.01, 1.0);
         // Keep last computed threshold for transcription heuristics
         _lastDynamicThreshold = dynamicThreshold;
 
@@ -534,9 +446,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
           _lastMicPeakAt = now; // record any brief crossing as a recent peak
           _voiceCandidateStartAt ??= now;
           // If sustained beyond required duration, confirm voice activity
-          if (_voiceCandidateStartAt != null &&
-              now.difference(_voiceCandidateStartAt!) >=
-                  _voiceSustainDuration) {
+          if (_voiceCandidateStartAt != null && now.difference(_voiceCandidateStartAt!) >= _voiceSustainDuration) {
             _lastVoiceActivityAt = now;
           }
         } else {
@@ -572,13 +482,13 @@ class _VoiceCallChatState extends State<VoiceCallChat>
   // when microphone level is low (noise) to reduce false positives.
   // Tune these constants if needed.
   // Slightmente más tolerante para capturar actividad breve del usuario
-  final Duration _voiceActivityWindow = Duration(milliseconds: 1200);
+  final Duration _voiceActivityWindow = const Duration(milliseconds: 1200);
   DateTime? _lastVoiceActivityAt;
   // Pending transcription stabilization: when there's no recent mic activity
   // require a repeated/stable transcription within this window to accept it.
   String? _lastPendingTranscription;
   Timer? _pendingTranscriptionTimer;
-  final Duration _pendingDuplicateWindow = Duration(milliseconds: 1200);
+  final Duration _pendingDuplicateWindow = const Duration(milliseconds: 1200);
 
   void _clearPendingTranscription() {
     _lastPendingTranscription = null;
@@ -592,8 +502,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
   // Adaptive noise gating fields
   double _noiseFloor = 0.02; // estimated ambient noise level [0..1]
   final double _noiseFloorAlpha = 0.02; // EMA smoothing for noise floor
-  final double _voiceThresholdMargin =
-      0.12; // margin above noise floor to consider voice
+  final double _voiceThresholdMargin = 0.12; // margin above noise floor to consider voice
   // Last computed dynamic threshold based on noiseFloor + margin
   double? _lastDynamicThreshold;
   // Track a recent mic-level peak (any brief crossing of dynamic threshold)
@@ -604,9 +513,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
   int _telemetryAcceptedDuplicate = 0;
   int _telemetryRejectedPending = 0;
   DateTime? _voiceCandidateStartAt; // when a potential voice segment started
-  final Duration _voiceSustainDuration = Duration(
-    milliseconds: 200,
-  ); // required sustained duration to confirm voice
+  final Duration _voiceSustainDuration = const Duration(milliseconds: 200); // required sustained duration to confirm voice
 
   @override
   Widget build(BuildContext context) {
@@ -615,20 +522,11 @@ class _VoiceCallChatState extends State<VoiceCallChat>
     final accentColor = Colors.pinkAccent;
     // Lista de voces ya no se muestra aquí.
     final neonShadow = [
-      BoxShadow(
-        color: baseColor.withAlpha((0.7 * 255).round()),
-        blurRadius: 16,
-        spreadRadius: 2,
-      ),
-      BoxShadow(
-        color: accentColor.withAlpha((0.4 * 255).round()),
-        blurRadius: 32,
-        spreadRadius: 8,
-      ),
+      BoxShadow(color: baseColor.withAlpha((0.7 * 255).round()), blurRadius: 16, spreadRadius: 2),
+      BoxShadow(color: accentColor.withAlpha((0.4 * 255).round()), blurRadius: 32, spreadRadius: 8),
     ];
 
     return PopScope(
-      canPop: true,
       onPopInvokedWithResult: (didPop, result) async {
         if (!didPop) {
           await _hangUp();
@@ -650,12 +548,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
                   fontWeight: FontWeight.bold,
                   fontSize: 22,
                   letterSpacing: 1.2,
-                  shadows: [
-                    Shadow(
-                      color: accentColor.withAlpha((0.5 * 255).round()),
-                      blurRadius: 8,
-                    ),
-                  ],
+                  shadows: [Shadow(color: accentColor.withAlpha((0.5 * 255).round()), blurRadius: 8)],
                 ),
               ),
             ],
@@ -667,10 +560,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
             Positioned.fill(
               child: IgnorePointer(
                 child: CustomPaint(
-                  painter: CyberpunkGlowPainter(
-                    baseColor: baseColor,
-                    accentColor: accentColor,
-                  ),
+                  painter: CyberpunkGlowPainter(baseColor: baseColor, accentColor: accentColor),
                 ),
               ),
             ),
@@ -717,12 +607,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
                           Icons.mic_none,
                           color: accentColor,
                           size: 64,
-                          shadows: [
-                            Shadow(
-                              color: baseColor.withAlpha((0.7 * 255).round()),
-                              blurRadius: 16,
-                            ),
-                          ],
+                          shadows: [Shadow(color: baseColor.withAlpha((0.7 * 255).round()), blurRadius: 16)],
                         ),
                       ),
                     ],
@@ -796,29 +681,20 @@ class _VoiceCallChatState extends State<VoiceCallChat>
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           gradient: LinearGradient(
-                            colors: [
-                              Colors.greenAccent.shade400,
-                              baseColor.withAlpha((0.6 * 255).round()),
-                            ],
+                            colors: [Colors.greenAccent.shade400, baseColor.withAlpha((0.6 * 255).round())],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.greenAccent.withAlpha(
-                                (0.7 * 255).round(),
-                              ),
+                              color: Colors.greenAccent.withAlpha((0.7 * 255).round()),
                               blurRadius: 24,
                               spreadRadius: 2,
                             ),
                           ],
                           border: Border.all(color: baseColor, width: 2.5),
                         ),
-                        child: const Icon(
-                          Icons.call,
-                          color: Colors.white,
-                          size: 38,
-                        ),
+                        child: const Icon(Icons.call, color: Colors.white, size: 38),
                       ),
                     ),
                   ],
@@ -835,15 +711,9 @@ class _VoiceCallChatState extends State<VoiceCallChat>
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(color: accentColor, width: 3),
-                          color: _muted
-                              ? Colors.grey.shade800
-                              : Colors.transparent,
+                          color: _muted ? Colors.grey.shade800 : Colors.transparent,
                         ),
-                        child: Icon(
-                          _muted ? Icons.mic_off : Icons.mic,
-                          color: accentColor,
-                          size: 36,
-                        ),
+                        child: Icon(_muted ? Icons.mic_off : Icons.mic, color: accentColor, size: 36),
                       ),
                     ),
                   // Colgar
@@ -866,34 +736,21 @@ class _VoiceCallChatState extends State<VoiceCallChat>
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: LinearGradient(
-                          colors: [
-                            Colors.redAccent.shade700,
-                            accentColor.withAlpha((0.7 * 255).round()),
-                          ],
+                          colors: [Colors.redAccent.shade700, accentColor.withAlpha((0.7 * 255).round())],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.redAccent.withAlpha(
-                              (0.7 * 255).round(),
-                            ),
+                            color: Colors.redAccent.withAlpha((0.7 * 255).round()),
                             blurRadius: 24,
                             spreadRadius: 2,
                           ),
-                          BoxShadow(
-                            color: accentColor.withAlpha((0.2 * 255).round()),
-                            blurRadius: 32,
-                            spreadRadius: 8,
-                          ),
+                          BoxShadow(color: accentColor.withAlpha((0.2 * 255).round()), blurRadius: 32, spreadRadius: 8),
                         ],
                         border: Border.all(color: accentColor, width: 2.5),
                       ),
-                      child: const Icon(
-                        Icons.call_end,
-                        color: Colors.white,
-                        size: 38,
-                      ),
+                      child: const Icon(Icons.call_end, color: Colors.white, size: 38),
                     ),
                   ),
                 ],
@@ -912,20 +769,11 @@ extension _IncomingLogic on _VoiceCallChatState {
     try {
       final chat = widget.chatProvider;
       systemPrompt = chat.buildCallSystemPromptJson(
-        maxRecent: 32,
-        aiInitiatedCall:
-            widget.incoming, // incoming=true => IA inició la llamada
+        aiInitiatedCall: widget.incoming, // incoming=true => IA inició la llamada
       );
-      Log.d(
-        'VoiceCallChat: usando SystemPrompt JSON de llamada (len=${systemPrompt.length})',
-        tag: 'VOICE_CALL',
-      );
+      Log.d('VoiceCallChat: usando SystemPrompt JSON de llamada (len=${systemPrompt.length})', tag: 'VOICE_CALL');
     } catch (e) {
-      Log.e(
-        'VoiceCallChat: ChatProvider no disponible',
-        tag: 'VOICE_CALL',
-        error: e,
-      );
+      Log.e('VoiceCallChat: ChatProvider no disponible', tag: 'VOICE_CALL', error: e);
       if (!mounted) return;
       await controller.playNoAnswerTone(duration: const Duration(seconds: 3));
       if (!mounted) return;
@@ -944,9 +792,7 @@ extension _IncomingLogic on _VoiceCallChatState {
     final envProvider = Config.getAudioProvider().toLowerCase();
     String providerToUse;
     if (selectedProvider != null && selectedProvider.isNotEmpty) {
-      providerToUse = (selectedProvider == 'gemini')
-          ? 'google'
-          : selectedProvider.toLowerCase();
+      providerToUse = (selectedProvider == 'gemini') ? 'google' : selectedProvider.toLowerCase();
     } else if (envProvider.isNotEmpty) {
       providerToUse = (envProvider == 'gemini') ? 'google' : envProvider;
     } else {
@@ -956,12 +802,9 @@ extension _IncomingLogic on _VoiceCallChatState {
     // Determine voice selected by user (prefs) or fallback
     String? selectedVoice;
     try {
-      selectedVoice = await PrefsUtils.getSelectedVoiceForProvider(
-        providerToUse,
-      );
+      selectedVoice = await PrefsUtils.getSelectedVoiceForProvider(providerToUse);
     } catch (_) {}
-    final voiceToUse =
-        selectedVoice ?? resolveDefaultVoice(Config.getOpenaiVoice());
+    final voiceToUse = selectedVoice ?? resolveDefaultVoice(Config.getOpenaiVoice());
 
     await controller.startContinuousCall(
       systemPrompt: systemPrompt,
@@ -985,10 +828,7 @@ extension _IncomingLogic on _VoiceCallChatState {
             caseSensitive: false,
           ).hasMatch(trimmed);
           if (plainEndCall) {
-            final earlyPlain =
-                !_startCallTagReceived &&
-                !controller.userSpokeFlag &&
-                !controller.aiRespondedFlag;
+            final earlyPlain = !_startCallTagReceived && !controller.userSpokeFlag && !controller.aiRespondedFlag;
             Log.d(
               '[AI-chan][VoiceCall] Detectado "end call" plano (voz) early=$earlyPlain -> colgando silencioso',
               tag: 'VOICE_CALL',
@@ -1014,9 +854,7 @@ extension _IncomingLogic on _VoiceCallChatState {
           // --- Detección tolerante de start_call ---
           // Formas aceptadas puras (activan aceptación): [start_call], [start_call][/start_call], [/start_call]
           final isPureStartTag =
-              trimmed == '[start_call][/start_call]' ||
-              trimmed == '[start_call]' ||
-              trimmed == '[/start_call]';
+              trimmed == '[start_call][/start_call]' || trimmed == '[start_call]' || trimmed == '[/start_call]';
           final containsAnyStart =
               chunk.contains('[start_call]') ||
               chunk.contains('[start_call][/start_call]') ||
@@ -1027,15 +865,12 @@ extension _IncomingLogic on _VoiceCallChatState {
               // Solo aceptar si es etiqueta "pura" sin texto adicional alrededor.
               if (!_startCallTagReceived) {
                 _startCallTagReceived = true;
-                Log.d(
-                  '[AI-chan][VoiceCall] Detectado start_call puro (aceptación)',
-                  tag: 'VOICE_CALL',
-                );
+                Log.d('[AI-chan][VoiceCall] Detectado start_call puro (aceptación)', tag: 'VOICE_CALL');
                 // Ya no detenemos el ringback aquí; se detendrá automáticamente al primer audio IA.
                 _noAnswerTimer?.cancel();
                 _incomingAnswerTimer?.cancel();
                 try {
-                  controller.requestImmediateAudioResponse(includeText: true);
+                  controller.requestImmediateAudioResponse();
                 } catch (_) {}
               }
               return; // No mostrar etiqueta pura
@@ -1047,10 +882,7 @@ extension _IncomingLogic on _VoiceCallChatState {
               if (!_startCallTagReceived) {
                 // Tratarlo igualmente como aceptación salvage
                 _startCallTagReceived = true;
-                Log.d(
-                  '[AI-chan][VoiceCall] Salvage: start_call contaminado -> aceptación forzada',
-                  tag: 'VOICE_CALL',
-                );
+                Log.d('[AI-chan][VoiceCall] Salvage: start_call contaminado -> aceptación forzada', tag: 'VOICE_CALL');
                 // Mantener ringback hasta primer audio IA (no detener todavía)
                 _noAnswerTimer?.cancel();
                 _incomingAnswerTimer?.cancel();
@@ -1064,9 +896,7 @@ extension _IncomingLogic on _VoiceCallChatState {
           // --- Detección tolerante de end_call ---
           // Formas aceptadas para colgar: [end_call][/end_call], [end_call], [/end_call]
           final isPureEndTag =
-              trimmed == '[end_call][/end_call]' ||
-              trimmed == '[end_call]' ||
-              trimmed == '[/end_call]';
+              trimmed == '[end_call][/end_call]' || trimmed == '[end_call]' || trimmed == '[/end_call]';
           final containsEndTag =
               isPureEndTag ||
               chunk.contains('[end_call][/end_call]') ||
@@ -1084,15 +914,10 @@ extension _IncomingLogic on _VoiceCallChatState {
             }();
             // Fase temprana: no hubo start_call aceptado, ni audio IA, ni voz usuario.
             final earlyPhase =
-                !_startCallTagReceived &&
-                !controller.firstAudioReceivedFlag &&
-                !controller.userSpokeFlag;
+                !_startCallTagReceived && !controller.firstAudioReceivedFlag && !controller.userSpokeFlag;
             // Considerar que hubo conversación solo si realmente hubo audio IA o voz usuario (texto puro no cuenta)
-            final realConversation =
-                controller.userSpokeFlag || controller.firstAudioReceivedFlag;
-            _forceReject =
-                earlyPhase ||
-                !realConversation; // rechazo si fue antes de audio/voz real
+            final realConversation = controller.userSpokeFlag || controller.firstAudioReceivedFlag;
+            _forceReject = earlyPhase || !realConversation; // rechazo si fue antes de audio/voz real
             Log.d(
               '[AI-chan][VoiceCall] Detectado [end_call][/end_call] — earlyPhase=$earlyPhase realConversation=$realConversation forceReject=$_forceReject',
               tag: 'VOICE_CALL',
@@ -1111,8 +936,7 @@ extension _IncomingLogic on _VoiceCallChatState {
 
           // Rechazo implícito extendido: si aún no hay start_call ni audio ni habla usuario y llega texto sustancial
           // (sin ninguna etiqueta) lo tratamos como rechazo y colgamos. Evita que se muestre en subtítulos.
-          final noTags =
-              !chunk.contains('[start_call') && !chunk.contains('[end_call');
+          final noTags = !chunk.contains('[start_call') && !chunk.contains('[end_call');
           final earlyPhase =
               !_startCallTagReceived &&
               !_endCallTagHandled &&
@@ -1121,9 +945,7 @@ extension _IncomingLogic on _VoiceCallChatState {
           if (noTags && earlyPhase && !_implicitRejectHandled) {
             final cleaned = trimmed.replaceAll(RegExp(r'\s+'), ' ');
             // Considerar "sustancial" si supera 6 caracteres alfanuméricos (evitar respirar, etc.)
-            final alnumLen = cleaned
-                .replaceAll(RegExp(r'[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9]'), '')
-                .length;
+            final alnumLen = cleaned.replaceAll(RegExp(r'[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9]'), '').length;
             // Acumular longitud alfanumérica temprana (algunos modelos emiten en fragmentos muy cortos)
             _earlyPhaseAlnumAccumulated += alnumLen;
             final totalEarly = _earlyPhaseAlnumAccumulated;
@@ -1161,29 +983,20 @@ extension _IncomingLogic on _VoiceCallChatState {
         try {
           final now = DateTime.now();
           final hadRecentActivity =
-              _lastVoiceActivityAt != null &&
-              now.difference(_lastVoiceActivityAt!) <= _voiceActivityWindow;
+              _lastVoiceActivityAt != null && now.difference(_lastVoiceActivityAt!) <= _voiceActivityWindow;
           // Consider a mic peak recent if we saw any crossing in the last 1500ms
-          final micRecentPeak =
-              _lastMicPeakAt != null &&
-              now.difference(_lastMicPeakAt!).inMilliseconds <= 1500;
+          final micRecentPeak = _lastMicPeakAt != null && now.difference(_lastMicPeakAt!).inMilliseconds <= 1500;
           final trimmed = transcription.trim();
 
           // If no recent mic activity, be stricter to avoid false positives.
           if (!hadRecentActivity) {
-            final wordCount = trimmed.isEmpty
-                ? 0
-                : trimmed
-                      .split(RegExp(r'\s+'))
-                      .where((s) => s.isNotEmpty)
-                      .length;
+            final wordCount = trimmed.isEmpty ? 0 : trimmed.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
 
             // Stricter blind-accept: require a longer, more likely real utterance AND
             // evidence of a recent mic peak near the dynamic threshold (to avoid ambient noise).
             // This reduces cases where ASR returns a plausible long sentence from noise.
             final bool longEnough = trimmed.length >= 18 && wordCount >= 4;
-            final bool micSuggestsSpeech =
-                _soundLevel >= (_lastDynamicThreshold ?? 0.0);
+            final bool micSuggestsSpeech = _soundLevel >= (_lastDynamicThreshold ?? 0.0);
             // Accept if it's long OR microphone shows a recent peak near threshold.
             if (longEnough || micSuggestsSpeech || micRecentPeak) {
               Log.d(
@@ -1198,8 +1011,7 @@ extension _IncomingLogic on _VoiceCallChatState {
 
             // If the same (normalized) short transcription appears twice within the pending window, accept it.
             final normalized = StringUtils.normalizeTranscription(trimmed);
-            if (_lastPendingTranscription != null &&
-                _lastPendingTranscription == normalized) {
+            if (_lastPendingTranscription != null && _lastPendingTranscription == normalized) {
               Log.d(
                 '[AI-chan][VoiceCall] Transcripción duplicada establecida -> aceptar: "$trimmed"',
                 tag: 'VOICE_CALL',
@@ -1221,18 +1033,11 @@ extension _IncomingLogic on _VoiceCallChatState {
               _telemetryRejectedPending++;
               _clearPendingTranscription();
             });
-            Log.d(
-              '[AI-chan][VoiceCall] Transcripción marcada como pendiente: "$trimmed"',
-              tag: 'VOICE_CALL',
-            );
+            Log.d('[AI-chan][VoiceCall] Transcripción marcada como pendiente: "$trimmed"', tag: 'VOICE_CALL');
             return;
           }
         } catch (e) {
-          Log.e(
-            '[AI-chan][VoiceCall] Error en filtro de transcripción',
-            tag: 'VOICE_CALL',
-            error: e,
-          );
+          Log.e('[AI-chan][VoiceCall] Error en filtro de transcripción', tag: 'VOICE_CALL', error: e);
           // En caso de error defensivo, mostrar la transcripción en vez de bloquear
         }
         _showUserSubtitle(transcription);
@@ -1274,12 +1079,7 @@ extension _IncomingLogic on _VoiceCallChatState {
           messenger.clearSnackBars();
           // This code captured a ScaffoldMessenger (messenger). Use the root messenger
           // to preserve the expected ScaffoldSnackBar semantics.
-          showAppSnackBar(
-            msg,
-            isError: isError,
-            duration: const Duration(seconds: 2),
-            preferRootMessenger: true,
-          );
+          showAppSnackBar(msg, isError: isError, duration: const Duration(seconds: 2), preferRootMessenger: true);
         }
         try {
           unawaited(controller.playHangupTone());
@@ -1293,9 +1093,7 @@ extension _IncomingLogic on _VoiceCallChatState {
             !controller.firstAudioReceivedFlag &&
             !controller.userSpokeFlag) {
           // Extender hasta un máximo de 25s total
-          final elapsed = DateTime.now()
-              .difference(controller.callStartTime ?? DateTime.now())
-              .inSeconds;
+          final elapsed = DateTime.now().difference(controller.callStartTime ?? DateTime.now()).inSeconds;
           final remaining = 25 - elapsed;
           if (remaining > 0) {
             _noAnswerTimer?.cancel();
@@ -1305,16 +1103,11 @@ extension _IncomingLogic on _VoiceCallChatState {
               final userSpoke = controller.userSpokeFlag;
               final answered = (hasAudio || userSpoke) && !_endCallTagHandled;
               if (!answered && !_endCallTagHandled) {
-                Log.d(
-                  '[AI-chan][VoiceCall] Timeout extendido -> no contestada',
-                  tag: 'VOICE_CALL',
-                );
+                Log.d('[AI-chan][VoiceCall] Timeout extendido -> no contestada', tag: 'VOICE_CALL');
                 _hangUpNoAnswer();
               }
             });
-            Log.d(
-              '[AI-chan][VoiceCall] Timeout no-answer extendido tras retry intento=$attempt rest=${remaining}s',
-            );
+            Log.d('[AI-chan][VoiceCall] Timeout no-answer extendido tras retry intento=$attempt rest=${remaining}s');
           }
         }
       },
@@ -1364,20 +1157,17 @@ class _ScrollableConversationSubtitles extends StatefulWidget {
   });
 
   @override
-  State<_ScrollableConversationSubtitles> createState() =>
-      _ScrollableConversationSubtitlesState();
+  State<_ScrollableConversationSubtitles> createState() => _ScrollableConversationSubtitlesState();
 }
 
-class _ScrollableConversationSubtitlesState
-    extends State<_ScrollableConversationSubtitles> {
+class _ScrollableConversationSubtitlesState extends State<_ScrollableConversationSubtitles> {
   final _scrollCtrl = ScrollController();
   String _lastCombinedKey = '';
 
   @override
   void didUpdateWidget(covariant _ScrollableConversationSubtitles oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.aiText != widget.aiText ||
-        oldWidget.userText != widget.userText) {
+    if (oldWidget.aiText != widget.aiText || oldWidget.userText != widget.userText) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         if (_scrollCtrl.hasClients) {
@@ -1396,9 +1186,7 @@ class _ScrollableConversationSubtitlesState
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final maxHeight = size.width < 430
-        ? 110.0
-        : 150.0; // un poco más alto para dos líneas
+    final maxHeight = size.width < 430 ? 110.0 : 150.0; // un poco más alto para dos líneas
     final keyNow = '${widget.aiText.length}|${widget.userText.length}';
     if (keyNow != _lastCombinedKey) _lastCombinedKey = keyNow;
 
@@ -1407,16 +1195,10 @@ class _ScrollableConversationSubtitlesState
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.black.withAlpha((0.40 * 255).round()),
-        border: Border.all(
-          color: Colors.cyanAccent.withAlpha((0.45 * 255).round()),
-        ),
+        border: Border.all(color: Colors.cyanAccent.withAlpha((0.45 * 255).round())),
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(
-            color: Colors.cyanAccent.withAlpha((0.25 * 255).round()),
-            blurRadius: 14,
-            spreadRadius: 1,
-          ),
+          BoxShadow(color: Colors.cyanAccent.withAlpha((0.25 * 255).round()), blurRadius: 14, spreadRadius: 1),
         ],
       ),
       child: Scrollbar(
@@ -1467,12 +1249,7 @@ class _SpeakerLine extends StatelessWidget {
   final Color labelColor;
   final String text;
   final TextStyle textStyle;
-  const _SpeakerLine({
-    required this.label,
-    required this.labelColor,
-    required this.text,
-    required this.textStyle,
-  });
+  const _SpeakerLine({required this.label, required this.labelColor, required this.text, required this.textStyle});
 
   @override
   Widget build(BuildContext context) {
@@ -1484,20 +1261,12 @@ class _SpeakerLine extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
             color: labelColor.withAlpha((0.18 * 255).round()),
-            border: Border.all(
-              color: labelColor.withAlpha((0.60 * 255).round()),
-              width: 1,
-            ),
+            border: Border.all(color: labelColor.withAlpha((0.60 * 255).round())),
             borderRadius: BorderRadius.circular(6),
           ),
           child: Text(
             label,
-            style: TextStyle(
-              color: labelColor,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
+            style: TextStyle(color: labelColor, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5),
           ),
         ),
         Expanded(

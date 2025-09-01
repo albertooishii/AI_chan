@@ -59,14 +59,14 @@ class ToneService {
       final t = i / sampleRate;
       final f = startHz + (endHz - startHz) * (i / totalSamples);
       // Envolvente simple: ataque/decay para evitar clicks
-      final env = _adsrEnvelope(i, totalSamples, sampleRate, attackMs: 6, releaseMs: 40, sustain: 1.0);
+      final env = _adsrEnvelope(i, totalSamples, sampleRate, attackMs: 6, releaseMs: 40);
       final s = math.sin(2 * math.pi * f * t);
       final mixed = s; // seno
       final amp = (32767 * volume * env).round();
       int16[i] = (amp * mixed).round();
     }
     final pcm = Uint8List.view(int16.buffer);
-    return _pcm16ToWav(pcm, sampleRate: sampleRate, channels: 1);
+    return _pcm16ToWav(pcm, sampleRate: sampleRate);
   }
 
   // Preset: doble beep corto estilo apps de mensajería
@@ -94,7 +94,7 @@ class ToneService {
     );
 
     final pcm = Uint8List.view(int16.buffer);
-    return _pcm16ToWav(pcm, sampleRate: sampleRate, channels: 1);
+    return _pcm16ToWav(pcm, sampleRate: sampleRate);
   }
 
   // Preset: "cyberpunk" — beeps metálicos con ring-mod, ligera distorsión y micro arpegio
@@ -119,7 +119,7 @@ class ToneService {
     );
 
     final pcm = Uint8List.view(int16.buffer);
-    return _pcm16ToWav(pcm, sampleRate: sampleRate, channels: 1);
+    return _pcm16ToWav(pcm, sampleRate: sampleRate);
   }
 
   // Preset: Hangup melódico limpio, coherente con el ringback (seno + adornos sutiles)
@@ -181,7 +181,7 @@ class ToneService {
     }
 
     // Filtros: HPF 120 Hz + LPF 6.5 kHz para coherencia
-    _applyHighLowPassFilters(buf, sampleRate, highPassHz: 120.0, lowPassHz: 6500.0);
+    _applyHighLowPassFilters(buf, sampleRate);
 
     // Normalización con headroom generoso (~ -6 dB)
     double peak = 0.0;
@@ -194,7 +194,7 @@ class ToneService {
     for (int i = 0; i < N; i++) {
       pcm[i] = (buf[i] * norm * 32767.0).clamp(-32768.0, 32767.0).toInt();
     }
-    return _pcm16ToWav(Uint8List.view(pcm.buffer), sampleRate: sampleRate, channels: 1);
+    return _pcm16ToWav(Uint8List.view(pcm.buffer), sampleRate: sampleRate);
   }
 
   // Envolvente simple (attack + release), sustain opcional
@@ -297,7 +297,7 @@ class ToneService {
       pcm[i] = val;
     }
     final bytes = Uint8List.view(pcm.buffer);
-    return _pcm16ToWav(bytes, sampleRate: sampleRate, channels: 1);
+    return _pcm16ToWav(bytes, sampleRate: sampleRate);
   }
 
   /// Generador melódico (sintetizador) 2.5s: motivo breve en D# menor
@@ -325,14 +325,14 @@ class ToneService {
     // Tiempos aproximados (s): 0.00, 0.33, 0.58, 0.83, 1.07, 1.43, 1.86, 2.11
     // Notas MIDI (octava relativa): D#5=75, C#5=73, A#4=70, F#4=66, G#4=68
     final notes = <Map<String, num>>[
-      {"m": 75, "start": 0.00, "dur": 0.28},
-      {"m": 73, "start": 0.33, "dur": 0.22},
-      {"m": 70, "start": 0.58, "dur": 0.22},
-      {"m": 66, "start": 0.83, "dur": 0.20},
-      {"m": 68, "start": 1.07, "dur": 0.28},
-      {"m": 75, "start": 1.43, "dur": 0.34}, // acento
-      {"m": 73, "start": 1.86, "dur": 0.22},
-      {"m": 68, "start": 2.11, "dur": 0.30},
+      {'m': 75, 'start': 0.00, 'dur': 0.28},
+      {'m': 73, 'start': 0.33, 'dur': 0.22},
+      {'m': 70, 'start': 0.58, 'dur': 0.22},
+      {'m': 66, 'start': 0.83, 'dur': 0.20},
+      {'m': 68, 'start': 1.07, 'dur': 0.28},
+      {'m': 75, 'start': 1.43, 'dur': 0.34}, // acento
+      {'m': 73, 'start': 1.86, 'dur': 0.22},
+      {'m': 68, 'start': 2.11, 'dur': 0.30},
     ];
 
     double env(double x, double noteDur) {
@@ -356,9 +356,9 @@ class ToneService {
     }
 
     for (final n in notes) {
-      final int midi = n["m"]!.toInt();
-      final double start = (n["start"]!).toDouble();
-      final double dur = (n["dur"]!).toDouble();
+      final int midi = n['m']!.toInt();
+      final double start = (n['start']!).toDouble();
+      final double dur = (n['dur']!).toDouble();
       final int onset = (start * sampleRate).round();
       final int nsamp = (dur * sampleRate).round();
       final double f0 = freqFromMidi(midi);
@@ -418,7 +418,7 @@ class ToneService {
       for (int i = 0; i < sampleCount; i++) {
         pcm[i] = (dry[i] * norm * 32767.0).clamp(-32768.0, 32767.0).toInt();
       }
-      return _pcm16ToWav(Uint8List.view(pcm.buffer), sampleRate: sampleRate, channels: 1);
+      return _pcm16ToWav(Uint8List.view(pcm.buffer), sampleRate: sampleRate);
     }
 
     // Estéreo sutil: canal R con pequeño retardo (Haas) y ligeras diferencias de reflexiones
@@ -541,7 +541,7 @@ class ToneService {
     }
 
     // High‑pass suave para evitar acumulación de bajas frecuencias
-    _applyHighLowPassFilters(dry, sampleRate, highPassHz: 120.0, lowPassHz: 0);
+    _applyHighLowPassFilters(dry, sampleRate, lowPassHz: 0);
 
     // Reflexión temprana muy discreta (una sola)
     final int d1 = (echo1Ms * 0.001 * sampleRate).round();
@@ -552,7 +552,7 @@ class ToneService {
     }
 
     // Filtro LPF (puede ser dinámico si lpfStartHz != lpfEndHz)
-    final List<double> lpfOut = List<double>.filled(N, 0.0, growable: false);
+    final List<double> lpfOut = List<double>.filled(N, 0.0);
     double y = 0.0;
     for (int i = 0; i < N; i++) {
       final double tt = i / (N - 1).clamp(1, N);
@@ -574,7 +574,7 @@ class ToneService {
       for (int i = 0; i < N; i++) {
         pcm[i] = (lpfOut[i] * norm * 32767.0).clamp(-32768.0, 32767.0).toInt();
       }
-      return _pcm16ToWav(Uint8List.view(pcm.buffer), sampleRate: sampleRate, channels: 1);
+      return _pcm16ToWav(Uint8List.view(pcm.buffer), sampleRate: sampleRate);
     }
 
     // Estéreo: Haas muy corto + ligerísima diferencia de nivel
@@ -623,9 +623,9 @@ class ToneService {
     // Motivo en D# menor con todavía menos silencio y notas algo más largas
     // D#5 -> G#5 -> F#5; el motivo se extiende ~1.33 s para reducir el silencio del loop
     final notes = <Map<String, num>>[
-      {"m": 75, "start": 0.00, "dur": 0.48, "vel": 1.0}, // D#5
-      {"m": 80, "start": 0.40, "dur": 0.36, "vel": 0.95}, // G#5
-      {"m": 78, "start": 0.78, "dur": 0.55, "vel": 0.92}, // F#5 (más larga)
+      {'m': 75, 'start': 0.00, 'dur': 0.48, 'vel': 1.0}, // D#5
+      {'m': 80, 'start': 0.40, 'dur': 0.36, 'vel': 0.95}, // G#5
+      {'m': 78, 'start': 0.78, 'dur': 0.55, 'vel': 0.92}, // F#5 (más larga)
     ];
 
     double env(double x, double dur) {
@@ -646,10 +646,10 @@ class ToneService {
 
     // Síntesis de motivo (seno puro para evitar aspereza) + adornos sutiles al ataque
     for (final n in notes) {
-      final int midi = n["m"]!.toInt();
-      final double start = (n["start"]!).toDouble();
-      final double dur = (n["dur"]!).toDouble();
-      final double vel = (n["vel"]!).toDouble();
+      final int midi = n['m']!.toInt();
+      final double start = (n['start']!).toDouble();
+      final double dur = (n['dur']!).toDouble();
+      final double vel = (n['vel']!).toDouble();
       final int onset = (start * sampleRate).round();
       final int ns = (dur * sampleRate).round();
       final double f = midiHz(midi);
@@ -690,7 +690,7 @@ class ToneService {
     }
 
     // High‑pass suave (120 Hz) y Low‑pass (6.5 kHz) para limpieza
-    _applyHighLowPassFilters(buf, sampleRate, highPassHz: 120.0, lowPassHz: 6500.0);
+    _applyHighLowPassFilters(buf, sampleRate);
 
     // Fade-out suave en los últimos 30ms para un loop limpio y evitar clicks
     final int fade = (0.030 * sampleRate).round();
@@ -712,7 +712,7 @@ class ToneService {
     for (int i = 0; i < N; i++) {
       pcm[i] = (buf[i] * norm * 32767.0).clamp(-32768.0, 32767.0).toInt();
     }
-    return _pcm16ToWav(Uint8List.view(pcm.buffer), sampleRate: sampleRate, channels: 1);
+    return _pcm16ToWav(Uint8List.view(pcm.buffer), sampleRate: sampleRate);
   }
 
   /// Helper para aplicar silencio en la pausa de un doble beep
@@ -748,7 +748,7 @@ class ToneService {
       const crushBits = 8;
       final step = 2.0 / (math.pow(2, crushBits) - 1);
       mixed = (mixed / step).round() * step;
-      final env = _adsrEnvelope(i, samples, sampleRate, attackMs: 4, releaseMs: 40, sustain: 1.0);
+      final env = _adsrEnvelope(i, samples, sampleRate, attackMs: 4, releaseMs: 40);
       final amp = (32767 * 0.45 * env).round();
       int16[startIndex + i] = (amp * mixed).round();
     }
@@ -767,7 +767,7 @@ class ToneService {
     for (int i = 0; i < samples; i++) {
       final t = i / sampleRate;
       final f = fStart + (fEnd - fStart) * (i / samples);
-      final env = _adsrEnvelope(i, samples, sampleRate, attackMs: 5, releaseMs: 30, sustain: 0.95);
+      final env = _adsrEnvelope(i, samples, sampleRate, sustain: 0.95);
       final s = math.sin(2 * math.pi * f * t);
       final sq = s >= 0 ? 1.0 : -1.0; // toque digital
       final mixed = (0.88 * s) + (0.12 * sq);

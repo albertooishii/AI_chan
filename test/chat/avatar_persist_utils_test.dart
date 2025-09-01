@@ -16,7 +16,7 @@ void main() {
       final provider = createTestChatProvider();
       final avatar = AiImage(url: 'http://example.com/img.png', seed: 's1');
 
-      await addAvatarAndPersist(provider, avatar, replace: false);
+      await addAvatarAndPersist(provider, avatar);
 
       expect(provider.onboardingData.avatars, isNotNull);
       expect(

@@ -159,8 +159,8 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
   Future<void> _handleImportJson(OnboardingProvider provider) async {
     final result = await chat_json_utils.ChatJsonUtils.importJsonFile();
     if (!mounted) return;
-    String? jsonStr = result.$1;
-    String? error = result.$2;
+    final String? jsonStr = result.$1;
+    final String? error = result.$2;
     if (!mounted) return;
     if (error != null) {
       await showAppDialog(
@@ -197,7 +197,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
 
   Future<void> _handleRestoreFromLocal(OnboardingProvider provider) async {
     try {
-      final result = await FilePicker.platform.pickFiles(allowMultiple: false);
+      final result = await FilePicker.platform.pickFiles();
       if (result == null || result.files.isEmpty) return;
       final path = result.files.first.path;
       if (path == null) return;
@@ -304,7 +304,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
         title: Text.rich(
           TextSpan(
             text: Config.getAppName(),
-            style: TextStyle(
+            style: const TextStyle(
               color: AppColors.primary,
               fontWeight: FontWeight.bold,
               fontSize: 22,
@@ -317,12 +317,12 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
             itemBuilder: (context) {
               final items = <PopupMenuEntry<String>>[];
               items.add(
-                PopupMenuItem<String>(
+                const PopupMenuItem<String>(
                   value: 'restore_local',
                   child: Row(
                     children: [
                       Icon(Icons.file_upload, color: AppColors.primary),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Text('Restaurar desde archivo local', style: TextStyle(color: AppColors.primary)),
                     ],
                   ),
@@ -333,12 +333,12 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               // at menu-open time; if a ChatProvider is provided prefer its
               // runtime values which are authoritative.
               items.add(
-                PopupMenuItem<String>(
+                const PopupMenuItem<String>(
                   value: 'backup_status',
                   child: Row(
                     children: [
-                      const Icon(Icons.add_to_drive, size: 20, color: AppColors.primary),
-                      const SizedBox(width: 8),
+                      Icon(Icons.add_to_drive, size: 20, color: AppColors.primary),
+                      SizedBox(width: 8),
                       Text('Copia de seguridad en Google Drive', style: TextStyle(color: AppColors.primary)),
                     ],
                   ),
@@ -362,7 +362,6 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                         return SizedBox(
                           width: dialogWidth,
                           child: GoogleDriveBackupDialog(
-                            clientId: 'YOUR_GOOGLE_CLIENT_ID',
                             disableAutoRestore: true,
                             requestBackupJson: cp != null
                                 ? () async {
@@ -474,7 +473,6 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                         return SizedBox(
                           width: dialogWidth,
                           child: GoogleDriveBackupDialog(
-                            clientId: 'YOUR_GOOGLE_CLIENT_ID',
                             requestBackupJson: cp != null
                                 ? () async {
                                     final captured = cp;
@@ -596,8 +594,8 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                     decoration: InputDecoration(
                       labelText: 'Tu país',
                       labelStyle: const TextStyle(color: AppColors.secondary),
-                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
-                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
+                      enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
+                      focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
                       prefixIcon: const Icon(Icons.flag, color: AppColors.secondary),
                       helperText: provider.userCountryCode?.isNotEmpty == true
                           ? 'Idioma: ${LocaleUtils.languageNameEsForCountry(provider.userCountryCode!)}'
@@ -626,16 +624,16 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                   provider.setUserName(value);
                 },
                 style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
-                decoration: InputDecoration(
-                  labelText: "Tu nombre",
-                  labelStyle: const TextStyle(color: AppColors.secondary),
+                decoration: const InputDecoration(
+                  labelText: 'Tu nombre',
+                  labelStyle: TextStyle(color: AppColors.secondary),
                   enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
                   focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
-                  prefixIcon: const Icon(Icons.person, color: AppColors.secondary),
+                  prefixIcon: Icon(Icons.person, color: AppColors.secondary),
                   fillColor: Colors.black,
                   filled: true,
                 ),
-                validator: (v) => v == null || v.isEmpty ? "Obligatorio" : null,
+                validator: (v) => v == null || v.isEmpty ? 'Obligatorio' : null,
               ),
               const SizedBox(height: 18),
 
@@ -711,8 +709,8 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                     decoration: InputDecoration(
                       labelText: 'País de la AI-Chan',
                       labelStyle: const TextStyle(color: AppColors.secondary),
-                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
-                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
+                      enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
+                      focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
                       prefixIcon: const Icon(Icons.flag, color: AppColors.secondary),
                       helperText: provider.aiCountryCode?.isNotEmpty == true
                           ? 'Idioma: ${LocaleUtils.languageNameEsForCountry(provider.aiCountryCode!)}'
@@ -761,16 +759,16 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                       provider.setAiName(value);
                     },
                     style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
-                    decoration: InputDecoration(
-                      labelText: "Nombre de la AI-Chan",
-                      labelStyle: const TextStyle(color: AppColors.secondary),
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre de la AI-Chan',
+                      labelStyle: TextStyle(color: AppColors.secondary),
                       enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
                       focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
-                      prefixIcon: const Icon(Icons.smart_toy, color: AppColors.secondary),
+                      prefixIcon: Icon(Icons.smart_toy, color: AppColors.secondary),
                       fillColor: Colors.black,
                       filled: true,
                     ),
-                    validator: (v) => v == null || v.isEmpty ? "Obligatorio" : null,
+                    validator: (v) => v == null || v.isEmpty ? 'Obligatorio' : null,
                     onEditingComplete: onEditingComplete,
                   );
                 },
@@ -785,23 +783,23 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                 controller: provider.meetStoryController,
                 onChanged: onMeetStoryChanged,
                 style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
-                decoration: InputDecoration(
-                  labelText: "¿Cómo os conocísteis?",
-                  hintText: "Escribe o pulsa sugerir",
-                  labelStyle: const TextStyle(color: AppColors.secondary),
+                decoration: const InputDecoration(
+                  labelText: '¿Cómo os conocísteis?',
+                  hintText: 'Escribe o pulsa sugerir',
+                  labelStyle: TextStyle(color: AppColors.secondary),
                   enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.secondary)),
                   focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
-                  prefixIcon: const Icon(Icons.favorite, color: AppColors.secondary),
+                  prefixIcon: Icon(Icons.favorite, color: AppColors.secondary),
                   fillColor: Colors.black,
                   filled: true,
                 ),
                 maxLines: 2,
-                validator: (v) => v == null || v.isEmpty ? "Obligatorio" : null,
+                validator: (v) => v == null || v.isEmpty ? 'Obligatorio' : null,
               ),
               const SizedBox(height: 8),
               CyberpunkButton(
                 onPressed: provider.loadingStory ? null : () => provider.suggestStory(context),
-                text: "Sugerir historia",
+                text: 'Sugerir historia',
                 icon: provider.loadingStory
                     ? const SizedBox(
                         width: 18,
@@ -838,7 +836,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                         );
                       }
                     : null,
-                text: "コンティニュー",
+                text: 'コンティニュー',
               ),
             ],
           ),

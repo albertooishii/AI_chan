@@ -26,13 +26,13 @@ class ImageRequestService {
 
   // Regex to detect image-related words (Spanish + common English variants).
   static final RegExp _imageWordRegex = RegExp(
-    r"\b(foto|fotos|fotito|fotitos|fotograf[ií]a|fotograf[ií]as|selfie|selfi|imagen|imagenes|imagenito|imagenitos|retrato|retratos|rostro|cara|cuerpo|perfil|picture|picture(s)?|photo|photos|pic|screenshot|captura|headshot|portrait|foto_de_perfil)\b",
+    r'\b(foto|fotos|fotito|fotitos|fotograf[ií]a|fotograf[ií]as|selfie|selfi|imagen|imagenes|imagenito|imagenitos|retrato|retratos|rostro|cara|cuerpo|perfil|picture|picture(s)?|photo|photos|pic|screenshot|captura|headshot|portrait|foto_de_perfil)\b',
     caseSensitive: false,
   );
 
   // Regex que matchea exactamente una única palabra de imagen (mensaje corto "foto")
   static final RegExp _onlyImageWordRegex = RegExp(
-    r"^\s*(?:foto|fotos|fotito|selfie|selfi|imagen|imagenito|retrato|rostro|cara|picture|photo|pic|screenshot)\s*[.!?]?\s*$",
+    r'^\s*(?:foto|fotos|fotito|selfie|selfi|imagen|imagenito|retrato|rostro|cara|picture|photo|pic|screenshot)\s*[.!?]?\s*$',
     caseSensitive: false,
   );
 
@@ -40,7 +40,7 @@ class ImageRequestService {
   // Usamos formas tolerantes para cubrir variantes con/without accents and common suffixes.
   static final RegExp _sendVerbRegex = RegExp(
     // cubrir enviar/envíame/reenvíame, manda/mándame, pásame/pasame, comparte, adjunta
-    r"\b(?:re)?env[ií]\w*\b|\bm[áa]nd\w*\b|\bpas[ae]\w*\b|\bcompart\w*\b|\badju?n?ta\w*\b|\bsube\w*\b",
+    r'\b(?:re)?env[ií]\w*\b|\bm[áa]nd\w*\b|\bpas[ae]\w*\b|\bcompart\w*\b|\badju?n?ta\w*\b|\bsube\w*\b',
     caseSensitive: false,
   );
 
@@ -52,28 +52,28 @@ class ImageRequestService {
 
   // Consolidated negative patterns into a single regex for broader coverage.
   static final RegExp _negativePatternsRegex = RegExp(
-    r"\b(?:no quiero (?:foto|imagen|fotograf[ií]a)|no me (?:mandes|env[ií]es) (?:foto|imagen)|no necesito (?:foto|imagen)|de ninguna manera|ni loco|nunca|no,? gracias|para nada)\b",
+    r'\b(?:no quiero (?:foto|imagen|fotograf[ií]a)|no me (?:mandes|env[ií]es) (?:foto|imagen)|no necesito (?:foto|imagen)|de ninguna manera|ni loco|nunca|no,? gracias|para nada)\b',
     caseSensitive: false,
   );
 
   static final RegExp _anotherPhotoRegex = RegExp(
-    r"\b(otra foto|otra imagen|otra vez|otra similar|otra por favor|otra, por favor|otra igual|otra distinta|another photo|another picture|otra?)\b",
+    r'\b(otra foto|otra imagen|otra vez|otra similar|otra por favor|otra, por favor|otra igual|otra distinta|another photo|another picture|otra?)\b',
     caseSensitive: false,
   );
   static final RegExp _typeRequestRegex = RegExp(
-    r"\b(cuerpo entero|de cuerpo entero|full body|medio cuerpo|plano medio|primer plano|close[- ]?up|close ?up|primerplano|primer_plano|plano_detalle|headshot|más sexy|más natural|más grande|detalle|closeup|retrato)\b",
+    r'\b(cuerpo entero|de cuerpo entero|full body|medio cuerpo|plano medio|primer plano|close[- ]?up|close ?up|primerplano|primer_plano|plano_detalle|headshot|más sexy|más natural|más grande|detalle|closeup|retrato)\b',
     caseSensitive: false,
   );
 
   // Regex amplio para frases afirmativas cortas.
   static final RegExp _affirmativeRegex = RegExp(
-    r"\b(?:si+|sí+|sip+|sii+|claro|obvio|vale|ok(?:ay)?|perfecto|adelante|por supuesto|dale|venga|claro que sí|por supuesto que sí|sí claro|sí,|si claro|yeah|yep|sure|okey)\b",
+    r'\b(?:si+|sí+|sip+|sii+|claro|obvio|vale|ok(?:ay)?|perfecto|adelante|por supuesto|dale|venga|claro que sí|por supuesto que sí|sí claro|sí,|si claro|yeah|yep|sure|okey)\b',
     caseSensitive: false,
   );
 
   // Regex amplio para negaciones cortas.
   static final RegExp _negativeRegex = RegExp(
-    r"\b(?:no|nop|nope|no gracias|nah|na|nunca|de ninguna manera)\b",
+    r'\b(?:no|nop|nope|no gracias|nah|na|nunca|de ninguna manera)\b',
     caseSensitive: false,
   );
 
@@ -91,8 +91,6 @@ class ImageRequestService {
       return ImageRequestResult(
         detected: false,
         reason: 'empty',
-        matchedPhrase: '',
-        score: 0,
       );
     }
     final lower = trimmed.toLowerCase();
@@ -103,7 +101,6 @@ class ImageRequestService {
         detected: false,
         reason: 'negative_match',
         matchedPhrase: negM.group(0) ?? '',
-        score: 0,
       );
     }
 
@@ -139,7 +136,6 @@ class ImageRequestService {
           detected: false,
           reason: 'followup_negative_to_assistant_image_mention',
           matchedPhrase: assistantMention,
-          score: 0,
         );
       }
     }
@@ -177,7 +173,7 @@ class ImageRequestService {
     final mType = _typeRequestRegex.firstMatch(lower);
     if (mType != null) {
       final verbNear = RegExp(
-        r"\b(env[ií]a|manda|muestr|ens[eé]ñ|haz|saca|mu[eé]strame|m[áa]ndame|quiero|queri[í]a|puedes|podr[ií]as?)\b",
+        r'\b(env[ií]a|manda|muestr|ens[eé]ñ|haz|saca|mu[eé]strame|m[áa]ndame|quiero|queri[í]a|puedes|podr[ií]as?)\b',
         caseSensitive: false,
       );
       final ctx = 30;
@@ -254,8 +250,6 @@ class ImageRequestService {
     final res = ImageRequestResult(
       detected: false,
       reason: 'none',
-      matchedPhrase: '',
-      score: 0,
     );
     Log.d('ImageRequestService.detectImageRequest -> $res', tag: 'IMAGE_REQ');
     return res;
@@ -267,14 +261,14 @@ class ImageRequestService {
 
     // Posesivos o pronombres que indican "tu foto", "foto tuya", "te" etc.
     final possessive = RegExp(
-      r"\b(?:mi|mio|mía|mia|tu|tuyo|tuya|su|sus|de ti|de usted|de vosotros|de ustedes|para ti|para usted)\b",
+      r'\b(?:mi|mio|mía|mia|tu|tuyo|tuya|su|sus|de ti|de usted|de vosotros|de ustedes|para ti|para usted)\b',
       caseSensitive: false,
     );
     if (possessive.hasMatch(lowerText)) return true;
 
     // Comparativos/descritores que suelen aparecer cuando se pide una foto similar
     final comparative = RegExp(
-      r"\b(parecid|parecida|parecido|similar|como|igual|parece|asemeja|tal como)\b",
+      r'\b(parecid|parecida|parecido|similar|como|igual|parece|asemeja|tal como)\b',
       caseSensitive: false,
     );
     if (comparative.hasMatch(lowerText)) return true;
@@ -282,13 +276,13 @@ class ImageRequestService {
     // Frases que suelen indicar petición indirecta: "me la mandas", "puedes mandarme",
     // "podrías enviarme", etc. Detectamos con patrón flexible sin listar cada verbo.
     final requestish = RegExp(
-      r"\b(puedes|podr[ií]as|podr[ií]a|me la|mela|mand(a|ame|arme)|env[ií]a(me|la|mela)?|reenv[ií]a(me|la)?)\b",
+      r'\b(puedes|podr[ií]as|podr[ií]a|me la|mela|mand(a|ame|arme)|env[ií]a(me|la|mela)?|reenv[ií]a(me|la)?)\b',
       caseSensitive: false,
     );
     if (requestish.hasMatch(lowerText)) return true;
 
     // Detectar formas verbales en condicional/subjuntivo/condicional like -ría/-ría (quisiera, querría)
-    final iAverb = RegExp(r"\b\w{3,}[ríí]a\b", caseSensitive: false);
+    final iAverb = RegExp(r'\b\w{3,}[ríí]a\b', caseSensitive: false);
     if (iAverb.hasMatch(lowerText)) return true;
 
     return false;
@@ -322,8 +316,8 @@ class ImageRequestService {
   static bool _containsAffirmation(String lowerText) {
     // Tokeniza y busca palabras de afirmación simples.
     final tokens = lowerText
-        .replaceAll(RegExp(r"[^\wáéíóúñü]", caseSensitive: false), ' ')
-        .split(RegExp(r"\s+"))
+        .replaceAll(RegExp(r'[^\wáéíóúñü]', caseSensitive: false), ' ')
+        .split(RegExp(r'\s+'))
         .where((t) => t.isNotEmpty)
         .toList();
     if (tokens.isEmpty) return false;
@@ -334,7 +328,7 @@ class ImageRequestService {
     }
     // También aceptar frases que empiezan con una afirmación larga ("sí, envíamela")
     if (RegExp(
-      r"^\s*(?:si|sí|claro|vale|ok|perfecto|por supuesto|dale|venga)\b",
+      r'^\s*(?:si|sí|claro|vale|ok|perfecto|por supuesto|dale|venga)\b',
       caseSensitive: false,
     ).hasMatch(lowerText)) {
       return true;
@@ -347,7 +341,7 @@ class ImageRequestService {
     if (_negativeRegexWide.hasMatch(t)) return true;
     // exact match or start
     if (RegExp(
-      r"^\s*(?:no|nop|nope|no gracias|nah)\b",
+      r'^\s*(?:no|nop|nope|no gracias|nah)\b',
       caseSensitive: false,
     ).hasMatch(t)) {
       return true;
@@ -437,7 +431,7 @@ class ImageRequestService {
         // también chequear expresiones simples de promesa
         if (!foundPromise &&
             RegExp(
-              r"\b(ahora mismo|ahora|enseguida|luego te la mando|te la mando ahora)\b",
+              r'\b(ahora mismo|ahora|enseguida|luego te la mando|te la mando ahora)\b',
               caseSensitive: false,
             ).hasMatch(l)) {
           foundPromise = true;
@@ -454,12 +448,12 @@ class ImageRequestService {
     // Heurística simple: frases cortas, contenidas en 1-3 palabras, o que sean
     // sólo ack/ok/vale/cuando puedas etc. También aceptamos mensajes que no
     // contengan solicitudes explícitas y que tengan poca puntuación.
-    final tokens = lowerText.split(RegExp(r"\s+"));
+    final tokens = lowerText.split(RegExp(r'\s+'));
     if (tokens.length <= 3) return true;
     // Si el texto contiene palabras que normalmente no son solicitudes explícitas
     // y no contiene verbos como 'manda', 'envía', 'quiero', lo es más probable.
     final explicitVerb = RegExp(
-      r"\b(env[ií]a|manda|muestr|ens[eé]ñ|haz|saca|mu[eé]strame|m[áa]ndame|quiero|puedes|podr[ií]as?)\b",
+      r'\b(env[ií]a|manda|muestr|ens[eé]ñ|haz|saca|mu[eé]strame|m[áa]ndame|quiero|puedes|podr[ií]as?)\b',
       caseSensitive: false,
     );
     if (!explicitVerb.hasMatch(lowerText)) return true;

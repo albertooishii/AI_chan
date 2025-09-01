@@ -31,11 +31,11 @@ class FakeAudioPlayback implements AudioPlayback {
       if (source is String) {
         final f = File(source);
         if (await f.exists()) {
-          _durationController.add(Duration(milliseconds: 500));
+          _durationController.add(const Duration(milliseconds: 500));
           _positionController.add(Duration.zero);
           // Simulate a short delay then complete
           Future.delayed(const Duration(milliseconds: 10), () {
-            _positionController.add(Duration(milliseconds: 500));
+            _positionController.add(const Duration(milliseconds: 500));
             _completeController.add(null);
           });
           return;

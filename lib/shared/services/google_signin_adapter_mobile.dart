@@ -165,7 +165,7 @@ class GoogleSignInMobileAdapter {
     } catch (e, st) {
       Log.e('GoogleSignInMobileAdapter: sign-in failed: $e', tag: 'GoogleSignIn', error: e, stack: st);
 
-      String help =
+      final String help =
           '\nSoluciones sugeridas:'
           '\n- Verifica que google-services.json esté configurado correctamente'
           '\n- Asegúrate de que el SHA-1 certificate fingerprint esté registrado en Google Cloud Console'
@@ -199,7 +199,7 @@ class GoogleSignInMobileAdapter {
         Log.d('GoogleSignInMobileAdapter: could not get ID token: $e', tag: 'GoogleSignIn');
       }
 
-      Map<String, dynamic> tokenMap = {
+      final Map<String, dynamic> tokenMap = {
         'access_token': accessToken,
         'token_type': 'Bearer',
         'expires_in': 3600, // Default expiration

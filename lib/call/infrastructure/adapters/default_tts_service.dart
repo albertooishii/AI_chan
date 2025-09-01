@@ -235,7 +235,7 @@ class DefaultTtsService implements ITtsService {
     // we prefer 'gpt-4.1-mini'. Otherwise use DEFAULT_TEXT_MODEL when configured.
     try {
       final defaultModel = Config.getDefaultTextModel();
-      String modelToUse = defaultModel.isNotEmpty
+      final String modelToUse = defaultModel.isNotEmpty
           ? defaultModel
           : (provider == 'openai'
                 ? (Config.getDefaultTextModel().isNotEmpty

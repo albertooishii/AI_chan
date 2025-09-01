@@ -382,12 +382,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
       final fromStr = (s['from'] ?? '').trim();
       final toStr = (s['to'] ?? '').trim();
       final start = parseTime(selected, fromStr);
-      DateTime? end = parseTime(selected, toStr);
+      final DateTime? end = parseTime(selected, toStr);
       if (start != null && end != null && end.isBefore(start)) {
         // Cruza medianoche: dividir en dos segmentos
         final endOfDay = DateTime(selected.year, selected.month, selected.day, 23, 59, 59, 999);
         final segment1End = endOfDay;
-        final segment2Start = DateTime(selected.year, selected.month, selected.day, 0, 0);
+        final segment2Start = DateTime(selected.year, selected.month, selected.day);
         // Segmento del día seleccionado si la parte inicial cae ese día
         final isToday = selected.year == now.year && selected.month == now.month && selected.day == now.day;
         final active1 = isToday && rangeContains(now, start, segment1End);
@@ -457,7 +457,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
           ),
           TableCalendar<EventEntry>(
-            firstDay: DateTime.utc(2020, 1, 1),
+            firstDay: DateTime.utc(2020),
             lastDay: DateTime.utc(2100, 12, 31),
             focusedDay: _focusedDay,
             locale: 'es',
@@ -475,7 +475,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
               todayDecoration: BoxDecoration(color: AppColors.secondary, shape: BoxShape.circle),
               selectedDecoration: BoxDecoration(color: AppColors.cyberpunkYellow, shape: BoxShape.circle),
               outsideDaysVisible: false,
-              markersAutoAligned: true,
             ),
             headerStyle: const HeaderStyle(
               titleTextStyle: TextStyle(color: AppColors.primary, fontSize: 16, fontWeight: FontWeight.bold),

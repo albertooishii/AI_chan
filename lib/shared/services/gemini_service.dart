@@ -152,7 +152,7 @@ class GeminiService implements AIService {
     final endpointBase =
         'https://generativelanguage.googleapis.com/v1beta/models/';
     // Unificar todo el historial en un solo bloque de texto para el content
-    List<Map<String, dynamic>> contents = [];
+    final List<Map<String, dynamic>> contents = [];
     // Añadir un bloque de role=system con el SystemPrompt serializado para que Gemini lo reciba
     // Preparar una copia serializable del SystemPrompt y, si procede, inyectar
     // instrucciones relacionadas con imagenes/metadatos antes de serializar.
@@ -191,14 +191,14 @@ class GeminiService implements AIService {
       // silenciar error de serialización; fallback: no system part
       systemPromptMap = {};
     }
-    bool hasImage =
+    final bool hasImage =
         history.isNotEmpty &&
         history.last['role'] == 'user' &&
         imageBase64 != null &&
         imageBase64.isNotEmpty;
     if (hasImage) {
       // Si hay imagen, enviar el historial completo y el systemPrompt como texto, y la imagen como segundo part
-      StringBuffer allText = StringBuffer();
+      final StringBuffer allText = StringBuffer();
       allText.write('[system]: ${jsonEncode(systemPromptMap)}');
       for (int i = 0; i < history.length; i++) {
         final role = history[i]['role'] ?? 'user';
@@ -209,20 +209,20 @@ class GeminiService implements AIService {
       // Instrucción suave: incluir metadatos internos de la imagen usando únicamente el tag emparejado
       // NOTE: La instrucción para incluir [img_caption] está definida en PromptBuilder.
       contents.add({
-        "role": "user",
-        "parts": [
-          {"text": allText.toString()},
+        'role': 'user',
+        'parts': [
+          {'text': allText.toString()},
           {
-            "inline_data": {
-              "mime_type": imageMimeType ?? 'image/png',
-              "data": imageBase64,
+            'inline_data': {
+              'mime_type': imageMimeType ?? 'image/png',
+              'data': imageBase64,
             },
           },
         ],
       });
     } else {
       // Unir todos los mensajes en un solo bloque de texto (como JSON o texto plano)
-      StringBuffer allText = StringBuffer();
+      final StringBuffer allText = StringBuffer();
       allText.write('[system]: ${jsonEncode(systemPromptMap)}');
       for (int i = 0; i < history.length; i++) {
         final role = history[i]['role'] ?? 'user';
@@ -233,16 +233,16 @@ class GeminiService implements AIService {
       // Ignorar enableImageGeneration para Gemini (no generamos IMAGEN aquí). Mantener solo texto.
       // Preparar partes con texto. Si procede, puede venir una imagen del usuario para análisis (hasImage arriba).
       final parts = <Map<String, dynamic>>[
-        {"text": allText.toString()},
+        {'text': allText.toString()},
       ];
       // No adjuntamos avatar de referencia para generación (desactivada en Gemini).
-      contents.add({"role": "user", "parts": parts});
+      contents.add({'role': 'user', 'parts': parts});
     }
     // Ya no imponemos corte local por tokens: dejamos que Gemini gestione límites reales.
     // (Antes: se devolvía error si tokens > 128000)
     // Configuración de generación: cuando queremos imagen, pedir texto+imagen
     // max_output_tokens eliminado: la API estándar de Gemini usa generationConfig (opcional)
-    final Map<String, dynamic> requestPayload = {"contents": contents};
+    final Map<String, dynamic> requestPayload = {'contents': contents};
     final body = jsonEncode(requestPayload);
 
     Future<AIResponse> parseAndBuild(String respBody) async {

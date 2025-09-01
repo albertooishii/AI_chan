@@ -195,14 +195,14 @@ class MemorySummaryService {
         .where((e) => textoBloque.toLowerCase().contains(e))
         .toList();
     final emociones = _emocionesDetectadas(textoBloque);
-    List<String> etiquetas = [];
+    final List<String> etiquetas = [];
     if (eventosDetectados.isNotEmpty) {
       etiquetas.add("EVENTO IMPORTANTE: ${eventosDetectados.join(', ')}");
     }
     if (emociones.isNotEmpty) {
       etiquetas.add("TEMAS/EMOCIONES: ${emociones.join(', ')}");
     }
-    return etiquetas.isNotEmpty ? "[${etiquetas.join(' | ')}]\n" : "";
+    return etiquetas.isNotEmpty ? "[${etiquetas.join(' | ')}]\n" : '';
   }
 
   // Funcifn para instrucciones de fechas exactas
@@ -210,7 +210,7 @@ class MemorySummaryService {
     String instrucciones = unifiedInstructions;
     if (fechasUnicas.length > 1) {
       instrucciones +=
-          "\nIncluye SIEMPRE la fecha exacta de cada mensaje o grupo de mensajes en el resumen generado, usando el formato [yyyy-mm-dd] antes de cada fragmento resumido.";
+          '\nIncluye SIEMPRE la fecha exacta de cada mensaje o grupo de mensajes en el resumen generado, usando el formato [yyyy-mm-dd] antes de cada fragmento resumido.';
     }
     return instrucciones;
   }
@@ -287,15 +287,15 @@ class MemorySummaryService {
                     : b.resume.toString();
                 final etiquetas = _buildEtiquetas(texto);
                 if (etiquetas.isNotEmpty) {
-                  texto = "$etiquetas$texto";
+                  texto = '$etiquetas$texto';
                 }
-                return "[$fechaIni a $fechaFin]\n$texto";
+                return '[$fechaIni a $fechaFin]\n$texto';
               })
               .join('\n');
           final instruccionesSuperbloque =
-              "$unifiedInstructions\nSintetiza y resume los bloques proporcionados, evitando copiar literalmente los textos originales. Extrae y agrupa la información relevante, pero NO pierdas ningún detalle importante ni ninguna fecha significativa. Incluye SIEMPRE una fecha aproximada (mes, semana o rango general) en el resumen generado, antes de cada fragmento resumido. Puedes agrupar bloques cercanos temporalmente bajo una misma fecha si tiene sentido, aunque se pierdan detalles exactos. Si algún evento, mensaje o bloque corresponde a una fecha importante (cumpleaños, aniversario, primer beso, etc.), conserva y destaca la fecha exacta en el resumen. El resultado debe ser una memoria de largo plazo útil y efectiva, con todos los datos relevantes y fechas importantes bien conservadas.";
+              '$unifiedInstructions\nSintetiza y resume los bloques proporcionados, evitando copiar literalmente los textos originales. Extrae y agrupa la información relevante, pero NO pierdas ningún detalle importante ni ninguna fecha significativa. Incluye SIEMPRE una fecha aproximada (mes, semana o rango general) en el resumen generado, antes de cada fragmento resumido. Puedes agrupar bloques cercanos temporalmente bajo una misma fecha si tiene sentido, aunque se pierdan detalles exactos. Si algún evento, mensaje o bloque corresponde a una fecha importante (cumpleaños, aniversario, primer beso, etc.), conserva y destaca la fecha exacta en el resumen. El resultado debe ser una memoria de largo plazo útil y efectiva, con todos los datos relevantes y fechas importantes bien conservadas.';
           final instruccionesSuperbloqueJson =
-              "$instruccionesSuperbloque\n\nDEVUELVE \u00daNICAMENTE EL BLOQUE JSON, SIN TEXTO EXTRA, EXPLICACIONES NI INTRODUCCI\u00d3N. El formato debe ser:\n$resumenJsonSchema\n\nResumen de los bloque:\n$resumenTexto";
+              '$instruccionesSuperbloque\n\nDEVUELVE \u00daNICAMENTE EL BLOQUE JSON, SIN TEXTO EXTRA, EXPLICACIONES NI INTRODUCCI\u00d3N. El formato debe ser:\n$resumenJsonSchema\n\nResumen de los bloque:\n$resumenTexto';
           final resumenJson = await _getJsonSummary(
             instrucciones: instruccionesSuperbloqueJson,
             recentMessages: [],
@@ -318,7 +318,7 @@ class MemorySummaryService {
               level: newLevel,
             );
             updatedTimeline.removeWhere((e) => blocksToSummarize.contains(e));
-            int insertIndex = updatedTimeline.indexWhere(
+            final int insertIndex = updatedTimeline.indexWhere(
               (e) => e.level > level,
             );
             if (insertIndex == -1) {
@@ -342,16 +342,16 @@ class MemorySummaryService {
             .map((b) {
               final fechaIni = b.startDate ?? '';
               final fechaFin = b.endDate ?? '';
-              String texto = b.resume is String
+              final String texto = b.resume is String
                   ? b.resume
                   : b.resume.toString();
-              return "[$fechaIni a $fechaFin]\n$texto";
+              return '[$fechaIni a $fechaFin]\n$texto';
             })
             .join('\n');
         final instruccionesSuperbloque =
-            "$unifiedInstructions\nIncluye SIEMPRE una fecha aproximada (mes, semana o rango general) en el resumen generado, antes de cada fragmento resumido. Puedes agrupar bloques cercanos temporalmente bajo una misma fecha si tiene sentido, aunque se pierdan detalles exactos. Si algún evento, mensaje o bloque corresponde a una fecha importante (cumpleaños, aniversario, primer beso, etc.), conserva y destaca la fecha exacta en el resumen.";
+            '$unifiedInstructions\nIncluye SIEMPRE una fecha aproximada (mes, semana o rango general) en el resumen generado, antes de cada fragmento resumido. Puedes agrupar bloques cercanos temporalmente bajo una misma fecha si tiene sentido, aunque se pierdan detalles exactos. Si algún evento, mensaje o bloque corresponde a una fecha importante (cumpleaños, aniversario, primer beso, etc.), conserva y destaca la fecha exacta en el resumen.';
         final instruccionesSuperbloqueJson =
-            "$instruccionesSuperbloque\n\nDEVUELVE \u00daNICAMENTE EL BLOQUE JSON, SIN TEXTO EXTRA, EXPLICACIONES NI INTRODUCCI\u00d3N. El formato debe ser:\n$resumenJsonSchema\n\nResumen de los bloques:\n$resumenTexto";
+            '$instruccionesSuperbloque\n\nDEVUELVE \u00daNICAMENTE EL BLOQUE JSON, SIN TEXTO EXTRA, EXPLICACIONES NI INTRODUCCI\u00d3N. El formato debe ser:\n$resumenJsonSchema\n\nResumen de los bloques:\n$resumenTexto';
         final resumenJson = await _getJsonSummary(
           instrucciones: instruccionesSuperbloqueJson,
           recentMessages: [],
@@ -378,7 +378,7 @@ class MemorySummaryService {
             level: newLevel,
           );
           updatedTimeline.removeWhere((e) => blocksToSummarize.contains(e));
-          int insertIndex = updatedTimeline.indexWhere((e) => e.level > 0);
+          final int insertIndex = updatedTimeline.indexWhere((e) => e.level > 0);
           if (insertIndex == -1) {
             updatedTimeline.add(superbloque);
           } else {
@@ -452,8 +452,8 @@ class MemorySummaryService {
 
       // Siempre crear bloques de nivel 0 cada 32 mensajes, aunque ya existan resúmenes previos
       if (messages.length >= maxHistory) {
-        int numBlocks = messages.length ~/ maxHistory;
-        List<List<Message>> bloquesPendientes = [];
+        final int numBlocks = messages.length ~/ maxHistory;
+        final List<List<Message>> bloquesPendientes = [];
         for (int i = 0; i < numBlocks; i++) {
           final block = messages.sublist(i * maxHistory, (i + 1) * maxHistory);
           final blockStartDate = block.first.dateTime.toIso8601String();
@@ -516,8 +516,8 @@ class MemorySummaryService {
     final fechasUnicas = block
         .map((m) => (m.dateTime).toIso8601String().substring(0, 10))
         .toSet();
-    String instruccionesBloque =
-        "${_instruccionesFechas(fechasUnicas)}\n\nDEVUELVE \u00daNICAMENTE EL BLOQUE JSON, SIN TEXTO EXTRA, EXPLICACIONES NI INTRODUCCI\u00d3N. El formato debe ser:\n$resumenJsonSchema";
+    final String instruccionesBloque =
+        '${_instruccionesFechas(fechasUnicas)}\n\nDEVUELVE \u00daNICAMENTE EL BLOQUE JSON, SIN TEXTO EXTRA, EXPLICACIONES NI INTRODUCCI\u00d3N. El formato debe ser:\n$resumenJsonSchema';
     final recentMessages = block.map((m) {
       String content = m.text.trim();
       final imgPrompt = (m.isImage && m.image != null)
@@ -554,7 +554,7 @@ class MemorySummaryService {
         recentMessages: recentMessages,
       );
       if (resumenJson != null) break;
-      await Future.delayed(Duration(seconds: 8));
+      await Future.delayed(const Duration(seconds: 8));
       retryCount++;
     } while (retryCount < 8);
     if (resumenJson != null) {
@@ -571,7 +571,6 @@ class MemorySummaryService {
             resume: resumenJson,
             startDate: blockStartDate, // ISO8601 con hora
             endDate: blockEndDate, // ISO8601 con hora
-            level: 0,
           ),
         );
         // Summary block added. Triggering backup upload is handled by the

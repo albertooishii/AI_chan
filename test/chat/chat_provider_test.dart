@@ -13,7 +13,7 @@ void main() async {
     () async {
       final fake = FakeAIService(textResponse: 'Respuesta de prueba');
       AIService.testOverride = fake;
-      final provider = ChatProvider(repository: null);
+      final provider = ChatProvider();
       provider.onboardingData = AiChanProfile(
         events: [],
         userName: 'u',

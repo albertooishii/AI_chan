@@ -517,9 +517,9 @@ class _ChatScreenState extends State<ChatScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
+                              const Text(
                                 'Modelo de voz',
-                                style: const TextStyle(color: AppColors.primary),
+                                style: TextStyle(color: AppColors.primary),
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
                               ),
@@ -689,7 +689,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   // La generación del avatar se ejecutará automáticamente desde el provider
                   // después de actualizar la appearance. Propagamos errores para que la UI
                   // muestre un único diálogo.
-                  await widget.chatProvider.regenerateAppearance(persist: true);
+                  await widget.chatProvider.regenerateAppearance();
                 } catch (e) {
                   if (!mounted) return;
                   showErrorDialog('Error al regenerar apariencia:\n$e');
@@ -836,7 +836,6 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ),
       body: SafeArea(
-        bottom: true,
         child: Column(
           children: [
             Expanded(
@@ -867,12 +866,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     itemBuilder: (context, index) {
                       if (index == reversedShown.length && hasMore) {
                         // slot para indicador de carga (mensajes antiguos)
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8.0),
                           child: Center(
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
-                              children: const [
+                              children: [
                                 SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
                                 SizedBox(width: 8),
                                 Text('Cargando mensajes antiguos...', style: TextStyle(color: AppColors.primary)),
@@ -940,14 +939,14 @@ class _ChatScreenState extends State<ChatScreen> {
                           BoxShadow(
                             color: AppColors.secondary.withAlpha((0.12 * 255).round()),
                             blurRadius: 8.0,
-                            offset: Offset(0, 2),
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
-                      child: Row(
+                      child: const Row(
                         children: [
-                          const Icon(Icons.photo_camera, color: AppColors.secondary, size: 22),
-                          const SizedBox(width: 10),
+                          Icon(Icons.photo_camera, color: AppColors.secondary, size: 22),
+                          SizedBox(width: 10),
                           Text(
                             'Enviando imagen...',
                             style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w500, fontSize: 15),
@@ -977,17 +976,17 @@ class _ChatScreenState extends State<ChatScreen> {
                           ),
                         ],
                       ),
-                      child: Row(
+                      child: const Row(
                         children: [
-                          const Icon(Icons.mic_external_on, color: AppColors.secondary, size: 22),
-                          const SizedBox(width: 10),
+                          Icon(Icons.mic_external_on, color: AppColors.secondary, size: 22),
+                          SizedBox(width: 10),
                           Row(
                             children: [
-                              const ThreeDotsIndicator(color: AppColors.secondary),
-                              const SizedBox(width: 8),
+                              ThreeDotsIndicator(color: AppColors.secondary),
+                              SizedBox(width: 8),
                               Text(
                                 'Grabando nota de voz...',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppColors.secondary,
                                   fontWeight: FontWeight.w500,
                                   fontSize: 15,
@@ -1016,15 +1015,15 @@ class _ChatScreenState extends State<ChatScreen> {
                           BoxShadow(
                             color: AppColors.primary.withAlpha((0.12 * 255).round()),
                             blurRadius: 8.0,
-                            offset: Offset(0, 2),
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
-                      child: Row(
+                      child: const Row(
                         children: [
-                          const Icon(Icons.keyboard_alt, color: AppColors.primary, size: 22),
-                          const SizedBox(width: 10),
-                          const TypingAnimation(),
+                          Icon(Icons.keyboard_alt, color: AppColors.primary, size: 22),
+                          SizedBox(width: 10),
+                          TypingAnimation(),
                         ],
                       ),
                     ),
@@ -1125,7 +1124,6 @@ class _ChatScreenState extends State<ChatScreen> {
   /// Helper para crear GoogleDriveBackupDialog con callbacks estandarizados
   GoogleDriveBackupDialog _buildGoogleDriveBackupDialog(ChatProvider provider) {
     return GoogleDriveBackupDialog(
-      clientId: 'YOUR_GOOGLE_CLIENT_ID',
       requestBackupJson: () async => await BackupUtils.exportChatPartsToJson(
         profile: provider.onboardingData,
         messages: provider.messages,

@@ -81,7 +81,7 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
       final googleLinked = googleInfo['linked'] as bool? ?? false;
       final needsBackup =
           lastBackupMs == null ||
-          (DateTime.now().millisecondsSinceEpoch - lastBackupMs) > Duration(hours: 24).inMilliseconds;
+          (DateTime.now().millisecondsSinceEpoch - lastBackupMs) > const Duration(hours: 24).inMilliseconds;
 
       if (googleLinked && !hasToken) {
         buffer.writeln('⚠️  PROBLEMA DETECTADO:');

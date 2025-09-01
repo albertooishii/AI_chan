@@ -36,7 +36,7 @@ abstract class AIService {
   }) async {
     model = model ?? runtime_factory.getDefaultModelId();
     // Resolver runtime: prefer testOverride si está presente, si no usar la fábrica
-    AIService? override = AIService.testOverride;
+    final AIService? override = AIService.testOverride;
     late AIService aiService;
     if (override != null) {
       aiService = override;

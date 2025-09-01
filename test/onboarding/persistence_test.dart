@@ -20,13 +20,13 @@ void main() {
 
   test('onboarding+chat persistence -> save/import roundtrip and export JSON', () async {
     // Construir un perfil mínimo
-    final timeline = [TimelineEntry(resume: 'Inicio', startDate: '2020-01-01', level: 0)];
+    final timeline = [TimelineEntry(resume: 'Inicio', startDate: '2020-01-01')];
     final avatar = AiImage(url: 'file://avatar.png', seed: 'seed123', prompt: 'portrait');
     final profile = AiChanProfile(
       userName: 'Usuario Test',
       aiName: 'AiChan',
-      userBirthday: DateTime(1990, 1, 1),
-      aiBirthday: DateTime(2024, 1, 1),
+      userBirthday: DateTime(1990),
+      aiBirthday: DateTime(2024),
       biography: {'short': 'Biografía de prueba'},
       appearance: {'hair': 'negro'},
       timeline: timeline,
@@ -95,13 +95,13 @@ void main() {
 
   test('persistence survives reload: loadAll restores onboarding/messages/events', () async {
     // Construir un perfil mínimo
-    final timeline = [TimelineEntry(resume: 'Inicio', startDate: '2020-01-01', level: 0)];
+    final timeline = [TimelineEntry(resume: 'Inicio', startDate: '2020-01-01')];
     final avatar = AiImage(url: 'file://avatar.png', seed: 'seed123', prompt: 'portrait');
     final profile = AiChanProfile(
       userName: 'Usuario Reload',
       aiName: 'AiChan',
-      userBirthday: DateTime(1990, 1, 1),
-      aiBirthday: DateTime(2024, 1, 1),
+      userBirthday: DateTime(1990),
+      aiBirthday: DateTime(2024),
       biography: {'short': 'Biografía recarga'},
       appearance: {'hair': 'negro'},
       timeline: timeline,
@@ -127,12 +127,12 @@ void main() {
 
   test('ChatJsonUtils.importAllFromJson accepts valid JSON and rejects corrupted', () async {
     // Crear perfil y mensajes válidos
-    final timeline = [TimelineEntry(resume: 'Inicio', startDate: '2020-01-01', level: 0)];
+    final timeline = [TimelineEntry(resume: 'Inicio', startDate: '2020-01-01')];
     final profile = AiChanProfile(
       userName: 'ImportTest',
       aiName: 'AiChan',
-      userBirthday: DateTime(1990, 1, 1),
-      aiBirthday: DateTime(2024, 1, 1),
+      userBirthday: DateTime(1990),
+      aiBirthday: DateTime(2024),
       biography: {'short': 'bio'},
       appearance: {'hair': 'negro'},
       timeline: timeline,

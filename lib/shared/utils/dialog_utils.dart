@@ -162,7 +162,6 @@ void _showOverlaySnackBar(
                 ],
               ),
               child: Row(
-                mainAxisSize: MainAxisSize.max,
                 children: [
                   Expanded(
                     child: Text(
@@ -230,7 +229,7 @@ Future<T?> showAppDialog<T>({
   // need to pass a BuildContext. This avoids accidental capture of
   // widget contexts across async gaps.
   final navState = navigatorKey.currentState;
-  if (navState == null) return Future.value(null);
+  if (navState == null) return Future.value();
   final ctx = navState.overlay?.context ?? navState.context;
   // Wrap the caller's builder result in a Theme that sets a responsive
   // dialog insetPadding so dialogs appear closer to the screen edges on

@@ -66,7 +66,7 @@ class ProfileAdapter implements IProfileService {
       final appearanceMap = await generator.generateAppearanceFromBiography(profile);
       // Generate avatar (replace existing) and return it
       final updatedProfile = profile.copyWith(appearance: appearanceMap);
-      final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(updatedProfile, appendAvatar: false);
+      final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(updatedProfile);
       return avatar;
     } catch (e) {
       return AiImage(url: 'https://example.com/avatar_placeholder.png', seed: 'fallback-seed', prompt: 'fallback');

@@ -32,7 +32,6 @@ class MessageImageProcessingService {
     try {
       final imagePath = await saveBase64ImageToFile(
         response.base64,
-        prefix: 'img',
       );
       if (imagePath == null) {
         Log.e(

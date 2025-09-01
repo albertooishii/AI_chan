@@ -73,7 +73,7 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
   Future<void> _doRestoreFromFile() async {
     setState(() => _working = true);
     try {
-      final result = await FilePicker.platform.pickFiles(allowMultiple: false);
+      final result = await FilePicker.platform.pickFiles();
       if (result == null || result.files.isEmpty) {
         _safeSetState(() => _working = false);
         return;
@@ -145,10 +145,10 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
                     children: [
                       const Icon(Icons.sd_storage, size: 20, color: Colors.white),
                       const SizedBox(width: 8),
-                      Expanded(
+                      const Expanded(
                         child: Text(
                           'LOCAL_BACKUP_INTERFACE // ローカルストレージカンリ',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
                             fontFamily: 'monospace',
@@ -167,11 +167,11 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
                 ),
                 const SizedBox(height: 20), // Más espacio después del header
                 // Descripción del diálogo
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12.0),
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 12.0),
                   child: Text(
                     '[LOCAL_STORAGE] // Gestión de archivos locales del dispositivo',
-                    style: const TextStyle(color: Colors.white70, fontSize: 15, fontFamily: 'monospace'),
+                    style: TextStyle(color: Colors.white70, fontSize: 15, fontFamily: 'monospace'),
                   ),
                 ),
                 if (_status != null)

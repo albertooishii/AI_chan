@@ -69,7 +69,6 @@ class TtsConfigurationDialog extends StatefulWidget {
           onSettingsChanged: onSettingsChanged,
         ),
       ),
-      barrierDismissible: true,
     );
   }
 }
@@ -144,7 +143,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
         tag: 'TTS_DIALOG',
       );
       if (mounted) {
-        showAppSnackBar('Voces nativas detectadas: ${voices.length}. Filtradas: ${filtered.length}', isError: false);
+        showAppSnackBar('Voces nativas detectadas: ${voices.length}. Filtradas: ${filtered.length}');
       }
     } catch (e) {
       Log.d('DEBUG TTS: Error refrescando voces nativas: $e', tag: 'TTS_DIALOG');
@@ -164,7 +163,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
       } else if (_selectedProvider == 'android_native') {
         await _refreshNativeVoices();
       }
-      showAppSnackBar('Voces actualizadas', isError: false);
+      showAppSnackBar('Voces actualizadas');
     } catch (e) {
       showAppSnackBar('Error al actualizar voces: $e', isError: true);
     } finally {
@@ -244,20 +243,19 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
 
     // Si fallaron todos los intent, mostrar instrucción al usuario
     Log.d('DEBUG TTS: No se pudo abrir ninguna pantalla de ajustes', tag: 'TTS_DIALOG');
-    showAppSnackBar('Abre Ajustes → Idioma y entrada → Salida de texto a voz para instalar voces', isError: false);
+    showAppSnackBar('Abre Ajustes → Idioma y entrada → Salida de texto a voz para instalar voces');
   }
 
   Future<void> _installTtsData() async {
     if (!Platform.isAndroid) return;
 
     try {
-      final intent = AndroidIntent(action: 'android.speech.tts.engine.INSTALL_TTS_DATA');
+      final intent = const AndroidIntent(action: 'android.speech.tts.engine.INSTALL_TTS_DATA');
       await intent.launch();
     } catch (e) {
       Log.d('DEBUG TTS: INSTALL_TTS_DATA intent falló: $e', tag: 'TTS_DIALOG');
       showAppSnackBar(
         'No se pudo iniciar la instalación de datos TTS. Abre Ajustes → Salida de texto a voz',
-        isError: false,
       );
     }
   }
@@ -526,7 +524,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
                       Log.d('DEBUG TTS: Error dumping native voices JSON: $e', tag: 'TTS_DIALOG');
                     }
                   }
-                  showAppSnackBar('Voces actualizadas', isError: false);
+                  showAppSnackBar('Voces actualizadas');
                 } catch (e) {
                   showAppSnackBar('Error al actualizar voces: $e', isError: true);
                 } finally {
@@ -615,7 +613,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
                       setState(() => _isLoading = true);
                       try {
                         await _refreshNativeVoices();
-                        showAppSnackBar('Actualización completada', isError: false);
+                        showAppSnackBar('Actualización completada');
                       } catch (e) {
                         showAppSnackBar('Error al actualizar: $e', isError: true);
                       } finally {
@@ -700,7 +698,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
                     tooltip: 'Escuchar demo',
                     onPressed: () async {
                       final phrase = 'Hola, soy tu asistente con la voz $voiceName';
-                      showAppSnackBar('Buscando audio en caché...', isError: false);
+                      showAppSnackBar('Buscando audio en caché...');
                       try {
                         String lang = 'es-ES';
                         if (voice['languageCodes'] is List && (voice['languageCodes'] as List).isNotEmpty) {
@@ -746,11 +744,11 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
                             await player.onPlayerComplete.first;
                           } catch (_) {}
                           await player.dispose();
-                          showAppSnackBar('Audio reproducido desde caché', isError: false);
+                          showAppSnackBar('Audio reproducido desde caché');
                           return;
                         }
 
-                        showAppSnackBar('Generando audio de prueba...', isError: false);
+                        showAppSnackBar('Generando audio de prueba...');
 
                         final file = await widget.synthesizeTts!(
                           phrase,
@@ -776,7 +774,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
                             await player.onPlayerComplete.first;
                           } catch (_) {}
                           await player.dispose();
-                          showAppSnackBar('¡Audio reproducido!', isError: false);
+                          showAppSnackBar('¡Audio reproducido!');
                         } else {
                           showAppSnackBar('No se pudo generar el audio', isError: true);
                         }
@@ -797,7 +795,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
                         if (widget.onSettingsChanged != null) {
                           widget.onSettingsChanged!.call();
                         }
-                        showAppSnackBar('Voz seleccionada: $voiceName', isError: false);
+                        showAppSnackBar('Voz seleccionada: $voiceName');
                       } catch (e) {
                         showAppSnackBar('Error guardando la voz seleccionada: $e', isError: true);
                       }
@@ -813,7 +811,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
                 if (widget.onSettingsChanged != null) {
                   widget.onSettingsChanged!.call();
                 }
-                showAppSnackBar('Voz seleccionada: $voiceName', isError: false);
+                showAppSnackBar('Voz seleccionada: $voiceName');
               } catch (e) {
                 showAppSnackBar('Error guardando la voz seleccionada: $e', isError: true);
               }

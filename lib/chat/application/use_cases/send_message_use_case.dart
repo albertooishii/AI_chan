@@ -42,7 +42,7 @@ class SendMessageUseCase {
     final history = _buildMessageHistory(recentMessages);
 
     // Handle image generation model switching
-    String selectedModel = await _selectOptimalModel(
+    final String selectedModel = await _selectOptimalModel(
       model,
       enableImageGeneration,
     );
@@ -67,7 +67,7 @@ class SendMessageUseCase {
     final imageResult = await _imageService.processImageResponse(response);
 
     // Sanitize text content
-    String processedText = _imageService.sanitizeImageUrls(
+    final String processedText = _imageService.sanitizeImageUrls(
       imageResult.processedText,
     );
 
@@ -162,7 +162,6 @@ class SendMessageUseCase {
       result: chatResult,
       assistantMessage: assistantMessage,
       ttsRequested: false,
-      updatedProfile: null,
     );
   }
 

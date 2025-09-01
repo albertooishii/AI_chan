@@ -70,7 +70,7 @@ class AudioChatService implements IAudioChatService {
     // so it stays stable for logs and later correlation.
     final localDir = await audio_utils.getLocalAudioDir();
     final path = '${localDir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-    await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 96000), path: path);
+    await _recorder.start(const RecordConfig(bitRate: 96000), path: path);
     isRecording = true;
     _recordCancelled = false;
     _currentWaveform.clear();
@@ -103,13 +103,6 @@ class AudioChatService implements IAudioChatService {
                   // provider is selected).
                 } catch (_) {}
               },
-              // Some versions of the speech_to_text package expose the
-              // deprecated named parameter `partialResults`. We prefer the
-              // newer SpeechListenOptions API, but to remain compatible with
-              // the runtime linked package in this project, use the old
-              // parameter and silence the deprecation lint.
-              // ignore: deprecated_member_use
-              partialResults: true,
             );
           } else {
             _speech = null;

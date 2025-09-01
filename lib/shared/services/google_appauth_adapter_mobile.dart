@@ -107,7 +107,7 @@ class GoogleAppAuthMobileAdapter {
         stack: st,
       );
       final msg = e.toString();
-      String help =
+      final String help =
           '\nHints: '
           '\n- Ensure the OAuth client ID in Config (GOOGLE_CLIENT_ID_ANDROID) matches the Android OAuth client in Google Cloud Console (package name + SHA-1).'
           '\n- Make sure the app\'s redirect URI (Config GOOGLE_REDIRECT_URI or default custom scheme) is registered and matches the intent-filter in AndroidManifest.'

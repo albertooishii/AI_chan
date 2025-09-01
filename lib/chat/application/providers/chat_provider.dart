@@ -142,7 +142,7 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
        typingMinMs = typingMinMs ?? 400,
        typingMaxMs = typingMaxMs ?? 10000 {
     // Initialize helpers with sensible defaults.
-    initDebouncedPersistence(saveAll, duration: const Duration(seconds: 1));
+    initDebouncedPersistence(saveAll);
 
     // Queue manager: when the timer flushes, send only the last queued message
     // and mark earlier queued messages as 'sent' so they don't remain in 'sending'.
@@ -1097,8 +1097,6 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       text: text,
       sender: MessageSender.assistant,
       dateTime: DateTime.now(),
-      isImage: false,
-      image: null,
       status: MessageStatus.read,
       callStatus: isCallPlaceholder ? CallStatus.placeholder : null,
     );
@@ -1354,7 +1352,6 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       image: imageForHistory,
       isAudio: userAudioPath != null,
       audio: audioObj,
-      status: MessageStatus.sending,
     );
   }
 
@@ -1431,7 +1428,7 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
 
     try {
       // Add a small delay to ensure credentials are fully initialized
-      await Future.delayed(Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 500));
 
       // Double-check that we actually have valid credentials
       final tokenLoader = GoogleBackupService(accessToken: null);
@@ -1447,7 +1444,7 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
 
       final lastMs = await PrefsUtils.getLastAutoBackupMs();
       final nowMs = DateTime.now().millisecondsSinceEpoch;
-      final twentyFourHoursMs = Duration(hours: 24).inMilliseconds;
+      final twentyFourHoursMs = const Duration(hours: 24).inMilliseconds;
       final hasMessages = messages.isNotEmpty;
 
       // Backup logic based on requirements:
@@ -1786,7 +1783,7 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
         unawaited(() async {
           try {
             // Add a small delay to ensure credentials are fully saved and available
-            await Future.delayed(Duration(seconds: 1));
+            await Future.delayed(const Duration(seconds: 1));
 
             // Verify that credentials are actually available
             final tokenLoader = GoogleBackupService(accessToken: null);
@@ -1807,7 +1804,7 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
             // Check if we should trigger backup when account linking happens:
             // 1. Never backed up before (lastMs == null), OR
             // 2. Last backup is older than 30 minutes (account re-link scenario)
-            final thirtyMinutesMs = Duration(minutes: 30).inMilliseconds;
+            final thirtyMinutesMs = const Duration(minutes: 30).inMilliseconds;
             final shouldBackupOnLink = lastMs == null || (nowMs - lastMs) > thirtyMinutesMs;
 
             if (shouldBackupOnLink) {
@@ -1948,7 +1945,7 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     // Chequear generación semanal de avatar en background: si el último avatar tiene más de 7 días
     try {
       final nowMs = DateTime.now().millisecondsSinceEpoch;
-      final sevenDays = Duration(days: 7).inMilliseconds;
+      final sevenDays = const Duration(days: 7).inMilliseconds;
       final lastAvatarCreatedMs = onboardingData.avatar?.createdAtMs;
       final seed = onboardingData.avatar?.seed;
       if (seed != null && seed.isNotEmpty && lastAvatarCreatedMs != null && (nowMs - lastAvatarCreatedMs) > sevenDays) {
@@ -2121,7 +2118,6 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     await sendMessage(
       msg.text,
       image: msg.image,
-      imageMimeType: null,
       model: _selectedModel,
       onError: onError,
       existingMessageIndex: idx,

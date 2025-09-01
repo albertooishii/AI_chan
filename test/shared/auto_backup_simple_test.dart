@@ -26,7 +26,7 @@ void main() {
 
       test('should track last backup time', () {
         final now = DateTime.now();
-        final lastBackup = now.subtract(Duration(hours: 24));
+        final lastBackup = now.subtract(const Duration(hours: 24));
 
         // Simulate checking if backup is needed (more than 24 hours)
         final shouldBackup = now.difference(lastBackup).inHours >= 24;
@@ -38,7 +38,7 @@ void main() {
     group('⏱️ Backup Throttling Tests', () {
       test('should prevent multiple backups in short time', () {
         final now = DateTime.now();
-        final recentBackup = now.subtract(Duration(minutes: 30));
+        final recentBackup = now.subtract(const Duration(minutes: 30));
 
         // Simulate throttling - don't backup if less than 1 hour ago
         final shouldThrottle = now.difference(recentBackup).inMinutes < 60;
@@ -48,7 +48,7 @@ void main() {
 
       test('should allow backup after cooldown period', () {
         final now = DateTime.now();
-        final oldBackup = now.subtract(Duration(hours: 2));
+        final oldBackup = now.subtract(const Duration(hours: 2));
 
         // Should allow backup after 1+ hour cooldown
         final canBackup = now.difference(oldBackup).inMinutes >= 60;
@@ -147,8 +147,8 @@ void main() {
         chatProvider.onboardingData = AiChanProfile(
           userName: 'TestUser',
           aiName: 'TestAI',
-          userBirthday: DateTime(1990, 1, 1),
-          aiBirthday: DateTime(2024, 1, 1),
+          userBirthday: DateTime(1990),
+          aiBirthday: DateTime(2024),
           biography: {'personalidad': 'Test personality'},
           appearance: <String, dynamic>{},
           timeline: [],
@@ -166,8 +166,6 @@ void main() {
           email: 'test@gmail.com',
           avatarUrl: 'https://example.com/avatar.jpg',
           name: 'Test User',
-          linked: true,
-          triggerAutoBackup: false, // false como en diálogos
         );
 
         // Verificar que se actualizó la información pero no se disparó backup automático
@@ -182,7 +180,6 @@ void main() {
           email: 'test@gmail.com',
           avatarUrl: 'https://example.com/avatar.jpg',
           name: 'Test User',
-          linked: true,
           triggerAutoBackup: true, // true como en loadAll
         );
 
@@ -196,7 +193,6 @@ void main() {
         // Test sin especificar triggerAutoBackup (debería ser false por defecto)
         await chatProvider.updateGoogleAccountInfo(
           email: 'test@gmail.com',
-          linked: true,
           // triggerAutoBackup no especificado, debería ser false por defecto
         );
 
