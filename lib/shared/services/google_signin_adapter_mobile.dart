@@ -8,7 +8,10 @@ import 'package:http/http.dart' as http;
 
 /// Native Google Sign-In adapter for Android/iOS with proper token handling
 /// Updated for google_sign_in ^7.1.1 API
+/// Singleton pattern to avoid multiple event listeners
 class GoogleSignInMobileAdapter {
+  static GoogleSignInMobileAdapter? _instance;
+
   final List<String> scopes;
   final String? clientId;
   final String? serverClientId;
@@ -19,13 +22,28 @@ class GoogleSignInMobileAdapter {
 
   late final GoogleSignIn _signIn;
 
-  GoogleSignInMobileAdapter({
+  GoogleSignInMobileAdapter._internal({
     required this.scopes,
     this.clientId,
     this.serverClientId,
   }) {
     // Create GoogleSignIn instance configured with our scopes for proper consent flow
     _signIn = GoogleSignIn.instance;
+  }
+
+  /// Get singleton instance
+  factory GoogleSignInMobileAdapter({
+    required List<String> scopes,
+    String? clientId,
+    String? serverClientId,
+  }) {
+    // Always return the same instance to avoid multiple event listeners
+    _instance ??= GoogleSignInMobileAdapter._internal(
+      scopes: scopes,
+      clientId: clientId,
+      serverClientId: serverClientId,
+    );
+    return _instance!;
   }
 
   /// Initialize the adapter and configure GoogleSignIn
@@ -178,48 +196,56 @@ class GoogleSignInMobileAdapter {
         tag: 'GoogleSignIn',
       );
 
-      // Try to get existing account without UI
-      final GoogleSignInAccount? existingAccount = _currentUser;
+      GoogleSignInAccount tempAccount;
 
-      if (existingAccount != null) {
+      // When forceAccountChooser is true, always show the chooser regardless of existing accounts
+      if (forceAccountChooser) {
         Log.d(
-          'GoogleSignInMobileAdapter: found existing account: ${existingAccount.email}',
+          'GoogleSignInMobileAdapter: forcing native account chooser (clearing existing session)',
           tag: 'GoogleSignIn',
         );
+        // Always clear existing session to force account chooser
+        await _signIn.disconnect();
+        tempAccount = await _signIn.authenticate();
+      } else {
+        // Try to use existing account first, only show chooser if needed
+        final GoogleSignInAccount? existingAccount = _currentUser;
 
-        // Go directly to consent screen with existing account
-        try {
-          final authorization = await existingAccount.authorizationClient
-              .authorizeScopes(usedScopes);
+        if (existingAccount != null) {
           Log.d(
-            'GoogleSignInMobileAdapter: consent completed successfully',
+            'GoogleSignInMobileAdapter: found existing account: ${existingAccount.email}',
             tag: 'GoogleSignIn',
           );
-          return await _buildTokenMap(
-            existingAccount,
-            authorization,
-            usedScopes,
-          );
-        } catch (e) {
-          Log.d(
-            'GoogleSignInMobileAdapter: existing account consent failed, clearing and retrying: $e',
-            tag: 'GoogleSignIn',
-          );
-          // Clear existing account and start fresh
-          await _signIn.disconnect();
+
+          // Go directly to consent screen with existing account
+          try {
+            final authorization = await existingAccount.authorizationClient
+                .authorizeScopes(usedScopes);
+            Log.d(
+              'GoogleSignInMobileAdapter: consent completed successfully',
+              tag: 'GoogleSignIn',
+            );
+            return await _buildTokenMap(
+              existingAccount,
+              authorization,
+              usedScopes,
+            );
+          } catch (e) {
+            Log.d(
+              'GoogleSignInMobileAdapter: existing account consent failed, clearing and retrying: $e',
+              tag: 'GoogleSignIn',
+            );
+            // Clear existing account and start fresh
+            await _signIn.disconnect();
+          }
         }
+
+        Log.d(
+          'GoogleSignInMobileAdapter: authenticating with scope hint (no chooser)',
+          tag: 'GoogleSignIn',
+        );
+        tempAccount = await _signIn.authenticate(scopeHint: usedScopes);
       }
-
-      // Create a temporary account just to get authorizationClient access
-      // Use authenticate with scope hint - this will handle sign-in + consent in one flow
-      Log.d(
-        'GoogleSignInMobileAdapter: authenticating with scope hint',
-        tag: 'GoogleSignIn',
-      );
-
-      final GoogleSignInAccount tempAccount = await _signIn.authenticate(
-        scopeHint: usedScopes,
-      );
 
       Log.d(
         'GoogleSignInMobileAdapter: got account ${tempAccount.email}, proceeding to authorization',
@@ -501,5 +527,12 @@ class GoogleSignInMobileAdapter {
   void dispose() {
     _authSubscription?.cancel();
     _authSubscription = null;
+    _isInitialized = false;
+  }
+
+  /// Clear singleton instance (for testing or complete reset)
+  static void clearInstance() {
+    _instance?.dispose();
+    _instance = null;
   }
 }

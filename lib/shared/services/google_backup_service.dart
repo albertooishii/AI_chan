@@ -5,7 +5,6 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/services/google_appauth_adapter.dart';
-import 'package:ai_chan/shared/services/google_appauth_adapter_mobile.dart';
 import 'package:ai_chan/shared/services/google_signin_adapter_mobile.dart';
 import 'package:ai_chan/core/config.dart';
 
@@ -716,29 +715,15 @@ class GoogleBackupService {
     // time on Android/iOS.
     // Delegate to the GoogleAppAuthAdapter for the actual authorize+exchange
     try {
-      // Prefer native mobile AppAuth adapter on Android/iOS which uses the
-      // flutter_appauth plugin. Desktop continues to use the loopback
-      // implementation in GoogleAppAuthAdapter.
-      Map<String, dynamic> tokenMap;
-      try {
-        if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-          final mobileAdapter = GoogleAppAuthMobileAdapter(
-            scopes: scopes,
-            clientId: clientId,
-            redirectUri: redirectUri,
-          );
-          tokenMap = await mobileAdapter.signIn(scopes: scopes);
-        } else {
-          final adapter = GoogleAppAuthAdapter(
-            scopes: scopes,
-            clientId: clientId,
-            redirectUri: redirectUri,
-          );
-          tokenMap = await adapter.signIn(scopes: scopes);
-        }
-      } catch (e) {
-        rethrow;
-      }
+      // Use GoogleAppAuthAdapter for all platforms (desktop loopback implementation)
+      // This provides consistent behavior across all platforms
+      final adapter = GoogleAppAuthAdapter(
+        scopes: scopes,
+        clientId: clientId,
+        redirectUri: redirectUri,
+      );
+      final tokenMap = await adapter.signIn(scopes: scopes);
+
       // persist and return like before, storing the clientId for future refresh operations
       await _persistCredentialsSecure(tokenMap, originalClientId: clientId);
       Log.d(
@@ -782,12 +767,9 @@ class GoogleBackupService {
         return await adapter.signIn(scopes: scopes);
       }
 
-      // Use native Google Sign-In for Android/iOS - try without forcing chooser first
+      // Use native Google Sign-In for Android/iOS - use native account chooser
       final nativeAdapter = GoogleSignInMobileAdapter(scopes: scopes);
-      final tokenMap = await nativeAdapter.signIn(
-        scopes: scopes,
-        forceAccountChooser: false,
-      );
+      final tokenMap = await nativeAdapter.signIn(scopes: scopes);
 
       // Validate that we obtained the necessary tokens
       final hasAccess =
