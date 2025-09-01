@@ -52,4 +52,32 @@ class GeminiRealtimeClient implements IRealtimeClient {
   Future<void> close() async {
     _connected = false;
   }
+
+  // Implementaciones por defecto de los nuevos métodos (no soportados en Gemini)
+  @override
+  void sendImageWithText({
+    required String imageBase64,
+    String? text,
+    String imageFormat = 'png',
+  }) {
+    // No-op - funcionalidad específica de OpenAI gpt-realtime
+  }
+
+  @override
+  void configureTools(List<Map<String, dynamic>> tools) {
+    // No-op - funcionalidad específica de OpenAI gpt-realtime
+  }
+
+  @override
+  void sendFunctionCallOutput({
+    required String callId,
+    required String output,
+  }) {
+    // No-op - funcionalidad específica de OpenAI gpt-realtime
+  }
+
+  @override
+  void cancelResponse({String? itemId, int? sampleCount}) {
+    // No-op - funcionalidad específica de OpenAI gpt-realtime
+  }
 }

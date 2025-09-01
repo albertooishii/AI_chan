@@ -182,16 +182,23 @@ class NotSupportedRealtimeClient implements IRealtimeClient {
   }
 
   @override
+  Future<void> commitPendingAudio() async {
+    // no-op
+  }
+
+  @override
   Future<void> connect({
     required String systemPrompt,
-    String? voice,
+    String voice = 'sage',
     String? inputAudioFormat,
     String? outputAudioFormat,
     String? turnDetectionType,
     int? silenceDurationMs,
     Map<String, dynamic>? options,
-  }) {
-    throw UnsupportedError('Realtime provider not registered: $provider');
+  }) async {
+    throw UnsupportedError(
+      'Realtime provider "$provider" not supported/configured',
+    );
   }
 
   @override
@@ -209,9 +216,32 @@ class NotSupportedRealtimeClient implements IRealtimeClient {
     // no-op
   }
 
+  // Implementaciones por defecto de los nuevos métodos
   @override
-  Future<void> commitPendingAudio() async {
-    // no-op
+  void sendImageWithText({
+    required String imageBase64,
+    String? text,
+    String imageFormat = 'png',
+  }) {
+    // no-op - funcionalidad no soportada
+  }
+
+  @override
+  void configureTools(List<Map<String, dynamic>> tools) {
+    // no-op - funcionalidad no soportada
+  }
+
+  @override
+  void sendFunctionCallOutput({
+    required String callId,
+    required String output,
+  }) {
+    // no-op - funcionalidad no soportada
+  }
+
+  @override
+  void cancelResponse({String? itemId, int? sampleCount}) {
+    // no-op - funcionalidad no soportada
   }
 }
 

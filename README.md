@@ -170,7 +170,7 @@ PREFERRED_AUDIO_FORMAT=mp3            # mp3 | m4a | wav
 # --- Modelos de IA ---
 DEFAULT_TEXT_MODEL=gemini-2.5-flash
 DEFAULT_IMAGE_MODEL=gpt-4.1-mini
-OPENAI_REALTIME_MODEL=gpt-4o-realtime-preview
+OPENAI_REALTIME_MODEL=gpt-realtime
 GOOGLE_REALTIME_MODEL=gemini-2.5-flash
 
 # --- Modelos específicos OpenAI ---
@@ -187,10 +187,11 @@ APP_NAME=AI-チャン                     # Nombre de la aplicación
 ### Notas importantes:
 - 🔒 **El archivo `.env` está en `.gitignore`**: nunca subas tus claves al repositorio
 - 🔄 **Fallback automático**: Si `GEMINI_API_KEY` falla (cuota/permisos), la app usa `GEMINI_API_KEY_FALLBACK`
-- 🎵 **Voces OpenAI**: alloy, ash, ballad, coral, echo, sage, shimmer, verse
+- 🎵 **Voces OpenAI**: alloy, ash, ballad, coral, echo, sage, shimmer, verse, cedar, marin
 - 🗣️ **Voces Google**: Consulta [Google TTS Voices](https://cloud.google.com/text-to-speech/docs/voices) para opciones
 - ☁️ **Google Cloud**: necesario para TTS/STT premium con detección automática de idioma
 - 🔊 **Audio Provider**: `gemini` usa Google TTS/STT, `openai` usa OpenAI Realtime
+- ✨ **Nuevas voces**: `cedar` y `marin` están disponibles exclusivamente con el modelo `gpt-realtime`
 
 ## 🔒 Hooks pre-commit y CI/CD
 

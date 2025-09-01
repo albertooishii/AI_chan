@@ -60,6 +60,34 @@ class _FakeBufferedClient implements IRealtimeClient {
   Future<void> close() async {
     connected = false;
   }
+
+  // Implementaciones por defecto de los nuevos métodos
+  @override
+  void sendImageWithText({
+    required String imageBase64,
+    String? text,
+    String imageFormat = 'png',
+  }) {
+    // Fake implementation for test
+  }
+
+  @override
+  void configureTools(List<Map<String, dynamic>> tools) {
+    // Fake implementation for test
+  }
+
+  @override
+  void sendFunctionCallOutput({
+    required String callId,
+    required String output,
+  }) {
+    // Fake implementation for test
+  }
+
+  @override
+  void cancelResponse({String? itemId, int? sampleCount}) {
+    // Fake implementation for test
+  }
 }
 
 void main() {

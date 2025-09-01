@@ -93,7 +93,7 @@ echo ""
 echo "🤖 AI Models:"
 prompt_key "DEFAULT_TEXT_MODEL" "Default text model [gemini-2.5-flash]: " "gemini-2.5-flash" false
 prompt_key "DEFAULT_IMAGE_MODEL" "Default image model [gpt-4.1-mini]: " "gpt-4.1-mini" false
-prompt_key "OPENAI_REALTIME_MODEL" "OpenAI realtime model [gpt-4o-realtime-preview]: " "gpt-4o-realtime-preview" false
+prompt_key "OPENAI_REALTIME_MODEL" "OpenAI realtime model [gpt-realtime]: " "gpt-realtime" false
 prompt_key "GOOGLE_REALTIME_MODEL" "Google realtime model [gemini-2.5-flash]: " "gemini-2.5-flash" false
 
 # OpenAI TTS/STT models (defaults aligned with documentation)

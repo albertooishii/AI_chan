@@ -126,6 +126,16 @@ class OpenAIRealtimeClient implements IRealtimeClient {
             'language': 'es',
           },
           'voice': _voice,
+          // Optimización para gpt-realtime: mejor detección de turnos
+          'turn_detection': {
+            'type': 'server_vad',
+            'threshold': 0.5,
+            'prefix_padding_ms': 300,
+            'silence_duration_ms': 700,
+          },
+          // Configuración de temperatura para respuestas más naturales
+          'temperature': 0.8,
+          'max_response_output_tokens': 4096,
         },
       });
       try {
@@ -355,7 +365,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
       requestResponse();
     }
 
-    // User transcription
+    // User transcription - Mejorado para gpt-realtime
     if (type == 'conversation.item.input_audio_transcription.completed') {
       final transcript = (evt['transcript'] ?? '').toString().trim();
       if (transcript.isNotEmpty) {
@@ -368,8 +378,58 @@ class OpenAIRealtimeClient implements IRealtimeClient {
       }
     }
 
+    // Manejo de errores mejorado para gpt-realtime
     if (type == 'error' && evt['error'] != null) {
-      onError?.call(Exception(evt['error'].toString()));
+      final error = evt['error'];
+      String errorMsg = 'Error desconocido';
+
+      if (error is Map) {
+        final code = error['code']?.toString() ?? '';
+        final message = error['message']?.toString() ?? '';
+        final errorType = error['type']?.toString() ?? '';
+
+        errorMsg = 'Error $errorType ($code): $message';
+
+        // Manejar errores específicos del modelo gpt-realtime
+        if (code.contains('insufficient_quota')) {
+          errorMsg = 'Cuota agotada. Verifica tu plan de OpenAI.';
+        } else if (code.contains('model_not_found')) {
+          errorMsg =
+              'Modelo gpt-realtime no disponible. Verifica tu suscripción.';
+        } else if (code.contains('invalid_request_error')) {
+          errorMsg = 'Configuración de sesión inválida: $message';
+        } else if (code.contains('authentication_error')) {
+          errorMsg = 'Error de autenticación. Verifica tu API key.';
+        }
+      } else {
+        errorMsg = error.toString();
+      }
+
+      if (kDebugMode) {
+        Log.w('Realtime error: $errorMsg', tag: 'OPENAI_REALTIME');
+      }
+      onError?.call(Exception(errorMsg));
+    }
+
+    // Nuevos eventos para gpt-realtime: session.updated
+    if (type == 'session.updated') {
+      if (kDebugMode) {
+        final voice = evt['session']?['voice']?.toString() ?? 'unknown';
+        Log.d('Realtime: session.updated voice=$voice');
+      }
+    }
+
+    // Manejo de interrupciones mejorado
+    if (type == 'input_audio_buffer.speech_started') {
+      if (kDebugMode) {
+        Log.d('Realtime: speech_started - usuario comenzó a hablar');
+      }
+    }
+
+    if (type == 'input_audio_buffer.speech_stopped') {
+      if (kDebugMode) {
+        Log.d('Realtime: speech_stopped - usuario dejó de hablar');
+      }
     }
   }
 
@@ -396,6 +456,77 @@ class OpenAIRealtimeClient implements IRealtimeClient {
         ],
       },
     });
+  }
+
+  /// Envía una imagen junto con texto opcional (nueva funcionalidad gpt-realtime)
+  @override
+  void sendImageWithText({
+    required String imageBase64,
+    String? text,
+    String imageFormat = 'png',
+  }) {
+    if (!isConnected) return;
+
+    final content = <Map<String, dynamic>>[];
+
+    // Agregar imagen
+    content.add({
+      'type': 'input_image',
+      'image_url': 'data:image/$imageFormat;base64,$imageBase64',
+    });
+
+    // Agregar texto opcional
+    if (text != null && text.trim().isNotEmpty) {
+      content.add({'type': 'input_text', 'text': text});
+    }
+
+    _send({
+      'type': 'conversation.item.create',
+      'item': {'type': 'message', 'role': 'user', 'content': content},
+    });
+
+    if (kDebugMode) {
+      Log.d(
+        'Realtime: imagen enviada (${imageBase64.length} bytes, formato: $imageFormat)',
+      );
+    }
+  }
+
+  /// Configura herramientas/funciones para el modelo (nueva funcionalidad mejorada)
+  @override
+  void configureTools(List<Map<String, dynamic>> tools) {
+    if (!isConnected) return;
+
+    _send({
+      'type': 'session.update',
+      'session': {'tools': tools},
+    });
+
+    if (kDebugMode) {
+      Log.d('Realtime: ${tools.length} herramientas configuradas');
+    }
+  }
+
+  /// Responde a una llamada de función (function calling mejorado en gpt-realtime)
+  @override
+  void sendFunctionCallOutput({
+    required String callId,
+    required String output,
+  }) {
+    if (!isConnected) return;
+
+    _send({
+      'type': 'conversation.item.create',
+      'item': {
+        'type': 'function_call_output',
+        'call_id': callId,
+        'output': output,
+      },
+    });
+
+    if (kDebugMode) {
+      Log.d('Realtime: respuesta de función enviada (callId: $callId)');
+    }
   }
 
   @override
@@ -531,10 +662,34 @@ class OpenAIRealtimeClient implements IRealtimeClient {
     });
   }
 
-  void cancelResponse() {
+  /// Cancela la respuesta actual con mejor control para gpt-realtime
+  @override
+  void cancelResponse({String? itemId, int? sampleCount}) {
     if (!isConnected) return;
-    _transport.sendEvent({'type': 'response.cancel'});
+
+    final cancelEvent = <String, dynamic>{'type': 'response.cancel'};
+
+    // Para gpt-realtime, podemos especificar qué ítem cancelar y dónde truncar
+    if (itemId != null) {
+      cancelEvent['item_id'] = itemId;
+    }
+
+    if (sampleCount != null) {
+      cancelEvent['sample_count'] = sampleCount;
+    }
+
+    _transport.sendEvent(cancelEvent);
+    _hasActiveResponse = false;
+
+    if (kDebugMode) {
+      Log.d(
+        'Realtime: response.cancel enviado (itemId=$itemId, sampleCount=$sampleCount)',
+      );
+    }
   }
+
+  /// Método de conveniencia para cancelación básica (mantiene compatibilidad)
+  void cancelCurrentResponse() => cancelResponse();
 
   @override
   Future<void> close() async {

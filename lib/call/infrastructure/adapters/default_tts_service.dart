@@ -11,6 +11,7 @@ import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/shared/services/ai_runtime_provider.dart'
     as runtime_factory;
+import 'package:ai_chan/shared/constants/openai_voices.dart';
 
 /// Default TTS service that tries native -> Google -> OpenAI in that order.
 class DefaultTtsService implements ITtsService {
@@ -59,16 +60,7 @@ class DefaultTtsService implements ITtsService {
 
     // If provider requests auto-detection, detect by voice name.
     if (provider == 'auto' || provider.isEmpty) {
-      const openAIVoices = [
-        'sage',
-        'alloy',
-        'echo',
-        'fable',
-        'onyx',
-        'nova',
-        'shimmer',
-      ];
-      if (openAIVoices.contains(voice)) {
+      if (kOpenAIVoices.contains(voice)) {
         provider = 'openai';
         debugPrint(
           '[DefaultTTS] Auto-detected OpenAI voice: $voice, forcing OpenAI provider',
@@ -131,16 +123,7 @@ class DefaultTtsService implements ITtsService {
 
       // Normalize voice: if caller passed an OpenAI voice name or empty string,
       // substitute Google default voice from .env when available.
-      const openAIVoices = [
-        'sage',
-        'alloy',
-        'echo',
-        'fable',
-        'onyx',
-        'nova',
-        'shimmer',
-      ];
-      if (voice.trim().isEmpty || openAIVoices.contains(voice)) {
+      if (voice.trim().isEmpty || kOpenAIVoices.contains(voice)) {
         final googleDefault = Config.getGoogleVoice();
         if (googleDefault.isNotEmpty) {
           debugPrint(

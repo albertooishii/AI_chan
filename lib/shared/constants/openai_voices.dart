@@ -1,6 +1,7 @@
 /// Mapa de género por token de voz. Las etiquetas están en español y pueden
 /// usarse para mostrar "Masculina" / "Femenina" en la UI.
 /// Mantener sincronizado con cualquier lugar que consuma estos tokens.
+/// Actualizado para incluir las nuevas voces Cedar y Marin del modelo gpt-realtime.
 const Map<String, String> kOpenAIVoiceGender = {
   'sage': 'Femenina',
   'alloy': 'Femenina',
@@ -13,6 +14,9 @@ const Map<String, String> kOpenAIVoiceGender = {
   'nova': 'Femenina',
   'shimmer': 'Femenina',
   'verse': 'Masculina',
+  // Nuevas voces exclusivas del modelo gpt-realtime
+  'cedar': 'Masculina',
+  'marin': 'Femenina',
 };
 
 /// Lista derivada (en tiempo de compilación se construye a partir de las claves

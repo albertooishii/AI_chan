@@ -26,4 +26,33 @@ abstract class IRealtimeClient {
   Future<void> commitPendingAudio();
 
   Future<void> close();
+
+  // Nuevas funcionalidades opcionales para gpt-realtime (implementadas solo en OpenAI)
+
+  /// Envía una imagen junto con texto opcional (solo OpenAI gpt-realtime)
+  void sendImageWithText({
+    required String imageBase64,
+    String? text,
+    String imageFormat = 'png',
+  }) {
+    // Implementación por defecto vacía para compatibilidad con otros providers
+  }
+
+  /// Configura herramientas/funciones para el modelo (solo OpenAI gpt-realtime)
+  void configureTools(List<Map<String, dynamic>> tools) {
+    // Implementación por defecto vacía para compatibilidad con otros providers
+  }
+
+  /// Responde a una llamada de función (solo OpenAI gpt-realtime)
+  void sendFunctionCallOutput({
+    required String callId,
+    required String output,
+  }) {
+    // Implementación por defecto vacía para compatibilidad con otros providers
+  }
+
+  /// Cancela la respuesta actual con control avanzado (solo OpenAI gpt-realtime)
+  void cancelResponse({String? itemId, int? sampleCount}) {
+    // Implementación por defecto vacía para compatibilidad con otros providers
+  }
 }

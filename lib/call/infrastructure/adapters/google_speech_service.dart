@@ -7,6 +7,7 @@ import 'package:ai_chan/shared/utils/audio_utils.dart' as audio_utils;
 import 'package:ai_chan/core/cache/cache_service.dart';
 import 'package:ai_chan/shared/utils.dart';
 import 'package:ai_chan/shared/utils/audio_conversion.dart';
+import 'package:ai_chan/shared/constants/openai_voices.dart';
 import 'dart:async';
 
 // During tests we want to avoid noisy debug printing that looks like errors in CI logs.
@@ -59,16 +60,7 @@ class GoogleSpeechService {
     // replace with configured Google default so cache keys and API calls
     // are consistent.
     try {
-      const openAIVoices = [
-        'sage',
-        'alloy',
-        'echo',
-        'fable',
-        'onyx',
-        'nova',
-        'shimmer',
-      ];
-      if (voiceName.trim().isEmpty || openAIVoices.contains(voiceName)) {
+      if (voiceName.trim().isEmpty || kOpenAIVoices.contains(voiceName)) {
         final googleDefault = Config.getGoogleVoice();
         if (googleDefault.isNotEmpty) {
           _maybeDebugPrint(
@@ -239,16 +231,7 @@ class GoogleSpeechService {
     // Normalize voiceName early so cache lookup uses the Google voice name
     // (avoids regenerating audio that was cached under the Google default).
     try {
-      const openAIVoices = [
-        'sage',
-        'alloy',
-        'echo',
-        'fable',
-        'onyx',
-        'nova',
-        'shimmer',
-      ];
-      if (voiceName.trim().isEmpty || openAIVoices.contains(voiceName)) {
+      if (voiceName.trim().isEmpty || kOpenAIVoices.contains(voiceName)) {
         final googleDefault = Config.getGoogleVoice();
         if (googleDefault.isNotEmpty) {
           _maybeDebugPrint(

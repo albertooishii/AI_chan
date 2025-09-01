@@ -77,6 +77,34 @@ class TestControlledRealtimeClient implements IRealtimeClient {
     connected = false;
   }
 
+  // Implementaciones de los nuevos métodos para tests
+  @override
+  void sendImageWithText({
+    required String imageBase64,
+    String? text,
+    String imageFormat = 'png',
+  }) {
+    // Test implementation - could track calls if needed
+  }
+
+  @override
+  void configureTools(List<Map<String, dynamic>> tools) {
+    // Test implementation - could track calls if needed
+  }
+
+  @override
+  void sendFunctionCallOutput({
+    required String callId,
+    required String output,
+  }) {
+    // Test implementation - could track calls if needed
+  }
+
+  @override
+  void cancelResponse({String? itemId, int? sampleCount}) {
+    // Test implementation - could track calls if needed
+  }
+
   // Helpers to trigger callbacks
   void triggerText(String t) => _onText?.call(t);
   void triggerAudio(List<int> b) => _onAudio?.call(Uint8List.fromList(b));

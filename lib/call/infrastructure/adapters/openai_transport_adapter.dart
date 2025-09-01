@@ -119,4 +119,67 @@ class OpenAITransportAdapter implements IRealtimeClient {
 
   @override
   bool get isConnected => _transport.isConnected;
+
+  // Implementaciones por defecto de los nuevos métodos
+  @override
+  void sendImageWithText({
+    required String imageBase64,
+    String? text,
+    String imageFormat = 'png',
+  }) {
+    // Implementación básica usando el transporte
+    final content = <Map<String, dynamic>>[];
+
+    content.add({
+      'type': 'input_image',
+      'image_url': 'data:image/$imageFormat;base64,$imageBase64',
+    });
+
+    if (text != null && text.trim().isNotEmpty) {
+      content.add({'type': 'input_text', 'text': text});
+    }
+
+    _transport.sendEvent({
+      'type': 'conversation.item.create',
+      'item': {'type': 'message', 'role': 'user', 'content': content},
+    });
+  }
+
+  @override
+  void configureTools(List<Map<String, dynamic>> tools) {
+    _transport.sendEvent({
+      'type': 'session.update',
+      'session': {'tools': tools},
+    });
+  }
+
+  @override
+  void sendFunctionCallOutput({
+    required String callId,
+    required String output,
+  }) {
+    _transport.sendEvent({
+      'type': 'conversation.item.create',
+      'item': {
+        'type': 'function_call_output',
+        'call_id': callId,
+        'output': output,
+      },
+    });
+  }
+
+  @override
+  void cancelResponse({String? itemId, int? sampleCount}) {
+    final cancelEvent = <String, dynamic>{'type': 'response.cancel'};
+
+    if (itemId != null) {
+      cancelEvent['item_id'] = itemId;
+    }
+
+    if (sampleCount != null) {
+      cancelEvent['sample_count'] = sampleCount;
+    }
+
+    _transport.sendEvent(cancelEvent);
+  }
 }

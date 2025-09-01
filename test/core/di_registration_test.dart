@@ -13,7 +13,7 @@ void main() {
 DEFAULT_TEXT_MODEL=gemini-1.5-flash-latest
 DEFAULT_IMAGE_MODEL=gemini-1.5-flash-latest
 GEMINI_API_KEY=test_key
-OPENAI_REALTIME_MODEL=gpt-4o-realtime-preview
+OPENAI_REALTIME_MODEL=gpt-realtime
 OPENAI_API_KEY=test_openai_key
 ''',
     );
