@@ -188,11 +188,7 @@ class GrokService implements AIService {
               seed = data['response_id'].toString();
           }
         } catch (_) {}
-        return AIResponse(
-          text: text,
-          base64: outBase64,
-          seed: seed,
-        );
+        return AIResponse(text: text, base64: outBase64, seed: seed);
       } else {
         Log.e('[GrokService] Error ${resp.statusCode}: ${resp.body}');
         return AIResponse(

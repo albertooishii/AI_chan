@@ -7,13 +7,18 @@ class DateUtils {
     final now = referenceDate ?? DateTime.now();
     int age = now.year - birthDate.year;
     final hasHadBirthdayThisYear =
-        (now.month > birthDate.month) || (now.month == birthDate.month && now.day >= birthDate.day);
+        (now.month > birthDate.month) ||
+        (now.month == birthDate.month && now.day >= birthDate.day);
     if (!hasHadBirthdayThisYear) age -= 1;
     return age;
   }
 
   /// Genera una fecha de nacimiento aleatoria para la IA basada en la edad del usuario
-  static DateTime generateAIBirthdate(DateTime userBirthday, {int? seed, DateTime? referenceDate}) {
+  static DateTime generateAIBirthdate(
+    DateTime userBirthday, {
+    int? seed,
+    DateTime? referenceDate,
+  }) {
     final rng = seed != null ? Random(seed) : Random();
     final now = referenceDate ?? DateTime.now();
 

@@ -15,7 +15,13 @@ class AiAudio {
   /// Whether this audio was auto-generated via TTS
   final bool? isAutoTts;
 
-  AiAudio({this.url, this.transcript, this.durationMs, this.createdAtMs, this.isAutoTts});
+  AiAudio({
+    this.url,
+    this.transcript,
+    this.durationMs,
+    this.createdAtMs,
+    this.isAutoTts,
+  });
 
   factory AiAudio.fromJson(Map<String, dynamic> json) {
     return AiAudio(
@@ -23,10 +29,14 @@ class AiAudio {
       transcript: json['transcript'] as String?,
       durationMs: json['durationMs'] is int
           ? json['durationMs'] as int
-          : (json['durationMs'] is String ? int.tryParse(json['durationMs']) : null),
+          : (json['durationMs'] is String
+                ? int.tryParse(json['durationMs'])
+                : null),
       createdAtMs: json['createdAtMs'] is int
           ? json['createdAtMs'] as int
-          : (json['createdAtMs'] is String ? int.tryParse(json['createdAtMs']) : null),
+          : (json['createdAtMs'] is String
+                ? int.tryParse(json['createdAtMs'])
+                : null),
       isAutoTts: json['isAutoTts'] as bool?,
     );
   }
@@ -39,7 +49,13 @@ class AiAudio {
     if (isAutoTts != null) 'isAutoTts': isAutoTts,
   };
 
-  AiAudio copyWith({String? url, String? transcript, int? durationMs, int? createdAtMs, bool? isAutoTts}) {
+  AiAudio copyWith({
+    String? url,
+    String? transcript,
+    int? durationMs,
+    int? createdAtMs,
+    bool? isAutoTts,
+  }) {
     return AiAudio(
       url: url ?? this.url,
       transcript: transcript ?? this.transcript,
@@ -50,5 +66,6 @@ class AiAudio {
   }
 
   /// Get duration as Duration object
-  Duration? get duration => durationMs != null ? Duration(milliseconds: durationMs!) : null;
+  Duration? get duration =>
+      durationMs != null ? Duration(milliseconds: durationMs!) : null;
 }

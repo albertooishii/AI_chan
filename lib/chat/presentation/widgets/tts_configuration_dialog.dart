@@ -73,7 +73,8 @@ class TtsConfigurationDialog extends StatefulWidget {
   }
 }
 
-class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with WidgetsBindingObserver {
+class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
+    with WidgetsBindingObserver {
   String _selectedProvider = 'google';
   bool _isLoading = false;
   bool _androidNativeAvailable = false;
@@ -105,7 +106,9 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Al volver (resumed) intentamos refrescar las voces nativas automáticamente
-    if (state == AppLifecycleState.resumed && Platform.isAndroid && _selectedProvider == 'android_native') {
+    if (state == AppLifecycleState.resumed &&
+        Platform.isAndroid &&
+        _selectedProvider == 'android_native') {
       _refreshNativeVoices();
     }
   }
@@ -121,7 +124,12 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
       try {
         final sampleLocales = voices
             .take(10)
-            .map((v) => (v['locale'] as String?) ?? (v['name'] as String?) ?? '<no-locale>')
+            .map(
+              (v) =>
+                  (v['locale'] as String?) ??
+                  (v['name'] as String?) ??
+                  '<no-locale>',
+            )
             .join(', ');
         Log.d(
           'DEBUG TTS: effectiveUserCodes=$effectiveUserCodes effectiveAiCodes=$effectiveAiCodes sampleLocales=[$sampleLocales]',
@@ -143,10 +151,15 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
         tag: 'TTS_DIALOG',
       );
       if (mounted) {
-        showAppSnackBar('Voces nativas detectadas: ${voices.length}. Filtradas: ${filtered.length}');
+        showAppSnackBar(
+          'Voces nativas detectadas: ${voices.length}. Filtradas: ${filtered.length}',
+        );
       }
     } catch (e) {
-      Log.d('DEBUG TTS: Error refrescando voces nativas: $e', tag: 'TTS_DIALOG');
+      Log.d(
+        'DEBUG TTS: Error refrescando voces nativas: $e',
+        tag: 'TTS_DIALOG',
+      );
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -213,8 +226,14 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
     // la pantalla de ajustes relevante en la mayoría de dispositivos.
     final attempts = [
       {'action': 'android.settings.TTS_SETTINGS', 'package': null},
-      {'action': 'android.settings.TTS_SETTINGS', 'package': 'com.android.settings'},
-      {'action': 'android.settings.TTS_SETTINGS', 'package': 'com.google.android.tts'},
+      {
+        'action': 'android.settings.TTS_SETTINGS',
+        'package': 'com.android.settings',
+      },
+      {
+        'action': 'android.settings.TTS_SETTINGS',
+        'package': 'com.google.android.tts',
+      },
       // Intent para abrir la pantalla de instalación de datos TTS (puede iniciar el flujo de descarga)
       {'action': 'android.speech.tts.engine.INSTALL_TTS_DATA', 'package': null},
       // Abrir la pantalla de info de la app Google TTS para que el usuario pueda acceder a sus ajustes
@@ -232,7 +251,11 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
         final action = a['action'] as String;
         final package = a['package'];
         final data = a['data'];
-        final intent = AndroidIntent(action: action, package: package, data: data);
+        final intent = AndroidIntent(
+          action: action,
+          package: package,
+          data: data,
+        );
         await intent.launch();
         return;
       } catch (e) {
@@ -242,15 +265,22 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
     }
 
     // Si fallaron todos los intent, mostrar instrucción al usuario
-    Log.d('DEBUG TTS: No se pudo abrir ninguna pantalla de ajustes', tag: 'TTS_DIALOG');
-    showAppSnackBar('Abre Ajustes → Idioma y entrada → Salida de texto a voz para instalar voces');
+    Log.d(
+      'DEBUG TTS: No se pudo abrir ninguna pantalla de ajustes',
+      tag: 'TTS_DIALOG',
+    );
+    showAppSnackBar(
+      'Abre Ajustes → Idioma y entrada → Salida de texto a voz para instalar voces',
+    );
   }
 
   Future<void> _installTtsData() async {
     if (!Platform.isAndroid) return;
 
     try {
-      final intent = const AndroidIntent(action: 'android.speech.tts.engine.INSTALL_TTS_DATA');
+      final intent = const AndroidIntent(
+        action: 'android.speech.tts.engine.INSTALL_TTS_DATA',
+      );
       await intent.launch();
     } catch (e) {
       Log.d('DEBUG TTS: INSTALL_TTS_DATA intent falló: $e', tag: 'TTS_DIALOG');
@@ -272,7 +302,10 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
   }
 
   Future<void> _loadVoices({bool forceRefresh = false}) async {
-    Log.d('DEBUG TTS: _loadVoices iniciado - forceRefresh: $forceRefresh', tag: 'TTS_DIALOG');
+    Log.d(
+      'DEBUG TTS: _loadVoices iniciado - forceRefresh: $forceRefresh',
+      tag: 'TTS_DIALOG',
+    );
     try {
       // Preferir los códigos proporcionados por el widget; si no existen, no filtrar por idioma
       final effectiveUserCodes = widget.userLangCodes ?? <String>[];
@@ -282,7 +315,10 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
       if (forceRefresh) {
         try {
           await CacheService.clearAllVoicesCache();
-          Log.d('DEBUG TTS: ClearAllVoicesCache invoked due to forceRefresh', tag: 'TTS_DIALOG');
+          Log.d(
+            'DEBUG TTS: ClearAllVoicesCache invoked due to forceRefresh',
+            tag: 'TTS_DIALOG',
+          );
         } catch (e) {
           Log.d('DEBUG TTS: clearAllVoicesCache failed: $e', tag: 'TTS_DIALOG');
         }
@@ -303,7 +339,10 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
           _googleVoices = voices;
           _isLoading = false;
         });
-        Log.d('DEBUG TTS: setState completado con ${_googleVoices.length} voces', tag: 'TTS_DIALOG');
+        Log.d(
+          'DEBUG TTS: setState completado con ${_googleVoices.length} voces',
+          tag: 'TTS_DIALOG',
+        );
       }
     } catch (e) {
       Log.d('DEBUG TTS: Error loading voices: $e', tag: 'TTS_DIALOG');
@@ -339,7 +378,10 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
     try {
       await PrefsUtils.setSelectedAudioProvider(_selectedProvider);
       if (_selectedVoice != null) {
-        await PrefsUtils.setSelectedVoiceForProvider(_selectedProvider, _selectedVoice!);
+        await PrefsUtils.setSelectedVoiceForProvider(
+          _selectedProvider,
+          _selectedVoice!,
+        );
       }
       if (_selectedModel != null) {
         await PrefsUtils.setSelectedModel(_selectedModel!);
@@ -351,10 +393,18 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
     final confirmed = await showAppDialog<bool>(
       builder: (context) => AlertDialog(
         title: const Text('Limpiar Caché'),
-        content: Text('¿Eliminar ${CacheService.formatCacheSize(_cacheSize)} de audio en caché?'),
+        content: Text(
+          '¿Eliminar ${CacheService.formatCacheSize(_cacheSize)} de audio en caché?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Limpiar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Limpiar'),
+          ),
         ],
       ),
     );
@@ -365,7 +415,10 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
       await _loadCacheSize();
 
       if (mounted) {
-        showAppSnackBar('Caché limpiado exitosamente', preferRootMessenger: true);
+        showAppSnackBar(
+          'Caché limpiado exitosamente',
+          preferRootMessenger: true,
+        );
       }
     }
   }
@@ -386,7 +439,10 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Proveedor:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              'Proveedor:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
 
             // Selector de proveedor
@@ -396,7 +452,9 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
                     ? const Icon(Icons.radio_button_checked)
                     : const Icon(Icons.radio_button_unchecked),
                 title: const Text('TTS Nativo Android (Gratuito)'),
-                subtitle: Text('${_androidNativeVoices.length} voces instaladas'),
+                subtitle: Text(
+                  '${_androidNativeVoices.length} voces instaladas',
+                ),
                 onTap: () async {
                   setState(() => _selectedProvider = 'android_native');
                   await _saveSettings();
@@ -413,7 +471,9 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
                   : const Icon(Icons.radio_button_unchecked),
               title: const Text('Google Cloud TTS'),
               subtitle: Text(
-                GoogleSpeechService.isConfigured ? '${_googleVoices.length} voces disponibles' : 'No configurado',
+                GoogleSpeechService.isConfigured
+                    ? '${_googleVoices.length} voces disponibles'
+                    : 'No configurado',
               ),
               enabled: GoogleSpeechService.isConfigured,
               onTap: GoogleSpeechService.isConfigured
@@ -443,7 +503,11 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
             const Text('Voces:', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
 
-            Expanded(child: _isLoading ? const Center(child: CircularProgressIndicator()) : _buildVoiceList()),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildVoiceList(),
+            ),
 
             const SizedBox(height: 12),
 
@@ -454,8 +518,14 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Caché:', style: TextStyle(fontWeight: FontWeight.bold)),
-                    Text('Tamaño: ${CacheService.formatCacheSize(_cacheSize)}', style: const TextStyle(fontSize: 12)),
+                    const Text(
+                      'Caché:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      'Tamaño: ${CacheService.formatCacheSize(_cacheSize)}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
                   ],
                 ),
                 ElevatedButton.icon(
@@ -487,13 +557,20 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
             const Expanded(
               child: Text(
                 'Configuración de TTS',
-                style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: AppColors.secondary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             IconButton(
               tooltip: 'Actualizar voces',
               icon: _isLoading
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.refresh, color: AppColors.primary),
               onPressed: () async {
                 // Refresh according to current provider
@@ -509,24 +586,37 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
 
                     // Debug: dump JSON for requested language codes to help inspect raw plugin output
                     try {
-                      final effectiveUserCodes = widget.userLangCodes ?? <String>[];
+                      final effectiveUserCodes =
+                          widget.userLangCodes ?? <String>[];
                       final effectiveAiCodes = widget.aiLangCodes ?? <String>[];
                       var codes = [...effectiveUserCodes, ...effectiveAiCodes];
                       if (codes.isEmpty) codes = ['es-ES'];
                       for (final c in codes) {
                         try {
-                          await AndroidNativeTtsService.dumpVoicesJsonForLanguage(c, exactOnly: true);
+                          await AndroidNativeTtsService.dumpVoicesJsonForLanguage(
+                            c,
+                            exactOnly: true,
+                          );
                         } catch (e) {
-                          Log.d('DEBUG TTS: dumpVoicesJsonForLanguage failed for $c: $e', tag: 'TTS_DIALOG');
+                          Log.d(
+                            'DEBUG TTS: dumpVoicesJsonForLanguage failed for $c: $e',
+                            tag: 'TTS_DIALOG',
+                          );
                         }
                       }
                     } catch (e) {
-                      Log.d('DEBUG TTS: Error dumping native voices JSON: $e', tag: 'TTS_DIALOG');
+                      Log.d(
+                        'DEBUG TTS: Error dumping native voices JSON: $e',
+                        tag: 'TTS_DIALOG',
+                      );
                     }
                   }
                   showAppSnackBar('Voces actualizadas');
                 } catch (e) {
-                  showAppSnackBar('Error al actualizar voces: $e', isError: true);
+                  showAppSnackBar(
+                    'Error al actualizar voces: $e',
+                    isError: true,
+                  );
                 } finally {
                   if (mounted) setState(() => _isLoading = false);
                 }
@@ -566,7 +656,10 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
             children: [
               const Text(
                 'Guía rápida para instalar voces nativas',
-                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 12),
 
@@ -574,13 +667,21 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
               Card(
                 color: Colors.grey.shade900,
                 child: ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.settings, color: AppColors.secondary)),
-                  title: const Text('Paso 1: Abrir ajustes TTS', style: TextStyle(color: AppColors.secondary)),
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.settings, color: AppColors.secondary),
+                  ),
+                  title: const Text(
+                    'Paso 1: Abrir ajustes TTS',
+                    style: TextStyle(color: AppColors.secondary),
+                  ),
                   subtitle: const Text(
                     'Abre la pantalla de salida de texto a voz del sistema',
                     style: TextStyle(color: Colors.grey, fontSize: 12),
                   ),
-                  trailing: TextButton(onPressed: _openAndroidTtsSettings, child: const Text('Abrir')),
+                  trailing: TextButton(
+                    onPressed: _openAndroidTtsSettings,
+                    child: const Text('Abrir'),
+                  ),
                 ),
               ),
 
@@ -588,13 +689,21 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
               Card(
                 color: Colors.grey.shade900,
                 child: ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.download, color: AppColors.secondary)),
-                  title: const Text('Paso 2: Instalar paquetes de voz', style: TextStyle(color: AppColors.secondary)),
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.download, color: AppColors.secondary),
+                  ),
+                  title: const Text(
+                    'Paso 2: Instalar paquetes de voz',
+                    style: TextStyle(color: AppColors.secondary),
+                  ),
                   subtitle: const Text(
                     'En Ajustes > Salida de texto a voz instala paquetes o selecciona un motor (ej. Google TTS)',
                     style: TextStyle(color: Colors.grey, fontSize: 12),
                   ),
-                  trailing: TextButton(onPressed: _installTtsData, child: const Text('Instalar')),
+                  trailing: TextButton(
+                    onPressed: _installTtsData,
+                    child: const Text('Instalar'),
+                  ),
                 ),
               ),
 
@@ -602,8 +711,13 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
               Card(
                 color: Colors.grey.shade900,
                 child: ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.refresh, color: AppColors.secondary)),
-                  title: const Text('Paso 3: Volver y actualizar', style: TextStyle(color: AppColors.secondary)),
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.refresh, color: AppColors.secondary),
+                  ),
+                  title: const Text(
+                    'Paso 3: Volver y actualizar',
+                    style: TextStyle(color: AppColors.secondary),
+                  ),
                   subtitle: const Text(
                     'Cuando hayas instalado voces, vuelve a la app y actualiza la lista',
                     style: TextStyle(color: Colors.grey, fontSize: 12),
@@ -615,7 +729,10 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
                         await _refreshNativeVoices();
                         showAppSnackBar('Actualización completada');
                       } catch (e) {
-                        showAppSnackBar('Error al actualizar: $e', isError: true);
+                        showAppSnackBar(
+                          'Error al actualizar: $e',
+                          isError: true,
+                        );
                       } finally {
                         if (mounted) setState(() => _isLoading = false);
                       }
@@ -637,7 +754,10 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
 
       return const Padding(
         padding: EdgeInsets.all(16.0),
-        child: Text('No hay voces disponibles para este proveedor', style: TextStyle(color: AppColors.primary)),
+        child: Text(
+          'No hay voces disponibles para este proveedor',
+          style: TextStyle(color: AppColors.primary),
+        ),
       );
     }
 
@@ -666,7 +786,9 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
             final originalSubtitle = VoiceDisplayUtils.getVoiceSubtitle(voice);
             final quality = _getVoiceQualityLevel(voice);
             // Evitar duplicados: si el subtítulo ya contiene la calidad (por ejemplo 'Neural'), no la añadimos de nuevo.
-            if (originalSubtitle.toLowerCase().contains(quality.toLowerCase())) {
+            if (originalSubtitle.toLowerCase().contains(
+              quality.toLowerCase(),
+            )) {
               subtitle = originalSubtitle;
             } else if (originalSubtitle.isEmpty) {
               subtitle = quality;
@@ -682,63 +804,99 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
 
           return ListTile(
             dense: true,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 4,
+            ),
             leading: _selectedVoice == voiceName
-                ? const Icon(Icons.radio_button_checked, size: 20, color: AppColors.secondary)
-                : const Icon(Icons.radio_button_unchecked, size: 20, color: AppColors.primary),
-            title: Text(displayName, style: const TextStyle(color: AppColors.primary)),
-            subtitle: Text(subtitle, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                ? const Icon(
+                    Icons.radio_button_checked,
+                    size: 20,
+                    color: AppColors.secondary,
+                  )
+                : const Icon(
+                    Icons.radio_button_unchecked,
+                    size: 20,
+                    color: AppColors.primary,
+                  ),
+            title: Text(
+              displayName,
+              style: const TextStyle(color: AppColors.primary),
+            ),
+            subtitle: Text(
+              subtitle,
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
+            ),
             trailing: SizedBox(
               width: 96,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.play_arrow, color: AppColors.secondary),
+                    icon: const Icon(
+                      Icons.play_arrow,
+                      color: AppColors.secondary,
+                    ),
                     tooltip: 'Escuchar demo',
                     onPressed: () async {
-                      final phrase = 'Hola, soy tu asistente con la voz $voiceName';
+                      final phrase =
+                          'Hola, soy tu asistente con la voz $voiceName';
                       showAppSnackBar('Buscando audio en caché...');
                       try {
                         String lang = 'es-ES';
-                        if (voice['languageCodes'] is List && (voice['languageCodes'] as List).isNotEmpty) {
-                          lang = (voice['languageCodes'] as List).cast<String>().first;
+                        if (voice['languageCodes'] is List &&
+                            (voice['languageCodes'] as List).isNotEmpty) {
+                          lang = (voice['languageCodes'] as List)
+                              .cast<String>()
+                              .first;
                         }
 
                         if (widget.synthesizeTts == null) {
-                          showAppSnackBar('Proveedor de audio no disponible', isError: true);
+                          showAppSnackBar(
+                            'Proveedor de audio no disponible',
+                            isError: true,
+                          );
                           return;
                         }
 
                         final providerKey = _selectedProvider == 'openai'
                             ? 'openai'
-                            : (_selectedProvider == 'android_native' ? 'android_native' : 'google');
+                            : (_selectedProvider == 'android_native'
+                                  ? 'android_native'
+                                  : 'google');
 
                         // Comprobar caché primero
                         // For dialog demos, prefer cache (dialog-scoped). Use a
                         // specific provider key to avoid mixing with message cache.
-                        final cachedFile = await CacheService.getCachedAudioFile(
-                          text: phrase,
-                          voice: voiceName,
-                          languageCode: lang,
-                          provider: '${providerKey}_tts_dialog',
-                        );
+                        final cachedFile =
+                            await CacheService.getCachedAudioFile(
+                              text: phrase,
+                              voice: voiceName,
+                              languageCode: lang,
+                              provider: '${providerKey}_tts_dialog',
+                            );
 
                         if (cachedFile != null) {
                           final player = di.getAudioPlayback();
                           try {
                             // Debug: ensure file exists and has content before attempting to play
                             final exists = await cachedFile.exists();
-                            final length = exists ? await cachedFile.length() : 0;
+                            final length = exists
+                                ? await cachedFile.length()
+                                : 0;
                             debugPrint(
                               '[TTS_DIALOG] Playing cached audio: path=${cachedFile.path} exists=$exists length=$length',
                             );
                           } catch (e) {
-                            debugPrint('[TTS_DIALOG] Failed to stat cached file: $e');
+                            debugPrint(
+                              '[TTS_DIALOG] Failed to stat cached file: $e',
+                            );
                           }
 
                           // Prefer explicit DeviceFileSource for local files to avoid Uri/FileProvider fallbacks
-                          await player.play(ap.DeviceFileSource(cachedFile.path));
+                          await player.play(
+                            ap.DeviceFileSource(cachedFile.path),
+                          );
                           // Esperar a la finalización antes de liberar el player para que se oiga el audio
                           try {
                             await player.onPlayerComplete.first;
@@ -765,7 +923,9 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
                               '[TTS_DIALOG] Playing generated audio: path=${file.path} exists=$exists length=$length',
                             );
                           } catch (e) {
-                            debugPrint('[TTS_DIALOG] Failed to stat generated file: $e');
+                            debugPrint(
+                              '[TTS_DIALOG] Failed to stat generated file: $e',
+                            );
                           }
 
                           await player.play(ap.DeviceFileSource(file.path));
@@ -776,28 +936,46 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
                           await player.dispose();
                           showAppSnackBar('¡Audio reproducido!');
                         } else {
-                          showAppSnackBar('No se pudo generar el audio', isError: true);
+                          showAppSnackBar(
+                            'No se pudo generar el audio',
+                            isError: true,
+                          );
                         }
                       } catch (e) {
-                        showAppSnackBar('Error al reproducir voz: $e', isError: true);
+                        showAppSnackBar(
+                          'Error al reproducir voz: $e',
+                          isError: true,
+                        );
                       }
                     },
                   ),
                   IconButton(
                     icon: _selectedVoice == voiceName
-                        ? const Icon(Icons.check_circle, color: AppColors.secondary)
-                        : const Icon(Icons.circle_outlined, color: AppColors.primary),
+                        ? const Icon(
+                            Icons.check_circle,
+                            color: AppColors.secondary,
+                          )
+                        : const Icon(
+                            Icons.circle_outlined,
+                            color: AppColors.primary,
+                          ),
                     tooltip: 'Seleccionar voz',
                     onPressed: () async {
                       setState(() => _selectedVoice = voiceName);
                       try {
-                        await PrefsUtils.setSelectedVoiceForProvider(_selectedProvider, voiceName);
+                        await PrefsUtils.setSelectedVoiceForProvider(
+                          _selectedProvider,
+                          voiceName,
+                        );
                         if (widget.onSettingsChanged != null) {
                           widget.onSettingsChanged!.call();
                         }
                         showAppSnackBar('Voz seleccionada: $voiceName');
                       } catch (e) {
-                        showAppSnackBar('Error guardando la voz seleccionada: $e', isError: true);
+                        showAppSnackBar(
+                          'Error guardando la voz seleccionada: $e',
+                          isError: true,
+                        );
                       }
                     },
                   ),
@@ -807,13 +985,19 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog> with Wi
             onTap: () async {
               setState(() => _selectedVoice = voiceName);
               try {
-                await PrefsUtils.setSelectedVoiceForProvider(_selectedProvider, voiceName);
+                await PrefsUtils.setSelectedVoiceForProvider(
+                  _selectedProvider,
+                  voiceName,
+                );
                 if (widget.onSettingsChanged != null) {
                   widget.onSettingsChanged!.call();
                 }
                 showAppSnackBar('Voz seleccionada: $voiceName');
               } catch (e) {
-                showAppSnackBar('Error guardando la voz seleccionada: $e', isError: true);
+                showAppSnackBar(
+                  'Error guardando la voz seleccionada: $e',
+                  isError: true,
+                );
               }
             },
           );

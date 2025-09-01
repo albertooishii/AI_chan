@@ -378,7 +378,9 @@ class MemorySummaryService {
             level: newLevel,
           );
           updatedTimeline.removeWhere((e) => blocksToSummarize.contains(e));
-          final int insertIndex = updatedTimeline.indexWhere((e) => e.level > 0);
+          final int insertIndex = updatedTimeline.indexWhere(
+            (e) => e.level > 0,
+          );
           if (insertIndex == -1) {
             updatedTimeline.add(superbloque);
           } else {

@@ -42,7 +42,11 @@ abstract interface class ICallRepository {
 /// Cliente de tiempo real para comunicación bidireccional
 abstract interface class IRealtimeCallClient {
   /// Conecta al servicio de tiempo real
-  Future<void> connect({required String systemPrompt, String voice = 'default', Map<String, dynamic>? options});
+  Future<void> connect({
+    required String systemPrompt,
+    String voice = 'default',
+    Map<String, dynamic>? options,
+  });
 
   /// Desconecta del servicio
   Future<void> disconnect();

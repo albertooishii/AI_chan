@@ -85,9 +85,18 @@ FORMATO DE SALIDA:
 
       // Si solo hay contenido muy básico (saludos, pruebas), no guardar
       final combinedContent = '$userContent $aiContent'.toLowerCase();
-      final basicPhrases = ['hola', 'hello', 'test', 'prueba', 'audio', 'me escuchas', 'funciona'];
+      final basicPhrases = [
+        'hola',
+        'hello',
+        'test',
+        'prueba',
+        'audio',
+        'me escuchas',
+        'funciona',
+      ];
       final hasOnlyBasicContent =
-          basicPhrases.any((phrase) => combinedContent.contains(phrase)) && combinedContent.length < 50;
+          basicPhrases.any((phrase) => combinedContent.contains(phrase)) &&
+          combinedContent.length < 50;
 
       if (hasOnlyBasicContent) {
         return ''; // Solo contenido básico, no guardar
@@ -114,7 +123,11 @@ FORMATO DE SALIDA:
       // Convertir CallMessage a formato compatible
       final voiceMessages = callSummary.messages.map((voiceMsg) {
         final role = voiceMsg.isUser ? 'user' : 'assistant';
-        return {'role': role, 'content': voiceMsg.text.trim(), 'datetime': voiceMsg.timestamp.toIso8601String()};
+        return {
+          'role': role,
+          'content': voiceMsg.text.trim(),
+          'datetime': voiceMsg.timestamp.toIso8601String(),
+        };
       }).toList();
 
       // Usar el método propio del servicio
@@ -132,8 +145,14 @@ FORMATO DE SALIDA:
       final userMessages = callSummary.messages.where((m) => m.isUser).toList();
       final aiMessages = callSummary.messages.where((m) => !m.isUser).toList();
 
-      final userTexts = userMessages.map((m) => m.text.trim()).where((t) => t.isNotEmpty).join(' ');
-      final aiTexts = aiMessages.map((m) => m.text.trim()).where((t) => t.isNotEmpty).join(' ');
+      final userTexts = userMessages
+          .map((m) => m.text.trim())
+          .where((t) => t.isNotEmpty)
+          .join(' ');
+      final aiTexts = aiMessages
+          .map((m) => m.text.trim())
+          .where((t) => t.isNotEmpty)
+          .join(' ');
 
       // Si no hay suficiente contenido, no guardar
       if (userTexts.length < 10 && aiTexts.length < 20) {
@@ -143,7 +162,8 @@ FORMATO DE SALIDA:
       // Crear fallback solo si hay contenido suficiente
       String fallbackText = '';
       if (userTexts.isNotEmpty && aiTexts.isNotEmpty) {
-        fallbackText = '${profile.userName} y ${profile.aiName} conversaron durante la llamada.';
+        fallbackText =
+            '${profile.userName} y ${profile.aiName} conversaron durante la llamada.';
       } else if (userTexts.isNotEmpty) {
         fallbackText = '${profile.userName} habló durante la llamada.';
       } else if (aiTexts.isNotEmpty) {

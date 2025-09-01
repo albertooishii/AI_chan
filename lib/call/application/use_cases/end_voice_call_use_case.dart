@@ -49,10 +49,7 @@ class EndCallUseCase {
     }
 
     // Marcar como fallida usando servicio de dominio
-    final failedCall = CallOrchestrationService.markCallAsFailed(
-      call,
-      reason,
-    );
+    final failedCall = CallOrchestrationService.markCallAsFailed(call, reason);
 
     // Actualizar en repositorio
     await _repository.updateCall(failedCall);

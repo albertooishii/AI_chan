@@ -88,10 +88,7 @@ class ImageRequestService {
   }) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) {
-      return ImageRequestResult(
-        detected: false,
-        reason: 'empty',
-      );
+      return ImageRequestResult(detected: false, reason: 'empty');
     }
     final lower = trimmed.toLowerCase();
 
@@ -247,10 +244,7 @@ class ImageRequestService {
     // la imagen previa (p. ej. "qué bonita la foto") NO deben considerarse
     // como petición. Las peticiones explícitas como "envíame otra foto" ya
     // quedan cubiertas por `_anotherPhotoRegex` arriba.
-    final res = ImageRequestResult(
-      detected: false,
-      reason: 'none',
-    );
+    final res = ImageRequestResult(detected: false, reason: 'none');
     Log.d('ImageRequestService.detectImageRequest -> $res', tag: 'IMAGE_REQ');
     return res;
   }

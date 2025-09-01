@@ -28,7 +28,8 @@ class OpenAIRealtimeCallClient implements IRealtimeCallClient {
   late final StreamController<Object> _errorController;
   late final StreamController<void> _completionController;
 
-  OpenAIRealtimeCallClient({String? model}) : model = model ?? Config.requireOpenAIRealtimeModel() {
+  OpenAIRealtimeCallClient({String? model})
+    : model = model ?? Config.requireOpenAIRealtimeModel() {
     _textController = StreamController<String>.broadcast();
     _audioController = StreamController<Uint8List>.broadcast();
     _userTranscriptionController = StreamController<String>.broadcast();
@@ -46,7 +47,8 @@ class OpenAIRealtimeCallClient implements IRealtimeCallClient {
   Stream<Uint8List> get audioStream => _audioController.stream;
 
   @override
-  Stream<String> get userTranscriptionStream => _userTranscriptionController.stream;
+  Stream<String> get userTranscriptionStream =>
+      _userTranscriptionController.stream;
 
   @override
   Stream<Object> get errorStream => _errorController.stream;
@@ -55,7 +57,11 @@ class OpenAIRealtimeCallClient implements IRealtimeCallClient {
   Stream<void> get completionStream => _completionController.stream;
 
   @override
-  Future<void> connect({required String systemPrompt, String voice = 'default', Map<String, dynamic>? options}) async {
+  Future<void> connect({
+    required String systemPrompt,
+    String voice = 'default',
+    Map<String, dynamic>? options,
+  }) async {
     // API key check is performed by provider-specific clients (eg. OpenAIRealtimeClient).
     // The voice-level client should allow test-time factories to be injected via DI
     // without requiring a configured API key here.
@@ -84,7 +90,11 @@ class OpenAIRealtimeCallClient implements IRealtimeCallClient {
     _voice = voice;
     _bytesSinceCommit = 0;
 
-    await _client!.connect(systemPrompt: systemPrompt, voice: voice, options: options);
+    await _client!.connect(
+      systemPrompt: systemPrompt,
+      voice: voice,
+      options: options,
+    );
 
     _connected = _client?.isConnected ?? false;
   }

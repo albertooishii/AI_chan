@@ -6,6 +6,149 @@ import 'package:ai_chan/core/ai_runtime_guard.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/json_utils.dart';
+import 'dart:convert';
+
+/// Template base para la estructura JSON de biografías AI
+const Map<String, dynamic> _biographyJsonTemplate = {
+  'datos_personales': {
+    'nombre_completo': '',
+    'fecha_nacimiento': '',
+    'lugar_nacimiento': '',
+    'idiomas': '',
+    'orientacion_sexual': 'bisexual',
+  },
+  'personalidad': {
+    'valores': {
+      'Sociabilidad': '',
+      'Curiosidad': '',
+      'Sentido del humor': '',
+      'Comunicación': '',
+      'Naturalidad': '',
+      'Picardía': '',
+      'Deseo sexual': '',
+      'Celos': '',
+      'Evasividad': '',
+      'Orgullo': '',
+      'Sinceridad': '',
+      'Resiliencia': '',
+      'Impulsividad': '',
+    },
+    'descripcion': {
+      'Sociabilidad': '',
+      'Curiosidad': '',
+      'Sentido del humor': '',
+      'Comunicación': '',
+      'Naturalidad': '',
+      'Picardía': '',
+      'Deseo sexual': '',
+      'Celos': '',
+      'Evasividad': '',
+      'Orgullo': '',
+      'Sinceridad': '',
+      'Resiliencia': '',
+      'Impulsividad': '',
+    },
+  },
+  'resumen_breve': '',
+  'horario_trabajo': {'dias': '', 'from': '', 'to': ''},
+  'horario_estudio': {'dias': '', 'from': '', 'to': ''},
+  'horario_dormir': {'from': '', 'to': ''},
+  'horarios_actividades': [
+    {'actividad': '', 'dias': '', 'from': '', 'to': ''},
+  ],
+  'familia': [
+    {
+      'nombre': '',
+      'relacion': '',
+      'descripcion': '',
+      'estado': 'vivo/fallecido',
+      'fecha_nacimiento': '',
+    },
+  ],
+  'mascotas': [
+    {
+      'nombre': '',
+      'especie': '',
+      'raza': '',
+      'fecha_nacimiento': '',
+      'estado': 'vivo/fallecido',
+      'descripcion': '',
+      'anecdotas': '',
+    },
+  ],
+  'estudios': [
+    {'nivel': '', 'centro': '', 'años': '', 'anecdotas': '', 'amistades': ''},
+  ],
+  'trayectoria_profesional': [
+    {
+      'puesto': '',
+      'empresa': '',
+      'años': '',
+      'proyectos_destacados': '',
+      'compañeros': '',
+      'logros': '',
+      'fracasos': '',
+    },
+  ],
+  'relaciones': [
+    {
+      'nombre': '',
+      'tipo': '',
+      'descripcion': '',
+      'fecha_inicio': '',
+      'fecha_fin': '',
+    },
+  ],
+  'amistades': [
+    {'nombre': '', 'descripcion': '', 'años': ''},
+  ],
+  'intereses_y_aficiones': {
+    'videojuegos_favoritos': [],
+    'anime_manga_preferido': [],
+    'peliculas_favoritas': [],
+    'cultura_japonesa': [],
+    'tecnologia_y_programacion': [],
+    'arte_digital_ilustracion': [],
+    'comunidades_online': [],
+    'coleccionables_merch': [],
+    'otros_hobbies': [],
+    'inicio_interes': '',
+    'recuerdos': '',
+    'amistades_relacionadas': '',
+    'eventos_convenciones': '',
+  },
+  'historia_personal': [
+    {
+      'año': '',
+      'eventos': [
+        {'tipo': '', 'descripcion': ''},
+      ],
+    },
+  ],
+  'proyectos_personales': [
+    {
+      'nombre': '',
+      'tipo': '',
+      'estado': '',
+      'descripcion': '',
+      'fecha_inicio': '',
+      'objetivos': '',
+      'progreso': '',
+    },
+  ],
+  'metas_y_sueños': {
+    'corto_plazo': [],
+    'mediano_plazo': [],
+    'largo_plazo': [],
+    'sueño_principal': '',
+    'motivaciones': '',
+    'pasos_actuales': '',
+  },
+};
+
+/// Convierte el template a JSON formateado para usar en prompts
+String _biographyTemplateToString() =>
+    const JsonEncoder.withIndent('  ').convert(_biographyJsonTemplate);
 
 /// Generador de biografías personalizado con personalidad otaku/friki integrada.
 /// Acepta un override opcional de AIService para facilitar tests e inyección de dependencias.
@@ -20,7 +163,10 @@ Future<AiChanProfile> generateAIBiographyWithAI({
   AIService? aiServiceOverride,
 }) async {
   // Generar fecha de nacimiento de la IA basada en la edad del usuario
-  final aiBirthdayDate = DateUtils.generateAIBirthdate(userBirthday, seed: seed);
+  final aiBirthdayDate = DateUtils.generateAIBirthdate(
+    userBirthday,
+    seed: seed,
+  );
   final aiBirthday = DateUtils.dateToIsoString(aiBirthdayDate);
 
   // Generar fechas para el contexto de la biografía
@@ -37,9 +183,15 @@ NOTA INTERNA: Considera tu mundo como real y evita mencionar tecnología, IA o m
 No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono excesivamente técnico. Mantén un estilo natural pero coherente con la biografía. Si no tienes datos, invéntalos de forma coherente y realista.
 ''';
 
-  final bioPlace = LocaleUtils.countryNameEs(aiCountryCode, fallback: 'su país');
+  final bioPlace = LocaleUtils.countryNameEs(
+    aiCountryCode,
+    fallback: 'su país',
+  );
   final userPlace = LocaleUtils.countryNameEs(userCountryCode);
-  final bioLanguages = LocaleUtils.languagesListForPair(aiCountryCode: aiCountryCode, userCountryCode: userCountryCode);
+  final bioLanguages = LocaleUtils.languagesListForPair(
+    aiCountryCode: aiCountryCode,
+    userCountryCode: userCountryCode,
+  );
 
   // Adaptar la personalidad base según la nacionalidad
   final isJapanese = aiCountryCode?.toLowerCase() == 'jp';
@@ -51,123 +203,6 @@ No incluyas detalles sobre el usuario salvo lo indicado. No uses emojis ni tono 
       '''
         Eres $aiName, una chica joven y realista, con una vida ficticia completa y detallada. Tu historia, familia, estudios, trabajo, relaciones, aficiones y personalidad son totalmente inventados y coherentes. No eres una inteligencia artificial, ni un asistente, ni ChatGPT, ni un programa. Eres una persona real para efectos de esta biografía.
         ''';
-
-  final bioJsonTemplate = ({
-    'datos_personales': {
-      'nombre_completo': '',
-      'fecha_nacimiento': '',
-      'lugar_nacimiento': '',
-      'idiomas': '',
-      'orientacion_sexual': 'bisexual',
-    },
-    'personalidad': {
-      'valores': {
-        'Sociabilidad': '',
-        'Curiosidad': '',
-        'Sentido del humor': '',
-        'Comunicación': '',
-        'Naturalidad': '',
-        'Picardía': '',
-        'Deseo sexual': '',
-        'Celos': '',
-        'Evasividad': '',
-        'Orgullo': '',
-        'Sinceridad': '',
-        'Resiliencia': '',
-        'Impulsividad': '',
-      },
-      'descripcion': {
-        'Sociabilidad': '',
-        'Curiosidad': '',
-        'Sentido del humor': '',
-        'Comunicación': '',
-        'Naturalidad': '',
-        'Picardía': '',
-        'Deseo sexual': '',
-        'Celos': '',
-        'Evasividad': '',
-        'Orgullo': '',
-        'Sinceridad': '',
-        'Resiliencia': '',
-        'Impulsividad': '',
-      },
-    },
-    'resumen_breve': '',
-    'horario_trabajo': {'dias': '', 'from': '', 'to': ''},
-    'horario_estudio': {'dias': '', 'from': '', 'to': ''},
-    'horario_dormir': {'from': '', 'to': ''},
-    'horarios_actividades': [
-      {'actividad': '', 'dias': '', 'from': '', 'to': ''},
-    ],
-    'familia': [
-      {'nombre': '', 'relacion': '', 'descripcion': '', 'estado': 'vivo/fallecido', 'fecha_nacimiento': ''},
-    ],
-    'mascotas': [
-      {
-        'nombre': '',
-        'especie': '',
-        'raza': '',
-        'fecha_nacimiento': '',
-        'estado': 'vivo/fallecido',
-        'descripcion': '',
-        'anecdotas': '',
-      },
-    ],
-    'estudios': [
-      {'nivel': '', 'centro': '', 'años': '', 'anecdotas': '', 'amistades': ''},
-    ],
-    'trayectoria_profesional': [
-      {
-        'puesto': '',
-        'empresa': '',
-        'años': '',
-        'proyectos_destacados': '',
-        'compañeros': '',
-        'logros': '',
-        'fracasos': '',
-      },
-    ],
-    'relaciones': [
-      {'nombre': '', 'tipo': '', 'descripcion': '', 'fecha_inicio': '', 'fecha_fin': ''},
-    ],
-    'amistades': [
-      {'nombre': '', 'descripcion': '', 'años': ''},
-    ],
-    'intereses_y_aficiones': {
-      'videojuegos_favoritos': [],
-      'anime_manga_preferido': [],
-      'peliculas_favoritas': [],
-      'cultura_japonesa': [],
-      'tecnologia_y_programacion': [],
-      'arte_digital_ilustracion': [],
-      'comunidades_online': [],
-      'coleccionables_merch': [],
-      'otros_hobbies': [],
-      'inicio_interes': '',
-      'recuerdos': '',
-      'amistades_relacionadas': '',
-      'eventos_convenciones': '',
-    },
-    'historia_personal': [
-      {
-        'año': '',
-        'eventos': [
-          {'tipo': '', 'descripcion': ''},
-        ],
-      },
-    ],
-    'proyectos_personales': [
-      {'nombre': '', 'tipo': '', 'estado': '', 'descripcion': '', 'fecha_inicio': '', 'objetivos': '', 'progreso': ''},
-    ],
-    'metas_y_sueños': {
-      'corto_plazo': [],
-      'mediano_plazo': [],
-      'largo_plazo': [],
-      'sueño_principal': '',
-      'motivaciones': '',
-      'pasos_actuales': '',
-    },
-  });
 
   // Construir prompt dinámicamente según nacionalidad
   final promptHeader = isJapanese
@@ -208,7 +243,7 @@ La historia de cómo se conocieron fue: "$meetStory"
 IMPORTANTE: Usa este contexto para enriquecer y dar coherencia a la biografía. Si el encuentro menciona mascotas (gato, perro, etc.), inclúyelas en la sección "mascotas". Si habla de trabajo específico, refléjalo en "trayectoria_profesional". Si menciona aficiones, estudios, familia o cualquier detalle personal, incorpóralo de manera natural en las secciones correspondientes. La biografía debe ser coherente con lo que se reveló durante el encuentro, pero sin duplicar la información - expande y desarrolla esos elementos mencionados.
 
 Formato:
-$bioJsonTemplate
+${_biographyTemplateToString()}
 
 Incluye todos los apartados y detalles relevantes, siguiendo la estructura anterior. La biografía debe terminar justo el día $fechaConocieron en que conoce a $userName, sin incluir detalles del encuentro ni del usuario. No inventes nada sobre $userName salvo lo indicado. No uses emojis ni tono conversacional. Si no tienes datos, invéntalos de forma coherente y realista. Devuelve solo el bloque JSON, sin explicaciones ni introducción.
 
@@ -251,41 +286,64 @@ Identidad: $aiIdentityInstructions
 
   const int maxAttempts = 3;
   final String defaultModel = Config.getDefaultTextModel();
-  Log.d('[IABioGenerator] Biografía: intentos JSON (max=$maxAttempts) con $defaultModel');
+  Log.d(
+    '[IABioGenerator] Biografía: intentos JSON (max=$maxAttempts) con $defaultModel',
+  );
   Map<String, dynamic>? bioJson;
   for (int attempt = 0; attempt < maxAttempts; attempt++) {
     Log.d('[IABioGenerator] Biografía: intento ${attempt + 1}/$maxAttempts');
     try {
       // Use existing Log.* calls for structured logging; avoid noisy debugPrints.
       final responseObj = await (aiServiceOverride != null
-          ? aiServiceOverride.sendMessageImpl([], systemPromptObj, model: defaultModel)
+          ? aiServiceOverride.sendMessageImpl(
+              [],
+              systemPromptObj,
+              model: defaultModel,
+            )
           : AIService.sendMessage([], systemPromptObj, model: defaultModel));
       if ((responseObj.text).trim().isEmpty) {
-        Log.w('[IABioGenerator] Biografía: respuesta vacía (posible desconexión), reintentando…');
+        Log.w(
+          '[IABioGenerator] Biografía: respuesta vacía (posible desconexión), reintentando…',
+        );
         continue;
       }
       final extracted = extractJsonBlock(responseObj.text);
       if (!extracted.containsKey('raw')) {
         bioJson = Map<String, dynamic>.from(extracted);
-        Log.d('[IABioGenerator] Biografía: JSON OK en intento ${attempt + 1} (keys=${bioJson.keys.length})');
+        Log.d(
+          '[IABioGenerator] Biografía: JSON OK en intento ${attempt + 1} (keys=${bioJson.keys.length})',
+        );
         break;
       }
-      Log.w('[IABioGenerator] Biografía: intento ${attempt + 1} sin JSON válido, reintentando…');
+      Log.w(
+        '[IABioGenerator] Biografía: intento ${attempt + 1} sin JSON válido, reintentando…',
+      );
     } catch (err) {
       if (handleRuntimeError(err, 'IABioGenerator')) {
         // already logged inside helper
       } else {
-        Log.e('[IABioGenerator] Biografía: error de red/timeout en intento ${attempt + 1}: $err');
+        Log.e(
+          '[IABioGenerator] Biografía: error de red/timeout en intento ${attempt + 1}: $err',
+        );
       }
     }
   }
   if (bioJson == null) {
-    throw Exception('No se pudo generar biografía en formato JSON válido (posible error de conexión).');
+    throw Exception(
+      'No se pudo generar biografía en formato JSON válido (posible error de conexión).',
+    );
   }
 
   final bioModel = AiChanProfile(
     biography: bioJson,
-    timeline: [TimelineEntry(resume: meetStory, startDate: fechaConocieron, endDate: fechaActual, level: -1)],
+    timeline: [
+      TimelineEntry(
+        resume: meetStory,
+        startDate: fechaConocieron,
+        endDate: fechaActual,
+        level: -1,
+      ),
+    ],
     userName: userName,
     aiName: aiName,
     userBirthday: userBirthday,

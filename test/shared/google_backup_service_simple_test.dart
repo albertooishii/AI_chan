@@ -24,12 +24,24 @@ void main() {
           if (url.contains('/upload') &&
               request.method == 'POST' &&
               request.headers['X-Upload-Content-Type'] == 'application/zip') {
-            return http.Response('{}', 200, headers: {'location': 'https://upload.example.com/session/abc123'});
+            return http.Response(
+              '{}',
+              200,
+              headers: {
+                'location': 'https://upload.example.com/session/abc123',
+              },
+            );
           }
 
           // Mock resumable upload PUT
           if (url.contains('upload.example.com') && request.method == 'PUT') {
-            return http.Response(jsonEncode({'id': 'backup_file_123', 'name': 'ai_chan_backup.zip'}), 200);
+            return http.Response(
+              jsonEncode({
+                'id': 'backup_file_123',
+                'name': 'ai_chan_backup.zip',
+              }),
+              200,
+            );
           }
 
           return http.Response('not found', 404);
@@ -40,7 +52,10 @@ void main() {
         final backupFile = File('${tmpDir.path}/test_backup.zip');
         await backupFile.writeAsBytes([80, 75, 3, 4]); // ZIP magic bytes
 
-        final service = GoogleBackupService(accessToken: 'valid_access_token', httpClient: client);
+        final service = GoogleBackupService(
+          accessToken: 'valid_access_token',
+          httpClient: client,
+        );
 
         final fileId = await service.uploadBackupResumable(backupFile);
         expect(fileId, equals('backup_file_123'));
@@ -58,9 +73,15 @@ void main() {
         final backupFile = File('${tmpDir.path}/network_test.zip');
         await backupFile.writeAsBytes([80, 75, 3, 4]);
 
-        final service = GoogleBackupService(accessToken: 'valid_token', httpClient: networkFailureClient);
+        final service = GoogleBackupService(
+          accessToken: 'valid_token',
+          httpClient: networkFailureClient,
+        );
 
-        expect(() => service.uploadBackupResumable(backupFile), throwsA(isA<SocketException>()));
+        expect(
+          () => service.uploadBackupResumable(backupFile),
+          throwsA(isA<SocketException>()),
+        );
 
         await tmpDir.delete(recursive: true);
       });
@@ -74,9 +95,15 @@ void main() {
         final backupFile = File('${tmpDir.path}/error_test.zip');
         await backupFile.writeAsBytes([80, 75, 3, 4]);
 
-        final service = GoogleBackupService(accessToken: 'valid_token', httpClient: errorClient);
+        final service = GoogleBackupService(
+          accessToken: 'valid_token',
+          httpClient: errorClient,
+        );
 
-        expect(() => service.uploadBackupResumable(backupFile), throwsA(isA<HttpException>()));
+        expect(
+          () => service.uploadBackupResumable(backupFile),
+          throwsA(isA<HttpException>()),
+        );
 
         await tmpDir.delete(recursive: true);
       });
@@ -114,7 +141,10 @@ void main() {
           return http.Response('not found', 404);
         });
 
-        final service = GoogleBackupService(accessToken: 'valid_access_token', httpClient: client);
+        final service = GoogleBackupService(
+          accessToken: 'valid_access_token',
+          httpClient: client,
+        );
 
         final backups = await service.listBackups();
         expect(backups.length, equals(2));
@@ -133,7 +163,10 @@ void main() {
           return http.Response('not found', 404);
         });
 
-        final service = GoogleBackupService(accessToken: 'valid_access_token', httpClient: client);
+        final service = GoogleBackupService(
+          accessToken: 'valid_access_token',
+          httpClient: client,
+        );
 
         final backups = await service.listBackups();
         expect(backups.length, equals(0));
@@ -143,13 +176,19 @@ void main() {
     group('🗑️ Delete Backup Tests', () {
       test('should delete backup file successfully', () async {
         final client = MockClient((request) async {
-          if (request.method == 'DELETE' && request.url.toString().contains('/drive/v3/files/backup_to_delete')) {
+          if (request.method == 'DELETE' &&
+              request.url.toString().contains(
+                '/drive/v3/files/backup_to_delete',
+              )) {
             return http.Response('{}', 200);
           }
           return http.Response('not found', 404);
         });
 
-        final service = GoogleBackupService(accessToken: 'valid_token', httpClient: client);
+        final service = GoogleBackupService(
+          accessToken: 'valid_token',
+          httpClient: client,
+        );
 
         // Should complete without throwing
         await service.deleteBackup('backup_to_delete');
@@ -163,9 +202,15 @@ void main() {
           return http.Response('not found', 404);
         });
 
-        final service = GoogleBackupService(accessToken: 'valid_token', httpClient: client);
+        final service = GoogleBackupService(
+          accessToken: 'valid_token',
+          httpClient: client,
+        );
 
-        expect(() => service.deleteBackup('non_existent_backup'), throwsA(isA<HttpException>()));
+        expect(
+          () => service.deleteBackup('non_existent_backup'),
+          throwsA(isA<HttpException>()),
+        );
       });
     });
 
@@ -188,7 +233,10 @@ void main() {
     group('🚨 Circuit Breaker Tests', () {
       test('should reset circuit breaker for testing', () {
         // Test the helper method exists and can be called
-        expect(() => GoogleBackupService.resetCircuitBreakerForTest(), returnsNormally);
+        expect(
+          () => GoogleBackupService.resetCircuitBreakerForTest(),
+          returnsNormally,
+        );
       });
 
       test('should call force unlink for testing', () async {

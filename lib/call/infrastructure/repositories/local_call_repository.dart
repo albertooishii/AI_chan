@@ -27,9 +27,14 @@ class LocalCallRepository implements ICallRepository {
 
     // Guardar mensajes por separado
     if (call.messages.isNotEmpty) {
-      final messagesMap = call.messages.asMap().map((index, message) => MapEntry(index.toString(), message.toMap()));
+      final messagesMap = call.messages.asMap().map(
+        (index, message) => MapEntry(index.toString(), message.toMap()),
+      );
       try {
-        await PrefsUtils.setRawString(PrefsUtils.voiceMessagesKey(call.id), jsonEncode(messagesMap));
+        await PrefsUtils.setRawString(
+          PrefsUtils.voiceMessagesKey(call.id),
+          jsonEncode(messagesMap),
+        );
       } catch (_) {}
     }
   }
@@ -73,7 +78,9 @@ class LocalCallRepository implements ICallRepository {
     final allCalls = await getAllCalls();
 
     return allCalls.where((call) {
-      return call.startTime.isAfter(from.subtract(const Duration(seconds: 1))) &&
+      return call.startTime.isAfter(
+            from.subtract(const Duration(seconds: 1)),
+          ) &&
           call.startTime.isBefore(to.add(const Duration(seconds: 1)));
     }).toList();
   }
@@ -125,7 +132,9 @@ class LocalCallRepository implements ICallRepository {
   @override
   Future<List<CallMessage>> getCallMessages(String callId) async {
     try {
-      final messagesJson = await PrefsUtils.getRawString(PrefsUtils.voiceMessagesKey(callId));
+      final messagesJson = await PrefsUtils.getRawString(
+        PrefsUtils.voiceMessagesKey(callId),
+      );
       if (messagesJson == null) return [];
 
       try {

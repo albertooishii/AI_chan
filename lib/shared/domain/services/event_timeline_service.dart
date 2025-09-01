@@ -52,13 +52,7 @@ class EventTimelineService {
       }
       DateTime dateWithHour = date;
       if (hour > 0 || minute > 0) {
-        dateWithHour = DateTime(
-          date.year,
-          date.month,
-          date.day,
-          hour,
-          minute,
-        );
+        dateWithHour = DateTime(date.year, date.month, date.day, hour, minute);
       }
       final startDate = dateWithHour.toIso8601String();
       return TimelineEntry(

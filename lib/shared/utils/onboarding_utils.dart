@@ -22,11 +22,14 @@ Future<AiChanProfile> generateFullBiographyFlexible({
     userCountryCode: userCountryCode,
     aiCountryCode: aiCountryCode,
   );
-  final appearanceMap = await appearanceGenerator.generateAppearanceFromBiography(bio);
+  final appearanceMap = await appearanceGenerator
+      .generateAppearanceFromBiography(bio);
   // Generate avatar (replace existing) and return it
   // Ensure the profile contains the new appearance before generating
   final updatedBio = bio.copyWith(appearance: appearanceMap);
-  final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(updatedBio);
+  final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(
+    updatedBio,
+  );
   final biography = AiChanProfile(
     biography: bio.biography,
     userName: bio.userName,

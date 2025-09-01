@@ -19,7 +19,13 @@ class GoogleDriveBackupDialog extends StatefulWidget {
   final String clientId;
   final Future<String?> Function()? requestBackupJson;
   final Future<void> Function(String json)? onImportedJson;
-  final Future<void> Function({String? email, String? avatarUrl, String? name, bool linked, bool triggerAutoBackup})?
+  final Future<void> Function({
+    String? email,
+    String? avatarUrl,
+    String? name,
+    bool linked,
+    bool triggerAutoBackup,
+  })?
   onAccountInfoUpdated;
   final VoidCallback? onClearAccountInfo;
   final bool disableAutoRestore;
@@ -35,7 +41,8 @@ class GoogleDriveBackupDialog extends StatefulWidget {
   });
 
   @override
-  State<GoogleDriveBackupDialog> createState() => _GoogleDriveBackupDialogState();
+  State<GoogleDriveBackupDialog> createState() =>
+      _GoogleDriveBackupDialogState();
 }
 
 class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
@@ -55,7 +62,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
 
   // Helper functions for consistent backup metadata handling
   String _formatBackupTimestamp(String? isoDateString) {
-    if (isoDateString == null || isoDateString.isEmpty || isoDateString == 'unknown') {
+    if (isoDateString == null ||
+        isoDateString.isEmpty ||
+        isoDateString == 'unknown') {
       return '';
     }
 
@@ -64,8 +73,10 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
       if (parsed == null) return '';
 
       final local = parsed.toLocal();
-      final date = '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}/${local.year}';
-      final time = '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+      final date =
+          '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}/${local.year}';
+      final time =
+          '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
       return '$date $time';
     } catch (_) {
       return '';
@@ -82,7 +93,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
       }
 
       // Always use modifiedTime to show when backup was last updated
-      final timestamp = _formatBackupTimestamp(backup['modifiedTime'] as String?);
+      final timestamp = _formatBackupTimestamp(
+        backup['modifiedTime'] as String?,
+      );
       if (timestamp.isNotEmpty) {
         human = human.isNotEmpty ? '$human • $timestamp' : timestamp;
       }
@@ -130,16 +143,25 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
 
         if (token != null) {
           // We already have credentials - just load them without auto-link
-          Log.d('GoogleDriveBackupDialog: Found existing credentials, loading without auto-link', tag: 'GoogleBackup');
+          Log.d(
+            'GoogleDriveBackupDialog: Found existing credentials, loading without auto-link',
+            tag: 'GoogleBackup',
+          );
           await _checkStatusOnly();
           return;
         }
       } catch (e) {
-        Log.d('GoogleDriveBackupDialog: Failed to check existing credentials: $e', tag: 'GoogleBackup');
+        Log.d(
+          'GoogleDriveBackupDialog: Failed to check existing credentials: $e',
+          tag: 'GoogleBackup',
+        );
       }
 
       // No existing credentials - proceed with auto-link
-      Log.d('GoogleDriveBackupDialog: No existing credentials, starting auto-link', tag: 'GoogleBackup');
+      Log.d(
+        'GoogleDriveBackupDialog: No existing credentials, starting auto-link',
+        tag: 'GoogleBackup',
+      );
       try {
         _safeSetState(() {
           _working = true;
@@ -149,11 +171,19 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         // On Android explicitly force the google_sign_in path so the
         // native account chooser is shown even if cached credentials
         // exist. This ensures auto-link uses the same flow as the button.
-        await GoogleBackupService(accessToken: null).linkAccount(clientId: candidateCid, forceUseGoogleSignIn: true);
-        Log.d('GoogleDriveBackupDialog: Auto-link completed', tag: 'GoogleBackup');
+        await GoogleBackupService(
+          accessToken: null,
+        ).linkAccount(clientId: candidateCid, forceUseGoogleSignIn: true);
+        Log.d(
+          'GoogleDriveBackupDialog: Auto-link completed',
+          tag: 'GoogleBackup',
+        );
         await _checkStatusOnly(); // Just check status, don't do additional auth
       } catch (e) {
-        Log.d('GoogleDriveBackupDialog: Auto-link failed: $e', tag: 'GoogleBackup');
+        Log.d(
+          'GoogleDriveBackupDialog: Auto-link failed: $e',
+          tag: 'GoogleBackup',
+        );
         // Don't show error for auto-link failures, just let user click button
         _safeSetState(() {
           _working = false;
@@ -164,7 +194,10 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
 
   /// Simple status check without additional authentication attempts
   Future<void> _checkStatusOnly() async {
-    Log.d('GoogleDriveBackupDialog: _checkStatusOnly start', tag: 'GoogleBackup');
+    Log.d(
+      'GoogleDriveBackupDialog: _checkStatusOnly start',
+      tag: 'GoogleBackup',
+    );
     if (!mounted) return;
 
     try {
@@ -172,16 +205,28 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
       final token = await svc.loadStoredAccessToken();
 
       if (token != null) {
-        Log.d('GoogleDriveBackupDialog: Found stored token, checking validity', tag: 'GoogleBackup');
+        Log.d(
+          'GoogleDriveBackupDialog: Found stored token, checking validity',
+          tag: 'GoogleBackup',
+        );
         _service = GoogleBackupService(accessToken: token);
 
         // Fetch account info and check for backups like the original method did
         try {
-          Log.d('GoogleDriveBackupDialog: calling _fetchAccountInfo', tag: 'GoogleBackup');
+          Log.d(
+            'GoogleDriveBackupDialog: calling _fetchAccountInfo',
+            tag: 'GoogleBackup',
+          );
           await _fetchAccountInfo(token, attemptRefresh: true);
-          Log.d('GoogleDriveBackupDialog: _fetchAccountInfo completed successfully', tag: 'GoogleBackup');
+          Log.d(
+            'GoogleDriveBackupDialog: _fetchAccountInfo completed successfully',
+            tag: 'GoogleBackup',
+          );
         } catch (e) {
-          Log.w('GoogleDriveBackupDialog: _fetchAccountInfo failed: $e', tag: 'GoogleBackup');
+          Log.w(
+            'GoogleDriveBackupDialog: _fetchAccountInfo failed: $e',
+            tag: 'GoogleBackup',
+          );
         }
 
         _safeSetState(() {
@@ -196,7 +241,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
           // If we detect an unauthorized state, clear stored credentials
           if (e is StateError && e.message == 'Unauthorized') {
             try {
-              await GoogleBackupService(accessToken: null).clearStoredCredentials();
+              await GoogleBackupService(
+                accessToken: null,
+              ).clearStoredCredentials();
             } catch (_) {}
             _safeSetState(() {
               _service = null;
@@ -208,14 +255,20 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
           rethrow;
         }
       } else {
-        Log.d('GoogleDriveBackupDialog: No stored token found', tag: 'GoogleBackup');
+        Log.d(
+          'GoogleDriveBackupDialog: No stored token found',
+          tag: 'GoogleBackup',
+        );
         _safeSetState(() {
           _service = null;
           _working = false;
         });
       }
     } catch (e) {
-      Log.d('GoogleDriveBackupDialog: _checkStatusOnly failed: $e', tag: 'GoogleBackup');
+      Log.d(
+        'GoogleDriveBackupDialog: _checkStatusOnly failed: $e',
+        tag: 'GoogleBackup',
+      );
       _safeSetState(() {
         _service = null;
         _working = false;
@@ -238,8 +291,10 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
     });
   }
 
-  Future<String> _resolveClientId(String rawCid) async => await GoogleBackupService.resolveClientId(rawCid);
-  Future<String?> _resolveClientSecret() async => await GoogleBackupService.resolveClientSecret();
+  Future<String> _resolveClientId(String rawCid) async =>
+      await GoogleBackupService.resolveClientId(rawCid);
+  Future<String?> _resolveClientSecret() async =>
+      await GoogleBackupService.resolveClientSecret();
 
   void _startAuthUrlWatcher() {
     try {
@@ -309,7 +364,8 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
       // Log which backup we're showing in the UI
       final backupId = _latestBackup!['id'] as String? ?? 'unknown';
       final createdTime = _latestBackup!['createdTime'] as String? ?? 'unknown';
-      final modifiedTime = _latestBackup!['modifiedTime'] as String? ?? 'unknown';
+      final modifiedTime =
+          _latestBackup!['modifiedTime'] as String? ?? 'unknown';
       debugPrint(
         'GoogleDriveBackupDialog: Showing backup in UI - ID: $backupId, Created: $createdTime, Modified: $modifiedTime',
       );
@@ -323,7 +379,8 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
       final msg = e.toString();
       debugPrint('checkForBackup error: $msg');
       // Detect unauthorized responses from Drive/API and clear stored creds.
-      if (msg.contains('Invalid Credentials') || msg.contains('Expected OAuth 2 access token')) {
+      if (msg.contains('Invalid Credentials') ||
+          msg.contains('Expected OAuth 2 access token')) {
         try {
           await GoogleBackupService(accessToken: null).clearStoredCredentials();
         } catch (_) {}
@@ -338,10 +395,13 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         _safeSetState(() {
           _working = false;
         });
-        _updateStatus('Permisos insuficientes al acceder a Drive. Se han borrado las credenciales locales.');
+        _updateStatus(
+          'Permisos insuficientes al acceder a Drive. Se han borrado las credenciales locales.',
+        );
         return;
       }
-      if (msg.contains('The granted scopes do not give access') || msg.contains('insufficientScopes')) {
+      if (msg.contains('The granted scopes do not give access') ||
+          msg.contains('insufficientScopes')) {
         debugPrint(
           'Detected insufficient scopes for requested spaces; verifying stored credentials before prompting re-link',
         );
@@ -350,14 +410,21 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
           final creds = await svc.loadStoredCredentials();
           final storedScope = (creds?['scope'] as String?) ?? '';
           if (kDebugMode) debugPrint('Stored credential scopes: $storedScope');
-          if (storedScope.contains('drive.appdata') && creds != null && creds['refresh_token'] != null) {
+          if (storedScope.contains('drive.appdata') &&
+              creds != null &&
+              creds['refresh_token'] != null) {
             try {
               final clientId = await _resolveClientId(widget.clientId);
               final clientSecret = await _resolveClientSecret();
               final svc = GoogleBackupService(accessToken: null);
-              final refreshed = await svc.refreshAccessToken(clientId: clientId, clientSecret: clientSecret);
+              final refreshed = await svc.refreshAccessToken(
+                clientId: clientId,
+                clientSecret: clientSecret,
+              );
               if (kDebugMode) {
-                debugPrint('Refreshed tokens after detecting appData in stored scope: ${refreshed.keys}');
+                debugPrint(
+                  'Refreshed tokens after detecting appData in stored scope: ${refreshed.keys}',
+                );
               }
               final newToken = refreshed['access_token'] as String?;
               if (newToken != null) {
@@ -376,7 +443,10 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
     }
   }
 
-  Future<void> _fetchAccountInfo(String? accessToken, {bool attemptRefresh = false}) async {
+  Future<void> _fetchAccountInfo(
+    String? accessToken, {
+    bool attemptRefresh = false,
+  }) async {
     if (accessToken == null) return;
     try {
       final resp = await http.get(
@@ -398,7 +468,8 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
               avatarUrl: _avatarUrl,
               name: _name,
               linked: true,
-              triggerAutoBackup: false, // No disparar backup automático desde verificaciones de diálogo
+              triggerAutoBackup:
+                  false, // No disparar backup automático desde verificaciones de diálogo
             );
           }
         } catch (e) {
@@ -413,7 +484,10 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
           final clientId = await _resolveClientId(widget.clientId);
           final clientSecret = await _resolveClientSecret();
           final svc = GoogleBackupService(accessToken: null);
-          final refreshed = await svc.refreshAccessToken(clientId: clientId, clientSecret: clientSecret);
+          final refreshed = await svc.refreshAccessToken(
+            clientId: clientId,
+            clientSecret: clientSecret,
+          );
           final newToken = refreshed['access_token'] as String?;
           if (newToken != null) {
             _service = GoogleBackupService(accessToken: newToken);
@@ -441,7 +515,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
     if (_service == null) return;
     if (!_canCreateBackups()) {
       _safeSetState(() {});
-      _updateStatus('[DATA_ERROR] No hay datos serializables disponibles para operación de backup');
+      _updateStatus(
+        '[DATA_ERROR] No hay datos serializables disponibles para operación de backup',
+      );
       return;
     }
 
@@ -450,7 +526,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
     File? tempBackupFile;
     try {
       final jsonStr = await widget.requestBackupJson!();
-      if (jsonStr == null) throw Exception('No se pudieron obtener los datos para el backup');
+      if (jsonStr == null) {
+        throw Exception('No se pudieron obtener los datos para el backup');
+      }
 
       // Crear archivo temporal en la carpeta temporal del sistema
       final tempDir = await getTemporaryDirectory();
@@ -459,7 +537,10 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         destinationDirPath: tempDir.path, // Usar directorio temporal
       );
 
-      Log.d('GoogleDriveBackupDialog: created temporary backup at ${tempBackupFile.path}', tag: 'GoogleBackup');
+      Log.d(
+        'GoogleDriveBackupDialog: created temporary backup at ${tempBackupFile.path}',
+        tag: 'GoogleBackup',
+      );
 
       _safeSetState(() {});
       _updateStatus('[UPLOAD_INITIATED] クラウドストレージニソウシンチュウ...');
@@ -476,7 +557,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         // Diagnose backup state after the refresh
         await _diagnoseBackupState();
       } catch (e) {
-        debugPrint('Error actualizando información de backup después de crear: $e');
+        debugPrint(
+          'Error actualizando información de backup después de crear: $e',
+        );
         // No mostrar error al usuario ya que el backup se creó correctamente
         // Solo actualizar el estado para mostrar que se completó
         _safeSetState(() => _working = false);
@@ -491,10 +574,16 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         try {
           if (await tempBackupFile.exists()) {
             await tempBackupFile.delete();
-            Log.d('GoogleDriveBackupDialog: deleted temporary backup file ${tempBackupFile.path}', tag: 'GoogleBackup');
+            Log.d(
+              'GoogleDriveBackupDialog: deleted temporary backup file ${tempBackupFile.path}',
+              tag: 'GoogleBackup',
+            );
           }
         } catch (e) {
-          Log.w('GoogleDriveBackupDialog: failed to delete temporary backup file: $e', tag: 'GoogleBackup');
+          Log.w(
+            'GoogleDriveBackupDialog: failed to delete temporary backup file: $e',
+            tag: 'GoogleBackup',
+          );
         }
       }
     }
@@ -521,7 +610,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         final createdTime = backup['createdTime'] as String? ?? 'unknown';
         final modifiedTime = backup['modifiedTime'] as String? ?? 'unknown';
         final size = backup['size'] as String? ?? 'unknown';
-        debugPrint('Backup $i: ID=$id, Name=$name, Created=$createdTime, Modified=$modifiedTime, Size=$size');
+        debugPrint(
+          'Backup $i: ID=$id, Name=$name, Created=$createdTime, Modified=$modifiedTime, Size=$size',
+        );
 
         final createdTimestamp = _formatBackupTimestamp(createdTime);
         final modifiedTimestamp = _formatBackupTimestamp(modifiedTime);
@@ -543,7 +634,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
   Future<void> _restoreLatestNow() async {
     if (_latestBackup == null) return;
     _safeSetState(() {});
-    _updateStatus('[DOWNLOAD_INITIATED] Retrieving archive from cloud storage...');
+    _updateStatus(
+      '[DOWNLOAD_INITIATED] Retrieving archive from cloud storage...',
+    );
     final svc = _service ?? GoogleBackupService(accessToken: null);
     try {
       final backupId = _latestBackup!['id'] as String;
@@ -587,9 +680,11 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
   Widget build(BuildContext context) {
     final linked = _service != null;
     final isAndroid = !kIsWeb && Platform.isAndroid;
-    final isDesktop = !kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
+    final isDesktop =
+        !kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
     final hasAuthUrl =
-        ((GoogleAppAuthAdapter.lastAuthUrl != null && GoogleAppAuthAdapter.lastAuthUrl!.isNotEmpty) ||
+        ((GoogleAppAuthAdapter.lastAuthUrl != null &&
+            GoogleAppAuthAdapter.lastAuthUrl!.isNotEmpty) ||
         (_lastSeenAuthUrl != null && _lastSeenAuthUrl!.isNotEmpty));
     // Only show the desktop sign-in button when we actually have an authorization
     // URL available. This keeps the "Copiar enlace" and "Iniciar sesión" buttons
@@ -609,11 +704,18 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         final screenH = screenSize.height;
 
         // Más generoso en desktop, más compacto en mobile
-        final horizontalMargin = screenW > 800 ? 60.0 : 4.0; // Reducido aún más en mobile (4px)
-        final maxWidth = screenW > 800 ? 900.0 : double.infinity; // Más grande en desktop, sin límite en mobile
+        final horizontalMargin = screenW > 800
+            ? 60.0
+            : 4.0; // Reducido aún más en mobile (4px)
+        final maxWidth = screenW > 800
+            ? 900.0
+            : double.infinity; // Más grande en desktop, sin límite en mobile
 
         final desired = screenW - horizontalMargin;
-        final width = desired.clamp(400.0, maxWidth); // Aumentado mínimo a 400px
+        final width = desired.clamp(
+          400.0,
+          maxWidth,
+        ); // Aumentado mínimo a 400px
 
         return Container(
           width: width,
@@ -622,7 +724,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
             minHeight: 200,
           ),
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20.0), // Más padding para que se vea más espacioso
+            padding: const EdgeInsets.all(
+              20.0,
+            ), // Más padding para que se vea más espacioso
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -631,7 +735,11 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                   width: double.infinity,
                   child: Row(
                     children: [
-                      const Icon(Icons.add_to_drive, size: 20, color: Colors.white),
+                      const Icon(
+                        Icons.add_to_drive,
+                        size: 20,
+                        color: Colors.white,
+                      ),
                       const SizedBox(width: 8),
                       const Expanded(
                         child: Text(
@@ -662,7 +770,11 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                       if (_avatarUrl != null)
                         CircleAvatar(backgroundImage: NetworkImage(_avatarUrl!))
                       else
-                        const Icon(Icons.account_circle, size: 40, color: Colors.white70),
+                        const Icon(
+                          Icons.account_circle,
+                          size: 40,
+                          color: Colors.white70,
+                        ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Column(
@@ -671,35 +783,53 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                             if (_name != null)
                               Text(
                                 _name!,
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             Text(
                               _email ?? '[AUTHENTICATED_USER]',
-                              style: const TextStyle(color: Colors.white70, fontFamily: 'monospace'),
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontFamily: 'monospace',
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20), // Más espacio después de la info de usuario
+                  const SizedBox(
+                    height: 20,
+                  ), // Más espacio después de la info de usuario
                   // Show a compact summary of the latest backup when available.
                   if (_latestBackup != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12.0),
                       child: Text(
-                        _latestBackupSummary() ?? 'ARCHIVED_DATA // クラウドストレージリヨウカノウ',
-                        style: const TextStyle(color: Colors.white70, fontSize: 15),
+                        _latestBackupSummary() ??
+                            'ARCHIVED_DATA // クラウドストレージリヨウカノウ',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 15,
+                        ),
                       ),
                     ),
                   // Transient status message shown only when account is linked.
                   // Avoid duplicating the latest backup summary text.
-                  if (_status != null && (_latestBackup == null || _status != _latestBackupSummary()))
+                  if (_status != null &&
+                      (_latestBackup == null ||
+                          _status != _latestBackupSummary()))
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16.0),
                       child: Text(
                         _status!,
-                        style: const TextStyle(color: Colors.white70, fontSize: 15, fontFamily: 'monospace'),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 15,
+                          fontFamily: 'monospace',
+                        ),
                       ),
                     ),
                 ],
@@ -731,10 +861,14 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                             try {
                               final copyUrl =
                                   (GoogleAppAuthAdapter.lastAuthUrl != null &&
-                                      GoogleAppAuthAdapter.lastAuthUrl!.isNotEmpty)
+                                      GoogleAppAuthAdapter
+                                          .lastAuthUrl!
+                                          .isNotEmpty)
                                   ? GoogleAppAuthAdapter.lastAuthUrl!
                                   : (_lastSeenAuthUrl ?? '');
-                              await Clipboard.setData(ClipboardData(text: copyUrl));
+                              await Clipboard.setData(
+                                ClipboardData(text: copyUrl),
+                              );
                               showAppSnackBar('Enlace copiado al portapapeles');
                             } catch (e) {
                               debugPrint('copy url failed: $e');
@@ -745,13 +879,16 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                         ),
                       if (_insufficientScope)
                         Tooltip(
-                          message: '[LINK_REQUIRED] Establecer conexión segura a la interfaz de almacenamiento en nube',
+                          message:
+                              '[LINK_REQUIRED] Establecer conexión segura a la interfaz de almacenamiento en nube',
                           child: ElevatedButton(
                             onPressed: _linkInProgress
                                 ? null
                                 : () async {
                                     try {
-                                      await GoogleBackupService(accessToken: null).clearStoredCredentials();
+                                      await GoogleBackupService(
+                                        accessToken: null,
+                                      ).clearStoredCredentials();
                                     } catch (_) {}
                                     setState(() => _insufficientScope = false);
                                     await _checkStatusOnly(); // Just check status, don't do additional auth
@@ -765,7 +902,10 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                       if (isAndroid)
                         ElevatedButton.icon(
                           onPressed: () async {
-                            Log.d('GoogleDriveBackupDialog: Iniciar sesión (Android) pressed', tag: 'GoogleBackup');
+                            Log.d(
+                              'GoogleDriveBackupDialog: Iniciar sesión (Android) pressed',
+                              tag: 'GoogleBackup',
+                            );
                             _safeSetState(() => _working = true);
                             if (_linkInProgress) {
                               _safeSetState(() => _linkInProgress = false);
@@ -779,20 +919,31 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                   _safeSetState(() => _lastSeenAuthUrl = last);
                                 }
                               } catch (_) {}
-                              final candidateCid = await _resolveClientId(widget.clientId);
+                              final candidateCid = await _resolveClientId(
+                                widget.clientId,
+                              );
                               // On Android explicitly force the google_sign_in path so the
                               // native account chooser is shown even if cached credentials
                               // exist. This ensures the button always opens the native
                               // selector as the UX expects.
                               await GoogleBackupService(
                                 accessToken: null,
-                              ).linkAccount(clientId: candidateCid, forceUseGoogleSignIn: true);
-                              Log.d('GoogleDriveBackupDialog: Android linkAccount returned', tag: 'GoogleBackup');
+                              ).linkAccount(
+                                clientId: candidateCid,
+                                forceUseGoogleSignIn: true,
+                              );
+                              Log.d(
+                                'GoogleDriveBackupDialog: Android linkAccount returned',
+                                tag: 'GoogleBackup',
+                              );
                               await _checkStatusOnly(); // Just check status, don't do additional auth
                             } catch (e, st) {
                               // Log and treat user cancellations specially so the UI
                               // does not present an error for an intentional cancel.
-                              Log.d('GoogleDriveBackupDialog: Android linkAccount threw: $e', tag: 'GoogleBackup');
+                              Log.d(
+                                'GoogleDriveBackupDialog: Android linkAccount threw: $e',
+                                tag: 'GoogleBackup',
+                              );
                               debugPrint('Android sign-in error: $e\n$st');
                               final raw = e.toString().toLowerCase();
                               if (raw.contains('user cancelled') ||
@@ -822,7 +973,10 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                       else if (canShowDesktopSignIn)
                         ElevatedButton.icon(
                           onPressed: () async {
-                            Log.d('GoogleDriveBackupDialog: Iniciar sesión (Desktop) pressed', tag: 'GoogleBackup');
+                            Log.d(
+                              'GoogleDriveBackupDialog: Iniciar sesión (Desktop) pressed',
+                              tag: 'GoogleBackup',
+                            );
                             _safeSetState(() => _working = true);
                             if (_linkInProgress) {
                               _safeSetState(() => _linkInProgress = false);
@@ -841,7 +995,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                               try {
                                 final copyUrl =
                                     (GoogleAppAuthAdapter.lastAuthUrl != null &&
-                                        GoogleAppAuthAdapter.lastAuthUrl!.isNotEmpty)
+                                        GoogleAppAuthAdapter
+                                            .lastAuthUrl!
+                                            .isNotEmpty)
                                     ? GoogleAppAuthAdapter.lastAuthUrl!
                                     : (_lastSeenAuthUrl ?? '');
                                 if (copyUrl.isNotEmpty) {
@@ -850,7 +1006,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                     tag: 'GoogleBackup',
                                   );
                                   try {
-                                    await GoogleAppAuthAdapter.openBrowser(copyUrl);
+                                    await GoogleAppAuthAdapter.openBrowser(
+                                      copyUrl,
+                                    );
                                     Log.d(
                                       'GoogleDriveBackupDialog: openBrowser invoked for desktop auth',
                                       tag: 'GoogleBackup',
@@ -867,12 +1025,22 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                 }
                               } catch (_) {}
 
-                              final candidateCid = await _resolveClientId(widget.clientId);
-                              await GoogleBackupService(accessToken: null).linkAccount(clientId: candidateCid);
-                              Log.d('GoogleDriveBackupDialog: Desktop linkAccount returned', tag: 'GoogleBackup');
+                              final candidateCid = await _resolveClientId(
+                                widget.clientId,
+                              );
+                              await GoogleBackupService(
+                                accessToken: null,
+                              ).linkAccount(clientId: candidateCid);
+                              Log.d(
+                                'GoogleDriveBackupDialog: Desktop linkAccount returned',
+                                tag: 'GoogleBackup',
+                              );
                               await _checkStatusOnly(); // Just check status, don't do additional auth
                             } catch (e, st) {
-                              Log.d('GoogleDriveBackupDialog: Desktop linkAccount threw: $e', tag: 'GoogleBackup');
+                              Log.d(
+                                'GoogleDriveBackupDialog: Desktop linkAccount threw: $e',
+                                tag: 'GoogleBackup',
+                              );
                               debugPrint('Desktop sign-in error: $e\n$st');
                               _safeSetState(() {
                                 _working = false;
@@ -906,7 +1074,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                     backgroundColor: Colors.black,
                                     title: const Text(
                                       'DISCONNECT_INTERFACE',
-                                      style: TextStyle(color: Colors.cyanAccent),
+                                      style: TextStyle(
+                                        color: Colors.cyanAccent,
+                                      ),
                                     ),
                                     content: const Text(
                                       '[SECURITY_PROTOCOL] Confirma la desconexión de la interfaz de almacenamiento en nube. Los tokens de autenticación locales serán eliminados.',
@@ -914,12 +1084,24 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                     ),
                                     actions: [
                                       TextButton(
-                                        onPressed: () => Navigator.of(ctx).pop(false),
-                                        child: const Text('CANCEL', style: TextStyle(color: Colors.white70)),
+                                        onPressed: () =>
+                                            Navigator.of(ctx).pop(false),
+                                        child: const Text(
+                                          'CANCEL',
+                                          style: TextStyle(
+                                            color: Colors.white70,
+                                          ),
+                                        ),
                                       ),
                                       TextButton(
-                                        onPressed: () => Navigator.of(ctx).pop(true),
-                                        child: const Text('DISCONNECT', style: TextStyle(color: Colors.redAccent)),
+                                        onPressed: () =>
+                                            Navigator.of(ctx).pop(true),
+                                        child: const Text(
+                                          'DISCONNECT',
+                                          style: TextStyle(
+                                            color: Colors.redAccent,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -928,9 +1110,13 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                   setState(() {
                                     _working = true;
                                   });
-                                  _updateStatus('[DISCONNECT_INIT] Terminating account interface...');
+                                  _updateStatus(
+                                    '[DISCONNECT_INIT] Terminating account interface...',
+                                  );
                                   try {
-                                    await GoogleBackupService(accessToken: null).clearStoredCredentials();
+                                    await GoogleBackupService(
+                                      accessToken: null,
+                                    ).clearStoredCredentials();
                                   } catch (_) {}
                                   _safeSetState(() {
                                     _service = null;
@@ -940,7 +1126,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                     _latestBackup = null;
                                     _insufficientScope = false;
                                   });
-                                  _updateStatus('[DISCONNECT_SUCCESS] Account interface terminated successfully');
+                                  _updateStatus(
+                                    '[DISCONNECT_SUCCESS] Account interface terminated successfully',
+                                  );
                                   try {
                                     if (widget.onClearAccountInfo != null) {
                                       widget.onClearAccountInfo!();
@@ -955,12 +1143,24 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                 }
                               },
                         style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(0, 48), // Mismo tamaño que otros botones
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          minimumSize: const Size(
+                            0,
+                            48,
+                          ), // Mismo tamaño que otros botones
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                           side: const BorderSide(color: Colors.redAccent),
                         ),
-                        icon: const Icon(Icons.link_off, color: Colors.redAccent),
-                        label: const Text('DISCONNECT', style: TextStyle(color: Colors.redAccent)),
+                        icon: const Icon(
+                          Icons.link_off,
+                          color: Colors.redAccent,
+                        ),
+                        label: const Text(
+                          'DISCONNECT',
+                          style: TextStyle(color: Colors.redAccent),
+                        ),
                       );
 
                       final hasRestore = _latestBackup != null;
@@ -972,7 +1172,10 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                         icon: const Icon(Icons.restore),
                         style: ElevatedButton.styleFrom(
                           minimumSize: const Size(0, 48), // Botones más altos
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                         ),
                         onPressed: _working ? null : _restoreLatestNow,
                         label: const Text('RESTORE_DATA'),
@@ -982,17 +1185,26 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                         icon: const Icon(Icons.backup),
                         style: ElevatedButton.styleFrom(
                           minimumSize: const Size(0, 48), // Botones más altos
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                         ),
                         onPressed: _working ? null : _createBackupNow,
                         label: const Text('UPLOAD_DATA'),
                       );
 
                       final deleteButton = OutlinedButton.icon(
-                        icon: const Icon(Icons.delete_forever, color: Colors.redAccent),
+                        icon: const Icon(
+                          Icons.delete_forever,
+                          color: Colors.redAccent,
+                        ),
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size(0, 48), // Botones más altos
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                           side: const BorderSide(color: Colors.redAccent),
                         ),
                         onPressed: (_working || _latestBackup == null)
@@ -1001,21 +1213,39 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                 final confirm = await showAppDialog<bool>(
                                   builder: (ctx) => AlertDialog(
                                     backgroundColor: Colors.black,
-                                    title: const Text('DELETE_ARCHIVE', style: TextStyle(color: Colors.redAccent)),
+                                    title: const Text(
+                                      'DELETE_ARCHIVE',
+                                      style: TextStyle(color: Colors.redAccent),
+                                    ),
                                     content: const Text(
                                       '[WARNING] Permanent deletion of cloud storage archive is irreversible.\n\n'
                                       '[CONFIRM] ¿Estás seguro? Esto eliminará el archivo remoto sin posibilidad de recuperación.\n\n'
                                       '[ABORT] Si no estás seguro, selecciona CANCEL. [EXECUTE] Para liberar espacio o eliminar datos sensibles, confirma la eliminación.',
-                                      style: TextStyle(color: Colors.white70, fontFamily: 'monospace'),
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontFamily: 'monospace',
+                                      ),
                                     ),
                                     actions: [
                                       TextButton(
-                                        onPressed: () => Navigator.of(ctx).pop(false),
-                                        child: const Text('CANCEL', style: TextStyle(color: Colors.white70)),
+                                        onPressed: () =>
+                                            Navigator.of(ctx).pop(false),
+                                        child: const Text(
+                                          'CANCEL',
+                                          style: TextStyle(
+                                            color: Colors.white70,
+                                          ),
+                                        ),
                                       ),
                                       TextButton(
-                                        onPressed: () => Navigator.of(ctx).pop(true),
-                                        child: const Text('DELETE', style: TextStyle(color: Colors.redAccent)),
+                                        onPressed: () =>
+                                            Navigator.of(ctx).pop(true),
+                                        child: const Text(
+                                          'DELETE',
+                                          style: TextStyle(
+                                            color: Colors.redAccent,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -1023,22 +1253,33 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                 if (confirm != true) return;
                                 // Proceed with deletion
                                 _safeSetState(() => _working = true);
-                                _updateStatus('[DELETE_INITIATED] Purging backup archive...');
+                                _updateStatus(
+                                  '[DELETE_INITIATED] Purging backup archive...',
+                                );
                                 try {
-                                  final svc = _service ?? GoogleBackupService(accessToken: null);
+                                  final svc =
+                                      _service ??
+                                      GoogleBackupService(accessToken: null);
                                   final id = _latestBackup!['id'] as String;
                                   await svc.deleteBackup(id);
                                   // Refresh list
                                   _latestBackup = null;
-                                  _updateStatus('[DELETE_COMPLETE] Backup archive purged from cloud storage');
+                                  _updateStatus(
+                                    '[DELETE_COMPLETE] Backup archive purged from cloud storage',
+                                  );
                                 } catch (e) {
                                   debugPrint('deleteBackup failed: $e');
-                                  _updateStatus('[DELETE_ERROR] Failed to purge backup archive');
+                                  _updateStatus(
+                                    '[DELETE_ERROR] Failed to purge backup archive',
+                                  );
                                 } finally {
                                   _safeSetState(() => _working = false);
                                 }
                               },
-                        label: const Text('DELETE_ARCHIVE', style: TextStyle(color: Colors.redAccent)),
+                        label: const Text(
+                          'DELETE_ARCHIVE',
+                          style: TextStyle(color: Colors.redAccent),
+                        ),
                       );
 
                       // Layout inteligente y responsivo de botones
@@ -1061,13 +1302,23 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                               if (i > 0) {
                                 allButtons.add(const SizedBox(height: 12));
                               }
-                              allButtons.add(SizedBox(width: double.infinity, child: primaryButtons[i]));
+                              allButtons.add(
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: primaryButtons[i],
+                                ),
+                              );
                             }
                             // Desvincular al final
                             if (primaryButtons.isNotEmpty) {
                               allButtons.add(const SizedBox(height: 12));
                             }
-                            allButtons.add(SizedBox(width: double.infinity, child: unlinkButton));
+                            allButtons.add(
+                              SizedBox(
+                                width: double.infinity,
+                                child: unlinkButton,
+                              ),
+                            );
 
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1083,26 +1334,40 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 if (primaryButtons.isNotEmpty)
-                                  Wrap(spacing: 8.0, runSpacing: 8.0, children: primaryButtons),
-                                if (primaryButtons.isNotEmpty) const SizedBox(height: 12),
-                                SizedBox(width: double.infinity, child: unlinkButton),
+                                  Wrap(
+                                    spacing: 8.0,
+                                    runSpacing: 8.0,
+                                    children: primaryButtons,
+                                  ),
+                                if (primaryButtons.isNotEmpty)
+                                  const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: unlinkButton,
+                                ),
                               ],
                             );
                           }
 
                           // Layout ancho (desktop): botones principales a la izquierda, desvincular a la derecha pero abajo
                           return Row(
-                            crossAxisAlignment: CrossAxisAlignment.end, // Alinear hacia abajo
+                            crossAxisAlignment:
+                                CrossAxisAlignment.end, // Alinear hacia abajo
                             children: [
                               Expanded(
                                 child: primaryButtons.isEmpty
                                     ? const SizedBox()
                                     : Align(
                                         alignment: Alignment.centerLeft,
-                                        child: Wrap(spacing: 12.0, runSpacing: 8.0, children: primaryButtons),
+                                        child: Wrap(
+                                          spacing: 12.0,
+                                          runSpacing: 8.0,
+                                          children: primaryButtons,
+                                        ),
                                       ),
                               ),
-                              if (primaryButtons.isNotEmpty) const SizedBox(width: 16),
+                              if (primaryButtons.isNotEmpty)
+                                const SizedBox(width: 16),
                               unlinkButton,
                             ],
                           );

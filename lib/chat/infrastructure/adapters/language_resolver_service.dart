@@ -9,7 +9,9 @@ class LanguageResolverService implements ILanguageResolver {
   Future<String> resolveLanguageCode(String voiceName) async {
     try {
       // Detectar si es una voz de Google (formato: "es-ES-Standard-A", "en-US-Wavenet-D")
-      final googleVoicePattern = RegExp(r'^[a-z]{2}-[A-Z]{2}-(Standard|Wavenet|Neural2)-[A-Z]$');
+      final googleVoicePattern = RegExp(
+        r'^[a-z]{2}-[A-Z]{2}-(Standard|Wavenet|Neural2)-[A-Z]$',
+      );
 
       if (googleVoicePattern.hasMatch(voiceName)) {
         // Extraer el código de idioma del nombre de la voz (ej: "es-ES" de "es-ES-Standard-A")
@@ -23,7 +25,8 @@ class LanguageResolverService implements ILanguageResolver {
               .where(
                 (voice) =>
                     voice['name']?.toString() == voiceName &&
-                    voice['languageCodes']?.toString().contains(languageCode) == true,
+                    voice['languageCodes']?.toString().contains(languageCode) ==
+                        true,
               )
               .toList();
 
@@ -34,7 +37,8 @@ class LanguageResolverService implements ILanguageResolver {
       }
 
       // Si no es Google o no se pudo resolver, usar idioma por defecto
-      final fallbackLang = await PrefsUtils.getRawString('user_language') ?? 'es-ES';
+      final fallbackLang =
+          await PrefsUtils.getRawString('user_language') ?? 'es-ES';
       return fallbackLang;
     } catch (e) {
       return await PrefsUtils.getRawString('user_language') ?? 'es-ES';

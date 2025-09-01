@@ -7,7 +7,8 @@ class BackupDiagnosticsDialog extends StatefulWidget {
   const BackupDiagnosticsDialog({super.key});
 
   @override
-  State<BackupDiagnosticsDialog> createState() => _BackupDiagnosticsDialogState();
+  State<BackupDiagnosticsDialog> createState() =>
+      _BackupDiagnosticsDialogState();
 }
 
 class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
@@ -41,7 +42,9 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
       buffer.writeln('   - Token presente: $hasToken');
       if (hasToken) {
         buffer.writeln('   - Token length: ${token.length}');
-        buffer.writeln('   - Válido: ${token.startsWith('ya29.') ? 'Probablemente sí' : 'Formato inusual'}');
+        buffer.writeln(
+          '   - Válido: ${token.startsWith('ya29.') ? 'Probablemente sí' : 'Formato inusual'}',
+        );
       }
 
       // 3. Último backup
@@ -67,13 +70,17 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
           buffer.writeln('   - Cantidad encontrada: ${backups.length}');
           if (backups.isNotEmpty) {
             final latest = backups.first;
-            buffer.writeln('   - Último: ${latest['name']} (${latest['createdTime']})');
+            buffer.writeln(
+              '   - Último: ${latest['name']} (${latest['createdTime']})',
+            );
           }
         } catch (e) {
           buffer.writeln('   - Error: $e');
         }
       } else {
-        buffer.writeln('\n4. Backups remotos: No se puede verificar (sin token)');
+        buffer.writeln(
+          '\n4. Backups remotos: No se puede verificar (sin token)',
+        );
       }
 
       // 5. Diagnóstico final
@@ -81,11 +88,14 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
       final googleLinked = googleInfo['linked'] as bool? ?? false;
       final needsBackup =
           lastBackupMs == null ||
-          (DateTime.now().millisecondsSinceEpoch - lastBackupMs) > const Duration(hours: 24).inMilliseconds;
+          (DateTime.now().millisecondsSinceEpoch - lastBackupMs) >
+              const Duration(hours: 24).inMilliseconds;
 
       if (googleLinked && !hasToken) {
         buffer.writeln('⚠️  PROBLEMA DETECTADO:');
-        buffer.writeln('   Cuenta marcada como vinculada pero sin token válido.');
+        buffer.writeln(
+          '   Cuenta marcada como vinculada pero sin token válido.',
+        );
         buffer.writeln('   Los backups automáticos fallarán silenciosamente.');
         buffer.writeln('   SOLUCIÓN: Re-vincular cuenta en configuración.');
       } else if (googleLinked && hasToken && needsBackup) {
@@ -116,7 +126,11 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
       backgroundColor: Colors.black,
       title: const Text(
         'BACKUP_DIAGNOSTICS // バックアップシンダン',
-        style: TextStyle(color: Color(0xFF00FFAA), fontFamily: 'monospace', fontSize: 16),
+        style: TextStyle(
+          color: Color(0xFF00FFAA),
+          fontFamily: 'monospace',
+          fontSize: 16,
+        ),
       ),
       content: SizedBox(
         width: double.maxFinite,
@@ -126,14 +140,21 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
               ? const Center(child: CircularProgressIndicator())
               : SelectableText(
                   _diagnosticResult,
-                  style: const TextStyle(color: Color(0xFF00FFAA), fontFamily: 'monospace', fontSize: 12),
+                  style: const TextStyle(
+                    color: Color(0xFF00FFAA),
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                  ),
                 ),
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('CLOSE', style: TextStyle(color: Color(0xFF00FFAA))),
+          child: const Text(
+            'CLOSE',
+            style: TextStyle(color: Color(0xFF00FFAA)),
+          ),
         ),
         TextButton(
           onPressed: () async {
@@ -142,7 +163,10 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
             });
             await _runDiagnostics();
           },
-          child: const Text('REFRESH', style: TextStyle(color: Color(0xFF00FFAA))),
+          child: const Text(
+            'REFRESH',
+            style: TextStyle(color: Color(0xFF00FFAA)),
+          ),
         ),
       ],
     );

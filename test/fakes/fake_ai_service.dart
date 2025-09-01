@@ -49,9 +49,15 @@ class FakeAIService extends AIService {
       if (enableImageGeneration) {
         const onePixelPngBase64 =
             'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAAWgmWQ0AAAAASUVORK5CYII=';
-        return AIResponse(text: '', base64: onePixelPngBase64, seed: 'test-seed-123', prompt: 'fake-prompt');
+        return AIResponse(
+          text: '',
+          base64: onePixelPngBase64,
+          seed: 'test-seed-123',
+          prompt: 'fake-prompt',
+        );
       }
-      final json = '{"resumen_breve":"Resumen de prueba","datos_personales":{"nombre_completo":"Ai Test"}}';
+      final json =
+          '{"resumen_breve":"Resumen de prueba","datos_personales":{"nombre_completo":"Ai Test"}}';
       return AIResponse(text: json);
     }
 
@@ -73,7 +79,11 @@ class FakeAIService extends AIService {
       );
     }
 
-    return AIResponse(text: textResponse ?? 'fake response', seed: 'test-seed-123', prompt: 'fake-prompt');
+    return AIResponse(
+      text: textResponse ?? 'fake response',
+      seed: 'test-seed-123',
+      prompt: 'fake-prompt',
+    );
   }
 
   @override
@@ -105,13 +115,16 @@ class FakeAIService extends AIService {
   }
 
   /// Factory that returns a FakeAIService which yields the given sequence of AIResponse
-  factory FakeAIService.withResponses(List<AIResponse> responses) => FakeAIService(responses: responses);
+  factory FakeAIService.withResponses(List<AIResponse> responses) =>
+      FakeAIService(responses: responses);
 
   /// Convenience factory that returns a service that replies with a simple text
-  factory FakeAIService.withText(String text) => FakeAIService(textResponse: text);
+  factory FakeAIService.withText(String text) =>
+      FakeAIService(textResponse: text);
 
   /// Convenience factory for tests that need the AI to return an audio-tagged text
-  factory FakeAIService.withAudio(String audioTaggedText) => FakeAIService(textResponse: audioTaggedText);
+  factory FakeAIService.withAudio(String audioTaggedText) =>
+      FakeAIService(textResponse: audioTaggedText);
 
   /// Factory that behaves like tests expect: when enableImageGeneration==true
   /// returns a 1x1 PNG base64, otherwise returns a minimal biography JSON.
@@ -123,6 +136,8 @@ class FakeAIService extends AIService {
   bool _forAppearanceAndBiography = false;
 
   /// Factory for failure scenarios
-  factory FakeAIService.withError([String? message]) =>
-      FakeAIService(shouldThrowError: true, errorMessage: message ?? 'AI failure');
+  factory FakeAIService.withError([String? message]) => FakeAIService(
+    shouldThrowError: true,
+    errorMessage: message ?? 'AI failure',
+  );
 }

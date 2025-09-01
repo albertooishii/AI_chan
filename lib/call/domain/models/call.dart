@@ -117,12 +117,16 @@ class Call {
     return Call(
       id: map['id'] as String,
       startTime: DateTime.parse(map['startTime'] as String),
-      endTime: map['endTime'] != null ? DateTime.parse(map['endTime'] as String) : null,
+      endTime: map['endTime'] != null
+          ? DateTime.parse(map['endTime'] as String)
+          : null,
       provider: CallProviderExtension.fromString(map['provider'] as String),
       model: map['model'] as String,
       voice: map['voice'] as String,
       languageCode: map['languageCode'] as String,
-      messages: (map['messages'] as List<dynamic>).map((m) => CallMessage.fromMap(m as Map<String, dynamic>)).toList(),
+      messages: (map['messages'] as List<dynamic>)
+          .map((m) => CallMessage.fromMap(m as Map<String, dynamic>))
+          .toList(),
       status: CallStatusExtension.fromString(map['status'] as String),
       config: CallConfig.fromMap(map['config'] as Map<String, dynamic>),
       metadata: map['metadata'] as Map<String, dynamic>?,

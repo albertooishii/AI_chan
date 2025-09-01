@@ -15,27 +15,40 @@ class TtsService {
 
   /// [localAudioDirGetter] permite inyectar un getter de directorio en tests
   /// para evitar depender de variables de entorno o dotenv no inicializado.
-  TtsService(this.audioService, this.languageResolver, {Future<Directory> Function()? localAudioDirGetter})
-    : _localAudioDirGetter = localAudioDirGetter;
+  TtsService(
+    this.audioService,
+    this.languageResolver, {
+    Future<Directory> Function()? localAudioDirGetter,
+  }) : _localAudioDirGetter = localAudioDirGetter;
 
   /// Sintetiza `text` usando el audioService y persiste el fichero en la
   /// carpeta local de audio configurada. Devuelve la ruta final o null.
-  Future<String?> synthesizeAndPersist(String text, {String voice = 'nova'}) async {
+  Future<String?> synthesizeAndPersist(
+    String text, {
+    String voice = 'nova',
+  }) async {
     // Resolve language code using the injected language resolver
     final lang = await languageResolver.resolveLanguageCode(voice);
 
     // Resolve preferred voice using PrefsUtils helper
     final preferredVoice = await PrefsUtils.getPreferredVoice(fallback: voice);
 
-    final file = await audioService.synthesizeTts(text, voice: preferredVoice, languageCode: lang);
+    final file = await audioService.synthesizeTts(
+      text,
+      voice: preferredVoice,
+      languageCode: lang,
+    );
     if (file == null) return null;
 
     try {
-      final localDir = await (_localAudioDirGetter?.call() ?? audio_utils.getLocalAudioDir());
+      final localDir =
+          await (_localAudioDirGetter?.call() ??
+              audio_utils.getLocalAudioDir());
       String finalPath = file.path;
       if (!file.path.startsWith(localDir.path)) {
         final ext = file.path.split('.').last;
-        final dest = '${localDir.path}/assistant_tts_${DateTime.now().millisecondsSinceEpoch}.$ext';
+        final dest =
+            '${localDir.path}/assistant_tts_${DateTime.now().millisecondsSinceEpoch}.$ext';
         try {
           await file.rename(dest);
           finalPath = dest;
@@ -51,7 +64,9 @@ class TtsService {
             }
             finalPath = dest;
           } catch (e2) {
-            Log.w('[Audio][TTS] Could not move synthesized file to local audio dir: $e2');
+            Log.w(
+              '[Audio][TTS] Could not move synthesized file to local audio dir: $e2',
+            );
           }
         }
       }

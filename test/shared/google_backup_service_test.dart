@@ -12,7 +12,12 @@ void main() {
   group('GoogleBackupService - Referencia', () {
     test('Los tests reales están en google_backup_service_simple_test.dart', () {
       // Este test es solo un recordatorio
-      expect(true, isTrue, reason: 'Ver test/shared/google_backup_service_simple_test.dart para tests funcionales');
+      expect(
+        true,
+        isTrue,
+        reason:
+            'Ver test/shared/google_backup_service_simple_test.dart para tests funcionales',
+      );
     });
   });
 }

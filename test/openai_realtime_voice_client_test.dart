@@ -92,82 +92,97 @@ void main() {
     di.setTestRealtimeClientFactory(null);
   });
 
-  test('OpenAIRealtimeCallClient routes provider callbacks to streams and delegates calls', () async {
-    TestControlledRealtimeClient? created;
+  test(
+    'OpenAIRealtimeCallClient routes provider callbacks to streams and delegates calls',
+    () async {
+      TestControlledRealtimeClient? created;
 
-    // Install test factory to return our controllable client
-    di.setTestRealtimeClientFactory((provider, {model, onText, onAudio, onCompleted, onError, onUserTranscription}) {
-      created = TestControlledRealtimeClient(
-        onText: onText,
-        onAudio: onAudio,
-        onCompleted: onCompleted,
-        onError: onError,
-        onUserTranscription: onUserTranscription,
+      // Install test factory to return our controllable client
+      di.setTestRealtimeClientFactory((
+        provider, {
+        model,
+        onText,
+        onAudio,
+        onCompleted,
+        onError,
+        onUserTranscription,
+      }) {
+        created = TestControlledRealtimeClient(
+          onText: onText,
+          onAudio: onAudio,
+          onCompleted: onCompleted,
+          onError: onError,
+          onUserTranscription: onUserTranscription,
+        );
+        return created!;
+      });
+
+      final client = OpenAIRealtimeCallClient(model: 'test-model');
+
+      await client.connect(systemPrompt: 'hello system', voice: 'sage');
+      expect(client.isConnected, true);
+
+      // Listen to streams
+      final textEvents = <String>[];
+      final audioEvents = <List<int>>[];
+      final userTrans = <String>[];
+      final completionEvents = <void>[];
+      final errors = <Object>[];
+
+      final subText = client.textStream.listen((t) => textEvents.add(t));
+      final subAudio = client.audioStream.listen((a) => audioEvents.add(a));
+      final subUser = client.userTranscriptionStream.listen(
+        (s) => userTrans.add(s),
       );
-      return created!;
-    });
+      final subComp = client.completionStream.listen(
+        (_) => completionEvents.add(null),
+      );
+      final subErr = client.errorStream.listen((e) => errors.add(e));
 
-    final client = OpenAIRealtimeCallClient(model: 'test-model');
+      // Trigger callbacks from the fake
+      created!.triggerText('partial');
+      created!.triggerUserTranscription('user spoken');
+      created!.triggerAudio([1, 2, 3, 4]);
+      created!.triggerCompleted();
+      created!.triggerError(Exception('test error'));
 
-    await client.connect(systemPrompt: 'hello system', voice: 'sage');
-    expect(client.isConnected, true);
+      // Allow event loop
+      await Future.delayed(const Duration(milliseconds: 50));
 
-    // Listen to streams
-    final textEvents = <String>[];
-    final audioEvents = <List<int>>[];
-    final userTrans = <String>[];
-    final completionEvents = <void>[];
-    final errors = <Object>[];
+      expect(textEvents, contains('partial'));
+      expect(userTrans, contains('user spoken'));
+      expect(audioEvents.length, 1);
+      expect(audioEvents.first, [1, 2, 3, 4]);
+      expect(completionEvents.length, 1);
+      expect(errors.isNotEmpty, true);
 
-    final subText = client.textStream.listen((t) => textEvents.add(t));
-    final subAudio = client.audioStream.listen((a) => audioEvents.add(a));
-    final subUser = client.userTranscriptionStream.listen((s) => userTrans.add(s));
-    final subComp = client.completionStream.listen((_) => completionEvents.add(null));
-    final subErr = client.errorStream.listen((e) => errors.add(e));
+      // Test delegation: sendAudio should forward to underlying client
+      client.sendAudio([10, 11, 12]);
+      expect(created!.appended.length, 1);
+      expect(created!.appended.first, [10, 11, 12]);
 
-    // Trigger callbacks from the fake
-    created!.triggerText('partial');
-    created!.triggerUserTranscription('user spoken');
-    created!.triggerAudio([1, 2, 3, 4]);
-    created!.triggerCompleted();
-    created!.triggerError(Exception('test error'));
+      // sendText delegates
+      client.sendText('hola');
+      expect(created!.sentTexts, contains('hola'));
 
-    // Allow event loop
-    await Future.delayed(const Duration(milliseconds: 50));
+      // requestResponse delegates
+      client.requestResponse();
+      expect(created!.requestCalled, true);
 
-    expect(textEvents, contains('partial'));
-    expect(userTrans, contains('user spoken'));
-    expect(audioEvents.length, 1);
-    expect(audioEvents.first, [1, 2, 3, 4]);
-    expect(completionEvents.length, 1);
-    expect(errors.isNotEmpty, true);
+      // commitPendingAudio should be called by the controller after auto-commit delay
+      client.sendAudio(List<int>.filled(9000, 1)); // exceed 8192 threshold
+      // wait longer than the scheduled commit debounce (100ms)
+      await Future.delayed(const Duration(milliseconds: 250));
+      expect(created!.commitCalled, true);
 
-    // Test delegation: sendAudio should forward to underlying client
-    client.sendAudio([10, 11, 12]);
-    expect(created!.appended.length, 1);
-    expect(created!.appended.first, [10, 11, 12]);
+      await subText.cancel();
+      await subAudio.cancel();
+      await subUser.cancel();
+      await subComp.cancel();
+      await subErr.cancel();
 
-    // sendText delegates
-    client.sendText('hola');
-    expect(created!.sentTexts, contains('hola'));
-
-    // requestResponse delegates
-    client.requestResponse();
-    expect(created!.requestCalled, true);
-
-    // commitPendingAudio should be called by the controller after auto-commit delay
-    client.sendAudio(List<int>.filled(9000, 1)); // exceed 8192 threshold
-    // wait longer than the scheduled commit debounce (100ms)
-    await Future.delayed(const Duration(milliseconds: 250));
-    expect(created!.commitCalled, true);
-
-    await subText.cancel();
-    await subAudio.cancel();
-    await subUser.cancel();
-    await subComp.cancel();
-    await subErr.cancel();
-
-    await client.disconnect();
-    expect(client.isConnected, false);
-  });
+      await client.disconnect();
+      expect(client.isConnected, false);
+    },
+  );
 }

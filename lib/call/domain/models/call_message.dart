@@ -76,8 +76,17 @@ class CallMessage {
   }
 
   /// Crea un mensaje de texto del usuario
-  factory CallMessage.userText({required String id, required String text, Map<String, dynamic>? metadata}) {
-    return _createTextMessage(id: id, text: text, sender: MessageSender.user, metadata: metadata);
+  factory CallMessage.userText({
+    required String id,
+    required String text,
+    Map<String, dynamic>? metadata,
+  }) {
+    return _createTextMessage(
+      id: id,
+      text: text,
+      sender: MessageSender.user,
+      metadata: metadata,
+    );
   }
 
   /// Crea un mensaje de audio del usuario
@@ -99,8 +108,17 @@ class CallMessage {
   }
 
   /// Crea un mensaje de texto del asistente
-  factory CallMessage.assistantText({required String id, required String text, Map<String, dynamic>? metadata}) {
-    return _createTextMessage(id: id, text: text, sender: MessageSender.assistant, metadata: metadata);
+  factory CallMessage.assistantText({
+    required String id,
+    required String text,
+    Map<String, dynamic>? metadata,
+  }) {
+    return _createTextMessage(
+      id: id,
+      text: text,
+      sender: MessageSender.assistant,
+      metadata: metadata,
+    );
   }
 
   /// Crea un mensaje de audio del asistente
@@ -191,9 +209,13 @@ class CallMessage {
       sender: MessageSenderExtension.fromString(map['sender'] as String),
       timestamp: DateTime.parse(map['timestamp'] as String),
       text: map['text'] as String?,
-      audioData: map['audioData'] != null ? Uint8List.fromList((map['audioData'] as List<dynamic>).cast<int>()) : null,
+      audioData: map['audioData'] != null
+          ? Uint8List.fromList((map['audioData'] as List<dynamic>).cast<int>())
+          : null,
       audioPath: map['audioPath'] as String?,
-      audioDuration: map['audioDuration'] != null ? Duration(milliseconds: map['audioDuration'] as int) : null,
+      audioDuration: map['audioDuration'] != null
+          ? Duration(milliseconds: map['audioDuration'] as int)
+          : null,
       metadata: map['metadata'] as Map<String, dynamic>?,
     );
   }

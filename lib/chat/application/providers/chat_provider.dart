@@ -17,7 +17,8 @@ import 'package:ai_chan/core/services/ia_avatar_generator.dart';
 import 'package:ai_chan/chat/application/utils/avatar_persist_utils.dart';
 import 'package:ai_chan/core/services/image_request_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
-import 'package:ai_chan/shared/utils/dialog_utils.dart' show showAppSnackBar, showAppDialog;
+import 'package:ai_chan/shared/utils/dialog_utils.dart'
+    show showAppSnackBar, showAppDialog;
 import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/chat/domain/models/chat_result.dart';
 import 'package:ai_chan/chat/application/services/tts_service.dart';
@@ -155,7 +156,8 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
             final idx = messages.indexWhere((m) => m.localId == lid);
             if (idx != -1) {
               final m = messages[idx];
-              if (m.sender == MessageSender.user && m.status == MessageStatus.sending) {
+              if (m.sender == MessageSender.user &&
+                  m.status == MessageStatus.sending) {
                 messages[idx] = m.copyWith(status: MessageStatus.sent);
               }
             }
@@ -166,7 +168,8 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
           if (lastIdx != -1) {
             final lastMsg = messages[lastIdx];
             // Mark last message as 'sent' immediately to avoid UI stuck in 'sending'
-            if (lastMsg.sender == MessageSender.user && lastMsg.status == MessageStatus.sending) {
+            if (lastMsg.sender == MessageSender.user &&
+                lastMsg.status == MessageStatus.sending) {
               messages[lastIdx] = lastMsg.copyWith(status: MessageStatus.sent);
               try {
                 // notify UI about state change
@@ -196,7 +199,8 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     _periodicScheduler.start(
       profileGetter: () => onboardingData,
       messagesGetter: () => messages,
-      triggerSend: (prompt, model) => sendMessage('', callPrompt: prompt, model: model),
+      triggerSend: (prompt, model) =>
+          sendMessage('', callPrompt: prompt, model: model),
     );
   }
 
@@ -208,7 +212,11 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
   final PromptBuilder _promptBuilder = PromptBuilder();
 
   String buildRealtimeSystemPromptJson({int maxRecent = 32}) =>
-      _promptBuilder.buildRealtimeSystemPromptJson(profile: onboardingData, messages: messages, maxRecent: maxRecent);
+      _promptBuilder.buildRealtimeSystemPromptJson(
+        profile: onboardingData,
+        messages: messages,
+        maxRecent: maxRecent,
+      );
 
   /// Construye un SystemPrompt (JSON) específico para llamadas de voz.
   /// Reutiliza el mismo perfil, timeline y últimos [maxRecent] mensajes,
@@ -217,13 +225,15 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
   /// - No usar enlaces/URLs, clics, Markdown, ni hablar de herramientas.
   /// - Estilo oral: frases cortas (2-8 s), pausas naturales, sin monólogos.
   /// - No presentarse como "asistente" o "IA"; mantener la misma persona del chat.
-  String buildCallSystemPromptJson({int maxRecent = 32, required bool aiInitiatedCall}) =>
-      _promptBuilder.buildCallSystemPromptJson(
-        profile: onboardingData,
-        messages: messages,
-        maxRecent: maxRecent,
-        aiInitiatedCall: aiInitiatedCall,
-      );
+  String buildCallSystemPromptJson({
+    int maxRecent = 32,
+    required bool aiInitiatedCall,
+  }) => _promptBuilder.buildCallSystemPromptJson(
+    profile: onboardingData,
+    messages: messages,
+    maxRecent: maxRecent,
+    aiInitiatedCall: aiInitiatedCall,
+  );
 
   // Sanitización y construcción de prompts movidos a PromptBuilder
   // ...existing code...
@@ -241,7 +251,8 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     sendSystemPrompt: (text, {String? callPrompt, String? model}) =>
         sendMessage(text, callPrompt: callPrompt, model: model),
   );
-  void schedulePromiseEvent(EventEntry e) => _promiseService.schedulePromiseEvent(e);
+  void schedulePromiseEvent(EventEntry e) =>
+      _promiseService.schedulePromiseEvent(e);
   void onIaMessageSent() => _promiseService.analyzeAfterIaMessage(messages);
 
   /// Variante: permitir especificar un índice concreto a actualizar.
@@ -254,7 +265,8 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
           var changed = false;
           for (var i = 0; i <= index; i++) {
             final m = messages[i];
-            if (m.sender == MessageSender.user && m.status != MessageStatus.read) {
+            if (m.sender == MessageSender.user &&
+                m.status != MessageStatus.read) {
               messages[i] = m.copyWith(status: MessageStatus.read);
               changed = true;
             }
@@ -281,7 +293,8 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
           var changed = false;
           for (var j = 0; j <= i; j++) {
             final mm = messages[j];
-            if (mm.sender == MessageSender.user && mm.status != MessageStatus.read) {
+            if (mm.sender == MessageSender.user &&
+                mm.status != MessageStatus.read) {
               messages[j] = mm.copyWith(status: MessageStatus.read);
               changed = true;
             }
@@ -304,9 +317,15 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
   // encontrada y manejada (para hacer early return en el flujo llamador).
   bool _checkAndHandleNoReply(String? text, {int? index}) {
     if (text == null) return false;
-    final hasNoReply = RegExp(r'\[no_reply\]', caseSensitive: false).hasMatch(text);
+    final hasNoReply = RegExp(
+      r'\[no_reply\]',
+      caseSensitive: false,
+    ).hasMatch(text);
     if (!hasNoReply) return false;
-    Log.i('IA devolvió [no_reply]; ignorando mensaje del asistente.', tag: 'CHAT');
+    Log.i(
+      'IA devolvió [no_reply]; ignorando mensaje del asistente.',
+      tag: 'CHAT',
+    );
     // Reset indicadores y finalizar flujo limpio
     isSendingImage = false;
     isTyping = false;
@@ -345,19 +364,25 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       image: image,
       userAudioPath: userAudioPath,
     );
-    final bool hasImage = image != null && (((image.base64 ?? '').isNotEmpty) || ((image.url ?? '').isNotEmpty));
-    final isAutomaticPrompt = text.trim().isEmpty && (callPrompt != null && callPrompt.isNotEmpty);
+    final bool hasImage =
+        image != null &&
+        (((image.base64 ?? '').isNotEmpty) || ((image.url ?? '').isNotEmpty));
+    final isAutomaticPrompt =
+        text.trim().isEmpty && (callPrompt != null && callPrompt.isNotEmpty);
 
     if (messageData.shouldAdd) {
-      if (existingMessageIndex != null && existingMessageIndex >= 0 && existingMessageIndex < messages.length) {
+      if (existingMessageIndex != null &&
+          existingMessageIndex >= 0 &&
+          existingMessageIndex < messages.length) {
         // Reintento: sobrescribir estado del mensaje existente en lugar de añadir uno nuevo
-        messages[existingMessageIndex] = messages[existingMessageIndex].copyWith(
-          status: MessageStatus.sending,
-          text: messageData.message.text,
-          image: messageData.message.image,
-          isAudio: messageData.message.isAudio,
-          audio: messageData.message.audio,
-        );
+        messages[existingMessageIndex] = messages[existingMessageIndex]
+            .copyWith(
+              status: MessageStatus.sending,
+              text: messageData.message.text,
+              image: messageData.message.image,
+              isAudio: messageData.message.isAudio,
+              audio: messageData.message.audio,
+            );
       } else {
         messages.add(messageData.message);
       }
@@ -372,7 +397,8 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       }
 
       // Calcular duración del audio del usuario en segundo plano
-      if (messageData.message.audio?.url != null && messageData.message.audio!.url!.isNotEmpty) {
+      if (messageData.message.audio?.url != null &&
+          messageData.message.audio!.url!.isNotEmpty) {
         _calculateUserAudioDuration(messageData.message);
       }
 
@@ -425,19 +451,28 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
           recentUserHistory.add(m);
         }
       }
-      solicitaImagen = ImageRequestService.isImageRequested(text: text, history: recentUserHistory);
+      solicitaImagen = ImageRequestService.isImageRequested(
+        text: text,
+        history: recentUserHistory,
+      );
     }
     // Si el usuario adjuntó una imagen, NO considerarlo como petición para que la IA genere
     // una nueva imagen: estamos enviando la imagen del usuario para analizarla.
     if (hasImage) {
       solicitaImagen = false;
-      Log.i('Imagen adjunta por el usuario: omitiendo detección de solicitud de imagen.', tag: 'CHAT');
+      Log.i(
+        'Imagen adjunta por el usuario: omitiendo detección de solicitud de imagen.',
+        tag: 'CHAT',
+      );
     }
     if (solicitaImagen) {
       final lower = selected.toLowerCase();
       if (!lower.startsWith('gpt-')) {
         final cfgModel = Config.requireDefaultImageModel();
-        Log.i('Solicitud de imagen detectada. Forzando modelo desde Config', tag: 'CHAT');
+        Log.i(
+          'Solicitud de imagen detectada. Forzando modelo desde Config',
+          tag: 'CHAT',
+        );
         selected = cfgModel;
       }
     }
@@ -459,7 +494,12 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     // Helper: calcular delay en ms basado en número de palabras (WPM).
     // Use a human-like default speaking rate and cap at 30s.
     // Pondré 300 palabras por minuto, que es aproximadamente el record mundial.
-    int computeDelayMsFromText(String text, {int wpm = 300, int minMs = 400, int maxMs = 10000}) {
+    int computeDelayMsFromText(
+      String text, {
+      int wpm = 300,
+      int minMs = 400,
+      int maxMs = 10000,
+    }) {
       final trimmed = text.trim();
       if (trimmed.isEmpty) return minMs;
       final words = trimmed.split(RegExp(r'\s+')).length;
@@ -489,7 +529,10 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
 
       try {
         // Añadir el assistantMessage, generar TTS y actualizar perfil/eventos
-        await _applySendOutcome(localOutcome, existingMessageIndex: existingMessageIndex);
+        await _applySendOutcome(
+          localOutcome,
+          existingMessageIndex: existingMessageIndex,
+        );
       } catch (e, st) {
         Log.w('Error applying pending outcome: $e\n$st', tag: 'CHAT');
       }
@@ -507,10 +550,13 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
 
       final textResp = res.text;
       if (textResp.trim() != '' &&
-          !textResp.trim().toLowerCase().contains('error al conectar con la ia') &&
+          !textResp.trim().toLowerCase().contains(
+            'error al conectar con la ia',
+          ) &&
           !textResp.trim().toLowerCase().contains('"error"')) {
         try {
-          final memManager = memoryManager ?? MemoryManager(profile: onboardingData);
+          final memManager =
+              memoryManager ?? MemoryManager(profile: onboardingData);
           final oldLevel0Keys = (onboardingData.timeline)
               .where((t) => t.level == 0)
               .map((t) => '${t.startDate ?? ''}|${t.endDate ?? ''}')
@@ -539,7 +585,9 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
             );
           }
         } catch (e) {
-          Log.w('[AI-chan][WARN] Falló actualización de memoria post-IA (finalize): $e');
+          Log.w(
+            '[AI-chan][WARN] Falló actualización de memoria post-IA (finalize): $e',
+          );
         }
       }
 
@@ -556,7 +604,10 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       final bool online = await hasInternetConnection();
       if (!online) {
         // Dejar el mensaje en 'sending' hasta que la conexión vuelva.
-        Log.i('No hay conexión. Esperando reconexión para enviar mensaje...', tag: 'CHAT');
+        Log.i(
+          'No hay conexión. Esperando reconexión para enviar mensaje...',
+          tag: 'CHAT',
+        );
         // Escuchar / reintentar en background sin bloquear el UI thread.
         () async {
           while (!_isDisposed) {
@@ -566,22 +617,35 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
           }
           if (_isDisposed) return;
           // Cuando vuelva la conexión, iniciar el envío real (marca sent justo antes)
-          _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
+          _setLastUserMessageStatus(
+            MessageStatus.sent,
+            index: existingMessageIndex,
+          );
           try {
-            _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
-            final outcome = await (sendMessageUseCase ?? SendMessageUseCase()).sendChat(
-              recentMessages: recentMessages,
-              systemPromptObj: systemPromptObj,
-              model: selected,
-              imageBase64: image?.base64,
-              imageMimeType: imageMimeType,
-              enableImageGeneration: solicitaImagen,
-              onboardingData: onboardingData,
-              saveAll: saveAll,
+            _setLastUserMessageStatus(
+              MessageStatus.sent,
+              index: existingMessageIndex,
             );
+            final outcome = await (sendMessageUseCase ?? SendMessageUseCase())
+                .sendChat(
+                  recentMessages: recentMessages,
+                  systemPromptObj: systemPromptObj,
+                  model: selected,
+                  imageBase64: image?.base64,
+                  imageMimeType: imageMimeType,
+                  enableImageGeneration: solicitaImagen,
+                  onboardingData: onboardingData,
+                  saveAll: saveAll,
+                );
             // Marcar como read inmediatamente al recibir la respuesta de la IA
-            _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
-            if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) {
+            _setLastUserMessageStatus(
+              MessageStatus.read,
+              index: existingMessageIndex,
+            );
+            if (_checkAndHandleNoReply(
+              outcome.result.text,
+              index: existingMessageIndex,
+            )) {
               return;
             }
             try {
@@ -606,10 +670,18 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
             // Lanzar finalizer (no await) para aplicar outcome tras el delay
             finalizeAssistantResponse();
           } catch (e) {
-            Log.e('Error enviando mensaje tras reconexión', tag: 'CHAT', error: e);
-            final idx = messages.lastIndexWhere((m) => m.sender == MessageSender.user);
+            Log.e(
+              'Error enviando mensaje tras reconexión',
+              tag: 'CHAT',
+              error: e,
+            );
+            final idx = messages.lastIndexWhere(
+              (m) => m.sender == MessageSender.user,
+            );
             if (idx != -1) {
-              messages[idx] = messages[idx].copyWith(status: MessageStatus.failed);
+              messages[idx] = messages[idx].copyWith(
+                status: MessageStatus.failed,
+              );
               notifyListeners();
             }
           }
@@ -620,23 +692,33 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
 
       // Preferir SendMessageUseCase (por defecto usa AIService) para mantener
       // comportamiento centralizado y permitir testOverride en tests.
-      _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
-      final outcome = await (sendMessageUseCase ?? SendMessageUseCase()).sendChat(
-        recentMessages: recentMessages,
-        systemPromptObj: systemPromptObj,
-        model: selected,
-        imageBase64: image?.base64,
-        imageMimeType: imageMimeType,
-        enableImageGeneration: solicitaImagen,
-        onboardingData: onboardingData,
-        saveAll: saveAll,
+      _setLastUserMessageStatus(
+        MessageStatus.sent,
+        index: existingMessageIndex,
       );
+      final outcome = await (sendMessageUseCase ?? SendMessageUseCase())
+          .sendChat(
+            recentMessages: recentMessages,
+            systemPromptObj: systemPromptObj,
+            model: selected,
+            imageBase64: image?.base64,
+            imageMimeType: imageMimeType,
+            enableImageGeneration: solicitaImagen,
+            onboardingData: onboardingData,
+            saveAll: saveAll,
+          );
       // Si la IA devuelve el marcador [no_reply], ignorar la respuesta
-      if (_checkAndHandleNoReply(outcome.result.text, index: existingMessageIndex)) {
+      if (_checkAndHandleNoReply(
+        outcome.result.text,
+        index: existingMessageIndex,
+      )) {
         return;
       }
       // Marcar como read inmediatamente al recibir la respuesta de la IA
-      _setLastUserMessageStatus(MessageStatus.read, index: existingMessageIndex);
+      _setLastUserMessageStatus(
+        MessageStatus.read,
+        index: existingMessageIndex,
+      );
       // Guardar outcome y ejecutar finalizer para aplicar el resultado tras el delay
       pendingOutcome = outcome;
       result = outcome.result;
@@ -649,13 +731,18 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       } catch (_) {}
       finalizeAssistantResponse();
       // Éxito de red: marcar último mensaje usuario como 'sent'
-      _setLastUserMessageStatus(MessageStatus.sent, index: existingMessageIndex);
+      _setLastUserMessageStatus(
+        MessageStatus.sent,
+        index: existingMessageIndex,
+      );
     } catch (e) {
       Log.e('Error enviando mensaje', tag: 'CHAT', error: e);
       // Marcar último mensaje de usuario como failed
       // Preferir existingMessageIndex si se proporcionó
       int idx = -1;
-      if (existingMessageIndex != null && existingMessageIndex >= 0 && existingMessageIndex < messages.length) {
+      if (existingMessageIndex != null &&
+          existingMessageIndex >= 0 &&
+          existingMessageIndex < messages.length) {
         idx = existingMessageIndex;
       } else {
         idx = messages.lastIndexWhere((m) => m.sender == MessageSender.user);
@@ -669,10 +756,13 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     }
 
     // Manejo de errores reportados por el servicio (texto de error)
-    if (result.text.toLowerCase().contains('error al conectar con la ia') && !result.isImage) {
+    if (result.text.toLowerCase().contains('error al conectar con la ia') &&
+        !result.isImage) {
       // Marcar mensaje como failed para permitir reintento manual
       final int idx =
-          (existingMessageIndex != null && existingMessageIndex >= 0 && existingMessageIndex < messages.length)
+          (existingMessageIndex != null &&
+              existingMessageIndex >= 0 &&
+              existingMessageIndex < messages.length)
           ? existingMessageIndex
           : messages.lastIndexWhere((m) => m.sender == MessageSender.user);
       if (idx != -1) {
@@ -686,11 +776,15 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     // Persistir prompt extraído en imagen del usuario (si aplica)
     if (hasImage && (result.prompt?.trim().isNotEmpty ?? false)) {
       // El mensaje de imagen es el que acabamos de añadir: tomar el último mensaje de usuario con imagen.
-      final idx = messages.lastIndexWhere((m) => m.sender == MessageSender.user && m.isImage);
+      final idx = messages.lastIndexWhere(
+        (m) => m.sender == MessageSender.user && m.isImage,
+      );
       if (idx != -1) {
         final prevImage = messages[idx].image;
         if (prevImage != null) {
-          messages[idx] = messages[idx].copyWith(image: prevImage.copyWith(prompt: result.prompt));
+          messages[idx] = messages[idx].copyWith(
+            image: prevImage.copyWith(prompt: result.prompt),
+          );
           notifyListeners();
         }
       } else {
@@ -743,7 +837,13 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
         sender: MessageSender.assistant,
         dateTime: DateTime.now(),
         isImage: result.isImage,
-        image: result.isImage ? AiImage(url: result.imagePath ?? '', seed: result.seed, prompt: result.prompt) : null,
+        image: result.isImage
+            ? AiImage(
+                url: result.imagePath ?? '',
+                seed: result.seed,
+                prompt: result.prompt,
+              )
+            : null,
         status: MessageStatus.read,
       );
       // Si la IA responde con el marcador [no_reply'], no añadir ni procesar la respuesta
@@ -760,9 +860,12 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
 
       final textResp = result.text;
       if (textResp.trim() != '' &&
-          !textResp.trim().toLowerCase().contains('error al conectar con la ia') &&
+          !textResp.trim().toLowerCase().contains(
+            'error al conectar con la ia',
+          ) &&
           !textResp.trim().toLowerCase().contains('"error"')) {
-        final memManager = memoryManager ?? MemoryManager(profile: onboardingData);
+        final memManager =
+            memoryManager ?? MemoryManager(profile: onboardingData);
         final memResult = await memManager.processAllSummariesAndSuperblock(
           messages: messages,
           timeline: onboardingData.timeline,
@@ -785,10 +888,11 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
   // ================= NUEVO BLOQUE AUDIO =================
   IAudioChatService? _audioService;
 
-  IAudioChatService get audioService => _audioService ??= di.getAudioChatService(
-    onStateChanged: () => notifyListeners(),
-    onWaveform: (_) => notifyListeners(),
-  );
+  IAudioChatService get audioService =>
+      _audioService ??= di.getAudioChatService(
+        onStateChanged: () => notifyListeners(),
+        onWaveform: (_) => notifyListeners(),
+      );
 
   bool get isRecording => audioService.isRecording;
   List<int> get currentWaveform => audioService.currentWaveform;
@@ -821,9 +925,15 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       // Use live transcript as the final transcription
       if (audioService.liveTranscript.trim().isNotEmpty) {
         transcript = audioService.liveTranscript.trim();
-        Log.i('Usando transcripción nativa en vivo como transcripción final', tag: 'AUDIO');
+        Log.i(
+          'Usando transcripción nativa en vivo como transcripción final',
+          tag: 'AUDIO',
+        );
       } else {
-        Log.w('Transcripción nativa en vivo vacía al detener; no se intentará STT de fichero', tag: 'AUDIO');
+        Log.w(
+          'Transcripción nativa en vivo vacía al detener; no se intentará STT de fichero',
+          tag: 'AUDIO',
+        );
       }
     } else {
       // Intentar transcripción con reintentos para providers cloud (Google/OpenAI)
@@ -835,13 +945,23 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
           final result = await stt.transcribeAudio(path);
           if (result != null && result.trim().isNotEmpty) {
             transcript = result.trim();
-            Log.i('Transcripción exitosa en intento ${attempt + 1}', tag: 'AUDIO');
+            Log.i(
+              'Transcripción exitosa en intento ${attempt + 1}',
+              tag: 'AUDIO',
+            );
             break;
           } else {
-            Log.w('Transcripción vacía en intento ${attempt + 1}', tag: 'AUDIO');
+            Log.w(
+              'Transcripción vacía en intento ${attempt + 1}',
+              tag: 'AUDIO',
+            );
           }
         } catch (e) {
-          Log.e('Error transcribiendo (intento ${attempt + 1}/$maxRetries)', tag: 'AUDIO', error: e);
+          Log.e(
+            'Error transcribiendo (intento ${attempt + 1}/$maxRetries)',
+            tag: 'AUDIO',
+            error: e,
+          );
         }
 
         attempt++;
@@ -853,7 +973,9 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     }
 
     // Fallback: usar transcripción en vivo si la final falló o es muy corta
-    if ((transcript == null || transcript.trim().length < liveTranscript.trim().length) && liveTranscript.isNotEmpty) {
+    if ((transcript == null ||
+            transcript.trim().length < liveTranscript.trim().length) &&
+        liveTranscript.isNotEmpty) {
       transcript = liveTranscript.trim();
       Log.w('Usando transcripción en vivo como fallback', tag: 'AUDIO');
     }
@@ -871,7 +993,12 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
 
     // Enviar la transcripción como texto plano (el use-case decide si requiere TTS)
     final plain = transcript.trim();
-    await sendMessage(plain, model: model, userAudioPath: path, preTranscribedText: plain);
+    await sendMessage(
+      plain,
+      model: model,
+      userAudioPath: path,
+      preTranscribedText: plain,
+    );
 
     // Desactivar indicador de envío de audio
     Log.d('isUploadingUserAudio = false (stopAndSendRecording)', tag: 'AUDIO');
@@ -892,7 +1019,10 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       } catch (_) {}
       try {
         // Use the centralized helper which resolves a safe context internally.
-        showAppSnackBar('Error: no se pudo reproducir el audio. Recurso no encontrado.', isError: true);
+        showAppSnackBar(
+          'Error: no se pudo reproducir el audio. Recurso no encontrado.',
+          isError: true,
+        );
       } catch (_) {}
     }
   }
@@ -901,7 +1031,10 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
   Duration get playingPosition => audioService.currentPosition;
   Duration get playingDuration => audioService.currentDuration;
 
-  Future<void> generateTtsForMessage(Message msg, {String voice = 'nova'}) async {
+  Future<void> generateTtsForMessage(
+    Message msg, {
+    String voice = 'nova',
+  }) async {
     // Solo procesar mensajes del asistente que NO tengan audio ya generado
     if (msg.sender != MessageSender.assistant ||
         (msg.isAudio && msg.audio?.url != null && msg.audio!.url!.isNotEmpty)) {
@@ -912,12 +1045,16 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     notifyListeners();
     // Delegar a TtsService para sintetizar y persistir el audio
     try {
-      final tts = ttsService ?? TtsService(audioService, di.getLanguageResolver());
+      final tts =
+          ttsService ?? TtsService(audioService, di.getLanguageResolver());
       final path = await tts.synthesizeAndPersist(msg.text, voice: voice);
       final idx = messages.indexOf(msg);
       if (path != null) {
         // Obtener la duración real del archivo de audio generado
-        Log.d('🔍 [DEBUG][TTS] generateTtsForMessage: calculating duration for file: $path', tag: 'TTS');
+        Log.d(
+          '🔍 [DEBUG][TTS] generateTtsForMessage: calculating duration for file: $path',
+          tag: 'TTS',
+        );
         final audioDuration = await AudioDurationUtils.getAudioDuration(path);
         Log.d(
           '🔍 [DEBUG][TTS] Real duration calculated: ${audioDuration?.inMilliseconds}ms, stored in message.audioDuration',
@@ -933,14 +1070,20 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
             isAutoTts: true,
             createdAtMs: DateTime.now().millisecondsSinceEpoch,
           );
-          messages[idx] = messages[idx].copyWith(isAudio: true, audio: audioObj);
+          messages[idx] = messages[idx].copyWith(
+            isAudio: true,
+            audio: audioObj,
+          );
           Log.d(
             '🔍 [DEBUG][TTS] Message updated - final audioDuration: ${messages[idx].audio?.duration?.inMilliseconds}ms',
             tag: 'TTS',
           );
         }
       } else {
-        Log.d('🔍 [DEBUG][TTS] Failed to generate TTS - no path returned', tag: 'TTS');
+        Log.d(
+          '🔍 [DEBUG][TTS] Failed to generate TTS - no path returned',
+          tag: 'TTS',
+        );
         // Mark as audio requested but no path returned (error case handled below)
         if (idx != -1) {
           final audioObj = AiAudio(
@@ -948,7 +1091,10 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
             isAutoTts: true,
             createdAtMs: DateTime.now().millisecondsSinceEpoch,
           );
-          messages[idx] = messages[idx].copyWith(isAudio: true, audio: audioObj);
+          messages[idx] = messages[idx].copyWith(
+            isAudio: true,
+            audio: audioObj,
+          );
         }
       }
       // Ya tenemos resultado (positivo o negativo), desactivar indicador
@@ -975,7 +1121,9 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     if (message.audio?.url == null || message.audio!.url!.isEmpty) return;
 
     try {
-      final audioDuration = await AudioDurationUtils.getAudioDuration(message.audio!.url!);
+      final audioDuration = await AudioDurationUtils.getAudioDuration(
+        message.audio!.url!,
+      );
       final messageIndex = messages.indexOf(message);
 
       if (messageIndex != -1 && audioDuration != null) {
@@ -989,7 +1137,9 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
               createdAtMs: DateTime.now().millisecondsSinceEpoch,
             );
 
-        messages[messageIndex] = messages[messageIndex].copyWith(audio: updatedAudio);
+        messages[messageIndex] = messages[messageIndex].copyWith(
+          audio: updatedAudio,
+        );
         notifyListeners();
         Log.d(
           'Audio: User audio duration calculated=${audioDuration.inMilliseconds}ms for ${message.audio!.url}',
@@ -1006,15 +1156,22 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
   /// Aplica un SendMessageOutcome: añade el assistantMessage a la lista,
   /// dispara TTS si corresponde, actualiza onboardingData y devuelve el
   /// ChatResult para continuar el flujo.
-  Future<ChatResult> _applySendOutcome(SendMessageOutcome outcome, {int? existingMessageIndex}) async {
+  Future<ChatResult> _applySendOutcome(
+    SendMessageOutcome outcome, {
+    int? existingMessageIndex,
+  }) async {
     final ChatResult chatResult = outcome.result;
     // Si la IA responde con el marcador [call][/call] debemos mostrar la UI
     // de llamada entrante en lugar de insertar un placeholder en el historial.
-    final isCallPlaceholder = outcome.assistantMessage.text.trim() == '[call][/call]';
+    final isCallPlaceholder =
+        outcome.assistantMessage.text.trim() == '[call][/call]';
     if (isCallPlaceholder) {
       isCalling = true;
       pendingIncomingCallMsgIndex = null; // no placeholder stored
-      Log.i('[Call] IA solicita llamada entrante -> mostrando indicador isCalling=true', tag: 'CHAT');
+      Log.i(
+        '[Call] IA solicita llamada entrante -> mostrando indicador isCalling=true',
+        tag: 'CHAT',
+      );
       // Apply profile updates if present
       if (outcome.updatedProfile != null) {
         onboardingData = outcome.updatedProfile!;
@@ -1062,7 +1219,12 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
           // La UI debería manejar esto mostrando un estado de error
           if (messages.isEmpty || messages.last.text != cleaned) {
             // Fallback: agregar como texto normal si algo salió mal
-            messages.add(assistantMessage.copyWith(text: cleaned, status: MessageStatus.read));
+            messages.add(
+              assistantMessage.copyWith(
+                text: cleaned,
+                status: MessageStatus.read,
+              ),
+            );
           }
         } finally {
           isSendingAudio = false;
@@ -1108,7 +1270,8 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     notifyListeners();
     // Actualizar memoria/cronología igual que tras respuestas IA normales
     try {
-      final memManager = memoryManager ?? MemoryManager(profile: onboardingData);
+      final memManager =
+          memoryManager ?? MemoryManager(profile: onboardingData);
       final oldLevel0Keys = (onboardingData.timeline)
           .where((t) => t.level == 0)
           .map((t) => '${t.startDate ?? ''}|${t.endDate ?? ''}')
@@ -1125,10 +1288,16 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       );
       superbloqueEntry = memResult.superbloqueEntry;
       if (_hasNewLevel0EntriesFromKeys(oldLevel0Keys, memResult.timeline)) {
-        Log.d('Auto-backup: trigger scheduled (addAssistantMessage) — new summary block detected', tag: 'BACKUP_AUTO');
+        Log.d(
+          'Auto-backup: trigger scheduled (addAssistantMessage) — new summary block detected',
+          tag: 'BACKUP_AUTO',
+        );
         unawaited(_maybeTriggerAutoBackup());
       } else {
-        Log.d('Auto-backup: no new level-0 blocks; skip trigger (addAssistantMessage)', tag: 'BACKUP_AUTO');
+        Log.d(
+          'Auto-backup: no new level-0 blocks; skip trigger (addAssistantMessage)',
+          tag: 'BACKUP_AUTO',
+        );
       }
       notifyListeners();
     } catch (e) {
@@ -1145,10 +1314,14 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     int? placeholderIndex,
   }) async {
     // Determinar sender deseado
-    final MessageSender sender = incoming ? MessageSender.assistant : MessageSender.user;
+    final MessageSender sender = incoming
+        ? MessageSender.assistant
+        : MessageSender.user;
 
     // Si hay placeholder entrante y se pasa índice, reemplazarlo conservando fecha original si existe
-    if (placeholderIndex != null && placeholderIndex >= 0 && placeholderIndex < messages.length) {
+    if (placeholderIndex != null &&
+        placeholderIndex >= 0 &&
+        placeholderIndex < messages.length) {
       final original = messages[placeholderIndex];
       messages[placeholderIndex] = Message(
         text: text,
@@ -1173,7 +1346,9 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       );
     }
     notifyListeners();
-    await _updateMemoryAndTimeline(debugContext: 'updateOrAddCallStatusMessage');
+    await _updateMemoryAndTimeline(
+      debugContext: 'updateOrAddCallStatusMessage',
+    );
   }
 
   /// Añade un mensaje directamente (p.ej., resumen de llamada de voz)
@@ -1186,7 +1361,8 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     notifyListeners();
     // Actualizar memoria/cronología igual que tras respuestas IA normales
     try {
-      final memManager = memoryManager ?? MemoryManager(profile: onboardingData);
+      final memManager =
+          memoryManager ?? MemoryManager(profile: onboardingData);
       final memResult = await memManager.processAllSummariesAndSuperblock(
         messages: messages,
         timeline: onboardingData.timeline,
@@ -1205,7 +1381,8 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
   }
 
   // ======== Soporte llamada entrante ========
-  int? pendingIncomingCallMsgIndex; // índice del mensaje [call][/call] pendiente de contestar
+  int?
+  pendingIncomingCallMsgIndex; // índice del mensaje [call][/call] pendiente de contestar
 
   bool get hasPendingIncomingCall => pendingIncomingCallMsgIndex != null;
 
@@ -1238,12 +1415,17 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     notifyListeners();
     // Actualizar memoria igual que otros mensajes
     () async {
-      await _updateMemoryAndTimeline(debugContext: 'replaceIncomingCallPlaceholder');
+      await _updateMemoryAndTimeline(
+        debugContext: 'replaceIncomingCallPlaceholder',
+      );
     }();
   }
 
   /// Marca una llamada entrante como rechazada antes de que hubiera conversación.
-  void rejectIncomingCallPlaceholder({required int index, String text = 'Llamada rechazada'}) {
+  void rejectIncomingCallPlaceholder({
+    required int index,
+    String text = 'Llamada rechazada',
+  }) {
     if (index < 0 || index >= messages.length) return;
     final original = messages[index];
     if (!original.text.contains('[call]')) return;
@@ -1253,7 +1435,9 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       sender: original.sender,
       dateTime: DateTime.now(),
       status: MessageStatus.read,
-      callStatus: text.toLowerCase().contains('no contestada') ? CallStatus.missed : CallStatus.rejected,
+      callStatus: text.toLowerCase().contains('no contestada')
+          ? CallStatus.missed
+          : CallStatus.rejected,
     );
     pendingIncomingCallMsgIndex = null;
     notifyListeners();
@@ -1278,11 +1462,16 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
           );
           unawaited(_maybeTriggerAutoBackup());
         } else {
-          Log.d('Auto-backup: no new level-0 blocks; skip trigger (rejectIncomingCallPlaceholder)', tag: 'BACKUP_AUTO');
+          Log.d(
+            'Auto-backup: no new level-0 blocks; skip trigger (rejectIncomingCallPlaceholder)',
+            tag: 'BACKUP_AUTO',
+          );
         }
         notifyListeners();
       } catch (e) {
-        Log.w('[AI-chan][WARN] Falló actualización de memoria post-reject-call: $e');
+        Log.w(
+          '[AI-chan][WARN] Falló actualización de memoria post-reject-call: $e',
+        );
       }
     }();
   }
@@ -1331,7 +1520,11 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
 
     AiImage? imageForHistory;
     if (hasImage && image != null) {
-      imageForHistory = AiImage(url: image.url, seed: image.seed, prompt: image.prompt);
+      imageForHistory = AiImage(
+        url: image.url,
+        seed: image.seed,
+        prompt: image.prompt,
+      );
     }
 
     // Create AiAudio object if audio path provided
@@ -1364,8 +1557,11 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     AiImage? image,
     String? userAudioPath,
   }) {
-    final bool hasImage = image != null && (((image.base64 ?? '').isNotEmpty) || ((image.url ?? '').isNotEmpty));
-    final isAutomaticPrompt = text.trim().isEmpty && (callPrompt != null && callPrompt.isNotEmpty);
+    final bool hasImage =
+        image != null &&
+        (((image.base64 ?? '').isNotEmpty) || ((image.url ?? '').isNotEmpty));
+    final isAutomaticPrompt =
+        text.trim().isEmpty && (callPrompt != null && callPrompt.isNotEmpty);
 
     final msg = _createAndCheckMessage(
       text: text,
@@ -1378,7 +1574,11 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       userAudioPath: userAudioPath,
     );
 
-    final shouldAdd = text.trim().isNotEmpty || hasImage || isAutomaticPrompt || userAudioPath != null;
+    final shouldAdd =
+        text.trim().isNotEmpty ||
+        hasImage ||
+        isAutomaticPrompt ||
+        userAudioPath != null;
     return (message: msg, shouldAdd: shouldAdd);
   }
 
@@ -1422,7 +1622,10 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
   /// Lógica común de backup automático para evitar duplicación entre ramas repository/prefs
   Future<void> _executeAutoBackupLogic(String branchName) async {
     if (!googleLinked) {
-      Log.d('Auto-backup: skip (not linked to Google Drive)', tag: 'BACKUP_AUTO');
+      Log.d(
+        'Auto-backup: skip (not linked to Google Drive)',
+        tag: 'BACKUP_AUTO',
+      );
       return;
     }
 
@@ -1463,7 +1666,8 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       } else if (!hasMessages) {
         // Case 3: Has backup + no messages (first initialization) → DON'T backup
         shouldBackup = false;
-        reason = 'no messages in chat (preserving existing backup for potential restore)';
+        reason =
+            'no messages in chat (preserving existing backup for potential restore)';
       } else if ((nowMs - lastMs) > twentyFourHoursMs) {
         // Case 4: Has backup >24h + has messages → Update backup
         shouldBackup = true;
@@ -1483,11 +1687,16 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
         );
         await _maybeTriggerAutoBackup();
       } else {
-        Log.d('Auto-backup: skip $branchName ($reason), messages=${messages.length}', tag: 'BACKUP_AUTO');
+        Log.d(
+          'Auto-backup: skip $branchName ($reason), messages=${messages.length}',
+          tag: 'BACKUP_AUTO',
+        );
 
         // Only do remote verification if we skipped backup due to recent timestamp
         // but still want to ensure remote backup actually exists
-        if (lastMs != null && hasMessages && branchName == 'repository branch') {
+        if (lastMs != null &&
+            hasMessages &&
+            branchName == 'repository branch') {
           try {
             unawaited(() async {
               try {
@@ -1500,10 +1709,16 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
                   );
                   await _maybeTriggerAutoBackup();
                 } else {
-                  Log.d('Auto-backup: remote backup present; skipping upload', tag: 'BACKUP_AUTO');
+                  Log.d(
+                    'Auto-backup: remote backup present; skipping upload',
+                    tag: 'BACKUP_AUTO',
+                  );
                 }
               } catch (e) {
-                Log.w('Auto-backup: remote verification failed: $e', tag: 'BACKUP_AUTO');
+                Log.w(
+                  'Auto-backup: remote verification failed: $e',
+                  tag: 'BACKUP_AUTO',
+                );
               }
             }());
           } catch (_) {}
@@ -1517,7 +1732,8 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
   /// Helper común para actualizar memoria y timeline tras mensajes IA
   Future<void> _updateMemoryAndTimeline({String debugContext = ''}) async {
     try {
-      final memManager = memoryManager ?? MemoryManager(profile: onboardingData);
+      final memManager =
+          memoryManager ?? MemoryManager(profile: onboardingData);
       final oldLevel0Keys = (onboardingData.timeline)
           .where((t) => t.level == 0)
           .map((t) => '${t.startDate ?? ''}|${t.endDate ?? ''}')
@@ -1535,20 +1751,31 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       superbloqueEntry = memResult.superbloqueEntry;
       if (_hasNewLevel0EntriesFromKeys(oldLevel0Keys, memResult.timeline)) {
         final context = debugContext.isNotEmpty ? ' ($debugContext)' : '';
-        Log.d('Auto-backup: trigger scheduled$context — new summary block detected', tag: 'BACKUP_AUTO');
+        Log.d(
+          'Auto-backup: trigger scheduled$context — new summary block detected',
+          tag: 'BACKUP_AUTO',
+        );
         unawaited(_maybeTriggerAutoBackup());
       } else {
         final context = debugContext.isNotEmpty ? ' ($debugContext)' : '';
-        Log.d('Auto-backup: no new level-0 blocks; skip trigger$context', tag: 'BACKUP_AUTO');
+        Log.d(
+          'Auto-backup: no new level-0 blocks; skip trigger$context',
+          tag: 'BACKUP_AUTO',
+        );
       }
       notifyListeners();
     } catch (e) {
-      Log.w('[AI-chan][WARN] Falló actualización de memoria post-$debugContext: $e');
+      Log.w(
+        '[AI-chan][WARN] Falló actualización de memoria post-$debugContext: $e',
+      );
     }
   }
 
   /// que no estaban en el conjunto de claves precomputadas `oldKeys`.
-  bool _hasNewLevel0EntriesFromKeys(Set<String> oldKeys, List<TimelineEntry> newTimeline) {
+  bool _hasNewLevel0EntriesFromKeys(
+    Set<String> oldKeys,
+    List<TimelineEntry> newTimeline,
+  ) {
     try {
       for (final t in newTimeline.where((t) => t.level == 0)) {
         final key = '${t.startDate ?? ''}|${t.endDate ?? ''}';
@@ -1564,12 +1791,17 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
   /// Ejecuta un único intento del flujo: generar avatar a partir de la apariencia existente -> persistir
   /// Si [replace] es false, añade el avatar al historial y crea un mensaje system notificándolo.
   /// No realiza reintentos adicionales: los generadores internos ya aplican retry.
-  Future<void> createAvatarFromAppearance({required bool replace, bool showErrorDialog = true}) async {
+  Future<void> createAvatarFromAppearance({
+    required bool replace,
+    bool showErrorDialog = true,
+  }) async {
     // This method only generates the avatar from an existing appearance.
     // Appearance generation must be done separately via IAAppearanceGenerator.
     final bio = onboardingData;
     if (bio.appearance.isEmpty) {
-      throw Exception('Falta la apariencia en el perfil. Genera la apariencia primero.');
+      throw Exception(
+        'Falta la apariencia en el perfil. Genera la apariencia primero.',
+      );
     }
 
     // La lógica de aplicación/persistencia se implementa en el método de clase
@@ -1577,7 +1809,10 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     // y mejorar testabilidad.
 
     try {
-      final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(bio, appendAvatar: !replace);
+      final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(
+        bio,
+        appendAvatar: !replace,
+      );
       await _applyAvatarAndPersist(avatar, replace: replace);
     } catch (e) {
       // Si la generación con los intentos internos falló, preguntar al usuario si quiere reintentar
@@ -1585,10 +1820,14 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
         final choice = await showRegenerateAppearanceErrorDialog(e);
         if (choice == 'retry') {
           try {
-            final avatar2 = await IAAvatarGenerator().generateAvatarFromAppearance(bio, appendAvatar: !replace);
+            final avatar2 = await IAAvatarGenerator()
+                .generateAvatarFromAppearance(bio, appendAvatar: !replace);
             await _applyAvatarAndPersist(avatar2, replace: replace);
           } catch (e2) {
-            Log.w('Reintento manual de generación de avatar falló: $e2', tag: 'CHAT');
+            Log.w(
+              'Reintento manual de generación de avatar falló: $e2',
+              tag: 'CHAT',
+            );
             rethrow;
           }
         } else {
@@ -1603,7 +1842,10 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
 
   // Aplica el avatar al perfil y persiste los cambios. Método privado de clase
   // para evitar definiciones locales que incumplen lint de identificadores.
-  Future<void> _applyAvatarAndPersist(AiImage avatar, {required bool replace}) async {
+  Future<void> _applyAvatarAndPersist(
+    AiImage avatar, {
+    required bool replace,
+  }) async {
     // Delegate to centralized util that persists and notifies.
     await addAvatarAndPersist(this, avatar, replace: replace);
   }
@@ -1622,7 +1864,10 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
         try {
           await _doGenerateAppearanceAndReplaceAvatar(persist: persist);
         } catch (e2) {
-          Log.w('Reintento manual de generar apariencia falló: $e2', tag: 'CHAT');
+          Log.w(
+            'Reintento manual de generar apariencia falló: $e2',
+            tag: 'CHAT',
+          );
           rethrow;
         }
       } else {
@@ -1633,8 +1878,11 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
 
   // Helper privado que realiza un único intento de generar la apariencia,
   // persistirla y luego generar el avatar reemplazando los existentes.
-  Future<void> _doGenerateAppearanceAndReplaceAvatar({bool persist = true}) async {
-    final appearanceMap = await iaAppearanceGenerator.generateAppearanceFromBiography(onboardingData);
+  Future<void> _doGenerateAppearanceAndReplaceAvatar({
+    bool persist = true,
+  }) async {
+    final appearanceMap = await iaAppearanceGenerator
+        .generateAppearanceFromBiography(onboardingData);
     onboardingData = onboardingData.copyWith(appearance: appearanceMap);
     if (persist) {
       await saveAll();
@@ -1718,19 +1966,29 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
   // from provider state; callers must use BackupUtils and ChatJsonUtils.
 
   Future<void> saveAll() async {
-    final exported = ImportedChat(profile: onboardingData, messages: messages, events: _events);
+    final exported = ImportedChat(
+      profile: onboardingData,
+      messages: messages,
+      events: _events,
+    );
     // Prefer repository if provided
     if (repository != null) {
       try {
         await repository!.saveAll(exported.toJson());
         return;
       } catch (e) {
-        Log.w('IChatRepository.saveAll failed, falling back to StorageUtils: $e', tag: 'PERSIST');
+        Log.w(
+          'IChatRepository.saveAll failed, falling back to StorageUtils: $e',
+          tag: 'PERSIST',
+        );
       }
     }
     // Fallback: legacy StorageUtils via ProviderPersistUtils helper
     try {
-      await ProviderPersistUtils.saveImportedChat(exported, repository: repository);
+      await ProviderPersistUtils.saveImportedChat(
+        exported,
+        repository: repository,
+      );
     } catch (e) {
       Log.w('ProviderPersistUtils.saveImportedChat failed: $e', tag: 'PERSIST');
     }
@@ -1774,7 +2032,12 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       }
     } catch (_) {}
     try {
-      await PrefsUtils.setGoogleAccountInfo(email: email, avatar: avatarUrl, name: name, linked: linked);
+      await PrefsUtils.setGoogleAccountInfo(
+        email: email,
+        avatar: avatarUrl,
+        name: name,
+        linked: linked,
+      );
     } catch (_) {}
     notifyListeners();
     // Solo disparar backup automático si se autoriza explícitamente (ej: desde loadAll, no desde diálogos)
@@ -1805,10 +2068,13 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
             // 1. Never backed up before (lastMs == null), OR
             // 2. Last backup is older than 30 minutes (account re-link scenario)
             final thirtyMinutesMs = const Duration(minutes: 30).inMilliseconds;
-            final shouldBackupOnLink = lastMs == null || (nowMs - lastMs) > thirtyMinutesMs;
+            final shouldBackupOnLink =
+                lastMs == null || (nowMs - lastMs) > thirtyMinutesMs;
 
             if (shouldBackupOnLink) {
-              final timeSince = lastMs != null ? Duration(milliseconds: nowMs - lastMs) : null;
+              final timeSince = lastMs != null
+                  ? Duration(milliseconds: nowMs - lastMs)
+                  : null;
               Log.d(
                 'Auto-backup: trigger scheduled (updateGoogleAccountInfo) - reason: ${lastMs == null ? 'never backed up' : 'account re-linked after ${timeSince!.inMinutes}m'} tokenAvailable=${storedToken.isNotEmpty}',
                 tag: 'BACKUP_AUTO',
@@ -1822,12 +2088,18 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
               );
             }
           } catch (e) {
-            Log.w('Auto-backup: updateGoogleAccountInfo branch failed: $e', tag: 'BACKUP_AUTO');
+            Log.w(
+              'Auto-backup: updateGoogleAccountInfo branch failed: $e',
+              tag: 'BACKUP_AUTO',
+            );
           }
         }());
       } catch (_) {}
     } else if (linked && !triggerAutoBackup) {
-      Log.d('Auto-backup: skip trigger (updateGoogleAccountInfo called from dialog verification)', tag: 'BACKUP_AUTO');
+      Log.d(
+        'Auto-backup: skip trigger (updateGoogleAccountInfo called from dialog verification)',
+        tag: 'BACKUP_AUTO',
+      );
     }
   }
 
@@ -1850,18 +2122,30 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       return await showAppDialog<String>(
         builder: (ctx) => AlertDialog(
           backgroundColor: Colors.black,
-          title: const Text('Error generando apariencia/avatar', style: TextStyle(color: AppColors.secondary)),
+          title: const Text(
+            'Error generando apariencia/avatar',
+            style: TextStyle(color: AppColors.secondary),
+          ),
           content: SingleChildScrollView(
-            child: Text(error.toString(), style: const TextStyle(color: AppColors.primary)),
+            child: Text(
+              error.toString(),
+              style: const TextStyle(color: AppColors.primary),
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop('cancel'),
-              child: const Text('Cerrar', style: TextStyle(color: AppColors.primary)),
+              child: const Text(
+                'Cerrar',
+                style: TextStyle(color: AppColors.primary),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.of(ctx).pop('retry'),
-              child: const Text('Reintentar', style: TextStyle(color: AppColors.secondary)),
+              child: const Text(
+                'Reintentar',
+                style: TextStyle(color: AppColors.secondary),
+              ),
             ),
           ],
         ),
@@ -1905,11 +2189,17 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
             } catch (_) {}
             return;
           } catch (e) {
-            Log.w('Failed to parse repository.loadAll result: $e', tag: 'PERSIST');
+            Log.w(
+              'Failed to parse repository.loadAll result: $e',
+              tag: 'PERSIST',
+            );
           }
         }
       } catch (e) {
-        Log.w('IChatRepository.loadAll failed, falling back to SharedPreferences: $e', tag: 'PERSIST');
+        Log.w(
+          'IChatRepository.loadAll failed, falling back to SharedPreferences: $e',
+          tag: 'PERSIST',
+        );
       }
     }
 
@@ -1948,21 +2238,32 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       final sevenDays = const Duration(days: 7).inMilliseconds;
       final lastAvatarCreatedMs = onboardingData.avatar?.createdAtMs;
       final seed = onboardingData.avatar?.seed;
-      if (seed != null && seed.isNotEmpty && lastAvatarCreatedMs != null && (nowMs - lastAvatarCreatedMs) > sevenDays) {
+      if (seed != null &&
+          seed.isNotEmpty &&
+          lastAvatarCreatedMs != null &&
+          (nowMs - lastAvatarCreatedMs) > sevenDays) {
         // Ejecutar generación asíncrona sin bloquear el loadAll() final
         () async {
           try {
-            final appearanceMap = await iaAppearanceGenerator.generateAppearanceFromBiography(onboardingData);
+            final appearanceMap = await iaAppearanceGenerator
+                .generateAppearanceFromBiography(onboardingData);
             // Generate a new avatar using the same seed (append), but for weekly regen we want
             // to make it the current avatar; we append then set avatars to the new one.
             // Generate using same seed but replace the current avatars (weekly regeneration)
-            final updatedProfile = onboardingData.copyWith(appearance: appearanceMap);
-            final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(updatedProfile, appendAvatar: true);
+            final updatedProfile = onboardingData.copyWith(
+              appearance: appearanceMap,
+            );
+            final avatar = await IAAvatarGenerator()
+                .generateAvatarFromAppearance(
+                  updatedProfile,
+                  appendAvatar: true,
+                );
             await addAvatarAndPersist(this, avatar, replace: true);
             // Insertar un mensaje system para que la IA tenga consciencia de la actualización
             try {
               final sysMsg = Message(
-                text: 'Tu avatar se ha actualizado. Usa la nueva imagen como referencia en futuras respuestas.',
+                text:
+                    'Tu avatar se ha actualizado. Usa la nueva imagen como referencia en futuras respuestas.',
                 sender: MessageSender.system,
                 dateTime: DateTime.now(),
                 status: MessageStatus.read,
@@ -1972,22 +2273,30 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
             await saveAll();
             notifyListeners();
           } catch (e) {
-            Log.w('Error generando avatar semanal en background: $e', tag: 'CHAT');
+            Log.w(
+              'Error generando avatar semanal en background: $e',
+              tag: 'CHAT',
+            );
             // Mostrar diálogo de error centralizado y permitir reintento manual
             try {
               final choice = await showRegenerateAppearanceErrorDialog(e);
               if (choice == 'retry') {
                 try {
-                  final appearanceMap2 = await iaAppearanceGenerator.generateAppearanceFromBiography(onboardingData);
-                  final updatedProfile2 = onboardingData.copyWith(appearance: appearanceMap2);
-                  final avatar2 = await IAAvatarGenerator().generateAvatarFromAppearance(
-                    updatedProfile2,
-                    appendAvatar: true,
+                  final appearanceMap2 = await iaAppearanceGenerator
+                      .generateAppearanceFromBiography(onboardingData);
+                  final updatedProfile2 = onboardingData.copyWith(
+                    appearance: appearanceMap2,
                   );
+                  final avatar2 = await IAAvatarGenerator()
+                      .generateAvatarFromAppearance(
+                        updatedProfile2,
+                        appendAvatar: true,
+                      );
                   await addAvatarAndPersist(this, avatar2, replace: true);
                   try {
                     final sysMsg2 = Message(
-                      text: 'Tu avatar se ha actualizado. Usa la nueva imagen como referencia en futuras respuestas.',
+                      text:
+                          'Tu avatar se ha actualizado. Usa la nueva imagen como referencia en futuras respuestas.',
                       sender: MessageSender.system,
                       dateTime: DateTime.now(),
                       status: MessageStatus.read,
@@ -2033,7 +2342,10 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
           await _executeAutoBackupLogic('prefs branch');
         }();
       } else {
-        Log.d('Auto-backup: skip (not linked to Google Drive)', tag: 'BACKUP_AUTO');
+        Log.d(
+          'Auto-backup: skip (not linked to Google Drive)',
+          tag: 'BACKUP_AUTO',
+        );
       }
     } catch (_) {}
     // Nota: no arrancar el scheduler automáticamente al cargar; el caller/UI
@@ -2047,7 +2359,10 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       try {
         await repository!.clearAll();
       } catch (e) {
-        Log.w('IChatRepository.clearAll failed, falling back: $e', tag: 'PERSIST');
+        Log.w(
+          'IChatRepository.clearAll failed, falling back: $e',
+          tag: 'PERSIST',
+        );
         try {
           await PrefsUtils.removeChatHistory();
           await PrefsUtils.removeOnboardingData();
@@ -2111,7 +2426,9 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
   /// Reintenta enviar el último mensaje marcado como failed.
   /// Devuelve true si arrancó un reintento, false si no había mensajes failed.
   Future<bool> retryLastFailedMessage({void Function(String)? onError}) async {
-    final idx = messages.lastIndexWhere((m) => m.sender == MessageSender.user && m.status == MessageStatus.failed);
+    final idx = messages.lastIndexWhere(
+      (m) => m.sender == MessageSender.user && m.status == MessageStatus.failed,
+    );
     if (idx == -1) return false;
     final msg = messages[idx];
     // Reintentar reusando la lógica de sendMessage, pasando existingMessageIndex

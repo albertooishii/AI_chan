@@ -30,9 +30,7 @@ class MessageImageProcessingService {
     }
 
     try {
-      final imagePath = await saveBase64ImageToFile(
-        response.base64,
-      );
+      final imagePath = await saveBase64ImageToFile(response.base64);
       if (imagePath == null) {
         Log.e(
           'No se pudo guardar la imagen localmente',

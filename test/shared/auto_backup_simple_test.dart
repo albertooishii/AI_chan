@@ -78,7 +78,9 @@ void main() {
 
         String formatFileSize(int bytes) {
           if (bytes < 1024) return '${bytes}B';
-          if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}KB';
+          if (bytes < 1024 * 1024) {
+            return '${(bytes / 1024).toStringAsFixed(1)}KB';
+          }
           return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
         }
 
@@ -118,13 +120,24 @@ void main() {
         const isInBackground = true;
         const hasBatteryOptimization = true;
 
-        bool canRunBackgroundBackup(bool android, bool background, bool batteryOpt) {
+        bool canRunBackgroundBackup(
+          bool android,
+          bool background,
+          bool batteryOpt,
+        ) {
           if (!android) return true; // Desktop can always backup
           if (background && batteryOpt) return false;
           return true;
         }
 
-        expect(canRunBackgroundBackup(isAndroid, isInBackground, hasBatteryOptimization), isFalse);
+        expect(
+          canRunBackgroundBackup(
+            isAndroid,
+            isInBackground,
+            hasBatteryOptimization,
+          ),
+          isFalse,
+        );
       });
 
       test('Desktop - should allow unrestricted backups', () {
@@ -160,45 +173,54 @@ void main() {
         // chatProvider.dispose();
       });
 
-      test('updateGoogleAccountInfo should NOT trigger backup when called from dialog', () async {
-        // Simular llamada desde diálogo (triggerAutoBackup=false)
-        await chatProvider.updateGoogleAccountInfo(
-          email: 'test@gmail.com',
-          avatarUrl: 'https://example.com/avatar.jpg',
-          name: 'Test User',
-        );
+      test(
+        'updateGoogleAccountInfo should NOT trigger backup when called from dialog',
+        () async {
+          // Simular llamada desde diálogo (triggerAutoBackup=false)
+          await chatProvider.updateGoogleAccountInfo(
+            email: 'test@gmail.com',
+            avatarUrl: 'https://example.com/avatar.jpg',
+            name: 'Test User',
+          );
 
-        // Verificar que se actualizó la información pero no se disparó backup automático
-        expect(chatProvider.googleLinked, true);
-        expect(chatProvider.googleEmail, 'test@gmail.com');
-        expect(chatProvider.googleName, 'Test User');
-      });
+          // Verificar que se actualizó la información pero no se disparó backup automático
+          expect(chatProvider.googleLinked, true);
+          expect(chatProvider.googleEmail, 'test@gmail.com');
+          expect(chatProvider.googleName, 'Test User');
+        },
+      );
 
-      test('updateGoogleAccountInfo should trigger backup when called from loadAll', () async {
-        // Simular llamada desde loadAll (triggerAutoBackup=true)
-        await chatProvider.updateGoogleAccountInfo(
-          email: 'test@gmail.com',
-          avatarUrl: 'https://example.com/avatar.jpg',
-          name: 'Test User',
-          triggerAutoBackup: true, // true como en loadAll
-        );
+      test(
+        'updateGoogleAccountInfo should trigger backup when called from loadAll',
+        () async {
+          // Simular llamada desde loadAll (triggerAutoBackup=true)
+          await chatProvider.updateGoogleAccountInfo(
+            email: 'test@gmail.com',
+            avatarUrl: 'https://example.com/avatar.jpg',
+            name: 'Test User',
+            triggerAutoBackup: true, // true como en loadAll
+          );
 
-        // Verificar que se actualizó la información y se puede disparar backup automático
-        expect(chatProvider.googleLinked, true);
-        expect(chatProvider.googleEmail, 'test@gmail.com');
-        expect(chatProvider.googleName, 'Test User');
-      });
+          // Verificar que se actualizó la información y se puede disparar backup automático
+          expect(chatProvider.googleLinked, true);
+          expect(chatProvider.googleEmail, 'test@gmail.com');
+          expect(chatProvider.googleName, 'Test User');
+        },
+      );
 
-      test('triggerAutoBackup parameter should default to false for safety', () async {
-        // Test sin especificar triggerAutoBackup (debería ser false por defecto)
-        await chatProvider.updateGoogleAccountInfo(
-          email: 'test@gmail.com',
-          // triggerAutoBackup no especificado, debería ser false por defecto
-        );
+      test(
+        'triggerAutoBackup parameter should default to false for safety',
+        () async {
+          // Test sin especificar triggerAutoBackup (debería ser false por defecto)
+          await chatProvider.updateGoogleAccountInfo(
+            email: 'test@gmail.com',
+            // triggerAutoBackup no especificado, debería ser false por defecto
+          );
 
-        expect(chatProvider.googleLinked, true);
-        expect(chatProvider.googleEmail, 'test@gmail.com');
-      });
+          expect(chatProvider.googleLinked, true);
+          expect(chatProvider.googleEmail, 'test@gmail.com');
+        },
+      );
     });
   });
 }

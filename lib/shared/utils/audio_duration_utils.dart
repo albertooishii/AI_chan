@@ -28,19 +28,27 @@ class AudioDurationUtils {
         await player.dispose();
 
         if (duration != null && duration.inMilliseconds > 0) {
-          debugPrint('🔍 [DEBUG][AudioDuration] Got duration for $filePath: ${duration.inMilliseconds}ms');
+          debugPrint(
+            '🔍 [DEBUG][AudioDuration] Got duration for $filePath: ${duration.inMilliseconds}ms',
+          );
           return duration;
         } else {
-          debugPrint('🔍 [DEBUG][AudioDuration] Duration is null or zero for: $filePath');
+          debugPrint(
+            '🔍 [DEBUG][AudioDuration] Duration is null or zero for: $filePath',
+          );
           return null;
         }
       } catch (e) {
-        debugPrint('🔍 [DEBUG][AudioDuration] Error getting duration for $filePath: $e');
+        debugPrint(
+          '🔍 [DEBUG][AudioDuration] Error getting duration for $filePath: $e',
+        );
         await player.dispose();
         return null;
       }
     } catch (e) {
-      debugPrint('🔍 [DEBUG][AudioDuration] Exception getting audio duration: $e');
+      debugPrint(
+        '🔍 [DEBUG][AudioDuration] Exception getting audio duration: $e',
+      );
       return null;
     }
   }

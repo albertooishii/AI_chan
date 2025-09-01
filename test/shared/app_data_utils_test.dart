@@ -55,8 +55,14 @@ void main() {
 
       // Arrange: Simulate user having linked Google Drive with stored credentials
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('chat_history', '[{"id": "old_message", "content": "This should be deleted"}]');
-      await prefs.setString('onboarding_data', '{"profile": {"name": "Old Profile"}}');
+      await prefs.setString(
+        'chat_history',
+        '[{"id": "old_message", "content": "This should be deleted"}]',
+      );
+      await prefs.setString(
+        'onboarding_data',
+        '{"profile": {"name": "Old Profile"}}',
+      );
       await prefs.setBool('google_account_linked', true);
       await prefs.setString('google_account_email', 'user@gmail.com');
 
@@ -92,7 +98,10 @@ void main() {
         expect(AppDataUtils.formatBytes(0), equals('0 B'));
         expect(AppDataUtils.formatBytes(512), equals('512 B'));
         expect(AppDataUtils.formatBytes(1024), equals('1 KB'));
-        expect(AppDataUtils.formatBytes(1536), equals('1.50 KB')); // Fixed: expects "1.50 KB"
+        expect(
+          AppDataUtils.formatBytes(1536),
+          equals('1.50 KB'),
+        ); // Fixed: expects "1.50 KB"
         expect(AppDataUtils.formatBytes(1024 * 1024), equals('1 MB'));
         expect(AppDataUtils.formatBytes(1024 * 1024 * 1024), equals('1 GB'));
       });
