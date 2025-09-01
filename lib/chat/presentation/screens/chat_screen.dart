@@ -734,11 +734,11 @@ class _ChatScreenState extends State<ChatScreen> {
                 text: 'Borrar todo (debug)',
                 color: Colors.redAccent,
               ),
-              // Diagnóstico de backup automático
+              // Diagnóstico completo de backup y autenticación Google
               _buildMenuItem(
                 value: 'backup_diagnostics',
                 icon: Icons.health_and_safety,
-                text: 'Diagnóstico Backup',
+                text: 'Diagnóstico Google Drive',
                 color: Colors.orangeAccent,
               ),
               // Debug options removed: import chat and clear all not applicable in release flows
@@ -895,7 +895,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 final navCtx = navigatorKey.currentContext;
                 if (navCtx == null) return;
                 await showAppDialog<void>(
-                  builder: (ctx) => const BackupDiagnosticsDialog(),
+                  builder: (ctx) => BackupDiagnosticsDialog(
+                    chatProvider: widget.chatProvider,
+                  ),
                 );
               } else if (value == 'select_model') {
                 if (_loadingModels) return;

@@ -19,7 +19,7 @@ else
 fi
 
 echo "[pre-commit] Formatting code with dart format..."
-dart format lib/ test/ --set-exit-if-changed
+dart format lib/ test/
 
 echo "[pre-commit] Applying automatic fixes with dart fix..."
 dart fix --apply

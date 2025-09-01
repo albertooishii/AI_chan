@@ -2103,6 +2103,61 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     }
   }
 
+  /// Debug method to diagnose Google authentication state
+  Future<Map<String, dynamic>> diagnoseGoogleState() async {
+    final diagnosis = <String, dynamic>{
+      'timestamp': DateTime.now().toIso8601String(),
+      'chatProviderState': {
+        'googleLinked': googleLinked,
+        'googleEmail': googleEmail,
+        'googleName': googleName,
+        'googleAvatarUrl': googleAvatarUrl,
+      },
+    };
+
+    try {
+      // Check what's stored in prefs
+      final prefsInfo = await PrefsUtils.getGoogleAccountInfo();
+      diagnosis['prefsState'] = prefsInfo;
+    } catch (e) {
+      diagnosis['prefsError'] = e.toString();
+    }
+
+    try {
+      // Check actual token availability
+      final tokenLoader = GoogleBackupService(accessToken: null);
+      final storedToken = await tokenLoader.loadStoredAccessToken();
+      diagnosis['hasValidToken'] =
+          storedToken != null && storedToken.isNotEmpty;
+      diagnosis['tokenLength'] = storedToken?.length ?? 0;
+    } catch (e) {
+      diagnosis['tokenCheckError'] = e.toString();
+    }
+
+    try {
+      // Get comprehensive Google Backup Service diagnosis
+      final serviceStatus =
+          await GoogleBackupService.diagnoseAndroidSessionIssues();
+      diagnosis['serviceStatus'] = serviceStatus;
+    } catch (e) {
+      diagnosis['serviceStatusError'] = e.toString();
+    }
+
+    try {
+      // Get circuit breaker status
+      final cbStatus = GoogleBackupService.getCircuitBreakerStatus();
+      diagnosis['circuitBreakerStatus'] = cbStatus;
+    } catch (e) {
+      diagnosis['circuitBreakerError'] = e.toString();
+    }
+
+    Log.i(
+      'Google authentication diagnosis: $diagnosis',
+      tag: 'GoogleDiagnostic',
+    );
+    return diagnosis;
+  }
+
   /// Clear stored Google account info both in memory and persisted prefs.
   Future<void> clearGoogleAccountInfo() async {
     googleEmail = null;
@@ -2180,7 +2235,42 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
                   googleEmail = g['email'] as String?;
                   googleAvatarUrl = g['avatar'] as String?;
                   googleName = g['name'] as String?;
-                  googleLinked = g['linked'] as bool? ?? false;
+
+                  // Only mark as linked if we have actual valid tokens
+                  final prefsLinked = g['linked'] as bool? ?? false;
+                  if (prefsLinked) {
+                    try {
+                      final tokenLoader = GoogleBackupService(
+                        accessToken: null,
+                      );
+                      final storedToken = await tokenLoader
+                          .loadStoredAccessToken();
+                      googleLinked =
+                          storedToken != null && storedToken.isNotEmpty;
+
+                      if (!googleLinked && prefsLinked) {
+                        Log.w(
+                          'Google account marked as linked in prefs but no valid tokens found (repository branch). Clearing linked status.',
+                          tag: 'GoogleBackup',
+                        );
+                        // Clear the inconsistent state in prefs
+                        await PrefsUtils.setGoogleAccountInfo(
+                          email: googleEmail,
+                          avatar: googleAvatarUrl,
+                          name: googleName,
+                          linked: false,
+                        );
+                      }
+                    } catch (e) {
+                      Log.w(
+                        'Failed to verify Google tokens during repository loadAll: $e. Marking as not linked.',
+                        tag: 'GoogleBackup',
+                      );
+                      googleLinked = false;
+                    }
+                  } else {
+                    googleLinked = false;
+                  }
                 } catch (_) {}
                 if (googleLinked) {
                   await _executeAutoBackupLogic('repository branch');
@@ -2323,7 +2413,39 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       googleEmail = g['email'] as String?;
       googleAvatarUrl = g['avatar'] as String?;
       googleName = g['name'] as String?;
-      googleLinked = g['linked'] as bool? ?? false;
+
+      // Only mark as linked if we have actual valid tokens
+      final prefsLinked = g['linked'] as bool? ?? false;
+      if (prefsLinked) {
+        // Verify that we actually have valid tokens before marking as linked
+        try {
+          final tokenLoader = GoogleBackupService(accessToken: null);
+          final storedToken = await tokenLoader.loadStoredAccessToken();
+          googleLinked = storedToken != null && storedToken.isNotEmpty;
+
+          if (!googleLinked && prefsLinked) {
+            Log.w(
+              'Google account marked as linked in prefs but no valid tokens found. Clearing linked status.',
+              tag: 'GoogleBackup',
+            );
+            // Clear the inconsistent state in prefs
+            await PrefsUtils.setGoogleAccountInfo(
+              email: googleEmail,
+              avatar: googleAvatarUrl,
+              name: googleName,
+              linked: false,
+            );
+          }
+        } catch (e) {
+          Log.w(
+            'Failed to verify Google tokens during loadAll: $e. Marking as not linked.',
+            tag: 'GoogleBackup',
+          );
+          googleLinked = false;
+        }
+      } else {
+        googleLinked = false;
+      }
     } catch (_) {}
     // Diagnostic logging: record state relevant for initial automatic backup
     try {

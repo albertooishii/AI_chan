@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/services/google_backup_service.dart';
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
+import 'package:ai_chan/chat/application/providers/chat_provider.dart';
 
-/// Widget de diagnóstico para verificar el estado de backups automáticos
+/// Widget de diagnóstico para verificar el estado de backups automáticos y autenticación Google
 class BackupDiagnosticsDialog extends StatefulWidget {
-  const BackupDiagnosticsDialog({super.key});
+  final ChatProvider? chatProvider;
+
+  const BackupDiagnosticsDialog({super.key, this.chatProvider});
 
   @override
   State<BackupDiagnosticsDialog> createState() =>
@@ -25,17 +28,87 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
     final buffer = StringBuffer();
 
     try {
-      buffer.writeln('=== DIAGNÓSTICO BACKUP AUTOMÁTICO ===\n');
+      buffer.writeln('=== DIAGNÓSTICO GOOGLE DRIVE COMPLETO ===\n');
 
-      // 1. Verificar información de cuenta Google
-      buffer.writeln('1. Información de cuenta Google:');
+      // 1. Diagnóstico avanzado usando ChatProvider (si está disponible)
+      if (mounted && widget.chatProvider != null) {
+        try {
+          final chatProvider = widget.chatProvider!;
+          final advancedDiagnosis = await chatProvider.diagnoseGoogleState();
+
+          buffer.writeln('1. DIAGNÓSTICO AVANZADO DE AUTENTICACIÓN:');
+          buffer.writeln(
+            '   - Google Linked (ChatProvider): ${advancedDiagnosis['googleLinked']}',
+          );
+          buffer.writeln(
+            '   - Email: ${advancedDiagnosis['chatProviderState']?['googleEmail'] ?? 'N/A'}',
+          );
+          buffer.writeln(
+            '   - Nombre: ${advancedDiagnosis['chatProviderState']?['googleName'] ?? 'N/A'}',
+          );
+          buffer.writeln(
+            '   - Token válido: ${advancedDiagnosis['hasValidToken']}',
+          );
+          buffer.writeln(
+            '   - Token length: ${advancedDiagnosis['tokenLength'] ?? 'N/A'}',
+          );
+
+          // Circuit Breaker Status
+          if (advancedDiagnosis['circuitBreakerStatus'] != null) {
+            final cb =
+                advancedDiagnosis['circuitBreakerStatus']
+                    as Map<String, dynamic>;
+            buffer.writeln('   - Circuit Breaker:');
+            buffer.writeln(
+              '     * Estado: ${cb['isActive'] == true ? 'ABIERTO (bloqueado)' : 'CERRADO (funcionando)'}',
+            );
+            buffer.writeln(
+              '     * Fallos: ${cb['failures'] ?? 0}/${cb['maxFailures'] ?? 8}',
+            );
+            buffer.writeln(
+              '     * Último fallo: ${cb['lastFailure'] ?? 'Ninguno'}',
+            );
+            buffer.writeln(
+              '     * Cooldown: ${cb['cooldownMinutes'] ?? 15} minutos',
+            );
+          }
+
+          // Android específico
+          if (advancedDiagnosis['serviceStatus'] != null) {
+            final serviceStatus =
+                advancedDiagnosis['serviceStatus'] as Map<String, dynamic>;
+            buffer.writeln('   - Estado Android:');
+            buffer.writeln(
+              '     * Credenciales almacenadas: ${serviceStatus['hasStoredCredentials']}',
+            );
+            buffer.writeln(
+              '     * Refresh token: ${serviceStatus['hasRefreshToken']}',
+            );
+            buffer.writeln(
+              '     * Access token: ${serviceStatus['hasAccessToken']}',
+            );
+            buffer.writeln(
+              '     * Token expira en: ${serviceStatus['tokenExpiresInSeconds']}s',
+            );
+            buffer.writeln(
+              '     * Native SignIn: ${serviceStatus['nativeSignInStatus']}',
+            );
+          }
+          buffer.writeln();
+        } catch (e) {
+          buffer.writeln('1. ERROR EN DIAGNÓSTICO AVANZADO: $e\n');
+        }
+      }
+
+      // 2. Diagnóstico básico (mantenido por compatibilidad)
+      buffer.writeln('2. Información básica de cuenta Google:');
       final googleInfo = await PrefsUtils.getGoogleAccountInfo();
       buffer.writeln('   - Email: ${googleInfo['email'] ?? 'No configurado'}');
       buffer.writeln('   - Name: ${googleInfo['name'] ?? 'No configurado'}');
       buffer.writeln('   - Linked: ${googleInfo['linked'] ?? false}');
 
-      // 2. Verificar token
-      buffer.writeln('\n2. Token de acceso:');
+      // 3. Verificar token
+      buffer.writeln('\n3. Token de acceso:');
       final service = GoogleBackupService(accessToken: null);
       final token = await service.loadStoredAccessToken();
       final hasToken = token != null && token.isNotEmpty;
@@ -47,8 +120,8 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
         );
       }
 
-      // 3. Último backup
-      buffer.writeln('\n3. Último backup automático:');
+      // 4. Último backup
+      buffer.writeln('\n4. Último backup automático:');
       final lastBackupMs = await PrefsUtils.getLastAutoBackupMs();
       if (lastBackupMs != null) {
         final lastBackup = DateTime.fromMillisecondsSinceEpoch(lastBackupMs);
@@ -61,9 +134,9 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
         buffer.writeln('   - Nunca se ha ejecutado backup automático');
       }
 
-      // 4. Verificar backups remotos
+      // 5. Verificar backups remotos
       if (hasToken) {
-        buffer.writeln('\n4. Backups remotos:');
+        buffer.writeln('\n5. Backups remotos:');
         try {
           final serviceWithToken = GoogleBackupService(accessToken: token);
           final backups = await serviceWithToken.listBackups();
@@ -79,11 +152,11 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
         }
       } else {
         buffer.writeln(
-          '\n4. Backups remotos: No se puede verificar (sin token)',
+          '\n5. Backups remotos: No se puede verificar (sin token)',
         );
       }
 
-      // 5. Diagnóstico final
+      // 6. Diagnóstico final
       buffer.writeln('\n=== DIAGNÓSTICO FINAL ===');
       final googleLinked = googleInfo['linked'] as bool? ?? false;
       final needsBackup =
@@ -125,7 +198,7 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
     return AlertDialog(
       backgroundColor: Colors.black,
       title: const Text(
-        'BACKUP_DIAGNOSTICS // バックアップシンダン',
+        'GOOGLE DRIVE DIAGNOSTICS // グーグルドライブシンダン',
         style: TextStyle(
           color: Color(0xFF00FFAA),
           fontFamily: 'monospace',

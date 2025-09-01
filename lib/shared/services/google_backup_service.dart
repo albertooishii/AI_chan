@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/services/google_appauth_adapter.dart';
 import 'package:ai_chan/shared/services/google_appauth_adapter_mobile.dart';
@@ -36,25 +37,194 @@ class GoogleBackupService {
   static int _consecutiveRefreshFailures = 0;
   static DateTime? _lastRefreshFailure;
   static const int _maxConsecutiveFailures =
-      3; // Permitir más intentos antes de desvincular
+      8; // Increased from 3 to 8 for mobile reliability - connections can be unstable
   static const Duration _circuitBreakerCooldown = Duration(
-    minutes: 5,
-  ); // Más tiempo de espera
+    minutes: 15, // Increased from 5 to 15 minutes for better user experience
+  );
 
   /// Registrar un fallo de refresh para el circuit breaker
   /// Solo para fallos que realmente indican problemas serios
   static void _recordRefreshFailure([String? reason]) {
     _consecutiveRefreshFailures++;
     _lastRefreshFailure = DateTime.now();
+
+    final status = getCircuitBreakerStatus();
     Log.e(
-      '🚨 EMERGENCY: OAuth refresh failed #$_consecutiveRefreshFailures${reason != null ? ' - $reason' : ''} - POSIBLE DESVINCULACIÓN!',
+      '🚨 SERIOUS OAuth failure #$_consecutiveRefreshFailures/$_maxConsecutiveFailures${reason != null ? ' - $reason' : ''}'
+      ' | Status: ${status['isActive'] ? 'ACTIVE' : 'MONITORING'}',
       tag: 'GoogleBackup',
     );
+
+    // Log detailed status every few failures
+    if (_consecutiveRefreshFailures % 2 == 0) {
+      Log.e('Circuit Breaker Status: $status', tag: 'GoogleBackup');
+    }
   }
 
   /// Registrar fallo leve que NO activa circuit breaker
   static void _recordMinorRefreshIssue(String reason) {
     Log.w('OAuth refresh issue (no emergency): $reason', tag: 'GoogleBackup');
+  }
+
+  /// Get circuit breaker status for debugging
+  static Map<String, dynamic> getCircuitBreakerStatus() {
+    final status = {
+      'failures': _consecutiveRefreshFailures,
+      'maxFailures': _maxConsecutiveFailures,
+      'lastFailure': _lastRefreshFailure?.toIso8601String(),
+      'isActive': _consecutiveRefreshFailures >= _maxConsecutiveFailures,
+      'cooldownMinutes': _circuitBreakerCooldown.inMinutes,
+    };
+
+    if (_lastRefreshFailure != null &&
+        _consecutiveRefreshFailures >= _maxConsecutiveFailures) {
+      final cooldownRemaining =
+          _circuitBreakerCooldown -
+          DateTime.now().difference(_lastRefreshFailure!);
+      status['cooldownRemainingSeconds'] = math.max(
+        0,
+        cooldownRemaining.inSeconds,
+      );
+    }
+
+    return status;
+  }
+
+  /// Comprehensive diagnostic method for Android Google Drive session issues
+  static Future<Map<String, dynamic>> diagnoseAndroidSessionIssues() async {
+    try {
+      final diagnosis = <String, dynamic>{
+        'platform': Platform.isAndroid ? 'Android' : 'Other',
+        'circuitBreaker': getCircuitBreakerStatus(),
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+
+      // Check stored credentials
+      try {
+        const storage = FlutterSecureStorage();
+        final credsStr = await storage.read(key: 'google_credentials');
+        final hasCreds = credsStr != null && credsStr.isNotEmpty;
+        diagnosis['hasStoredCredentials'] = hasCreds;
+
+        if (hasCreds) {
+          final creds = jsonDecode(credsStr);
+          diagnosis['hasRefreshToken'] = creds['refresh_token'] != null;
+          diagnosis['hasAccessToken'] = creds['access_token'] != null;
+
+          // Check token expiry if available
+          final expiresIn = creds['expires_in'];
+          if (expiresIn is int && expiresIn > 0) {
+            diagnosis['tokenExpiresInSeconds'] = expiresIn;
+          }
+        }
+      } catch (e) {
+        diagnosis['credentialCheckError'] = e.toString();
+      }
+
+      // Check native Google Sign-In status
+      if (!kIsWeb && Platform.isAndroid) {
+        try {
+          final nativeAdapter = GoogleSignInMobileAdapter(
+            scopes: [
+              'openid',
+              'email',
+              'profile',
+              'https://www.googleapis.com/auth/drive.appdata',
+            ],
+          );
+          final isSignedIn = await nativeAdapter.isSignedIn();
+          diagnosis['nativeSignInStatus'] = isSignedIn;
+
+          if (isSignedIn) {
+            final account = await nativeAdapter.getCurrentAccount();
+            diagnosis['signedInEmail'] = account?.email ?? 'unknown';
+          }
+        } catch (e) {
+          diagnosis['nativeSignInError'] = e.toString();
+        }
+      }
+
+      Log.i('Android session diagnosis: $diagnosis', tag: 'GoogleBackup');
+      return diagnosis;
+    } catch (e) {
+      Log.e(
+        'Failed to diagnose Android session issues: $e',
+        tag: 'GoogleBackup',
+      );
+      return {'error': e.toString()};
+    }
+  }
+
+  /// Testing helper methods - only for tests
+  @visibleForTesting
+  static void resetCircuitBreakerForTesting() {
+    _consecutiveRefreshFailures = 0;
+    _lastRefreshFailure = null;
+  }
+
+  @visibleForTesting
+  static void recordOAuthFailure(String reason) {
+    _consecutiveRefreshFailures++;
+    _lastRefreshFailure = DateTime.now();
+
+    final status = getCircuitBreakerStatus();
+    Log.e(
+      '🚨 SERIOUS OAuth failure #$_consecutiveRefreshFailures/$_maxConsecutiveFailures${reason.isNotEmpty ? ' - $reason' : ''}'
+      ' | Status: ${status['isActive'] ? 'ACTIVE' : 'MONITORING'}',
+      tag: 'GoogleBackup',
+    );
+  }
+
+  /// Helper method for retrying HTTP requests with exponential backoff
+  /// Specifically designed for transient network issues on mobile
+  static Future<http.Response> _retryHttpRequest(
+    Future<http.Response> Function() httpCall,
+    String operationName, {
+    int maxRetries = 3,
+    Duration initialDelay = const Duration(seconds: 1),
+  }) async {
+    for (int attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        final response = await httpCall();
+
+        // Success or non-retryable error
+        if (response.statusCode < 500 && response.statusCode != 429) {
+          return response;
+        }
+
+        // Retryable error (5xx server errors, 429 rate limiting)
+        if (attempt < maxRetries) {
+          final delay = Duration(
+            milliseconds: (initialDelay.inMilliseconds * math.pow(2, attempt))
+                .round(),
+          );
+          Log.d(
+            '$operationName: Retryable error ${response.statusCode}, retrying in ${delay.inMilliseconds}ms (attempt ${attempt + 1}/$maxRetries)',
+            tag: 'GoogleBackup',
+          );
+          await Future.delayed(delay);
+          continue;
+        }
+
+        return response;
+      } catch (e) {
+        if (attempt < maxRetries) {
+          final delay = Duration(
+            milliseconds: (initialDelay.inMilliseconds * math.pow(2, attempt))
+                .round(),
+          );
+          Log.d(
+            '$operationName: Network error, retrying in ${delay.inMilliseconds}ms (attempt ${attempt + 1}/$maxRetries): $e',
+            tag: 'GoogleBackup',
+          );
+          await Future.delayed(delay);
+          continue;
+        }
+        rethrow;
+      }
+    }
+
+    throw StateError('This should never be reached');
   }
 
   /// Verificar si necesitamos forzar desvinculación
@@ -238,21 +408,24 @@ class GoogleBackupService {
       }
 
       Log.d(
-        'GoogleBackupService.refreshAccessToken: attempting token refresh',
+        'GoogleBackupService.refreshAccessToken: attempting token refresh with retry logic',
         tag: 'GoogleBackup',
       );
 
-      // Try OAuth2 refresh token grant first (best for Drive API access)
+      // Try OAuth2 refresh token grant with retry logic for transient failures
       try {
-        final response = await http.post(
-          Uri.parse('https://oauth2.googleapis.com/token'),
-          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-          body: {
-            'client_id': clientId,
-            if (clientSecret != null) 'client_secret': clientSecret,
-            'refresh_token': refreshToken,
-            'grant_type': 'refresh_token',
-          },
+        final response = await _retryHttpRequest(
+          () => http.post(
+            Uri.parse('https://oauth2.googleapis.com/token'),
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: {
+              'client_id': clientId,
+              if (clientSecret != null) 'client_secret': clientSecret,
+              'refresh_token': refreshToken,
+              'grant_type': 'refresh_token',
+            },
+          ),
+          'OAuth token refresh',
         );
 
         if (response.statusCode == 200) {
@@ -284,16 +457,26 @@ class GoogleBackupService {
             'GoogleBackupService.refreshAccessToken: OAuth refresh failed: ${response.statusCode} ${response.body}',
             tag: 'GoogleBackup',
           );
-          // Solo registrar como fallo grave si es un error que indica problema serio
+          // Only record as serious failure for errors that indicate real auth problems
           if (response.statusCode == 400 &&
               response.body.contains('invalid_grant')) {
-            // Token expirado permanentemente - problema serio
+            // Token permanently expired - serious problem
             _recordRefreshFailure('invalid_grant - token permanently expired');
             await _checkForceUnlink();
-          } else {
-            // Otros errores 401/403 podrían ser temporales
+          } else if (response.statusCode == 403 &&
+              response.body.contains('access_denied')) {
+            // Access revoked by user - serious problem
+            _recordRefreshFailure('access_denied - user revoked access');
+            await _checkForceUnlink();
+          } else if (response.statusCode >= 500) {
+            // Server errors are temporary, don't count towards circuit breaker
             _recordMinorRefreshIssue(
-              'HTTP ${response.statusCode} - might be temporary',
+              'Server error ${response.statusCode} - temporary issue',
+            );
+          } else {
+            // Other 401/403/429 errors might be temporary (rate limiting, network issues)
+            _recordMinorRefreshIssue(
+              'HTTP ${response.statusCode} - likely temporary',
             );
           }
         }
