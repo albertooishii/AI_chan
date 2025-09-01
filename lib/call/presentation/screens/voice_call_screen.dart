@@ -1010,7 +1010,7 @@ extension _IncomingLogic on _VoiceCallChatState {
             }
 
             // If the same (normalized) short transcription appears twice within the pending window, accept it.
-            final normalized = StringUtils.normalizeTranscription(trimmed);
+            final normalized = normalizeTranscription(trimmed);
             if (_lastPendingTranscription != null && _lastPendingTranscription == normalized) {
               Log.d(
                 '[AI-chan][VoiceCall] Transcripción duplicada establecida -> aceptar: "$trimmed"',

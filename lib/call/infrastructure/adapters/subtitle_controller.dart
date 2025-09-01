@@ -50,7 +50,7 @@ class SubtitleController {
     if (!firstAudioReceived) return; // no mostrar antes del primer audio
     if (suppressFurther) return; // suprimido tras end_call/rechazo
 
-    final cleaned = StringUtils.cleanSubtitleText(chunk);
+    final cleaned = cleanSubtitleText(chunk);
     if (cleaned.isEmpty) return;
 
     // Modo súper simple: mostrar exactamente el último fragmento normalizado (sin heurísticas de crecimiento)

@@ -567,13 +567,13 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               Autocomplete<String>(
                 optionsBuilder: (TextEditingValue textEditingValue) {
                   final items = List<CountryItem>.from(CountriesEs.items);
-                  final q = StringUtils.normalizeForSearch(textEditingValue.text.trim());
+                  final q = normalizeForSearch(textEditingValue.text.trim());
                   final opts = items.map((c) {
                     final flag = LocaleUtils.flagEmojiForCountry(c.iso2);
                     return '${flag.isNotEmpty ? '$flag ' : ''}${c.nameEs} (${c.iso2})';
                   });
                   if (q.isEmpty) return opts.take(50);
-                  return opts.where((o) => StringUtils.normalizeForSearch(o).contains(q)).take(50);
+                  return opts.where((o) => normalizeForSearch(o).contains(q)).take(50);
                 },
                 fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
                   // Inicializa el texto si ya hay código guardado
@@ -682,13 +682,13 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                       items.insert(0, it);
                     }
                   }
-                  final q = StringUtils.normalizeForSearch(textEditingValue.text.trim());
+                  final q = normalizeForSearch(textEditingValue.text.trim());
                   final opts = items.map((c) {
                     final flag = LocaleUtils.flagEmojiForCountry(c.iso2);
                     return '${flag.isNotEmpty ? '$flag ' : ''}${c.nameEs} (${c.iso2})';
                   });
                   if (q.isEmpty) return opts.take(50);
-                  return opts.where((o) => StringUtils.normalizeForSearch(o).contains(q)).take(50);
+                  return opts.where((o) => normalizeForSearch(o).contains(q)).take(50);
                 },
                 fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
                   // Inicializa el texto si ya hay código guardado

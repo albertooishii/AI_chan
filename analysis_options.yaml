@@ -51,7 +51,7 @@ linter:
     prefer_null_aware_operators: true
     
     # DDD/Architecture specific
-    # avoid_classes_with_only_static_members: true  # TODO: Evaluar impacto en utility classes
+    # avoid_classes_with_only_static_members: true  # TODO: 41 utility classes por convertir gradualmente
     one_member_abstracts: false  # Permitimos abstracts de un método para interfaces DDD
     
     # Flutter specific

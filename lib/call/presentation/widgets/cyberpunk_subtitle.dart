@@ -264,7 +264,7 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle> w
       for (final pat in _orderedPatterns) {
         if (pat.length <= lower.length - i) {
           final slice = lower.substring(i, i + pat.length);
-          if (slice == pat || StringUtils.removeAccents(slice).toLowerCase() == pat) {
+          if (slice == pat || removeAccents(slice).toLowerCase() == pat) {
             match = text.substring(i, i + pat.length);
             break;
           }
@@ -273,7 +273,7 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle> w
       // Degradar: consonante + vocal
       if (match == null && i + 1 < lower.length) {
         final pair = lower.substring(i, i + 2);
-        final npair = StringUtils.removeAccents(pair).toLowerCase();
+        final npair = removeAccents(pair).toLowerCase();
         if (_syllableToKana.containsKey(npair)) {
           match = text.substring(i, i + 2);
         }
@@ -291,7 +291,7 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle> w
     if (!useKatakana) return _katakana[_rand.nextInt(_katakana.length)];
     if (replaceWith != null && replaceWith.isNotEmpty) {
       final lower = replaceWith.toLowerCase();
-      final norm = StringUtils.removeAccents(lower).toLowerCase();
+      final norm = removeAccents(lower).toLowerCase();
       final String? mapped = _syllableToKana[lower] ?? _syllableToKana[norm];
       if (mapped == null && norm.length > 1) {
         // Descomponer greedy en sub-sílabas ya normalizadas

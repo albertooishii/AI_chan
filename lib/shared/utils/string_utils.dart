@@ -1,80 +1,77 @@
-/// Utilidades para manipulación y normalización de strings
-class StringUtils {
-  /// Normaliza strings removiendo acentos y convirtiendo a minúsculas para búsquedas
-  ///
-  /// Ejemplo:
-  /// ```dart
-  /// StringUtils.normalizeForSearch("José María") // -> "jose maria"
-  /// ```
-  static String normalizeForSearch(String text) {
-    return text
-        .toLowerCase()
-        .replaceAll(RegExp('[áàäâã]'), 'a')
-        .replaceAll(RegExp('[éèëê]'), 'e')
-        .replaceAll(RegExp('[íìïî]'), 'i')
-        .replaceAll(RegExp('[óòöôõ]'), 'o')
-        .replaceAll(RegExp('[úùüû]'), 'u')
-        .replaceAll('ñ', 'n')
-        .replaceAll('ç', 'c');
-  }
+/// Normaliza strings removiendo acentos y convirtiendo a minúsculas para búsquedas
+///
+/// Ejemplo:
+/// ```dart
+/// normalizeForSearch("José María") // -> "jose maria"
+/// ```
+String normalizeForSearch(String text) {
+  return text
+      .toLowerCase()
+      .replaceAll(RegExp('[áàäâã]'), 'a')
+      .replaceAll(RegExp('[éèëê]'), 'e')
+      .replaceAll(RegExp('[íìïî]'), 'i')
+      .replaceAll(RegExp('[óòöôõ]'), 'o')
+      .replaceAll(RegExp('[úùüû]'), 'u')
+      .replaceAll('ñ', 'n')
+      .replaceAll('ç', 'c');
+}
 
-  /// Normaliza strings removiendo solo acentos (sin cambiar a minúsculas)
-  ///
-  /// Ejemplo:
-  /// ```dart
-  /// StringUtils.removeAccents("José María") // -> "Jose Maria"
-  /// ```
-  static String removeAccents(String text) {
-    return text
-        .replaceAll(RegExp('[áàäâã]'), 'a')
-        .replaceAll(RegExp('[éèëê]'), 'e')
-        .replaceAll(RegExp('[íìïî]'), 'i')
-        .replaceAll(RegExp('[óòöôõ]'), 'o')
-        .replaceAll(RegExp('[úùüû]'), 'u')
-        .replaceAll(RegExp('[ÁÀÄÂÃ]'), 'A')
-        .replaceAll(RegExp('[ÉÈËÊ]'), 'E')
-        .replaceAll(RegExp('[ÍÌÏÎ]'), 'I')
-        .replaceAll(RegExp('[ÓÒÖÔÕ]'), 'O')
-        .replaceAll(RegExp('[ÚÙÜÛ]'), 'U')
-        .replaceAll('ñ', 'n')
-        .replaceAll('Ñ', 'N')
-        .replaceAll('ç', 'c')
-        .replaceAll('Ç', 'C');
-  }
+/// Normaliza strings removiendo solo acentos (sin cambiar a minúsculas)
+///
+/// Ejemplo:
+/// ```dart
+/// removeAccents("José María") // -> "Jose Maria"
+/// ```
+String removeAccents(String text) {
+  return text
+      .replaceAll(RegExp('[áàäâã]'), 'a')
+      .replaceAll(RegExp('[éèëê]'), 'e')
+      .replaceAll(RegExp('[íìïî]'), 'i')
+      .replaceAll(RegExp('[óòöôõ]'), 'o')
+      .replaceAll(RegExp('[úùüû]'), 'u')
+      .replaceAll(RegExp('[ÁÀÄÂÃ]'), 'A')
+      .replaceAll(RegExp('[ÉÈËÊ]'), 'E')
+      .replaceAll(RegExp('[ÍÌÏÎ]'), 'I')
+      .replaceAll(RegExp('[ÓÒÖÔÕ]'), 'O')
+      .replaceAll(RegExp('[ÚÙÜÛ]'), 'U')
+      .replaceAll('ñ', 'n')
+      .replaceAll('Ñ', 'N')
+      .replaceAll('ç', 'c')
+      .replaceAll('Ç', 'C');
+}
 
-  /// Normaliza transcripciones removiendo puntuación y espacios extras
-  ///
-  /// Ejemplo:
-  /// ```dart
-  /// StringUtils.normalizeTranscription("¡Hola, mundo!  ") // -> "hola mundo"
-  /// ```
-  static String normalizeTranscription(String text) {
-    return text
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^\w\s]'), '') // Remover puntuación
-        .replaceAll(RegExp(r'\s+'), ' ') // Normalizar espacios
-        .trim();
-  }
+/// Normaliza transcripciones removiendo puntuación y espacios extras
+///
+/// Ejemplo:
+/// ```dart
+/// normalizeTranscription("¡Hola, mundo!  ") // -> "hola mundo"
+/// ```
+String normalizeTranscription(String text) {
+  return text
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^\w\s]'), '') // Remover puntuación
+      .replaceAll(RegExp(r'\s+'), ' ') // Normalizar espacios
+      .trim();
+}
 
-  /// Limpia texto para subtítulos (normaliza espacios y signos de puntuación)
-  ///
-  /// Ejemplo:
-  /// ```dart
-  /// StringUtils.cleanSubtitleText("¡  Hola    mundo!") // -> "¡Hola mundo!"
-  /// ```
-  static String cleanSubtitleText(String text) {
-    var cleaned = text.trim();
-    if (cleaned.isEmpty) return '';
+/// Limpia texto para subtítulos (normaliza espacios y signos de puntuación)
+///
+/// Ejemplo:
+/// ```dart
+/// cleanSubtitleText("¡  Hola    mundo!") // -> "¡Hola mundo!"
+/// ```
+String cleanSubtitleText(String text) {
+  var cleaned = text.trim();
+  if (cleaned.isEmpty) return '';
 
-    // Normalizar múltiples espacios a uno solo
-    cleaned = cleaned.replaceAll(RegExp(r'\s{2,}'), ' ');
+  // Normalizar múltiples espacios a uno solo
+  cleaned = cleaned.replaceAll(RegExp(r'\s{2,}'), ' ');
 
-    // Pegar signos de apertura con la siguiente palabra
-    cleaned = cleaned.replaceAllMapped(
-      RegExp(r'([¡¿])\s+([A-Za-zÁÉÍÓÚáéíóúÑñ])'),
-      (m) => '${m.group(1)}${m.group(2)}',
-    );
+  // Pegar signos de apertura con la siguiente palabra
+  cleaned = cleaned.replaceAllMapped(
+    RegExp(r'([¡¿])\s+([A-Za-zÁÉÍÓÚáéíóúÑñ])'),
+    (m) => '${m.group(1)}${m.group(2)}',
+  );
 
-    return cleaned;
-  }
+  return cleaned;
 }
