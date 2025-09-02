@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
 import 'package:ai_chan/shared/constants.dart';
 import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/core/config.dart';
 
 class InitializingScreen extends StatefulWidget {
   /// bioFutureFactory can accept an optional progress callback: (String key) -> void
@@ -14,7 +15,8 @@ class InitializingScreen extends StatefulWidget {
   State<InitializingScreen> createState() => _InitializingScreenState();
 }
 
-class _InitializingScreenState extends State<InitializingScreen> {
+class _InitializingScreenState extends State<InitializingScreen>
+    with TickerProviderStateMixin {
   final List<List<String>> steps = [
     ['Iniciando sistema', 'システム'],
     ['Generando datos básicos', 'ベーシック'],
@@ -51,6 +53,17 @@ class _InitializingScreenState extends State<InitializingScreen> {
   // Duraciones configurables para ajustar la percepción de tiempo entre fases
   final Duration _stepDuration = const Duration(milliseconds: 5000);
   final Duration _finalPause = const Duration(seconds: 5);
+
+  // Controladores de animación para efectos espectaculares
+  late AnimationController _slideController;
+  late AnimationController _fadeController;
+  late AnimationController _glitchController;
+  late AnimationController _typewriterController;
+
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _fadeAnimation;
+  late Animation<double> _glitchAnimation;
+  late Animation<double> _typewriterAnimation;
   // Mapa de keys de progreso a índices de steps para actualizaciones desde el proveedor
   final Map<String, int> _progressKeyToIndex = const {
     'start': 0,
@@ -75,18 +88,68 @@ class _InitializingScreenState extends State<InitializingScreen> {
   @override
   void initState() {
     super.initState();
+
+    // Inicializar controladores de animación
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _glitchController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _typewriterController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+
+    // Configurar animaciones
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+        );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
+    );
+
+    _glitchAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _glitchController, curve: Curves.elasticOut),
+    );
+
+    _typewriterAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _typewriterController, curve: Curves.easeOut),
+    );
+
     // Arrancar automáticamente el avance de los primeros pasos y luego la generación.
     _autoAdvanceInitialSteps();
   }
 
+  @override
+  void dispose() {
+    _slideController.dispose();
+    _fadeController.dispose();
+    _glitchController.dispose();
+    _typewriterController.dispose();
+    super.dispose();
+  }
+
   /// Avanza automáticamente los primeros pasos iniciales y luego lanza la generación.
   Future<void> _autoAdvanceInitialSteps() async {
+    // Activar animación inicial
+    await _playStepTransitionAnimation();
+
     if (startedGeneration || _cancel) return;
     for (var i = 0; i < initialStepsCount; i++) {
       if (!mounted || _cancel) return;
       setState(() {
         currentStep = i;
       });
+      await _playStepTransitionAnimation();
       // breve pausa entre pasos iniciales
       await Future.delayed(const Duration(milliseconds: 1000));
     }
@@ -114,6 +177,7 @@ class _InitializingScreenState extends State<InitializingScreen> {
               setState(() {
                 currentStep = idx;
               });
+              _playStepTransitionAnimation();
             }
             if (key == 'appearance' &&
                 !appearanceStartedCompleter.isCompleted) {
@@ -145,6 +209,7 @@ class _InitializingScreenState extends State<InitializingScreen> {
           setState(() {
             currentStep = i;
           });
+          await _playStepTransitionAnimation();
           await Future.delayed(_stepDuration);
         }
       }();
@@ -160,6 +225,7 @@ class _InitializingScreenState extends State<InitializingScreen> {
           setState(() {
             currentStep = i;
           });
+          await _playStepTransitionAnimation();
           await Future.delayed(_stepDuration);
         }
       });
@@ -173,6 +239,7 @@ class _InitializingScreenState extends State<InitializingScreen> {
           setState(() {
             currentStep = i;
           });
+          await _playStepTransitionAnimation();
           await Future.delayed(_stepDuration);
         }
       });
@@ -284,95 +351,269 @@ class _InitializingScreenState extends State<InitializingScreen> {
     }
   }
 
+  /// Activa las animaciones espectaculares cuando cambia de paso
+  Future<void> _playStepTransitionAnimation() async {
+    // Reset todas las animaciones
+    _fadeController.reset();
+    _slideController.reset();
+    _typewriterController.reset();
+
+    // Glitch effect al inicio
+    _glitchController.forward().then((_) => _glitchController.reverse());
+
+    // Fade in y slide simultáneos
+    _fadeController.forward();
+    _slideController.forward();
+
+    // Typewriter effect para el texto
+    await Future.delayed(const Duration(milliseconds: 200));
+    _typewriterController.forward();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.memory, color: AppColors.secondary, size: 64),
-            const SizedBox(height: 32),
-            Text(
-              steps[currentStep][0],
-              style: const TextStyle(
-                color: AppColors.primary,
-                fontSize: 18,
-                fontFamily: 'monospace',
-                letterSpacing: 2,
-                shadows: [Shadow(color: AppColors.secondary, blurRadius: 12)],
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.black, Color(0xFF001122), Colors.black],
+          ),
+        ),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.all(32),
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.4),
+                width: 2,
               ),
-              textAlign: TextAlign.center,
-            ),
-            Text(
-              steps[currentStep][1],
-              style: const TextStyle(
-                color: AppColors.secondary,
-                fontSize: 20,
-                fontFamily: 'monospace',
-                letterSpacing: 2,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 40),
-            // Si la generación de avatar falló tras intentos, mostrar botones para reintentar o volver
-            if (_avatarFailed) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Text(
-                  _avatarError ?? 'Error generando avatar',
-                  style: const TextStyle(color: AppColors.primary),
-                  textAlign: TextAlign.center,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  blurRadius: 20,
+                  spreadRadius: 2,
                 ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ElevatedButton(
-                    onPressed: () {
-                      // Reintentar generación
-                      setState(() {
-                        _cancel = false;
-                        _avatarFailed = false;
-                        _avatarError = null;
-                        currentStep = 0;
-                        finished = false;
-                        bioReady = false;
-                        _generatedBio = null;
-                        startedGeneration = false;
-                        generationDone = false;
-                      });
-                      _autoAdvanceInitialSteps();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.secondary,
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header con ícono y título
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.memory,
+                      color: AppColors.secondary,
+                      size: 32,
                     ),
-                    child: const Text('Reintentar'),
-                  ),
-                  const SizedBox(width: 16),
-                  OutlinedButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                    child: const Text('Volver'),
-                  ),
-                ],
-              ),
-            ] else ...[
-              // Spinner normal (cuando no hay fallo de avatar)
-              const SizedBox(
-                width: 36,
-                height: 36,
-                child: CircularProgressIndicator(
-                  color: AppColors.secondary,
-                  strokeWidth: 4,
+                    const SizedBox(width: 12),
+                    Text(
+                      Config.getAppName(),
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 20,
+                        fontFamily: 'monospace',
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 3,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 24),
-            ],
-          ],
+                const SizedBox(height: 8),
+                Container(
+                  height: 1,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.transparent,
+                        AppColors.primary.withValues(alpha: 0.7),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Task display más elegante con animaciones
+                SlideTransition(
+                  position: _slideAnimation,
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        border: Border.all(
+                          color: AppColors.secondary.withValues(alpha: 0.3),
+                        ),
+                        borderRadius: BorderRadius.circular(6),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          // Texto principal con efecto glitch y typewriter
+                          AnimatedBuilder(
+                            animation: Listenable.merge([
+                              _glitchAnimation,
+                              _typewriterAnimation,
+                            ]),
+                            builder: (context, child) {
+                              final text = '>>> ${steps[currentStep][0]}';
+                              final visibleChars =
+                                  (_typewriterAnimation.value * text.length)
+                                      .round();
+                              final displayText = text.substring(
+                                0,
+                                visibleChars,
+                              );
+
+                              return Transform.translate(
+                                offset: Offset(
+                                  _glitchAnimation.value *
+                                      2 *
+                                      (currentStep % 2 == 0 ? 1 : -1),
+                                  0,
+                                ),
+                                child: Text(
+                                  displayText,
+                                  style: TextStyle(
+                                    color: _glitchAnimation.value > 0.5
+                                        ? AppColors.secondary
+                                        : AppColors.primary,
+                                    fontSize: 16,
+                                    fontFamily: 'monospace',
+                                    fontWeight: FontWeight.w500,
+                                    letterSpacing: 1,
+                                    shadows: _glitchAnimation.value > 0.3
+                                        ? [
+                                            Shadow(
+                                              color: AppColors.primary
+                                                  .withValues(alpha: 0.8),
+                                              offset: const Offset(-1, 0),
+                                            ),
+                                            Shadow(
+                                              color: AppColors.secondary
+                                                  .withValues(alpha: 0.8),
+                                              offset: const Offset(1, 0),
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          // Texto japonés con fade in retardado
+                          AnimatedBuilder(
+                            animation: _fadeAnimation,
+                            builder: (context, child) {
+                              return Opacity(
+                                opacity: (_fadeAnimation.value - 0.3).clamp(
+                                  0.0,
+                                  1.0,
+                                ),
+                                child: Text(
+                                  steps[currentStep][1],
+                                  style: TextStyle(
+                                    color: AppColors.secondary.withValues(
+                                      alpha: 0.8,
+                                    ),
+                                    fontSize: 18,
+                                    fontFamily: 'monospace',
+                                    letterSpacing: 1,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                // Si la generación de avatar falló tras intentos, mostrar botones para reintentar o volver
+                if (_avatarFailed) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Text(
+                      _avatarError ?? 'Error generando avatar',
+                      style: const TextStyle(color: AppColors.primary),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () {
+                          // Reintentar generación
+                          setState(() {
+                            _cancel = false;
+                            _avatarFailed = false;
+                            _avatarError = null;
+                            currentStep = 0;
+                            finished = false;
+                            bioReady = false;
+                            _generatedBio = null;
+                            startedGeneration = false;
+                            generationDone = false;
+                          });
+                          _autoAdvanceInitialSteps();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.secondary,
+                        ),
+                        child: const Text('Reintentar'),
+                      ),
+                      const SizedBox(width: 16),
+                      OutlinedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text('Volver'),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  // CyberpunkLoader épico para la inicialización
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.3),
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const CyberpunkLoader(
+                      message: 'INITIALIZING AI SYSTEMS',
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );

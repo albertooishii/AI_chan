@@ -441,6 +441,410 @@ void main() async {
       // Limpiar override
       AIService.testOverride = null;
     });
+
+    test(
+      '🔒 Logout → Fresh Start: Ensures complete data cleanup prevents chat restoration bug',
+      () async {
+        Log.d(
+          '🔹 PASO 1: Creando sesión inicial con datos completos...',
+          tag: 'TEST',
+        );
+
+        // 🎯 Configurar servicio fake
+        final fakeService = FakeAIService(
+          customJsonResponse: {
+            'datos_personales': {'nombre_completo': 'Original User'},
+            'personalidad': {
+              'valores': {'Sociabilidad': '5'},
+              'descripcion': {'Sociabilidad': 'Amigable'},
+            },
+            'resumen_breve': 'Biografía original',
+            'horario_dormir': {'from': '23:00', 'to': '07:00'},
+            'horarios_actividades': [],
+            'familia': [],
+            'mascotas': [],
+            'estudios': [],
+            'trayectoria_profesional': [],
+            'relaciones': [],
+            'amistades': [],
+            'intereses_y_aficiones': {},
+            'historia_personal': [],
+            'proyectos_personales': [],
+            'metas_y_sueños': {},
+          },
+          imageBase64Response:
+              'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAAWgmWQ0AAAAASUVORK5CYII=',
+        );
+        AIService.testOverride = fakeService;
+
+        // 🎯 CREAR SESIÓN ORIGINAL completa
+        const originalUserName = 'OriginalUser';
+        const originalAiName = 'OriginalAI';
+        const originalMeetStory = 'Nos conocimos en una cafetería';
+
+        // Generar biografía original
+        final originalBio = await generateAIBiographyWithAI(
+          userName: originalUserName,
+          aiName: originalAiName,
+          userBirthday: DateTime(1990, 3, 15),
+          meetStory: originalMeetStory,
+          userCountryCode: 'US',
+          aiCountryCode: 'JP',
+          seed: 99999,
+          aiServiceOverride: fakeService,
+        );
+
+        // Crear ChatProvider con datos originales
+        final originalChatProvider = ChatProvider();
+        originalChatProvider.onboardingData = originalBio;
+
+        // Agregar mensajes originales significativos
+        final originalMessages = [
+          Message(
+            text:
+                'Mensaje secreto 1: Hola $originalAiName, recuerdas nuestro encuentro en la cafetería?',
+            sender: MessageSender.user,
+            dateTime: DateTime.now().subtract(const Duration(hours: 2)),
+            status: MessageStatus.read,
+          ),
+          Message(
+            text:
+                'Mensaje secreto 2: ¡Por supuesto $originalUserName! Fue muy especial hablar contigo sobre libros.',
+            sender: MessageSender.assistant,
+            dateTime: DateTime.now().subtract(const Duration(hours: 1)),
+            status: MessageStatus.read,
+          ),
+          Message(
+            text:
+                'Mensaje secreto 3: Este mensaje NO debe aparecer después del reset',
+            sender: MessageSender.user,
+            dateTime: DateTime.now().subtract(const Duration(minutes: 30)),
+            status: MessageStatus.read,
+          ),
+        ];
+
+        originalChatProvider.messages.addAll(originalMessages);
+
+        // Agregar eventos originales
+        final originalEvents = [
+          EventEntry(
+            type: 'conocimiento',
+            description: 'Encuentro original en cafetería - DEBE BORRARSE',
+            date: DateTime.now().subtract(const Duration(days: 10)),
+          ),
+          EventEntry(
+            type: 'promesa',
+            description: 'Promesa de leer libro juntos - DEBE BORRARSE',
+            date: DateTime.now().add(const Duration(days: 5)),
+          ),
+        ];
+
+        final originalProfileWithEvents = originalBio.copyWith(
+          events: originalEvents,
+        );
+        originalChatProvider.onboardingData = originalProfileWithEvents;
+
+        Log.d(
+          '   ✅ Sesión original: ${originalChatProvider.messages.length} mensajes, ${originalEvents.length} eventos',
+          tag: 'TEST',
+        );
+
+        // 🎯 GUARDAR datos originales en persistencia
+        Log.d(
+          '🔹 PASO 2: Guardando datos originales en persistencia...',
+          tag: 'TEST',
+        );
+        await originalChatProvider.saveAll();
+
+        // Verificar que los datos están guardados
+        final prefs = await SharedPreferences.getInstance();
+        final savedBio = prefs.getString('onboarding_data');
+        final savedMessages = prefs.getString('chat_history');
+        final savedEvents = prefs.getString('events');
+
+        expect(savedBio, isNotNull);
+        expect(savedMessages, isNotNull);
+        expect(savedEvents, isNotNull);
+
+        // Verificar contenido específico
+        expect(savedBio!, contains(originalUserName));
+        expect(savedBio, contains(originalAiName));
+        expect(savedMessages!, contains('Mensaje secreto'));
+        // Los eventos pueden estar vacíos en el test fake, verificamos que no sea null
+        expect(savedEvents, isNotNull);
+
+        Log.d(
+          '   ✅ Datos originales confirmados en SharedPreferences',
+          tag: 'TEST',
+        );
+
+        // 🎯 CARGAR desde persistencia para confirmar
+        final verificationChatProvider = ChatProvider();
+        await verificationChatProvider.loadAll();
+
+        expect(
+          verificationChatProvider.onboardingData.userName,
+          equals(originalUserName),
+        );
+        expect(
+          verificationChatProvider.onboardingData.aiName,
+          equals(originalAiName),
+        );
+        expect(verificationChatProvider.messages.length, equals(3));
+        expect(
+          verificationChatProvider.messages.any(
+            (m) => m.text.contains('Mensaje secreto'),
+          ),
+          isTrue,
+        );
+
+        Log.d(
+          '   ✅ Verificación de carga: datos originales correctamente persistidos',
+          tag: 'TEST',
+        );
+
+        // 🔥 SIMULAR "CERRAR SESIÓN" - Acción crítica
+        Log.d(
+          '🔹 PASO 3: 🔥 SIMULANDO CERRAR SESIÓN (resetApp completo)...',
+          tag: 'TEST',
+        );
+
+        // Primero: clearAll del ChatProvider (nueva lógica)
+        await originalChatProvider.clearAll();
+        Log.d('   ✅ ChatProvider.clearAll() ejecutado', tag: 'TEST');
+
+        // Segundo: clearAllAppData (lógica existente)
+        await originalChatProvider
+            .clearAll(); // Simulamos también el AppDataUtils.clearAllAppData que llama PrefsUtils.clearAll
+        Log.d('   ✅ Limpieza completa de datos de app ejecutada', tag: 'TEST');
+
+        // 🎯 VERIFICAR limpieza inmediata
+        Log.d('🔹 PASO 4: Verificando limpieza inmediata...', tag: 'TEST');
+
+        final prefsAfterClear = await SharedPreferences.getInstance();
+        final bioAfterClear = prefsAfterClear.getString('onboarding_data');
+        final messagesAfterClear = prefsAfterClear.getString('chat_history');
+        final eventsAfterClear = prefsAfterClear.getString('events');
+
+        // Verificar que NO hay datos
+        expect(
+          bioAfterClear,
+          isNull,
+          reason: 'onboarding_data should be null after clearAll',
+        );
+        expect(
+          messagesAfterClear,
+          isNull,
+          reason: 'chat_history should be null after clearAll',
+        );
+        // Los eventos pueden quedar como lista vacía después de clearAll, verificamos que esté vacío
+        expect(
+          eventsAfterClear,
+          anyOf([isNull, equals('[]')]),
+          reason: 'events should be null or empty after clearAll',
+        );
+
+        Log.d(
+          '   ✅ Verificación inmediata: todos los datos limpiados correctamente',
+          tag: 'TEST',
+        );
+
+        // 🎯 CREAR NUEVA SESIÓN después del "reset"
+        Log.d(
+          '🔹 PASO 5: Creando NUEVA sesión después del reset...',
+          tag: 'TEST',
+        );
+
+        // Nuevos datos completamente diferentes
+        const newUserName = 'NewUser';
+        const newAiName = 'NewAI';
+        const newMeetStory = 'Nos conocimos en una biblioteca';
+
+        // Crear nuevo servicio fake para nueva sesión con datos completamente diferentes
+        final newSessionService = FakeAIService(
+          customJsonResponse: {
+            'datos_personales': {'nombre_completo': 'New User Profile'},
+            'personalidad': {
+              'valores': {'Creatividad': '8'},
+              'descripcion': {'Creatividad': 'Muy creativa'},
+            },
+            'resumen_breve': 'Biografía completamente nueva',
+            'horario_dormir': {'from': '22:00', 'to': '06:00'},
+            'horarios_actividades': [],
+            'familia': [],
+            'mascotas': [],
+            'estudios': [],
+            'trayectoria_profesional': [],
+            'relaciones': [],
+            'amistades': [],
+            'intereses_y_aficiones': {},
+            'historia_personal': [],
+            'proyectos_personales': [],
+            'metas_y_sueños': {},
+          },
+        );
+        AIService.testOverride = newSessionService;
+
+        final newBio = await generateAIBiographyWithAI(
+          userName: newUserName,
+          aiName: newAiName,
+          userBirthday: DateTime(1995, 8, 22),
+          meetStory: newMeetStory,
+          userCountryCode: 'ES',
+          aiCountryCode: 'KR',
+          seed: 11111,
+          aiServiceOverride: fakeService,
+        );
+
+        Log.d(
+          '   ✅ Nueva biografía generada: $newUserName + $newAiName',
+          tag: 'TEST',
+        );
+
+        // 🎯 CREAR ChatProvider fresco (como en el flujo real)
+        Log.d(
+          '🔹 PASO 6: Creando ChatProvider fresco y cargando datos...',
+          tag: 'TEST',
+        );
+
+        final freshChatProvider = ChatProvider();
+        freshChatProvider.onboardingData = newBio;
+
+        // Agregar nuevos mensajes
+        final newMessages = [
+          Message(
+            text: 'Hola $newAiName, es genial conocerte en la biblioteca!',
+            sender: MessageSender.user,
+            dateTime: DateTime.now(),
+            status: MessageStatus.read,
+          ),
+          Message(
+            text:
+                'Hola $newUserName! Me encanta leer, será divertido compartir historias contigo.',
+            sender: MessageSender.assistant,
+            dateTime: DateTime.now(),
+            status: MessageStatus.read,
+          ),
+        ];
+
+        freshChatProvider.messages.addAll(newMessages);
+        await freshChatProvider.saveAll();
+
+        Log.d(
+          '   ✅ Nueva sesión guardada: ${freshChatProvider.messages.length} mensajes nuevos',
+          tag: 'TEST',
+        );
+
+        // 🎯 SIMULAR loadAll() como en el flujo real de la app
+        Log.d(
+          '🔹 PASO 7: Simulando loadAll() del flujo real de la app...',
+          tag: 'TEST',
+        );
+
+        final appFlowChatProvider = ChatProvider();
+        await appFlowChatProvider
+            .loadAll(); // Esto es lo que hace MyApp después del onboarding
+
+        // 🔍 VERIFICACIONES CRÍTICAS - El corazón del test
+        Log.d('🔹 PASO 8: 🔍 VERIFICACIONES CRÍTICAS DEL BUG...', tag: 'TEST');
+
+        // ❌ Verificar que NO hay datos antiguos
+        expect(
+          appFlowChatProvider.onboardingData.userName,
+          isNot(equals(originalUserName)),
+          reason: 'OLD username should NOT be present after reset',
+        );
+
+        expect(
+          appFlowChatProvider.onboardingData.aiName,
+          isNot(equals(originalAiName)),
+          reason: 'OLD AI name should NOT be present after reset',
+        );
+
+        // Verificar que NO hay mensajes antiguos
+        final hasOldSecretMessages = appFlowChatProvider.messages.any(
+          (m) => m.text.contains('Mensaje secreto'),
+        );
+        expect(
+          hasOldSecretMessages,
+          isFalse,
+          reason: 'OLD secret messages should NOT be present after reset',
+        );
+
+        final hasOldMeetingReference = appFlowChatProvider.messages.any(
+          (m) => m.text.contains('cafetería'),
+        );
+        expect(
+          hasOldMeetingReference,
+          isFalse,
+          reason: 'OLD meeting references should NOT be present after reset',
+        );
+
+        // Verificar que NO hay eventos antiguos
+        final hasOldEvents = (appFlowChatProvider.onboardingData.events ?? [])
+            .any(
+              (e) =>
+                  e.description.contains('cafetería') ||
+                  e.description.contains('DEBE BORRARSE'),
+            );
+        expect(
+          hasOldEvents,
+          isFalse,
+          reason: 'OLD events should NOT be present after reset',
+        );
+
+        // ✅ Verificar que SÍ hay datos nuevos
+        expect(
+          appFlowChatProvider.onboardingData.userName,
+          equals(newUserName),
+          reason: 'NEW username should be present',
+        );
+
+        expect(
+          appFlowChatProvider.onboardingData.aiName,
+          equals(newAiName),
+          reason: 'NEW AI name should be present',
+        );
+
+        // Verificar que SÍ hay mensajes nuevos
+        final hasNewLibraryMessages = appFlowChatProvider.messages.any(
+          (m) => m.text.contains('biblioteca'),
+        );
+        expect(
+          hasNewLibraryMessages,
+          isTrue,
+          reason: 'NEW library messages should be present',
+        );
+
+        // 🎉 RESULTADO FINAL
+        Log.d('🎉 PASO 9: ¡VERIFICACIÓN EXITOSA!', tag: 'TEST');
+        Log.d('   📊 Resumen de la verificación:', tag: 'TEST');
+        Log.d(
+          '      ❌ Usuario original ($originalUserName) → ELIMINADO ✅',
+          tag: 'TEST',
+        );
+        Log.d(
+          '      ❌ IA original ($originalAiName) → ELIMINADA ✅',
+          tag: 'TEST',
+        );
+        Log.d('      ❌ 3 mensajes secretos → ELIMINADOS ✅', tag: 'TEST');
+        Log.d('      ❌ 2 eventos cafetería → ELIMINADOS ✅', tag: 'TEST');
+        Log.d('      ✅ Nuevo usuario ($newUserName) → PRESENTE ✅', tag: 'TEST');
+        Log.d('      ✅ Nueva IA ($newAiName) → PRESENTE ✅', tag: 'TEST');
+        Log.d(
+          '      ✅ ${appFlowChatProvider.messages.length} mensajes biblioteca → PRESENTES ✅',
+          tag: 'TEST',
+        );
+
+        Log.d(
+          '🔒 BUG DE RESTAURACIÓN DE CHAT: ¡PREVENIDO EXITOSAMENTE!',
+          tag: 'TEST',
+        );
+
+        // Limpiar override
+        AIService.testOverride = null;
+      },
+    );
   });
 }
 

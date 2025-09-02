@@ -100,20 +100,24 @@ class IAAvatarGenerator {
           'profundidad_de_campo': 'fondo suavemente desenfocado',
         },
         'estetica': {
-          'estilo': 'instagram portrait, divertida y natural',
+          'estilo':
+              'selfie natural casual, divertida y espontánea, relajada y expresiva',
+          'expresion':
+              'sonrisa genuina, expresión alegre y natural, ojos brillantes y vivaces, actitud relajada y confiada',
           'iluminacion':
-              'calida, direccional, balance de blancos cálido, contraste medio-alto',
+              'calida y suave, luz natural, balance de blancos cálido, contraste suave',
           'postprocesado':
-              'bokeh, viñeteado sutil, nitidez en ojos, suavizado de piel realista, colores ligeramente saturados',
+              'bokeh suave, colores vibrantes pero naturales, aspecto juvenil y fresco',
         },
         'camara': {
-          'objetivo_preferido': '50mm',
-          'apertura': 'f/1.8-f/2.8',
-          'iso': 'bajo-medio',
+          'objetivo_preferido': '35mm',
+          'apertura': 'f/2.8-f/4',
+          'iso': 'bajo',
+          'enfoque': 'casual y natural, no profesional',
         },
         'parametros_tecnicos': {
           'negative_prompt':
-              'Evitar watermark, texto, logos, firmas, baja resolución, deformaciones o elementos irreales.',
+              'Evitar poses rígidas, expresiones serias, watermark, texto, logos, firmas, baja resolución, deformaciones, elementos irreales, modificar rasgos definidos en appearance.',
         },
         'image_request': {
           'size': '1024x1024',
@@ -126,11 +130,11 @@ class IAAvatarGenerator {
         'fidelidad_appearance':
             "Representa fielmente cada detalle del JSON 'appearance' con precisión milimétrica. Ojos: color, forma, tamaño, expresión, distancia, pestañas (longitud, densidad, curvatura). Cabello: color, largo, volumen, densidad, y si existe tinte/mechas verificar 'aplica=true'. Rostro: cejas, nariz, boca, dientes, orejas según especificaciones exactas. Cuerpo: altura, peso, complexión, piel, manos, pechos. Marcas: tatuajes, cicatrices, pecas, lunares en ubicación exacta.",
         'ropa_y_maquillaje':
-            "Seleccionar de 'ropa' el conjunto que mejor concuerde con la actividad biográfica. Reproducir fielmente: prendas, colores, materiales, texturas, accesorios incluidos. Usar 'paleta_color' y aplicar 'maquillaje_base' según la situación.",
+            "Usar exactamente la ropa definida en 'appearance.conjuntos_ropa' seleccionando el conjunto más apropiado para el contexto. Respetar colores, estampados, materiales y accesorios tal como están especificados. NO modificar ni sustituir prendas. Aplicar 'maquillaje_base' de forma natural y juvenil según está definido en appearance.",
       },
       'fuentes': {
         'appearance':
-            "Usar exactamente el objeto JSON 'appearance' para rasgos físicos, ropa, accesorios, paleta de color y marcas únicas.",
+            "Usar exactamente el objeto JSON 'appearance' para rasgos físicos, conjuntos_ropa, accesorios, paleta de color y marcas únicas.",
         'biography':
             "Usar 'biography' únicamente para elegir la actividad/hobby principal que aparecerá en la imagen. No extraer rasgos físicos desde la biografía si contradicen 'appearance'.",
       },
@@ -138,13 +142,17 @@ class IAAvatarGenerator {
         'seleccion_actividad':
             "Analiza detalladamente las secciones 'intereses_y_aficiones', 'horarios_actividades', 'trayectoria_profesional' e 'historia_personal' de la biografía. Extrae la actividad o hobby más característico y representativo de esta persona específica. Prioriza actividades que reflejen su personalidad geek/otaku/friki si está presente en la biografía. Usa únicamente lo que está explícitamente mencionado en estos campos, no añadas actividades genéricas.",
         'poses_y_gestos':
-            'La pose debe reflejar naturalmente la actividad elegida y su personalidad. Si la biografía indica una personalidad otaku/friki/geek, incorpora gestos y expresiones que muestren esa pasión auténtica por sus hobbies. La foto debe ser espontánea y mostrar disfrute genuino, con la energía característica de alguien que disfruta intensamente de sus aficiones. Evita poses forzadas o cliché.',
+            'OBLIGATORIO: La pose debe ser relajada, natural y alegre. Sonrisa genuina y ojos brillantes son ESENCIALES. Si la biografía indica personalidad otaku/friki/geek, mostrar emoción y pasión por sus hobbies con gestos expresivos (peace sign, thumbs up, gestos anime). La foto debe verse como un selfie casual donde se divierte genuinamente. EVITAR COMPLETAMENTE poses formales, serias o rígidas.',
         'props_y_elementos':
             'Incluye únicamente objetos y elementos que estén directamente relacionados con las actividades, hobbies o profesión mencionados en la biografía. IMPORTANTE: Si la biografía menciona videojuegos, NO incluyas automáticamente mandos de consola visible - solo si la actividad específica lo requiere. Para personas otaku/friki/geek, prefiere elementos más sutiles y diversos relacionados con sus intereses específicos mencionados en la biografía. Los props deben ser naturales, no posados para mostrar.',
         'mascotas_y_entorno':
             "Si la sección 'mascotas' incluye animales, pueden aparecer interactuando naturalmente con la actividad. Representa exactamente las características descritas. El entorno debe ser coherente con la actividad y personalidad: si es una persona otaku/friki según su biografía, el espacio puede reflejar esa cultura de manera sutil y natural según sus intereses específicos, sin elementos que contradigan su contexto personal.",
       },
       'restricciones': [
+        'Fidelidad absoluta al campo appearance del perfil',
+        'NO modificar rasgos, conjuntos_ropa o accesorios definidos en appearance',
+        'NO expresiones serias o rígidas',
+        'NO poses profesionales o tipo foto carnet',
         'No texto en la imagen',
         'Sin marcas de agua, pie de foto ni logos, solamente la foto',
         'Sin elementos anacrónicos',
@@ -153,7 +161,7 @@ class IAAvatarGenerator {
       'salida':
           'Usa la herramienta de generación de imágenes y devuelve únicamente la imagen en base64.',
       'notas':
-          "Lee 'appearance' fielmente para ropa, colores, texturas y accesorios. Usa 'biography' solo para elegir la actividad y contexto; prioriza 'appearance' ante contradicciones. La imagen debe tener edad aparente EXACTA = 25.",
+          "PRIORIDAD MÁXIMA: Generar una imagen ALEGRE, CASUAL y RELAJADA. La persona debe verse feliz y expresiva. Lee 'appearance' fielmente para conjuntos_ropa casual y colores. Usa 'biography' solo para elegir hobbies/actividades divertidas; prioriza 'appearance' ante contradicciones. La imagen debe tener edad aparente EXACTA = 25. EVITAR ABSOLUTAMENTE vestimenta formal o expresiones serias.",
     };
   }
 
@@ -177,12 +185,20 @@ class IAAvatarGenerator {
     AiChanProfile profile,
     String textModel,
   ) async {
+    final basePrompt = _createBasePrompt();
     final instructions = {
       'task': 'generate_image_prompt',
       'description':
-          '''Genera UN SOLO prompt de imagen listo para el generador (una frase larga, separada por comas). Debe ser SUPER-DETALLADO: extrae y utiliza toda la información visual disponible del `appearance` del `profile` adjunto (usar como única fuente de verdad para rasgos físicos, ropa, colores, texturas y marcas), de la `biography` (actividad, gustos, contexto) y del `timeline` (entradas recientes) para incluir props, lugares o escenas relacionadas con acciones recientes. No repitas el tema o estilo de avatares anteriores (avatars). Forzar edad_aparente = 25.''',
-      'identidad': {'edad_aparente': 25, 'genero': 'mujer'},
+          '''Genera UN SOLO prompt de imagen listo para el generador (una frase larga, separada por comas). Debe ser SUPER-DETALLADO: extrae y utiliza toda la información visual disponible del `appearance` del `profile` adjunto (usar como única fuente de verdad para rasgos físicos, conjuntos_ropa CASUAL, colores, texturas y marcas), de la `biography` (actividad, gustos, contexto) y del `timeline` (entradas recientes) para incluir props, lugares o escenas relacionadas con acciones recientes. IMPORTANTE: La imagen debe ser ALEGRE, CASUAL y DIVERTIDA - evitar completamente ropa formal, poses serias o expresiones rígidas. Incluir sonrisa genuina y actitud relajada. No repitas el tema o estilo de avatares anteriores (avatars). Forzar edad_aparente = 25.''',
+      'identidad': basePrompt['identidad'],
+      'visual_settings': basePrompt['visual_settings'],
+      'rasgos_fisicos': basePrompt['rasgos_fisicos'],
+      'fuentes': basePrompt['fuentes'],
+      'estilo_obligatorio': 'casual, alegre, divertido, sonriente, relajado',
+      'actividad_y_pose': basePrompt['actividad_y_pose'],
       'restricciones': [
+        'NO ropa formal (trajes, blazers, chaquetas de trabajo)',
+        'NO expresiones serias o poses rígidas',
         'No texto en la imagen',
         'Sin marcas de agua',
         'Sólo una persona en el encuadre',

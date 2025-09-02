@@ -8,6 +8,7 @@ import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/services/google_backup_service.dart';
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/chat/application/providers/chat_provider.dart';
+import 'package:ai_chan/shared/utils/dialog_utils.dart';
 
 /// Widget de diagnóstico para verificar el estado de backups automáticos y autenticación Google
 class BackupDiagnosticsDialog extends StatefulWidget {
@@ -499,7 +500,10 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
         height: 500,
         child: SingleChildScrollView(
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const CyberpunkLoader(
+                  message: 'SCANNING BACKUP SYSTEMS...',
+                  showProgressBar: true,
+                )
               : SelectableText(
                   _diagnosticResult,
                   style: const TextStyle(

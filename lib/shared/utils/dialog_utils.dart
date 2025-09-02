@@ -265,3 +265,158 @@ Future<T?> showAppDialog<T>({
     routeSettings: routeSettings,
   );
 }
+
+/// Widget para mostrar indicadores de carga estilo cyberpunk
+///
+/// Ejemplo de uso:
+/// ```dart
+/// if (isLoading && loadingMessage != null)
+///   Padding(
+///     padding: const EdgeInsets.only(bottom: 16.0),
+///     child: CyberpunkLoader(
+///       message: loadingMessage!,
+///       showProgressBar: true, // opcional: muestra barra de progreso ASCII
+///     ),
+///   ),
+/// ```
+class CyberpunkLoader extends StatefulWidget {
+  final String message;
+  final bool showProgressBar;
+
+  const CyberpunkLoader({
+    super.key,
+    required this.message,
+    this.showProgressBar = false,
+  });
+
+  @override
+  State<CyberpunkLoader> createState() => _CyberpunkLoaderState();
+}
+
+class _CyberpunkLoaderState extends State<CyberpunkLoader>
+    with TickerProviderStateMixin {
+  late AnimationController _dotsController;
+  late AnimationController _progressController;
+  late AnimationController _blinkController;
+
+  int _dotCount = 0;
+  int _progressStep = 0;
+  bool _isVisible = true;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Animación de puntos suspensivos (cada 500ms)
+    _dotsController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    _dotsController.addListener(() {
+      if (_dotsController.isCompleted) {
+        setState(() {
+          _dotCount = (_dotCount + 1) % 4; // 0, 1, 2, 3, 0...
+        });
+        _dotsController.reset();
+        _dotsController.forward();
+      }
+    });
+
+    // Animación de barra de progreso (cada 300ms)
+    _progressController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _progressController.addListener(() {
+      if (_progressController.isCompleted) {
+        setState(() {
+          _progressStep = (_progressStep + 1) % 20; // 20 pasos
+        });
+        _progressController.reset();
+        _progressController.forward();
+      }
+    });
+
+    // Animación de parpadeo (cada 800ms)
+    _blinkController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _blinkController.addListener(() {
+      if (_blinkController.isCompleted) {
+        setState(() {
+          _isVisible = !_isVisible;
+        });
+        _blinkController.reset();
+        _blinkController.forward();
+      }
+    });
+
+    // Iniciar todas las animaciones
+    _dotsController.forward();
+    if (widget.showProgressBar) {
+      _progressController.forward();
+    }
+    _blinkController.forward();
+  }
+
+  @override
+  void dispose() {
+    _dotsController.dispose();
+    _progressController.dispose();
+    _blinkController.dispose();
+    super.dispose();
+  }
+
+  String _buildDots() {
+    return '.' * _dotCount + ' ' * (3 - _dotCount);
+  }
+
+  String _buildProgressBar() {
+    if (!widget.showProgressBar) return '';
+
+    final filled = '█' * _progressStep;
+    final empty = '░' * (20 - _progressStep);
+    return '\n[$filled$empty] ${_progressStep * 5}%';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: _isVisible ? 1.0 : 0.7,
+      duration: const Duration(milliseconds: 100),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: widget.message,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 15,
+                fontFamily: 'monospace',
+              ),
+            ),
+            TextSpan(
+              text: _buildDots(),
+              style: const TextStyle(
+                color: Colors.greenAccent,
+                fontSize: 15,
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (widget.showProgressBar)
+              TextSpan(
+                text: _buildProgressBar(),
+                style: const TextStyle(
+                  color: Colors.cyanAccent,
+                  fontSize: 13,
+                  fontFamily: 'monospace',
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -59,6 +59,10 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
   bool _linkInProgress = false;
   String? _lastSeenAuthUrl;
   Timer? _authUrlWatcher;
+  String? _workingMessage;
+  bool _showProgressBar = false;
+  bool _showAccountInfo = false;
+  bool _showBackupInfo = false;
 
   // Helper functions for consistent backup metadata handling
   String _formatBackupTimestamp(String? isoDateString) {
@@ -163,9 +167,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         tag: 'GoogleBackup',
       );
       try {
-        _safeSetState(() {
-          _working = true;
-        });
+        _setWorkingState('[AUTH_INIT] Initializing secure connection');
 
         final candidateCid = await _resolveClientId(widget.clientId);
         // On Android explicitly force the google_sign_in path so the
@@ -185,9 +187,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
           tag: 'GoogleBackup',
         );
         // Don't show error for auto-link failures, just let user click button
-        _safeSetState(() {
-          _working = false;
-        });
+        _clearWorkingState();
       }
     });
   }
@@ -229,10 +229,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
           );
         }
 
-        _safeSetState(() {
-          _working = false;
-        });
-        _updateStatus('Cuenta ya vinculada');
+        _clearWorkingState();
 
         // Check for backups and maybe restore
         try {
@@ -291,6 +288,54 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
     });
   }
 
+  void _setWorkingState(String message, {bool showProgress = false}) {
+    _safeSetState(() {
+      _working = true;
+      _workingMessage = message;
+      _showProgressBar = showProgress;
+    });
+  }
+
+  void _clearWorkingState() {
+    _safeSetState(() {
+      _working = false;
+      _workingMessage = null;
+      _showProgressBar = false;
+    });
+  }
+
+  void _resetVisibilityStates() {
+    setState(() {
+      _showAccountInfo = false;
+      _showBackupInfo = false;
+    });
+  }
+
+  /// Construye un AnimatedSwitcher con transiciones suaves reutilizable
+  Widget _buildAnimatedTransition({
+    required Widget? child,
+    required Duration duration,
+    Offset slideBegin = const Offset(0.0, -0.3),
+    Curve curve = Curves.easeOutCubic,
+  }) {
+    return AnimatedSwitcher(
+      duration: duration,
+      transitionBuilder: (child, animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: slideBegin,
+              end: Offset.zero,
+            ).animate(CurvedAnimation(parent: animation, curve: curve)),
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+
   Future<String> _resolveClientId(String rawCid) async =>
       await GoogleBackupService.resolveClientId(rawCid);
   Future<String?> _resolveClientSecret() async =>
@@ -333,9 +378,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
 
     // Mensaje dinámico basado en si puede crear backups
     final checkingMessage = _canCreateBackups()
-        ? '[SCAN_INITIATED] Escaneando archivos de almacenamiento en nube...'
-        : '[AUTH_VERIFIED] Accediendo a interfaz de Google Drive...';
-    _updateStatus(checkingMessage);
+        ? '[SCAN_INITIATED] Escaneando archivos de almacenamiento en nube'
+        : '[AUTH_VERIFIED] Accediendo a interfaz de Google Drive';
+    _setWorkingState(checkingMessage);
 
     try {
       final svc = _service ?? GoogleBackupService(accessToken: null);
@@ -344,9 +389,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
 
       if (files.isEmpty) {
         _latestBackup = null;
-        _safeSetState(() {
-          _working = false;
-        });
+        _clearWorkingState();
 
         // Mensaje dinámico y contextual cuando no hay backups
         final emptyMessage = _buildNoBackupsMessage();
@@ -372,7 +415,16 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
 
       // Use helper function for consistent formatting
       final statusText = _formatBackupSummary(_latestBackup!);
-      _safeSetState(() => _working = false);
+      _clearWorkingState();
+
+      // Mostrar la información de backup de manera gradual
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
+
+      _safeSetState(() {
+        _showBackupInfo = true;
+      });
+
       _updateStatus(statusText);
       return;
     } catch (e) {
@@ -392,9 +444,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
           await GoogleBackupService(accessToken: null).clearStoredCredentials();
         } catch (_) {}
         _insufficientScope = true;
-        _safeSetState(() {
-          _working = false;
-        });
+        _clearWorkingState();
         _updateStatus(
           'Permisos insuficientes al acceder a Drive. Se han borrado las credenciales locales.',
         );
@@ -456,10 +506,20 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
         if (!mounted) return;
+
+        // Actualizar la información de cuenta gradualmente para mejor UX
         _safeSetState(() {
           _email = data['email'] as String?;
           _avatarUrl = data['picture'] as String?;
           _name = data['name'] as String?;
+        });
+
+        // Pequeña pausa antes de mostrar la info de cuenta para transición suave
+        await Future.delayed(const Duration(milliseconds: 200));
+        if (!mounted) return;
+
+        _safeSetState(() {
+          _showAccountInfo = true;
         });
         try {
           if (widget.onAccountInfoUpdated != null) {
@@ -521,8 +581,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
       return;
     }
 
-    _safeSetState(() {});
-    _updateStatus('[DATA_PREP] データコウゾウヲシリアルカチュウ...');
+    _setWorkingState('[DATA_PREP] データコウゾウヲシリアルカチュウ', showProgress: true);
     File? tempBackupFile;
     try {
       final jsonStr = await widget.requestBackupJson!();
@@ -542,8 +601,10 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         tag: 'GoogleBackup',
       );
 
-      _safeSetState(() {});
-      _updateStatus('[UPLOAD_INITIATED] クラウドストレージニソウシンチュウ...');
+      _setWorkingState(
+        '[UPLOAD_INITIATED] クラウドストレージニソウシンチュウ',
+        showProgress: true,
+      );
       await _service!.uploadBackup(tempBackupFile);
       _safeSetState(() {});
       _updateStatus('[BACKUP_COMPLETE] データアーカイブセイジョウニアップロードカンリョウ');
@@ -562,11 +623,11 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         );
         // No mostrar error al usuario ya que el backup se creó correctamente
         // Solo actualizar el estado para mostrar que se completó
-        _safeSetState(() => _working = false);
+        _clearWorkingState();
       }
     } catch (e) {
       debugPrint('createBackupNow error: $e');
-      _safeSetState(() {});
+      _clearWorkingState();
       _updateStatus('[UPLOAD_ERROR] Archive creation/transmission failed');
     } finally {
       // Limpiar archivo temporal después del upload (exitoso o fallido)
@@ -633,16 +694,18 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
 
   Future<void> _restoreLatestNow() async {
     if (_latestBackup == null) return;
-    _safeSetState(() {});
-    _updateStatus(
-      '[DOWNLOAD_INITIATED] Retrieving archive from cloud storage...',
+    _setWorkingState(
+      '[DOWNLOAD_INITIATED] Retrieving archive from cloud storage',
+      showProgress: true,
     );
     final svc = _service ?? GoogleBackupService(accessToken: null);
     try {
       final backupId = _latestBackup!['id'] as String;
       final file = await svc.downloadBackup(backupId);
-      _safeSetState(() {});
-      _updateStatus('[RESTORE_PROCESS] Decompressing and applying data...');
+      _setWorkingState(
+        '[RESTORE_PROCESS] Decompressing and applying data',
+        showProgress: true,
+      );
       final extractedJson = await BackupService.restoreAndExtractJson(file);
       if (widget.onImportedJson != null) {
         try {
@@ -655,9 +718,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
           return;
         } catch (e) {
           debugPrint('onImportedJson failed: $e');
-          _safeSetState(() {
-            _working = false;
-          });
+          _clearWorkingState();
           _updateStatus('[RESTORE_ERROR] Data integration failed');
           return;
         }
@@ -671,7 +732,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
       return;
     } catch (e) {
       debugPrint('restoreLatest failed: $e');
-      _safeSetState(() => _working = false);
+      _clearWorkingState();
       _updateStatus('[DOWNLOAD_ERROR] Archive retrieval failed');
     }
   }
@@ -764,75 +825,110 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                   ),
                 ),
                 const SizedBox(height: 20), // Más espacio después del header
-                if (_service != null) ...[
-                  Row(
-                    children: [
-                      if (_avatarUrl != null)
-                        CircleAvatar(backgroundImage: NetworkImage(_avatarUrl!))
-                      else
-                        const Icon(
-                          Icons.account_circle,
-                          size: 40,
-                          color: Colors.white70,
-                        ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                // Información de cuenta con transición animada
+                _buildAnimatedTransition(
+                  duration: const Duration(milliseconds: 600),
+                  child: _service != null && _showAccountInfo
+                      ? Column(
+                          key: const ValueKey('account_info'),
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            if (_name != null)
-                              Text(
-                                _name!,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
+                            Row(
+                              children: [
+                                if (_avatarUrl != null)
+                                  CircleAvatar(
+                                    backgroundImage: NetworkImage(_avatarUrl!),
+                                  )
+                                else
+                                  const Icon(
+                                    Icons.account_circle,
+                                    size: 40,
+                                    color: Colors.white70,
+                                  ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (_name != null)
+                                        Text(
+                                          _name!,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      Text(
+                                        _email ?? '[AUTHENTICATED_USER]',
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontFamily: 'monospace',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            Text(
-                              _email ?? '[AUTHENTICATED_USER]',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontFamily: 'monospace',
-                              ),
+                              ],
                             ),
+                            const SizedBox(height: 20),
                           ],
+                        )
+                      : const SizedBox(
+                          key: ValueKey('empty_account'),
+                          height: 8,
                         ),
+                ),
+
+                // Información de backup con transición animada
+                _buildAnimatedTransition(
+                  duration: const Duration(milliseconds: 500),
+                  slideBegin: const Offset(0.0, 0.3),
+                  child: _latestBackup != null && _showBackupInfo
+                      ? Padding(
+                          key: const ValueKey('backup_info'),
+                          padding: const EdgeInsets.only(bottom: 12.0),
+                          child: Text(
+                            _latestBackupSummary() ??
+                                'ARCHIVED_DATA // クラウドストレージリヨウカノウ',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 15,
+                            ),
+                          ),
+                        )
+                      : const SizedBox(
+                          key: ValueKey('empty_backup'),
+                          height: 0,
+                        ),
+                ),
+
+                // Transient status message shown only when account is linked.
+                // Avoid duplicating the latest backup summary text.
+                if (_status != null &&
+                    (_latestBackup == null ||
+                        _status != _latestBackupSummary()))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: Text(
+                      _status!,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 15,
+                        fontFamily: 'monospace',
                       ),
-                    ],
+                    ),
                   ),
-                  const SizedBox(
-                    height: 20,
-                  ), // Más espacio después de la info de usuario
-                  // Show a compact summary of the latest backup when available.
-                  if (_latestBackup != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
-                      child: Text(
-                        _latestBackupSummary() ??
-                            'ARCHIVED_DATA // クラウドストレージリヨウカノウ',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 15,
-                        ),
-                      ),
+
+                // Mostrar loader cyberpunk cuando está trabajando
+                if (_working && _workingMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: CyberpunkLoader(
+                      message: _workingMessage!,
+                      showProgressBar: _showProgressBar,
                     ),
-                  // Transient status message shown only when account is linked.
-                  // Avoid duplicating the latest backup summary text.
-                  if (_status != null &&
-                      (_latestBackup == null ||
-                          _status != _latestBackupSummary()))
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: Text(
-                        _status!,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 15,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                    ),
-                ],
+                  ),
                 // Transient status messages removed from UI per UX decision.
                 const SizedBox(height: 16), // Más espacio antes de los botones
 
@@ -906,7 +1002,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                               'GoogleDriveBackupDialog: Iniciar sesión (Android) pressed',
                               tag: 'GoogleBackup',
                             );
-                            _safeSetState(() => _working = true);
+                            _setWorkingState(
+                              '[AUTH_MOBILE] Launching native account selector',
+                            );
                             if (_linkInProgress) {
                               _safeSetState(() => _linkInProgress = false);
                             }
@@ -949,21 +1047,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                               if (raw.contains('user cancelled') ||
                                   raw.contains('user canceled') ||
                                   raw.contains('cancel')) {
-                                _safeSetState(() {
-                                  _working = false;
-                                  Log.d(
-                                    'GoogleDriveBackupDialog: status=Vinculación cancelada por el usuario',
-                                    tag: 'GoogleBackup',
-                                  );
-                                });
+                                _clearWorkingState();
                               } else {
-                                _safeSetState(() {
-                                  _working = false;
-                                  Log.d(
-                                    'GoogleDriveBackupDialog: status=Error iniciando vinculaci\u00f3n',
-                                    tag: 'GoogleBackup',
-                                  );
-                                });
+                                _clearWorkingState();
                               }
                             }
                           },
@@ -977,7 +1063,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                               'GoogleDriveBackupDialog: Iniciar sesión (Desktop) pressed',
                               tag: 'GoogleBackup',
                             );
-                            _safeSetState(() => _working = true);
+                            _setWorkingState(
+                              '[AUTH_DESKTOP] Launching browser authentication',
+                            );
                             if (_linkInProgress) {
                               _safeSetState(() => _linkInProgress = false);
                             }
@@ -1042,13 +1130,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                 tag: 'GoogleBackup',
                               );
                               debugPrint('Desktop sign-in error: $e\n$st');
-                              _safeSetState(() {
-                                _working = false;
-                                Log.d(
-                                  'GoogleDriveBackupDialog: status=Error iniciando vinculación',
-                                  tag: 'GoogleBackup',
-                                );
-                              });
+                              _clearWorkingState();
                             }
                           },
                           icon: const Icon(Icons.login),
@@ -1107,11 +1189,8 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                   ),
                                 );
                                 if (confirm == true) {
-                                  setState(() {
-                                    _working = true;
-                                  });
-                                  _updateStatus(
-                                    '[DISCONNECT_INIT] Terminating account interface...',
+                                  _setWorkingState(
+                                    '[DISCONNECT_INIT] Terminating account interface',
                                   );
                                   try {
                                     await GoogleBackupService(
@@ -1126,6 +1205,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                     _latestBackup = null;
                                     _insufficientScope = false;
                                   });
+                                  _resetVisibilityStates();
                                   _updateStatus(
                                     '[DISCONNECT_SUCCESS] Account interface terminated successfully',
                                   );
@@ -1252,9 +1332,8 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                 );
                                 if (confirm != true) return;
                                 // Proceed with deletion
-                                _safeSetState(() => _working = true);
-                                _updateStatus(
-                                  '[DELETE_INITIATED] Purging backup archive...',
+                                _setWorkingState(
+                                  '[DELETE_INITIATED] Purging backup archive',
                                 );
                                 try {
                                   final svc =
@@ -1273,7 +1352,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                     '[DELETE_ERROR] Failed to purge backup archive',
                                   );
                                 } finally {
-                                  _safeSetState(() => _working = false);
+                                  _clearWorkingState();
                                 }
                               },
                         label: const Text(

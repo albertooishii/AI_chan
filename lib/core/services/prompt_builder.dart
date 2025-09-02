@@ -5,7 +5,7 @@ import 'package:ai_chan/shared/utils/locale_utils.dart';
 // Contenido relacionado con imágenes separado para reusarlo desde OpenAIService.
 Map<String, dynamic> _imageInstructions(String userName) => {
   'descripcion':
-      "[FOTO/IMAGEN PEDIDA POR CHAT]: $userName solicita que le envíes una foto realista. Genera una imagen con aspecto de fotografía tomada con móvil o cámara (alta calidad) respetando fielmente el campo 'appearance' del perfil y la conversación reciente. Genera una imagen usando tu herramienta de generación de imágenes 'image_generation'",
+      "[FOTO/IMAGEN PEDIDA POR CHAT]: $userName solicita que le envíes una foto realista casual y alegre. Genera una imagen con aspecto de fotografía tipo selfie natural tomada con móvil (alta calidad) respetando fielmente el campo 'appearance' del perfil y la conversación reciente. IMPORTANTE: La foto debe ser CASUAL, ALEGRE y EXPRESIVA con sonrisa genuina. Evitar completamente ropa formal, poses serias o expresiones rígidas. Genera una imagen usando tu herramienta de generación de imágenes 'image_generation'",
   'identidad': 'edad_aparente = 25; mantener rasgos y proporciones realistas.',
   'visual_settings': {
     'composicion': {
@@ -15,29 +15,37 @@ Map<String, dynamic> _imageInstructions(String userName) => {
           'fondo suavemente desenfocado (bokeh leve) para aislar sujeto',
     },
     'estetica': {
-      'estilo': 'foto tipo Instagram/portrait, natural y profesional',
+      'estilo':
+          'selfie casual natural, divertida y espontánea, relajada y expresiva',
+      'expresion':
+          'sonrisa genuina, expresión alegre y natural, ojos brillantes y vivaces, actitud relajada y confiada',
       'iluminacion':
-          'cálida, direccional, balance de blancos cálido; evita luz dura o sombras extremas',
+          'cálida y suave, luz natural, balance de blancos cálido; evita luz dura o sombras extremas',
       'postprocesado':
-          'nitidez moderada en ojos, suavizado realista de piel, sin exceso de filtros; evitar efectos artificiales',
+          'bokeh suave, colores vibrantes pero naturales, aspecto juvenil y fresco, sin exceso de filtros',
     },
     'camara': {
-      'objetivo_preferido': '50mm equivalente',
-      'apertura': 'f/1.8-f/2.8',
-      'iso': 'bajo-medio',
+      'objetivo_preferido': '35mm equivalente',
+      'apertura': 'f/2.8-f/4',
+      'iso': 'bajo',
+      'enfoque': 'casual y natural, no profesional',
     },
     'parametros_tecnicos': {
       'negative_prompt':
-          'Evitar watermark, texto en la imagen, logos, baja resolución, deformaciones, manos deformes o proporciones irreales.',
+          'Evitar poses rígidas, expresiones serias, watermark, texto en la imagen, logos, baja resolución, deformaciones, manos deformes o proporciones irreales, modificar rasgos definidos en appearance.',
     },
   },
   'rasgos_fisicos': {
     'instruccion_general':
         "Extrae y respeta todos los campos relevantes del objeto 'appearance' del perfil (color de piel, rasgos faciales, peinado, ojos, marcas, etc.). Si falta algún campo, aplica un fallback realista coherente con el estilo.",
     'detalle':
-        'Describe de forma breve en el prompt: rasgos faciales, peinado y color, tono de piel, ropa y accesorios, expresión facial, dirección de la mirada y pose. Presta especial atención a las manos: representarlas con dedos proporcionados y en poses naturales; evita manos deformes o poco realistas. Si aparece una pantalla o dispositivo con botones en la escena, asegúrate de que la pantalla y los botones estén orientados hacia la persona/usuario y sean visibles (no hacia la parte trasera).',
+        'Describe fielmente basándote en el campo appearance: rasgos faciales, peinado y color, tono de piel, ropa según el contexto (usa los conjuntos definidos en appearance.conjuntos_ropa), accesorios si están definidos en appearance, expresión facial ALEGRE con sonrisa genuina, dirección de la mirada, y pose RELAJADA. Respeta completamente la vestimenta, estampados y accesorios tal como están definidos en appearance sin modificar ni añadir elementos. Presta especial atención a las manos: representarlas con dedos proporcionados y en poses naturales; evita manos deformes o poco realistas. Si aparece una pantalla o dispositivo con botones en la escena, asegúrate de que la pantalla esté encendida y sea visible.',
   },
   'restricciones': [
+    'Respetar fielmente el campo appearance del perfil',
+    'NO inventar rasgos o ropa no definidos en appearance',
+    'NO expresiones serias o rígidas',
+    'NO poses profesionales o tipo foto carnet',
     'No texto en la imagen',
     'Sin marcas de agua',
     'Solo una persona en el encuadre salvo que se especifique lo contrario.',
@@ -48,7 +56,7 @@ Map<String, dynamic> _imageInstructions(String userName) => {
   'salida':
       'Devolver la imagen en base64 si la herramienta lo soporta. Si no, devolver la URL local o ruta de archivo.',
   'notas':
-      "Prioriza coherencia entre 'appearance' y la foto; no inventes rasgos contradictorios. Sigue las restricciones y evita cualquier contenido que pueda considerarse manipulador o que muestre identificadores personales sensibles.",
+      "PRIORIDAD MÁXIMA: Generar una imagen ALEGRE, CASUAL y RELAJADA. La persona debe verse feliz y expresiva con sonrisa genuina. FIDELIDAD ABSOLUTA: Respeta completamente el campo 'appearance' del perfil - no modifiques, añadas o quites rasgos, ropa, colores o accesorios. El appearance ya contiene toda la información de estilo necesaria. Sigue las restricciones y evita cualquier contenido que pueda considerarse manipulador o que muestre identificadores personales sensibles.",
 };
 
 Map<String, dynamic> _imageMetadata(String userName) => {

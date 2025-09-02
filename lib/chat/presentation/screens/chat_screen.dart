@@ -249,7 +249,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CyberpunkLoader(message: 'SYNC...'),
                       )
                     : const Icon(Icons.refresh, color: AppColors.primary),
                 tooltip: 'Actualizar modelos',
@@ -451,18 +451,52 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Row(
             children: [
               if (_isRegeneratingAppearance)
-                // Spinner en lugar del avatar mientras se regenera
-                const CircleAvatar(
+                // Loader cyberpunk minimalista para el avatar
+                CircleAvatar(
                   radius: 16,
-                  backgroundColor: AppColors.secondary,
+                  backgroundColor: Colors.black87,
                   child: SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        AppColors.primary,
-                      ),
+                    width: 24,
+                    height: 24,
+                    child: Stack(
+                      children: [
+                        // Anillo exterior con efecto glow
+                        Positioned.fill(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1.5,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              AppColors.primary.withValues(alpha: 0.3),
+                            ),
+                          ),
+                        ),
+                        // Punto central con glow cyberpunk
+                        Center(
+                          child: Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.primary,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary,
+                                  blurRadius: 8,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        // Spinner principal
+                        const Positioned.fill(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 )
@@ -1054,9 +1088,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 SizedBox(
                                   width: 16,
                                   height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
+                                  child: CyberpunkLoader(message: 'LOADING...'),
                                 ),
                                 SizedBox(width: 8),
                                 Text(

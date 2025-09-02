@@ -10,7 +10,7 @@ void main() {
     () async {
       // Respuesta simulada que incluye un bloque JSON válido
       final jsonText =
-          '{"edad_aparente": 30, "genero": "femenino", "ropa": []}';
+          '{"edad_aparente": 30, "genero": "femenino", "conjuntos_ropa": []}';
       final resp = AIResponse(text: jsonText);
       final fake = FakeAIService.withResponses([resp]);
       AIService.testOverride = fake;

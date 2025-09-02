@@ -2,6 +2,7 @@ import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/onboarding.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared/utils/dialog_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -127,10 +128,24 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   ChatProvider? _chatProvider;
   Future<void> resetApp() async {
     Log.i('resetApp llamado');
+
+    // Primero limpiar el ChatProvider si existe
+    if (_chatProvider != null) {
+      try {
+        await _chatProvider!.clearAll();
+        Log.d('resetApp: ChatProvider cleared');
+      } catch (e) {
+        Log.w('resetApp: Error clearing ChatProvider: $e');
+      }
+    }
+
+    // Luego limpiar todos los datos de la app
     await AppDataUtils.clearAllAppData();
     Log.i('resetApp completado');
     if (mounted) {
       widget.onboardingProvider.reset();
+      // También resetear el ChatProvider
+      _chatProvider = null;
       setState(() {});
     }
   }
@@ -174,7 +189,12 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (!_initialized) {
       return const Scaffold(
         backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: CyberpunkLoader(
+            message: 'BOOTING SYSTEM...',
+            showProgressBar: true,
+          ),
+        ),
       );
     }
 
@@ -182,7 +202,12 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (onboardingProvider.loading) {
       return const Scaffold(
         backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: CyberpunkLoader(
+            message: 'LOADING USER DATA...',
+            showProgressBar: true,
+          ),
+        ),
       );
     }
 

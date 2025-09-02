@@ -505,7 +505,10 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
 
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const CyberpunkLoader(
+                      message: 'LOADING VOICE MODELS...',
+                      showProgressBar: true,
+                    )
                   : _buildVoiceList(),
             ),
 
@@ -569,7 +572,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CyberpunkLoader(message: 'SYNC...'),
                     )
                   : const Icon(Icons.refresh, color: AppColors.primary),
               onPressed: () async {

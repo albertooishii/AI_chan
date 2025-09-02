@@ -2350,11 +2350,13 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
   }
 
   Future<void> loadAll() async {
+    Log.d('[AI-chan] loadAll iniciado');
     // Try to load via repository if available
     if (repository != null) {
       try {
         final Map<String, dynamic>? data = await repository!.loadAll();
         if (data != null) {
+          Log.d('[AI-chan] loadAll: datos encontrados en repository');
           try {
             final imported = ImportedChat.fromJson(data);
             onboardingData = imported.profile;
@@ -2364,6 +2366,9 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
             await loadSelectedModel();
             _promiseService.restoreFromEvents();
             notifyListeners();
+            Log.d(
+              '[AI-chan] loadAll: cargado desde repository, mensajes: ${messages.length}',
+            );
             // Si cargamos desde repository, asegurarnos de forzar copia automática
             // en el primer arranque si procede (misma lógica que más abajo).
             try {
@@ -2422,6 +2427,8 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
               tag: 'PERSIST',
             );
           }
+        } else {
+          Log.d('[AI-chan] loadAll: no hay datos en repository');
         }
       } catch (e) {
         Log.w(
@@ -2431,15 +2438,20 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       }
     }
 
+    Log.d('[AI-chan] loadAll: fallback a SharedPreferences');
     // Fallback legacy loading via PrefsUtils
     // Restaurar biografía
     final bioString = await PrefsUtils.getOnboardingData();
     if (bioString != null) {
+      Log.d('[AI-chan] loadAll: biografia encontrada en SharedPreferences');
       onboardingData = AiChanProfile.fromJson(jsonDecode(bioString));
+    } else {
+      Log.d('[AI-chan] loadAll: no hay biografia en SharedPreferences');
     }
     // Restaurar mensajes
     final jsonString = await PrefsUtils.getChatHistory();
     if (jsonString != null) {
+      Log.d('[AI-chan] loadAll: mensajes encontrados en SharedPreferences');
       final List<dynamic> jsonList = jsonDecode(jsonString);
       final List<Message> loadedMessages = [];
       for (var e in jsonList) {
@@ -2450,6 +2462,11 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
         loadedMessages.add(msg);
       }
       messages = loadedMessages;
+      Log.d(
+        '[AI-chan] loadAll: cargados ${messages.length} mensajes desde SharedPreferences',
+      );
+    } else {
+      Log.d('[AI-chan] loadAll: no hay mensajes en SharedPreferences');
     }
     // Restaurar eventos programados IA (modularizado)
     final eventsString = await PrefsUtils.getEvents();
@@ -2620,6 +2637,10 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     // Nota: no arrancar el scheduler automáticamente al cargar; el caller/UI
     // debe decidir cuándo iniciar el envío periódico. Esto mejora testeo y
     // evita side-effects durante carga.
+
+    Log.d(
+      '[AI-chan] loadAll completado: mensajes=${messages.length}, perfil=${onboardingData.aiName}, eventos=${_events.length}',
+    );
   }
 
   Future<void> clearAll() async {

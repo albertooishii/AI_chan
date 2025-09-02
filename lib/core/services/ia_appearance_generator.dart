@@ -138,7 +138,19 @@ class IAAppearanceGenerator {
       'pecas': '',
       'lunares': '',
       'arrugas': '',
-      'ropa': [],
+      'conjuntos_ropa': [
+        {
+          'nombre': '',
+          'ocasion': '',
+          'prendas': [],
+          'colores': '',
+          'materiales': '',
+          'texturas': '',
+          'accesorios': '',
+          'estilo_general': '',
+          'temporada': '',
+        },
+      ],
       'estilo': [],
       'accesorios': [],
       'estilo_otaku_friki': {
@@ -162,15 +174,30 @@ class IAAppearanceGenerator {
     });
 
     final culturalNote = isJapanese
-        ? 'Nota especial: La biografía indica nacionalidad japonesa, la apariencia debe reflejar rasgos étnicos japoneses auténticos y su estilo otaku será más sofisticado y natural, con influencias de la moda harajuku, decora kei, o estilos japoneses contemporáneos según su personalidad.'
-        : 'Nota especial: La apariencia debe reflejar su origen cultural y su estilo otaku/friki será desde la perspectiva de fan internacional de la cultura japonesa.';
+        ? 'Nota especial: La biografía indica nacionalidad japonesa, la apariencia debe reflejar rasgos étnicos japoneses auténticos y su estilo otaku será más sofisticado y natural, con influencias de la moda harajuku, decora kei, o estilos japoneses contemporáneos CASUALES según su personalidad. EVITAR ropa formal japonesa salvo en el conjunto #4.'
+        : 'Nota especial: La apariencia debe reflejar su origen cultural y su estilo otaku/friki será desde la perspectiva de fan internacional de la cultura japonesa. PRIORITIZAR vestimenta casual y cómoda en todos los conjuntos.';
+
+    final hairstyleNote = isJapanese
+        ? '''
+        IMPORTANTE - PEINADOS JAPONESES MODERNOS ACTUALES: Como japonesa joven de 25 años, usa tu conocimiento auténtico de peinados contemporáneos del street style japonés que están de moda ahora mismo. EVITA el abuso de flequillos rectos tradicionales (más propios de estilos retro). Prioriza estilos modernos, desenfadados y prácticos que reflejen las tendencias urbanas japonesas actuales, incluyendo influencias K-beauty adoptadas en Japón. 
+
+        Crea variedad distribuida en estas categorías:
+        - Trabajo presencial (1-2 peinados): Profesional pero moderno
+        - Trabajo desde casa (2 peinados): Cómodo, práctico, "undone"  
+        - Diario casual (2 peinados): Urbano japonés actual
+        - Eventos/salidas (1-2 peinados): Más elaborado
+        - Cultural/tradicional (1 peinado): Para matsuri/eventos especiales
+
+        Usa tu conocimiento de las tendencias de Harajuku, Shibuya y la moda juvenil japonesa contemporánea.'''
+        : '''
+        PEINADOS: Crea variedad entre peinados arreglados y casuales. Incluye estilos modernos occidentales con influencia de tendencias asiáticas que una fan internacional adoptaría. Distribuye en categorías: profesional, casual/casa, diario, eventos, y algún estilo con influencia cultural japonesa.''';
 
     final workStyleNote = isJapanese
-        ? '1) Trabajo (casual/creativo/tecnológico, no formal salvo que biography lo indique; que refleje su personalidad otaku si trabaja en tech/gaming/anime. Como japonesa, puede incluir elementos de moda japonesa contemporánea)'
-        : '1) Trabajo (casual/creativo/tecnológico, no formal salvo que biography lo indique; que refleje su personalidad otaku si trabaja en tech/gaming/anime)';
+        ? '1) Trabajo CASUAL (tech/gaming/anime/creativo, NO formal/blazers: camisetas, hoodies, vaqueros cómodos. Como japonesa, puede incluir elementos de moda japonesa contemporánea casual)'
+        : '1) Trabajo CASUAL (tech/gaming/anime/creativo, NO formal/blazers: camisetas, hoodies, vaqueros cómodos que reflejen su personalidad otaku)';
 
     final casualStyleNote = isJapanese
-        ? '2) Ocio muy casual (alineado con hobbies; puede incluir camisetas de anime, hoodies con referencias geek, etc. Como japonesa, referencias más auténticas y sofisticadas)'
+        ? '2) Ocio súper casual (camisetas de anime, hoodies con referencias geek, ropa cómoda y colorida. Como japonesa, referencias más auténticas y sofisticadas)'
         : '2) Ocio muy casual (alineado con hobbies; puede incluir camisetas de anime, hoodies con referencias geek, etc.)';
 
     final cosplayNote = isJapanese
@@ -202,7 +229,9 @@ class IAAppearanceGenerator {
 
       En "cabello.peinados" devuelve 3 a 5 peinados distintos, cada uno con máximo detalle y variedad, coherentes con la biografía y la apariencia general.
 
-      En "ropa" devuelve unos diez u once conjuntos diferentes, cada uno como objeto con todos los detalles (prendas, colores, materiales, texturas, accesorios si aplica, estilo general). Los conjuntos propuestos son:
+      $hairstyleNote
+
+      En "conjuntos_ropa" devuelve unos diez u once conjuntos diferentes, cada uno como objeto con todos los detalles (nombre del conjunto, ocasión, prendas detalladas, colores, materiales, texturas, accesorios si aplica, estilo general, temporada). Los conjuntos propuestos son:
       $workStyleNote
       $casualStyleNote
       3) Fiesta normal (eventos sociales habituales, pero con su toque personal distintivo)
@@ -217,6 +246,8 @@ class IAAppearanceGenerator {
       Los accesorios son opcionales; no añadas por defecto.
 
       $otakuStyleNote
+
+      IMPORTANTE: En todos los conjuntos, prioriza vestimenta CASUAL, CÓMODA y JUVENIL. Evita completamente blazers, chaquetas formales, trajes o ropa de oficina tradicional. La personalidad puede reflejarse sutilmente en colores vibrantes, estampados OCASIONALES (no obligatorios, solo en algunas prendas como camisetas frikis bajo americanas casuales o ropa de diario) y accesorios OPCIONALES relacionados con hobbies (no abuses de pines o complementos, úsalos solo cuando aporten valor al conjunto).
 
       En cada campo, describe con máximo detalle y precisión todos los rasgos físicos y visuales. Sé milimétrico en medidas, proporciones, distancias y texturas. No omitas campos.
       ''';
