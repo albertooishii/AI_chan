@@ -21,6 +21,7 @@ import 'dart:math';
 import 'package:ai_chan/shared/services/backup_service.dart';
 import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
 import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
+import 'conversational_onboarding_screen.dart';
 
 /// Callback typedef para finalizar el onboarding
 typedef OnboardingFinishCallback =
@@ -1001,6 +1002,44 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                     : null,
               ),
               const SizedBox(height: 28),
+
+              // Botón para modo conversacional
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final result = await Navigator.of(context).push<bool>(
+                          MaterialPageRoute(
+                            builder: (_) => ConversationalOnboardingScreen(
+                              onFinish: widget.onFinish,
+                              onboardingProvider: widget.onboardingProvider,
+                            ),
+                          ),
+                        );
+                        // Si completó el onboarding conversacional, no necesitamos hacer nada más
+                        if (result == true && mounted) {
+                          // El onboarding conversacional ya llamó a onFinish
+                        }
+                      },
+                      icon: const Icon(Icons.mic, color: AppColors.primary),
+                      label: const Text(
+                        'Modo conversacional',
+                        style: TextStyle(color: AppColors.primary),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.primary),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
               CyberpunkButton(
                 onPressed: _formCompleto && !provider.loadingStory
                     ? () async {
