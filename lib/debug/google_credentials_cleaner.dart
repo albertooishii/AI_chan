@@ -1,60 +1,40 @@
 import 'package:ai_chan/shared/services/google_backup_service.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 
-/// Utilidad para limpiar credenciales OAuth de Google de manera manual
-/// Útil para resolver problemas de client_id mismatch
+/// Utility to clean Google OAuth credentials
 class GoogleCredentialsCleaner {
-  /// Limpia todas las credenciales OAuth de Google almacenadas
+  /// Clear all stored Google OAuth credentials
   static Future<void> clearCredentials() async {
-    Log.i(
-      '🧹 [CLEANER] Iniciando limpieza de credenciales OAuth de Google',
-      tag: 'GoogleCleaner',
-    );
+    Log.i('Clearing Google OAuth credentials', tag: 'GoogleCleaner');
 
     try {
       final service = GoogleBackupService(accessToken: null);
 
-      // Diagnosticar antes de limpiar
       final beforeDiagnosis = await service.diagnoseStoredCredentials();
-      Log.i('📊 [CLEANER] Estado antes de la limpieza:', tag: 'GoogleCleaner');
       Log.i(
-        '  - Credenciales presentes: ${beforeDiagnosis['has_stored_credentials']}',
-        tag: 'GoogleCleaner',
-      );
-      Log.i(
-        '  - Client ID original: ${beforeDiagnosis['original_client_id'] ?? 'NO DISPONIBLE'}',
+        'Before cleanup - stored: ${beforeDiagnosis['has_stored_credentials']}',
         tag: 'GoogleCleaner',
       );
 
-      // Limpiar credenciales
       await service.clearStoredCredentials();
 
-      // Verificar después de limpiar
       final afterDiagnosis = await service.diagnoseStoredCredentials();
-      Log.i('✅ [CLEANER] Estado después de la limpieza:', tag: 'GoogleCleaner');
       Log.i(
-        '  - Credenciales presentes: ${afterDiagnosis['has_stored_credentials']}',
+        'After cleanup - stored: ${afterDiagnosis['has_stored_credentials']}',
         tag: 'GoogleCleaner',
       );
 
       if (!afterDiagnosis['has_stored_credentials']) {
-        Log.i(
-          '🎉 [CLEANER] Limpieza exitosa - todas las credenciales han sido eliminadas',
-          tag: 'GoogleCleaner',
-        );
-        Log.i(
-          '💡 [CLEANER] La próxima autenticación OAuth almacenará el client_id correcto',
-          tag: 'GoogleCleaner',
-        );
+        Log.i('Credentials cleared successfully', tag: 'GoogleCleaner');
       } else {
         Log.w(
-          '⚠️ [CLEANER] Advertencia: algunas credenciales pueden no haberse eliminado completamente',
+          'Some credentials may not have been cleared',
           tag: 'GoogleCleaner',
         );
       }
     } catch (e, st) {
       Log.e(
-        '❌ [CLEANER] Error durante la limpieza de credenciales: $e',
+        'Error clearing credentials: $e',
         tag: 'GoogleCleaner',
         error: e,
         stack: st,
@@ -62,26 +42,21 @@ class GoogleCredentialsCleaner {
     }
   }
 
-  /// Fuerza una nueva autenticación limpiando credenciales primero
+  /// Force reauthentication by clearing credentials first
   static Future<Map<String, dynamic>?> forceReauthentication({
     List<String>? scopes,
     String? clientId,
   }) async {
     Log.i(
-      '🔄 [CLEANER] Forzando re-autenticación con credenciales limpias',
+      'Forcing reauthentication with clean credentials',
       tag: 'GoogleCleaner',
     );
 
     try {
-      // Primero limpiar credenciales existentes
       await clearCredentials();
-
-      // Esperar un momento para asegurar que la limpieza se complete
       await Future.delayed(const Duration(milliseconds: 500));
 
-      // Intentar nueva autenticación
       final service = GoogleBackupService(accessToken: null);
-
       final tokenMap = await service.linkAccount(
         clientId: clientId,
         scopes:
@@ -94,27 +69,18 @@ class GoogleCredentialsCleaner {
             ],
       );
 
-      Log.i('✅ [CLEANER] Re-autenticación exitosa', tag: 'GoogleCleaner');
+      Log.i('Reauthentication successful', tag: 'GoogleCleaner');
 
-      // Verificar que el client_id se almacenó correctamente
       final newDiagnosis = await service.diagnoseStoredCredentials();
       Log.i(
-        '📊 [CLEANER] Nueva configuración almacenada:',
-        tag: 'GoogleCleaner',
-      );
-      Log.i(
-        '  - Client ID original: ${newDiagnosis['original_client_id']}',
-        tag: 'GoogleCleaner',
-      );
-      Log.i(
-        '  - Longitud del client ID: ${newDiagnosis['original_client_id_length']}',
+        'New client ID stored: ${newDiagnosis['original_client_id']}',
         tag: 'GoogleCleaner',
       );
 
       return tokenMap;
     } catch (e, st) {
       Log.e(
-        '❌ [CLEANER] Error durante re-autenticación: $e',
+        'Reauthentication error: $e',
         tag: 'GoogleCleaner',
         error: e,
         stack: st,

@@ -65,7 +65,8 @@ class BackupAutoUploader {
       final tmpDir = Directory.systemTemp.createTempSync('ai_chan_backup_');
 
       final bool skipTokenCheck = testGoogleBackupServiceFactory != null;
-      GoogleBackupService svc;
+      String? storedToken;
+
       if (!skipTokenCheck) {
         // Use a lightweight service instance to read stored access token or
         // credentials. Allow tests to inject a token-loader for deterministic
@@ -74,7 +75,7 @@ class BackupAutoUploader {
             ? testTokenLoaderFactory!()
             : GoogleBackupService(accessToken: null);
 
-        final storedToken = await tokenLoader.loadStoredAccessToken();
+        storedToken = await tokenLoader.loadStoredAccessToken();
         if (storedToken == null || storedToken.isEmpty) {
           Log.w(
             'Automatic backup: no stored access token available; skipping upload',
@@ -91,9 +92,6 @@ class BackupAutoUploader {
           }
           return;
         }
-        svc = GoogleBackupService(accessToken: storedToken);
-      } else {
-        svc = testGoogleBackupServiceFactory!();
       }
 
       // Create the zip in the system temp dir to avoid polluting app documents
@@ -111,7 +109,19 @@ class BackupAutoUploader {
       try {
         testUploadCompleter?.complete();
       } catch (_) {}
-      await svc.uploadBackup(file);
+
+      // Use robust upload with automatic retry
+      if (!skipTokenCheck && storedToken != null) {
+        // Use the robust static method with automatic refresh capability
+        await GoogleBackupService.uploadBackupWithAutoRefresh(
+          file,
+          accessToken: storedToken,
+        );
+      } else {
+        // Test path - use injected service directly
+        final svc = testGoogleBackupServiceFactory!();
+        await svc.uploadBackup(file);
+      }
       Log.i(
         'Automatic backup: upload completed successfully to Drive. file=${file.path}',
         tag: 'BACKUP_AUTO',

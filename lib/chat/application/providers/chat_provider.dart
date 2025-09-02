@@ -1606,6 +1606,76 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     return msg;
   }
 
+  /// Robust backup list with automatic token refresh (based on successful dialog logic)
+  /// This mirrors the successful pattern from GoogleDriveBackupDialog._fetchAccountInfo
+  Future<List<dynamic>> _listBackupsWithAutoRefresh(
+    String? accessToken, {
+    bool attemptRefresh = true,
+  }) async {
+    if (accessToken == null) throw StateError('No access token provided');
+
+    try {
+      // Attempt to list backups with current token
+      final svc = GoogleBackupService(accessToken: accessToken);
+      final files = await svc.listBackups();
+      Log.d(
+        'Auto-backup: successful backup list, found ${files.length} file(s)',
+        tag: 'BACKUP_AUTO',
+      );
+      return files;
+    } catch (e) {
+      // Check if it's a 401 error and we haven't attempted refresh yet
+      if (attemptRefresh &&
+          (e.toString().contains('401') ||
+              e.toString().contains('Unauthorized') ||
+              e.toString().contains('invalid_client'))) {
+        Log.d(
+          'Auto-backup: received OAuth error, attempting automatic token refresh...',
+          tag: 'BACKUP_AUTO',
+        );
+
+        try {
+          // Use the same refresh logic as the successful dialog
+          final svc = GoogleBackupService(accessToken: null);
+          final refreshed = await svc.refreshAccessToken(
+            clientId: await GoogleBackupService.resolveClientId(''),
+            clientSecret: await GoogleBackupService.resolveClientSecret(),
+          );
+
+          final newToken = refreshed['access_token'] as String?;
+          if (newToken != null) {
+            Log.d(
+              'Auto-backup: token refresh successful, retrying backup list...',
+              tag: 'BACKUP_AUTO',
+            );
+            // Recursive call with new token, but don't attempt refresh again to avoid infinite loop
+            return await _listBackupsWithAutoRefresh(
+              newToken,
+              attemptRefresh: false,
+            );
+          } else {
+            Log.w(
+              'Auto-backup: token refresh did not return access_token',
+              tag: 'BACKUP_AUTO',
+            );
+          }
+        } catch (refreshError) {
+          Log.w(
+            'Auto-backup: token refresh failed: $refreshError',
+            tag: 'BACKUP_AUTO',
+          );
+        }
+      }
+
+      // If we reach here, either it wasn't a OAuth error or refresh failed
+      Log.w(
+        'Auto-backup: listBackups failed (refresh not attempted or failed): $e',
+        tag: 'BACKUP_AUTO',
+      );
+      rethrow;
+    }
+  }
+
   Future<void> _maybeTriggerAutoBackup() async {
     try {
       await BackupAutoUploader.maybeUploadAfterSummary(
@@ -1708,8 +1778,8 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
           try {
             unawaited(() async {
               try {
-                final svc = GoogleBackupService(accessToken: storedToken);
-                final files = await svc.listBackups();
+                // 🔧 FIX: Use robust backup verification with automatic refresh (like dialog)
+                final files = await _listBackupsWithAutoRefresh(storedToken);
                 if (files.isEmpty) {
                   Log.d(
                     'Auto-backup: no remote backups found despite recent local ts; forcing upload',
@@ -2157,9 +2227,8 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     }
 
     try {
-      // Get comprehensive Google Backup Service diagnosis
-      final serviceStatus =
-          await GoogleBackupService.diagnoseAndroidSessionIssues();
+      // Get comprehensive Google Backup Service diagnosis - PASSIVE VERSION
+      final serviceStatus = await _getDiagnosisPassive();
       diagnosis['serviceStatus'] = serviceStatus;
     } catch (e) {
       diagnosis['serviceStatusError'] = e.toString();
@@ -2178,6 +2247,53 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
       tag: 'GoogleDiagnostic',
     );
     return diagnosis;
+  }
+
+  /// Passive diagnosis that doesn't trigger any OAuth flows or sign-ins
+  Future<Map<String, dynamic>> _getDiagnosisPassive() async {
+    try {
+      final diagnosis = <String, dynamic>{
+        'platform': Platform.isAndroid ? 'Android' : 'Other',
+        'circuitBreaker': GoogleBackupService.getCircuitBreakerStatus(),
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+
+      // Check stored credentials passively
+      try {
+        const storage = FlutterSecureStorage();
+        final credsStr = await storage.read(key: 'google_credentials');
+        final hasCreds = credsStr != null && credsStr.isNotEmpty;
+        diagnosis['hasStoredCredentials'] = hasCreds;
+
+        if (hasCreds) {
+          final creds = jsonDecode(credsStr);
+          diagnosis['hasRefreshToken'] = creds['refresh_token'] != null;
+          diagnosis['hasAccessToken'] = creds['access_token'] != null;
+
+          // Check token expiry if available
+          final expiresIn = creds['expires_in'];
+          if (expiresIn is int && expiresIn > 0) {
+            diagnosis['tokenExpiresInSeconds'] = expiresIn;
+          }
+        }
+      } catch (e) {
+        diagnosis['credentialCheckError'] = e.toString();
+      }
+
+      // Skip native sign-in status check to avoid any potential token refresh
+      // This makes the diagnosis completely passive
+      diagnosis['nativeSignInStatus'] =
+          false; // Assume false to avoid triggering anything
+
+      Log.i(
+        'Passive Android session diagnosis: $diagnosis',
+        tag: 'GoogleBackup',
+      );
+      return diagnosis;
+    } catch (e) {
+      Log.e('Failed to get passive diagnosis: $e', tag: 'GoogleBackup');
+      return {'error': e.toString()};
+    }
   }
 
   /// Clear stored Google account info both in memory and persisted prefs.
