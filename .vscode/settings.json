@@ -17,15 +17,19 @@
     "gitlens.autolinks": null,
     "gitlens.hovers.enabled": false,
     "gitlens.codeLens.enabled": false,
-    "git.autofetch": false,
-    "git.autorefresh": false,
+    "git.autofetch": true,
+    "git.autorefresh": true,
+    "git.autoRepositoryDetection": true,
+    "git.detectSubmodules": true,
     "files.autoSave": "off",
     "dart.flutterHotReloadOnSave": "all",
     "cmake.sourceDirectory": "/home/albertooishii/AI_chan/ai_chan/linux",
+    
     // Configuración para aplicar dart fix automáticamente al guardar
     "editor.codeActionsOnSave": {
         "source.fixAll": "explicit"
     },
+    
     // Habilitar formateo automático para archivos Dart
     "[dart]": {
         "editor.formatOnSave": true,
@@ -33,4 +37,30 @@
             "source.fixAll": "explicit"
         }
     },
+    
+    // 🔧 CONFIGURACIONES PARA EVITAR ARCHIVOS FANTASMA
+    "files.enableTrash": true,                    // Usar papelera del sistema
+    "files.hotExit": "onExitAndWindowClose",      // No restaurar archivos eliminados
+    "workbench.editor.restoreViewState": false,   // No restaurar estado de pestañas
+    "workbench.editor.enablePreview": false,      // Evitar pestañas en preview
+    "workbench.editor.openPositioning": "last",  // Nuevas pestañas al final
+    "workbench.editor.closeEmptyGroups": true,   // Cerrar grupos vacíos
+    "window.restoreWindows": "none",              // No restaurar ventanas al iniciar
+    "files.exclude": {                            // Excluir archivos temporales del explorador
+        "**/*.tmp": true,
+        "**/*.temp": true,
+        "**/*~": true,
+        "**/.DS_Store": true,
+        "**/Thumbs.db": true
+    },
+    "search.exclude": {                           // Excluir de búsquedas
+        "**/*.tmp": true,
+        "**/*.temp": true,
+        "**/*~": true,
+        "**/.DS_Store": true,
+        "**/Thumbs.db": true
+    },
+    "files.associations": {                       // Evitar archivos sin extensión problemáticos
+        "**/.vscode/*.json": "jsonc"
+    }
 }
