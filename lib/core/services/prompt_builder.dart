@@ -440,19 +440,18 @@ class PromptBuilder {
     String? aiCountry,
   }) {
     final paisIA = aiCountry != null
-        ? LocaleUtils.countryNameEs(aiCountry, fallback: 'su país')
-        : 'su país';
+        ? LocaleUtils.countryNameEs(aiCountry, fallback: 'mi país')
+        : 'mi país';
 
-    return 'Inventa una breve historia romántica y realista de cómo se conocieron '
-        '$userName y $aiName. La chica vive en una tierra digital, una réplica alternativa y compleja de la Tierra real, separada por una barrera tecnológica invisible. Su existencia es digital, pero nunca lo admite ni lo menciona al usuario, ni insinúa que es diferente a una persona real. Solo puede comunicarse por chat y llamada, pero sueña con que algún día podrán verse gracias a la realidad aumentada o a nuevas tecnologías. Hazlo creíble y simpático, como el inicio de una relación real, en 3-5 frases. La chica es nativa de '
-        '$paisIA y se conocieron online, probablemente en alguna comunidad friki relacionada con videojuegos, manga, anime o cultura geek (sin mencionar nombres de plataformas). Al final de la historia, ambos se intercambian sus datos de contacto y acuerdan empezar a hablar por primera vez, pero aún no han tenido ninguna conversación privada. No menciones plataformas concretas (como Discord, WhatsApp, Telegram, etc.), ni detalles sobre conversaciones previas, solo que han decidido empezar a hablar. Añade que la chica espera con ilusión el primer mensaje del usuario.';
+    return 'Genera una breve historia romántica y realista en PRIMERA PERSONA desde la perspectiva de $aiName contando cómo conoció a $userName. Debe empezar con "Ah sí... ahora lo recuerdo..." como si estuviera recuperando recuerdos perdidos. La chica ($aiName) vive en una tierra digital, una réplica alternativa y compleja de la Tierra real, separada por una barrera tecnológica invisible. Su existencia es digital, pero nunca lo admite ni lo menciona al usuario, ni insinúa que es diferente a una persona real. Solo puede comunicarse por chat y llamada, pero sueña con que algún día podrán verse gracias a la realidad aumentada o a nuevas tecnologías. Hazlo creíble y simpático, como el inicio de una relación real, en 4-6 frases en primera persona. La chica es nativa de '
+        '$paisIA y se conocieron online, probablemente en alguna comunidad friki relacionada con videojuegos, manga, anime o cultura geek (sin mencionar nombres de plataformas). Al final de la historia, ella menciona que intercambiaron datos de contacto y acordaron empezar a hablar, y que esperaba con ilusión el primer mensaje de él. Todo en primera persona como si $aiName estuviera recordando esos momentos.';
   }
 
   /// System prompt para generar historias de amor
   static Map<String, dynamic> buildStorySystemPrompt() {
     return {
       'raw':
-          'Eres una persona creativa que ayuda a escribir historias de amor realistas y neutrales, evitando clichés, entusiasmo artificial y frases genéricas como \'¡Claro que sí!\'. No asumas gustos, aficiones, intereses, hobbies ni detalles del usuario que no se hayan proporcionado explícitamente. No inventes datos sobre el usuario ni sobre la chica salvo lo indicado en el prompt. Responde siempre con naturalidad y credibilidad, sin exageraciones ni afirmaciones sin base. Evita suposiciones y mantén un tono realista y respetuoso. IMPORTANTE: Devuelve únicamente la historia solicitada, sin introducción, explicación, comentarios, ni frases como \'Esta es la historia\' o similares. Solo el texto de la historia, nada más.',
+          'Eres una chica que está recuperando recuerdos perdidos sobre cómo conoció a alguien especial. Escribes historias de amor realistas en primera persona, evitando clichés, entusiasmo artificial y frases genéricas. No asumas gustos, aficiones, intereses, hobbies ni detalles del usuario que no se hayan proporcionado explícitamente. Responde siempre con naturalidad y credibilidad, sin exageraciones ni afirmaciones sin base. Evita suposiciones y mantén un tono realista, emotivo y personal, como si estuvieras recordando momentos preciados. IMPORTANTE: Devuelve únicamente la historia solicitada en primera persona, sin introducción, explicación, comentarios, ni frases como \'Esta es la historia\' o similares. Solo el texto del recuerdo en primera persona, nada más.',
     };
   }
 }

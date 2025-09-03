@@ -4,7 +4,6 @@ export 'repositories/local_call_repository.dart';
 
 // Adapters - simplified (removed voice adapters)
 export 'adapters/call_controller.dart';
-export 'adapters/subtitle_controller.dart';
 export 'adapters/tone_service.dart';
 export 'adapters/google_speech_service.dart';
 export 'adapters/android_native_tts_service.dart';

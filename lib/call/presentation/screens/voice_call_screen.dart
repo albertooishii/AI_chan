@@ -337,7 +337,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
   }
 
   // Controlador de subtítulos unificado
-  late final SubtitleController _subtitleController;
+  late final StreamingSubtitleController _subtitleController;
   // Eliminado _hideSubtitles: siempre mostrar subtítulos.
 
   // --- FIN: eliminación de lógica progresiva y normalizaciones agresivas para modo ultra simple ---
@@ -386,7 +386,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
     _subtitleController.handleAiChunk(
       text,
       // Solo mostrar tras recibir primer audio real de la IA
-      firstAudioReceived: controller.firstAudioReceivedFlag,
+      audioStarted: controller.firstAudioReceivedFlag,
       suppressFurther: controller.suppressFurtherAiTextFlag,
     );
   }
@@ -408,7 +408,7 @@ class _VoiceCallChatState extends State<VoiceCallChat>
     // Resolve AI service via DI based on selected provider/model; use configured default model
     openai = di.getAIServiceForModel(Config.getDefaultTextModel());
     controller = CallController(aiService: openai);
-    _subtitleController = SubtitleController();
+    _subtitleController = StreamingSubtitleController();
 
     // Cargar / validar voz por defecto inmediatamente para el controlador
     Future.microtask(() async {

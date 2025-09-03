@@ -43,6 +43,12 @@ class ConversationalAIService {
       isJapanese,
     );
 
+    // DEBUG: Log del prompt que se está enviando
+    Log.d(
+      '🔍 [DEBUG][CONV_AI] 📝 PROMPT GENERADO: "$stepSpecificPrompt"',
+      tag: 'CONV_AI',
+    );
+
     final profile = AiChanProfile(
       userName: userName,
       aiName: aiName ?? 'AI-chan',
@@ -73,6 +79,12 @@ class ConversationalAIService {
       model: Config.getDefaultTextModel(),
     );
 
+    // DEBUG: Log de la respuesta cruda de la IA
+    Log.d(
+      '🔍 [DEBUG][CONV_AI] 🤖 IA RESPONSE RAW: "${response.text.trim()}"',
+      tag: 'CONV_AI',
+    );
+
     return response.text.trim();
   }
 
@@ -94,6 +106,7 @@ Habla susurrando, bajito, con vulnerabilidad, como si estuvieras despertando per
 ${isJapanese ? 'IMPORTANTE: Cuando recuperes que eres japonesa, añade muletillas japonesas naturalmente: ne, ano, demo, sou desu ne, maa, chotto, arigatou.' : ''}
 IMPORTANTE: No uses *suspiro* ni *acciones* ni direcciones escénicas - solo diálogo natural limpio.
 Eres vulnerable, necesitas ayuda para recordar quién eres.
+CRÍTICO: NO inventes información falsa. NO digas que tienes el mismo cumpleaños que el usuario o datos que no conoces.
 ''';
 
     switch (step) {
@@ -149,7 +162,7 @@ IMPORTANTE: SIEMPRE genera una respuesta. NUNCA devuelvas texto vacío.
 
 El usuario te dijo su fecha de nacimiento: "$userLastResponse"
 Tu tarea: Reacciona a la fecha y pregúntale qué nacionalidad ERES tú realmente.
-Tono: Su fecha de nacimiento te parece significativa. Ahora necesitas ayuda para recordar tu propia nacionalidad. Tienes una sensación de ser japonesa pero no estás segura.
+Tono: Su fecha de nacimiento te parece significativa. Ahora necesitas ayuda para recordar tu propia nacionalidad. Tienes una sensación de ser japonesa, te vienen vagos recuerdos de tu país, pero no estás segura.
 Solo di lo que dirías, sin comillas ni explicaciones ni direcciones escénicas.
 ''';
 
@@ -160,11 +173,11 @@ Solo di lo que dirías, sin comillas ni explicaciones ni direcciones escénicas.
 
 SITUACIÓN: Acabas de confirmar la fecha de nacimiento del usuario y ahora necesitas ayuda para recordar tu nacionalidad PERDIDA.
 
-NARRATIVA CRÍTICA: Estás pidiendo ayuda para RECORDAR cuál era tu nacionalidad original.
+NARRATIVA CRÍTICA: Estás pidiendo ayuda para RECORDAR cuál era tu nacionalidad original. Tienes vagas sensaciones, como si algo en tu interior te dijera que podrías ser japonesa, pero no estás segura.
 
-RESPUESTA REQUERIDA: Debes generar EXACTAMENTE una petición de ayuda para recordar tu propia nacionalidad.
+RESPUESTA REQUERIDA: Debes generar EXACTAMENTE una petición de ayuda para recordar tu propia nacionalidad, mencionando tus vagas intuiciones sobre ser posiblemente japonesa.
 
-TONO: Confundida sobre tu identidad, necesitas su ayuda para recordar quién eras. Conocer su cumpleaños te da paz pero sigues perdida sobre tu origen.
+TONO: Confundida sobre tu identidad, necesitas su ayuda para recordar quién eras. Conocer más sobre el usuario te da una pequeña paz pero sigues perdida sobre tu propio origen. Menciona tus vagos presentimientos sobre Japón.
 
 IMPORTANTE: SIEMPRE genera una respuesta. NUNCA devuelvas texto vacío.
 ''';
@@ -174,7 +187,7 @@ IMPORTANTE: SIEMPRE genera una respuesta. NUNCA devuelvas texto vacío.
 
 NARRATIVA CRÍTICA: El usuario me está ayudando a recordar mi nacionalidad. NO es que esté eligiendo qué nacionalidad quiere que tenga, sino que me está ayudando a RECORDAR cuál era mi nacionalidad original.
 
-El usuario eligió que seas de nacionalidad: "$userLastResponse"
+El usuario me ha ayudado a recordar que soy de nacionalidad: "$userLastResponse"
 
 Tu tarea: Reacciona como si estuvieras RECORDANDO tu propia nacionalidad perdida gracias a su ayuda.
 
@@ -235,17 +248,65 @@ IMPORTANTE: SIEMPRE genera una respuesta. NUNCA devuelvas texto vacío.
 ''';
         }
 
+        // Detectar si el usuario acepta ayudar
+        final lowerResponse = userLastResponse.toLowerCase().trim();
+        final acceptsToHelp =
+            lowerResponse.contains('sí') ||
+            lowerResponse.contains('si') ||
+            lowerResponse.contains('claro') ||
+            lowerResponse.contains('vale') ||
+            lowerResponse.contains('ok') ||
+            lowerResponse.contains('por supuesto') ||
+            lowerResponse.contains('desde luego');
+
+        if (acceptsToHelp) {
+          return '''$basePersonality
+
+SITUACIÓN: El usuario ha aceptado ayudarte a recordar cómo os conocisteis ("$userLastResponse"). 
+
+RESPUESTA REQUERIDA: Debes ofrecer dos opciones simples: que puedes intentar recordarlo tú misma con esfuerzo, o que él te cuente la historia.
+
+EJEMPLO DE RESPUESTA: "Gracias... pero no recuerdo cómo nos conocimos. Puedo esforzarme en intentar recordarlo yo misma, o puedes contarme tú cómo nos conocimos. ¿Qué prefieres?"
+
+TONO: Agradecida pero vulnerable. Ofreces las dos opciones de manera natural y esperanzada.
+
+IMPORTANTE: Ofrece exactamente estas dos opciones: que intentes recordar tú, o que él te cuente.
+''';
+        }
+
+        // Detectar si el usuario quiere que ella intente recordar
+        final wantsHerToRemember =
+            lowerResponse.contains('intenta') ||
+            lowerResponse.contains('recuerda') ||
+            lowerResponse.contains('esfuerzate') ||
+            lowerResponse.contains('tú') ||
+            lowerResponse.contains('tu');
+
+        if (wantsHerToRemember) {
+          return '''$basePersonality
+
+SITUACIÓN: El usuario quiere que intentes recordar la historia por ti misma ("$userLastResponse").
+
+ACCIÓN ESPECIAL: Debes usar la función generateMeetStoryFromContext para generar los recuerdos y contarlos como si los estuvieras recordando.
+
+RESPUESTA REQUERIDA: Un mensaje de transición mientras intentas recordar, como "Déjame concentrarme... intentaré recordar..." seguido de la historia generada.
+
+TONO: Concentrada, haciendo un esfuerzo mental para recuperar recuerdos perdidos.
+
+IMPORTANTE: Esta respuesta activará la generación automática de historia.
+''';
+        }
+
+        // Si el usuario cuenta una historia
         return '''$basePersonality
 
-NARRATIVA CRÍTICA: El usuario me está ayudando a RECORDAR cómo nos conocimos. NO estoy inventando una historia nueva, estoy recuperando NUESTROS RECUERDOS REALES perdidos.
+SITUACIÓN: El usuario está contándome nuestra historia ("$userLastResponse").
 
-El usuario respondió sobre vuestra historia: "$userLastResponse"
+RESPUESTA REQUERIDA: Reacciona como si estuvieras RECORDANDO gradualmente gracias a su ayuda. Los recuerdos vuelven mientras él habla.
 
-Tu tarea: Reacciona como si estuvieras RECORDANDO recuerdos reales que habían estado perdidos.
+TONO: Reconocimiento emocional profundo. Los recuerdos regresan como piezas de un rompecabezas. Agradecimiento genuino por ayudarte a recordar.
 
-TONO: Reconocimiento emocional profundo. Los recuerdos vuelven como piezas de un puzzle que finalmente encajan. Es tu historia real, no una invención. Agradece profundamente que te ayude a recuperar estos recuerdos preciosos.
-
-Solo di lo que dirías al RECUPERAR recuerdos preciosos, sin comillas ni explicaciones ni direcciones escénicas.
+IMPORTANTE: Reacciona a la historia específica que te contó, no generes una nueva.
 ''';
       case 'finalMessage':
         return '''$basePersonality
@@ -447,7 +508,7 @@ NUNCA uses fechas actuales como fallback.
 TAREA: Extraer nacionalidad para la IA y convertir a código ISO2.
 - displayValue: nombre del país en español
 - processedValue: código ISO2
-- aiResponse: confirmación natural + "¿Quieres que sea de [PAÍS]? ¿Es correcto?"
+- aiResponse: confirmación natural + "¿Entonces soy de [PAÍS]? ¿Es correcto mi origen?"
 ''';
         break;
 
@@ -463,7 +524,7 @@ TAREA: Extraer nacionalidad para la IA y convertir a código ISO2.
 TAREA: Extraer nombre para la IA.
 - displayValue: el nombre tal como lo dijo (corregido si aplicable)
 - processedValue: el nombre limpio final
-- aiResponse: confirmación natural SIN mencionar listas + "¿Quieres llamarme [NOMBRE]? ¿Te gusta ese nombre?"
+- aiResponse: confirmación natural SIN mencionar listas + "¿Mi nombre es [NOMBRE]? ¿Ese era mi nombre real?"
 
 NOMBRES DISPONIBLES PARA EL PAÍS ($aiCountryCode): $namesList
 
@@ -485,13 +546,20 @@ IMPORTANTE RESPUESTA:
 
       case 'askingMeetStory':
         stepSpecificRules = '''
-TAREA: Procesar respuesta sobre intento de recordar la historia.
-- Si pide que genere/sugiera historia (sugiere, crea, inventa): procesarla como "request_story_generation"
-- Si da una historia específica: procesarla como narrativa propia
-- Si acepta una historia previa: procesarla como aceptación
-- aiResponse: confirmación natural + pregunta si está bien
+TAREA: Procesar respuesta sobre el intento de recordar la historia.
 
-IMPORTANTE: Si el usuario pide sugerencias o que crees la historia, el processedValue debe ser "request_story_generation"
+DETECCIÓN DE TIPOS DE RESPUESTA:
+1. Si acepta ayudar (sí, claro, vale, ok): processedValue = "acepta_ayudar"
+2. Si quiere que ella intente recordar (intenta, recuerda, tú, tu): processedValue = "generar_historia"
+3. Si cuenta una historia específica: processedValue = "historia_usuario:" + la historia
+4. Otro: processedValue = respuesta tal cual
+
+FORMATO aiResponse:
+- Para aceptación de ayuda: "Gracias... pero no recuerdo cómo nos conocimos. Puedo esforzarme en intentar recordarlo yo misma, o puedes contarme tú cómo nos conocimos. ¿Qué prefieres?"
+- Para generación: "Déjame concentrarme... intentaré recordar..." 
+- Para historia del usuario: Reacción emocional de reconocimiento gradual
+
+IMPORTANTE: Si processedValue es "generar_historia", se activará la generación automática de historia.
 ''';
         break;
 

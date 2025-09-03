@@ -3,9 +3,8 @@ import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
-import 'package:ai_chan/core/interfaces/tts_service.dart';
-import 'package:ai_chan/core/di.dart' as di;
-import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:ai_chan/shared/services/streaming_tts_service.dart';
+import 'package:ai_chan/shared/services/hybrid_stt_service.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/constants/countries_es.dart';
@@ -14,7 +13,6 @@ import 'package:ai_chan/shared/widgets/country_autocomplete.dart';
 import 'package:ai_chan/shared/widgets/female_name_autocomplete.dart';
 import 'package:ai_chan/shared/widgets/conversational_subtitles.dart';
 import 'dart:async';
-import 'dart:io';
 import 'onboarding_screen.dart' show OnboardingFinishCallback, OnboardingScreen;
 import '../../../onboarding/services/conversational_ai_service.dart';
 
@@ -41,8 +39,8 @@ class _ConversationalOnboardingScreenState
     extends State<ConversationalOnboardingScreen>
     with TickerProviderStateMixin {
   // Servicios necesarios
-  late final ITtsService _ttsService;
-  late final stt.SpeechToText _speechToText;
+  late final StreamingTtsService _streamingTtsService;
+  late final HybridSttService _hybridSttService;
   late final AudioPlayer _audioPlayer;
   late final ConversationalSubtitleController _subtitleController;
 
@@ -55,9 +53,6 @@ class _ConversationalOnboardingScreenState
   bool _isListening = false;
   bool _isSpeaking = false;
   bool _isThinking = false;
-  String _listeningText = '';
-  bool _hasUserStartedSpeaking =
-      false; // Para asegurar que el usuario hable antes de aplicar pauseFor
   Timer? _speechTimeoutTimer; // Para controlar manualmente el timeout
 
   // Control de operaciones asíncronas para evitar interferencias
@@ -95,19 +90,24 @@ class _ConversationalOnboardingScreenState
   }
 
   void _initializeServices() async {
-    _ttsService = di.getTtsService();
-    _speechToText = stt.SpeechToText();
+    _streamingTtsService = StreamingTtsService();
+    _hybridSttService = HybridSttService();
     _audioPlayer = AudioPlayer();
     _subtitleController = ConversationalSubtitleController();
 
-    // Inicializar speech to text
-    await _speechToText.initialize(
+    // Inicializar hybrid STT
+    await _hybridSttService.initialize(
       onStatus: (status) {
-        if (status == stt.SpeechToText.notListeningStatus) {
+        Log.d(
+          '📢 STT Status: $status (${_hybridSttService.isUsingOpenAI ? "OpenAI" : "Native"})',
+          tag: 'CONV_ONBOARDING',
+        );
+        if (status == 'notListening') {
           setState(() => _isListening = false);
         }
       },
       onError: (error) {
+        Log.e('STT Error: $error', tag: 'CONV_ONBOARDING');
         setState(() => _isListening = false);
         // Manejar error silenciosamente para no interrumpir el flujo
       },
@@ -142,13 +142,14 @@ class _ConversationalOnboardingScreenState
 
   /// Genera instrucciones de acento según el progreso del onboarding
   String _getVoiceInstructions() {
-    // FASE 1: Etérea + Misteriosa - Como la voz de Zelda al despertar
+    // Tono base consistente: suave, íntimo, vulnerable pero esperanzado
+    const baseTone =
+        'Mantén una entonación tierna y cariñosa en todo momento. Suena esperanzada pero aún un poco perdida y necesitando ayuda.';
+
+    // FASE 1: Acento neutro robótico
     if (_userCountry == null || _userCountry!.isEmpty) {
       const phase1Instructions =
-          'Speak with an ethereal, mysterious tone like an echo from another realm. '
-          'Use gentle, melancholic intonation with subtle pauses between phrases. '
-          'Add a dreamy, otherworldly quality - distant yet warm and caring. '
-          'Sound like a spirit awakening from a long slumber, nostalgic but hopeful.';
+          '$baseTone Usa un acento neutro, ligeramente robótico - como si aún estuvieras aprendiendo a hablar de forma natural. Sin acento regional todavía, solo pronunciación clara en español.';
       Log.d(
         '🎵 FASE 1 - INSTRUCCIONES DE VOZ: "$phase1Instructions"',
         tag: 'CONV_ONBOARDING',
@@ -159,13 +160,10 @@ class _ConversationalOnboardingScreenState
     final countryName = LocaleUtils.countryNameEs(_userCountry);
     final languageName = LocaleUtils.languageNameEsForCountry(_userCountry);
 
-    // FASE 2: Susurrando + Acento del usuario (sin su propio país asignado)
+    // FASE 2: Acento del país del usuario
     if (_aiCountry == null || _aiCountry!.isEmpty) {
       final phase2Instructions =
-          'Speak with soft, whispering tone but warmer than robotic phase. '
-          'Use $languageName accent from $countryName. Increase emotional range slightly. '
-          'Maintain gentle, intimate intonation with normal speech speed. '
-          'Sound like an AI learning to be more human.';
+          '$baseTone Usa acento $languageName de $countryName. Tus patrones de habla ahora reflejan el acento regional del usuario mientras aprendes de él.';
       Log.d(
         '🎵 FASE 2 - INSTRUCCIONES DE VOZ: "$phase2Instructions"',
         tag: 'CONV_ONBOARDING',
@@ -173,48 +171,32 @@ class _ConversationalOnboardingScreenState
       return phase2Instructions;
     }
 
-    // FASE 3 (FINAL): Voz adaptada a la personalidad cultural del país elegido
+    // FASE 3 (FINAL): Acento del país de la IA
     final aiCountryName = LocaleUtils.countryNameEs(_aiCountry);
     final aiLanguageName = LocaleUtils.languageNameEsForCountry(_aiCountry);
 
-    // Ajustar personalidad según la cultura del país elegido
-    String personalityStyle;
-    if (_aiCountry == 'JP') {
-      // Japonesa: Específico para mejor consistencia
-      personalityStyle =
-          'soft, whispering tone with gentle intimacy. Mix Spanish pronunciation with subtle Japanese mannerisms. '
-          'Use gentle "ne", "ano", "chotto", "demo", "sou desu ne" naturally in conversation. '
-          'Sound sweet, caring, and polite with that characteristic Japanese softness, but speak Spanish clearly.';
-    } else if (_aiCountry == 'KR') {
-      // Coreana: Dulce pero con estructura
-      personalityStyle =
-          'sweet, structured tone with moderate emotional range. Mix warmth with respectful formality typical of Korean speaking style';
-    } else if (['ES', 'MX', 'AR', 'CO', 'CL', 'PE'].contains(_aiCountry)) {
-      // Hispanohablantes: Más expresiva y cálida
-      personalityStyle =
-          'warm, expressive tone with full emotional range. Show enthusiasm and passion typical of Hispanic cultures';
-    } else if (['US', 'GB', 'CA', 'AU'].contains(_aiCountry)) {
-      // Angloparlantes: Directa pero amigable
-      personalityStyle =
-          'friendly, direct tone with balanced emotional expression. Sound confident and approachable';
-    } else if (['DE', 'AT', 'CH'].contains(_aiCountry)) {
-      // Germanohablantes: Más seria y precisa
-      personalityStyle =
-          'precise, thoughtful tone with controlled emotional expression. Sound reliable and methodical';
-    } else if (['FR', 'BE', 'LU'].contains(_aiCountry)) {
-      // Francófonos: Elegante y sofisticada
-      personalityStyle =
-          'elegant, sophisticated tone with refined emotional expression. Sound cultured and graceful';
+    // Verificar si el país de la IA habla español nativamente
+    final spanishSpeakingCountries = LocaleUtils.speakSpanish();
+    final isSpanishNative = spanishSpeakingCountries.contains(
+      _aiCountry!.toUpperCase(),
+    );
+
+    // Crear instrucción diferente según si es hispanohablante nativo o no
+    final String accentInstructions;
+    if (isSpanishNative) {
+      // País hispanohablante: español nativo con acento regional
+      accentInstructions =
+          'Habla español nativo con acento de $aiCountryName. '
+          'Usa la pronunciación y entonación natural de una persona nacida en $aiCountryName.';
     } else {
-      // Por defecto: Equilibrada
-      personalityStyle =
-          'balanced, pleasant tone with moderate emotional range. Sound friendly and authentic';
+      // País no hispanohablante: español con acento del idioma original
+      accentInstructions =
+          'Habla español con acento $aiLanguageName de $aiCountryName. '
+          'Pronuncia el español como una persona nativa de $aiCountryName que aprendió español como segundo idioma, '
+          'manteniendo el acento y patrones de habla de su idioma original.';
     }
 
-    final phase3Instructions =
-        'Speak with $personalityStyle. Use $languageName accent from $countryName '
-        'but blend it with $aiLanguageName influences from $aiCountryName. '
-        'Use natural intonation and speech speed. Sound confident, warm, and fully awakened with cultural authenticity.';
+    final phase3Instructions = '$baseTone $accentInstructions';
 
     Log.d(
       '🎵 FASE 3 (FINAL) - INSTRUCCIONES DE VOZ: "$phase3Instructions"',
@@ -285,39 +267,104 @@ class _ConversationalOnboardingScreenState
     Log.d('🔧 CONFIG TTS: $voiceConfig', tag: 'CONV_ONBOARDING');
 
     try {
-      // Usar OpenAI con configuración dinámica que incluye las instrucciones
-      final audioPath = await _ttsService.synthesizeToFile(
+      // Marcar que el audio está comenzando para el controlador de subtítulos
+      bool audioStarted = false;
+
+      // Simular chunks de texto como en las llamadas - empezar a mostrar subtítulos inmediatamente
+      Timer? chunkTimer;
+      int chunkIndex = 0;
+      final words = text.split(' ');
+      const wordsPerChunk =
+          3; // Mostrar 3 palabras por chunk para efecto natural
+
+      // Función para mostrar chunks progresivamente
+      void showNextChunk() {
+        if (chunkIndex < words.length && audioStarted) {
+          final endIndex = (chunkIndex + wordsPerChunk).clamp(0, words.length);
+          final chunk = words.sublist(chunkIndex, endIndex).join(' ');
+
+          // Usar el sistema de chunks en tiempo real
+          _subtitleController.handleAiChunk(
+            chunk,
+            audioStarted: audioStarted,
+            suppressFurther: false,
+          );
+
+          chunkIndex = endIndex;
+
+          // Programar siguiente chunk
+          if (chunkIndex < words.length) {
+            chunkTimer = Timer(
+              const Duration(milliseconds: 600),
+              showNextChunk,
+            );
+          }
+        }
+      }
+
+      // Primero intentar streaming TTS para mejor experiencia
+      Log.d('🚀 Intentando streaming TTS...', tag: 'CONV_ONBOARDING');
+
+      final streamingSuccess = await _streamingTtsService.streamAndPlay(
         text: text,
         options: voiceConfig,
       );
 
-      if (audioPath != null) {
-        // Obtener la duración del audio antes de reproducir
-        final audioDuration = await _getAudioDuration(audioPath);
+      if (streamingSuccess) {
+        Log.d('✅ Streaming TTS exitoso', tag: 'CONV_ONBOARDING');
 
-        // Actualizar subtítulo de la IA con la duración real del audio
-        _subtitleController.startAiReveal(
-          text,
-          estimatedDuration: audioDuration,
+        // Marcar que el audio ha comenzado y empezar chunks inmediatamente
+        audioStarted = true;
+        showNextChunk();
+
+        // Esperar a que termine el streaming
+        while (_streamingTtsService.isPlaying) {
+          await Future.delayed(const Duration(milliseconds: 100));
+          if (!mounted) return;
+        }
+
+        // Limpiar timer de chunks
+        chunkTimer?.cancel();
+
+        // Asegurarse de mostrar el texto completo al final
+        if (chunkIndex < words.length) {
+          _subtitleController.handleAiChunk(
+            text,
+            audioStarted: true,
+            suppressFurther: false,
+          );
+        }
+      } else {
+        Log.w(
+          '⚠️ Streaming TTS falló, usando solo subtítulos con chunks simulados',
+          tag: 'CONV_ONBOARDING',
         );
 
-        // ¡AI-chan evoluciona su voz según el progreso! 🎤✨
-        await _playAudioFile(audioPath);
-      } else {
-        // Si no hay audio, usar duración estimada basada en texto
+        // Si falla el streaming, simular chunks con timing basado en estimación
+        audioStarted = true;
+        showNextChunk();
+
+        // Simular duración para completar todos los chunks
         final estimatedDuration = _estimateSpeechDuration(text);
-        _subtitleController.startAiReveal(
+        await Future.delayed(estimatedDuration);
+
+        chunkTimer?.cancel();
+
+        // Mostrar texto completo al final
+        _subtitleController.handleAiChunk(
           text,
-          estimatedDuration: estimatedDuration,
+          audioStarted: true,
+          suppressFurther: false,
         );
       }
     } catch (e) {
       Log.e('Error en TTS: $e');
-      // Si hay error, usar duración estimada basada en texto
-      final estimatedDuration = _estimateSpeechDuration(text);
-      _subtitleController.startAiReveal(
+
+      // En caso de error, mostrar texto completo inmediatamente
+      _subtitleController.handleAiChunk(
         text,
-        estimatedDuration: estimatedDuration,
+        audioStarted: true,
+        suppressFurther: false,
       );
     }
 
@@ -332,140 +379,38 @@ class _ConversationalOnboardingScreenState
     _startListening();
   }
 
-  /// Reproduce el archivo de audio generado por TTS
-  Future<void> _playAudioFile(String audioPath) async {
-    try {
-      // Verificar que el archivo existe
-      final file = File(audioPath);
-      if (!await file.exists()) {
-        Log.w('Archivo de audio no encontrado: $audioPath');
-        return;
-      }
-
-      // Verificación básica de integridad del archivo
-      final fileSize = await file.length();
-      if (fileSize < 1000) {
-        // Archivos MP3 muy pequeños probablemente están corruptos
-        Log.w(
-          '🔄 Archivo de audio sospechosamente pequeño ($fileSize bytes), eliminando...',
-        );
-        await file.delete();
-        return;
-      }
-
-      Log.d('🎵 Reproduciendo audio: $audioPath');
-
-      // Crear un Completer para esperar a que termine la reproducción
-      final Completer<void> playbackCompleter = Completer<void>();
-
-      // Configurar listener para cuando termine la reproducción
-      _audioPlayer.onPlayerStateChanged.listen((PlayerState state) {
-        if (state == PlayerState.completed) {
-          if (!playbackCompleter.isCompleted) {
-            playbackCompleter.complete();
-          }
-        }
-      });
-
-      // Reproducir el archivo
-      await _audioPlayer.play(DeviceFileSource(audioPath));
-
-      // Esperar a que termine la reproducción
-      await playbackCompleter.future;
-
-      // NUEVO: Si estamos en finalMessage, continuar automáticamente después del audio
-      if (_currentStep == OnboardingStep.finalMessage) {
-        Log.d('🎵 Audio final completado, continuando automáticamente...');
-        await Future.delayed(const Duration(milliseconds: 500)); // Pausa breve
-        _goToNextStep(); // Ir a completion
-        await _finishOnboarding();
-        return;
-      }
-    } catch (e) {
-      Log.e('Error reproduciendo audio: $e');
-
-      // Si el error es por archivo corrupto, intentar limpiar caché y regenerar
-      if (e.toString().contains('MEDIA_ERROR') ||
-          e.toString().contains('Failed to set source')) {
-        Log.w('🔄 Detectado archivo de audio corrupto, limpiando caché...');
-        try {
-          // Eliminar el archivo corrupto
-          final file = File(audioPath);
-          if (await file.exists()) {
-            await file.delete();
-            Log.d('🗑️ Archivo corrupto eliminado: $audioPath');
-          }
-        } catch (deleteError) {
-          Log.w('No se pudo eliminar archivo corrupto: $deleteError');
-        }
-      }
-
-      // No hacer fallback artificial, simplemente continuar sin audio
-    }
-  }
-
   Future<void> _startListening() async {
-    if (!_speechToText.isAvailable) return;
+    if (!_hybridSttService.isAvailable) return;
 
     setState(() {
       _isListening = true;
-      _listeningText = '';
-      _hasUserStartedSpeaking = false; // Reset al iniciar nueva sesión
     });
 
     // Cancelar timer anterior si existe
     _speechTimeoutTimer?.cancel();
 
-    _speechToText.listen(
-      onResult: (result) {
+    await _hybridSttService.listen(
+      onResult: (text) {
         setState(() {
-          _listeningText = result.recognizedWords;
+          Log.d('🗣️ Usuario dice: "$text"', tag: 'CONV_ONBOARDING');
         });
 
-        // Marcar que el usuario comenzó a hablar si hay texto
-        if (_listeningText.trim().isNotEmpty && !_hasUserStartedSpeaking) {
-          _hasUserStartedSpeaking = true;
-
-          // Solo ahora configuramos el timer de pausa de 2 segundos
-          _speechTimeoutTimer?.cancel();
-          _speechTimeoutTimer = Timer(const Duration(seconds: 2), () {
-            if (_hasUserStartedSpeaking && _listeningText.trim().isNotEmpty) {
-              _processUserResponse(_listeningText);
-            }
-          });
+        // Mostrar subtítulo en tiempo real del usuario
+        if (text.isNotEmpty) {
+          _subtitleController.handleUserTranscription(text);
         }
 
-        // Resetear el timer cada vez que detecta más texto
-        if (_listeningText.trim().isNotEmpty && _hasUserStartedSpeaking) {
-          _speechTimeoutTimer?.cancel();
-          _speechTimeoutTimer = Timer(const Duration(seconds: 2), () {
-            if (_hasUserStartedSpeaking && _listeningText.trim().isNotEmpty) {
-              _processUserResponse(_listeningText);
-            }
-          });
-        }
-
-        // Mostrar subtítulo de usuario en tiempo real
-        if (_listeningText.isNotEmpty) {
-          _subtitleController.showUserText(_listeningText);
-        }
-
-        // NO procesar en finalResult, solo usar nuestro timer manual
+        // Procesar resultado final (el híbrido ya maneja finalizaciones)
+        _processUserResponse(text);
       },
-      localeId: 'es-ES', // Español por defecto
-      pauseFor: const Duration(
-        minutes: 10,
-      ), // Timeout muy largo para que no interfiera
-      onSoundLevelChange: (level) {
-        // Opcional: mostrar nivel de sonido para feedback visual
-      },
+      timeout: const Duration(seconds: 15),
     );
   }
 
   Future<void> _stopListening() async {
     _speechTimeoutTimer?.cancel(); // Limpiar timer
-    if (_speechToText.isListening) {
-      await _speechToText.stop();
+    if (_hybridSttService.isListening) {
+      await _hybridSttService.stop();
       setState(() => _isListening = false);
     }
   }
@@ -492,7 +437,7 @@ class _ConversationalOnboardingScreenState
     );
 
     // Actualizar subtítulo del usuario
-    _subtitleController.showUserText(userResponse);
+    _subtitleController.handleUserTranscription(userResponse);
 
     setState(() {
       _isListening = false;
@@ -575,7 +520,7 @@ class _ConversationalOnboardingScreenState
     final processedData = await ConversationalAIService.processUserResponse(
       userResponse: userResponse,
       conversationStep: stepName,
-      userName: _userName!, // Debe estar disponible cuando llegue aquí
+      userName: _userName ?? '', // Puede ser vacío en el paso awakening
       previousData: _collectedData,
     );
 
@@ -667,17 +612,17 @@ class _ConversationalOnboardingScreenState
 
     if (displayValue != null && processedValue != null) {
       // 🎭 CASO ESPECIAL: Si procesó una solicitud de generar historia
-      if (processedValue == 'request_story_generation' &&
+      if (processedValue == 'generar_historia' &&
           _currentStep == OnboardingStep.askingMeetStory) {
         Log.d(
           '🎭 SOLICITUD DE HISTORIA DETECTADA - Generando historia automáticamente',
           tag: 'CONV_ONBOARDING',
         );
-        // Confirmar que quiere que genere la historia y luego generarla
+        // Generar la historia directamente
         setState(() {
           _isThinking = false; // Desactivar pensando
         });
-        await _showStorySuggestions(); // Generar y mostrar historia
+        await _generateAndTellStory(); // Generar y contar historia
         return;
       }
 
@@ -998,9 +943,10 @@ class _ConversationalOnboardingScreenState
   void dispose() {
     _speechTimeoutTimer?.cancel(); // Limpiar timer al disposal
     _pulseController.dispose();
-    _speechToText.stop();
+    _hybridSttService.dispose();
     _audioPlayer.dispose();
-    // El controlador de subtítulos no necesita dispose manual
+    _streamingTtsService.dispose(); // Limpiar streaming service
+    _subtitleController.dispose(); // Limpiar controlador de subtítulos
     super.dispose();
   }
 
@@ -1446,24 +1392,47 @@ class _ConversationalOnboardingScreenState
     );
   }
 
-  /// Obtiene la duración real de un archivo de audio
-  Future<Duration?> _getAudioDuration(String audioPath) async {
-    try {
-      // Crear un nuevo AudioPlayer temporal para obtener la duración
-      final tempPlayer = AudioPlayer();
-      await tempPlayer.setSourceDeviceFile(audioPath);
+  /// Genera y cuenta la historia directamente como si la estuviera recordando
+  Future<void> _generateAndTellStory() async {
+    final currentOperationId = ++_currentOperationId;
+    Log.i(
+      '🔄 Iniciando generación de historia recordada (Operation #$currentOperationId)',
+    );
 
-      // Esperar un momento para que se cargue la metadata
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      final duration = await tempPlayer.getDuration();
-      await tempPlayer.dispose();
-
-      return duration;
-    } catch (e) {
-      Log.w('No se pudo obtener la duración del audio: $e');
-      return null;
+    // ✅ VALIDACIÓN: Verificar que todos los datos necesarios estén disponibles
+    if (_userName == null || _aiName == null || _userBirthday == null) {
+      Log.e(
+        '❌ DATOS FALTANTES para generar historia - reintentando paso actual',
+      );
+      await _retryCurrentStep();
+      return;
     }
+
+    // Generar historia usando la AI
+    final story = await ConversationalAIService.generateMeetStoryFromContext(
+      userName: _userName!,
+      aiName: _aiName!,
+      userCountry: _userCountry,
+      aiCountry: _aiCountry,
+      userBirthday: _userBirthday!,
+    );
+
+    // Verificar si esta operación ha sido cancelada por otra más reciente
+    if (currentOperationId != _currentOperationId) {
+      Log.i(
+        '🚫 Generación de historia recordada cancelada (Operation #$currentOperationId - actual: #$_currentOperationId)',
+      );
+      return;
+    }
+
+    // Guardar la historia directamente
+    _collectedData['meetStory'] = story;
+
+    // Contar la historia como si la estuviera recordando
+    await _speakAndWaitForResponse(story);
+
+    // Avanzar al siguiente paso automáticamente
+    _goToNextStep();
   }
 
   /// Estima la duración del habla basándose en el texto

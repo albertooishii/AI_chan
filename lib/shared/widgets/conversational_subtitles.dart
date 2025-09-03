@@ -1,12 +1,16 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/call/presentation/widgets/cyberpunk_subtitle.dart';
-import 'package:ai_chan/shared/controllers/audio_subtitle_controller.dart';
+import 'package:ai_chan/shared/utils/streaming_subtitle_utils.dart';
 
-/// Controlador global para subtítulos conversacionales
+/// Controlador global para subtítulos conversacionales en tiempo real
 class ConversationalSubtitleController {
   _ConversationalSubtitlesState? _state;
+  late StreamingSubtitleController _streamingController;
+
+  ConversationalSubtitleController({bool debug = false}) {
+    _streamingController = StreamingSubtitleController(debug: debug);
+  }
 
   void _attach(_ConversationalSubtitlesState state) {
     _state = state;
@@ -21,29 +25,50 @@ class ConversationalSubtitleController {
     _state?.updateNames(userName: userName, aiName: aiName);
   }
 
-  /// Inicia revelado gradual de texto de IA con duración específica
-  void startAiReveal(String text, {Duration? estimatedDuration}) {
-    _state?.startAiReveal(text, estimatedDuration: estimatedDuration);
+  /// Maneja chunks de IA en tiempo real (nuevo sistema rápido)
+  void handleAiChunk(
+    String chunk, {
+    required bool audioStarted,
+    required bool suppressFurther,
+  }) {
+    _streamingController.handleAiChunk(
+      chunk,
+      audioStarted: audioStarted,
+      suppressFurther: suppressFurther,
+    );
   }
 
-  /// Muestra texto del usuario instantáneamente
+  /// Maneja transcripciones del usuario
+  void handleUserTranscription(String text) {
+    _streamingController.handleUserTranscription(text);
+  }
+
+  /// Muestra texto del usuario instantáneamente (compatibility)
   void showUserText(String text) {
-    _state?.showUserText(text);
+    handleUserTranscription(text);
   }
 
   /// Limpia todos los subtítulos
   void clearAll() {
-    _state?.clearAll();
+    _streamingController.clearAll();
   }
 
   /// Verifica si hay contenido visible
   bool get hasVisibleContent {
-    return _state?._hasVisibleContent ?? false;
+    return _streamingController.ai.value.isNotEmpty ||
+        _streamingController.user.value.isNotEmpty;
+  }
+
+  /// Acceso al controlador de streaming interno
+  StreamingSubtitleController get streaming => _streamingController;
+
+  void dispose() {
+    _streamingController.dispose();
   }
 }
 
 /// Widget de subtítulos cyberpunk para el onboarding conversacional
-/// Usa el mismo sistema que ChatBubble para revelado gradual
+/// Usa el nuevo sistema de streaming en tiempo real
 class ConversationalSubtitles extends StatefulWidget {
   final ConversationalSubtitleController controller;
   final double maxHeight;
@@ -61,129 +86,37 @@ class ConversationalSubtitles extends StatefulWidget {
 
 class _ConversationalSubtitlesState extends State<ConversationalSubtitles> {
   final ScrollController _scrollController = ScrollController();
-  final AudioSubtitleController _aiController = AudioSubtitleController();
-  final AudioSubtitleController _userController = AudioSubtitleController();
-
-  Timer? _revealTimer;
-  String _currentAiText = '';
-  String _currentUserText = '';
-  bool _isRevealing = false;
 
   // Nombres dinámicos para los subtítulos
   String _userName = 'TÚ';
   String _aiName = 'AI-CHAN';
 
-  // Getter para verificar si hay contenido visible
-  bool get _hasVisibleContent =>
-      _currentAiText.isNotEmpty || _currentUserText.isNotEmpty || _isRevealing;
-
   @override
   void initState() {
     super.initState();
     widget.controller._attach(this);
+
+    // Escuchar cambios en los subtítulos para auto-scroll
+    widget.controller._streamingController.ai.addListener(_onSubtitleChange);
+    widget.controller._streamingController.user.addListener(_onSubtitleChange);
   }
 
   @override
   void dispose() {
     widget.controller._detach();
-    _revealTimer?.cancel();
+    widget.controller._streamingController.ai.removeListener(_onSubtitleChange);
+    widget.controller._streamingController.user.removeListener(
+      _onSubtitleChange,
+    );
     _scrollController.dispose();
-    _aiController.dispose();
-    _userController.dispose();
     super.dispose();
   }
 
-  // Método para iniciar revelado gradual de texto de IA con duración personalizada
-  void startAiReveal(String text, {Duration? estimatedDuration}) {
-    if (text.isEmpty || text == _currentAiText) return;
-
-    // Limpiar subtítulos anteriores cuando hay nueva respuesta de IA
-    if (_currentAiText.isNotEmpty || _currentUserText.isNotEmpty) {
-      setState(() {
-        _currentUserText = ''; // Limpiar respuesta anterior del usuario
-      });
-      _userController.clear();
+  void _onSubtitleChange() {
+    if (mounted) {
+      setState(() {});
+      _autoScroll();
     }
-
-    _currentAiText = text;
-    _isRevealing = true;
-    _aiController.clear();
-
-    // Usar duración proporcionada o calcular basada en palabras
-    final Duration finalDuration;
-    if (estimatedDuration != null && estimatedDuration.inMilliseconds > 0) {
-      // Usar duración real del TTS
-      finalDuration = estimatedDuration;
-    } else {
-      // Fallback: calcular basado en palabras (como antes)
-      const wordsPerSecond = 3.0; // Velocidad de revelado
-      final words = text.split(' ').length;
-      finalDuration = Duration(
-        milliseconds: (words / wordsPerSecond * 1000).round().clamp(1500, 8000),
-      );
-    }
-
-    // Cancelar timer anterior
-    _revealTimer?.cancel();
-
-    // Iniciar revelado progresivo
-    final startTime = DateTime.now();
-    _revealTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      final elapsed = DateTime.now().difference(startTime);
-      final progress = (elapsed.inMilliseconds / finalDuration.inMilliseconds)
-          .clamp(0.0, 1.0);
-
-      if (progress >= 1.0) {
-        _aiController.showFullTextInstant(text);
-        _isRevealing = false;
-        timer.cancel();
-        _autoScroll();
-
-        // NO limpiar automáticamente - mantener visible hasta nueva interacción
-        // El subtítulo se limpiará cuando haya nueva respuesta AI
-      } else {
-        _aiController.updateProportional(elapsed, text, finalDuration);
-        if (progress > 0.1) _autoScroll(); // Auto-scroll después del primer 10%
-      }
-
-      // Forzar rebuild cuando cambia el estado de revelado
-      if (mounted) setState(() {});
-    });
-  }
-
-  // Método para mostrar texto del usuario instantáneamente
-  void showUserText(String text) {
-    if (text.isEmpty || text == _currentUserText) return;
-
-    // MANTENER el subtítulo de AI visible cuando el usuario habla
-    // para crear un diálogo claramente visible (pregunta -> respuesta)
-
-    setState(() {
-      _currentUserText = text;
-    });
-    _userController.showFullTextInstant(text);
-    _autoScroll();
-
-    // Limpiar texto del usuario después de un tiempo más largo para permitir lectura
-    Timer(const Duration(seconds: 12), () {
-      if (_currentUserText == text && mounted) {
-        setState(() {
-          _currentUserText = '';
-        });
-        _userController.clear();
-      }
-    });
-  }
-
-  void clearAll() {
-    _revealTimer?.cancel();
-    setState(() {
-      _isRevealing = false;
-      _currentAiText = '';
-      _currentUserText = '';
-    });
-    _aiController.clear();
-    _userController.clear();
   }
 
   // Método para actualizar los nombres mostrados en los subtítulos
@@ -201,7 +134,7 @@ class _ConversationalSubtitlesState extends State<ConversationalSubtitles> {
   void _autoScroll() {
     // Auto-scroll al final cuando hay contenido nuevo
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
+      if (_scrollController.hasClients && mounted) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
@@ -213,135 +146,123 @@ class _ConversationalSubtitlesState extends State<ConversationalSubtitles> {
 
   @override
   Widget build(BuildContext context) {
-    // Solo mostrar el contenedor si hay contenido visible
-    if (!_hasVisibleContent) {
-      return const SizedBox.shrink();
-    }
+    final streaming = widget.controller._streamingController;
 
-    return Container(
-      constraints: BoxConstraints(maxHeight: widget.maxHeight),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.8),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.1),
-            blurRadius: 8,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: SingleChildScrollView(
-        controller: _scrollController,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Subtítulo de la IA con animación gradual
-            StreamBuilder<String>(
-              stream: _aiController.progressiveTextStream,
-              builder: (context, snapshot) {
-                final aiText = snapshot.data ?? '';
-                if (aiText.isEmpty) return const SizedBox.shrink();
+    return ValueListenableBuilder<String>(
+      valueListenable: streaming.ai,
+      builder: (context, aiText, _) {
+        return ValueListenableBuilder<String>(
+          valueListenable: streaming.user,
+          builder: (context, userText, _) {
+            // Solo mostrar el contenedor si hay contenido visible
+            if (aiText.isEmpty && userText.isEmpty) {
+              return const SizedBox.shrink();
+            }
 
-                return Column(
+            return Container(
+              constraints: BoxConstraints(maxHeight: widget.maxHeight),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    blurRadius: 8,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Indicador de que es la IA
-                    Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
+                    // Subtítulo de la IA en tiempo real
+                    if (aiText.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '$_aiName:',
-                          style: TextStyle(
-                            color: AppColors.primary.withValues(alpha: 0.8),
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
+                          const SizedBox(width: 8),
+                          Text(
+                            '$_aiName:',
+                            style: TextStyle(
+                              color: AppColors.primary.withValues(alpha: 0.8),
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    // Subtítulo cyberpunk con animación para la IA
-                    CyberpunkRealtimeSubtitle(
-                      text: aiText,
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 16,
-                        fontFamily: 'FiraMono',
-                        height: 1.4,
+                        ],
                       ),
-                      scramblePerChar: const Duration(milliseconds: 120),
-                      glitchProbability: 0.15,
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                );
-              },
-            ),
-
-            // Subtítulo del usuario
-            StreamBuilder<String>(
-              stream: _userController.progressiveTextStream,
-              builder: (context, snapshot) {
-                final userText = snapshot.data ?? '';
-                if (userText.isEmpty) return const SizedBox.shrink();
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Indicador de que es el usuario
-                    Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: AppColors.secondary,
-                            shape: BoxShape.circle,
-                          ),
+                      const SizedBox(height: 4),
+                      CyberpunkRealtimeSubtitle(
+                        text: aiText,
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 16,
+                          fontFamily: 'FiraMono',
+                          height: 1.4,
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '$_userName:',
-                          style: TextStyle(
-                            color: AppColors.secondary.withValues(alpha: 0.8),
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    // Subtítulo instantáneo para el usuario (sin animación)
-                    Text(
-                      userText,
-                      style: const TextStyle(
-                        color: AppColors.secondary,
-                        fontSize: 16,
-                        fontFamily: 'FiraMono',
-                        height: 1.4,
+                        scramblePerChar: const Duration(milliseconds: 80),
+                        glitchProbability: 0.1,
                       ),
-                    ),
-                    const SizedBox(height: 12),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // Subtítulo del usuario
+                    if (userText.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: AppColors.secondary,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '$_userName:',
+                            style: TextStyle(
+                              color: AppColors.secondary.withValues(alpha: 0.8),
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        userText,
+                        style: const TextStyle(
+                          color: AppColors.secondary,
+                          fontSize: 16,
+                          fontFamily: 'FiraMono',
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                   ],
-                );
-              },
-            ),
-          ],
-        ),
-      ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

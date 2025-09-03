@@ -13,3 +13,4 @@ export 'utils/log_utils.dart';
 export 'utils/schedule_utils.dart';
 export 'utils/storage_utils.dart';
 export 'utils/voice_display_utils.dart';
+export 'utils/streaming_subtitle_utils.dart';
