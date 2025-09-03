@@ -118,25 +118,4 @@ class Log {
       _out(LogLevel.info, tag, message);
   static void d(String message, {String tag = 'APP'}) =>
       _out(LogLevel.debug, tag, message);
-  static void t(String message, {String tag = 'APP'}) =>
-      _out(LogLevel.trace, tag, message);
-
-  // Versiones lazy para evitar construir strings costosas
-  static void dLazy(String Function() builder, {String tag = 'APP'}) {
-    if (_enabledFor(LogLevel.debug)) _out(LogLevel.debug, tag, builder());
-  }
-
-  static void tLazy(String Function() builder, {String tag = 'APP'}) {
-    if (_enabledFor(LogLevel.trace)) _out(LogLevel.trace, tag, builder());
-  }
-
-  // Registro de excepción estándar
-  static void ex(
-    Object error,
-    StackTrace stack, {
-    String tag = 'APP',
-    String? context,
-  }) {
-    e(context ?? 'Excepción capturada', tag: tag, error: error, stack: stack);
-  }
 }

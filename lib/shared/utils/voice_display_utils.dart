@@ -166,13 +166,4 @@ class VoiceDisplayUtils {
 
     return languageName;
   }
-
-  /// Formatea el display para voces tipo Google (nombre amigable + subtítulo)
-  static Map<String, String> formatGoogleVoiceDisplay(
-    Map<String, dynamic> voice,
-  ) {
-    final displayName = getGoogleVoiceFriendlyName(voice);
-    final subtitle = getVoiceSubtitle(voice);
-    return {'displayName': displayName, 'subtitle': subtitle};
-  }
 }

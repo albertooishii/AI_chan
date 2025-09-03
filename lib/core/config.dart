@@ -42,26 +42,10 @@ class Config {
   static String getOpenAITtsModel() =>
       _get('OPENAI_TTS_MODEL', 'gpt-4o-mini-tts');
 
-  static String requireOpenAITtsModel() {
-    final v = getOpenAITtsModel();
-    if (v.trim().isEmpty) {
-      throw Exception('OPENAI_TTS_MODEL no está configurado');
-    }
-    return v;
-  }
-
   /// Modelo STT para OpenAI (usado en transcripción).
   /// Valor por defecto alineado con la documentación: 'gpt-4o-mini-transcribe'.
   static String getOpenAISttModel() =>
       _get('OPENAI_STT_MODEL', 'gpt-4o-mini-transcribe');
-
-  static String requireOpenAISttModel() {
-    final v = getOpenAISttModel();
-    if (v.trim().isEmpty) {
-      throw Exception('OPENAI_STT_MODEL no está configurado');
-    }
-    return v;
-  }
 
   /// Devuelve el OPENAI_REALTIME_MODEL y lanza si no está configurado.
   static String requireOpenAIRealtimeModel() {
@@ -78,15 +62,6 @@ class Config {
 
   static String getGoogleRealtimeModel() => _get('GOOGLE_REALTIME_MODEL', '');
   static String getGrokKey() => _get('GROK_API_KEY', '');
-
-  /// Devuelve el GOOGLE_REALTIME_MODEL y lanza si no está configurado.
-  static String requireGoogleRealtimeModel() {
-    final v = getGoogleRealtimeModel();
-    if (v.trim().isEmpty) {
-      throw Exception('GOOGLE_REALTIME_MODEL no está configurado');
-    }
-    return v;
-  }
 
   static String _get(String key, String fallback) {
     try {

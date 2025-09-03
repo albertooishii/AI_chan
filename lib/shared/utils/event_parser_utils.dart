@@ -66,14 +66,4 @@ class EventParserUtils {
     ];
     return keywords.any((kw) => text.toLowerCase().contains(kw));
   }
-
-  // Detecta si hay hora aproximada (mañana, tarde, noche)
-  static String? parseTimeOfDay(String text) {
-    final timeRegex = RegExp(
-      r'(mañana|tarde|noche|mediodía|mediodia|medianoche|pm|am|a\.m\.|p\.m\.)',
-      caseSensitive: false,
-    );
-    final match = timeRegex.firstMatch(text);
-    return match?.group(0)?.toLowerCase();
-  }
 }

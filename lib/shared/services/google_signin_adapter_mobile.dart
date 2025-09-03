@@ -458,10 +458,4 @@ class GoogleSignInMobileAdapter {
     _authSubscription = null;
     _isInitialized = false;
   }
-
-  /// Clear singleton instance (for testing or complete reset)
-  static void clearInstance() {
-    _instance?.dispose();
-    _instance = null;
-  }
 }

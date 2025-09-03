@@ -184,39 +184,6 @@ class AndroidNativeTtsService {
     return out;
   }
 
-  /// Sintetiza texto a voz usando el TTS nativo de Android
-  static Future<bool> synthesizeText({
-    required String text,
-    String? voiceName,
-    String languageCode = 'es-ES',
-    double pitch = 1.0,
-    double speechRate = 0.5,
-  }) async {
-    if (!isAndroid) return false;
-    try {
-      await _flutterTts.setLanguage(languageCode);
-      if (voiceName != null) await _flutterTts.setVoice({'name': voiceName});
-      await _flutterTts.setPitch(pitch);
-      // Normalize/clamp speech rate to platform valid range (fallback to a
-      // conservative default to avoid accelerated audio on some engines).
-      try {
-        final normalized = await _normalizeSpeechRate(speechRate);
-        await _flutterTts.setSpeechRate(normalized);
-        Log.d('[AndroidTTS] using speechRate=$normalized for synthesizeText');
-      } catch (e) {
-        await _flutterTts.setSpeechRate(speechRate);
-      }
-      try {
-        await _flutterTts.awaitSpeakCompletion(true);
-      } catch (_) {}
-      final res = await _flutterTts.speak(text);
-      return res == 1 || res == '1' || res == null;
-    } catch (e) {
-      Log.e('[AndroidTTS] Error sintetizando texto (flutter_tts): $e');
-      return false;
-    }
-  }
-
   /// Sintetiza texto a archivo de audio
   static Future<String?> synthesizeToFile({
     required String text,
@@ -307,12 +274,6 @@ class AndroidNativeTtsService {
     }
   }
 
-  /// Verifica si hay voces descargadas para un idioma específico
-  static Future<bool> hasLanguageVoices(String languageCode) async {
-    final voices = await getVoicesForLanguage(languageCode);
-    return voices.isNotEmpty;
-  }
-
   /// Obtiene información sobre voces disponibles para descargar
   static Future<List<Map<String, dynamic>>> getDownloadableLanguages() async {
     if (!isAndroid) return [];
@@ -327,22 +288,6 @@ class AndroidNativeTtsService {
     } catch (e) {
       Log.e('[AndroidTTS] Error obteniendo idiomas descargables: $e');
       return [];
-    }
-  }
-
-  /// Solicita la descarga de un idioma específico
-  static Future<bool> requestLanguageDownload(String languageCode) async {
-    if (!isAndroid) return false;
-
-    try {
-      final result = await _channel.invokeMethod<bool>('requestDownload', {
-        'languageCode': languageCode,
-      });
-
-      return result ?? false;
-    } catch (e) {
-      debugPrint('[AndroidTTS] Error solicitando descarga de idioma: $e');
-      return false;
     }
   }
 

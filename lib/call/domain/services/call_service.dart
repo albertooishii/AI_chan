@@ -55,48 +55,6 @@ class CallValidationService {
     return true;
   }
 
-  /// Valida si una llamada de voz es válida
-  static bool isCallValid(Call call) {
-    // ID no puede estar vacío
-    if (call.id.trim().isEmpty) {
-      return false;
-    }
-
-    // Modelo no puede estar vacío
-    if (call.model.trim().isEmpty) {
-      return false;
-    }
-
-    // Voz no puede estar vacía
-    if (call.voice.trim().isEmpty) {
-      return false;
-    }
-
-    // Language code debe tener formato válido (ej: es-ES)
-    if (!_isLanguageCodeValid(call.languageCode)) {
-      return false;
-    }
-
-    // Configuración debe ser válida
-    if (!isCallConfigValid(call.config)) {
-      return false;
-    }
-
-    // Todos los mensajes deben ser válidos
-    for (final message in call.messages) {
-      if (!isMessageValid(message)) {
-        return false;
-      }
-    }
-
-    // Si está finalizada, debe tener endTime
-    if (call.isCompleted && call.endTime == null) {
-      return false;
-    }
-
-    return true;
-  }
-
   /// Valida si un proveedor es compatible con las opciones dadas
   static bool isProviderCompatible(
     CallProvider provider, {
@@ -112,12 +70,6 @@ class CallValidationService {
     }
 
     return true;
-  }
-
-  /// Valida formato de código de idioma (ej: es-ES, en-US)
-  static bool _isLanguageCodeValid(String languageCode) {
-    final regex = RegExp(r'^[a-z]{2}(-[A-Z]{2})?$');
-    return regex.hasMatch(languageCode);
   }
 }
 

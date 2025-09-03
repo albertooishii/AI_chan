@@ -243,9 +243,6 @@ class LocaleUtils {
     return langs.join(', ');
   }
 
-  // Devuelve la lista de países (nombre → iso2) para construir dropdowns
-  static List<CountryItem> countriesEsList() => CountriesEs.items;
-
   // Convierte un código ISO2 en emoji de bandera (usa indicadores regionales Unicode)
   static String flagEmojiForCountry(String? iso2) {
     if (iso2 == null || iso2.length != 2) return '';

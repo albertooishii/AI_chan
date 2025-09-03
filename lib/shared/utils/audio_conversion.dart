@@ -104,23 +104,6 @@ class AudioConversion {
     );
   }
 
-  /// Convert to a preferred compressed container (mp3 or m4a). Respects
-  /// preferredFormat; returns converted File or null on failure.
-  static Future<File?> convertToPreferredCompressed(
-    File src,
-    String preferredFormat,
-  ) async {
-    final pref = preferredFormat.trim().toLowerCase();
-    if (pref == 'm4a') {
-      return await convertFileToFormat(
-        src,
-        'm4a',
-        extraArgs: ['-ac', '1', '-ar', '16000', '-b:a', '96k', '-c:a', 'aac'],
-      );
-    }
-    return await convertToMp3IfPossible(src);
-  }
-
   /// Convert bytes to a preferred compressed container (mp3 or m4a).
   static Future<Uint8List?> convertBytesToPreferredCompressed(
     Uint8List inputBytes,

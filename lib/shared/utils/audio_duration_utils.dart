@@ -52,21 +52,4 @@ class AudioDurationUtils {
       return null;
     }
   }
-
-  /// Obtiene la duración usando estimación basada en el tamaño del archivo
-  /// Como fallback cuando no se puede obtener la duración real
-  static Duration? estimateAudioDuration(String filePath) {
-    try {
-      final file = File(filePath);
-      if (!file.existsSync()) return null;
-
-      final bytes = file.lengthSync();
-      // Estimación: ~12 KB/s para 96 kbps MP3
-      final estimatedSeconds = (bytes / 12000).round().clamp(1, 60 * 60);
-      return Duration(seconds: estimatedSeconds);
-    } catch (e) {
-      debugPrint('🔍 [DEBUG][AudioDuration] Error estimating duration: $e');
-      return null;
-    }
-  }
 }

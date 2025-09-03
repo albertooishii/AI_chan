@@ -15,13 +15,9 @@ class PrefsUtils {
   // --- Dynamic key factories ---
   static String callMessagesKey(String callId) =>
       'call_messages_$callId'; // Renombrado
-  static String callKey(String callId) => 'call_$callId'; // Renombrado
 
   // Mantener compatibilidad hacia atrás temporalmente
   static String voiceMessagesKey(String callId) => callMessagesKey(callId);
-  static String voiceCallKey(String callId) => callKey(callId);
-  static String selectedVoiceKeyForProvider(String provider) =>
-      'selected_voice_${provider.toLowerCase()}';
 
   /// Ensure default values for audio provider and model keys exist.
   static Future<void> ensureDefaults() async {
@@ -276,13 +272,6 @@ class PrefsUtils {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('events', json);
-    } catch (_) {}
-  }
-
-  static Future<void> removeEvents() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('events');
     } catch (_) {}
   }
 

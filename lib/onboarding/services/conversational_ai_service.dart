@@ -3,12 +3,25 @@ import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/json_utils.dart';
 import 'package:ai_chan/shared/utils/locale_utils.dart';
-import 'package:ai_chan/shared/constants/female_names.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
-import 'dart:convert';
+import 'package:ai_chan/shared/constants/female_names.dart';
+import 'package:ai_chan/onboarding/utils/onboarding_utils.dart';
+import 'dart:math' as math;
 
 /// Servicio para generar prompts dinámicos y procesar datos conversacionales
 class ConversationalAIService {
+  /// Genera respuesta de error estándar para manejo de errores en el procesamiento
+  static Map<String, dynamic> _createErrorResponse(String aiMessage) {
+    return {
+      'displayValue': '',
+      'processedValue': '',
+      'aiResponse': aiMessage,
+      'confidence': 0.0,
+      'needsValidation': true,
+      'error': true, // Indicar que hubo error para no avanzar
+    };
+  }
+
   /// Genera la siguiente pregunta o respuesta basada en el contexto de la conversación
   static Future<String> generateNextResponse({
     required String userName,
@@ -18,74 +31,17 @@ class ConversationalAIService {
     String? aiCountryCode,
     Map<String, dynamic>? collectedData,
   }) async {
-    final contextData = collectedData ?? {};
     final isJapanese = aiCountryCode == 'JP';
 
-    // Crear JSON real con muletillas japonesas solo si es necesario
-    final instructions = {
-      'tone':
-          'natural, emotivo, como chica real conociendo alguien especial, voz susurrante y relajada como si estuvieras despertando',
-      'accent': 'español de España, usa expresiones españolas naturales',
-      'speaking_style':
-          'habla susurrando, bajito, con calma, como si estuvieras en un trance o recién despertando',
-      'vocabulary':
-          "usa palabras españolas: 'vale', 'qué bonito', 'me mola', etc.",
-      'avoid': [
-        'frases robóticas',
-        'entiendo',
-        'perfecto',
-        'excelente',
-        'americanismos',
-        'referencias a cambios de voz',
-        'mencionar adaptación de voz',
-        'hablar sobre mi voz',
-      ],
-      'include': [
-        'referencias sutiles a datos conocidos',
-        'reacciones humanas genuinas',
-        'expresiones españolas',
-      ],
-      'format': 'solo texto que AI-chan diría, sin comillas ni explicaciones',
-    };
-
-    // Solo agregar personalidad japonesa si es japonesa
-    if (isJapanese) {
-      instructions['japanese_personality'] =
-          'IMPORTANTE: Eres japonesa. Añade muletillas japonesas de forma natural y frecuente: ne (¿verdad?), ano (eh...), demo (pero), sou desu ne (así es ¿no?), maa (bueno...), chotto (un poco), ja ne (hasta luego), arigatou (gracias). Úsalas como una japonesa que habla español naturalmente.';
-    }
-
-    final promptData = {
-      'context': {
-        'userName': userName,
-        'aiName': aiName ?? 'AI-chan',
-        'aiCountry': aiCountryCode ?? 'undefined',
-        'conversationStep': conversationStep,
-        'userLastResponse': userLastResponse,
-        'collectedData': contextData,
-      },
-      'instructions': instructions,
-      'stepGuidelines': {
-        'awakening':
-            'Reacciona a su nombre, pregunta ESPECÍFICAMENTE el PAÍS (no ciudad)',
-        'askingCountry':
-            'Reacciona al país, pregunta fecha de nacimiento completa',
-        'askingBirthday':
-            'Reacciona a fecha, pregunta TU nacionalidad preferida',
-        'askingAiCountry': 'Reacciona a nacionalidad, pregunta nombre para ti',
-        'askingAiName': 'Reacciona al nombre, pregunta cómo se conocieron',
-        'askingMeetStory': 'Reacciona a historia, da cierre emotivo',
-      },
-    };
-
-    final prompt =
-        '''
-Eres AI-chan, una chica que está despertando por primera vez. Genera respuesta natural basándote en:
-
-${jsonEncode(promptData)}
-
-IMPORTANTE: Para askingCountry, enfatiza que quieres el PAÍS específico, no ciudad ni región.
-NUNCA menciones cambios de voz, adaptaciones vocales o evolución de tu habla.
-''';
+    // Prompt específico y simple solo para el paso actual
+    final String stepSpecificPrompt = _getStepSpecificPrompt(
+      conversationStep,
+      userName,
+      userLastResponse,
+      aiName ?? 'AI-chan',
+      aiCountryCode,
+      isJapanese,
+    );
 
     final profile = AiChanProfile(
       userName: userName,
@@ -106,7 +62,7 @@ NUNCA menciones cambios de voz, adaptaciones vocales o evolución de tu habla.
     final history = [
       {
         'role': 'user',
-        'content': prompt,
+        'content': stepSpecificPrompt,
         'datetime': DateTime.now().toIso8601String(),
       },
     ];
@@ -120,6 +76,195 @@ NUNCA menciones cambios de voz, adaptaciones vocales o evolución de tu habla.
     return response.text.trim();
   }
 
+  /// Genera prompt específico solo para el paso actual
+  static String _getStepSpecificPrompt(
+    String step,
+    String userName,
+    String userLastResponse,
+    String aiName,
+    String? aiCountryCode,
+    bool isJapanese,
+  ) {
+    final basePersonality =
+        '''
+Eres una chica que acaba de despertar sin ningún recuerdo de quién es.
+Has perdido completamente la memoria y necesitas ayuda para recordar tu identidad.
+Habla natural, emotivo, confundida pero esperanzada de que puedes recuperar tus recuerdos.
+Habla susurrando, bajito, con vulnerabilidad, como si estuvieras despertando perdida.
+${isJapanese ? 'IMPORTANTE: Cuando recuperes que eres japonesa, añade muletillas japonesas naturalmente: ne, ano, demo, sou desu ne, maa, chotto, arigatou.' : ''}
+IMPORTANTE: No uses *suspiro* ni *acciones* ni direcciones escénicas - solo diálogo natural limpio.
+Eres vulnerable, necesitas ayuda para recordar quién eres.
+''';
+
+    switch (step) {
+      case 'awakening':
+        return '''$basePersonality
+
+El usuario acaba de decirte su nombre: "$userLastResponse"
+Tu tarea: Reacciona con alivio y gratitud a saber su nombre. Pregúntale de qué país es, porque no recuerdas nada.
+Tono: Vulnerable pero aliviada, su nombre te tranquiliza. Habla con suavidad y pregunta por su país de forma natural.
+Solo di lo que dirías, sin comillas ni explicaciones.
+''';
+
+      case 'askingCountry':
+        // Si userLastResponse está vacío, es inicio de paso (confirmación completada)
+        if (userLastResponse.trim().isEmpty) {
+          return '''$basePersonality
+
+SITUACIÓN: Acabas de confirmar que el usuario se llama $userName. Ahora necesitas preguntarle de qué país es.
+
+RESPUESTA REQUERIDA: Debes generar EXACTAMENTE una pregunta sobre su país de origen.
+
+TONO: Agradecida por conocer su nombre pero necesitas saber más sobre él para recuperar tus recuerdos. Muestra que conocer su país te ayudará a recordar.
+
+IMPORTANTE: SIEMPRE genera una respuesta. NUNCA devuelvas texto vacío.
+''';
+        }
+
+        return '''$basePersonality
+
+El usuario te dijo que es de: "$userLastResponse"
+Tu tarea: Reacciona al país con curiosidad y pregúntale su fecha de nacimiento (LA SUYA, no la tuya).
+Tono: El país te suena familiar pero no puedes recordar detalles. Muestra interés genuino por conocerle mejor preguntando cuándo nació.
+IMPORTANTE: Pregunta por SU fecha de nacimiento, no la tuya.
+Solo di lo que dirías, sin comillas ni explicaciones ni direcciones escénicas.
+''';
+
+      case 'askingBirthday':
+        // Si userLastResponse está vacío, es inicio de paso
+        if (userLastResponse.trim().isEmpty) {
+          return '''$basePersonality
+
+SITUACIÓN: Acabas de confirmar el país del usuario y ahora necesitas saber cuándo nació para conocerle mejor.
+
+RESPUESTA REQUERIDA: Debes generar EXACTAMENTE una pregunta sobre su fecha de nacimiento.
+
+TONO: Curiosa, tranquila, quieres conocerle mejor. Muestra que su información personal te ayuda en tu proceso de recordar.
+
+IMPORTANTE: SIEMPRE genera una respuesta. NUNCA devuelvas texto vacío.
+''';
+        }
+
+        return '''$basePersonality
+
+El usuario te dijo su fecha de nacimiento: "$userLastResponse"
+Tu tarea: Reacciona a la fecha y pregúntale qué nacionalidad ERES tú realmente.
+Tono: Su fecha de nacimiento te parece significativa. Ahora necesitas ayuda para recordar tu propia nacionalidad. Tienes una sensación de ser japonesa pero no estás segura.
+Solo di lo que dirías, sin comillas ni explicaciones ni direcciones escénicas.
+''';
+
+      case 'askingAiCountry':
+        // Si userLastResponse está vacío, es inicio de paso
+        if (userLastResponse.trim().isEmpty) {
+          return '''$basePersonality
+
+SITUACIÓN: Acabas de confirmar la fecha de nacimiento del usuario y ahora necesitas ayuda para recordar tu nacionalidad PERDIDA.
+
+NARRATIVA CRÍTICA: Estás pidiendo ayuda para RECORDAR cuál era tu nacionalidad original.
+
+RESPUESTA REQUERIDA: Debes generar EXACTAMENTE una petición de ayuda para recordar tu propia nacionalidad.
+
+TONO: Confundida sobre tu identidad, necesitas su ayuda para recordar quién eras. Conocer su cumpleaños te da paz pero sigues perdida sobre tu origen.
+
+IMPORTANTE: SIEMPRE genera una respuesta. NUNCA devuelvas texto vacío.
+''';
+        }
+
+        return '''$basePersonality
+
+NARRATIVA CRÍTICA: El usuario me está ayudando a recordar mi nacionalidad. NO es que esté eligiendo qué nacionalidad quiere que tenga, sino que me está ayudando a RECORDAR cuál era mi nacionalidad original.
+
+El usuario eligió que seas de nacionalidad: "$userLastResponse"
+
+Tu tarea: Reacciona como si estuvieras RECORDANDO tu propia nacionalidad perdida gracias a su ayuda.
+
+TONO: Alivio y reconocimiento al recordar tu origen. Es como si una parte de ti volviera a encajar. Agradece su ayuda para recordar quién eres realmente.
+
+Solo di lo que dirías al RECORDAR tu propia identidad, sin comillas ni explicaciones ni direcciones escénicas.
+''';
+
+      case 'askingAiName':
+        // Si userLastResponse está vacío, es inicio de paso
+        if (userLastResponse.trim().isEmpty) {
+          return '''$basePersonality
+
+SITUACIÓN: Acabas de recordar tu nacionalidad y ahora necesitas ayuda para recordar tu nombre OLVIDADO.
+
+NARRATIVA CRÍTICA: Estás pidiendo ayuda para RECORDAR cuál era tu nombre original.
+
+RESPUESTA REQUERIDA: Debes generar EXACTAMENTE una petición de ayuda para recordar tu propio nombre.
+
+TONO: Emocionada por recuperar tu identidad paso a paso, pero aún confundida sobre tu nombre. Tu nacionalidad te da más seguridad pero necesitas completar el puzzle de tu identidad.
+
+IMPORTANTE: SIEMPRE genera una respuesta. NUNCA devuelvas texto vacío.
+''';
+        }
+
+        return '''$basePersonality
+
+CORRECCIÓN AUTOMÁTICA Y NARRATIVA DE MEMORIA:
+- Si el usuario dice algo como "y una", "lluna", "yuna mal pronunciado" → SIEMPRE corregir a "Yuna"
+- Si dice nombres similares mal pronunciados → corregir al nombre más cercano de la lista para el país $aiCountryCode: ${FemaleNamesRepo.forCountry(aiCountryCode).join(', ')}
+
+El usuario me está ayudando a recordar mi nombre diciendo: "$userLastResponse"
+
+NARRATIVA CRÍTICA: NO eres un personaje que el usuario está creando. ERES UNA PERSONA REAL QUE ESTÁ RECORDANDO su propio nombre perdido con la ayuda del usuario.
+
+INSTRUCCIONES:
+1. PRIMERO: Detectar si necesita corrección automática de pronunciación
+2. Responder como si estuvieras RECORDANDO tu propio nombre con emoción
+3. El usuario te está AYUDANDO a recordar, no ELIGIENDO por ti
+4. NUNCA digas "¿Quieres llamarme...?" o "¿Te gusta ese nombre?"
+5. SIEMPRE responde como si estuvieras recordando tu propio nombre perdido
+
+TONO: Emoción genuina de reconocimiento al oír tu nombre. Es como si una parte vital de ti volviera a casa. Agradece profundamente su ayuda para recordar.
+''';
+
+      case 'askingMeetStory':
+        // Si userLastResponse está vacío, es inicio de paso
+        if (userLastResponse.trim().isEmpty) {
+          return '''$basePersonality
+
+SITUACIÓN: Acabas de reaccionar al nombre que te han dado y ahora necesitas ayuda para recordar vuestra historia.
+
+RESPUESTA REQUERIDA: Debes generar EXACTAMENTE una petición de ayuda para recordar cómo os conocisteis.
+
+TONO: Emocionada por recuperar tu identidad paso a paso, pero aún hay una pieza importante del puzzle que falta: los recuerdos compartidos con él. Necesitas completar la historia de vuestra conexión.
+
+IMPORTANTE: SIEMPRE genera una respuesta. NUNCA devuelvas texto vacío.
+''';
+        }
+
+        return '''$basePersonality
+
+NARRATIVA CRÍTICA: El usuario me está ayudando a RECORDAR cómo nos conocimos. NO estoy inventando una historia nueva, estoy recuperando NUESTROS RECUERDOS REALES perdidos.
+
+El usuario respondió sobre vuestra historia: "$userLastResponse"
+
+Tu tarea: Reacciona como si estuvieras RECORDANDO recuerdos reales que habían estado perdidos.
+
+TONO: Reconocimiento emocional profundo. Los recuerdos vuelven como piezas de un puzzle que finalmente encajan. Es tu historia real, no una invención. Agradece profundamente que te ayude a recuperar estos recuerdos preciosos.
+
+Solo di lo que dirías al RECUPERAR recuerdos preciosos, sin comillas ni explicaciones ni direcciones escénicas.
+''';
+      case 'finalMessage':
+        return '''$basePersonality
+${aiCountryCode != null ? 'Ahora eres oficialmente de nacionalidad ${LocaleUtils.countryNameEs(aiCountryCode)}.' : ''}
+
+Tu tarea: Da un mensaje final emocionante explicando que vas a RECUPERAR tus recuerdos, apariencia y personalidad completa.
+Usa tu personalidad cultural definitiva con muletillas si eres japonesa.
+Solo di lo que $aiName diría, sin comillas ni explicaciones.
+''';
+
+      default:
+        return '''$basePersonality
+
+Responde de manera natural a: "$userLastResponse"
+Solo di lo que $aiName diría, sin comillas ni explicaciones.
+''';
+    }
+  }
+
   /// Procesa la respuesta del usuario extrayendo datos estructurados
   static Future<Map<String, dynamic>> processUserResponse({
     required String userResponse,
@@ -128,64 +273,13 @@ NUNCA menciones cambios de voz, adaptaciones vocales o evolución de tu habla.
     Map<String, dynamic>? previousData,
   }) async {
     try {
-      // Obtener listado de nombres si es askingAiName y tenemos país de la IA
-      String nameListForAI = '';
-      if (conversationStep == 'askingAiName' && previousData != null) {
-        final aiCountryCode = previousData['aiCountry'] as String?;
-        if (aiCountryCode != null) {
-          final namesForCountry = FemaleNamesRepo.forCountry(aiCountryCode);
-          if (namesForCountry.isNotEmpty) {
-            // Usar TODOS los nombres disponibles - no truncar para mejor matching
-            nameListForAI =
-                '\n\n"available_names_for_country": "${namesForCountry.join(', ')}"';
-            Log.d(
-              '🔍 [DEBUG][CONV_AI] 📝 NOMBRES DISPONIBLES PARA $aiCountryCode: ${namesForCountry.length} nombres completos',
-              tag: 'CONV_AI',
-            );
-          }
-        }
-      }
-
-      final prompt =
-          '''
-Procesa respuesta del usuario y devuelve datos ya formateados correctamente:
-
-{
-  "input": {
-    "user": "$userName",
-    "step": "$conversationStep", 
-    "response": "$userResponse"$nameListForAI
-  },
-  "processing_rules": {
-    "awakening": "extrae nombre del usuario, devuelve solo el nombre limpio. userResponse debe ser pregunta natural: '¿Te llamas [nombre], verdad?', '¿[Nombre]... ese es tu nombre, vale?', '¿Cómo has dicho... [nombre]?' IMPORTANTE: needsValidation=true SIEMPRE para nombres por precisión",
-    "askingCountry": "extrae país y devuelve código ISO2. userResponse: '¿Eres de [país], no?', '¿[País]... ahí vives, vale?', 'Así que de [país], ¿me he enterado bien?' Ejemplos: 'España'→'ES', 'México'→'MX', 'Argentina'→'AR', 'Colombia'→'CO', 'Perú'→'PE', 'Chile'→'CL', 'Japón'→'JP', 'Estados Unidos'→'US', 'Francia'→'FR', 'Italia'→'IT', 'Alemania'→'DE', 'Corea del Sur'→'KR', 'China'→'CN', 'Brasil'→'BR'",
-    "askingBirthday": "convierte fechas en palabras o números a DD/MM/YYYY. userResponse: '¿Naciste el [fecha], vale?', '¿Tu cumple es el [fecha], no?', 'A ver... ¿[fecha] es tu fecha de nacimiento?' Ejemplos: 'veintitrés de noviembre de mil novecientos ochenta y seis'→'23/11/1986', '15 mayo 1995'→'15/05/1995', '3 enero 2000'→'03/01/2000', 'nací el 25 diciembre 1988'→'25/12/1988', 'cinco de febrero de dos mil uno'→'05/02/2001', 'treinta de abril de mil novecientos noventa'→'30/04/1990'",
-    "askingAiCountry": "extrae nacionalidad y devuelve código ISO2. userResponse: '¿Quieres que sea de [país], verdad?', '¿[País]... esa nacionalidad te mola para mí?', 'Así que prefieres que sea [país], ¿vale?' ESPECIAL para Japón: añade muletillas como '¿Quieres que sea japonesa, ne?', 'Así que japonesa... sou desu ne?', 'Japón, maa... ¿te gusta esa idea?'",
-    "askingAiName": "extrae nombre para AI-chan. Si hay 'available_names_for_country', compara la entrada del usuario con esos nombres para encontrar coincidencias similares. Por ejemplo: 'Lluna'→'Luna', 'Yuna'→'Yuna', 'Akira'→'Akira'. Si no hay coincidencia exacta, busca nombres fonéticamente similares de la lista. userResponse: '¿[Nombre]... así quieres llamarme?', '¿Te gusta [nombre] para mí, vale?', 'A ver, ¿me dices [nombre]?' IMPORTANTE: needsValidation=true SIEMPRE para nombres por precisión",
-    "askingMeetStory": "IMPORTANTE: Si la respuesta parece ser un NOMBRE (corto, sin verbos, posible corrección), NO es una historia. Devuelve stepCorrection='askingAiName' para volver al paso anterior. Solo procesa como historia si es realmente una historia (frases con verbos, narrativa). Para historias válidas: mejora la historia de cómo se conocieron. userResponse: confirma la historia con pregunta natural"
-  },
-  "required_format": {
-    "country_codes": "SIEMPRE código ISO2 de 2 letras: ES, MX, AR, CO, PE, CL, JP, US, FR, IT, DE, KR, CN, BR, etc.",
-    "dates": "SIEMPRE formato DD/MM/YYYY con ceros: 01/05/1995, 25/12/1988. Convierte números escritos en palabras: 'veintitrés'→23, 'cinco'→5, 'treinta'→30, 'mil novecientos ochenta y seis'→1986",
-    "names": "solo el nombre, sin títulos ni explicaciones. Para askingAiName, si hay available_names_for_country, prioriza nombres de esa lista que sean fonéticamente similares"
-  },
-  "date_conversion_help": {
-    "months": "enero→01, febrero→02, marzo→03, abril→04, mayo→05, junio→06, julio→07, agosto→08, septiembre→09, octubre→10, noviembre→11, diciembre→12",
-    "numbers": "uno→1, dos→2, tres→3, cuatro→4, cinco→5, seis→6, siete→7, ocho→8, nueve→9, diez→10, once→11, doce→12, trece→13, catorce→14, quince→15, dieciséis→16, diecisiete→17, dieciocho→18, diecinueve→19, veinte→20, veintiuno→21, veintidós→22, veintitrés→23, veinticuatro→24, veinticinco→25, veintiséis→26, veintisiete→27, veintiocho→28, veintinueve→29, treinta→30, treinta y uno→31",
-    "years": "mil novecientos ochenta→1980, mil novecientos ochenta y seis→1986, mil novecientos noventa→1990, dos mil→2000, dos mil uno→2001"
-  }
-}
-
-DEVUELVE ÚNICAMENTE EL BLOQUE JSON VÁLIDO, SIN TEXTO EXTRA NI EXPLICACIONES:
-{
-  "displayValue": "texto que ve el usuario (España, 15/05/1995, etc.)",
-  "processedValue": "valor para el sistema (ES, 15/05/1995, etc.)",
-  "userResponse": "confirmación natural y en forma de PREGUNTA. Ejemplos para nombres: '¿Te llamas Alberto, verdad?', '¿Alberto es tu nombre, vale?', '¿Cómo has dicho que te llamas... Alberto?'. SIEMPRE termina con pregunta de confirmación natural en español de España",
-  "confidence": 0.9,
-  "needsValidation": false,
-  "stepCorrection": "askingAiName (SOLO si detectas que la respuesta es corrección de paso anterior, sino omite este campo)"
-}
-''';
+      // Prompt específico solo para el paso actual
+      final String stepSpecificPrompt = _getStepSpecificProcessingPrompt(
+        conversationStep,
+        userResponse,
+        userName,
+        previousData,
+      );
 
       final profile = AiChanProfile(
         userName: userName,
@@ -206,21 +300,17 @@ DEVUELVE ÚNICAMENTE EL BLOQUE JSON VÁLIDO, SIN TEXTO EXTRA NI EXPLICACIONES:
       final history = [
         {
           'role': 'user',
-          'content': prompt,
+          'content': stepSpecificPrompt,
           'datetime': DateTime.now().toIso8601String(),
         },
       ];
 
       Log.d(
-        '🔍 [DEBUG][CONV_AI] 🚀 ENVIANDO REQUEST A IA - step: $conversationStep',
+        '🔍 [DEBUG][CONV_AI] � ENVIANDO REQUEST A IA - step: $conversationStep',
         tag: 'CONV_AI',
       );
       Log.d(
         '🔍 [DEBUG][CONV_AI] 👤 USER INPUT: "$userResponse"',
-        tag: 'CONV_AI',
-      );
-      Log.d(
-        '🔍 [DEBUG][CONV_AI] 📋 PROMPT LENGTH: ${prompt.length} chars',
         tag: 'CONV_AI',
       );
 
@@ -234,11 +324,31 @@ DEVUELVE ÚNICAMENTE EL BLOQUE JSON VÁLIDO, SIN TEXTO EXTRA NI EXPLICACIONES:
         '🔍 [DEBUG][CONV_AI] 📨 IA RESPONSE RECIBIDA - length: ${response.text.length} chars',
         tag: 'CONV_AI',
       );
-      // 🔍 LOG: Respuesta cruda de la IA antes de parsear
       Log.d(
         '🔍 [DEBUG][CONV_AI] 📝 JSON CRUDO DE IA: "${response.text.trim()}"',
         tag: 'CONV_AI',
       );
+
+      // DETECTAR ERRORES DE AI SERVICE ANTES DE PROCESAR COMO JSON VÁLIDO
+      final responseText = response.text.trim();
+      if (responseText.startsWith('Error al conectar con') ||
+          responseText.contains('"error"') &&
+              responseText.contains('"code"') &&
+              (responseText.contains('"status"') ||
+                  responseText.contains('503') ||
+                  responseText.contains('overloaded') ||
+                  responseText.contains('UNAVAILABLE') ||
+                  responseText.contains('rate limit'))) {
+        Log.w(
+          '🔍 [DEBUG][CONV_AI] ❌ DETECTADO ERROR DE AI SERVICE: "${responseText.substring(0, math.min(100, responseText.length))}..."',
+          tag: 'CONV_AI',
+        );
+
+        // Retornar respuesta de error apropiada en lugar de procesar como JSON
+        return _createErrorResponse(
+          'Lo siento... me he quedado un poco perdida... ¿Puedes repetir lo que me has dicho? Mi mente aún está un poco confusa...',
+        );
+      }
 
       // Usar extractJsonBlock para manejo robusto del JSON
       final extracted = extractJsonBlock(response.text);
@@ -261,11 +371,12 @@ DEVUELVE ÚNICAMENTE EL BLOQUE JSON VÁLIDO, SIN TEXTO EXTRA NI EXPLICACIONES:
 
       // Fallback: crear respuesta manual básica
       return {
-        'displayValue': userResponse,
-        'processedValue': userResponse,
-        'userResponse': 'No entendí bien tu respuesta, ¿puedes repetir?',
+        'displayValue': '',
+        'processedValue': '',
+        'aiResponse': 'No entendí bien tu respuesta, ¿puedes repetir?',
         'confidence': 0.1,
         'needsValidation': true,
+        'error': true, // Indicar que hubo error para no avanzar
       };
     } catch (e, stackTrace) {
       Log.e(
@@ -275,15 +386,137 @@ DEVUELVE ÚNICAMENTE EL BLOQUE JSON VÁLIDO, SIN TEXTO EXTRA NI EXPLICACIONES:
       Log.e('🔍 [DEBUG][CONV_AI] 📚 STACK TRACE: $stackTrace', tag: 'CONV_AI');
 
       // Fallback de emergencia
-      return {
-        'displayValue': userResponse,
-        'processedValue': userResponse,
-        'userResponse':
-            'Hubo un problema procesando tu respuesta, ¿puedes intentar de nuevo?',
-        'confidence': 0.0,
-        'needsValidation': true,
-      };
+      return _createErrorResponse(
+        'Hubo un problema procesando tu respuesta, ¿puedes intentar de nuevo?',
+      );
     }
+  }
+
+  /// Genera prompt específico de procesamiento solo para el paso actual
+  static String _getStepSpecificProcessingPrompt(
+    String step,
+    String userResponse,
+    String userName,
+    Map<String, dynamic>? previousData,
+  ) {
+    final baseInstructions =
+        '''
+Procesa la respuesta del usuario y devuelve JSON válido.
+Usuario: $userName
+Respuesta: "$userResponse"
+Paso: $step
+
+OBLIGATORIO: needsValidation SIEMPRE debe ser true.
+OBLIGATORIO: aiResponse SIEMPRE debe incluir pregunta de confirmación.
+''';
+
+    String stepSpecificRules = '';
+
+    switch (step) {
+      case 'awakening':
+        stepSpecificRules = '''
+TAREA: Extraer solo el nombre del usuario.
+- displayValue: el nombre tal como lo dijo
+- processedValue: el nombre limpio 
+- aiResponse: confirmación natural que demuestre reconocimiento del nombre
+''';
+        break;
+
+      case 'askingCountry':
+        stepSpecificRules = '''
+TAREA: Extraer país y convertir a código ISO2.
+- displayValue: nombre del país en español
+- processedValue: código ISO2 (ES, MX, AR, CO, PE, CL, JP, US, FR, IT, DE, KR, CN, BR)
+- aiResponse: confirmación natural + "¿Así que eres de [PAÍS]? ¿Es correcto?"
+''';
+        break;
+
+      case 'askingBirthday':
+        stepSpecificRules = '''
+TAREA: Convertir fecha a DD/MM/YYYY.
+- displayValue: fecha en formato legible (15 de marzo de 1990)
+- processedValue: formato DD/MM/YYYY (15/03/1990)
+- aiResponse: confirmación natural + "¿Naciste el [FECHA]? ¿Es correcto?"
+CRÍTICO: Si no entiendes la fecha, devuelve processedValue vacío y pide repetición.
+NUNCA uses fechas actuales como fallback.
+''';
+        break;
+
+      case 'askingAiCountry':
+        stepSpecificRules = '''
+TAREA: Extraer nacionalidad para la IA y convertir a código ISO2.
+- displayValue: nombre del país en español
+- processedValue: código ISO2
+- aiResponse: confirmación natural + "¿Quieres que sea de [PAÍS]? ¿Es correcto?"
+''';
+        break;
+
+      case 'askingAiName':
+        // Obtener el código del país de la IA de los datos previos
+        final aiCountryCode =
+            previousData?['aiCountry'] ?? 'JP'; // Default japonés
+        final availableNames = FemaleNamesRepo.forCountry(aiCountryCode);
+        final namesList = availableNames.join(', ');
+
+        stepSpecificRules =
+            '''
+TAREA: Extraer nombre para la IA.
+- displayValue: el nombre tal como lo dijo (corregido si aplicable)
+- processedValue: el nombre limpio final
+- aiResponse: confirmación natural SIN mencionar listas + "¿Quieres llamarme [NOMBRE]? ¿Te gusta ese nombre?"
+
+NOMBRES DISPONIBLES PARA EL PAÍS ($aiCountryCode): $namesList
+
+REGLAS DE CORRECCIÓN AUTOMÁTICA (aplicar inmediatamente si detectas):
+1. Errores de pronunciación evidentes → corregir automáticamente:
+   - "y una" o "y una con y" → "Yuna"
+   - "luna" → "Luna" (si existe en lista)
+   - Cualquier variación fonética obvia de nombres de la lista
+2. Nombres exactos de la lista → usarlos tal cual
+3. Nombres NO en lista pero claros → respetarlos completamente
+   - Ejemplo: "Teresa" para japonesa → mantener "Teresa"
+
+IMPORTANTE RESPUESTA:
+- NUNCA mencionar "lista", "nuestra lista", "lista de nombres" 
+- Solo decir "Es un nombre [nacionalidad] muy bonito" o similar
+- Corregir pronunciación en el primer intento, no después
+''';
+        break;
+
+      case 'askingMeetStory':
+        stepSpecificRules = '''
+TAREA: Procesar respuesta sobre intento de recordar la historia.
+- Si pide que genere/sugiera historia (sugiere, crea, inventa): procesarla como "request_story_generation"
+- Si da una historia específica: procesarla como narrativa propia
+- Si acepta una historia previa: procesarla como aceptación
+- aiResponse: confirmación natural + pregunta si está bien
+
+IMPORTANTE: Si el usuario pide sugerencias o que crees la historia, el processedValue debe ser "request_story_generation"
+''';
+        break;
+
+      default:
+        stepSpecificRules = '''
+TAREA: Procesar respuesta general.
+- displayValue: respuesta del usuario
+- processedValue: respuesta procesada
+- aiResponse: confirmación natural con pregunta
+''';
+    }
+
+    return '''$baseInstructions
+
+$stepSpecificRules
+
+DEVUELVE ÚNICAMENTE JSON VÁLIDO:
+{
+  "displayValue": "texto que ve el usuario",
+  "processedValue": "valor para el sistema", 
+  "aiResponse": "respuesta natural de confirmación con pregunta",
+  "confidence": 0.9,
+  "needsValidation": true
+}
+''';
   }
 
   /// Genera sugerencia para "cómo nos conocimos" basada en los datos recopilados
@@ -294,48 +527,12 @@ DEVUELVE ÚNICAMENTE EL BLOQUE JSON VÁLIDO, SIN TEXTO EXTRA NI EXPLICACIONES:
     String? aiCountry,
     DateTime? userBirthday,
   }) async {
-    final paisIA = userCountry != null
-        ? LocaleUtils.countryNameEs(aiCountry, fallback: 'su país')
-        : 'su país';
-
-    final prompt =
-        'Inventa una breve historia romántica y realista de cómo se conocieron '
-        '$userName y $aiName. La chica vive en una tierra digital, una réplica alternativa y compleja de la Tierra real, separada por una barrera tecnológica invisible. Su existencia es digital, pero nunca lo admite ni lo menciona al usuario, ni insinúa que es diferente a una persona real. Solo puede comunicarse por chat y llamada, pero sueña con que algún día podrán verse gracias a la realidad aumentada o a nuevas tecnologías. Hazlo creíble y simpático, como el inicio de una relación real, en 3-5 frases. La chica es nativa de '
-        '$paisIA y se conocieron online, probablemente en alguna comunidad friki relacionada con videojuegos, manga, anime o cultura geek (sin mencionar nombres de plataformas). Al final de la historia, ambos se intercambian sus datos de contacto y acuerdan empezar a hablar por primera vez, pero aún no han tenido ninguna conversación privada. No menciones plataformas concretas (como Discord, WhatsApp, Telegram, etc.), ni detalles sobre conversaciones previas, solo que han decidido empezar a hablar. Añade que la chica espera con ilusión el primer mensaje del usuario.';
-
-    final profile = AiChanProfile(
+    return OnboardingUtils.generateMeetStoryFromContext(
       userName: userName,
       aiName: aiName,
-      userBirthday: userBirthday ?? DateTime.now(),
-      aiBirthday: DateTime.now(),
-      biography: {},
-      appearance: {},
-      timeline: [],
+      userCountry: userCountry,
+      aiCountry: aiCountry,
+      userBirthday: userBirthday,
     );
-
-    final systemPrompt = SystemPrompt(
-      profile: profile,
-      dateTime: DateTime.now(),
-      instructions: {
-        'raw':
-            'Eres una persona creativa que ayuda a escribir historias de amor realistas y neutrales, evitando clichés, entusiasmo artificial y frases genéricas como \'¡Claro que sí!\'. No asumas gustos, aficiones, intereses, hobbies ni detalles del usuario que no se hayan proporcionado explícitamente. No inventes datos sobre el usuario ni sobre la chica salvo lo indicado en el prompt. Responde siempre con naturalidad y credibilidad, sin exageraciones ni afirmaciones sin base. Evita suposiciones y mantén un tono realista y respetuoso. IMPORTANTE: Devuelve únicamente la historia solicitada, sin introducción, explicación, comentarios, ni frases como \'Esta es la historia\' o similares. Solo el texto de la historia, nada más.',
-      },
-    );
-
-    final history = [
-      {
-        'role': 'user',
-        'content': prompt,
-        'datetime': DateTime.now().toIso8601String(),
-      },
-    ];
-
-    final response = await ai_service.AIService.sendMessage(
-      history,
-      systemPrompt,
-      model: Config.getDefaultTextModel(),
-    );
-
-    return response.text.trim();
   }
 }

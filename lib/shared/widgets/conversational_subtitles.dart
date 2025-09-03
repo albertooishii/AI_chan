@@ -16,6 +16,11 @@ class ConversationalSubtitleController {
     _state = null;
   }
 
+  /// Actualiza los nombres para mostrar en los subtítulos
+  void updateNames({String? userName, String? aiName}) {
+    _state?.updateNames(userName: userName, aiName: aiName);
+  }
+
   /// Inicia revelado gradual de texto de IA con duración específica
   void startAiReveal(String text, {Duration? estimatedDuration}) {
     _state?.startAiReveal(text, estimatedDuration: estimatedDuration);
@@ -64,6 +69,10 @@ class _ConversationalSubtitlesState extends State<ConversationalSubtitles> {
   String _currentUserText = '';
   bool _isRevealing = false;
 
+  // Nombres dinámicos para los subtítulos
+  String _userName = 'TÚ';
+  String _aiName = 'AI-CHAN';
+
   // Getter para verificar si hay contenido visible
   bool get _hasVisibleContent =>
       _currentAiText.isNotEmpty || _currentUserText.isNotEmpty || _isRevealing;
@@ -88,10 +97,17 @@ class _ConversationalSubtitlesState extends State<ConversationalSubtitles> {
   void startAiReveal(String text, {Duration? estimatedDuration}) {
     if (text.isEmpty || text == _currentAiText) return;
 
+    // Limpiar subtítulos anteriores cuando hay nueva respuesta de IA
+    if (_currentAiText.isNotEmpty || _currentUserText.isNotEmpty) {
+      setState(() {
+        _currentUserText = ''; // Limpiar respuesta anterior del usuario
+      });
+      _userController.clear();
+    }
+
     _currentAiText = text;
     _isRevealing = true;
     _aiController.clear();
-    _userController.clear(); // Limpiar usuario cuando IA habla
 
     // Usar duración proporcionada o calcular basada en palabras
     final Duration finalDuration;
@@ -123,15 +139,8 @@ class _ConversationalSubtitlesState extends State<ConversationalSubtitles> {
         timer.cancel();
         _autoScroll();
 
-        // Limpiar después de un tiempo cuando termine
-        Timer(const Duration(seconds: 12), () {
-          if (_currentAiText == text && !_isRevealing) {
-            setState(() {
-              _currentAiText = '';
-              _aiController.clear();
-            });
-          }
-        });
+        // NO limpiar automáticamente - mantener visible hasta nueva interacción
+        // El subtítulo se limpiará cuando haya nueva respuesta AI
       } else {
         _aiController.updateProportional(elapsed, text, finalDuration);
         if (progress > 0.1) _autoScroll(); // Auto-scroll después del primer 10%
@@ -146,15 +155,18 @@ class _ConversationalSubtitlesState extends State<ConversationalSubtitles> {
   void showUserText(String text) {
     if (text.isEmpty || text == _currentUserText) return;
 
+    // MANTENER el subtítulo de AI visible cuando el usuario habla
+    // para crear un diálogo claramente visible (pregunta -> respuesta)
+
     setState(() {
       _currentUserText = text;
     });
     _userController.showFullTextInstant(text);
     _autoScroll();
 
-    // Limpiar después de un tiempo
-    Timer(const Duration(seconds: 8), () {
-      if (_currentUserText == text) {
+    // Limpiar texto del usuario después de un tiempo más largo para permitir lectura
+    Timer(const Duration(seconds: 12), () {
+      if (_currentUserText == text && mounted) {
         setState(() {
           _currentUserText = '';
         });
@@ -172,6 +184,18 @@ class _ConversationalSubtitlesState extends State<ConversationalSubtitles> {
     });
     _aiController.clear();
     _userController.clear();
+  }
+
+  // Método para actualizar los nombres mostrados en los subtítulos
+  void updateNames({String? userName, String? aiName}) {
+    setState(() {
+      if (userName != null && userName.trim().isNotEmpty) {
+        _userName = userName.toUpperCase();
+      }
+      if (aiName != null && aiName.trim().isNotEmpty) {
+        _aiName = aiName.toUpperCase();
+      }
+    });
   }
 
   void _autoScroll() {
@@ -214,56 +238,6 @@ class _ConversationalSubtitlesState extends State<ConversationalSubtitles> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Subtítulo del usuario
-            StreamBuilder<String>(
-              stream: _userController.progressiveTextStream,
-              builder: (context, snapshot) {
-                final userText = snapshot.data ?? '';
-                if (userText.isEmpty) return const SizedBox.shrink();
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Indicador de que es el usuario
-                    Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: AppColors.secondary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'TÚ:',
-                          style: TextStyle(
-                            color: AppColors.secondary.withValues(alpha: 0.8),
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    // Subtítulo instantáneo para el usuario (sin animación)
-                    Text(
-                      userText,
-                      style: const TextStyle(
-                        color: AppColors.secondary,
-                        fontSize: 16,
-                        fontFamily: 'FiraMono',
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                );
-              },
-            ),
-
             // Subtítulo de la IA con animación gradual
             StreamBuilder<String>(
               stream: _aiController.progressiveTextStream,
@@ -287,7 +261,7 @@ class _ConversationalSubtitlesState extends State<ConversationalSubtitles> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'AI-CHAN:',
+                          '$_aiName:',
                           style: TextStyle(
                             color: AppColors.primary.withValues(alpha: 0.8),
                             fontSize: 12,
@@ -311,6 +285,56 @@ class _ConversationalSubtitlesState extends State<ConversationalSubtitles> {
                       glitchProbability: 0.15,
                     ),
                     const SizedBox(height: 8),
+                  ],
+                );
+              },
+            ),
+
+            // Subtítulo del usuario
+            StreamBuilder<String>(
+              stream: _userController.progressiveTextStream,
+              builder: (context, snapshot) {
+                final userText = snapshot.data ?? '';
+                if (userText.isEmpty) return const SizedBox.shrink();
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Indicador de que es el usuario
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: AppColors.secondary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$_userName:',
+                          style: TextStyle(
+                            color: AppColors.secondary.withValues(alpha: 0.8),
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    // Subtítulo instantáneo para el usuario (sin animación)
+                    Text(
+                      userText,
+                      style: const TextStyle(
+                        color: AppColors.secondary,
+                        fontSize: 16,
+                        fontFamily: 'FiraMono',
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                   ],
                 );
               },

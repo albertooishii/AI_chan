@@ -200,14 +200,4 @@ class BackupAutoUploader {
   // happen. Tests can await this to deterministically observe the upload
   // attempt regardless of the actual Google service used.
   static Completer<void>? testUploadCompleter;
-
-  /// Reset internal in-memory state used for coalescing and test hooks.
-  static void resetForTests() {
-    _lastAttempt = null;
-    _lastSuccess = null;
-    testLocalBackupCreator = null;
-    testGoogleBackupServiceFactory = null;
-    testTokenLoaderFactory = null;
-    testUploadCompleter = null;
-  }
 }

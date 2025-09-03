@@ -326,22 +326,6 @@ class CacheService {
     }
   }
 
-  /// Elimina caché de modelos de un proveedor específico
-  static Future<void> clearModelsCache({required String provider}) async {
-    try {
-      final cacheDir = await getCacheDirectory();
-      final modelsDir = Directory('${cacheDir.path}/$_modelsSubDir');
-      final cacheFile = File('${modelsDir.path}/${provider}_models_cache.json');
-
-      if (await cacheFile.exists()) {
-        await cacheFile.delete();
-        debugPrint('[Cache] Caché de modelos $provider eliminado');
-      }
-    } catch (e) {
-      debugPrint('[Cache] Error eliminando caché de modelos $provider: $e');
-    }
-  }
-
   /// Elimina caché de voces de un proveedor específico
   static Future<void> clearVoicesCache({required String provider}) async {
     try {
