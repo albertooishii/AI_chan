@@ -303,7 +303,7 @@ Identidad: $aiIdentityInstructions
           : AIService.sendMessage([], systemPromptObj, model: defaultModel));
       if ((responseObj.text).trim().isEmpty) {
         Log.w(
-          '[IABioGenerator] Biografía: respuesta vacía (posible desconexión), reintentando…',
+          '[IABioGenerator] Biografía: respuesta vacía (posible desconexión), reintentando...',
         );
         continue;
       }
@@ -316,7 +316,7 @@ Identidad: $aiIdentityInstructions
         break;
       }
       Log.w(
-        '[IABioGenerator] Biografía: intento ${attempt + 1} sin JSON válido, reintentando…',
+        '[IABioGenerator] Biografía: intento ${attempt + 1} sin JSON válido, reintentando...',
       );
     } catch (err) {
       if (handleRuntimeError(err, 'IABioGenerator')) {

@@ -155,7 +155,7 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
   static final List<String> _orderedPatterns = _syllableToKana.keys.toList()
     ..sort((a, b) => b.length.compareTo(a.length));
   // Separadores / signos que preservamos como unidades independientes.
-  static final RegExp _punctOrSpace = RegExp(r'[\s.,;:!?¡¿"()\[\]{}…-]');
+  static final RegExp _punctOrSpace = RegExp(r'[\s.,;:!?¡¿"()\[\]{}...-]');
   static final _rand = Random();
 
   late final Ticker _ticker;
@@ -310,7 +310,7 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
     required bool useKatakana,
   }) {
     if (replaceWith != null &&
-        RegExp(r'[\s.,;:!?¡¿"()\[\]{}…-]').hasMatch(replaceWith)) {
+        RegExp(r'[\s.,;:!?¡¿"()\[\]{}...-]').hasMatch(replaceWith)) {
       return replaceWith;
     }
     if (!useKatakana) return _katakana[_rand.nextInt(_katakana.length)];

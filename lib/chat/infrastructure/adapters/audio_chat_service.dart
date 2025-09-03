@@ -400,7 +400,7 @@ class AudioChatService implements IAudioChatService {
   /// should use temporary-only output.
   Future<File?> synthesizeTts(
     String text, {
-    String voice = 'sage',
+    String voice = 'marin',
     String? languageCode,
     bool forDialogDemo = false,
   }) async {

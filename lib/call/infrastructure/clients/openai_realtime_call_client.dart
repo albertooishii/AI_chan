@@ -15,7 +15,7 @@ class OpenAIRealtimeCallClient implements IRealtimeCallClient {
   bool _connected = false;
   // Kept for parity with previous implementation and forwarded to provider.
   // ignore: unused_field
-  String _voice = 'sage';
+  String _voice = 'marin';
   bool _hasActiveResponse = false;
   Timer? _responseCreateTimer;
   int _bytesSinceCommit = 0;

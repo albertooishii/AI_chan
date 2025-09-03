@@ -42,7 +42,7 @@ abstract class IAudioChatService {
   /// Synthesize text to speech and return audio file
   Future<File?> synthesizeTts(
     String text, {
-    String voice = 'sage',
+    String voice = 'marin',
     String? languageCode,
     bool forDialogDemo = false,
   });

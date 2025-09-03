@@ -62,9 +62,25 @@ class OpenAIAdapter implements IAIService {
   }
 
   @override
-  Future<String?> textToSpeech(String text, {String voice = ''}) async {
+  Future<String?> textToSpeech(
+    String text, {
+    String voice = '',
+    Map<String, dynamic>? options,
+  }) async {
     try {
-      final file = await _impl.textToSpeech(text: text, voice: voice);
+      // Extraer opciones adicionales para OpenAI TTS
+      final model = options?['model'] as String?;
+      final speed = options?['speed'] as double? ?? 1.0;
+      final instructions = options?['instructions'] as String?;
+
+      // Llamar al método textToSpeech con todas las opciones
+      final file = await _impl.textToSpeech(
+        text: text,
+        voice: voice,
+        model: model,
+        speed: speed,
+        instructions: instructions,
+      );
       return file?.path;
     } catch (_) {
       return null;

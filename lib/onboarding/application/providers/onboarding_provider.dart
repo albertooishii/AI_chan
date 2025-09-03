@@ -45,7 +45,22 @@ class OnboardingProvider extends ChangeNotifier {
   void reset() {
     _generatedBiography = null;
     _biographySaved = false;
+
+    // También limpiar SharedPreferences para evitar que _loadBiographyFromPrefs
+    // encuentre datos viejos en el próximo reinicio
+    _clearPrefsData();
+
     notifyListeners();
+  }
+
+  /// Limpia los datos de SharedPreferences de forma asíncrona
+  void _clearPrefsData() async {
+    try {
+      await PrefsUtils.removeOnboardingData();
+      await PrefsUtils.removeChatHistory();
+    } catch (e) {
+      Log.w('Error limpiando SharedPreferences en reset(): $e');
+    }
   }
 
   // Carga inicial desde SharedPreferences (sin UI) para tests y arranque

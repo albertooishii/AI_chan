@@ -13,12 +13,10 @@ import 'package:ai_chan/shared/utils/prefs_utils.dart';
 class LocalChatRepository implements IChatRepository {
   @override
   Future<void> clearAll() async {
-    // Use repository clear when possible; otherwise clear the canonical keys
-    await PrefsUtils.removeChatHistory();
-    await PrefsUtils.removeOnboardingData();
-    try {
-      await PrefsUtils.removeKey(PrefsUtils.kChatFullExport);
-    } catch (_) {}
+    // Usar PrefsUtils.clearAll() para asegurar que TODO se limpia
+    // Esto evita el bug donde datos residuales causan que loadAll() encuentre datos
+    // después de un resetApp()
+    await PrefsUtils.clearAll();
   }
 
   @override

@@ -189,7 +189,7 @@ class NotSupportedRealtimeClient implements IRealtimeClient {
   @override
   Future<void> connect({
     required String systemPrompt,
-    String voice = 'sage',
+    String voice = 'marin',
     String? inputAudioFormat,
     String? outputAudioFormat,
     String? turnDetectionType,

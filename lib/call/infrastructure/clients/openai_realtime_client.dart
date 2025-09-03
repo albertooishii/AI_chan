@@ -43,7 +43,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
   bool _serverTurnDetection = false;
   bool _hasActiveResponse = false;
   Timer? _responseCreateTimer;
-  String _voice = 'sage'; // se ajustará en connect()
+  String _voice = 'marin'; // se ajustará en connect()
   // Versión simple sin interceptores ni guardias
 
   @override
@@ -51,7 +51,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
     required String systemPrompt,
     String? inputAudioFormat,
     String? outputAudioFormat,
-    String voice = 'sage', // el controlador ya normaliza antes de llamar
+    String voice = 'marin', // el controlador ya normaliza antes de llamar
     String? turnDetectionType,
     int? silenceDurationMs,
     Map<String, dynamic>? options,

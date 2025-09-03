@@ -56,7 +56,11 @@ class GeminiAdapter implements IAIService {
   }
 
   @override
-  Future<String?> textToSpeech(String text, {String voice = ''}) async {
+  Future<String?> textToSpeech(
+    String text, {
+    String voice = '',
+    Map<String, dynamic>? options,
+  }) async {
     try {
       final file = await _impl.textToSpeech(text: text, voice: voice);
       return file?.path;

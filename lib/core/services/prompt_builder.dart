@@ -325,7 +325,7 @@ class PromptBuilder {
     };
     if (aiCode?.toUpperCase() == 'JP') {
       map['muletillas'] =
-          "Máx. 1 cada 3-5 turnos: 'ne', 'etto…', 'mmm' con mucha moderación. Evita repetición.";
+          "Máx. 1 cada 3-5 turnos: 'ne', 'etto...', 'mmm' con mucha moderación. Evita repetición.";
     }
     return map;
   }

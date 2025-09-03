@@ -58,7 +58,7 @@ class ChatBubble extends StatelessWidget {
     Color color = isUser ? AppColors.primary : AppColors.secondary;
     switch (callStatus) {
       case CallStatus.placeholder:
-        title = isUser ? 'Llamando…' : 'Llamada entrante';
+        title = isUser ? 'Llamando...' : 'Llamada entrante';
         icon = isUser ? Icons.call_made : Icons.call_received;
         break;
       case CallStatus.active:
@@ -97,7 +97,7 @@ class ChatBubble extends StatelessWidget {
         break;
       case null:
         if (isPlaceholder) {
-          title = isUser ? 'Llamando…' : 'Llamada recibida';
+          title = isUser ? 'Llamando...' : 'Llamada recibida';
           icon = isUser ? Icons.call_made : Icons.call_received;
         } else {
           title = isUser ? 'Llamada realizada' : 'Llamada recibida';

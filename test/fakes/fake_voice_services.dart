@@ -48,5 +48,9 @@ class FakeCallsAiService implements IAIService {
   Future<List<String>> getAvailableModels() async => models;
 
   @override
-  Future<String?> textToSpeech(String text, {String voice = ''}) async => null;
+  Future<String?> textToSpeech(
+    String text, {
+    String voice = '',
+    Map<String, dynamic>? options,
+  }) async => null;
 }

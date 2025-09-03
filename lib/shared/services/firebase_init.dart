@@ -9,17 +9,38 @@ import 'package:flutter/foundation.dart';
 /// specific setup per Firebase docs. This helper only attempts a best-effort
 /// local initialization for tools and tests.
 /// Ensures Firebase is initialized. Returns true on success, false otherwise.
+///
+/// On desktop platforms (Linux, macOS, Windows), Firebase is disabled by default
+/// as it's primarily designed for mobile and web platforms.
 Future<bool> ensureFirebaseInitialized() async {
+  // Skip Firebase initialization on desktop platforms
+  if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
+    debugPrint(
+      'firebase_init: Skipping Firebase on desktop platform (${Platform.operatingSystem})',
+    );
+    return false;
+  }
+
   if (Firebase.apps.isNotEmpty) return true;
-  try {
-    // Standard initialize; this will pick up native configuration when
-    // running on device/emulator with google-services.json / GoogleService-Info.plist
-    await Firebase.initializeApp();
-    return true;
-  } catch (e, st) {
-    debugPrint('Firebase.initializeApp() failed: $e');
-    debugPrint('$st');
-    // Continue to fallback attempt
+
+  // Limit retry attempts to avoid excessive logs
+  const maxAttempts = 1;
+
+  for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+    debugPrint('firebase_init: initialize attempt $attempt/$maxAttempts');
+    try {
+      // Standard initialize; this will pick up native configuration when
+      // running on device/emulator with google-services.json / GoogleService-Info.plist
+      await Firebase.initializeApp();
+      debugPrint('firebase_init: Firebase initialized successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Firebase.initializeApp() failed: $e');
+      if (attempt == maxAttempts) {
+        debugPrint('firebase_init: All attempts failed, trying fallback');
+      }
+      // Continue to fallback attempt on last iteration
+    }
   }
 
   try {
@@ -27,7 +48,10 @@ Future<bool> ensureFirebaseInitialized() async {
       return false; // web should use default Firebase config in index.html
     }
     final file = File('google-services.json');
-    if (!file.existsSync()) return false;
+    if (!file.existsSync()) {
+      debugPrint('firebase_init: google-services.json not found');
+      return false;
+    }
     final data = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
     final projectInfo = data['project_info'] as Map<String, dynamic>?;
     final clients =
@@ -64,10 +88,11 @@ Future<bool> ensureFirebaseInitialized() async {
       projectId: projectId,
     );
     await Firebase.initializeApp(options: options);
+    debugPrint('firebase_init: Firebase initialized via fallback');
     return true;
-  } catch (e, st) {
+  } catch (e) {
     debugPrint('firebase_init fallback failed: $e');
-    debugPrint('$st');
+    debugPrint('firebase_init: Firebase initialization completely failed');
     return false;
   }
 }

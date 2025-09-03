@@ -484,12 +484,14 @@ class OpenAIService implements AIService {
   /// Genera un archivo de voz usando OpenAI TTS con caché
   Future<File?> textToSpeech({
     required String text,
-    String voice = 'sage',
+    String voice = 'marin',
     String? model,
     String? outputDir,
+    double speed = 1.0,
+    String? instructions,
   }) async {
     Log.d(
-      'textToSpeech called - text: "${text.length} chars", voice: $voice, model: $model',
+      'textToSpeech called - text: "${text.length} chars", voice: $voice, model: $model, instructions: ${instructions?.isNotEmpty == true ? "YES" : "NO"}',
       tag: 'OPENAI_TTS',
     );
 
@@ -504,6 +506,11 @@ class OpenAIService implements AIService {
       return null;
     }
 
+    // Incluir instructions en la clave de caché si están presentes
+    final cacheKey = instructions != null && instructions.isNotEmpty
+        ? '$text|$voice|$instructions'
+        : text;
+
     try {
       // Verificar caché primero
       // Preferir caché solo para demo/dialog TTS — los audios de mensajes se
@@ -511,7 +518,7 @@ class OpenAIService implements AIService {
       final effectiveModel = model ?? Config.getOpenAITtsModel();
 
       final cachedFile = await CacheService.getCachedAudioFile(
-        text: text,
+        text: cacheKey,
         voice: voice,
         languageCode:
             'openai-$effectiveModel', // Usar modelo como "idioma" para OpenAI
@@ -530,18 +537,45 @@ class OpenAIService implements AIService {
     final effectiveModel = model ?? Config.getOpenAITtsModel();
 
     final url = Uri.parse('https://api.openai.com/v1/audio/speech');
+
+    // Construir el body de la petición
+    final Map<String, dynamic> requestBody = {
+      'model': effectiveModel,
+      'input': text,
+      'voice': voice,
+      'response_format': 'mp3',
+      'speed': speed,
+    };
+
+    // Solo agregar instructions si el modelo las soporta (gpt-4o-mini-tts, no tts-1 o tts-1-hd)
+    if (instructions != null &&
+        instructions.isNotEmpty &&
+        effectiveModel.contains('gpt-4o-mini-tts')) {
+      requestBody['instructions'] = instructions;
+      Log.d(
+        'Adding instructions to OpenAI TTS request: $instructions',
+        tag: 'OPENAI_TTS',
+      );
+    } else if (instructions != null && instructions.isNotEmpty) {
+      Log.w(
+        'Instructions provided but model $effectiveModel does not support them',
+        tag: 'OPENAI_TTS',
+      );
+    }
+
+    // 🔴 LOG: Request completo a OpenAI
+    Log.d(
+      '📡 REQUEST OPENAI TTS: ${jsonEncode(requestBody)}',
+      tag: 'OPENAI_TTS',
+    );
+
     final response = await HttpConnector.client.post(
       url,
       headers: {
         'Authorization': 'Bearer $apiKey',
         'Content-Type': 'application/json',
       },
-      body: jsonEncode({
-        'model': effectiveModel,
-        'input': text,
-        'voice': voice,
-        'response_format': 'mp3',
-      }),
+      body: jsonEncode(requestBody),
     );
 
     if (response.statusCode == 200) {
@@ -573,9 +607,9 @@ class OpenAIService implements AIService {
 
           final cachedFile = await CacheService.saveAudioToCache(
             audioData: dataToSave,
-            text: text,
+            text: cacheKey, // Usar la clave que incluye instructions
             voice: voice,
-            languageCode: 'openai-$model',
+            languageCode: 'openai-$effectiveModel',
             provider: 'openai',
             extension: ext,
           );

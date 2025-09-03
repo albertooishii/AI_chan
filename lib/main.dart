@@ -1,5 +1,6 @@
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/onboarding.dart';
+import 'package:ai_chan/onboarding/presentation/screens/onboarding_mode_selector.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
@@ -33,29 +34,14 @@ Future<void> main() async {
   // Use the helper that tries native init first and falls back to parsing
   // google-services.json when necessary. Retry a few times to surface
   // intermittent initialization race conditions.
-  bool firebaseReady = false;
-  const int maxAttempts = 3;
-  for (var attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      debugPrint('firebase_init: initialize attempt $attempt/$maxAttempts');
-      final ok = await ensureFirebaseInitialized();
-      debugPrint('firebase_init: ensureFirebaseInitialized -> $ok');
-      if (ok) {
-        firebaseReady = true;
-        break;
-      }
-    } catch (e, st) {
-      debugPrint('firebase_init: exception on attempt $attempt: $e');
-      debugPrint('$st');
-    }
-    // small backoff
-    await Future.delayed(Duration(milliseconds: 200 * attempt));
-  }
+  // Initialize Firebase (automatically disabled on desktop platforms)
+  final firebaseReady = await ensureFirebaseInitialized();
   if (!firebaseReady) {
-    debugPrint(
-      'firebase_init: WARNING - failed to initialize Firebase after $maxAttempts attempts. FirebaseAuth calls may throw CONFIGURATION_NOT_FOUND.',
-    );
+    debugPrint('firebase_init: Firebase not available on this platform');
+  } else {
+    debugPrint('firebase_init: Firebase initialized successfully');
   }
+
   di_bootstrap.registerDefaultRealtimeClientFactories();
 
   await PrefsUtils.ensureDefaults();
@@ -129,23 +115,57 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   Future<void> resetApp() async {
     Log.i('resetApp llamado');
 
-    // Primero limpiar el ChatProvider si existe
-    if (_chatProvider != null) {
-      try {
-        await _chatProvider!.clearAll();
-        Log.d('resetApp: ChatProvider cleared');
-      } catch (e) {
-        Log.w('resetApp: Error clearing ChatProvider: $e');
+    // Debug: estado antes del reset
+    Log.d(
+      'resetApp ANTES: generatedBiography=${widget.onboardingProvider.generatedBiography?.aiName}, biographySaved=${widget.onboardingProvider.biographySaved}',
+    );
+
+    try {
+      // Limpieza unificada y simplificada: una sola llamada que lo borra TODO
+      await AppDataUtils.clearAllAppData();
+      Log.d('resetApp: Todos los datos limpiados');
+
+      // Limpiar estado en memoria de los providers
+      if (_chatProvider != null) {
+        _chatProvider!.messages.clear();
+        // Crear perfil vacío en memoria sin persistir
+        _chatProvider!.onboardingData = AiChanProfile(
+          userName: '',
+          aiName: '',
+          userBirthday: DateTime.now(),
+          aiBirthday: DateTime.now(),
+          biography: {},
+          appearance: {},
+          timeline: [],
+        );
       }
+
+      // Resetear provider OnboardingProvider usando método público reset()
+      widget.onboardingProvider.reset();
+
+      // Limpiar controladores de texto manualmente
+      widget.onboardingProvider.userNameController.clear();
+      widget.onboardingProvider.aiNameController?.clear();
+      widget.onboardingProvider.meetStoryController.clear();
+      widget.onboardingProvider.birthDateController.clear();
+      widget.onboardingProvider.userCountryCode = null;
+      widget.onboardingProvider.aiCountryCode = null;
+      widget.onboardingProvider.userBirthday = null;
+
+      // Nullificar ChatProvider para forzar recreación limpia
+      _chatProvider = null;
+
+      // Debug: estado después del reset
+      Log.d(
+        'resetApp DESPUÉS: generatedBiography=${widget.onboardingProvider.generatedBiography?.aiName}, biographySaved=${widget.onboardingProvider.biographySaved}',
+      );
+
+      Log.i('resetApp completado exitosamente');
+    } catch (e) {
+      Log.e('Error en resetApp: $e');
     }
 
-    // Luego limpiar todos los datos de la app
-    await AppDataUtils.clearAllAppData();
-    Log.i('resetApp completado');
     if (mounted) {
-      widget.onboardingProvider.reset();
-      // También resetear el ChatProvider
-      _chatProvider = null;
       setState(() {});
     }
   }
@@ -212,7 +232,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
 
     if (!onboardingProvider.biographySaved) {
-      return OnboardingScreen(
+      return OnboardingModeSelector(
         onFinish:
             ({
               required String userName,
@@ -272,13 +292,31 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     // Ensure we only create the ChatProvider once and pass it down explicitly
     if (_chatProvider == null) {
+      Log.i('MAIN: Creando nuevo ChatProvider');
       final repo = di.getChatRepository();
       _chatProvider = ChatProvider(repository: repo);
-      profile_persist_utils.setOnboardingDataAndPersist(
-        _chatProvider!,
-        onboardingProvider.generatedBiography!,
-      );
+
+      // Solo persistir datos si realmente hay una biografía válida Y los datos están guardados
+      // Esto evita que se persistan datos fantasma después de un resetApp()
+      if (onboardingProvider.generatedBiography != null &&
+          onboardingProvider.biographySaved) {
+        Log.i(
+          'MAIN: Persistiendo biografía: ${onboardingProvider.generatedBiography!.aiName}',
+        );
+        profile_persist_utils.setOnboardingDataAndPersist(
+          _chatProvider!,
+          onboardingProvider.generatedBiography!,
+        );
+      } else {
+        Log.i(
+          'MAIN: NO persistiendo biografía (generatedBiography=${onboardingProvider.generatedBiography?.aiName}, biographySaved=${onboardingProvider.biographySaved})',
+        );
+      }
+
+      Log.i('MAIN: Llamando loadAll()');
       _chatProvider!.loadAll();
+    } else {
+      Log.i('MAIN: Reutilizando ChatProvider existente');
     }
 
     return ChangeNotifierProvider.value(

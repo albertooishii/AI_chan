@@ -290,7 +290,7 @@ class IAAppearanceGenerator {
               ));
         if ((resp.text).trim().isEmpty) {
           Log.w(
-            '[IAAppearanceGenerator] Apariencia: respuesta vacía (posible desconexión), reintentando…',
+            '[IAAppearanceGenerator] Apariencia: respuesta vacía (posible desconexión), reintentando...',
           );
           // backoff ligero
           await Future.delayed(Duration(milliseconds: 300 * (attempt + 1)));
@@ -306,7 +306,7 @@ class IAAppearanceGenerator {
           break;
         }
         Log.w(
-          '[IAAppearanceGenerator] Apariencia: intento ${attempt + 1} sin JSON válido, reintentando…',
+          '[IAAppearanceGenerator] Apariencia: intento ${attempt + 1} sin JSON válido, reintentando...',
         );
       } catch (err) {
         if (handleRuntimeError(err, 'IAAppearanceGenerator')) {

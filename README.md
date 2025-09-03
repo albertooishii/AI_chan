@@ -163,7 +163,7 @@ GOOGLE_CLIENT_ID_WEB=PUT_YOUR_GOOGLE_CLIENT_ID_WEB
 # --- Configuración de Audio/Voz ---
 AUDIO_PROVIDER=gemini                 # openai | gemini
 AUDIO_TTS_MODE=google                 # google | local
-OPENAI_VOICE_NAME=sage                # alloy|ash|ballad|coral|echo|sage|shimmer|verse
+OPENAI_VOICE_NAME=marin                # alloy|ash|ballad|coral|echo|sage|shimmer|verse|cedar|marin
 GOOGLE_VOICE_NAME=es-ES-Wavenet-F     # Voz premium de Google TTS
 PREFERRED_AUDIO_FORMAT=mp3            # mp3 | m4a | wav
 

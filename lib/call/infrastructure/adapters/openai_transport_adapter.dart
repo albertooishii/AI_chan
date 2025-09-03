@@ -73,7 +73,7 @@ class OpenAITransportAdapter implements IRealtimeClient {
       'session': {
         'instructions': systemPrompt,
         'modalities': ['audio', 'text'],
-        'voice': voice ?? 'sage',
+        'voice': voice ?? 'marin',
       },
     });
   }

@@ -147,7 +147,7 @@ void main() {
 
       final client = OpenAIRealtimeCallClient(model: 'test-model');
 
-      await client.connect(systemPrompt: 'hello system', voice: 'sage');
+      await client.connect(systemPrompt: 'hello system', voice: 'marin');
       expect(client.isConnected, true);
 
       // Listen to streams

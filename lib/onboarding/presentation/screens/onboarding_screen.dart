@@ -1,8 +1,6 @@
 import 'package:ai_chan/core/presentation/widgets/cyberpunk_button.dart';
 // onboarding_provider imported once below; avoid duplicate import
 import 'package:ai_chan/chat/application/providers/chat_provider.dart';
-import 'package:ai_chan/shared/constants/countries_es.dart';
-import 'package:ai_chan/shared/constants/female_names.dart';
 import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/core/config.dart';
@@ -13,7 +11,6 @@ import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dar
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/locale_utils.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
-import 'package:ai_chan/shared/utils/string_utils.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'dart:math';
@@ -21,6 +18,8 @@ import 'dart:math';
 import 'package:ai_chan/shared/services/backup_service.dart';
 import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
 import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
+import 'package:ai_chan/shared/widgets/country_autocomplete.dart';
+import 'package:ai_chan/shared/widgets/female_name_autocomplete.dart';
 import 'conversational_onboarding_screen.dart';
 
 /// Callback typedef para finalizar el onboarding
@@ -118,25 +117,6 @@ class _OnboardingScreenContent extends StatefulWidget {
 
 class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
   // Persisted Google account fallback (removed: menu now shows a static entry)
-
-  // Helper: auto-abrir el Autocomplete al enfocar
-  void _attachAutoOpen(TextEditingController controller, FocusNode focusNode) {
-    focusNode.addListener(() {
-      if (focusNode.hasFocus) {
-        final original = controller.text;
-        controller.text = ' ';
-        controller.selection = TextSelection.collapsed(
-          offset: controller.text.length,
-        );
-        Future.microtask(() {
-          controller.text = original;
-          controller.selection = TextSelection.collapsed(
-            offset: controller.text.length,
-          );
-        });
-      }
-    });
-  }
 
   // Subtítulo con divisor para secciones (estilo sutil)
   Widget _sectionHeader(String title, {IconData? icon}) {
@@ -361,6 +341,28 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
           ),
         ),
         actions: [
+          // Botón para volver al modo conversacional (arriba a la izquierda del menú)
+          TextButton.icon(
+            onPressed: () async {
+              final result = await Navigator.of(context).push<bool>(
+                MaterialPageRoute(
+                  builder: (_) => ConversationalOnboardingScreen(
+                    onFinish: widget.onFinish,
+                    onboardingProvider: widget.onboardingProvider,
+                  ),
+                ),
+              );
+              // Si completó el onboarding conversacional, no necesitamos hacer nada más
+              if (result == true && mounted) {
+                // El onboarding conversacional ya llamó a onFinish
+              }
+            },
+            icon: const Icon(Icons.mic, color: AppColors.primary, size: 16),
+            label: const Text(
+              'Conversacional',
+              style: TextStyle(color: AppColors.primary, fontSize: 12),
+            ),
+          ),
           PopupMenuButton<String>(
             itemBuilder: (context) {
               final items = <PopupMenuEntry<String>>[];
@@ -672,75 +674,17 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
             children: [
               // 1) País de usuario
               _sectionHeader('Mis datos', icon: Icons.person),
-              Autocomplete<String>(
-                optionsBuilder: (TextEditingValue textEditingValue) {
-                  final items = List<CountryItem>.from(CountriesEs.items);
-                  final q = normalizeForSearch(textEditingValue.text.trim());
-                  final opts = items.map((c) {
-                    final flag = LocaleUtils.flagEmojiForCountry(c.iso2);
-                    return '${flag.isNotEmpty ? '$flag ' : ''}${c.nameEs} (${c.iso2})';
-                  });
-                  if (q.isEmpty) return opts.take(50);
-                  return opts
-                      .where((o) => normalizeForSearch(o).contains(q))
-                      .take(50);
-                },
-                fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-                  // Inicializa el texto si ya hay código guardado
-                  final code = provider.userCountryCode;
-                  if ((controller.text.isEmpty) &&
-                      code != null &&
-                      code.isNotEmpty) {
-                    final name = CountriesEs.codeToName[code.toUpperCase()];
-                    if (name != null) {
-                      final flag = LocaleUtils.flagEmojiForCountry(code);
-                      controller.text =
-                          '${flag.isNotEmpty ? '$flag ' : ''}$name ($code)';
-                    }
-                  }
-                  // Abrir opciones al enfocar (inserta un espacio temporal y lo revierte)
-                  _attachAutoOpen(controller, focusNode);
-                  return TextFormField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontFamily: 'FiraMono',
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'Tu país',
-                      labelStyle: const TextStyle(color: AppColors.secondary),
-                      enabledBorder: const OutlineInputBorder(
-                        borderSide: BorderSide(color: AppColors.secondary),
-                      ),
-                      focusedBorder: const OutlineInputBorder(
-                        borderSide: BorderSide(
-                          color: AppColors.primary,
-                          width: 2,
-                        ),
-                      ),
-                      prefixIcon: const Icon(
-                        Icons.flag,
-                        color: AppColors.secondary,
-                      ),
-                      helperText: provider.userCountryCode?.isNotEmpty == true
-                          ? 'Idioma: ${LocaleUtils.languageNameEsForCountry(provider.userCountryCode!)}'
-                          : null,
-                      helperStyle: const TextStyle(color: AppColors.secondary),
-                      fillColor: Colors.black,
-                      filled: true,
-                    ),
-                    validator: (_) =>
-                        provider.userCountryCode?.isNotEmpty == true
-                        ? null
-                        : 'Obligatorio',
-                    onEditingComplete: onEditingComplete,
-                  );
-                },
-                onSelected: (selection) {
-                  // Extrae ISO2 del texto "Nombre (XX)"
-                  final match = RegExp(r'\(([^)]+)\)$').firstMatch(selection);
-                  final code = match != null ? match.group(1)! : '';
+              CountryAutocomplete(
+                selectedCountryCode: provider.userCountryCode,
+                labelText: 'Tu país',
+                prefixIcon: Icons.flag,
+                validator: (_) => provider.userCountryCode?.isNotEmpty == true
+                    ? null
+                    : 'Obligatorio',
+                helperText: provider.userCountryCode?.isNotEmpty == true
+                    ? 'Idioma: ${LocaleUtils.languageNameEsForCountry(provider.userCountryCode!)}'
+                    : null,
+                onCountrySelected: (code) {
                   provider.setUserCountryCode(code);
                 },
               ),
@@ -783,178 +727,56 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
 
               // 4) País de la IA
               _sectionHeader('Datos de la AI-Chan', icon: Icons.smart_toy),
-              Autocomplete<String>(
+              CountryAutocomplete(
                 key: ValueKey('ai-country-${provider.aiCountryCode ?? 'none'}'),
-                optionsBuilder: (TextEditingValue textEditingValue) {
-                  final items = List<CountryItem>.from(CountriesEs.items);
-                  // Poner una lista de países preferidos al inicio en el orden deseado.
-                  // Orden elegido (prioridad por cultura "friki", industria y hubs regionales):
-                  // Japón, Corea del Sur, Estados Unidos, México, Brasil, China,
-                  // Reino Unido, Suecia, Finlandia, Polonia, Alemania, Países Bajos,
-                  // Canadá, Australia, Singapur, Noruega
-                  const preferredIsoOrder = [
-                    'JP', // Japón
-                    'KR', // Corea del Sur
-                    'US', // Estados Unidos
-                    'MX', // México
-                    'BR', // Brasil
-                    'CN', // China
-                    'GB', // Reino Unido
-                    'SE', // Suecia
-                    'FI', // Finlandia
-                    'PL', // Polonia
-                    'DE', // Alemania
-                    'NL', // Países Bajos
-                    'CA', // Canadá
-                    'AU', // Australia
-                    'SG', // Singapur
-                    'NO', // Noruega
-                  ];
-                  for (var i = preferredIsoOrder.length - 1; i >= 0; i--) {
-                    final iso = preferredIsoOrder[i];
-                    final idx = items.indexWhere((c) => c.iso2 == iso);
-                    if (idx != -1) {
-                      final it = items.removeAt(idx);
-                      items.insert(0, it);
-                    }
-                  }
-                  final q = normalizeForSearch(textEditingValue.text.trim());
-                  final opts = items.map((c) {
-                    final flag = LocaleUtils.flagEmojiForCountry(c.iso2);
-                    return '${flag.isNotEmpty ? '$flag ' : ''}${c.nameEs} (${c.iso2})';
-                  });
-                  if (q.isEmpty) return opts.take(50);
-                  return opts
-                      .where((o) => normalizeForSearch(o).contains(q))
-                      .take(50);
-                },
-                fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-                  // Inicializa el texto si ya hay código guardado
-                  final code = provider.aiCountryCode;
-                  if ((controller.text.isEmpty) &&
-                      code != null &&
-                      code.isNotEmpty) {
-                    final name = CountriesEs.codeToName[code.toUpperCase()];
-                    if (name != null) {
-                      final flag = LocaleUtils.flagEmojiForCountry(code);
-                      controller.text =
-                          '${flag.isNotEmpty ? '$flag ' : ''}$name ($code)';
-                    }
-                  }
-                  // Abrir opciones al enfocar (inserta un espacio temporal y lo revierte)
-                  _attachAutoOpen(controller, focusNode);
-                  return TextFormField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontFamily: 'FiraMono',
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'País de la AI-Chan',
-                      labelStyle: const TextStyle(color: AppColors.secondary),
-                      enabledBorder: const OutlineInputBorder(
-                        borderSide: BorderSide(color: AppColors.secondary),
-                      ),
-                      focusedBorder: const OutlineInputBorder(
-                        borderSide: BorderSide(
-                          color: AppColors.primary,
-                          width: 2,
-                        ),
-                      ),
-                      prefixIcon: const Icon(
-                        Icons.flag,
-                        color: AppColors.secondary,
-                      ),
-                      helperText: provider.aiCountryCode?.isNotEmpty == true
-                          ? 'Idioma: ${LocaleUtils.languageNameEsForCountry(provider.aiCountryCode!)}'
-                          : null,
-                      helperStyle: const TextStyle(color: AppColors.secondary),
-                      fillColor: Colors.black,
-                      filled: true,
-                    ),
-                    validator: (_) => provider.aiCountryCode?.isNotEmpty == true
-                        ? null
-                        : 'Obligatorio',
-                    onEditingComplete: onEditingComplete,
-                  );
-                },
-                onSelected: (selection) {
-                  final match = RegExp(r'\(([^)]+)\)$').firstMatch(selection);
-                  final code = match != null ? match.group(1)! : '';
+                selectedCountryCode: provider.aiCountryCode,
+                labelText: 'País de la AI-Chan',
+                prefixIcon: Icons.flag,
+                validator: (_) => provider.aiCountryCode?.isNotEmpty == true
+                    ? null
+                    : 'Obligatorio',
+                helperText: provider.aiCountryCode?.isNotEmpty == true
+                    ? 'Idioma: ${LocaleUtils.languageNameEsForCountry(provider.aiCountryCode!)}'
+                    : null,
+                // Lista de países preferidos (cultura otaku/friki, industria tech)
+                preferredCountries: const [
+                  'JP', // Japón
+                  'KR', // Corea del Sur
+                  'US', // Estados Unidos
+                  'MX', // México
+                  'BR', // Brasil
+                  'CN', // China
+                  'GB', // Reino Unido
+                  'SE', // Suecia
+                  'FI', // Finlandia
+                  'PL', // Polonia
+                  'DE', // Alemania
+                  'NL', // Países Bajos
+                  'CA', // Canadá
+                  'AU', // Australia
+                  'SG', // Singapur
+                  'NO', // Noruega
+                ],
+                onCountrySelected: (code) {
                   provider.setAiCountryCode(code);
                 },
               ),
               const SizedBox(height: 18),
 
               // 5) Nombre de la IA
-              Autocomplete<String>(
+              FemaleNameAutocomplete(
                 key: ValueKey('ai-name-${provider.aiCountryCode ?? 'none'}'),
-                optionsBuilder: (TextEditingValue textEditingValue) {
-                  if (textEditingValue.text == '') {
-                    // Sugerencias base por país de la IA si no hay texto
-                    final base = FemaleNamesRepo.forCountry(
-                      provider.aiCountryCode,
-                    );
-                    return base.take(20);
-                  }
-                  final source = FemaleNamesRepo.forCountry(
-                    provider.aiCountryCode,
-                  );
-                  return source
-                      .where(
-                        (option) => option.toLowerCase().contains(
-                          textEditingValue.text.toLowerCase(),
-                        ),
-                      )
-                      .take(50);
+                selectedName: provider.aiNameController?.text,
+                countryCode: provider.aiCountryCode,
+                labelText: 'Nombre de la AI-Chan',
+                prefixIcon: Icons.smart_toy,
+                controller: provider.aiNameController,
+                validator: (v) => v == null || v.isEmpty ? 'Obligatorio' : null,
+                onNameSelected: (name) {
+                  provider.setAiName(name);
                 },
-                fieldViewBuilder:
-                    (context, controller, focusNode, onEditingComplete) {
-                      // Enlaza el controller al provider para que nunca sea null
-                      provider.setAiNameController(controller);
-                      // Sincroniza el valor inicial solo si está vacío
-                      if (controller.text.isEmpty &&
-                          (provider.aiNameController?.text.isNotEmpty ??
-                              false)) {
-                        controller.text = provider.aiNameController!.text;
-                      }
-                      return TextFormField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        onChanged: (value) {
-                          provider.setAiName(value);
-                        },
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontFamily: 'FiraMono',
-                        ),
-                        decoration: const InputDecoration(
-                          labelText: 'Nombre de la AI-Chan',
-                          labelStyle: TextStyle(color: AppColors.secondary),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: AppColors.secondary),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                              color: AppColors.primary,
-                              width: 2,
-                            ),
-                          ),
-                          prefixIcon: Icon(
-                            Icons.smart_toy,
-                            color: AppColors.secondary,
-                          ),
-                          fillColor: Colors.black,
-                          filled: true,
-                        ),
-                        validator: (v) =>
-                            v == null || v.isEmpty ? 'Obligatorio' : null,
-                        onEditingComplete: onEditingComplete,
-                      );
-                    },
-                onSelected: (selection) {
-                  provider.setAiName(selection);
+                onChanged: (name) {
+                  provider.setAiName(name);
                 },
               ),
               const SizedBox(height: 18),
@@ -1002,43 +824,6 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                     : null,
               ),
               const SizedBox(height: 28),
-
-              // Botón para modo conversacional
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final result = await Navigator.of(context).push<bool>(
-                          MaterialPageRoute(
-                            builder: (_) => ConversationalOnboardingScreen(
-                              onFinish: widget.onFinish,
-                              onboardingProvider: widget.onboardingProvider,
-                            ),
-                          ),
-                        );
-                        // Si completó el onboarding conversacional, no necesitamos hacer nada más
-                        if (result == true && mounted) {
-                          // El onboarding conversacional ya llamó a onFinish
-                        }
-                      },
-                      icon: const Icon(Icons.mic, color: AppColors.primary),
-                      label: const Text(
-                        'Modo conversacional',
-                        style: TextStyle(color: AppColors.primary),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.primary),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
 
               CyberpunkButton(
                 onPressed: _formCompleto && !provider.loadingStory

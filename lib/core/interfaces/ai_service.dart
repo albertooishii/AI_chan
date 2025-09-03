@@ -10,5 +10,9 @@ abstract class IAIService {
 
   /// (Opcional) Generación de audio TTS por el proveedor.
   /// Devuelve un path de archivo o null si no soportado.
-  Future<String?> textToSpeech(String text, {String voice});
+  Future<String?> textToSpeech(
+    String text, {
+    String voice,
+    Map<String, dynamic>? options,
+  });
 }

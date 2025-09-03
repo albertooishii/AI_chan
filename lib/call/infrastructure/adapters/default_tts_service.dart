@@ -37,37 +37,53 @@ class DefaultTtsService implements ITtsService {
     required String text,
     Map<String, dynamic>? options,
   }) async {
-    var voice = options?['voice'] as String? ?? 'sage';
+    var voice = options?['voice'] as String? ?? 'marin';
     final languageCode = options?['languageCode'] as String? ?? 'es-ES';
+    final explicitProvider = options?['provider'] as String?;
 
     debugPrint(
-      '[DefaultTTS] synthesizeToFile called - voice: $voice, languageCode: $languageCode',
+      '[DefaultTTS] synthesizeToFile called - voice: $voice, languageCode: $languageCode, explicitProvider: $explicitProvider',
     );
 
-    // Determine provider from prefs -> env first. Only auto-detect by voice if
-    // the preference is 'auto' or not set. Also track whether the provider was
-    // explicitly configured (prefs or env) so we can avoid silent fallbacks
-    // when the user asked for a specific provider.
-    // Delegate provider normalization to PrefsUtils which centralizes
-    // the gemini->google mapping and default selection.
+    // Determine provider respecting explicit parameter first:
+    // 1. Use explicit provider from options (highest priority)
+    // 2. Use configured provider from prefs/env
+    // 3. If no config -> use default fallback
     String provider;
-    try {
-      provider = await PrefsUtils.getSelectedAudioProvider();
-    } catch (_) {
-      final env = Config.getAudioProvider().toLowerCase();
-      provider = (env == 'openai') ? 'openai' : 'google';
+
+    if (explicitProvider != null && explicitProvider.isNotEmpty) {
+      provider = explicitProvider.toLowerCase();
+      debugPrint(
+        '[DefaultTTS] Using explicit provider from options: $provider for voice: $voice',
+      );
+    } else {
+      try {
+        provider = await PrefsUtils.getSelectedAudioProvider();
+        debugPrint(
+          '[DefaultTTS] Using configured provider: $provider for voice: $voice',
+        );
+      } catch (_) {
+        // Fallback to env config
+        final env = Config.getAudioProvider().toLowerCase();
+        provider = (env == 'openai')
+            ? 'openai'
+            : (env == 'gemini')
+            ? 'google'
+            : env.isNotEmpty
+            ? env
+            : 'google';
+        debugPrint(
+          '[DefaultTTS] Using env config provider: $provider for voice: $voice',
+        );
+      }
     }
 
-    // If provider requests auto-detection, detect by voice name.
+    // Handle auto-detection only if explicitly set to auto
     if (provider == 'auto' || provider.isEmpty) {
-      if (kOpenAIVoices.contains(voice)) {
-        provider = 'openai';
-        debugPrint(
-          '[DefaultTTS] Auto-detected OpenAI voice: $voice, forcing OpenAI provider',
-        );
-      } else {
-        provider = 'google';
-      }
+      provider = 'google'; // Default fallback
+      debugPrint(
+        '[DefaultTTS] Auto-detection defaulting to: $provider for voice: $voice',
+      );
     }
 
     debugPrint('[DefaultTTS] Using provider: $provider for voice: $voice');
@@ -201,7 +217,11 @@ class DefaultTtsService implements ITtsService {
           'gpt-4o-mini',
         );
         final adapter = OpenAIAdapter(modelId: 'gpt-4o-mini', runtime: runtime);
-        final path = await adapter.textToSpeech(text, voice: voice);
+        final path = await adapter.textToSpeech(
+          text,
+          voice: voice,
+          options: options,
+        );
         if (path != null) {
           debugPrint('[DefaultTTS] Direct OpenAI success: $path');
           return path;
@@ -237,7 +257,11 @@ class DefaultTtsService implements ITtsService {
       if (modelToUse.startsWith('gpt-')) {
         debugPrint('[DefaultTTS] Using OpenAIAdapter for model: $modelToUse');
         final adapter = OpenAIAdapter(modelId: modelToUse, runtime: runtime);
-        final path = await adapter.textToSpeech(text, voice: voice);
+        final path = await adapter.textToSpeech(
+          text,
+          voice: voice,
+          options: options,
+        );
         if (path != null) {
           debugPrint('[DefaultTTS] OpenAIAdapter success: $path');
           return path;
@@ -247,7 +271,11 @@ class DefaultTtsService implements ITtsService {
       } else {
         debugPrint('[DefaultTTS] Using GeminiAdapter for model: $modelToUse');
         final adapter = GeminiAdapter(modelId: modelToUse, runtime: runtime);
-        final path = await adapter.textToSpeech(text, voice: voice);
+        final path = await adapter.textToSpeech(
+          text,
+          voice: voice,
+          options: options,
+        );
         if (path != null) {
           debugPrint('[DefaultTTS] GeminiAdapter success: $path');
           return path;
