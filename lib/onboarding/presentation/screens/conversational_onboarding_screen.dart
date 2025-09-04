@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dart';
-import 'package:ai_chan/onboarding/services/conversational_ai_service.dart';
+import 'package:ai_chan/onboarding/services/conversational_onboarding_service.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
 import 'package:ai_chan/shared/services/openai_tts_service.dart';
 import 'package:ai_chan/shared/services/hybrid_stt_service.dart';
 import 'package:ai_chan/shared/controllers/audio_subtitle_controller.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
-import 'package:ai_chan/shared/utils/locale_utils.dart';
 import 'package:ai_chan/shared/widgets/conversational_subtitles.dart';
 import 'dart:async';
 import 'onboarding_screen.dart' show OnboardingFinishCallback, OnboardingScreen;
@@ -127,80 +126,19 @@ class _ConversationalOnboardingScreenState
 
   /// Determina la configuración de voz con acento dinámico
   Map<String, dynamic> _getVoiceConfiguration() {
-    final String instructions = _getVoiceInstructions();
+    final String instructions =
+        ConversationalOnboardingService.getVoiceInstructions(
+          userCountry: _userCountry,
+          aiCountry: _aiCountry,
+        );
 
     return {
-      'voice': 'marin', // Nueva voz de OpenAI que se adapta mejor
+      'voice': 'marin',
       'languageCode': 'es-ES',
       'provider': 'openai',
       'speed': 1.0,
-      'instructions': instructions, // Instrucciones para cambiar acento
+      'instructions': instructions,
     };
-  }
-
-  /// Genera instrucciones de acento según el progreso del onboarding
-  String _getVoiceInstructions() {
-    // Tono base consistente: suave, íntimo, vulnerable pero esperanzado
-    const baseTone =
-        'Mantén una entonación tierna y cariñosa en todo momento. Suena esperanzada pero aún un poco perdida y necesitando ayuda.';
-
-    // FASE 1: Acento neutro robótico
-    if (_userCountry == null || _userCountry!.isEmpty) {
-      const phase1Instructions =
-          '$baseTone Usa un acento neutro, ligeramente robótico - como si aún estuvieras aprendiendo a hablar de forma natural. Sin acento regional todavía, solo pronunciación clara en español.';
-      Log.d(
-        '🎵 FASE 1 - INSTRUCCIONES DE VOZ: "$phase1Instructions"',
-        tag: 'CONV_ONBOARDING',
-      );
-      return phase1Instructions;
-    }
-
-    final countryName = LocaleUtils.countryNameEs(_userCountry);
-    final languageName = LocaleUtils.languageNameEsForCountry(_userCountry);
-
-    // FASE 2: Acento del país del usuario
-    if (_aiCountry == null || _aiCountry!.isEmpty) {
-      final phase2Instructions =
-          '$baseTone Usa acento $languageName de $countryName. Tus patrones de habla ahora reflejan el acento regional del usuario mientras aprendes de él.';
-      Log.d(
-        '🎵 FASE 2 - INSTRUCCIONES DE VOZ: "$phase2Instructions"',
-        tag: 'CONV_ONBOARDING',
-      );
-      return phase2Instructions;
-    }
-
-    // FASE 3 (FINAL): Acento del país de la IA
-    final aiCountryName = LocaleUtils.countryNameEs(_aiCountry);
-    final aiLanguageName = LocaleUtils.languageNameEsForCountry(_aiCountry);
-
-    // Verificar si el país de la IA habla español nativamente
-    final spanishSpeakingCountries = LocaleUtils.speakSpanish();
-    final isSpanishNative = spanishSpeakingCountries.contains(
-      _aiCountry!.toUpperCase(),
-    );
-
-    // Crear instrucción diferente según si es hispanohablante nativo o no
-    final String accentInstructions;
-    if (isSpanishNative) {
-      // País hispanohablante: español nativo con acento regional
-      accentInstructions =
-          'Habla español nativo con acento de $aiCountryName. '
-          'Usa la pronunciación y entonación natural de una persona nacida en $aiCountryName.';
-    } else {
-      // País no hispanohablante: español con acento del idioma original
-      accentInstructions =
-          'Habla español con acento $aiLanguageName de $aiCountryName. '
-          'Pronuncia el español como una persona nativa de $aiCountryName que aprendió español como segundo idioma, '
-          'manteniendo el acento y patrones de habla de su idioma original.';
-    }
-
-    final phase3Instructions = '$baseTone $accentInstructions';
-
-    Log.d(
-      '🎵 FASE 3 (FINAL) - INSTRUCCIONES DE VOZ: "$phase3Instructions"',
-      tag: 'CONV_ONBOARDING',
-    );
-    return phase3Instructions;
   }
 
   @override
@@ -625,7 +563,7 @@ class _ConversationalOnboardingScreenState
 
     String retryMessage;
     try {
-      retryMessage = await ConversationalAIService.generateNextResponse(
+      retryMessage = await ConversationalOnboardingService.generateNextResponse(
         userName: _userName ?? '', // Usar vacío si no está disponible aún
         userLastResponse: 'No entendí',
         conversationStep: stepName,
@@ -783,12 +721,13 @@ class _ConversationalOnboardingScreenState
     final stepName = _currentStep.toString().split('.').last;
 
     // Procesar respuesta con IA
-    final processedData = await ConversationalAIService.processUserResponse(
-      userResponse: userResponse,
-      conversationStep: stepName,
-      userName: _userName ?? '', // Puede ser vacío en el paso awakening
-      previousData: _collectedData,
-    );
+    final processedData =
+        await ConversationalOnboardingService.processUserResponse(
+          userResponse: userResponse,
+          conversationStep: stepName,
+          userName: _userName ?? '',
+          previousData: _collectedData,
+        );
 
     // 🔒 Verificar si esta operación fue cancelada por una nueva
     if (currentOperationId != _currentOperationId) {
@@ -958,7 +897,7 @@ class _ConversationalOnboardingScreenState
 
     try {
       // Generar pregunta dinámica usando el servicio de IA conversacional
-      stepQuestion = await ConversationalAIService.generateNextResponse(
+      stepQuestion = await ConversationalOnboardingService.generateNextResponse(
         userName: _userName ?? '',
         userLastResponse: '',
         conversationStep: stepName,

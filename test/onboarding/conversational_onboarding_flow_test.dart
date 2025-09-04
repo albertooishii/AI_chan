@@ -1,4 +1,4 @@
-import 'package:ai_chan/onboarding/services/conversational_ai_service.dart';
+import 'package:ai_chan/onboarding/services/conversational_onboarding_service.dart';
 import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -47,7 +47,7 @@ void main() async {
         Log.d('   🔸 Paso awakening: pidiendo nombre...', tag: 'TEST');
 
         final awakeningResponse =
-            await ConversationalAIService.processUserResponse(
+            await ConversationalOnboardingService.processUserResponse(
               userResponse: 'Alberto',
               conversationStep: 'awakening',
               userName: 'Usuario',
@@ -66,7 +66,7 @@ void main() async {
         Log.d('   🔸 Paso askingCountry: pidiendo país...', tag: 'TEST');
 
         final countryResponse =
-            await ConversationalAIService.processUserResponse(
+            await ConversationalOnboardingService.processUserResponse(
               userResponse: 'España',
               conversationStep: 'askingCountry',
               userName: 'Alberto',
@@ -85,7 +85,7 @@ void main() async {
         Log.d('   🔸 Paso askingBirthday: pidiendo fecha...', tag: 'TEST');
 
         final birthdayResponse =
-            await ConversationalAIService.processUserResponse(
+            await ConversationalOnboardingService.processUserResponse(
               userResponse: '15 de marzo de 1990',
               conversationStep: 'askingBirthday',
               userName: 'Alberto',
@@ -107,7 +107,7 @@ void main() async {
         );
 
         final aiCountryResponse =
-            await ConversationalAIService.processUserResponse(
+            await ConversationalOnboardingService.processUserResponse(
               userResponse: 'japonesa',
               conversationStep: 'askingAiCountry',
               userName: 'Alberto',
@@ -130,7 +130,7 @@ void main() async {
         Log.d('   🔸 Paso askingAiName: pidiendo nombre IA...', tag: 'TEST');
 
         final aiNameResponse =
-            await ConversationalAIService.processUserResponse(
+            await ConversationalOnboardingService.processUserResponse(
               userResponse: 'Sakura',
               conversationStep: 'askingAiName',
               userName: 'Alberto',
@@ -154,7 +154,7 @@ void main() async {
         Log.d('   🔸 Paso askingMeetStory: pidiendo historia...', tag: 'TEST');
 
         final meetStoryResponse =
-            await ConversationalAIService.processUserResponse(
+            await ConversationalOnboardingService.processUserResponse(
               userResponse: 'Nos conocimos en una convención de anime',
               conversationStep: 'askingMeetStory',
               userName: 'Alberto',
@@ -209,7 +209,7 @@ void main() async {
 
       // Simular que el usuario dice "no" durante una validación
       final correctionResponse =
-          await ConversationalAIService.processUserResponse(
+          await ConversationalOnboardingService.processUserResponse(
             userResponse: 'no, ese no es mi nombre',
             conversationStep: 'askingCountry', // Estaba en otro paso
             userName: 'Usuario',
@@ -245,12 +245,13 @@ void main() async {
       AIService.testOverride = validationService;
 
       // Test entrada por voz - debe requerir validación
-      final voiceResponse = await ConversationalAIService.processUserResponse(
-        userResponse: 'Alberto',
-        conversationStep: 'awakening',
-        userName: 'Usuario',
-        previousData: {},
-      );
+      final voiceResponse =
+          await ConversationalOnboardingService.processUserResponse(
+            userResponse: 'Alberto',
+            conversationStep: 'awakening',
+            userName: 'Usuario',
+            previousData: {},
+          );
 
       expect(voiceResponse['needsValidation'], equals(true));
       expect(voiceResponse['aiResponse'], contains('entendido bien'));
@@ -261,12 +262,13 @@ void main() async {
 
       // Test entrada manual - TAMBIÉN debe requerir validación (CAMBIO IMPORTANTE)
       // El servicio SIEMPRE devuelve needsValidation=true ahora, la diferencia está en el screen
-      final manualResponse = await ConversationalAIService.processUserResponse(
-        userResponse: 'Alberto',
-        conversationStep: 'awakening',
-        userName: 'Usuario',
-        previousData: {},
-      );
+      final manualResponse =
+          await ConversationalOnboardingService.processUserResponse(
+            userResponse: 'Alberto',
+            conversationStep: 'awakening',
+            userName: 'Usuario',
+            previousData: {},
+          );
 
       // NUEVA REGLA: El servicio SIEMPRE devuelve needsValidation=true
       expect(manualResponse['needsValidation'], equals(true));
@@ -282,12 +284,13 @@ void main() async {
 
       try {
         // Simular respuesta inválida (vacía)
-        final errorResponse = await ConversationalAIService.processUserResponse(
-          userResponse: '',
-          conversationStep: 'awakening',
-          userName: 'Usuario',
-          previousData: {},
-        );
+        final errorResponse =
+            await ConversationalOnboardingService.processUserResponse(
+              userResponse: '',
+              conversationStep: 'awakening',
+              userName: 'Usuario',
+              previousData: {},
+            );
 
         // El servicio debe manejar gracefully las respuestas vacías
         expect(errorResponse, isA<Map<String, dynamic>>());
@@ -299,7 +302,7 @@ void main() async {
       try {
         // Simular paso inválido
         final invalidStepResponse =
-            await ConversationalAIService.processUserResponse(
+            await ConversationalOnboardingService.processUserResponse(
               userResponse: 'test',
               conversationStep: 'invalidStep',
               userName: 'Usuario',
@@ -333,12 +336,13 @@ void main() async {
       // Configurar override
       AIService.testOverride = countryService;
 
-      final countryResponse = await ConversationalAIService.processUserResponse(
-        userResponse: 'España',
-        conversationStep: 'askingCountry',
-        userName: 'Alberto',
-        previousData: {},
-      );
+      final countryResponse =
+          await ConversationalOnboardingService.processUserResponse(
+            userResponse: 'España',
+            conversationStep: 'askingCountry',
+            userName: 'Alberto',
+            previousData: {},
+          );
 
       expect(countryResponse['displayValue'], equals('España'));
       expect(countryResponse['processedValue'], equals('ES'));
@@ -358,12 +362,13 @@ void main() async {
       // Cambiar override para el servicio de fecha
       AIService.testOverride = dateService;
 
-      final dateResponse = await ConversationalAIService.processUserResponse(
-        userResponse: 'quince de marzo de mil novecientos noventa',
-        conversationStep: 'askingBirthday',
-        userName: 'Alberto',
-        previousData: {},
-      );
+      final dateResponse =
+          await ConversationalOnboardingService.processUserResponse(
+            userResponse: 'quince de marzo de mil novecientos noventa',
+            conversationStep: 'askingBirthday',
+            userName: 'Alberto',
+            previousData: {},
+          );
 
       expect(dateResponse['displayValue'], equals('15 de marzo de 1990'));
       expect(dateResponse['processedValue'], equals('15/03/1990'));
@@ -449,12 +454,13 @@ void main() async {
           // Configurar override para cada caso cultural
           AIService.testOverride = culturalService;
 
-          final response = await ConversationalAIService.processUserResponse(
-            userResponse: testCase['name']!,
-            conversationStep: 'askingAiName',
-            userName: 'Alberto',
-            previousData: {'aiCountry': testCase['country']!},
-          );
+          final response =
+              await ConversationalOnboardingService.processUserResponse(
+                userResponse: testCase['name']!,
+                conversationStep: 'askingAiName',
+                userName: 'Alberto',
+                previousData: {'aiCountry': testCase['country']!},
+              );
 
           expect(response['displayValue'], equals(testCase['name']!));
           expect(
@@ -493,12 +499,13 @@ void main() async {
       // Configurar override
       AIService.testOverride = suggestionService;
 
-      final response = await ConversationalAIService.processUserResponse(
-        userResponse: 'audio no claro',
-        conversationStep: 'askingBirthday',
-        userName: 'Alberto',
-        previousData: {},
-      );
+      final response =
+          await ConversationalOnboardingService.processUserResponse(
+            userResponse: 'audio no claro',
+            conversationStep: 'askingBirthday',
+            userName: 'Alberto',
+            previousData: {},
+          );
 
       expect(response['confidence'], equals(0.2));
       expect(response['aiResponse'], contains('botón de texto'));
