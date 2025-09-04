@@ -21,7 +21,7 @@ import 'package:ai_chan/core/infrastructure/adapters/gemini_adapter.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/services/ai_runtime_provider.dart'
     as runtime_factory;
-import 'package:ai_chan/call/infrastructure/audio/audio_playback.dart';
+import 'package:ai_chan/shared/infrastructure/audio/audio_playback.dart';
 import 'package:ai_chan/call/domain/services/voice_call_controller_builder.dart';
 import 'package:ai_chan/call/infrastructure/builders/voice_call_controller_builder.dart';
 

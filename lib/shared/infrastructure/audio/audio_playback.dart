@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'package:flutter/services.dart';
-import 'package:ai_chan/call/domain/interfaces/audio_playback_service.dart';
+import 'package:ai_chan/shared/domain/interfaces/audio_playback_service.dart';
 
 /// Abstraction over audio playback so production code can use the real
 /// audioplayers implementation while tests inject a lightweight fake.

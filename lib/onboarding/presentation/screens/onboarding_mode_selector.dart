@@ -1,6 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/shared/utils/dialog_utils.dart';
+import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
+import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
+import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
+import 'package:ai_chan/shared/services/backup_service.dart';
+import 'package:ai_chan/chat/application/providers/chat_provider.dart';
+import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dart';
+import 'package:ai_chan/core/models.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
+import 'dart:math';
 import 'conversational_onboarding_screen.dart';
 import 'onboarding_screen.dart';
 
@@ -16,12 +27,12 @@ typedef OnboardingFinishCallback =
     });
 
 /// Pantalla de selección de modo de onboarding con conversacional por defecto
-class OnboardingModeSelector extends StatelessWidget {
+class OnboardingModeSelector extends StatefulWidget {
   final OnboardingFinishCallback onFinish;
   final void Function()? onClearAllDebug;
-  final Future<void> Function(dynamic importedChat)? onImportJson;
-  final dynamic onboardingProvider;
-  final dynamic chatProvider;
+  final Future<void> Function(ImportedChat importedChat)? onImportJson;
+  final OnboardingProvider? onboardingProvider;
+  final ChatProvider? chatProvider;
 
   const OnboardingModeSelector({
     super.key,
@@ -32,6 +43,11 @@ class OnboardingModeSelector extends StatelessWidget {
     this.chatProvider,
   });
 
+  @override
+  State<OnboardingModeSelector> createState() => _OnboardingModeSelectorState();
+}
+
+class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
   /// Construye un widget de texto con estilo consistente
   Widget _buildStyledText({
     required String text,
@@ -114,21 +130,23 @@ class OnboardingModeSelector extends StatelessWidget {
             color: Colors.black,
             itemBuilder: (context) => [
               const PopupMenuItem<String>(
-                value: 'import',
+                value: 'restore_local',
                 child: Row(
                   children: [
-                    Icon(Icons.file_upload, color: AppColors.primary),
+                    Icon(Icons.restore, color: AppColors.primary),
                     SizedBox(width: 8),
                     Text(
-                      'Importar datos',
+                      'Restaurar copia de seguridad local',
                       style: TextStyle(color: AppColors.primary),
                     ),
                   ],
                 ),
               ),
             ],
-            onSelected: (value) {
-              // TODO: Implementar acciones del menú
+            onSelected: (value) async {
+              if (value == 'restore_local') {
+                await _handleRestoreFromLocal(context);
+              }
             },
           ),
         ],
@@ -177,7 +195,7 @@ class OnboardingModeSelector extends StatelessWidget {
                             ),
                             child: ClipOval(
                               child: Image.asset(
-                                'assets/icon/app_icon.png',
+                                'assets/icons/app_icon.png',
                                 width: 116,
                                 height: 116,
                                 fit: BoxFit.cover,
@@ -209,9 +227,9 @@ class OnboardingModeSelector extends StatelessWidget {
                                           MaterialPageRoute(
                                             builder: (_) =>
                                                 ConversationalOnboardingScreen(
-                                                  onFinish: onFinish,
+                                                  onFinish: widget.onFinish,
                                                   onboardingProvider:
-                                                      onboardingProvider,
+                                                      widget.onboardingProvider,
                                                 ),
                                           ),
                                         );
@@ -256,12 +274,13 @@ class OnboardingModeSelector extends StatelessWidget {
                                     Navigator.of(context).pushReplacement(
                                       MaterialPageRoute(
                                         builder: (_) => OnboardingScreen(
-                                          onFinish: onFinish,
-                                          onClearAllDebug: onClearAllDebug,
-                                          onImportJson: onImportJson,
+                                          onFinish: widget.onFinish,
+                                          onClearAllDebug:
+                                              widget.onClearAllDebug,
+                                          onImportJson: widget.onImportJson,
                                           onboardingProvider:
-                                              onboardingProvider,
-                                          chatProvider: chatProvider,
+                                              widget.onboardingProvider,
+                                          chatProvider: widget.chatProvider,
                                         ),
                                       ),
                                     );
@@ -302,6 +321,42 @@ class OnboardingModeSelector extends StatelessWidget {
 
                           // Pie de página
                           _buildFooterText(),
+                          const SizedBox(height: 24),
+
+                          // Botón de iniciar sesión con Google
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                await _handleGoogleDriveBackup(context);
+                              },
+                              icon: Image.asset(
+                                'assets/icons/google.png',
+                                width: 20,
+                                height: 20,
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: Colors.black,
+                                minimumSize: const Size(0, 56),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(28),
+                                ),
+                              ),
+                              label: const Text(
+                                'INICIAR SESIÓN CON GOOGLE',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'monospace',
+                                ),
+                              ),
+                            ),
+                          ),
                           const SizedBox(height: 16),
                         ],
                       ),
@@ -314,5 +369,238 @@ class OnboardingModeSelector extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Maneja la restauración desde archivo local
+  Future<void> _handleRestoreFromLocal(BuildContext context) async {
+    setState(() {});
+    try {
+      // Usar FilePicker para seleccionar el archivo de backup
+      final result = await FilePicker.platform.pickFiles();
+      if (result == null || result.files.isEmpty) {
+        return; // Usuario canceló
+      }
+
+      final path = result.files.first.path;
+      if (path == null) {
+        return; // No se pudo obtener la ruta
+      }
+
+      final f = File(path);
+
+      // Usar BackupService para extraer el JSON del archivo de backup
+      final jsonStr = await BackupService.restoreAndExtractJson(f);
+
+      // Importar el JSON extraído
+      final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
+        jsonStr,
+      );
+
+      if (imported != null) {
+        if (widget.onImportJson != null) {
+          await widget.onImportJson!(imported);
+        }
+        if (mounted) {
+          await showAppDialog(
+            builder: (ctx) => AlertDialog(
+              backgroundColor: Colors.black,
+              title: const Text(
+                'Restauración completada',
+                style: TextStyle(color: AppColors.primary),
+              ),
+              content: const Text(
+                'Datos restaurados correctamente.',
+                style: TextStyle(color: AppColors.secondary),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text(
+                    'OK',
+                    style: TextStyle(color: AppColors.primary),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
+      // Error en la importación
+      if (mounted) {
+        await showAppDialog(
+          builder: (ctx) => AlertDialog(
+            backgroundColor: Colors.black,
+            title: const Text(
+              'Error al importar',
+              style: TextStyle(color: Colors.red),
+            ),
+            content: const Text(
+              'Error importando backup: JSON inválido',
+              style: TextStyle(color: AppColors.secondary),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(color: AppColors.primary),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        await showAppDialog(
+          builder: (ctx) => AlertDialog(
+            backgroundColor: Colors.black,
+            title: const Text('Error', style: TextStyle(color: Colors.red)),
+            content: Text(
+              'Error restaurando backup: $e',
+              style: const TextStyle(color: AppColors.secondary),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(color: AppColors.primary),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
+
+  /// Maneja el backup con Google Drive
+  Future<void> _handleGoogleDriveBackup(BuildContext context) async {
+    final ChatProvider? cp = widget.chatProvider;
+    final OnboardingProvider? op = widget.onboardingProvider;
+
+    final res = await showAppDialog<dynamic>(
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.black,
+        content: Builder(
+          builder: (ctxInner) {
+            final screenWidth = MediaQuery.of(ctxInner).size.width;
+            final margin = screenWidth > 800 ? 32.0 : 4.0;
+            final maxWidth = screenWidth > 800 ? 900.0 : double.infinity;
+            final dialogWidth = min(screenWidth - margin, maxWidth).toDouble();
+            return SizedBox(
+              width: dialogWidth,
+              child: GoogleDriveBackupDialog(
+                requestBackupJson: cp != null
+                    ? () async {
+                        final captured = cp;
+                        return await BackupUtils.exportChatPartsToJson(
+                          profile: captured.onboardingData,
+                          messages: captured.messages,
+                          events: captured.events,
+                        );
+                      }
+                    : null,
+                onImportedJson: cp != null
+                    ? (jsonStr) async {
+                        final captured = cp;
+                        final imported = await chat_json_utils
+                            .ChatJsonUtils.importAllFromJson(jsonStr);
+                        if (imported != null) {
+                          await captured.applyImportedChat(imported);
+                        }
+                      }
+                    : null,
+                onAccountInfoUpdated: cp != null
+                    ? ({
+                        String? email,
+                        String? avatarUrl,
+                        String? name,
+                        bool linked = false,
+                        bool triggerAutoBackup = false,
+                      }) async {
+                        final captured = cp;
+                        await captured.updateGoogleAccountInfo(
+                          email: email,
+                          avatarUrl: avatarUrl,
+                          name: name,
+                          linked: linked,
+                          triggerAutoBackup: triggerAutoBackup,
+                        );
+                      }
+                    : null,
+                onClearAccountInfo: cp != null
+                    ? () => cp.clearGoogleAccountInfo()
+                    : null,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    // Si el diálogo devolvió JSON restaurado (cuando no se pasó ChatProvider), importarlo
+    if (res is Map && res['restoredJson'] is String && cp == null) {
+      final jsonStr = res['restoredJson'] as String;
+      try {
+        final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
+          jsonStr,
+          onError: (err) => op?.setImportError(err),
+        );
+        if (imported != null) {
+          await op?.applyImportedChat(imported);
+          if (widget.onImportJson != null) {
+            await widget.onImportJson!(imported);
+          }
+          if (mounted) setState(() {});
+        } else {
+          await showAppDialog(
+            builder: (ctx) => AlertDialog(
+              backgroundColor: Colors.black,
+              title: const Text(
+                'Error al importar',
+                style: TextStyle(color: Colors.red),
+              ),
+              content: Text(
+                op?.importError ?? 'Error desconocido',
+                style: const TextStyle(color: AppColors.secondary),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text(
+                    'OK',
+                    style: TextStyle(color: AppColors.primary),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+      } catch (e) {
+        await showAppDialog(
+          builder: (ctx) => AlertDialog(
+            backgroundColor: Colors.black,
+            title: const Text('Error', style: TextStyle(color: Colors.red)),
+            content: Text(
+              e.toString(),
+              style: const TextStyle(color: AppColors.secondary),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(color: AppColors.primary),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    }
   }
 }

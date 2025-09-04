@@ -15,18 +15,8 @@ import 'package:archive/archive_io.dart';
 /// - Restaura un backup y devuelve el JSON extraído; la importación al estado
 ///   de la app corre a cargo del llamador.
 class BackupService {
-  /// Crea un backup local y devuelve el archivo guardado.
-  static Future<File> createLocalBackup({
-    required String jsonStr,
-    String? destinationDirPath,
-  }) async {
-    // By default create a ZIP including JSON + media. Caller must provide JSON.
-    final safeTs = DateTime.now().toIso8601String().replaceAll(
-      RegExp(r'[:.]'),
-      '-',
-    );
-    final filename = 'ai_chan_backup_$safeTs.zip';
-
+  /// Crea un archivo de backup con JSON y media files
+  static Future<Archive> _createBackupArchive(String jsonStr) async {
     final archive = Archive();
     // Add the main JSON as backup.json
     archive.addFile(ArchiveFile.string('backup.json', jsonStr));
@@ -65,6 +55,23 @@ class BackupService {
       }
     } catch (_) {}
 
+    return archive;
+  }
+
+  /// Crea un backup local y devuelve el archivo guardado.
+  /// Usado para backups automáticos y archivos temporales.
+  static Future<File> createLocalBackup({
+    required String jsonStr,
+    String? destinationDirPath,
+  }) async {
+    final safeTs = DateTime.now().toIso8601String().replaceAll(
+      RegExp(r'[:.]'),
+      '-',
+    );
+    final filename = 'ai_chan_backup_$safeTs.zip';
+
+    final archive = await _createBackupArchive(jsonStr);
+
     // If a destination directory path was provided by the user, use it.
     String outPath;
     if (destinationDirPath != null && destinationDirPath.trim().isNotEmpty) {
@@ -75,9 +82,31 @@ class BackupService {
       final dir = await getApplicationDocumentsDirectory();
       outPath = '${dir.path}/$filename';
     }
+
     final encoder = ZipEncoder();
     final zipData = encoder.encode(archive);
     final out = File(outPath);
+    await out.writeAsBytes(zipData, flush: true);
+    return out;
+  }
+
+  /// Crea un backup local en la ruta específica proporcionada por el usuario.
+  /// Usado cuando el usuario elige manualmente dónde guardar el archivo.
+  static Future<File> createLocalBackupAt({
+    required String jsonStr,
+    required String outputPath,
+  }) async {
+    final archive = await _createBackupArchive(jsonStr);
+
+    // Asegurar que el path tenga extensión .zip
+    var finalPath = outputPath;
+    if (!finalPath.toLowerCase().endsWith('.zip')) {
+      finalPath = '$finalPath.zip';
+    }
+
+    final encoder = ZipEncoder();
+    final zipData = encoder.encode(archive);
+    final out = File(finalPath);
     await out.writeAsBytes(zipData, flush: true);
     return out;
   }

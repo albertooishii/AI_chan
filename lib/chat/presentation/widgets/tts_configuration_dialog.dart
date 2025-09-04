@@ -3,6 +3,7 @@ import 'package:ai_chan/call/call.dart'; // Using barrel export for architectura
 import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/widgets/app_dialog.dart';
 import 'package:ai_chan/core/di.dart' as di;
+import 'package:ai_chan/shared/domain/interfaces/audio_playback_service.dart';
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'dart:io' show Platform;
@@ -86,6 +87,9 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
   String? _selectedModel;
   int _cacheSize = 0;
 
+  // 🎵 Instancia persistente de audio para evitar múltiples players
+  final AudioPlaybackService _audioPlayer = di.getAudioPlayback();
+
   @override
   void initState() {
     super.initState();
@@ -101,6 +105,8 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    // Limpiar instancia persistente de audio
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -875,7 +881,6 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                             );
 
                         if (cachedFile != null) {
-                          final player = di.getAudioPlayback();
                           try {
                             // Debug: ensure file exists and has content before attempting to play
                             final exists = await cachedFile.exists();
@@ -892,14 +897,15 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                           }
 
                           // Prefer explicit DeviceFileSource for local files to avoid Uri/FileProvider fallbacks
-                          await player.play(
+                          await _audioPlayer.play(
                             ap.DeviceFileSource(cachedFile.path),
                           );
                           // Esperar a la finalización antes de liberar el player para que se oiga el audio
                           try {
-                            await player.onPlayerComplete.first;
+                            await _audioPlayer.onPlayerComplete.first;
                           } catch (_) {}
-                          await player.dispose();
+                          // No dispose en instancia persistente
+                          await _audioPlayer.stop();
                           showAppSnackBar('Audio reproducido desde caché');
                           return;
                         }
@@ -913,7 +919,6 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                           forDialogDemo: true,
                         );
                         if (file != null) {
-                          final player = di.getAudioPlayback();
                           try {
                             final exists = await file.exists();
                             final length = exists ? await file.length() : 0;
@@ -926,12 +931,15 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                             );
                           }
 
-                          await player.play(ap.DeviceFileSource(file.path));
+                          await _audioPlayer.play(
+                            ap.DeviceFileSource(file.path),
+                          );
                           // Esperar a que termine la reproducción antes de liberar recursos
                           try {
-                            await player.onPlayerComplete.first;
+                            await _audioPlayer.onPlayerComplete.first;
                           } catch (_) {}
-                          await player.dispose();
+                          // No dispose en instancia persistente
+                          await _audioPlayer.stop();
                           showAppSnackBar('¡Audio reproducido!');
                         } else {
                           showAppSnackBar(

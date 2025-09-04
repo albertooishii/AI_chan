@@ -216,7 +216,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
             child: ClipRRect(
               borderRadius: BorderRadius.circular(60),
               child: Image.asset(
-                'assets/icon/app_icon.png',
+                'assets/icons/app_icon.png',
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(

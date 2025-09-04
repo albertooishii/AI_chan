@@ -21,263 +21,263 @@ void main() async {
   });
 
   group('🗣️ Conversational Onboarding Flow Tests', () {
-    test(
-      '📝 Complete Conversational Flow: All Steps with Validation',
-      () async {
-        Log.d(
-          '🔹 PASO 1: Iniciando flujo conversacional completo...',
-          tag: 'TEST',
-        );
-
-        // 🎯 Setup: Crear servicio fake que simule respuestas de IA
-        final fakeAiService = FakeAIService(
-          customJsonResponse: {
-            'displayValue': 'TestValue',
-            'processedValue': 'ProcessedValue',
-            'aiResponse': 'Response from AI',
-            'confidence': 0.9,
-            'needsValidation': true,
-          },
-        );
-
-        // Configurar override global
-        AIService.testOverride = fakeAiService;
-
-        // 🎯 PASO 1: awakening (nombre del usuario)
-        Log.d('   🔸 Paso awakening: pidiendo nombre...', tag: 'TEST');
-
-        final awakeningResponse =
-            await ConversationalOnboardingService.processUserResponse(
-              userResponse: 'Alberto',
-              conversationStep: 'awakening',
-              userName: 'Usuario',
-              previousData: {},
-            );
-
-        expect(awakeningResponse['displayValue'], equals('TestValue'));
-        expect(awakeningResponse['needsValidation'], equals(true));
-        expect(awakeningResponse['aiResponse'], isA<String>());
-        Log.d(
-          '      ✅ awakening: nombre capturado con validación',
-          tag: 'TEST',
-        );
-
-        // 🎯 PASO 2: askingCountry (país del usuario)
-        Log.d('   🔸 Paso askingCountry: pidiendo país...', tag: 'TEST');
-
-        final countryResponse =
-            await ConversationalOnboardingService.processUserResponse(
-              userResponse: 'España',
-              conversationStep: 'askingCountry',
-              userName: 'Alberto',
-              previousData: {'userName': 'Alberto'},
-            );
-
-        expect(countryResponse['displayValue'], equals('TestValue'));
-        expect(countryResponse['needsValidation'], equals(true));
-        expect(countryResponse['aiResponse'], isA<String>());
-        Log.d(
-          '      ✅ askingCountry: país capturado con validación',
-          tag: 'TEST',
-        );
-
-        // 🎯 PASO 3: askingBirthday (cumpleaños del usuario)
-        Log.d('   🔸 Paso askingBirthday: pidiendo fecha...', tag: 'TEST');
-
-        final birthdayResponse =
-            await ConversationalOnboardingService.processUserResponse(
-              userResponse: '15 de marzo de 1990',
-              conversationStep: 'askingBirthday',
-              userName: 'Alberto',
-              previousData: {'userName': 'Alberto', 'userCountry': 'ES'},
-            );
-
-        expect(birthdayResponse['displayValue'], equals('TestValue'));
-        expect(birthdayResponse['needsValidation'], equals(true));
-        expect(birthdayResponse['aiResponse'], isA<String>());
-        Log.d(
-          '      ✅ askingBirthday: fecha capturada con validación',
-          tag: 'TEST',
-        );
-
-        // 🎯 PASO 4: askingAiCountry (nacionalidad de la IA)
-        Log.d(
-          '   🔸 Paso askingAiCountry: pidiendo nacionalidad IA...',
-          tag: 'TEST',
-        );
-
-        final aiCountryResponse =
-            await ConversationalOnboardingService.processUserResponse(
-              userResponse: 'japonesa',
-              conversationStep: 'askingAiCountry',
-              userName: 'Alberto',
-              previousData: {
-                'userName': 'Alberto',
-                'userCountry': 'ES',
-                'userBirthday': '15/03/1990',
-              },
-            );
-
-        expect(aiCountryResponse['displayValue'], equals('TestValue'));
-        expect(aiCountryResponse['needsValidation'], equals(true));
-        expect(aiCountryResponse['aiResponse'], isA<String>());
-        Log.d(
-          '      ✅ askingAiCountry: nacionalidad IA capturada con validación',
-          tag: 'TEST',
-        );
-
-        // 🎯 PASO 5: askingAiName (nombre de la IA)
-        Log.d('   🔸 Paso askingAiName: pidiendo nombre IA...', tag: 'TEST');
-
-        final aiNameResponse =
-            await ConversationalOnboardingService.processUserResponse(
-              userResponse: 'Sakura',
-              conversationStep: 'askingAiName',
-              userName: 'Alberto',
-              previousData: {
-                'userName': 'Alberto',
-                'userCountry': 'ES',
-                'userBirthday': '15/03/1990',
-                'aiCountry': 'JP',
-              },
-            );
-
-        expect(aiNameResponse['displayValue'], equals('TestValue'));
-        expect(aiNameResponse['needsValidation'], equals(true));
-        expect(aiNameResponse['aiResponse'], isA<String>());
-        Log.d(
-          '      ✅ askingAiName: nombre IA capturado con validación',
-          tag: 'TEST',
-        );
-
-        // 🎯 PASO 6: askingMeetStory (historia de cómo se conocieron)
-        Log.d('   🔸 Paso askingMeetStory: pidiendo historia...', tag: 'TEST');
-
-        final meetStoryResponse =
-            await ConversationalOnboardingService.processUserResponse(
-              userResponse: 'Nos conocimos en una convención de anime',
-              conversationStep: 'askingMeetStory',
-              userName: 'Alberto',
-              previousData: {
-                'userName': 'Alberto',
-                'userCountry': 'ES',
-                'userBirthday': '15/03/1990',
-                'aiCountry': 'JP',
-                'aiName': 'Sakura',
-              },
-            );
-
-        expect(meetStoryResponse['displayValue'], equals('TestValue'));
-        expect(meetStoryResponse['aiResponse'], isA<String>());
-        Log.d('      ✅ askingMeetStory: historia capturada', tag: 'TEST');
-
-        Log.d(
-          '🎉 FLUJO CONVERSACIONAL COMPLETO: todos los pasos validados',
-          tag: 'TEST',
-        );
-        Log.d('   📊 Resumen:', tag: 'TEST');
-        Log.d('      • awakening: ✅ validación requerida', tag: 'TEST');
-        Log.d('      • askingCountry: ✅ validación requerida', tag: 'TEST');
-        Log.d('      • askingBirthday: ✅ validación requerida', tag: 'TEST');
-        Log.d('      • askingAiCountry: ✅ validación requerida', tag: 'TEST');
-        Log.d('      • askingAiName: ✅ validación requerida', tag: 'TEST');
-        Log.d('      • askingMeetStory: ✅ historia procesada', tag: 'TEST');
-      },
-    );
-
-    test('🔄 Correction Handling: stepCorrection works properly', () async {
+    test('📝 Complete Conversational Flow: All Steps without Validation', () async {
       Log.d(
-        '🔹 Probando manejo de correcciones con stepCorrection...',
+        '🔹 PASO 1: Iniciando flujo conversacional completo sin validaciones...',
         tag: 'TEST',
       );
 
-      // Simular servicio que detecta corrección
+      // 🎯 Setup: Crear servicio fake que simule respuestas de IA
+      final fakeAiService = FakeAIService(
+        customJsonResponse: {
+          'displayValue': 'TestValue',
+          'processedValue': 'ProcessedValue',
+          'aiResponse': 'Response from AI',
+          'confidence': 0.9,
+        },
+      );
+
+      // Configurar override global
+      AIService.testOverride = fakeAiService;
+
+      // 🎯 PASO 1: askingName (primer paso - nombre del usuario)
+      Log.d(
+        '   🔸 Paso askingName: pidiendo nombre (primer paso)...',
+        tag: 'TEST',
+      );
+
+      final nameResponse =
+          await ConversationalOnboardingService.processUserResponse(
+            userResponse: 'Alberto',
+            conversationStep: 'askingName',
+            userName: 'Usuario',
+            previousData: {},
+          );
+
+      expect(nameResponse['displayValue'], equals('TestValue'));
+      expect(nameResponse['aiResponse'], isA<String>());
+      Log.d('      ✅ askingName: nombre capturado', tag: 'TEST');
+
+      // 🎯 PASO 2: askingCountry (país del usuario)
+      Log.d('   🔸 Paso askingCountry: pidiendo país...', tag: 'TEST');
+
+      final countryResponse =
+          await ConversationalOnboardingService.processUserResponse(
+            userResponse: 'España',
+            conversationStep: 'askingCountry',
+            userName: 'Alberto',
+            previousData: {'userName': 'Alberto'},
+          );
+
+      expect(countryResponse['displayValue'], equals('TestValue'));
+      expect(countryResponse['aiResponse'], isA<String>());
+      Log.d('      ✅ askingCountry: país capturado', tag: 'TEST');
+
+      // 🎯 PASO 3: askingBirthday (cumpleaños del usuario)
+      Log.d('   🔸 Paso askingBirthday: pidiendo fecha...', tag: 'TEST');
+
+      final birthdayResponse =
+          await ConversationalOnboardingService.processUserResponse(
+            userResponse: '15 de marzo de 1990',
+            conversationStep: 'askingBirthday',
+            userName: 'Alberto',
+            previousData: {'userName': 'Alberto', 'userCountry': 'ES'},
+          );
+
+      expect(birthdayResponse['displayValue'], equals('TestValue'));
+      expect(birthdayResponse['aiResponse'], isA<String>());
+      Log.d('      ✅ askingBirthday: fecha capturada', tag: 'TEST');
+
+      // 🎯 PASO 4: askingAiCountry (nacionalidad de la IA)
+      Log.d(
+        '   🔸 Paso askingAiCountry: pidiendo nacionalidad IA...',
+        tag: 'TEST',
+      );
+
+      final aiCountryResponse =
+          await ConversationalOnboardingService.processUserResponse(
+            userResponse: 'japonesa',
+            conversationStep: 'askingAiCountry',
+            userName: 'Alberto',
+            previousData: {
+              'userName': 'Alberto',
+              'userCountry': 'ES',
+              'userBirthday': '15/03/1990',
+            },
+          );
+
+      expect(aiCountryResponse['displayValue'], equals('TestValue'));
+      expect(aiCountryResponse['aiResponse'], isA<String>());
+      Log.d('      ✅ askingAiCountry: nacionalidad IA capturada', tag: 'TEST');
+
+      // 🎯 PASO 5: askingAiName (nombre de la IA)
+      Log.d('   🔸 Paso askingAiName: pidiendo nombre IA...', tag: 'TEST');
+
+      final aiNameResponse =
+          await ConversationalOnboardingService.processUserResponse(
+            userResponse: 'Sakura',
+            conversationStep: 'askingAiName',
+            userName: 'Alberto',
+            previousData: {
+              'userName': 'Alberto',
+              'userCountry': 'ES',
+              'userBirthday': '15/03/1990',
+              'aiCountry': 'JP',
+            },
+          );
+
+      expect(aiNameResponse['displayValue'], equals('TestValue'));
+      expect(aiNameResponse['aiResponse'], isA<String>());
+      Log.d('      ✅ askingAiName: nombre IA capturado', tag: 'TEST');
+
+      // 🎯 PASO 6: askingMeetStory (historia de cómo se conocieron)
+      Log.d('   🔸 Paso askingMeetStory: pidiendo historia...', tag: 'TEST');
+
+      final meetStoryResponse =
+          await ConversationalOnboardingService.processUserResponse(
+            userResponse: 'Nos conocimos en una convención de anime',
+            conversationStep: 'askingMeetStory',
+            userName: 'Alberto',
+            previousData: {
+              'userName': 'Alberto',
+              'userCountry': 'ES',
+              'userBirthday': '15/03/1990',
+              'aiCountry': 'JP',
+              'aiName': 'Sakura',
+            },
+          );
+
+      expect(meetStoryResponse['displayValue'], equals('TestValue'));
+      expect(meetStoryResponse['aiResponse'], isA<String>());
+      Log.d('      ✅ askingMeetStory: historia capturada', tag: 'TEST');
+
+      // 🎯 PASO 7: finalMessage (mensaje de despedida)
+      Log.d('   🔸 Paso finalMessage: mensaje de despedida...', tag: 'TEST');
+
+      final finalResponse =
+          await ConversationalOnboardingService.generateNextResponse(
+            userName: 'Alberto',
+            userLastResponse: 'Nos conocimos en una convención de anime',
+            conversationStep: 'finalMessage',
+            aiName: 'Sakura',
+            aiCountryCode: 'JP',
+            collectedData: {
+              'userName': 'Alberto',
+              'userCountry': 'ES',
+              'userBirthday': '15/03/1990',
+              'aiCountry': 'JP',
+              'aiName': 'Sakura',
+              'meetStory': 'Nos conocimos en una convención de anime',
+            },
+          );
+
+      expect(finalResponse, isA<String>());
+      expect(finalResponse.isNotEmpty, isTrue);
+      Log.d('      ✅ finalMessage: despedida generada', tag: 'TEST');
+
+      // 🎯 PASO 8: completion (finalización - empieza initializing)
+      Log.d('   🔸 Paso completion: inicializando chat...', tag: 'TEST');
+      // Este paso no necesita procesamiento adicional, solo marca el final
+
+      Log.d(
+        '🎉 FLUJO CONVERSACIONAL COMPLETO ACTUALIZADO: todos los pasos sin validaciones',
+        tag: 'TEST',
+      );
+      Log.d('   📊 Resumen:', tag: 'TEST');
+      Log.d('      • askingName: ✅ primer paso, sin validación', tag: 'TEST');
+      Log.d('      • askingCountry: ✅ sin validación', tag: 'TEST');
+      Log.d('      • askingBirthday: ✅ sin validación', tag: 'TEST');
+      Log.d('      • askingAiCountry: ✅ sin validación', tag: 'TEST');
+      Log.d('      • askingAiName: ✅ sin validación', tag: 'TEST');
+      Log.d('      • askingMeetStory: ✅ historia procesada', tag: 'TEST');
+      Log.d('      • finalMessage: ✅ despedida generada', tag: 'TEST');
+      Log.d(
+        '      • completion: ✅ flujo completado → initializing',
+        tag: 'TEST',
+      );
+    });
+
+    test('🔄 Correction Handling: Manual text input for corrections', () async {
+      Log.d(
+        '🔹 Probando manejo de correcciones con entrada manual...',
+        tag: 'TEST',
+      );
+
+      // Simular servicio que acepta corrección inmediatamente
       final correctionService = FakeAIService(
         customJsonResponse: {
-          'displayValue': '',
-          'processedValue': '',
-          'aiResponse': 'Lo siento, me equivoqué. ¿Podrías repetir tu nombre?',
-          'confidence': 0.1,
-          'needsValidation': false,
-          'stepCorrection':
-              'awakening', // Indica que debe volver al paso awakening
+          'displayValue': 'Alberto Corrected',
+          'processedValue': 'Alberto Corrected',
+          'aiResponse': 'Perfecto, ahora sí recuerdo tu nombre correctamente.',
+          'confidence': 0.9,
         },
       );
 
       // Configurar override
       AIService.testOverride = correctionService;
 
-      // Simular que el usuario dice "no" durante una validación
+      // Simular corrección usando el botón de texto
       final correctionResponse =
           await ConversationalOnboardingService.processUserResponse(
-            userResponse: 'no, ese no es mi nombre',
-            conversationStep: 'askingCountry', // Estaba en otro paso
-            userName: 'Usuario',
-            previousData: {'userName': 'NombreIncorrecto'},
-          );
-
-      // Verificar que se detectó la corrección
-      expect(correctionResponse.containsKey('stepCorrection'), isTrue);
-      expect(correctionResponse['stepCorrection'], equals('awakening'));
-      expect(correctionResponse['aiResponse'], contains('Lo siento'));
-
-      Log.d('   ✅ Corrección detectada y manejada correctamente', tag: 'TEST');
-    });
-
-    test('📝 Manual Input vs Voice Input: SIEMPRE requiere validación', () async {
-      Log.d(
-        '🔹 Probando que TODAS las entradas requieren validación...',
-        tag: 'TEST',
-      );
-
-      // Configurar servicio que SIEMPRE requiere validación
-      final validationService = FakeAIService(
-        customJsonResponse: {
-          'displayValue': 'Alberto',
-          'processedValue': 'Alberto',
-          'aiResponse': '¿He entendido bien tu nombre, Alberto?',
-          'confidence': 0.9,
-          'needsValidation': true, // SIEMPRE true por los nuevos requerimientos
-        },
-      );
-
-      // Configurar override
-      AIService.testOverride = validationService;
-
-      // Test entrada por voz - debe requerir validación
-      final voiceResponse =
-          await ConversationalOnboardingService.processUserResponse(
-            userResponse: 'Alberto',
-            conversationStep: 'awakening',
+            userResponse: 'Alberto Corrected', // Entrada manual corregida
+            conversationStep: 'askingName',
             userName: 'Usuario',
             previousData: {},
           );
 
-      expect(voiceResponse['needsValidation'], equals(true));
-      expect(voiceResponse['aiResponse'], contains('entendido bien'));
-      Log.d(
-        '   ✅ Entrada por voz: validación requerida correctamente',
-        tag: 'TEST',
-      );
+      // Verificar que se aceptó la corrección directamente
+      expect(correctionResponse['displayValue'], equals('Alberto Corrected'));
+      expect(correctionResponse['aiResponse'], contains('recuerdo'));
 
-      // Test entrada manual - TAMBIÉN debe requerir validación (CAMBIO IMPORTANTE)
-      // El servicio SIEMPRE devuelve needsValidation=true ahora, la diferencia está en el screen
-      final manualResponse =
-          await ConversationalOnboardingService.processUserResponse(
-            userResponse: 'Alberto',
-            conversationStep: 'awakening',
-            userName: 'Usuario',
-            previousData: {},
-          );
-
-      // NUEVA REGLA: El servicio SIEMPRE devuelve needsValidation=true
-      expect(manualResponse['needsValidation'], equals(true));
-      expect(manualResponse['aiResponse'], contains('entendido bien'));
-      Log.d(
-        '   ✅ Servicio SIEMPRE devuelve needsValidation=true (nuevo comportamiento)',
-        tag: 'TEST',
-      );
+      Log.d('   ✅ Corrección manual aceptada directamente', tag: 'TEST');
     });
+
+    test(
+      '📝 Manual Input vs Voice Input: Both work without validation',
+      () async {
+        Log.d(
+          '🔹 Probando que todas las entradas funcionan sin validación...',
+          tag: 'TEST',
+        );
+
+        // Configurar servicio que acepta las respuestas directamente
+        final noValidationService = FakeAIService(
+          customJsonResponse: {
+            'displayValue': 'Alberto',
+            'processedValue': 'Alberto',
+            'aiResponse': 'Perfecto, Alberto. Ahora pregúntame por tu país.',
+            'confidence': 0.9,
+          },
+        );
+
+        // Configurar override
+        AIService.testOverride = noValidationService;
+
+        // Test entrada por voz - sin validación
+        final voiceResponse =
+            await ConversationalOnboardingService.processUserResponse(
+              userResponse: 'Alberto',
+              conversationStep: 'askingName',
+              userName: 'Usuario',
+              previousData: {},
+            );
+
+        expect(voiceResponse['aiResponse'], contains('pregúntame'));
+        Log.d('   ✅ Entrada por voz: acepta directamente', tag: 'TEST');
+
+        // Test entrada manual - también acepta directamente
+        final manualResponse =
+            await ConversationalOnboardingService.processUserResponse(
+              userResponse: 'Alberto Manual',
+              conversationStep: 'askingName',
+              userName: 'Usuario',
+              previousData: {},
+            );
+
+        expect(manualResponse['aiResponse'], contains('pregúntame'));
+        Log.d('   ✅ Entrada manual: acepta directamente', tag: 'TEST');
+      },
+    );
 
     test('🚨 Error Handling: Invalid responses and recovery', () async {
       Log.d('🔹 Probando manejo de errores y recuperación...', tag: 'TEST');
@@ -287,7 +287,7 @@ void main() async {
         final errorResponse =
             await ConversationalOnboardingService.processUserResponse(
               userResponse: '',
-              conversationStep: 'awakening',
+              conversationStep: 'askingName', // Usar paso actualizado
               userName: 'Usuario',
               previousData: {},
             );
@@ -327,9 +327,8 @@ void main() async {
         customJsonResponse: {
           'displayValue': 'España',
           'processedValue': 'ES',
-          'aiResponse': '¿Así que eres de España? ¿Es correcto?',
+          'aiResponse': 'Perfecto, eres de España. Ahora dime cuándo naciste.',
           'confidence': 0.95,
-          'needsValidation': true,
         },
       );
 
@@ -353,9 +352,9 @@ void main() async {
         customJsonResponse: {
           'displayValue': '15 de marzo de 1990',
           'processedValue': '15/03/1990',
-          'aiResponse': '¿Naciste el 15 de marzo de 1990? ¿Es correcto?',
+          'aiResponse':
+              'Entiendo, naciste el 15 de marzo de 1990. Ahora sobre mi nacionalidad...',
           'confidence': 0.9,
-          'needsValidation': true,
         },
       );
 
@@ -447,7 +446,6 @@ void main() async {
               'aiResponse':
                   'Cultural response for ${testCase['expectedCulture']}',
               'confidence': 0.9,
-              'needsValidation': true,
             },
           );
 
@@ -481,8 +479,8 @@ void main() async {
       },
     );
 
-    test('💬 Suggestions: AI can suggest manual input when needed', () async {
-      Log.d('🔹 Probando sugerencias de entrada manual...', tag: 'TEST');
+    test('💬 Text Button: AI suggests text input when voice unclear', () async {
+      Log.d('🔹 Probando sugerencias de entrada de texto...', tag: 'TEST');
 
       // Servicio que sugiere escritura manual
       final suggestionService = FakeAIService(
@@ -492,7 +490,6 @@ void main() async {
           'aiResponse':
               'No pude entender bien. Si prefieres, puedes usar el botón de texto para escribirlo.',
           'confidence': 0.2,
-          'needsValidation': true,
         },
       );
 
@@ -510,9 +507,72 @@ void main() async {
       expect(response['confidence'], equals(0.2));
       expect(response['aiResponse'], contains('botón de texto'));
 
-      Log.d('   ✅ Sugerencia de entrada manual detectada', tag: 'TEST');
+      Log.d('   ✅ Sugerencia de entrada de texto detectada', tag: 'TEST');
       Log.d('      • Confianza baja: ${response['confidence']}', tag: 'TEST');
       Log.d('      • Mensaje de sugerencia incluido', tag: 'TEST');
     });
+
+    test(
+      '🎯 Meet Story Options: User can tell story or AI can generate it',
+      () async {
+        Log.d('🔹 Probando opciones de historia de encuentro...', tag: 'TEST');
+
+        // Opción 1: Usuario cuenta su historia
+        final userStoryService = FakeAIService(
+          customJsonResponse: {
+            'displayValue':
+                'Nos conocimos en una convención de anime en Madrid',
+            'processedValue':
+                'Nos conocimos en una convención de anime en Madrid',
+            'aiResponse':
+                '¡Qué bonito recuerdo! Una convención de anime... eso explica mucho.',
+            'confidence': 0.9,
+          },
+        );
+
+        AIService.testOverride = userStoryService;
+
+        final userStoryResponse =
+            await ConversationalOnboardingService.processUserResponse(
+              userResponse:
+                  'Nos conocimos en una convención de anime en Madrid',
+              conversationStep: 'askingMeetStory',
+              userName: 'Alberto',
+              previousData: {
+                'userName': 'Alberto',
+                'aiName': 'Sakura',
+                'aiCountry': 'JP',
+              },
+            );
+
+        expect(userStoryResponse['displayValue'], contains('convención'));
+        expect(userStoryResponse['aiResponse'], contains('bonito recuerdo'));
+        Log.d(
+          '   ✅ Opción 1: Usuario cuenta su historia aceptada',
+          tag: 'TEST',
+        );
+
+        // Opción 2: AI genera historia basada en contexto
+        final generatedStory =
+            await ConversationalOnboardingService.generateMeetStoryFromContext(
+              userName: 'Alberto',
+              aiName: 'Sakura',
+              userCountry: 'ES',
+              aiCountry: 'JP',
+              userBirthday: DateTime(1990, 3, 15),
+            );
+
+        expect(generatedStory, isA<String>());
+        expect(generatedStory.isNotEmpty, isTrue);
+        Log.d(
+          '   ✅ Opción 2: IA puede generar historia desde contexto',
+          tag: 'TEST',
+        );
+        Log.d(
+          '      • Historia generada: ${generatedStory.substring(0, 50)}...',
+          tag: 'TEST',
+        );
+      },
+    );
   });
 }

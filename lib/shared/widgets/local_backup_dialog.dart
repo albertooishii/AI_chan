@@ -40,25 +40,36 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
   Future<void> _doCreateBackup() async {
     setState(() => _working = true);
     try {
-      // Ask for optional directory selection on platforms that support it
-      String? selectedDir;
-      var directoryPickerSupported = true;
-      try {
-        selectedDir = await FilePicker.platform.getDirectoryPath();
-      } catch (_) {
-        directoryPickerSupported = false;
-      }
-      if (directoryPickerSupported && selectedDir == null) {
-        // user cancelled
+      if (widget.requestExportJson == null) throw 'No export callback provided';
+      final jsonStr = await widget.requestExportJson!.call();
+
+      // Generar nombre de archivo con timestamp
+      final safeTs = DateTime.now().toIso8601String().replaceAll(
+        RegExp(r'[:.]'),
+        '-',
+      );
+      final filename = 'ai_chan_backup_$safeTs.zip';
+
+      // Usar saveFile para que el usuario pueda elegir ubicación y nombre
+      final outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Guardar backup como',
+        fileName: filename,
+        type: FileType.custom,
+        allowedExtensions: ['zip'],
+      );
+
+      if (outputFile == null) {
+        // Usuario canceló
         _safeSetState(() => _working = false);
         return;
       }
-      if (widget.requestExportJson == null) throw 'No export callback provided';
-      final jsonStr = await widget.requestExportJson!.call();
-      final file = await BackupService.createLocalBackup(
+
+      // Crear el archivo de backup usando el path seleccionado
+      final file = await BackupService.createLocalBackupAt(
         jsonStr: jsonStr,
-        destinationDirPath: selectedDir,
+        outputPath: outputFile,
       );
+
       final msg = 'Backup creado: ${file.path}';
       try {
         final navCtx = navigatorKey.currentContext;

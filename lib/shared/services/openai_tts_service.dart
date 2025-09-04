@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:ai_chan/core/di.dart' as di;
+import 'package:ai_chan/shared/infrastructure/audio/audio_playback.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/audio_duration_utils.dart';
 
@@ -10,6 +11,10 @@ class OpenAITtsService {
   bool _isPlaying = false;
   String? _currentAudioPath;
   Duration? _currentAudioDuration;
+  Completer<void>? _completionCompleter;
+
+  // 🎵 Usar instancia persistente como en el chat
+  final AudioPlayback _audioPlayer = di.getAudioPlayback();
 
   OpenAITtsService();
 
@@ -21,6 +26,8 @@ class OpenAITtsService {
   }) async {
     try {
       _isPlaying = true;
+      _completionCompleter =
+          Completer<void>(); // Inicializar completer para cancelación
 
       // Configurar opciones por defecto para OpenAI
       final ttsOptions = {
@@ -59,11 +66,18 @@ class OpenAITtsService {
           _currentAudioPath = audioFile;
           _currentAudioDuration = audioDuration;
 
-          // Iniciar reproducción
-          final audioPlayback = di.getAudioPlayback();
-          await audioPlayback.play(audioFile);
+          // Iniciar reproducción con la instancia persistente
+          await _audioPlayer.play(audioFile);
 
           Log.d('🔊 Reproducción iniciada', tag: 'OPENAI_TTS');
+
+          // Programar completion después de la duración del audio
+          Timer(audioDuration, () {
+            if (_completionCompleter != null &&
+                !_completionCompleter!.isCompleted) {
+              _completionCompleter!.complete();
+            }
+          });
 
           // Retornar información para subtítulos progresivos
           return AudioPlaybackInfo(
@@ -83,22 +97,32 @@ class OpenAITtsService {
       _isPlaying = false;
       _currentAudioPath = null;
       _currentAudioDuration = null;
+      // Completar el completer en caso de error
+      if (_completionCompleter != null && !_completionCompleter!.isCompleted) {
+        _completionCompleter!.completeError(e);
+      }
       Log.e('❌ Error en synthesizeAndPlay: $e', tag: 'OPENAI_TTS');
       rethrow;
     }
   }
 
-  /// Espera a que termine la reproducción actual
+  /// Espera a que termine la reproducción actual (cancelable)
   Future<void> waitForCompletion() async {
-    if (!_isPlaying || _currentAudioDuration == null) return;
+    if (!_isPlaying || _completionCompleter == null) return;
 
     Log.d('⏳ Esperando finalización de reproducción...', tag: 'OPENAI_TTS');
-    await Future.delayed(_currentAudioDuration!);
+
+    try {
+      await _completionCompleter!.future;
+    } catch (e) {
+      Log.w('Reproducción cancelada o error: $e', tag: 'OPENAI_TTS');
+    }
 
     // Limpiar archivo temporal después de la reproducción
     await _cleanupCurrentAudio();
 
     _isPlaying = false;
+    _completionCompleter = null;
     Log.d('✅ Reproducción completada', tag: 'OPENAI_TTS');
   }
 
@@ -125,10 +149,23 @@ class OpenAITtsService {
   /// Detiene la reproducción actual
   Future<void> stop() async {
     try {
-      final audioPlayback = di.getAudioPlayback();
-      await audioPlayback.stop();
+      Log.d('🛑 INICIANDO STOP - _isPlaying: $_isPlaying', tag: 'OPENAI_TTS');
+
+      // 🎵 Usar la misma instancia persistente como en el chat
+      Log.d('🛑 Llamando _audioPlayer.stop()...', tag: 'OPENAI_TTS');
+      await _audioPlayer.stop();
+      Log.d('✅ _audioPlayer.stop() completado', tag: 'OPENAI_TTS');
+
+      // Cancelar el completer si existe
+      if (_completionCompleter != null && !_completionCompleter!.isCompleted) {
+        Log.d('🛑 Completando _completionCompleter...', tag: 'OPENAI_TTS');
+        _completionCompleter!
+            .complete(); // Completar inmediatamente para liberar waitForCompletion
+      }
+
       await _cleanupCurrentAudio();
       _isPlaying = false;
+      _completionCompleter = null;
       Log.d('⏹️ Reproducción detenida', tag: 'OPENAI_TTS');
     } catch (e) {
       Log.e('❌ Error deteniendo TTS: $e', tag: 'OPENAI_TTS');
@@ -143,7 +180,20 @@ class OpenAITtsService {
 
   /// Limpia los recursos
   void dispose() {
+    // Cancelar completer si existe
+    if (_completionCompleter != null && !_completionCompleter!.isCompleted) {
+      _completionCompleter!.complete();
+    }
+    _completionCompleter = null;
     _cleanupCurrentAudio();
+
+    // Limpiar reproductor de audio
+    try {
+      _audioPlayer.dispose();
+      Log.d('🧹 Limpiando recursos OpenAI TTS', tag: 'OPENAI_TTS');
+    } catch (e) {
+      Log.e('❌ Error liberando recursos OpenAI TTS: $e', tag: 'OPENAI_TTS');
+    }
     Log.d('🧹 Limpiando recursos OpenAI TTS', tag: 'OPENAI_TTS');
   }
 }

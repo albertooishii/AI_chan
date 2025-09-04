@@ -1,7 +1,7 @@
 import 'dart:async';
 
 /// Domain interface for audio playback service
-/// Defines the contract for playing audio in the voice domain
+/// Defines the contract for playing audio across the application
 abstract interface class AudioPlaybackService {
   /// Stream that emits when player completes playback
   Stream<void> get onPlayerComplete;

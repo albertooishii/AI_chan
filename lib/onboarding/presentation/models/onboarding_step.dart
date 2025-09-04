@@ -5,8 +5,8 @@ enum OnboardingStep {
   askingName, // Preguntando el nombre del usuario
   askingCountry, // Preguntando el país del usuario
   askingBirthday, // Preguntando la fecha de nacimiento
-  askingAiName, // Preguntando el nombre para la IA
   askingAiCountry, // Preguntando el país de la IA
+  askingAiName, // Preguntando el nombre para la IA
   askingMeetStory, // Preguntando cómo se conocieron
   finalMessage, // Mensaje final antes de completar
   completion, // Onboarding completado
@@ -45,7 +45,7 @@ extension OnboardingStepExtension on OnboardingStep {
   ].contains(this);
 
   bool get isAskingAiData => [
-    OnboardingStep.askingAiName,
     OnboardingStep.askingAiCountry,
+    OnboardingStep.askingAiName,
   ].contains(this);
 }

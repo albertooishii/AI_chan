@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:ai_chan/core/di.dart' as di;
-import 'package:ai_chan/call/infrastructure/audio/audio_playback.dart';
+import 'package:ai_chan/shared/infrastructure/audio/audio_playback.dart';
 import 'package:ai_chan/shared/utils/audio_utils.dart' as audio_utils;
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
