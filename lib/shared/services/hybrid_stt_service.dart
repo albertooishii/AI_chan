@@ -20,6 +20,9 @@ class HybridSttService {
   // Control de estado
   bool _isListening = false;
   bool _isInitialized = false;
+  Timer? _silenceTimer;
+  Timer? _timeoutTimer;
+  String? _currentContextPrompt; // Para almacenar el prompt actual
 
   // Callbacks
   void Function(String text)? _onResult;
@@ -90,7 +93,11 @@ class HybridSttService {
   Future<void> listen({
     required void Function(String text) onResult,
     String localeId = 'es-ES',
-    Duration timeout = const Duration(seconds: 30),
+    Duration timeout = const Duration(
+      seconds: 30,
+    ), // Volver a timeout generoso como nativo
+    String?
+    contextPrompt, // Contexto opcional para mejorar precisión en OpenAI STT
   }) async {
     if (!_isInitialized || _isListening) return;
 
@@ -98,7 +105,11 @@ class HybridSttService {
     _isListening = true;
 
     if (_shouldUseOpenAI) {
-      await _startOpenAIListening(localeId: localeId, timeout: timeout);
+      await _startOpenAIListening(
+        localeId: localeId,
+        timeout: timeout,
+        contextPrompt: contextPrompt,
+      );
     } else {
       await _startNativeListening(localeId: localeId, timeout: timeout);
     }
@@ -109,6 +120,10 @@ class HybridSttService {
     if (!_isListening) return;
 
     _isListening = false;
+
+    // Limpiar timers
+    _timeoutTimer?.cancel();
+    _silenceTimer?.cancel();
 
     if (_shouldUseOpenAI) {
       await _stopOpenAIListening();
@@ -123,7 +138,10 @@ class HybridSttService {
   Future<void> _startOpenAIListening({
     required String localeId,
     required Duration timeout,
+    String? contextPrompt,
   }) async {
+    _currentContextPrompt =
+        contextPrompt; // Almacenar para usar en transcripción
     try {
       Log.d('🎙️ Iniciando grabación para OpenAI STT...', tag: 'HYBRID_STT');
 
@@ -144,9 +162,18 @@ class HybridSttService {
       await _recorder.start(config, path: tempFile.path);
       _onStatus?.call('listening');
 
-      // Timer de timeout
-      Timer(timeout, () async {
+      // Timer de timeout más corto
+      _timeoutTimer = Timer(timeout, () async {
         if (_isListening) {
+          Log.d('⏰ Timeout alcanzado, deteniendo STT', tag: 'HYBRID_STT');
+          await _stopOpenAIListening();
+        }
+      });
+
+      // Timer de silencio - usar mismo timing que STT nativo (3 segundos)
+      _silenceTimer = Timer(const Duration(seconds: 3), () async {
+        if (_isListening) {
+          Log.d('🔇 Silencio detectado, deteniendo STT', tag: 'HYBRID_STT');
           await _stopOpenAIListening();
         }
       });
@@ -164,6 +191,10 @@ class HybridSttService {
     try {
       Log.d('⏹️ Deteniendo grabación y transcribiendo...', tag: 'HYBRID_STT');
 
+      // Limpiar timers
+      _timeoutTimer?.cancel();
+      _silenceTimer?.cancel();
+
       // Detener grabación
       final path = await _recorder.stop();
 
@@ -173,7 +204,10 @@ class HybridSttService {
       }
 
       // Transcribir con OpenAI
-      final transcription = await _transcribeWithOpenAI(path);
+      final transcription = await _transcribeWithOpenAI(
+        path,
+        _currentContextPrompt,
+      );
 
       if (transcription.isNotEmpty) {
         Log.d('✅ Transcripción: "$transcription"', tag: 'HYBRID_STT');
@@ -197,7 +231,10 @@ class HybridSttService {
   }
 
   /// Transcribe audio usando OpenAI Whisper API
-  Future<String> _transcribeWithOpenAI(String audioPath) async {
+  Future<String> _transcribeWithOpenAI(
+    String audioPath, [
+    String? contextPrompt,
+  ]) async {
     try {
       final file = File(audioPath);
       final audioBytes = await file.readAsBytes();
@@ -220,7 +257,13 @@ class HybridSttService {
       request.fields['model'] = Config.getOpenAISttModel();
       request.fields['language'] = 'es';
       request.fields['response_format'] = 'text';
-      request.fields['temperature'] = '0.0';
+      request.fields['temperature'] =
+          '0.0'; // Más conservador para evitar alucinaciones
+
+      // Añadir contexto solo si se proporcionó
+      if (contextPrompt != null && contextPrompt.isNotEmpty) {
+        request.fields['prompt'] = contextPrompt;
+      }
 
       // Archivo de audio
       request.files.add(
@@ -276,6 +319,8 @@ class HybridSttService {
   /// Limpia recursos
   void dispose() {
     stop();
+    _timeoutTimer?.cancel();
+    _silenceTimer?.cancel();
     _recorder.dispose();
   }
 }

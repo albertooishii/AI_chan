@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/core/di.dart' as di;
+import 'package:ai_chan/core/interfaces/tts_service.dart';
 import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
-import 'package:ai_chan/shared/services/streaming_tts_service.dart';
+import 'package:ai_chan/shared/utils/audio_duration_utils.dart';
+import 'package:ai_chan/shared/controllers/audio_subtitle_controller.dart';
 import 'package:ai_chan/shared/services/hybrid_stt_service.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
@@ -13,6 +16,7 @@ import 'package:ai_chan/shared/widgets/country_autocomplete.dart';
 import 'package:ai_chan/shared/widgets/female_name_autocomplete.dart';
 import 'package:ai_chan/shared/widgets/conversational_subtitles.dart';
 import 'dart:async';
+import 'dart:io';
 import 'onboarding_screen.dart' show OnboardingFinishCallback, OnboardingScreen;
 import '../../../onboarding/services/conversational_ai_service.dart';
 
@@ -39,10 +43,12 @@ class _ConversationalOnboardingScreenState
     extends State<ConversationalOnboardingScreen>
     with TickerProviderStateMixin {
   // Servicios necesarios
-  late final StreamingTtsService _streamingTtsService;
+  late final ITtsService _ttsService;
   late final HybridSttService _hybridSttService;
   late final AudioPlayer _audioPlayer;
   late final ConversationalSubtitleController _subtitleController;
+  late final AudioSubtitleController
+  _progressiveSubtitleController; // Para sincronización progresiva
 
   // Controladores de animación
   late AnimationController _pulseController;
@@ -78,6 +84,13 @@ class _ConversationalOnboardingScreenState
   // Historia temporal para cuando se sugiere una
   String? _tempSuggestedStory;
 
+  // Helper para setState seguro
+  void _safeSetState(VoidCallback fn) {
+    if (mounted) {
+      setState(fn);
+    }
+  }
+
   // Datos dinámicos para IA (siempre habilitado - modo más natural)
   final Map<String, dynamic> _collectedData = {};
 
@@ -90,10 +103,11 @@ class _ConversationalOnboardingScreenState
   }
 
   void _initializeServices() async {
-    _streamingTtsService = StreamingTtsService();
+    _ttsService = di.getTtsService();
     _hybridSttService = HybridSttService();
     _audioPlayer = AudioPlayer();
     _subtitleController = ConversationalSubtitleController();
+    _progressiveSubtitleController = AudioSubtitleController();
 
     // Inicializar hybrid STT
     await _hybridSttService.initialize(
@@ -103,12 +117,12 @@ class _ConversationalOnboardingScreenState
           tag: 'CONV_ONBOARDING',
         );
         if (status == 'notListening') {
-          setState(() => _isListening = false);
+          _safeSetState(() => _isListening = false);
         }
       },
       onError: (error) {
         Log.e('STT Error: $error', tag: 'CONV_ONBOARDING');
-        setState(() => _isListening = false);
+        _safeSetState(() => _isListening = false);
         // Manejar error silenciosamente para no interrumpir el flujo
       },
     );
@@ -267,105 +281,153 @@ class _ConversationalOnboardingScreenState
     Log.d('🔧 CONFIG TTS: $voiceConfig', tag: 'CONV_ONBOARDING');
 
     try {
-      // Marcar que el audio está comenzando para el controlador de subtítulos
-      bool audioStarted = false;
-
-      // Simular chunks de texto como en las llamadas - empezar a mostrar subtítulos inmediatamente
-      Timer? chunkTimer;
-      int chunkIndex = 0;
-      final words = text.split(' ');
-      const wordsPerChunk =
-          3; // Mostrar 3 palabras por chunk para efecto natural
-
-      // Función para mostrar chunks progresivamente
-      void showNextChunk() {
-        if (chunkIndex < words.length && audioStarted) {
-          final endIndex = (chunkIndex + wordsPerChunk).clamp(0, words.length);
-          final chunk = words.sublist(chunkIndex, endIndex).join(' ');
-
-          // Usar el sistema de chunks en tiempo real
-          _subtitleController.handleAiChunk(
-            chunk,
-            audioStarted: audioStarted,
-            suppressFurther: false,
-          );
-
-          chunkIndex = endIndex;
-
-          // Programar siguiente chunk
-          if (chunkIndex < words.length) {
-            chunkTimer = Timer(
-              const Duration(milliseconds: 600),
-              showNextChunk,
-            );
-          }
-        }
-      }
-
-      // Primero intentar streaming TTS para mejor experiencia
-      Log.d('🚀 Intentando streaming TTS...', tag: 'CONV_ONBOARDING');
-
-      final streamingSuccess = await _streamingTtsService.streamAndPlay(
+      // 🎯 GENERAR ARCHIVO TTS CON DI SERVICE
+      final audioFilePath = await _ttsService.synthesizeToFile(
         text: text,
-        options: voiceConfig,
+        options: {
+          'voice': voiceConfig['voice'] as String? ?? 'marin',
+          'model': voiceConfig['model'] as String?,
+          'speed': voiceConfig['speed'] as double? ?? 1.0,
+          'instructions': voiceConfig['instructions'] as String?,
+          'provider': 'openai', // Forzar OpenAI para compatibilidad
+        },
       );
 
-      if (streamingSuccess) {
-        Log.d('✅ Streaming TTS exitoso', tag: 'CONV_ONBOARDING');
+      if (audioFilePath != null) {
+        Log.d('✅ TTS archivo generado: $audioFilePath', tag: 'CONV_ONBOARDING');
 
-        // Marcar que el audio ha comenzado y empezar chunks inmediatamente
-        audioStarted = true;
-        showNextChunk();
+        // 🕐 OBTENER DURACIÓN REAL DEL AUDIO
+        final audioDuration = await AudioDurationUtils.getAudioDuration(
+          audioFilePath,
+        );
 
-        // Esperar a que termine el streaming
-        while (_streamingTtsService.isPlaying) {
-          await Future.delayed(const Duration(milliseconds: 100));
-          if (!mounted) return;
-        }
+        if (audioDuration != null && audioDuration.inMilliseconds > 0) {
+          Log.d(
+            '⏰ Duración real del audio: ${audioDuration.inMilliseconds}ms',
+            tag: 'CONV_ONBOARDING',
+          );
 
-        // Limpiar timer de chunks
-        chunkTimer?.cancel();
+          // � CONFIGURAR SUBTÍTULOS PROGRESIVOS (como en el chat)
+          _progressiveSubtitleController.updateProportional(
+            Duration.zero,
+            text,
+            audioDuration,
+          );
 
-        // Asegurarse de mostrar el texto completo al final
-        if (chunkIndex < words.length) {
+          // Suscribirse al stream progresivo y actualizar el controlador visual
+          late StreamSubscription<String> progressSub;
+          progressSub = _progressiveSubtitleController.progressiveTextStream
+              .listen((progressiveText) {
+                if (progressiveText.isNotEmpty) {
+                  _subtitleController.handleAiChunk(
+                    progressiveText,
+                    audioStarted: true,
+                    suppressFurther: false,
+                  );
+                }
+              });
+
+          // 🎵 REPRODUCIR AUDIO REAL
+          await _audioPlayer.play(DeviceFileSource(audioFilePath));
+
+          // ⏰ SIMULAR PROGRESO DE TIEMPO (como en audio_message_player_with_subs.dart)
+          const updateInterval = Duration(milliseconds: 100);
+          Timer.periodic(updateInterval, (timer) async {
+            if (!_isSpeaking || !mounted) {
+              timer.cancel();
+              progressSub.cancel();
+              return;
+            }
+
+            final elapsed = Duration(
+              milliseconds: timer.tick * updateInterval.inMilliseconds,
+            );
+            if (elapsed >= audioDuration) {
+              timer.cancel();
+              progressSub.cancel();
+              // Mostrar texto completo al final
+              _subtitleController.handleAiChunk(
+                text,
+                audioStarted: true,
+                suppressFurther: false,
+              );
+            } else {
+              // Actualizar progreso proporcional
+              _progressiveSubtitleController.updateProportional(
+                elapsed,
+                text,
+                audioDuration,
+              );
+            }
+          });
+
+          // ⏳ ESPERAR LA DURACIÓN REAL DEL AUDIO
+          await Future.delayed(audioDuration);
+
+          // 🗑️ LIMPIAR ARCHIVO TEMPORAL
+          try {
+            final audioFile = File(audioFilePath);
+            if (await audioFile.exists()) {
+              await audioFile.delete();
+              Log.d(
+                '🗑️ Archivo TTS temporal eliminado',
+                tag: 'CONV_ONBOARDING',
+              );
+            }
+          } catch (e) {
+            Log.w(
+              'Error eliminando archivo temporal: $e',
+              tag: 'CONV_ONBOARDING',
+            );
+          }
+        } else {
+          Log.w(
+            '⚠️ No se pudo obtener duración del audio, usando estimación',
+            tag: 'CONV_ONBOARDING',
+          );
+
+          // Mostrar subtítulos inmediatamente y usar estimación
           _subtitleController.handleAiChunk(
             text,
             audioStarted: true,
             suppressFurther: false,
           );
+
+          // Reproducir audio sin duración conocida
+          await _audioPlayer.play(DeviceFileSource(audioFilePath));
+
+          // Usar estimación como fallback
+          final estimatedDuration = _estimateSpeechDuration(text);
+          await Future.delayed(estimatedDuration);
         }
       } else {
         Log.w(
-          '⚠️ Streaming TTS falló, usando solo subtítulos con chunks simulados',
+          '⚠️ TTS falló, continuando solo con subtítulos',
           tag: 'CONV_ONBOARDING',
         );
 
-        // Si falla el streaming, simular chunks con timing basado en estimación
-        audioStarted = true;
-        showNextChunk();
-
-        // Simular duración para completar todos los chunks
-        final estimatedDuration = _estimateSpeechDuration(text);
-        await Future.delayed(estimatedDuration);
-
-        chunkTimer?.cancel();
-
-        // Mostrar texto completo al final
+        // Mostrar subtítulos inmediatamente sin audio
         _subtitleController.handleAiChunk(
           text,
           audioStarted: true,
           suppressFurther: false,
         );
+
+        // Simular duración si el TTS falla
+        final estimatedDuration = _estimateSpeechDuration(text);
+        await Future.delayed(estimatedDuration);
       }
     } catch (e) {
       Log.e('Error en TTS: $e');
 
-      // En caso de error, mostrar texto completo inmediatamente
+      // En caso de error, mostrar subtítulos y simular duración
       _subtitleController.handleAiChunk(
         text,
         audioStarted: true,
         suppressFurther: false,
       );
+      final estimatedDuration = _estimateSpeechDuration(text);
+      await Future.delayed(estimatedDuration);
     }
 
     if (!mounted) return;
@@ -380,18 +442,20 @@ class _ConversationalOnboardingScreenState
   }
 
   Future<void> _startListening() async {
-    if (!_hybridSttService.isAvailable) return;
+    if (!_hybridSttService.isAvailable || !mounted) return;
 
-    setState(() {
-      _isListening = true;
-    });
+    if (mounted) {
+      _safeSetState(() {
+        _isListening = true;
+      });
+    }
 
     // Cancelar timer anterior si existe
     _speechTimeoutTimer?.cancel();
 
     await _hybridSttService.listen(
       onResult: (text) {
-        setState(() {
+        _safeSetState(() {
           Log.d('🗣️ Usuario dice: "$text"', tag: 'CONV_ONBOARDING');
         });
 
@@ -403,7 +467,8 @@ class _ConversationalOnboardingScreenState
         // Procesar resultado final (el híbrido ya maneja finalizaciones)
         _processUserResponse(text);
       },
-      timeout: const Duration(seconds: 15),
+      contextPrompt:
+          'Conversación sobre nombres, fechas de nacimiento y países de origen.',
     );
   }
 
@@ -411,7 +476,7 @@ class _ConversationalOnboardingScreenState
     _speechTimeoutTimer?.cancel(); // Limpiar timer
     if (_hybridSttService.isListening) {
       await _hybridSttService.stop();
-      setState(() => _isListening = false);
+      _safeSetState(() => _isListening = false);
     }
   }
 
@@ -945,8 +1010,8 @@ class _ConversationalOnboardingScreenState
     _pulseController.dispose();
     _hybridSttService.dispose();
     _audioPlayer.dispose();
-    _streamingTtsService.dispose(); // Limpiar streaming service
     _subtitleController.dispose(); // Limpiar controlador de subtítulos
+    _progressiveSubtitleController.dispose(); // Limpiar controlador progresivo
     super.dispose();
   }
 
@@ -1132,28 +1197,37 @@ class _ConversationalOnboardingScreenState
                         // Botón para modo texto (estilo azul como el anterior repetir)
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () async {
-                              // Detener cualquier audio actual
-                              if (_isSpeaking) {
-                                await _audioPlayer.stop();
-                                setState(() {
-                                  _isSpeaking = false;
-                                  _isListening = false;
-                                  _isThinking =
-                                      false; // También desactivar pensando
-                                });
-                              }
-                              // Mostrar dialogo de texto
-                              final result = await _showTextInputDialog(
-                                _currentStep,
-                              );
-                              if (result != null && result.isNotEmpty) {
-                                await _processUserResponse(
-                                  result,
-                                  fromTextInput: true,
-                                );
-                              }
-                            },
+                            onPressed:
+                                (!_isSpeaking &&
+                                    !_isThinking) // Solo habilitado cuando puede responder
+                                ? () async {
+                                    // Mutear automáticamente el micrófono si está activo
+                                    if (_isListening) {
+                                      await _stopListening();
+                                    }
+
+                                    // Detener cualquier audio actual
+                                    if (_isSpeaking) {
+                                      await _audioPlayer.stop();
+                                      setState(() {
+                                        _isSpeaking = false;
+                                        _isListening = false;
+                                        _isThinking =
+                                            false; // También desactivar pensando
+                                      });
+                                    }
+                                    // Mostrar dialogo de texto
+                                    final result = await _showTextInputDialog(
+                                      _currentStep,
+                                    );
+                                    if (result != null && result.isNotEmpty) {
+                                      await _processUserResponse(
+                                        result,
+                                        fromTextInput: true,
+                                      );
+                                    }
+                                  }
+                                : null, // Deshabilitar cuando no es momento de responder
                             icon: const Icon(Icons.keyboard, size: 16),
                             label: const Text(
                               'Escribir respuesta',

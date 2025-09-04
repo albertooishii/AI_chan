@@ -20,6 +20,8 @@ class OnboardingProvider extends ChangeNotifier {
   saveImageFunc = null;
 
   OnboardingProvider() {
+    // Initialize form key to avoid duplicate GlobalKey errors
+    formKey = GlobalKey<FormState>();
     // Inicialización asíncrona que carga datos guardados y actualiza `loading`
     _loadBiographyFromPrefs();
   }
@@ -173,7 +175,8 @@ class OnboardingProvider extends ChangeNotifier {
     }
   }
 
-  final formKey = GlobalKey<FormState>();
+  // Form controllers - initialized in constructor to avoid duplicate keys
+  late final GlobalKey<FormState> formKey;
   final userNameController = TextEditingController();
   TextEditingController? aiNameController;
   final meetStoryController = TextEditingController();

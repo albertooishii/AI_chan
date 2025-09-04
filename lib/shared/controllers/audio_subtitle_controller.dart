@@ -91,8 +91,18 @@ class AudioSubtitleController {
       0.0,
       1.0,
     );
-    final targetLen = (fullText.length * ratio).floor();
-    final revealed = fullText.substring(0, targetLen);
+
+    // Mejorar cálculo para evitar subtítulos incompletos
+    int targetLen;
+    if (ratio >= 0.95) {
+      // Si estamos cerca del final (95%), mostrar texto completo
+      targetLen = fullText.length;
+    } else {
+      // Usar ceiling en lugar de floor para ser más inclusivo
+      targetLen = (fullText.length * ratio).ceil();
+    }
+
+    final revealed = fullText.substring(0, targetLen.clamp(0, fullText.length));
     _manualTextCtrl.add(revealed);
   }
 
