@@ -421,16 +421,16 @@ class _ChatScreenState extends State<ChatScreen> {
       final navCtx = context;
       final navigator = Navigator.of(navCtx);
       if (chatProvider.isCalling) {
-        // Abrir VoiceCallChat en modo incoming solo si no hay ya otra ruta de llamada
+        // Abrir VoiceCallScreen en modo incoming solo si no hay ya otra ruta de llamada
         final alreadyOpen =
-            navigator.widget is VoiceCallChat; // heurístico simple
+            navigator.widget is VoiceCallScreen; // heurístico simple
         if (!alreadyOpen) {
           // Clear the calling flag to avoid reopening while the screen is active.
           chatProvider.clearPendingIncomingCall();
           navigator.push(
             MaterialPageRoute(
               builder: (_) =>
-                  VoiceCallChat(incoming: true, chatProvider: chatProvider),
+                  VoiceCallScreen(incoming: true, chatProvider: chatProvider),
             ),
           );
         }
@@ -571,7 +571,7 @@ class _ChatScreenState extends State<ChatScreen> {
               final existing = widget.chatProvider;
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => VoiceCallChat(chatProvider: existing),
+                  builder: (_) => VoiceCallScreen(chatProvider: existing),
                 ),
               );
             },
