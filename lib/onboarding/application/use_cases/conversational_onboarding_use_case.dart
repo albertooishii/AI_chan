@@ -22,7 +22,8 @@ class ConversationalOnboardingUseCase {
     );
 
     // Manejar confirmaciones pendientes
-    if (currentState.isWaitingForConfirmation && currentState.pendingValidationValue != null) {
+    if (currentState.isWaitingForConfirmation &&
+        currentState.pendingValidationValue != null) {
       if (_isPositiveConfirmation(userResponse)) {
         return await _handlePositiveConfirmation(currentState, operationId);
       } else {
@@ -36,7 +37,8 @@ class ConversationalOnboardingUseCase {
     }
 
     // Manejar sugerencias de historia
-    if (currentState.currentStep == OnboardingStep.askingMeetStory && _isRequestingStory(userResponse)) {
+    if (currentState.currentStep == OnboardingStep.askingMeetStory &&
+        _isRequestingStory(userResponse)) {
       return currentState.copyWith(
         tempSuggestedStory: await _generateStorySuggestion(currentState),
         operationId: operationId,
@@ -94,8 +96,13 @@ class ConversationalOnboardingUseCase {
         lowerResponse.contains('bien');
   }
 
-  Future<OnboardingState> _handlePositiveConfirmation(OnboardingState state, int operationId) async {
-    Log.d('✅ CONFIRMACIÓN POSITIVA - Guardando valor: ${state.pendingValidationValue}');
+  Future<OnboardingState> _handlePositiveConfirmation(
+    OnboardingState state,
+    int operationId,
+  ) async {
+    Log.d(
+      '✅ CONFIRMACIÓN POSITIVA - Guardando valor: ${state.pendingValidationValue}',
+    );
 
     final updatedData = Map<String, dynamic>.from(state.collectedData);
     final value = state.pendingValidationValue!;
@@ -106,7 +113,8 @@ class ConversationalOnboardingUseCase {
         updatedData['userCountry'] = value;
         break;
       case OnboardingStep.askingBirthday:
-        updatedData['userBirthday'] = DateTime.tryParse(value) ?? DateTime.now();
+        updatedData['userBirthday'] =
+            DateTime.tryParse(value) ?? DateTime.now();
         break;
       case OnboardingStep.askingAiCountry:
         updatedData['aiCountry'] = value;
@@ -126,13 +134,19 @@ class ConversationalOnboardingUseCase {
     );
   }
 
-  OnboardingState _clearValidationState(OnboardingState state, int operationId) {
+  OnboardingState _clearValidationState(
+    OnboardingState state,
+    int operationId,
+  ) {
     Log.d('❌ Limpiando validación pendiente');
     return state.copyWith(operationId: operationId);
   }
 
   OnboardingState _advanceToCompletion(OnboardingState state, int operationId) {
-    return state.copyWith(currentStep: OnboardingStep.completion, operationId: operationId);
+    return state.copyWith(
+      currentStep: OnboardingStep.completion,
+      operationId: operationId,
+    );
   }
 
   bool _isRequestingStory(String response) {
@@ -148,7 +162,11 @@ class ConversationalOnboardingUseCase {
     return 'Nos conocimos en una cafetería mientras esperábamos nuestros pedidos...';
   }
 
-  Future<OnboardingState> _processWithAI(String userResponse, OnboardingState currentState, int operationId) async {
+  Future<OnboardingState> _processWithAI(
+    String userResponse,
+    OnboardingState currentState,
+    int operationId,
+  ) async {
     try {
       final processedData = await ConversationalAIService.processUserResponse(
         userResponse: userResponse,
@@ -157,7 +175,11 @@ class ConversationalOnboardingUseCase {
         previousData: currentState.collectedData,
       );
 
-      return _updateStateFromAIResponse(currentState, processedData, operationId);
+      return _updateStateFromAIResponse(
+        currentState,
+        processedData,
+        operationId,
+      );
     } catch (e) {
       Log.e('Error procesando con IA: $e');
       return currentState.copyWith(operationId: operationId);
@@ -196,7 +218,8 @@ class ConversationalOnboardingUseCase {
 
     // Determinar si avanzar al siguiente paso
     if (aiResponse['shouldAdvanceStep'] == true || shouldAdvanceStep) {
-      final nextStep = currentState.currentStep.nextStep ?? OnboardingStep.completion;
+      final nextStep =
+          currentState.currentStep.nextStep ?? OnboardingStep.completion;
       return currentState.copyWith(
         currentStep: nextStep,
         collectedData: updatedData,

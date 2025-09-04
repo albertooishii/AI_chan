@@ -29,8 +29,10 @@ class OnboardingState {
     return OnboardingState(
       currentStep: currentStep ?? this.currentStep,
       collectedData: collectedData ?? this.collectedData,
-      pendingValidationValue: pendingValidationValue ?? this.pendingValidationValue,
-      isWaitingForConfirmation: isWaitingForConfirmation ?? this.isWaitingForConfirmation,
+      pendingValidationValue:
+          pendingValidationValue ?? this.pendingValidationValue,
+      isWaitingForConfirmation:
+          isWaitingForConfirmation ?? this.isWaitingForConfirmation,
       tempSuggestedStory: tempSuggestedStory ?? this.tempSuggestedStory,
       operationId: operationId ?? this.operationId,
     );

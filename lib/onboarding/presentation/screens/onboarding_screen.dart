@@ -1,5 +1,4 @@
 import 'package:ai_chan/core/presentation/widgets/cyberpunk_button.dart';
-// onboarding_provider imported once below; avoid duplicate import
 import 'package:ai_chan/chat/application/providers/chat_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/constants/app_colors.dart';
@@ -7,19 +6,15 @@ import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import '../widgets/birth_date_field.dart';
 import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dart';
-// import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/locale_utils.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
-import 'package:file_picker/file_picker.dart';
-import 'dart:io';
 import 'dart:math';
-// archive and convert handled by BackupService
-import 'package:ai_chan/shared/services/backup_service.dart';
 import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
 import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
 import 'package:ai_chan/shared/widgets/country_autocomplete.dart';
 import 'package:ai_chan/shared/widgets/female_name_autocomplete.dart';
+import 'package:ai_chan/onboarding/application/controllers/form_onboarding_controller.dart';
 import 'conversational_onboarding_screen.dart';
 
 /// Callback typedef para finalizar el onboarding
@@ -116,6 +111,9 @@ class _OnboardingScreenContent extends StatefulWidget {
 }
 
 class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
+  // Clean Architecture: Controller para manejar lógica de negocio
+  late final FormOnboardingController _formController;
+
   // Persisted Google account fallback (removed: menu now shows a static entry)
 
   // Subtítulo con divisor para secciones (estilo sutil)
@@ -150,17 +148,19 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
     );
   }
 
+  // Clean Architecture: Use FormOnboardingController instead of inline logic
   Future<void> _handleImportJson(OnboardingProvider provider) async {
-    final result = await chat_json_utils.ChatJsonUtils.importJsonFile();
-    if (!mounted) return;
-    final String? jsonStr = result.$1;
-    final String? error = result.$2;
-    if (!mounted) return;
-    if (error != null) {
+    final success = await _formController.importFromJson();
+
+    if (success && _formController.importedData != null) {
+      if (widget.onImportJson != null) {
+        await widget.onImportJson!(_formController.importedData!);
+      }
+    } else if (_formController.hasError) {
       await showAppDialog(
         builder: (ctx) => AlertDialog(
-          title: const Text('Error al leer archivo'),
-          content: Text(error),
+          title: const Text('Error al importar'),
+          content: Text(_formController.errorMessage!),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
@@ -169,108 +169,36 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
           ],
         ),
       );
-      return;
-    }
-    if (jsonStr != null &&
-        jsonStr.trim().isNotEmpty &&
-        widget.onImportJson != null) {
-      String? importError;
-      final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
-        jsonStr,
-        onError: (err) => importError = err,
-      );
-      if (importError != null || imported == null) {
-        if (!mounted) return;
-        await showAppDialog(
-          builder: (ctx) => AlertDialog(
-            title: const Text('Error al importar'),
-            content: Text(
-              'No se pudo importar la biografía: campo problemático: ${importError ?? 'Error desconocido'}',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-        return;
-      }
-      await widget.onImportJson!(imported);
     }
   }
 
+  // Clean Architecture: Use FormOnboardingController for backup restoration
   Future<void> _handleRestoreFromLocal(OnboardingProvider provider) async {
-    try {
-      final result = await FilePicker.platform.pickFiles();
-      if (result == null || result.files.isEmpty) return;
-      final path = result.files.first.path;
-      if (path == null) return;
-      final f = File(path);
+    final success = await _formController.restoreFromLocalBackup();
 
-      // Usar BackupService para extraer JSON y restaurar imágenes/audio en sus carpetas
-      final jsonStr = await BackupService.extractJsonAndRestoreMedia(f);
-
-      if (jsonStr.trim().isEmpty) {
-        await showAppDialog(
-          builder: (ctx) => AlertDialog(
-            title: const Text('Error'),
-            content: const Text('Archivo vacío o no contiene JSON'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-        return;
-      }
-
-      final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
-        jsonStr,
-        onError: (err) => provider.setImportError(err),
-      );
-      if (imported == null) {
-        await showAppDialog(
-          builder: (ctx) => AlertDialog(
-            title: const Text('Error al importar'),
-            content: Text(provider.importError ?? 'Error desconocido'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-        return;
-      }
-
+    if (success && _formController.importedData != null) {
       if (widget.onImportJson != null) {
-        await widget.onImportJson!(imported);
-        return;
+        await widget.onImportJson!(_formController.importedData!);
+      } else {
+        await showAppDialog(
+          builder: (ctx) => AlertDialog(
+            title: const Text('Restauración completada'),
+            content: const Text('Biografía, imágenes y audios restaurados.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+        if (mounted) setState(() {});
       }
-
+    } else if (_formController.hasError) {
       await showAppDialog(
         builder: (ctx) => AlertDialog(
-          title: const Text('Restauración completada'),
-          content: const Text('Biografía, imágenes y audios restaurados.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-      if (mounted) setState(() {});
-    } catch (e) {
-      await showAppDialog(
-        builder: (ctx) => AlertDialog(
-          title: const Text('Error'),
-          content: Text(e.toString()),
+          title: const Text('Error al restaurar'),
+          content: Text(_formController.errorMessage!),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
@@ -297,6 +225,8 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
   @override
   void initState() {
     super.initState();
+    // Clean Architecture: Initialize controller
+    _formController = FormOnboardingController();
     _userNameController = TextEditingController(
       text: widget.onboardingProvider.userNameController.text,
     );
@@ -309,6 +239,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
   void dispose() {
     widget.onboardingProvider.removeListener(_onProviderChanged);
     _userNameController.dispose();
+    _formController.dispose();
     super.dispose();
   }
 
@@ -828,36 +759,40 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               CyberpunkButton(
                 onPressed: _formCompleto && !provider.loadingStory
                     ? () async {
-                        // Forzar sincronización de todos los valores del formulario
-                        provider.setUserName(provider.userNameController.text);
-                        provider.setAiName(
-                          provider.aiNameController?.text ?? '',
-                        );
-                        provider.setMeetStory(
-                          provider.meetStoryController.text,
-                        );
-                        final birthText = provider.birthDateController.text;
-                        if (birthText.isNotEmpty) {
-                          final parts = birthText.split('/');
-                          if (parts.length == 3) {
-                            final parsed = DateTime(
-                              int.parse(parts[2]),
-                              int.parse(parts[1]),
-                              int.parse(parts[0]),
-                            );
-                            provider.setUserBirthday(parsed);
-                          }
-                        }
-
-                        await widget.onFinish(
+                        // Clean Architecture: Use FormOnboardingController for form processing
+                        final result = await _formController.processForm(
                           userName: provider.userNameController.text,
                           aiName: provider.aiNameController?.text ?? '',
-                          userBirthday: provider.userBirthday!,
+                          birthDateText: provider.birthDateController.text,
                           meetStory: provider.meetStoryController.text,
                           userCountryCode: provider.userCountryCode,
                           aiCountryCode: provider.aiCountryCode,
-                          appearance: null,
                         );
+
+                        if (result.success) {
+                          await widget.onFinish(
+                            userName: result.userName!,
+                            aiName: result.aiName!,
+                            userBirthday: result.userBirthday!,
+                            meetStory: result.meetStory!,
+                            userCountryCode: result.userCountryCode,
+                            aiCountryCode: result.aiCountryCode,
+                            appearance: null,
+                          );
+                        } else {
+                          await showAppDialog(
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Error en el formulario'),
+                              content: Text(result.errorMessage),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(ctx).pop(),
+                                  child: const Text('OK'),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
                       }
                     : null,
                 text: 'コンティニュー',

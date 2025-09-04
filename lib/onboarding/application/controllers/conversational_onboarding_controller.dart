@@ -24,7 +24,10 @@ class ConversationalOnboardingController extends ChangeNotifier {
   final ConversationalSubtitleController _subtitleController;
 
   // Estado interno
-  OnboardingState _state = const OnboardingState(currentStep: OnboardingStep.awakening, collectedData: {});
+  OnboardingState _state = const OnboardingState(
+    currentStep: OnboardingStep.awakening,
+    collectedData: {},
+  );
 
   // Estado de UI
   bool _isListening = false;
@@ -66,7 +69,10 @@ class ConversationalOnboardingController extends ChangeNotifier {
   }
 
   /// Procesa una respuesta del usuario (voz o texto)
-  Future<void> processUserResponse(String userResponse, {bool fromTextInput = false}) async {
+  Future<void> processUserResponse(
+    String userResponse, {
+    bool fromTextInput = false,
+  }) async {
     if (userResponse.trim().isEmpty) {
       await _retryCurrentStep();
       return;
@@ -78,11 +84,17 @@ class ConversationalOnboardingController extends ChangeNotifier {
     _subtitleController.handleUserTranscription(userResponse);
 
     try {
-      final newState = await _useCase.processUserResponse(userResponse: userResponse, currentState: _state);
+      final newState = await _useCase.processUserResponse(
+        userResponse: userResponse,
+        currentState: _state,
+      );
 
       // Verificar si la operación fue cancelada por una nueva
       if (newState.operationId != _state.operationId + 1) {
-        Log.d('🔄 Operación cancelada, ignorando resultado', tag: 'CONV_CONTROLLER');
+        Log.d(
+          '🔄 Operación cancelada, ignorando resultado',
+          tag: 'CONV_CONTROLLER',
+        );
         _updateUIState(isThinking: false);
         return;
       }
@@ -122,7 +134,10 @@ class ConversationalOnboardingController extends ChangeNotifier {
       if (message.isNotEmpty) {
         await _speakAndWaitForResponse(message);
       } else {
-        Log.w('Mensaje vacío generado por IA, reintentando...', tag: 'CONV_CONTROLLER');
+        Log.w(
+          'Mensaje vacío generado por IA, reintentando...',
+          tag: 'CONV_CONTROLLER',
+        );
         await _retryCurrentStep();
       }
     } catch (e) {
@@ -184,7 +199,9 @@ class ConversationalOnboardingController extends ChangeNotifier {
 
   Future<void> _speakAndWaitForResponse(String text) async {
     if (text.trim().isEmpty) {
-      Log.e('🚨 Texto vacío detectado en TTS - Intento ${_ttsRetryCount + 1}/$_maxTtsRetries');
+      Log.e(
+        '🚨 Texto vacío detectado en TTS - Intento ${_ttsRetryCount + 1}/$_maxTtsRetries',
+      );
 
       _ttsRetryCount++;
       if (_ttsRetryCount <= _maxTtsRetries) {
@@ -193,7 +210,8 @@ class ConversationalOnboardingController extends ChangeNotifier {
         return;
       } else {
         _ttsRetryCount = 0;
-        const fallbackMessage = 'Disculpa, hay un problema en mi sistema. Vamos a intentar continuar...';
+        const fallbackMessage =
+            'Disculpa, hay un problema en mi sistema. Vamos a intentar continuar...';
         await _speakAndWaitForResponse(fallbackMessage);
         return;
       }
@@ -222,9 +240,15 @@ class ConversationalOnboardingController extends ChangeNotifier {
       if (audioFilePath != null) {
         Log.d('✅ TTS archivo generado: $audioFilePath', tag: 'CONV_CONTROLLER');
 
-        final audioDuration = await AudioDurationUtils.getAudioDuration(audioFilePath);
+        final audioDuration = await AudioDurationUtils.getAudioDuration(
+          audioFilePath,
+        );
 
-        _subtitleController.handleAiChunk(text, audioStarted: true, suppressFurther: false);
+        _subtitleController.handleAiChunk(
+          text,
+          audioStarted: true,
+          suppressFurther: false,
+        );
 
         await _audioPlayer.play(DeviceFileSource(audioFilePath));
 
@@ -235,15 +259,26 @@ class ConversationalOnboardingController extends ChangeNotifier {
           await Future.delayed(estimatedDuration);
         }
       } else {
-        Log.w('⚠️ TTS falló, continuando solo con subtítulos', tag: 'CONV_CONTROLLER');
-        _subtitleController.handleAiChunk(text, audioStarted: true, suppressFurther: false);
+        Log.w(
+          '⚠️ TTS falló, continuando solo con subtítulos',
+          tag: 'CONV_CONTROLLER',
+        );
+        _subtitleController.handleAiChunk(
+          text,
+          audioStarted: true,
+          suppressFurther: false,
+        );
 
         final estimatedDuration = _estimateSpeechDuration(text);
         await Future.delayed(estimatedDuration);
       }
     } catch (e) {
       Log.e('Error en TTS: $e', tag: 'CONV_CONTROLLER');
-      _subtitleController.handleAiChunk(text, audioStarted: true, suppressFurther: false);
+      _subtitleController.handleAiChunk(
+        text,
+        audioStarted: true,
+        suppressFurther: false,
+      );
 
       final estimatedDuration = _estimateSpeechDuration(text);
       await Future.delayed(estimatedDuration);
@@ -268,18 +303,23 @@ class ConversationalOnboardingController extends ChangeNotifier {
         }
         processUserResponse(text);
       },
-      contextPrompt: 'Conversación sobre nombres, fechas de nacimiento y países de origen.',
+      contextPrompt:
+          'Conversación sobre nombres, fechas de nacimiento y países de origen.',
     );
   }
 
   Future<void> _retryCurrentStep() async {
-    Log.d('🔄 Reintentando paso actual: ${_state.currentStep.stepName}', tag: 'CONV_CONTROLLER');
+    Log.d(
+      '🔄 Reintentando paso actual: ${_state.currentStep.stepName}',
+      tag: 'CONV_CONTROLLER',
+    );
     await generateNextAIMessage();
   }
 
   Future<void> _showStorySuggestions() async {
     // Implementar lógica para mostrar sugerencias de historia
-    final story = _state.tempSuggestedStory ?? 'Nos conocimos en una cafetería...';
+    final story =
+        _state.tempSuggestedStory ?? 'Nos conocimos en una cafetería...';
     await _speakAndWaitForResponse('¿Qué te parece esta historia: $story?');
   }
 

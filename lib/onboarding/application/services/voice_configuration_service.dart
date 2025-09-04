@@ -38,9 +38,13 @@ class VoiceConfigurationService {
           'manteniendo el acento y patrones de habla de su idioma original.';
     }
 
-    final finalInstructions = 'Habla con voz femenina joven y dulce. $accentInstructions';
+    final finalInstructions =
+        'Habla con voz femenina joven y dulce. $accentInstructions';
 
-    Log.d('🎵 Instrucciones de voz generadas: "$finalInstructions"', tag: 'VOICE_CONFIG');
+    Log.d(
+      '🎵 Instrucciones de voz generadas: "$finalInstructions"',
+      tag: 'VOICE_CONFIG',
+    );
     return finalInstructions;
   }
 
@@ -57,7 +61,8 @@ class VoiceConfigurationService {
       'voice': 'marin',
       'model': 'tts-1-hd',
       'speed': 1.0,
-      'instructions': 'Habla con voz femenina joven y dulce, con acento neutro en español.',
+      'instructions':
+          'Habla con voz femenina joven y dulce, con acento neutro en español.',
     };
   }
 
@@ -75,6 +80,11 @@ class VoiceConfigurationService {
       speed = 0.95; // Habla un poco más pausada
     }
 
-    return {'voice': voice, 'model': 'tts-1-hd', 'speed': speed, 'instructions': instructions};
+    return {
+      'voice': voice,
+      'model': 'tts-1-hd',
+      'speed': speed,
+      'instructions': instructions,
+    };
   }
 }

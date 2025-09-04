@@ -20,6 +20,8 @@ fi
 
 echo "[pre-commit] Formatting code with dart format..."
 dart format lib/ test/
+# Si hubo cambios de formateo, agregarlos automáticamente
+git add lib/ test/
 
 echo "[pre-commit] Applying automatic fixes with dart fix..."
 dart fix --apply
@@ -28,6 +30,12 @@ echo "[pre-commit] Running flutter analyze..."
 flutter analyze
 
 echo "[pre-commit] Running flutter test..."
-flutter test --coverage
+if flutter test --coverage; then
+    echo "✅ [pre-commit] TESTS PASSED!"
+else
+    echo "❌ [pre-commit] TESTS FAILED! Commit aborted."
+    echo "💡 Use 'git commit --no-verify' to skip pre-commit hooks if needed."
+    exit 1
+fi
 
-echo "[pre-commit] All checks passed."
+echo "🎉 [pre-commit] ALL CHECKS PASSED SUCCESSFULLY!"

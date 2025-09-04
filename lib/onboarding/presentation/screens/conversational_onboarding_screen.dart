@@ -26,10 +26,13 @@ class ConversationalOnboardingScreen extends StatefulWidget {
   });
 
   @override
-  State<ConversationalOnboardingScreen> createState() => _ConversationalOnboardingScreenState();
+  State<ConversationalOnboardingScreen> createState() =>
+      _ConversationalOnboardingScreenState();
 }
 
-class _ConversationalOnboardingScreenState extends State<ConversationalOnboardingScreen> with TickerProviderStateMixin {
+class _ConversationalOnboardingScreenState
+    extends State<ConversationalOnboardingScreen>
+    with TickerProviderStateMixin {
   // Controller y servicios
   late ConversationalOnboardingController _controller;
   late HybridSttService _hybridSttService;
@@ -77,12 +80,14 @@ class _ConversationalOnboardingScreenState extends State<ConversationalOnboardin
   }
 
   void _initializeAnimations() {
-    _pulseController = AnimationController(duration: const Duration(seconds: 2), vsync: this);
+    _pulseController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    );
 
-    _pulseAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.2,
-    ).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut));
+    _pulseAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
 
     _pulseController.repeat(reverse: true);
   }
@@ -134,7 +139,10 @@ class _ConversationalOnboardingScreenState extends State<ConversationalOnboardin
     }
 
     // Validar datos requeridos
-    if (userName.isEmpty || aiName.isEmpty || userBirthday == null || meetStory.isEmpty) {
+    if (userName.isEmpty ||
+        aiName.isEmpty ||
+        userBirthday == null ||
+        meetStory.isEmpty) {
       Log.e('Cannot finish onboarding: missing required data');
       return;
     }
@@ -199,7 +207,10 @@ class _ConversationalOnboardingScreenState extends State<ConversationalOnboardin
           const Spacer(),
           if (widget.onClearAllDebug != null)
             IconButton(
-              icon: Icon(Icons.refresh, color: AppColors.primary.withValues(alpha: 0.6)),
+              icon: Icon(
+                Icons.refresh,
+                color: AppColors.primary.withValues(alpha: 0.6),
+              ),
               onPressed: widget.onClearAllDebug,
             ),
         ],
@@ -239,7 +250,11 @@ class _ConversationalOnboardingScreenState extends State<ConversationalOnboardin
                 ],
               ),
             ),
-            child: Icon(Icons.person, size: 80, color: AppColors.primary.withValues(alpha: 0.8)),
+            child: Icon(
+              Icons.person,
+              size: 80,
+              color: AppColors.primary.withValues(alpha: 0.8),
+            ),
           ),
           builder: (context, child) {
             return Transform.scale(scale: _pulseAnimation.value, child: child);
@@ -280,7 +295,11 @@ class _ConversationalOnboardingScreenState extends State<ConversationalOnboardin
         const SizedBox(width: 8),
         Text(
           status,
-          style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.w500),
+          style: TextStyle(
+            color: color,
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ],
     );
