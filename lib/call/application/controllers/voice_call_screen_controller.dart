@@ -6,15 +6,14 @@ import 'package:ai_chan/call/application/use_cases/start_call_use_case.dart';
 import 'package:ai_chan/call/application/use_cases/end_call_use_case.dart';
 import 'package:ai_chan/call/application/use_cases/handle_incoming_call_use_case.dart';
 import 'package:ai_chan/call/application/use_cases/manage_audio_use_case.dart';
-import 'package:ai_chan/call/infrastructure/adapters/call_controller.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 
 class VoiceCallScreenController extends ChangeNotifier {
   final ChatProvider _chatProvider;
-  final StartCallUseCase _startCallUseCase;
-  final EndCallUseCase _endCallUseCase;
-  final HandleIncomingCallUseCase _handleIncomingCallUseCase;
-  final ManageAudioUseCase _manageAudioUseCase;
+  late final StartCallUseCase _startCallUseCase;
+  late final EndCallUseCase _endCallUseCase;
+  late final HandleIncomingCallUseCase _handleIncomingCallUseCase;
+  late final ManageAudioUseCase _manageAudioUseCase;
 
   VoiceCallState _state;
   Timer? _incomingAnswerTimer;
@@ -23,21 +22,17 @@ class VoiceCallScreenController extends ChangeNotifier {
 
   VoiceCallScreenController({
     required ChatProvider chatProvider,
-    required CallController callController,
     required CallType callType,
-    StartCallUseCase? startCallUseCase,
-    EndCallUseCase? endCallUseCase,
-    HandleIncomingCallUseCase? handleIncomingCallUseCase,
-    ManageAudioUseCase? manageAudioUseCase,
+    required StartCallUseCase startCallUseCase,
+    required EndCallUseCase endCallUseCase,
+    required HandleIncomingCallUseCase handleIncomingCallUseCase,
+    required ManageAudioUseCase manageAudioUseCase,
   }) : _chatProvider = chatProvider,
        _state = VoiceCallState(type: callType),
-       _startCallUseCase = startCallUseCase ?? StartCallUseCase(callController),
-       _endCallUseCase = endCallUseCase ?? EndCallUseCase(callController),
-       _handleIncomingCallUseCase =
-           handleIncomingCallUseCase ??
-           HandleIncomingCallUseCase(callController),
-       _manageAudioUseCase =
-           manageAudioUseCase ?? ManageAudioUseCase(callController);
+       _startCallUseCase = startCallUseCase,
+       _endCallUseCase = endCallUseCase,
+       _handleIncomingCallUseCase = handleIncomingCallUseCase,
+       _manageAudioUseCase = manageAudioUseCase;
 
   VoiceCallState get state => _state;
   bool get isIncoming => _state.isIncoming;
@@ -172,15 +167,11 @@ class VoiceCallScreenController extends ChangeNotifier {
 
   Future<void> _startCallInternal() async {
     try {
-      final systemPrompt = _chatProvider.buildCallSystemPromptJson(
-        aiInitiatedCall: _state.isIncoming,
-      );
+      // TODO: En el futuro, el sistema será más complejo y manejará el prompt del sistema
+      // Por ahora, simplemente iniciamos la llamada
 
       await _startCallUseCase.execute(
-        systemPrompt: systemPrompt,
         isIncoming: _state.isIncoming,
-        onTextReceived: _handleAIText,
-        onUserTranscription: _handleUserTranscription,
         onCallStarted: () =>
             _updateState(_state.copyWith(phase: CallPhase.active)),
         onCallEnded: (reason) => _endCall(reason: reason),
@@ -199,26 +190,6 @@ class VoiceCallScreenController extends ChangeNotifier {
         ),
       );
     }
-  }
-
-  void _handleAIText(String text) {
-    _updateState(_state.copyWith(aiText: _state.aiText + text));
-
-    // Detectar tags de control
-    if (text.contains('[start_call]')) {
-      _updateState(_state.copyWith(startCallTagReceived: true));
-    }
-
-    if (text.contains('[end_call]')) {
-      _updateState(_state.copyWith(endCallTagReceived: true));
-      _endCall(reason: CallEndReason.hangup);
-    }
-  }
-
-  void _handleUserTranscription(String transcription) {
-    _updateState(
-      _state.copyWith(userText: '${_state.userText}$transcription '),
-    );
   }
 
   void toggleMute() {

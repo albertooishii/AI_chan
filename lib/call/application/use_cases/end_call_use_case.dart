@@ -1,14 +1,14 @@
 import 'dart:async';
 import 'package:ai_chan/call/domain/entities/voice_call_state.dart';
 import 'package:ai_chan/chat/application/providers/chat_provider.dart';
-import 'package:ai_chan/call/infrastructure/adapters/call_controller.dart';
+import 'package:ai_chan/call/domain/interfaces/call_interfaces.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/core/models.dart';
 
 class EndCallUseCase {
-  final CallController _callController;
+  final ICallManager _callManager;
 
-  EndCallUseCase(this._callController);
+  EndCallUseCase(this._callManager);
 
   Future<void> execute({
     required ChatProvider chatProvider,
@@ -17,39 +17,13 @@ class EndCallUseCase {
     try {
       Log.d('🔚 EndCallUseCase: Finalizando llamada', tag: 'END_CALL_USE_CASE');
 
-      // Silenciar micrófono inmediatamente
-      _callController.setMuted(true);
-
-      // Reproducir tono de colgado
-      try {
-        unawaited(_callController.playHangupTone());
-      } catch (e) {
-        Log.d(
-          '⚠️ Error reproduciendo tono de colgado: $e',
-          tag: 'END_CALL_USE_CASE',
-        );
-      }
-
-      // Determinar si hubo conversación real
-      final hadConversation =
-          _callController.userSpokeFlag ||
-          _callController.firstAudioReceivedFlag;
-      final placeholderIndex = chatProvider.pendingIncomingCallMsgIndex;
-
-      // Lógica de categorización de llamada
-      final shouldMarkRejected = callState.forceReject;
-      final shouldMarkMissed = !shouldMarkRejected && !hadConversation;
-
-      // Detener controller
-      await _stopCallController();
+      // Finalizar llamada
+      await _callManager.endCall();
 
       // Actualizar estado en ChatProvider
       await _updateChatProvider(
         chatProvider: chatProvider,
         callState: callState,
-        markRejected: shouldMarkRejected,
-        markMissed: shouldMarkMissed,
-        placeholderIndex: placeholderIndex,
       );
 
       Log.d(
@@ -62,35 +36,26 @@ class EndCallUseCase {
     }
   }
 
-  Future<void> _stopCallController() async {
-    try {
-      await _callController
-          .stop(keepFxPlaying: true)
-          .timeout(const Duration(milliseconds: 800));
-    } catch (e) {
-      Log.d('⚠️ Error deteniendo controller: $e', tag: 'END_CALL_USE_CASE');
-    }
-  }
-
   Future<void> _updateChatProvider({
     required ChatProvider chatProvider,
     required VoiceCallState callState,
-    required bool markRejected,
-    required bool markMissed,
-    required int? placeholderIndex,
   }) async {
     try {
-      if (markRejected) {
+      // Determinar tipo de finalización de llamada
+      final shouldMarkRejected = callState.forceReject;
+      final shouldMarkMissed =
+          callState.endReason == CallEndReason.timeout ||
+          callState.endReason == CallEndReason.missed;
+
+      if (shouldMarkRejected) {
         await _handleRejectedCall(
           chatProvider: chatProvider,
           callState: callState,
-          placeholderIndex: placeholderIndex,
         );
-      } else if (markMissed) {
+      } else if (shouldMarkMissed) {
         await _handleMissedCall(
           chatProvider: chatProvider,
           callState: callState,
-          placeholderIndex: placeholderIndex,
         );
       } else {
         await _handleCompletedCall(
@@ -110,43 +75,25 @@ class EndCallUseCase {
   Future<void> _handleRejectedCall({
     required ChatProvider chatProvider,
     required VoiceCallState callState,
-    required int? placeholderIndex,
   }) async {
     final rejectionText = _getRejectionText(callState.endReason);
 
-    if (placeholderIndex != null) {
-      chatProvider.rejectIncomingCallPlaceholder(
-        index: placeholderIndex,
-        text: rejectionText,
-      );
-    } else {
-      await chatProvider.updateOrAddCallStatusMessage(
-        text: rejectionText,
-        callStatus: CallStatus.rejected,
-        incoming: callState.isIncoming,
-        placeholderIndex: placeholderIndex,
-      );
-    }
+    await chatProvider.updateOrAddCallStatusMessage(
+      text: rejectionText,
+      callStatus: CallStatus.rejected,
+      incoming: callState.isIncoming,
+    );
   }
 
   Future<void> _handleMissedCall({
     required ChatProvider chatProvider,
     required VoiceCallState callState,
-    required int? placeholderIndex,
   }) async {
-    if (placeholderIndex != null) {
-      chatProvider.rejectIncomingCallPlaceholder(
-        index: placeholderIndex,
-        text: 'Llamada sin contestar',
-      );
-    } else {
-      await chatProvider.updateOrAddCallStatusMessage(
-        text: 'Llamada sin contestar',
-        callStatus: CallStatus.missed,
-        incoming: callState.isIncoming,
-        placeholderIndex: placeholderIndex,
-      );
-    }
+    await chatProvider.updateOrAddCallStatusMessage(
+      text: 'Llamada sin contestar',
+      callStatus: CallStatus.missed,
+      incoming: callState.isIncoming,
+    );
   }
 
   Future<void> _handleCompletedCall({

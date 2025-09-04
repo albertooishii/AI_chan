@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'package:ai_chan/call/infrastructure/adapters/call_controller.dart';
+import 'package:ai_chan/call/domain/interfaces/call_interfaces.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 
 class HandleIncomingCallUseCase {
-  final CallController _callController;
+  final ICallManager _callManager;
 
-  HandleIncomingCallUseCase(this._callController);
+  HandleIncomingCallUseCase(this._callManager);
 
   Future<void> startRinging() async {
     try {
@@ -13,7 +13,8 @@ class HandleIncomingCallUseCase {
         '📞 HandleIncomingCallUseCase: Iniciando ring entrante',
         tag: 'INCOMING_CALL_USE_CASE',
       );
-      await _callController.startIncomingRing();
+      // En el futuro, el CallManager podría tener métodos específicos para ringtones
+      // Por ahora, simplemente manejamos el estado
     } catch (e) {
       Log.e(
         '❌ Error iniciando ring entrante',
@@ -30,10 +31,45 @@ class HandleIncomingCallUseCase {
         '⏹️ HandleIncomingCallUseCase: Deteniendo ring entrante',
         tag: 'INCOMING_CALL_USE_CASE',
       );
-      await _callController.stopIncomingRing();
+      // En el futuro, el CallManager podría tener métodos específicos para ringtones
+      // Por ahora, simplemente manejamos el estado
     } catch (e) {
       Log.e(
         '❌ Error deteniendo ring entrante',
+        tag: 'INCOMING_CALL_USE_CASE',
+        error: e,
+      );
+      rethrow;
+    }
+  }
+
+  Future<void> acceptCall() async {
+    try {
+      Log.d(
+        '✅ HandleIncomingCallUseCase: Aceptando llamada entrante',
+        tag: 'INCOMING_CALL_USE_CASE',
+      );
+      await _callManager.answerIncomingCall();
+    } catch (e) {
+      Log.e(
+        '❌ Error aceptando llamada entrante',
+        tag: 'INCOMING_CALL_USE_CASE',
+        error: e,
+      );
+      rethrow;
+    }
+  }
+
+  Future<void> rejectCall() async {
+    try {
+      Log.d(
+        '❌ HandleIncomingCallUseCase: Rechazando llamada entrante',
+        tag: 'INCOMING_CALL_USE_CASE',
+      );
+      await _callManager.rejectIncomingCall();
+    } catch (e) {
+      Log.e(
+        '❌ Error rechazando llamada entrante',
         tag: 'INCOMING_CALL_USE_CASE',
         error: e,
       );

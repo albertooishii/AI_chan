@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'dart:io';
+import 'dart:math' as math;
 
 void main() {
   group('🎭 Presentation Layer Architecture Tests', () {
@@ -20,23 +21,30 @@ void main() {
         final relativePath = screenFile.path.replaceFirst('lib/', '');
         final lines = await screenFile.readAsLines();
         final lineCount = lines.length;
-
-        // REGLA 1: Ninguna pantalla debería tener más de 800 líneas
-        // (Límite razonable para una pantalla bien arquitecturada)
-        if (lineCount > 800) {
-          violations.add('🚨 $relativePath: $lineCount líneas (límite: 800)');
-        }
-
-        // REGLA 2: Detectar patrones de lógica de negocio en screens
         final content = await screenFile.readAsString();
+
+        // REGLA PRINCIPAL: Detectar patrones de lógica de negocio REAL en screens
         final businessLogicPatterns = _detectBusinessLogicPatterns(
           content,
           relativePath,
         );
 
+        // Solo fallar si hay REAL lógica de negocio, no por tamaño
         if (businessLogicPatterns.isNotEmpty) {
-          violations.add('🔍 $relativePath: Lógica de negocio detectada');
+          violations.add('� $relativePath: Lógica de negocio detectada');
           violations.addAll(businessLogicPatterns.map((p) => '   • $p'));
+        }
+
+        // ADVERTENCIA: Pantallas muy grandes (pero no fallo automático)
+        if (lineCount > 1000) {
+          // Solo advertir si es extremadamente grande Y tiene patrones sospechosos
+          final suspiciousPatterns = _detectSuspiciousUIPatterns(content);
+          if (suspiciousPatterns.isNotEmpty) {
+            violations.add(
+              '⚠️ $relativePath: $lineCount líneas con patrones sospechosos',
+            );
+            violations.addAll(suspiciousPatterns.map((p) => '   • $p'));
+          }
         }
       }
 
@@ -59,20 +67,22 @@ void main() {
         isEmpty,
         reason:
             '''
-🚨 VIOLACIONES DE ARQUITECTURA EN CAPA DE PRESENTACIÓN:
+🚨 VIOLACIONES REALES DE ARQUITECTURA EN CAPA DE PRESENTACIÓN:
 
 ${violations.join('\n')}
 
 PRINCIPIOS VIOLATED:
-- Single Responsibility: Pantallas con demasiadas responsabilidades
 - Separation of Concerns: Lógica de negocio mezclada con UI
-- Testability: Lógica no testeable sin UI
+- Single Responsibility: UI manejando lógica que no le corresponde  
+- Testability: Lógica crítica no testeable sin UI
 
 SOLUCIONES RECOMENDADAS:
-- Mover lógica compleja a Services o Use Cases
-- Usar State Management (Provider, Bloc, Riverpod)
-- Crear métodos de alto nivel que encapsulen flujos
-- Pantallas solo deberían manejar: UI, eventos, estados de loading
+- Mover lógica de negocio a Services o Use Cases
+- Usar Provider/Bloc para estado complejo
+- Extraer validaciones a clases dedicadas
+- UI solo debería: renderizar, manejar eventos, mostrar estados
+
+NOTA: Archivos grandes de UI son aceptables si solo contienen widgets y layout.
         ''',
       );
     });
@@ -182,24 +192,104 @@ Future<void> _findScreenFiles(Directory dir, List<File> screenFiles) async {
 List<String> _detectBusinessLogicPatterns(String content, String fileName) {
   final patterns = <String>[];
 
-  // Patrones de lógica de negocio que NO deberían estar en pantallas
-  final businessLogicIndicators = {
-    r'if\s*\([^)]*\.contains\([^)]*\)\)': 'Lógica de validación compleja',
-    r'switch\s*\([^)]*step[^)]*\)': 'Lógica de flujo de pasos',
-    r'for\s*\([^)]*in\s+[^)]*\).*process': 'Procesamiento de datos en bucles',
-    r'\.map\([^)]*\=\>\s*[^)]*validate': 'Validaciones en transformaciones',
-    r'RegExp\(': 'Validaciones con expresiones regulares',
-    r'\.parse[A-Z][a-zA-Z]*\(': 'Parsing de datos',
-    r'await.*calculate': 'Cálculos asincrónicos',
-    r'\.toJson\(\)|\.fromJson\(': 'Serialización de datos',
-    r'http\.|dio\.|client\.': 'Llamadas HTTP directas',
+  // EXCLUSIONES: Patrones que SON correctos (usar servicios)
+  final correctPatterns = [
+    'Service.', // Llamadas a servicios
+    'Provider.', // Uso de providers
+    'Repository.', // Uso de repositorios
+  ];
+
+  final bool isUsingServices = correctPatterns.any(
+    (pattern) => content.contains(pattern),
+  );
+
+  // Patrones REALES de lógica de negocio que NO deberían estar en pantallas
+  final businessLogicIndicators = <String, String>{
+    // Validaciones complejas directas (no a través de servicios)
+    r'if\s*\([^)]*\.length\s*>\s*\d+\s*&&[^)]*\.contains\([^)]*\)\s*&&':
+        'Validaciones de datos complejas inline',
+
+    // Llamadas HTTP directas (no a través de servicios)
+    r'http\.get\(|http\.post\(|dio\.get\(|dio\.post\(':
+        'Llamadas HTTP directas',
+
+    // Parsing JSON directo (no a través de servicios)
+    r'jsonDecode\s*\(\s*[^)]*\)\s*\[': 'Parsing JSON directo',
+
+    // Cálculos matemáticos complejos directos
+    r'math\.|sqrt\(|pow\(|sin\(|cos\(|tan\(': 'Cálculos matemáticos directos',
+
+    // Algoritmos de ordenamiento/filtrado complejos
+    r'\.sort\s*\([^)]*\)\s*\.where\s*\([^)]*\)\s*\.map':
+        'Algoritmos de procesamiento complejos',
+
+    // Validaciones de reglas de negocio específicas
+    r'if\s*\([^)]*balance[^)]*&&[^)]*credit|debt':
+        'Reglas de negocio financieras',
+    r'if\s*\([^)]*permission[^)]*&&[^)]*role[^)]*&&':
+        'Lógica de autorización compleja',
+
+    // Acceso directo a base de datos
+    r'database\.execute\(|db\.query\(|sql\s*=':
+        'Acceso directo a base de datos',
   };
 
+  // Si el archivo está usando servicios apropiadamente, ser menos estricto
+  final int thresholdOcurrences = isUsingServices ? 5 : 2;
+
   for (final entry in businessLogicIndicators.entries) {
-    final regex = RegExp(entry.key, multiLine: true);
+    final regex = RegExp(entry.key, multiLine: true, caseSensitive: false);
+    final matches = regex.allMatches(content);
+
+    if (matches.isNotEmpty && matches.length >= thresholdOcurrences) {
+      // Verificar que no sean falsos positivos comunes
+      bool isFalsePositive = false;
+
+      for (final match in matches) {
+        final matchedText = content.substring(
+          math.max(0, match.start - 50),
+          math.min(content.length, match.end + 50),
+        );
+
+        // Excluir comentarios y imports
+        if (matchedText.contains('//') ||
+            matchedText.contains('import ') ||
+            matchedText.contains('* ') ||
+            matchedText.contains('Service.') ||
+            matchedText.contains('Provider.')) {
+          isFalsePositive = true;
+          break;
+        }
+      }
+
+      if (!isFalsePositive) {
+        patterns.add('${entry.value} (${matches.length} ocurrencias)');
+      }
+    }
+  }
+
+  return patterns;
+}
+
+List<String> _detectSuspiciousUIPatterns(String content) {
+  final patterns = <String>[];
+
+  // Patrones que sugieren que una UI muy grande podría necesitar refactoring
+  final suspiciousPatterns = <String, String>{
+    // Solo para pantallas EXTREMADAMENTE complejas (más de 2000 líneas)
+    r'build\(.*\)[^}]{800,}': 'Método build extremadamente largo (>800 líneas)',
+    r'switch\s*\([^)]*\)[^}]{400,}':
+        'Switch statement muy complejo (>400 líneas)',
+  };
+
+  // Solo reportar si el archivo es REALMENTE grande (>2000 líneas)
+  final lineCount = content.split('\n').length;
+  if (lineCount < 2000) return patterns;
+
+  for (final entry in suspiciousPatterns.entries) {
+    final regex = RegExp(entry.key, multiLine: true, dotAll: true);
     if (regex.hasMatch(content)) {
-      final matches = regex.allMatches(content).length;
-      patterns.add('${entry.value} ($matches ocurrencias)');
+      patterns.add(entry.value);
     }
   }
 

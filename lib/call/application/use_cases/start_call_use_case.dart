@@ -1,19 +1,16 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:ai_chan/call/domain/entities/voice_call_state.dart';
-import 'package:ai_chan/call/infrastructure/adapters/call_controller.dart';
+import 'package:ai_chan/call/domain/interfaces/call_interfaces.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 
 class StartCallUseCase {
-  final CallController _callController;
+  final ICallManager _callManager;
 
-  StartCallUseCase(this._callController);
+  StartCallUseCase(this._callManager);
 
   Future<void> execute({
-    required String systemPrompt,
     required bool isIncoming,
-    required Function(String) onTextReceived,
-    required Function(String) onUserTranscription,
     required VoidCallback onCallStarted,
     required Function(CallEndReason) onCallEnded,
   }) async {
@@ -23,30 +20,20 @@ class StartCallUseCase {
         tag: 'START_CALL_USE_CASE',
       );
 
-      await _callController.startContinuousCall(
-        systemPrompt: systemPrompt,
-        onText: (text) {
-          onTextReceived(text);
+      // Escuchar cambios de estado
+      _callManager.callStateStream.listen((isActive) {
+        if (isActive) {
+          onCallStarted();
+        } else {
+          onCallEnded(CallEndReason.hangup);
+        }
+      });
 
-          // Detectar inicio de llamada
-          if (text.contains('[start_call]')) {
-            onCallStarted();
-          }
-
-          // Detectar fin de llamada
-          if (text.contains('[end_call]')) {
-            onCallEnded(CallEndReason.hangup);
-          }
-        },
-        onUserTranscription: onUserTranscription,
-        onHangupReason: (reason) {
-          final endReason = _mapHangupReasonToCallEndReason(reason);
-          onCallEnded(endReason);
-        },
-        suppressInitialAiRequest:
-            isIncoming, // Para llamadas entrantes, esperar al usuario
-        playRingback: !isIncoming, // Solo ringback en llamadas salientes
-      );
+      if (isIncoming) {
+        await _callManager.answerIncomingCall();
+      } else {
+        await _callManager.startCall();
+      }
 
       Log.d(
         '✅ StartCallUseCase: Llamada iniciada exitosamente',
@@ -60,24 +47,6 @@ class StartCallUseCase {
       );
       onCallEnded(CallEndReason.error);
       rethrow;
-    }
-  }
-
-  CallEndReason _mapHangupReasonToCallEndReason(String reason) {
-    switch (reason.toLowerCase()) {
-      case 'user_hangup':
-      case 'hangup':
-        return CallEndReason.hangup;
-      case 'timeout':
-      case 'no_answer':
-        return CallEndReason.timeout;
-      case 'rejected':
-      case 'reject':
-        return CallEndReason.rejected;
-      case 'missed':
-        return CallEndReason.missed;
-      default:
-        return CallEndReason.error;
     }
   }
 }

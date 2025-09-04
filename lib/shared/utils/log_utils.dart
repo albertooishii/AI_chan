@@ -20,7 +20,8 @@ class Log {
       case 'full':
         return LogLevel.debug;
       case 'basic':
-        return LogLevel.info;
+        return LogLevel
+            .debug; // Cambiado de info a debug para mostrar logs de debug
       case 'minimal':
         return LogLevel.warn;
       case 'off':

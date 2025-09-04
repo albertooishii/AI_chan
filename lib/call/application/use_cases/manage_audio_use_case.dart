@@ -1,15 +1,13 @@
 import 'dart:async';
-import 'package:ai_chan/call/infrastructure/adapters/call_controller.dart';
+import 'package:ai_chan/call/domain/interfaces/call_interfaces.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 
 class ManageAudioUseCase {
-  final CallController _callController;
-  final StreamController<double> _audioLevelController =
-      StreamController<double>.broadcast();
+  final IAudioManager _audioManager;
 
-  ManageAudioUseCase(this._callController);
+  ManageAudioUseCase(this._audioManager);
 
-  Stream<double> get audioLevelStream => _audioLevelController.stream;
+  Stream<double> get audioLevelStream => _audioManager.audioLevelStream;
 
   Future<void> initialize() async {
     try {
@@ -17,8 +15,7 @@ class ManageAudioUseCase {
         '🎵 ManageAudioUseCase: Inicializando gestión de audio',
         tag: 'AUDIO_USE_CASE',
       );
-      // TODO: Configurar streams de audio level del controller
-      // Por ahora simularemos con valores estáticos
+      await _audioManager.initialize();
     } catch (e) {
       Log.e(
         '❌ Error inicializando gestión de audio',
@@ -31,7 +28,7 @@ class ManageAudioUseCase {
 
   void setMuted(bool muted) {
     try {
-      _callController.setMuted(muted);
+      _audioManager.setMuted(muted);
       Log.d(
         '🎤 Audio ${muted ? "silenciado" : "activado"}',
         tag: 'AUDIO_USE_CASE',
@@ -41,12 +38,14 @@ class ManageAudioUseCase {
     }
   }
 
+  bool get isMuted => _audioManager.isMuted;
+
   void updateAudioLevel(double level) {
-    _audioLevelController.add(level);
+    _audioManager.updateAudioLevel(level);
   }
 
   void dispose() {
     Log.d('🗑️ ManageAudioUseCase: Disposing', tag: 'AUDIO_USE_CASE');
-    _audioLevelController.close();
+    _audioManager.dispose();
   }
 }

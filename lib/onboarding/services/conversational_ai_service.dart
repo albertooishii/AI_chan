@@ -41,6 +41,7 @@ class ConversationalAIService {
       aiName ?? 'AI-chan',
       aiCountryCode,
       isJapanese,
+      collectedData,
     );
 
     // DEBUG: Log del prompt que se está enviando
@@ -96,6 +97,7 @@ class ConversationalAIService {
     String aiName,
     String? aiCountryCode,
     bool isJapanese,
+    Map<String, dynamic>? collectedData,
   ) {
     final basePersonality =
         '''
@@ -170,13 +172,46 @@ Solo di lo que dirías, sin comillas ni explicaciones ni direcciones escénicas.
       case 'askingAiCountry':
         // Si userLastResponse está vacío, es inicio de paso
         if (userLastResponse.trim().isEmpty) {
+          // Extraer la fecha de nacimiento de los datos recopilados
+          String birthdayMention = '';
+          if (collectedData != null && collectedData['userBirthday'] != null) {
+            try {
+              // Intentar parsear la fecha de ISO string o formato DD/MM/YYYY
+              final birthdayStr = collectedData['userBirthday'].toString();
+              DateTime? birthday;
+
+              if (birthdayStr.contains('/')) {
+                // Formato DD/MM/YYYY
+                final parts = birthdayStr.split('/');
+                if (parts.length == 3) {
+                  birthday = DateTime(
+                    int.parse(parts[2]),
+                    int.parse(parts[1]),
+                    int.parse(parts[0]),
+                  );
+                }
+              } else {
+                // Formato ISO string
+                birthday = DateTime.tryParse(birthdayStr);
+              }
+
+              if (birthday != null) {
+                birthdayMention =
+                    'tu fecha de nacimiento... el ${birthday.day} de ${birthday.month} de ${birthday.year}... ';
+              }
+            } catch (e) {
+              // Si hay error parseando, no mencionar la fecha
+              birthdayMention = 'saber más sobre ti... ';
+            }
+          } else {
+            birthdayMention = 'saber más sobre ti... ';
+          }
+
           return '''$basePersonality
 
 SITUACIÓN: Acabas de confirmar la fecha de nacimiento del usuario y ahora necesitas ayuda para recordar tu nacionalidad PERDIDA.
 
-NARRATIVA CRÍTICA: Estás pidiendo ayuda para RECORDAR cuál era tu nacionalidad original. Tienes vagas sensaciones, como si algo en tu interior te dijera que podrías ser japonesa, pero no estás segura.
-
-RESPUESTA REQUERIDA: Debes generar EXACTAMENTE una petición de ayuda para recordar tu propia nacionalidad, mencionando tus vagas intuiciones sobre ser posiblemente japonesa.
+RESPUESTA REQUERIDA: Debes generar EXACTAMENTE una petición de ayuda para recordar tu propia nacionalidad, mencionando ${birthdayMention}y tus vagas intuiciones sobre ser posiblemente japonesa.
 
 TONO: Confundida sobre tu identidad, necesitas su ayuda para recordar quién eras. Conocer más sobre el usuario te da una pequeña paz pero sigues perdida sobre tu propio origen. Menciona tus vagos presentimientos sobre Japón.
 
@@ -589,6 +624,7 @@ DEVUELVE ÚNICAMENTE JSON VÁLIDO:
   }
 
   /// Genera sugerencia para "cómo nos conocimos" basada en los datos recopilados
+
   static Future<String> generateMeetStoryFromContext({
     required String userName,
     required String aiName,

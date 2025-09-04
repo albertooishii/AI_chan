@@ -7,6 +7,7 @@ import 'package:ai_chan/chat/application/utils/profile_persist_utils.dart'
     as profile_persist_utils;
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/constants.dart';
+import 'package:ai_chan/shared/application/services/calendar_processing_service.dart';
 
 class CalendarScreen extends StatefulWidget {
   final ChatProvider chatProvider;
@@ -396,49 +397,36 @@ class _CalendarScreenState extends State<CalendarScreen> {
       DateTime day,
       Map<String, String>? rawEntry,
     ) {
-      final spec = ScheduleUtils.parseScheduleString(daysStr);
+      final processedData = CalendarProcessingService.processCalendarEntry(
+        daysString: daysStr,
+        day: day,
+        rawEntry: rawEntry,
+      );
+
+      final spec = processedData['spec'];
       // si el mapa rawEntry contiene interval/unit/startDate preferirlo
-      if (rawEntry != null) {
-        try {
-          final rInterval = rawEntry['interval'];
-          final rUnit = rawEntry['unit'];
-          final rStart = rawEntry['startDate'];
-          int? interval;
-          DateTime? startDate;
-          if (rInterval != null) interval = int.tryParse(rInterval);
-          if (rStart != null && rStart.isNotEmpty) {
-            startDate = DateTime.tryParse(rStart);
-          }
-          final spec2 = ScheduleSpec(
-            days: spec.days,
-            interval: interval ?? spec.interval,
-            unit: rUnit ?? spec.unit,
-            startDate: startDate ?? spec.startDate,
-          );
-          return ScheduleUtils.matchesDateWithInterval(day, spec2);
-        } catch (_) {
-          return ScheduleUtils.matchesDateWithInterval(day, spec);
-        }
+      if (rawEntry != null && processedData['error'] == null) {
+        final interval = processedData['interval'] as int?;
+        final rUnit = processedData['unit'] as String?;
+        final startDate = processedData['startDate'] as DateTime?;
+
+        final spec2 = ScheduleSpec(
+          days: spec.days,
+          interval: interval ?? spec.interval,
+          unit: rUnit ?? spec.unit,
+          startDate: startDate ?? spec.startDate,
+        );
+        return ScheduleUtils.matchesDateWithInterval(day, spec2);
       }
       return ScheduleUtils.matchesDateWithInterval(day, spec);
     }
 
     DateTime? parseTime(DateTime baseDay, String hhmm) {
-      final parts = hhmm.split(':');
-      if (parts.length != 2) return null;
-      final h = int.tryParse(parts[0]);
-      final m = int.tryParse(parts[1]);
-      if (h == null || m == null) return null;
-      return DateTime(baseDay.year, baseDay.month, baseDay.day, h, m);
+      return CalendarProcessingService.processTimeString(baseDay, hhmm);
     }
 
     bool rangeContains(DateTime now, DateTime start, DateTime end) {
-      if (end.isBefore(start)) {
-        // Rango cruza medianoche: end pertenece al día siguiente
-        return now.isAfter(start) || now.isBefore(end);
-      }
-      return (now.isAfter(start) || now.isAtSameMomentAs(start)) &&
-          now.isBefore(end);
+      return CalendarProcessingService.rangeContains(now, start, end);
     }
 
     List<Map<String, String>> rawSchedules() {

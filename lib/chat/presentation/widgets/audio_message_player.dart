@@ -4,7 +4,7 @@ import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:ai_chan/core/models.dart';
 
-/// Reproductor compacto de mensajes de audio.
+/// Reproductor compacto de mensajes de sonido.
 /// Extrae la lógica de ChatBubble para poder reutilizarlo / refactorizar.
 class AudioMessagePlayer extends StatefulWidget {
   final Message message;

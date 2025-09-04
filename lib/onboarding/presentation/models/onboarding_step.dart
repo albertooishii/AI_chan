@@ -1,0 +1,51 @@
+/// Enumeración de los pasos del onboarding conversacional
+/// Exactamente igual al original para mantener compatibilidad
+enum OnboardingStep {
+  awakening, // Primer despertar de AI-chan
+  askingName, // Preguntando el nombre del usuario
+  askingCountry, // Preguntando el país del usuario
+  askingBirthday, // Preguntando la fecha de nacimiento
+  askingAiName, // Preguntando el nombre para la IA
+  askingAiCountry, // Preguntando el país de la IA
+  askingMeetStory, // Preguntando cómo se conocieron
+  finalMessage, // Mensaje final antes de completar
+  completion, // Onboarding completado
+}
+
+/// Extension para obtener texto descriptivo de cada paso
+extension OnboardingStepExtension on OnboardingStep {
+  String get description {
+    switch (this) {
+      case OnboardingStep.awakening:
+        return 'Despertando...';
+      case OnboardingStep.askingName:
+        return 'Preguntando nombre';
+      case OnboardingStep.askingCountry:
+        return 'Preguntando país';
+      case OnboardingStep.askingBirthday:
+        return 'Preguntando cumpleaños';
+      case OnboardingStep.askingAiName:
+        return 'Preguntando nombre de IA';
+      case OnboardingStep.askingAiCountry:
+        return 'Preguntando país de IA';
+      case OnboardingStep.askingMeetStory:
+        return 'Preguntando historia';
+      case OnboardingStep.finalMessage:
+        return 'Mensaje final';
+      case OnboardingStep.completion:
+        return 'Completado';
+    }
+  }
+
+  bool get isCompleted => this == OnboardingStep.completion;
+  bool get isAskingUserData => [
+    OnboardingStep.askingName,
+    OnboardingStep.askingCountry,
+    OnboardingStep.askingBirthday,
+  ].contains(this);
+
+  bool get isAskingAiData => [
+    OnboardingStep.askingAiName,
+    OnboardingStep.askingAiCountry,
+  ].contains(this);
+}

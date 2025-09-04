@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 enum CallPhase { initializing, ringing, connecting, active, ending, ended }
 
 enum CallType { incoming, outgoing }
@@ -14,7 +12,6 @@ enum CallEndReason {
   userHangup,
 }
 
-@immutable
 class VoiceCallState {
   final CallPhase phase;
   final CallType type;

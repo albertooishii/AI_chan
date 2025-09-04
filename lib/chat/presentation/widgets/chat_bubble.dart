@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 import 'dart:io';
 import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/chat/application/services/message_text_processor_service.dart';
 
 class ChatBubble extends StatelessWidget {
   // ===== Helpers de UI reutilizables para reducir duplicación =====
@@ -21,7 +22,7 @@ class ChatBubble extends StatelessWidget {
         // Mantener un pequeño espacio a la izquierda dentro del row
         const SizedBox(width: 8),
         Text(
-          _formatTime(message.dateTime),
+          MessageTextProcessorService.formatMessageTime(message.dateTime),
           style: TextStyle(color: Colors.grey[400], fontSize: 12),
         ),
         if (isUser) ...[
@@ -44,7 +45,9 @@ class ChatBubble extends StatelessWidget {
 
   List<Widget> _buildMarkdownBlocks(String text) {
     if (text.trim().isEmpty) return const [];
-    return MarkdownGenerator().buildWidgets(cleanText(text));
+    return MarkdownGenerator().buildWidgets(
+      MessageTextProcessorService.cleanMessageText(text),
+    );
   }
 
   Widget _callHeader({
@@ -222,26 +225,6 @@ class ChatBubble extends StatelessWidget {
     super.key,
   });
 
-  String cleanText(String text) {
-    String cleaned = text.replaceAll(r'\n', '\n').replaceAll(r'\"', '"');
-    cleaned = cleaned.replaceAll(RegExp(r'\\(?!n|\")'), '');
-    cleaned = cleaned.replaceAll(r'\\', '');
-
-    // Remover contenido entre [call] y [/call] si existe
-    if (cleaned.contains('[call]') && cleaned.contains('[/call]')) {
-      cleaned = cleaned.replaceAll(
-        RegExp(r'\[call\].*?\[\/call\]', dotAll: true),
-        '',
-      );
-    }
-
-    return cleaned;
-  }
-
-  String _formatTime(DateTime dateTime) {
-    return "${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}";
-  }
-
   Widget _buildImageContent(Message message, Color glowColor) {
     final imageUrl = message.image?.url;
     if (imageUrl != null && imageUrl.isNotEmpty && imageDir != null) {
@@ -410,7 +393,9 @@ class ChatBubble extends StatelessWidget {
           ),
           if (showCaption) ...[
             const SizedBox(height: 8),
-            ...MarkdownGenerator().buildWidgets(cleanText(message.text)),
+            ...MarkdownGenerator().buildWidgets(
+              MessageTextProcessorService.cleanMessageText(message.text),
+            ),
           ],
           SizedBox(
             width: double.infinity,
@@ -506,7 +491,9 @@ class ChatBubble extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ...MarkdownGenerator().buildWidgets(cleanText(message.text)),
+                  ...MarkdownGenerator().buildWidgets(
+                    MessageTextProcessorService.cleanMessageText(message.text),
+                  ),
                 ],
               ),
             ),

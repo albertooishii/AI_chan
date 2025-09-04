@@ -22,6 +22,8 @@ import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/services/ai_runtime_provider.dart'
     as runtime_factory;
 import 'package:ai_chan/call/infrastructure/audio/audio_playback.dart';
+import 'package:ai_chan/call/domain/services/voice_call_controller_builder.dart';
+import 'package:ai_chan/call/infrastructure/builders/voice_call_controller_builder.dart';
 
 /// Pequeñas fábricas/funciones de DI para la migración incremental.
 /// Idealmente esto evolucionará a un contenedor/locator más completo.
@@ -89,6 +91,10 @@ ITtsService getTtsService() => const DefaultTtsService();
 
 /// Factory for language resolver - resolves language codes from TTS voice names
 ILanguageResolver getLanguageResolver() => LanguageResolverService();
+
+/// Factory for voice call controller builder
+IVoiceCallControllerBuilder getVoiceCallControllerBuilder() =>
+    VoiceCallControllerBuilder();
 
 // Test-time overrides (used by tests to inject fakes without touching DI calls)
 ISttService? _testSttOverride;

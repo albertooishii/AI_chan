@@ -268,8 +268,8 @@ void main() {
 
       if (obsoleteComments.isNotEmpty) {
         fail(
-          '📝 Obsolete comments found:\n\n${obsoleteComments.map((c) => '   $c').join('\n')}\n\n'
-          '💡 Clean these comments that reference old/deprecated methods, TODO items from migration, or outdated architecture notes.',
+          '📝 Obsolete comments and/or methods found:\n\n${obsoleteComments.map((c) => '   $c').join('\n')}\n\n'
+          '💡 Clean these methods and/or comments that reference old/deprecated methods, TODO items from migration, or outdated architecture notes.',
         );
       }
     });

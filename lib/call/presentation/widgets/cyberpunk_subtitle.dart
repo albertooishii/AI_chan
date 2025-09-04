@@ -1,7 +1,7 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:ai_chan/shared/utils/string_utils.dart';
+import 'package:ai_chan/call/application/services/cyberpunk_text_processor_service.dart';
 
 /// Efecto inspirado en "traducción" de Cyberpunk 2077:
 /// Cada vez que llega texto nuevo, los caracteres nuevos pasan por
@@ -54,9 +54,6 @@ class _CharAnim {
 
 class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
     with SingleTickerProviderStateMixin {
-  // Conjuntos para efecto de traducción (katakana → español)
-  static const String _katakana =
-      'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワガギグゲゴザジズゼゾダヂヅデドパピプペポバビブベボャュョッー';
   // Mapeo silábico / transliteración aproximada español -> katakana.
   // Ampliado para reducir al mínimo el uso de fallback aleatorio.
   static const Map<String, String> _syllableToKana = {
@@ -155,8 +152,6 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
   static final List<String> _orderedPatterns = _syllableToKana.keys.toList()
     ..sort((a, b) => b.length.compareTo(a.length));
   // Separadores / signos que preservamos como unidades independientes.
-  static final RegExp _punctOrSpace = RegExp(r'[\s.,;:!?¡¿"()\[\]{}...-]');
-  static final _rand = Random();
 
   late final Ticker _ticker;
   final List<_CharAnim> _chars = [];
@@ -272,7 +267,7 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
     int i = 0;
     while (i < lower.length) {
       final ch = lower[i];
-      if (_punctOrSpace.hasMatch(ch)) {
+      if (CyberpunkTextProcessorService.isPunctuationOrSpace(ch)) {
         // puntuación -> unidad individual
         units.add(text[i]);
         i++;
@@ -310,10 +305,10 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
     required bool useKatakana,
   }) {
     if (replaceWith != null &&
-        RegExp(r'[\s.,;:!?¡¿"()\[\]{}...-]').hasMatch(replaceWith)) {
+        CyberpunkTextProcessorService.containsPunctuationOrSpace(replaceWith)) {
       return replaceWith;
     }
-    if (!useKatakana) return _katakana[_rand.nextInt(_katakana.length)];
+    if (!useKatakana) return CyberpunkTextProcessorService.randomKatakanaChar();
     if (replaceWith != null && replaceWith.isNotEmpty) {
       final lower = replaceWith.toLowerCase();
       final norm = removeAccents(lower).toLowerCase();
@@ -342,16 +337,15 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
           }
         }
         if (pool.isNotEmpty) {
-          return String.fromCharCode(pool[_rand.nextInt(pool.length)]);
+          return CyberpunkTextProcessorService.randomCharFromCodes(pool);
         }
       } else if (mapped != null) {
         final chars = mapped.runes.toList();
-        return String.fromCharCode(chars[_rand.nextInt(chars.length)]);
+        return CyberpunkTextProcessorService.randomCharFromCodes(chars);
       }
     }
     // Fallback determinista controlado (vocal básica)
-    const vowels = 'アイウエオ';
-    return vowels[_rand.nextInt(vowels.length)];
+    return CyberpunkTextProcessorService.randomVowel();
   }
 
   void _onTick(Duration _) {
@@ -415,7 +409,8 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
       final isGlitching =
           !ch.locked &&
           !ch.removing &&
-          _rand.nextDouble() < widget.glitchProbability;
+          CyberpunkTextProcessorService.randomProbability() <
+              widget.glitchProbability;
       final baseColor = widget.style.color!;
       Color computeAlpha(Color c, double alpha) =>
           c.withValues(alpha: (c.a * alpha));

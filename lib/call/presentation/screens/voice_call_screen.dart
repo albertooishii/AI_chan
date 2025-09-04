@@ -2,10 +2,8 @@ import 'package:ai_chan/call/application/controllers/voice_call_screen_controlle
 import 'package:flutter/material.dart';
 import 'package:ai_chan/chat/application/providers/chat_provider.dart';
 import 'package:ai_chan/call/domain/entities/voice_call_state.dart';
-import 'package:ai_chan/call/infrastructure/adapters/call_controller.dart';
 import 'package:ai_chan/call/presentation/widgets/cyberpunk_painters.dart';
 import 'package:ai_chan/core/di.dart' as di;
-import 'package:ai_chan/core/config.dart';
 
 class VoiceCallScreen extends StatefulWidget {
   final bool incoming;
@@ -34,14 +32,10 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
   }
 
   void _initializeController() {
-    // Crear CallController (igual que en el original)
-    final aiService = di.getAIServiceForModel(Config.getDefaultTextModel());
-    final callController = CallController(aiService: aiService);
-
-    // Crear nuestro controller de Clean Architecture
-    _controller = VoiceCallScreenController(
+    // Usar DI para obtener builder y crear controller con todas las dependencias
+    final builder = di.getVoiceCallControllerBuilder();
+    _controller = builder.create(
       chatProvider: widget.chatProvider,
-      callController: callController,
       callType: widget.incoming ? CallType.incoming : CallType.outgoing,
     );
 

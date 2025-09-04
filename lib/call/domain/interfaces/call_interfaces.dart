@@ -81,3 +81,93 @@ abstract interface class IRealtimeCallClient {
   /// Callback cuando se completa una respuesta
   Stream<void> get completionStream;
 }
+
+/// Interfaz para el controlador de llamadas de voz
+/// Abstrae la lógica de manejo de llamadas en tiempo real
+abstract interface class IVoiceCallController {
+  /// Inicia una nueva llamada
+  Future<void> startCall();
+
+  /// Termina la llamada actual
+  Future<void> endCall();
+
+  /// Responde una llamada entrante
+  Future<void> answerCall();
+
+  /// Rechaza una llamada entrante
+  Future<void> rejectCall();
+
+  /// Silencia/des-silencia el micrófono
+  void toggleMute();
+
+  /// Estado actual del micrófono
+  bool get isMuted;
+
+  /// Envía audio al servicio
+  void sendAudio(List<int> audioBytes);
+
+  /// Obtiene el nivel de audio actual
+  double get audioLevel;
+
+  /// Stream de cambios en el estado de la llamada
+  Stream<dynamic> get stateChanges;
+
+  /// Stream de texto recibido del asistente
+  Stream<String> get textStream;
+
+  /// Stream de audio recibido del asistente
+  Stream<Uint8List> get audioStream;
+
+  /// Stream de errores
+  Stream<Object> get errorStream;
+
+  /// Libera recursos
+  void dispose();
+}
+
+/// Interfaz para el manejo de audio en llamadas
+/// Se usa en use cases para abstraer la implementación específica
+abstract interface class IAudioManager {
+  /// Configura si el micrófono está silenciado
+  void setMuted(bool muted);
+
+  /// Obtiene el estado actual del micrófono
+  bool get isMuted;
+
+  /// Stream de niveles de audio
+  Stream<double> get audioLevelStream;
+
+  /// Actualiza el nivel de audio
+  void updateAudioLevel(double level);
+
+  /// Inicializa el manejo de audio
+  Future<void> initialize();
+
+  /// Libera recursos
+  void dispose();
+}
+
+/// Interfaz para el manejo de llamadas
+/// Se usa en use cases para abstraer la implementación específica
+abstract interface class ICallManager {
+  /// Inicia una llamada
+  Future<void> startCall();
+
+  /// Termina una llamada
+  Future<void> endCall();
+
+  /// Responde una llamada entrante
+  Future<void> answerIncomingCall();
+
+  /// Rechaza una llamada entrante
+  Future<void> rejectIncomingCall();
+
+  /// Obtiene el estado actual de la llamada
+  bool get isCallActive;
+
+  /// Stream de cambios de estado de la llamada
+  Stream<bool> get callStateStream;
+
+  /// Libera recursos
+  void dispose();
+}

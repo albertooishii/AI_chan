@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/controllers/audio_subtitle_controller.dart';
+import 'package:ai_chan/chat/application/services/message_text_processor_service.dart';
 import 'audio_message_player.dart';
 import 'floating_audio_subtitle.dart';
 
@@ -86,7 +87,7 @@ class _AudioMessagePlayerWithSubsState
       buf.writeCharCode(rune);
     }
     // Colapsar espacios múltiples
-    return buf.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
+    return MessageTextProcessorService.collapseWhitespace(buf.toString());
   }
 
   @override

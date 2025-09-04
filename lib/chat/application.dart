@@ -1,10 +1,16 @@
 // Chat Application Layer Barrel Export
 
-// Use Cases (commented temporarily until proper implementation)
-// export 'use_cases/send_message_use_case.dart';
-// export 'use_cases/load_chat_history_use_case.dart';
-// export 'use_cases/export_chat_use_case.dart';
-// export 'use_cases/import_chat_use_case.dart';
+// Use Cases
+export 'application/use_cases.dart';
 
 // Providers
 export 'application/providers/chat_provider.dart';
+
+// Controllers
+export 'application/controllers.dart';
+
+// Application Services
+export 'application/services/tts_service.dart';
+export 'application/services/message_queue_manager.dart';
+export 'application/services/memory_manager.dart';
+export 'application/services/timeline_updater.dart';

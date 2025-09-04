@@ -9,6 +9,7 @@ import 'dart:io' show Platform;
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared.dart'; // Using centralized shared exports
+import 'package:ai_chan/chat/application/services/tts_voice_service.dart';
 import 'package:ai_chan/shared/utils/openai_voice_utils.dart';
 import 'dart:io' show File;
 
@@ -292,13 +293,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
 
   /// Obtiene el nivel de calidad legible de una voz Neural/WaveNet
   String _getVoiceQualityLevel(Map<String, dynamic> voice) {
-    final name = (voice['name'] as String? ?? '').toLowerCase();
-    if (name.contains('wavenet')) {
-      return 'WaveNet'; // Máxima calidad
-    } else if (name.contains('neural')) {
-      return 'Neural'; // Alta calidad
-    }
-    return 'Standard';
+    return TtsVoiceService.getVoiceQualityLevel(voice);
   }
 
   Future<void> _loadVoices({bool forceRefresh = false}) async {
