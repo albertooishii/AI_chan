@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: setup setup-env install-hooks deps test analyze clean run run-release install build start stop logs help
+.PHONY: setup setup-env install-hooks deps test analyze clean run run-release install build start stop logs help coverage-report
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -101,7 +101,23 @@ clean:
 
 coverage-report:
 	@echo "📊 Generating coverage report..."
+	@echo "🔁 Running tests with coverage (flutter test --coverage)..."
+	@flutter test --coverage || (echo "❌ Tests failed — aborting coverage report" && exit 1)
+	@echo "📄 Coverage file: coverage/lcov.info"
+	@if command -v genhtml >/dev/null 2>&1; then \
+		echo "🖼️ Generating HTML report with genhtml..."; \
+		genhtml -o coverage/html coverage/lcov.info >/dev/null 2>&1 || echo "⚠️ genhtml failed to generate HTML"; \
+	else \
+		echo "⚠️ genhtml not found; skipping HTML generation (install lcov to enable)."; \
+	fi
+	@echo "🔍 Running coverage analysis script..."
 	@dart scripts/coverage_analysis.dart
+	@if command -v xdg-open >/dev/null 2>&1 && [ -f coverage/html/index.html ]; then \
+		echo "📂 Opening HTML report..."; \
+		xdg-open coverage/html/index.html >/dev/null 2>&1 || true; \
+	else \
+		echo "ℹ️ To view the HTML report, open coverage/html/index.html if it exists."; \
+	fi
 
 
 clean-tmp:
