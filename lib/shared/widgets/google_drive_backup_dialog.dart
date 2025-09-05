@@ -706,7 +706,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         '[RESTORE_PROCESS] Decompressing and applying data',
         showProgress: true,
       );
-      final extractedJson = await BackupService.restoreAndExtractJson(file);
+      final extractedJson = await BackupService.restoreAndExtractJson(
+        file.path,
+      );
       if (widget.onImportedJson != null) {
         try {
           await widget.onImportedJson!(extractedJson);

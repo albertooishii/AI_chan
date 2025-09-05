@@ -1,4 +1,3 @@
-import 'package:ai_chan/shared/utils/image_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 // Provider usage removed from this widget: use ChatInputController for state/actions
@@ -6,13 +5,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform, kIsWeb, debugPrint;
-import 'dart:io';
 import 'dart:convert';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/shared/widgets/animated_indicators.dart';
 import '../controllers/chat_input_controller.dart';
 import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 
 // Intents para atajos de teclado en escritorio
 class SendMessageIntent extends Intent {
@@ -25,14 +24,20 @@ class InsertNewlineIntent extends Intent {
 
 class MessageInput extends StatefulWidget {
   final ChatInputController controller;
-  const MessageInput({super.key, required this.controller});
+  final FileUIService fileService;
+
+  const MessageInput({
+    super.key,
+    required this.controller,
+    required this.fileService,
+  });
 
   @override
   State<MessageInput> createState() => _MessageInputState();
 }
 
 class _MessageInputState extends State<MessageInput> {
-  File? _attachedImage;
+  String? _attachedImagePath;
   String? _attachedImageBase64;
   String? _attachedImageMime;
   final TextEditingController _controller = TextEditingController();
@@ -116,16 +121,23 @@ class _MessageInputState extends State<MessageInput> {
                     imageQuality: 85,
                   );
                   if (pickedFile != null) {
-                    final file = File(pickedFile.path);
-                    final bytes = await file.readAsBytes();
-                    final base64img = base64Encode(bytes);
-                    final ext = file.path.split('.').last.toLowerCase();
-                    final mime = _mimeFromPath(ext);
-                    setState(() {
-                      _attachedImage = file;
-                      _attachedImageBase64 = base64img;
-                      _attachedImageMime = mime;
-                    });
+                    final filePath = pickedFile.path;
+                    final bytes = await widget.fileService.readFileAsBytes(
+                      filePath,
+                    );
+                    if (bytes != null) {
+                      final base64img = base64Encode(bytes);
+                      final ext = widget.fileService
+                          .getFileExtension(filePath)
+                          .substring(1)
+                          .toLowerCase();
+                      final mime = _mimeFromPath(ext);
+                      setState(() {
+                        _attachedImagePath = filePath;
+                        _attachedImageBase64 = base64img;
+                        _attachedImageMime = mime;
+                      });
+                    }
                   }
                 },
               ),
@@ -139,16 +151,23 @@ class _MessageInputState extends State<MessageInput> {
                     imageQuality: 85,
                   );
                   if (pickedFile != null) {
-                    final file = File(pickedFile.path);
-                    final bytes = await file.readAsBytes();
-                    final base64img = base64Encode(bytes);
-                    final ext = file.path.split('.').last.toLowerCase();
-                    final mime = _mimeFromPath(ext);
-                    setState(() {
-                      _attachedImage = file;
-                      _attachedImageBase64 = base64img;
-                      _attachedImageMime = mime;
-                    });
+                    final filePath = pickedFile.path;
+                    final bytes = await widget.fileService.readFileAsBytes(
+                      filePath,
+                    );
+                    if (bytes != null) {
+                      final base64img = base64Encode(bytes);
+                      final ext = widget.fileService
+                          .getFileExtension(filePath)
+                          .substring(1)
+                          .toLowerCase();
+                      final mime = _mimeFromPath(ext);
+                      setState(() {
+                        _attachedImagePath = filePath;
+                        _attachedImageBase64 = base64img;
+                        _attachedImageMime = mime;
+                      });
+                    }
                   }
                 },
               ),
@@ -171,16 +190,23 @@ class _MessageInputState extends State<MessageInput> {
                     type: FileType.image,
                   );
                   if (result != null && result.files.single.path != null) {
-                    final file = File(result.files.single.path!);
-                    final bytes = await file.readAsBytes();
-                    final base64img = base64Encode(bytes);
-                    final ext = file.path.split('.').last.toLowerCase();
-                    final mime = _mimeFromPath(ext);
-                    setState(() {
-                      _attachedImage = file;
-                      _attachedImageBase64 = base64img;
-                      _attachedImageMime = mime;
-                    });
+                    final filePath = result.files.single.path!;
+                    final bytes = await widget.fileService.readFileAsBytes(
+                      filePath,
+                    );
+                    if (bytes != null) {
+                      final base64img = base64Encode(bytes);
+                      final ext = widget.fileService
+                          .getFileExtension(filePath)
+                          .substring(1)
+                          .toLowerCase();
+                      final mime = _mimeFromPath(ext);
+                      setState(() {
+                        _attachedImagePath = filePath;
+                        _attachedImageBase64 = base64img;
+                        _attachedImageMime = mime;
+                      });
+                    }
                   }
                 },
               ),
@@ -203,9 +229,31 @@ class _MessageInputState extends State<MessageInput> {
     }
   }
 
+  Widget _buildImagePreview(String imagePath) {
+    return FutureBuilder<List<int>?>(
+      future: widget.fileService.readFileAsBytes(imagePath),
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data != null) {
+          return Image.memory(
+            Uint8List.fromList(snapshot.data!),
+            width: 56,
+            height: 56,
+            fit: BoxFit.cover,
+          );
+        }
+        return Container(
+          width: 56,
+          height: 56,
+          color: Colors.grey[800],
+          child: const Icon(Icons.image, color: Colors.grey),
+        );
+      },
+    );
+  }
+
   void _removeImage() {
     setState(() {
-      _attachedImage = null;
+      _attachedImagePath = null;
       _attachedImageBase64 = null;
       _attachedImageMime = null;
     });
@@ -221,12 +269,12 @@ class _MessageInputState extends State<MessageInput> {
     AiImage? imageToSend;
     final String? imageMimeType = _attachedImageMime;
     if (hasImage) {
-      final savedPath = await saveBase64ImageToFile(
+      final savedPath = await widget.fileService.saveBase64Image(
         _attachedImageBase64!,
         prefix: 'img_user',
       );
       if (savedPath != null) {
-        final fileName = savedPath.split('/').last;
+        final fileName = widget.fileService.getFileName(savedPath);
         imageToSend = AiImage(url: fileName, base64: _attachedImageBase64!);
       } else {
         final ext = imageMimeType == 'image/jpeg'
@@ -242,7 +290,7 @@ class _MessageInputState extends State<MessageInput> {
     if (mounted) {
       setState(() {
         _controller.clear();
-        _attachedImage = null;
+        _attachedImagePath = null;
         _attachedImageBase64 = null;
         _attachedImageMime = null;
       });
@@ -276,19 +324,14 @@ class _MessageInputState extends State<MessageInput> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (_attachedImage != null)
+              if (_attachedImagePath != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6.0),
                   child: Row(
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          _attachedImage!,
-                          width: 56,
-                          height: 56,
-                          fit: BoxFit.cover,
-                        ),
+                        child: _buildImagePreview(_attachedImagePath!),
                       ),
                       const SizedBox(width: 10),
                       const Expanded(
@@ -314,7 +357,7 @@ class _MessageInputState extends State<MessageInput> {
                 inputController: widget.controller,
                 focusNode: _textFieldFocusNode,
                 showEmojiPicker: _showEmojiPicker,
-                attachedImage: _attachedImage,
+                attachedImagePath: _attachedImagePath,
                 hasImage: _hasImage,
                 hasText: _hasText,
                 onToggleEmojis: () async {
@@ -446,7 +489,7 @@ class _RecordingOrTextBar extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final bool showEmojiPicker;
-  final File? attachedImage;
+  final String? attachedImagePath;
   final bool hasImage;
   final bool hasText;
   final ChatInputController? inputController;
@@ -461,7 +504,7 @@ class _RecordingOrTextBar extends StatelessWidget {
     this.inputController,
     required this.focusNode,
     required this.showEmojiPicker,
-    required this.attachedImage,
+    required this.attachedImagePath,
     required this.hasImage,
     required this.hasText,
     required this.onToggleEmojis,
@@ -512,7 +555,7 @@ class _RecordingOrTextBar extends StatelessWidget {
       style: const TextStyle(color: AppColors.primary, fontFamily: 'FiraMono'),
       decoration: InputDecoration(
         hintText:
-            'Escribe tu mensaje...${attachedImage != null ? ' (opcional)' : ''}',
+            'Escribe tu mensaje...${attachedImagePath != null ? ' (opcional)' : ''}',
         hintStyle: const TextStyle(color: AppColors.secondary),
         enabledBorder: OutlineInputBorder(
           borderSide: const BorderSide(color: AppColors.secondary),

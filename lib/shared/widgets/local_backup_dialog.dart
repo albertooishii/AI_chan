@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:ai_chan/shared/services/backup_service.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart' show showAppSnackBar;
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
@@ -102,8 +100,7 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
         _safeSetState(() => _working = false);
         return;
       }
-      final f = File(path);
-      final jsonStr = await BackupService.restoreAndExtractJson(f);
+      final jsonStr = await BackupService.restoreAndExtractJson(path);
       final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
         jsonStr,
       );

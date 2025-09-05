@@ -1,10 +1,12 @@
 import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'audio_message_player_with_subs.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 import 'dart:io';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/chat/application/services/message_text_processor_service.dart';
+import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 
 class ChatBubble extends StatelessWidget {
   // ===== Helpers de UI reutilizables para reducir duplicación =====
@@ -200,6 +202,7 @@ class ChatBubble extends StatelessWidget {
   final Message message;
   final bool isLastUserMessage;
   final Directory? imageDir;
+  final FileUIService fileService;
   // Callbacks injected by the parent to avoid Provider usage inside the widget.
   // onRetry should trigger a retry of the last failed message when provided.
   final Future<void> Function()? onRetry;
@@ -214,6 +217,7 @@ class ChatBubble extends StatelessWidget {
 
   const ChatBubble({
     required this.message,
+    required this.fileService,
     this.isLastUserMessage = false,
     this.imageDir,
     this.onRetry,
@@ -228,57 +232,87 @@ class ChatBubble extends StatelessWidget {
   Widget _buildImageContent(Message message, Color glowColor) {
     final imageUrl = message.image?.url;
     if (imageUrl != null && imageUrl.isNotEmpty && imageDir != null) {
-      final fileName = imageUrl.split('/').last;
-      final absPath = '${imageDir!.path}/$fileName';
-      final file = File(absPath);
-      if (file.existsSync()) {
-        final isUser = message.sender == MessageSender.user;
-        return Builder(
-          builder: (context) {
-            // Calcular ancho máximo disponible y orientación, pero respetar breakpoint
-            final media = MediaQuery.of(context);
-            final mediaWidth = media.size.width;
-            const double desktopBreakpoint =
-                768; // >= 768px tratamos como desktop/tablet
-            final isPortrait = media.orientation == Orientation.portrait;
-            final isSmallPortrait =
-                isPortrait && mediaWidth < desktopBreakpoint;
-            final fullWidth =
-                mediaWidth - 20; // coincidencia con fullWidth usado en bubble
-            final maxWidth =
-                mediaWidth *
-                0.78; // coincide con el límite del bubble en landscape
-            final targetSize = 256.0;
-            // Si estamos en portrait y la pantalla es pequeña queremos que la imagen ocupe todo el ancho disponible
-            final imageSize = isSmallPortrait
-                ? fullWidth
-                : (targetSize > maxWidth ? maxWidth : targetSize);
-            final alignment = isSmallPortrait
-                ? Alignment.center
-                : (isUser ? Alignment.centerRight : Alignment.centerLeft);
+      final fileName = fileService.getFileName(imageUrl);
+      final absPath = fileService.joinPath(imageDir!.path, fileName);
 
-            return Align(
-              alignment: alignment,
-              child: GestureDetector(
-                onTap: () {
-                  onImageTap?.call();
-                },
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.file(
-                    file,
-                    fit: BoxFit.cover,
-                    width: imageSize,
-                    height: imageSize,
-                  ),
-                ),
-              ),
+      return FutureBuilder<bool>(
+        future: fileService.fileExists(absPath),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const SizedBox(
+              width: 150,
+              height: 150,
+              child: Center(child: CircularProgressIndicator()),
             );
-          },
-        );
-      }
+          }
+
+          if (snapshot.hasData && snapshot.data == true) {
+            return _buildImageWidget(absPath, message, glowColor);
+          }
+
+          return const SizedBox.shrink();
+        },
+      );
     }
     return const SizedBox.shrink();
+  }
+
+  Widget _buildImageWidget(String imagePath, Message message, Color glowColor) {
+    final isUser = message.sender == MessageSender.user;
+    return Builder(
+      builder: (context) {
+        // Calcular ancho máximo disponible y orientación, pero respetar breakpoint
+        final media = MediaQuery.of(context);
+        final mediaWidth = media.size.width;
+        const double desktopBreakpoint =
+            768; // >= 768px tratamos como desktop/tablet
+        final isPortrait = media.orientation == Orientation.portrait;
+        final isSmallPortrait = isPortrait && mediaWidth < desktopBreakpoint;
+        final fullWidth =
+            mediaWidth - 20; // coincidencia con fullWidth usado en bubble
+        final maxWidth =
+            mediaWidth * 0.78; // coincide con el límite del bubble en landscape
+        final targetSize = 256.0;
+        // Si estamos en portrait y la pantalla es pequeña queremos que la imagen ocupe todo el ancho disponible
+        final imageSize = isSmallPortrait
+            ? fullWidth
+            : (targetSize > maxWidth ? maxWidth : targetSize);
+        final alignment = isSmallPortrait
+            ? Alignment.center
+            : (isUser ? Alignment.centerRight : Alignment.centerLeft);
+
+        return Align(
+          alignment: alignment,
+          child: GestureDetector(
+            onTap: () {
+              onImageTap?.call();
+            },
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: FutureBuilder<List<int>?>(
+                future: fileService.readFileAsBytes(imagePath),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData && snapshot.data != null) {
+                    return Image.memory(
+                      Uint8List.fromList(snapshot.data!),
+                      fit: BoxFit.cover,
+                      width: imageSize,
+                      height: imageSize,
+                    );
+                  }
+                  return Container(
+                    width: imageSize,
+                    height: imageSize,
+                    color: Colors.grey[800],
+                    child: const Icon(Icons.image, color: Colors.grey),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -364,6 +398,7 @@ class ChatBubble extends StatelessWidget {
                 togglePlay: onToggleAudio ?? ((_) async {}),
                 getPlayingPosition: getAudioPosition,
                 getPlayingDuration: getAudioDuration,
+                fileService: fileService,
               ),
               if (isUser && message.status == MessageStatus.sending)
                 Positioned.fill(
@@ -458,6 +493,7 @@ class ChatBubble extends StatelessWidget {
                 togglePlay: onToggleAudio ?? ((_) async {}),
                 getPlayingPosition: getAudioPosition,
                 getPlayingDuration: getAudioDuration,
+                fileService: fileService,
               ),
               if (isUser && message.status == MessageStatus.sending)
                 Positioned.fill(

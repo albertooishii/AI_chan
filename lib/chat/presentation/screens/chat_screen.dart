@@ -1,4 +1,5 @@
 import 'package:ai_chan/chat/application/utils/avatar_persist_utils.dart';
+import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro completado
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
@@ -23,12 +24,14 @@ import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
 import 'package:ai_chan/shared/widgets/local_backup_dialog.dart';
 import 'package:ai_chan/shared/widgets/backup_diagnostics_dialog.dart';
 import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
-import 'package:ai_chan/chat/application/adapters/chat_provider_adapter.dart'; // ✅ DDD: Para type safety en ETAPA 2
+import 'package:ai_chan/core/di.dart' as di;
+import 'package:ai_chan/shared/application/services/file_ui_service.dart';
+import 'dart:typed_data';
 
 class ChatScreen extends StatefulWidget {
   final AiChanProfile bio;
   final String aiName;
-  final ChatProviderAdapter chatProvider; // ✅ DDD: Type safety en ETAPA 2
+  final ChatController chatController; // ✅ DDD: ETAPA 3 - DDD puro
   final Future<void> Function()? onClearAllDebug;
   final Future<void> Function(ImportedChat importedChat)? onImportJson;
 
@@ -36,7 +39,7 @@ class ChatScreen extends StatefulWidget {
     super.key,
     required this.bio,
     required this.aiName,
-    required this.chatProvider,
+    required this.chatController, // ✅ DDD: ETAPA 3 - DDD puro
     this.onClearAllDebug,
     this.onImportJson,
   });
@@ -51,6 +54,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Directory? _imageDir;
   bool _isRegeneratingAppearance =
       false; // Muestra spinner en avatar durante la regeneración
+  late final FileUIService _fileUIService;
   // Google Drive linked account state is now provided by ChatProvider
   // Pagination / lazy loading for messages
   late final ScrollController _scrollController;
@@ -65,6 +69,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    _fileUIService = di.getFileUIService();
     getLocalImageDir().then((dir) {
       if (mounted) setState(() => _imageDir = dir);
     });
@@ -91,7 +96,7 @@ class _ChatScreenState extends State<ChatScreen> {
     // Create ChatInputController after first frame so context is available
     WidgetsBinding.instance.addPostFrameCallback((_) {
       try {
-        final provider = widget.chatProvider;
+        final provider = widget.chatController;
         _chatInputController = ChatInputController(
           scheduleSend: (text, {image, imageMimeType}) async {
             provider.scheduleSendMessage(
@@ -134,8 +139,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _tryLoadMore() async {
     if (_isLoadingMore) return;
-    final chatProvider = widget.chatProvider;
-    final filtered = chatProvider.messages
+    final chatController = widget.chatController;
+    final filtered = chatController.messages
         .where(
           (m) =>
               m.sender != MessageSender.system ||
@@ -177,7 +182,8 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _isLoadingMore = false);
   }
 
-  Future<void> _showImportDialog(ChatProviderAdapter chatProvider) async {
+  Future<void> _showImportDialog(ChatController chatController) async {
+    // ✅ DDD: ETAPA 3
     // ✅ DDD: Type safety en ETAPA 2
     final (jsonStr, error) =
         await chat_json_utils.ChatJsonUtils.importJsonFile();
@@ -195,7 +201,7 @@ class _ChatScreenState extends State<ChatScreen> {
           await widget.onImportJson!.call(imported);
         } else {
           if (imported != null) {
-            await chatProvider.applyImportedChat(imported.toJson());
+            await chatController.applyImportedChat(imported.toJson());
             if (mounted) setState(() {});
             _showImportSuccessSnackBar();
           } else {
@@ -211,7 +217,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<String?> _showModelSelectionDialog(
     List<String> models,
     String? initialModel,
-    ChatProviderAdapter chatProvider,
+    ChatController chatController, // ✅ DDD: ETAPA 3
   ) async {
     // ✅ DDD: Type safety en ETAPA 2
     final navCtx = navigatorKey.currentContext;
@@ -227,7 +233,7 @@ class _ChatScreenState extends State<ChatScreen> {
             if (localLoading) return;
             setStateDialog(() => localLoading = true);
             try {
-              final fetched = await chatProvider.getAllModels(
+              final fetched = await chatController.getAllModels(
                 forceRefresh: true,
               );
               setStateDialog(() => localModels = fetched);
@@ -371,12 +377,15 @@ class _ChatScreenState extends State<ChatScreen> {
   void _setSelectedModel(
     String? selected,
     String? current,
-    ChatProviderAdapter chatProvider,
+    ChatController chatController,
   ) {
+    // ✅ DDD: ETAPA 3
     // ✅ DDD: Type safety en ETAPA 2
     if (!mounted) return;
     if (selected != null && selected != current) {
-      chatProvider.selectedModel = selected;
+      chatController.setSelectedModel(
+        selected,
+      ); // ✅ DDD: ETAPA 3 - Usar método setSelectedModel
       setState(() {});
     }
   }
@@ -386,12 +395,13 @@ class _ChatScreenState extends State<ChatScreen> {
     showAppSnackBar('Chat importado correctamente.', preferRootMessenger: true);
   }
 
-  void _showExportDialog(String jsonStr, ChatProviderAdapter chatProvider) {
+  void _showExportDialog(String jsonStr, ChatController chatController) {
+    // ✅ DDD: ETAPA 3
     // ✅ DDD: Type safety en ETAPA 2
     final importedChat = ImportedChat(
-      profile: chatProvider.onboardingData,
-      messages: chatProvider.messages,
-      events: chatProvider.events,
+      profile: chatController.profile!,
+      messages: chatController.messages,
+      events: chatController.events,
     );
     // Delegate to shared util which shows preview and offers copy/save
     chat_json_utils.ChatJsonUtils.showExportedJsonDialog(
@@ -404,8 +414,8 @@ class _ChatScreenState extends State<ChatScreen> {
   // Mantener aquí la llamada al util para evitar duplicación en varios sitios.
   Future<void> _handleImageDeleted(AiImage? deleted) async {
     try {
-      final chatProvider = widget.chatProvider;
-      await removeImageFromProfileAndPersist(chatProvider.controller, deleted);
+      final chatController = widget.chatController;
+      await removeImageFromProfileAndPersist(chatController, deleted);
     } catch (_) {}
   }
 
@@ -420,24 +430,24 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final chatProvider = widget.chatProvider;
+    final chatController = widget.chatController;
     final aiName = widget.aiName;
     // Detectar llamada entrante pendiente y abrir pantalla si aún no está abierta
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final navCtx = context;
       final navigator = Navigator.of(navCtx);
-      if (chatProvider.isCalling) {
+      if (chatController.isCalling) {
         // Abrir VoiceCallScreen en modo incoming solo si no hay ya otra ruta de llamada
         final alreadyOpen =
             navigator.widget is VoiceCallScreen; // heurístico simple
         if (!alreadyOpen) {
           // Clear the calling flag to avoid reopening while the screen is active.
-          chatProvider.clearPendingIncomingCall();
+          chatController.clearPendingIncomingCall();
           navigator.push(
             MaterialPageRoute(
               builder: (_) => VoiceCallScreen(
                 incoming: true,
-                chatController: chatProvider.controller,
+                chatController: chatController,
               ),
             ),
           );
@@ -508,15 +518,15 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   ),
                 )
-              else if (chatProvider.onboardingData.avatars != null &&
-                  chatProvider.onboardingData.avatars!.isNotEmpty &&
-                  chatProvider.onboardingData.avatars!.last.url != null &&
-                  chatProvider.onboardingData.avatars!.last.url!.isNotEmpty)
+              else if (chatController.profile?.avatars != null &&
+                  chatController.profile!.avatars!.isNotEmpty &&
+                  chatController.profile!.avatars!.last.url != null &&
+                  chatController.profile!.avatars!.last.url!.isNotEmpty)
                 (_imageDir != null)
                     ? GestureDetector(
                         onTap: () {
                           // Construir lista de Message para ExpandableImageDialog a partir de avatars
-                          final avatars = chatProvider.onboardingData.avatars!;
+                          final avatars = chatController.profile!.avatars!;
                           final messages = avatars.map((a) {
                             final filename = a.url?.split('/').last ?? '';
                             return Message(
@@ -536,18 +546,31 @@ class _ChatScreenState extends State<ChatScreen> {
                           ExpandableImageDialog.show(
                             messages,
                             messages.length - 1,
-                            imageDir: _imageDir,
+                            imageBasePath: _imageDir?.path,
+                            fileUIService: _fileUIService,
                             onImageDeleted: _handleImageDeleted,
                           );
                         },
-                        child: CircleAvatar(
-                          radius: 16,
-                          backgroundColor: AppColors.secondary,
-                          backgroundImage: FileImage(
-                            File(
-                              '${_imageDir!.path}/${chatProvider.onboardingData.avatars!.last.url!.split('/').last}',
-                            ),
+                        child: FutureBuilder<List<int>?>(
+                          future: _fileUIService.readFileAsBytes(
+                            '${_imageDir!.path}/${chatController.profile!.avatars!.last.url!.split('/').last}',
                           ),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData && snapshot.data != null) {
+                              return CircleAvatar(
+                                radius: 16,
+                                backgroundColor: AppColors.secondary,
+                                backgroundImage: MemoryImage(
+                                  Uint8List.fromList(snapshot.data!),
+                                ),
+                              );
+                            }
+                            return const CircleAvatar(
+                              radius: 16,
+                              backgroundColor: AppColors.secondary,
+                              child: Icon(Icons.person, color: Colors.grey),
+                            );
+                          },
                         ),
                       )
                     : const CircleAvatar(
@@ -576,11 +599,11 @@ class _ChatScreenState extends State<ChatScreen> {
             icon: const Icon(Icons.call, color: AppColors.secondary),
             tooltip: 'Llamada de voz',
             onPressed: () {
-              final existing = widget.chatProvider;
+              final existingController = widget.chatController;
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) =>
-                      VoiceCallScreen(chatController: existing.controller),
+                      VoiceCallScreen(chatController: existingController),
                 ),
               );
             },
@@ -618,7 +641,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         builder: (context) {
                           final defaultModel = Config.getDefaultTextModel();
                           final selected =
-                              chatProvider.selectedModel ?? defaultModel;
+                              chatController.selectedModel ?? defaultModel;
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
@@ -742,7 +765,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               // Google Drive menu entry: always show a simple label (no avatar/email)
               _buildMenuItem(
-                value: chatProvider.googleLinked
+                value: chatController.googleLinked
                     ? 'backup_status'
                     : 'backup_google',
                 icon: Icons.add_to_drive,
@@ -792,7 +815,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ],
             onSelected: (value) async {
               if (value == 'gallery') {
-                final images = chatProvider.messages
+                final images = chatController.messages
                     .where(
                       (m) =>
                           m.isImage &&
@@ -816,20 +839,21 @@ class _ChatScreenState extends State<ChatScreen> {
                 if (navCtx == null) return;
                 Navigator.of(navCtx).push(
                   MaterialPageRoute(
-                    builder: (_) =>
-                        CalendarScreen(chatProvider: widget.chatProvider),
+                    builder: (_) => CalendarScreen(
+                      chatProvider: widget.chatController,
+                    ), // ✅ DDD: ETAPA 3 - Usar ChatController directamente
                   ),
                 );
               } else if (value == 'export_json') {
                 try {
                   final jsonStr = await BackupUtils.exportChatPartsToJson(
-                    profile: widget.chatProvider.onboardingData,
-                    messages: widget.chatProvider.messages,
-                    events: widget.chatProvider.events,
+                    profile: widget.chatController.profile!,
+                    messages: widget.chatController.messages,
+                    events: widget.chatController.events,
                   );
                   final navCtx = navigatorKey.currentContext;
                   if (navCtx == null) return;
-                  _showExportDialog(jsonStr, chatProvider);
+                  _showExportDialog(jsonStr, widget.chatController);
                 } catch (e) {
                   Log.e(
                     'Error al exportar biografía',
@@ -840,7 +864,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   showErrorDialog(e.toString());
                 }
               } else if (value == 'import_json') {
-                await _showImportDialog(widget.chatProvider);
+                await _showImportDialog(widget.chatController);
               } else if (value == 'local_backup') {
                 final navCtx = navigatorKey.currentContext;
                 if (navCtx == null) return;
@@ -850,13 +874,13 @@ class _ChatScreenState extends State<ChatScreen> {
                     content: LocalBackupDialog(
                       requestExportJson: () async {
                         return await BackupUtils.exportChatPartsToJson(
-                          profile: widget.chatProvider.onboardingData,
-                          messages: widget.chatProvider.messages,
-                          events: widget.chatProvider.events,
+                          profile: widget.chatController.profile!,
+                          messages: widget.chatController.messages,
+                          events: widget.chatController.events,
                         );
                       },
                       onImportedJson: (imported) async {
-                        await widget.chatProvider.applyImportedChat(
+                        await widget.chatController.applyImportedChat(
                           imported.toJson(),
                         );
                         if (mounted) setState(() {});
@@ -873,7 +897,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   // La generación del avatar se ejecutará automáticamente desde el provider
                   // después de actualizar la appearance. Propagamos errores para que la UI
                   // muestre un único diálogo.
-                  await widget.chatProvider.regenerateAppearance();
+                  await widget.chatController.regenerateAppearance();
                 } catch (e) {
                   if (!mounted) return;
                   showErrorDialog('Error al regenerar apariencia:\n$e');
@@ -885,7 +909,7 @@ class _ChatScreenState extends State<ChatScreen> {
               } else if (value == 'add_new_avatar') {
                 setState(() => _isRegeneratingAppearance = true);
                 try {
-                  await widget.chatProvider.generateAvatarFromAppearance();
+                  await widget.chatController.generateAvatarFromAppearance();
                 } catch (e) {
                   if (!mounted) return;
                   showErrorDialog('Error al generar avatar:\n$e');
@@ -943,15 +967,15 @@ class _ChatScreenState extends State<ChatScreen> {
                 if (navCtx == null) return;
                 await showAppDialog<void>(
                   builder: (ctx) => BackupDiagnosticsDialog(
-                    chatProvider: widget.chatProvider,
-                  ),
+                    chatProvider: widget.chatController,
+                  ), // ✅ DDD: ETAPA 3 - ChatController directo
                 );
               } else if (value == 'select_model') {
                 if (_loadingModels) return;
                 setState(() => _loadingModels = true);
                 List<String> models = [];
                 try {
-                  models = await widget.chatProvider.getAllModels();
+                  models = await widget.chatController.getAllModels();
                 } catch (e) {
                   if (!mounted) return;
                   _showErrorDialog('Error al obtener modelos:\n$e');
@@ -959,7 +983,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   return;
                 }
                 setState(() => _loadingModels = false);
-                final current = widget.chatProvider.selectedModel;
+                final current = widget.chatController.selectedModel;
                 final defaultModel = Config.getDefaultTextModel();
                 final initialModel =
                     current ??
@@ -969,10 +993,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 final selected = await _showModelSelectionDialog(
                   models,
                   initialModel,
-                  widget.chatProvider,
+                  widget.chatController,
                 );
                 if (!mounted) return;
-                _setSelectedModel(selected, current, chatProvider);
+                _setSelectedModel(selected, current, widget.chatController);
               } else if (value == 'select_voice') {
                 // Delegar selección de voz al diálogo centralizado y pasar los códigos de idioma
                 final userCountry = widget.bio.userCountryCode;
@@ -998,6 +1022,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   navCtx,
                   userLangCodes: userLangCodes,
                   aiLangCodes: aiLangCodes,
+                  fileService: _fileUIService,
                   synthesizeTts:
                       (
                         phrase, {
@@ -1006,14 +1031,14 @@ class _ChatScreenState extends State<ChatScreen> {
                         required forDialogDemo,
                       }) async {
                         try {
-                          final file = await widget.chatProvider.audioService
+                          final file = await widget.chatController.audioService
                               .synthesizeTts(
                                 phrase,
                                 voice: voice,
                                 languageCode: language,
                                 forDialogDemo: forDialogDemo,
                               );
-                          return file != null ? File(file) : null;
+                          return file; // Ya es String?, no necesita conversión
                         } catch (e) {
                           return null;
                         }
@@ -1032,7 +1057,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 await showAppDialog<void>(
                   builder: (ctx) => AlertDialog(
                     backgroundColor: Colors.black,
-                    content: _buildGoogleDriveBackupDialog(chatProvider),
+                    content: _buildGoogleDriveBackupDialog(
+                      widget.chatController,
+                    ),
                   ),
                 );
                 // ChatProvider will be updated by the dialog; no local refresh needed.
@@ -1042,7 +1069,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 await showAppDialog<void>(
                   builder: (ctx) => AlertDialog(
                     backgroundColor: Colors.black,
-                    content: _buildGoogleDriveBackupDialog(widget.chatProvider),
+                    content: _buildGoogleDriveBackupDialog(
+                      widget.chatController,
+                    ),
                   ),
                 );
                 return;
@@ -1057,7 +1086,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Expanded(
               child: Builder(
                 builder: (ctx) {
-                  final filteredMessages = chatProvider.messages
+                  final filteredMessages = chatController.messages
                       .where(
                         (m) =>
                             m.sender != MessageSender.system ||
@@ -1121,15 +1150,16 @@ class _ChatScreenState extends State<ChatScreen> {
                         message: message,
                         isLastUserMessage: isLastUserMessage,
                         imageDir: _imageDir,
+                        fileService: _fileUIService,
                         onRetry: () async {
                           try {
-                            chatProvider
+                            chatController
                                 .retryLastFailedMessage(); // ✅ DDD: Método compatible con ChatProviderAdapter
                           } catch (_) {}
                         },
                         onImageTap: () async {
                           try {
-                            final images = chatProvider.messages
+                            final images = chatController.messages
                                 .where(
                                   (m) =>
                                       m.isImage &&
@@ -1145,24 +1175,25 @@ class _ChatScreenState extends State<ChatScreen> {
                               ExpandableImageDialog.show(
                                 images,
                                 idx,
-                                imageDir: _imageDir,
+                                imageBasePath: _imageDir?.path,
+                                fileUIService: _fileUIService,
                                 onImageDeleted: _handleImageDeleted,
                               );
                             }
                           } catch (_) {}
                         },
-                        isAudioPlaying: (msg) => chatProvider.isPlaying(msg),
+                        isAudioPlaying: (msg) => chatController.isPlaying(msg),
                         onToggleAudio: (msg) =>
-                            chatProvider.togglePlayAudio(msg, context),
-                        getAudioPosition: () => chatProvider.playingPosition,
-                        getAudioDuration: () => chatProvider.playingDuration,
+                            chatController.togglePlayAudio(msg),
+                        getAudioPosition: () => chatController.playingPosition,
+                        getAudioDuration: () => chatController.playingDuration,
                       );
                     },
                   );
                 },
               ),
             ),
-            if (chatProvider.isSendingImage)
+            if (chatController.isSendingImage)
               Padding(
                 padding: const EdgeInsets.only(left: 12.0, bottom: 8.0),
                 child: Row(
@@ -1210,7 +1241,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                 ),
               )
-            else if (chatProvider.isSendingAudio)
+            else if (chatController.isSendingAudio)
               Padding(
                 padding: const EdgeInsets.only(left: 12.0, bottom: 8.0),
                 child: Row(
@@ -1264,7 +1295,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                 ),
               )
-            else if (chatProvider.isTyping)
+            else if (chatController.isTyping)
               Padding(
                 padding: const EdgeInsets.only(left: 12.0, bottom: 8.0),
                 child: Row(
@@ -1310,7 +1341,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   _chatInputController ??
                   ChatInputController(
                     scheduleSend: (text, {image, imageMimeType}) async {
-                      chatProvider.scheduleSendMessage(
+                      chatController.scheduleSendMessage(
                         text,
                         image: image,
                         imageMimeType: imageMimeType,
@@ -1318,13 +1349,14 @@ class _ChatScreenState extends State<ChatScreen> {
                       return Future.value();
                     },
                     startRecording: () async =>
-                        await chatProvider.startRecording(),
+                        await chatController.startRecording(),
                     stopAndSendRecording: () async =>
-                        await chatProvider.stopAndSendRecording(),
+                        await chatController.stopAndSendRecording(),
                     cancelRecording: () async =>
-                        await chatProvider.cancelRecording(),
-                    onUserTyping: (text) => chatProvider.onUserTyping(text),
+                        await chatController.cancelRecording(),
+                    onUserTyping: (text) => chatController.onUserTyping(text),
                   ),
+              fileService: _fileUIService,
             ),
           ],
         ),
@@ -1418,7 +1450,7 @@ class _ChatScreenState extends State<ChatScreen> {
           jsonStr,
         );
         if (imported != null) {
-          await widget.chatProvider.applyImportedChat(imported.toJson());
+          await widget.chatController.applyImportedChat(imported.toJson());
         }
       },
       onAccountInfoUpdated:
@@ -1448,7 +1480,7 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (_) {}
     try {
       if (_chatProviderListener != null) {
-        final provider = widget.chatProvider;
+        final provider = widget.chatController;
         provider.removeListener(_chatProviderListener!);
       }
     } catch (_) {}

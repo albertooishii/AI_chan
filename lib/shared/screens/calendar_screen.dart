@@ -7,10 +7,11 @@ import 'package:ai_chan/chat/application/utils/profile_persist_utils.dart'
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/constants.dart';
 import 'package:ai_chan/shared/application/services/calendar_processing_service.dart';
-import 'package:ai_chan/chat/application/adapters/chat_provider_adapter.dart'; // ✅ DDD: Para type safety en ETAPA 2
+import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro completado
 
 class CalendarScreen extends StatefulWidget {
-  final ChatProviderAdapter chatProvider; // ✅ DDD: Type safety en ETAPA 2
+  final ChatController
+  chatProvider; // ✅ DDD: ETAPA 3 - Usar ChatController directamente
 
   const CalendarScreen({super.key, required this.chatProvider});
 
@@ -317,7 +318,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
       // Añadir o reemplazar en el perfil
       final events = List<EventEntry>.from(
-        chatProvider.onboardingData.events ?? [],
+        chatProvider.profile?.events ??
+            [], // ✅ DDD: ETAPA 3 - Usar profile en lugar de onboardingData
       );
       int? replaceIdx;
       if (existing != null) {
@@ -335,7 +337,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       }
       // Persist via application util to centralize logic
       await profile_persist_utils.setEventsAndPersist(
-        chatProvider.controller,
+        chatProvider, // ✅ DDD: ETAPA 3 - ChatController es el controlador directo
         events,
       );
       // Programar promesa si aplica
@@ -377,7 +379,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
     if (confirm != true) return;
     final events = List<EventEntry>.from(
-      chatProvider.onboardingData.events ?? [],
+      chatProvider.profile?.events ??
+          [], // ✅ DDD: ETAPA 3 - Usar profile en lugar de onboardingData
     );
     events.removeWhere(
       (x) =>
@@ -386,7 +389,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           x.date == e.date,
     );
     await profile_persist_utils.setEventsAndPersist(
-      chatProvider.controller,
+      chatProvider, // ✅ DDD: ETAPA 3 - ChatController es el controlador directo
       events,
     );
     if (mounted) setState(() {});
@@ -396,7 +399,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget build(BuildContext context) {
     final chatProvider = widget.chatProvider;
     final events = chatProvider.events;
-    final bio = chatProvider.onboardingData.biography;
+    final bio = chatProvider
+        .profile
+        ?.biography; // ✅ DDD: ETAPA 3 - Usar profile en lugar de onboardingData
     // Funciones auxiliares para filtrar y mostrar horarios por día seleccionado
     bool dayMatchesWithInterval(
       String daysStr,
@@ -438,7 +443,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     List<Map<String, String>> rawSchedules() {
       final list = <Map<String, String>>[];
       try {
-        if (bio['horario_dormir'] is Map) {
+        if (bio != null && bio['horario_dormir'] is Map) {
+          // ✅ DDD: ETAPA 3 - Verificación de null
           final m = Map<String, dynamic>.from(bio['horario_dormir']);
           list.add({
             'type': 'sleep',
@@ -447,7 +453,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
             'days': '${m['dias'] ?? ''}',
           });
         }
-        if (bio['horario_trabajo'] is Map) {
+        if (bio != null && bio['horario_trabajo'] is Map) {
+          // ✅ DDD: ETAPA 3 - Verificación de null
           final m = Map<String, dynamic>.from(bio['horario_trabajo']);
           list.add({
             'type': 'work',
@@ -456,7 +463,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
             'days': '${m['dias'] ?? ''}',
           });
         }
-        if (bio['horario_estudio'] is Map) {
+        if (bio != null && bio['horario_estudio'] is Map) {
+          // ✅ DDD: ETAPA 3 - Verificación de null
           final m = Map<String, dynamic>.from(bio['horario_estudio']);
           final from = '${m['from'] ?? ''}';
           final to = '${m['to'] ?? ''}';
@@ -467,7 +475,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
             list.add({'type': 'study', 'from': from, 'to': to, 'days': days});
           }
         }
-        if (bio['horarios_actividades'] is List) {
+        if (bio != null && bio['horarios_actividades'] is List) {
+          // ✅ DDD: ETAPA 3 - Verificación de null
           for (final a in (bio['horarios_actividades'] as List)) {
             if (a is Map) {
               final m = Map<String, dynamic>.from(a);

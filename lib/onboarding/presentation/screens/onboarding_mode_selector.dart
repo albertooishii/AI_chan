@@ -9,11 +9,12 @@ import 'package:ai_chan/shared/services/backup_service.dart';
 import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:file_picker/file_picker.dart';
-import 'dart:io';
+import 'package:ai_chan/core/di.dart' as di;
+import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 import 'dart:math';
 import 'conversational_onboarding_screen.dart';
 import 'onboarding_screen.dart';
-import 'package:ai_chan/chat/application/adapters/chat_provider_adapter.dart'; // ✅ DDD: Para type safety en ETAPA 2
+import 'package:ai_chan/chat/application/services/chat_application_service.dart'; // ✅ DDD: ETAPA 3 - ChatApplicationService directo
 
 typedef OnboardingFinishCallback =
     Future<void> Function({
@@ -32,7 +33,8 @@ class OnboardingModeSelector extends StatefulWidget {
   final void Function()? onClearAllDebug;
   final Future<void> Function(ImportedChat importedChat)? onImportJson;
   final OnboardingProvider? onboardingProvider;
-  final ChatProviderAdapter? chatProvider; // ✅ DDD: Type safety en ETAPA 2
+  final ChatApplicationService?
+  chatProvider; // ✅ DDD: ETAPA 3 - Migrado a ChatApplicationService
 
   const OnboardingModeSelector({
     super.key,
@@ -48,6 +50,14 @@ class OnboardingModeSelector extends StatefulWidget {
 }
 
 class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
+  late final FileUIService _fileUIService;
+
+  @override
+  void initState() {
+    super.initState();
+    _fileUIService = di.getFileUIService();
+  }
+
   /// Construye un widget de texto con estilo consistente
   Widget _buildStyledText({
     required String text,
@@ -386,10 +396,24 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
         return; // No se pudo obtener la ruta
       }
 
-      final f = File(path);
+      // Verificar que el archivo existe usando FileUIService
+      if (!await _fileUIService.fileExists(path)) {
+        return; // Archivo no existe
+      }
+
+      // Leer el archivo usando FileUIService y crear File para BackupService
+      final bytes = await _fileUIService.readFileAsBytes(path);
+      if (bytes == null) {
+        return; // Error leyendo archivo
+      }
+
+      final tempPath = await _fileUIService.createTempFileFromBytes(
+        bytes,
+        'backup.zip',
+      );
 
       // Usar BackupService para extraer el JSON del archivo de backup
-      final jsonStr = await BackupService.restoreAndExtractJson(f);
+      final jsonStr = await BackupService.restoreAndExtractJson(tempPath);
 
       // Importar el JSON extraído
       final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(

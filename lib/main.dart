@@ -14,7 +14,7 @@ import 'dart:convert';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'core/di.dart' as di;
 import 'core/di_bootstrap.dart' as di_bootstrap;
-import 'package:ai_chan/chat/application/adapters/chat_provider_adapter.dart';
+import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro completado
 import 'package:ai_chan/chat/application/utils/profile_persist_utils.dart'
     as profile_persist_utils;
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
@@ -112,7 +112,7 @@ class MyApp extends StatefulWidget {
 }
 
 class MyAppState extends State<MyApp> with WidgetsBindingObserver {
-  ChatProviderAdapter? _chatProvider;
+  ChatController? _chatController; // ✅ DDD: ETAPA 3 - DDD puro
   Future<void> resetApp() async {
     Log.i('resetApp llamado');
 
@@ -127,34 +127,38 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       Log.d('resetApp: Todos los datos limpiados');
 
       // Limpiar estado en memoria de los providers
-      if (_chatProvider != null) {
-        _chatProvider!.messages.clear();
+      if (_chatController != null) {
+        await _chatController!
+            .clearMessages(); // ✅ DDD: ETAPA 3 - Usar método de ChatController
         // Crear perfil vacío en memoria sin persistir
-        _chatProvider!.onboardingData = AiChanProfile(
-          userName: '',
-          aiName: '',
-          userBirthdate: DateTime.now(),
-          aiBirthdate: DateTime.now(),
-          biography: {},
-          appearance: {},
-          timeline: [],
-        );
+        _chatController!.updateProfile(
+          AiChanProfile(
+            // ✅ DDD: ETAPA 3 - Usar updateProfile
+            userName: '',
+            aiName: '',
+            userBirthdate: DateTime.now(),
+            aiBirthdate: DateTime.now(),
+            biography: {},
+            appearance: {},
+            timeline: [],
+          ),
+        ); // ✅ DDD: ETAPA 3 - Cerrar constructor AiChanProfile y updateProfile
+
+        // Resetear provider OnboardingProvider usando método público reset()
+        widget.onboardingProvider.reset();
+
+        // Limpiar controladores de texto manualmente
+        widget.onboardingProvider.userNameController.clear();
+        widget.onboardingProvider.aiNameController?.clear();
+        widget.onboardingProvider.meetStoryController.clear();
+        widget.onboardingProvider.birthDateController.clear();
+        widget.onboardingProvider.userCountryCode = null;
+        widget.onboardingProvider.aiCountryCode = null;
+        widget.onboardingProvider.userBirthdate = null;
       }
 
-      // Resetear provider OnboardingProvider usando método público reset()
-      widget.onboardingProvider.reset();
-
-      // Limpiar controladores de texto manualmente
-      widget.onboardingProvider.userNameController.clear();
-      widget.onboardingProvider.aiNameController?.clear();
-      widget.onboardingProvider.meetStoryController.clear();
-      widget.onboardingProvider.birthDateController.clear();
-      widget.onboardingProvider.userCountryCode = null;
-      widget.onboardingProvider.aiCountryCode = null;
-      widget.onboardingProvider.userBirthdate = null;
-
-      // Nullificar ChatProvider para forzar recreación limpia
-      _chatProvider = null;
+      // Nullificar ChatController para forzar recreación limpia
+      _chatController = null; // ✅ DDD: ETAPA 3
 
       // Debug: estado después del reset
       Log.d(
@@ -200,7 +204,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     try {
-      _chatProvider?.dispose();
+      _chatController?.dispose(); // ✅ DDD: ETAPA 3
     } catch (_) {}
     super.dispose();
   }
@@ -291,10 +295,12 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       );
     }
 
-    // Ensure we only create the ChatProvider once and pass it down explicitly
-    if (_chatProvider == null) {
-      Log.i('MAIN: Creando nuevo ChatProviderAdapter (nueva arquitectura DDD)');
-      _chatProvider = di.getChatProviderAdapter();
+    // Ensure we only create the ChatController once and pass it down explicitly
+    if (_chatController == null) {
+      Log.i(
+        'MAIN: Creando nuevo ChatController (nueva arquitectura DDD)',
+      ); // ✅ DDD: ETAPA 3
+      _chatController = di.getChatController(); // ✅ DDD: ETAPA 3
 
       // Solo persistir datos si realmente hay una biografía válida Y los datos están guardados
       // Esto evita que se persistan datos fantasma después de un resetApp()
@@ -304,7 +310,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
           'MAIN: Persistiendo biografía: ${onboardingProvider.generatedBiography!.aiName}',
         );
         profile_persist_utils.setOnboardingDataAndPersist(
-          _chatProvider! as dynamic,
+          _chatController!, // ✅ DDD: ETAPA 3 - Direct ChatController
           onboardingProvider.generatedBiography!,
         );
       } else {
@@ -313,18 +319,21 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
         );
       }
 
-      Log.i('MAIN: Llamando loadAll()');
-      _chatProvider!.loadAll();
+      Log.i(
+        'MAIN: ChatController inicializado (carga automática)',
+      ); // ✅ DDD: ETAPA 3 - Ya no necesita loadAll() manual
+      // _chatController!.loadAll(); // ✅ DDD: ChatController hace carga automática
     } else {
-      Log.i('MAIN: Reutilizando ChatProvider existente');
+      Log.i('MAIN: Reutilizando ChatController existente'); // ✅ DDD: ETAPA 3
     }
 
     return ChangeNotifierProvider.value(
-      value: _chatProvider! as dynamic,
+      value:
+          _chatController, // ✅ DDD: ETAPA 3 COMPLETADA - Usar ChatController directamente
       child: ChatScreen(
         bio: onboardingProvider.generatedBiography!,
         aiName: onboardingProvider.generatedBiography!.aiName,
-        chatProvider: _chatProvider! as dynamic,
+        chatController: _chatController!,
         onClearAllDebug: resetApp,
         onImportJson: (importedChat) async {
           final ob = onboardingProvider;

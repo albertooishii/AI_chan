@@ -1,13 +1,14 @@
-import 'dart:io';
 import 'dart:math';
 import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 
 /// Reproductor compacto de mensajes de sonido.
 /// Extrae la lógica de ChatBubble para poder reutilizarlo / refactorizar.
 class AudioMessagePlayer extends StatefulWidget {
   final Message message;
+  final FileUIService fileService;
   final double width;
   final int bars; // número de barras de la forma de onda sintética
   // Externalized playback state and action to avoid Provider inside the widget.
@@ -17,6 +18,7 @@ class AudioMessagePlayer extends StatefulWidget {
   const AudioMessagePlayer({
     super.key,
     required this.message,
+    required this.fileService,
     this.width = 140,
     this.bars = 32,
     this.isPlaying = false,
@@ -66,16 +68,16 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer>
     super.dispose();
   }
 
-  void _computeDuration() {
+  void _computeDuration() async {
     final path = widget.message.audio?.url;
     if (path == null) return;
     try {
-      final f = File(path);
-      if (f.existsSync()) {
-        final bytes = f.lengthSync();
+      final exists = await widget.fileService.fileExists(path);
+      if (exists) {
+        final bytes = await widget.fileService.getFileSize(path);
         // 96 kbps ≈ 12 KB/s
         _durationSeconds = (bytes / 12000).round().clamp(1, 60 * 60);
-        setState(() {});
+        if (mounted) setState(() {});
       }
     } catch (_) {}
   }

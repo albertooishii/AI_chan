@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/controllers/audio_subtitle_controller.dart';
 import 'package:ai_chan/chat/application/services/message_text_processor_service.dart';
+import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 import 'audio_message_player.dart';
 import 'floating_audio_subtitle.dart';
 
@@ -17,6 +18,7 @@ class AudioMessagePlayerWithSubs extends StatefulWidget {
   final Future<void> Function(Message) togglePlay;
   final Duration Function()? getPlayingPosition;
   final Duration Function()? getPlayingDuration;
+  final FileUIService fileService;
 
   const AudioMessagePlayerWithSubs({
     super.key,
@@ -27,6 +29,7 @@ class AudioMessagePlayerWithSubs extends StatefulWidget {
     this.togglePlay = _defaultTogglePlay,
     this.getPlayingPosition,
     this.getPlayingDuration,
+    required this.fileService,
   });
 
   static bool _defaultIsPlaying(Message _) => false;
@@ -327,6 +330,7 @@ class _AudioMessagePlayerWithSubsState
         width: widget.width,
         isPlaying: isPlaying,
         onTap: () async => await widget.togglePlay(widget.message),
+        fileService: widget.fileService,
       );
     }
 
@@ -335,6 +339,7 @@ class _AudioMessagePlayerWithSubsState
       width: widget.width,
       isPlaying: isPlaying,
       onTap: () async => await widget.togglePlay(widget.message),
+      fileService: widget.fileService,
     );
   }
 }

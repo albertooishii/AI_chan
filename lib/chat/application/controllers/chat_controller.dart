@@ -15,7 +15,6 @@ class ChatController extends ChangeNotifier {
   String? _errorMessage;
   bool _isTyping = false;
   bool _isCalling = false;
-  bool _hasPendingIncomingCall = false;
 
   // Getters para UI
   List<Message> get messages => _chatService.messages;
@@ -28,7 +27,6 @@ class ChatController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isTyping => _isTyping;
   bool get isCalling => _isCalling;
-  bool get hasPendingIncomingCall => _hasPendingIncomingCall;
 
   // Audio UI state
   bool get isRecording => _chatService.isRecording;
@@ -209,12 +207,15 @@ class ChatController extends ChangeNotifier {
   }
 
   void setPendingIncomingCall(bool pending) {
-    _hasPendingIncomingCall = pending;
+    // Delegado al service
+    if (!pending) {
+      _chatService.clearPendingIncomingCall();
+    }
     notifyListeners();
   }
 
   void clearPendingIncomingCall() {
-    _hasPendingIncomingCall = false;
+    _chatService.clearPendingIncomingCall();
     notifyListeners();
   }
 
@@ -268,6 +269,230 @@ class ChatController extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
   }
+
+  // ✅ DDD: ETAPA 3 - Métodos adicionales para compatibilidad con ChatScreen
+
+  /// User typing indicator
+  void onUserTyping(String text) {
+    _chatService.onUserTyping(text);
+    setTyping(text.isNotEmpty);
+  }
+
+  /// Schedule sending a message (legacy compatibility)
+  void scheduleSendMessage(
+    String text, {
+    String? model,
+    dynamic image,
+    String? imageMimeType,
+  }) {
+    _chatService.scheduleSendMessage(
+      text,
+      model: model,
+      image: image,
+      imageMimeType: imageMimeType,
+    );
+    notifyListeners();
+  }
+
+  /// Control de mensajes periódicos de IA
+  void startPeriodicIaMessages() {
+    _chatService.startPeriodicIaMessages();
+  }
+
+  void stopPeriodicIaMessages() {
+    _chatService.stopPeriodicIaMessages();
+  }
+
+  /// Guardar todos los eventos
+  Future<void> saveAllEvents() async {
+    try {
+      await _chatService.saveAllEvents();
+    } catch (e) {
+      _setError('Error al guardar eventos: $e');
+    }
+  }
+
+  /// Retry last failed message
+  Future<void> retryLastFailedMessage({String? model}) async {
+    try {
+      _setLoading(true);
+      _clearError();
+      await _chatService.retryLastFailedMessage(model: model);
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = e.toString();
+    } finally {
+      _setLoading(false);
+      notifyListeners();
+    }
+  }
+
+  /// Helper method to execute async operations with loading state management
+  Future<void> _executeWithLoadingState(
+    Future<void> Function() operation,
+  ) async {
+    try {
+      _setLoading(true);
+      _clearError();
+      await operation();
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = e.toString();
+    } finally {
+      _setLoading(false);
+      notifyListeners();
+    }
+  }
+
+  /// Regenerate appearance
+  Future<void> regenerateAppearance() async {
+    await _executeWithLoadingState(() => _chatService.regenerateAppearance());
+  }
+
+  /// Generate avatar from appearance
+  Future<void> generateAvatarFromAppearance({bool replace = false}) async {
+    await _executeWithLoadingState(
+      () => _chatService.generateAvatarFromAppearance(replace: replace),
+    );
+  }
+
+  // ✅ COMPATIBILITY: Audio playback methods
+  bool isPlaying(Message msg) {
+    // ✅ MIGRACIÓN: Usar método correcto del ChatApplicationService
+    return _chatService.isPlaying(msg);
+  }
+
+  // ✅ COMPATIBILITY: Sending state getters
+  bool get isSendingImage => _chatService.isSendingImage;
+  bool get isSendingAudio => _chatService.isSendingAudio;
+  bool get isUploadingUserAudio => _chatService.isUploadingUserAudio;
+
+  // ✅ MIGRACIÓN CRÍTICA: Métodos faltantes del ChatProvider original
+
+  /// Añade un mensaje de imagen del usuario
+  void addUserImageMessage(Message msg) {
+    _chatService.addUserImageMessage(msg);
+    notifyListeners();
+  }
+
+  /// Añade un mensaje del asistente
+  Future<void> addAssistantMessage(String text, {bool isAudio = false}) async {
+    try {
+      await _chatService.addAssistantMessage(text, isAudio: isAudio);
+      notifyListeners();
+    } catch (e) {
+      _setError('Error al añadir mensaje del asistente: $e');
+    }
+  }
+
+  /// Añade mensaje de usuario
+  Future<void> addUserMessage(Message message) async {
+    try {
+      await _chatService.addUserMessage(message);
+      notifyListeners();
+    } catch (e) {
+      _setError('Error al añadir mensaje de usuario: $e');
+    }
+  }
+
+  /// Actualiza o añade mensaje de estado de llamada
+  Future<void> updateOrAddCallStatusMessage({
+    required String status,
+    String? metadata,
+    CallStatus? callStatus,
+    bool incoming = false,
+    int? placeholderIndex,
+  }) async {
+    try {
+      await _chatService.updateOrAddCallStatusMessage(
+        status: status,
+        metadata: metadata,
+        callStatus: callStatus,
+        incoming: incoming,
+        placeholderIndex: placeholderIndex,
+      );
+      notifyListeners();
+    } catch (e) {
+      _setError('Error al actualizar estado de llamada: $e');
+    }
+  }
+
+  /// Reemplaza placeholder de llamada entrante
+  void replaceIncomingCallPlaceholder({
+    required int index,
+    required VoiceCallSummary summary,
+    required String summaryText,
+  }) {
+    _chatService.replaceIncomingCallPlaceholder(
+      index: index,
+      summary: summary,
+      summaryText: summaryText,
+    );
+    notifyListeners();
+  }
+
+  /// Rechaza placeholder de llamada entrante
+  void rejectIncomingCallPlaceholder({
+    required int index,
+    required String rejectionText,
+  }) {
+    _chatService.rejectIncomingCallPlaceholder(
+      index: index,
+      rejectionText: rejectionText,
+    );
+    notifyListeners();
+  }
+
+  /// Fuerza el envío de mensajes en cola
+  Future<void> flushQueuedMessages() async {
+    try {
+      await _chatService.flushQueuedMessages();
+      notifyListeners();
+    } catch (e) {
+      _setError('Error al enviar mensajes en cola: $e');
+    }
+  }
+
+  /// Getters de estado de llamadas del ChatProvider original
+  bool get hasPendingIncomingCall => _chatService.hasPendingIncomingCall;
+  int get queuedCount => _chatService.queuedCount;
+
+  /// Actualizar información de cuenta Google
+  Future<void> updateGoogleAccountInfo({
+    String? email,
+    String? avatarUrl,
+    String? name,
+    bool linked = true,
+    bool triggerAutoBackup = false,
+  }) async {
+    try {
+      await _chatService.updateGoogleAccountInfo(
+        email: email,
+        avatarUrl: avatarUrl,
+        name: name,
+        linked: linked,
+        triggerAutoBackup: triggerAutoBackup,
+      );
+      notifyListeners();
+    } catch (e) {
+      _setError('Error al actualizar cuenta Google: $e');
+    }
+  }
+
+  /// Limpiar información de cuenta Google
+  Future<void> clearGoogleAccountInfo() async {
+    try {
+      await _chatService.clearGoogleAccountInfo();
+      notifyListeners();
+    } catch (e) {
+      _setError('Error al limpiar cuenta Google: $e');
+    }
+  }
+
+  /// Getters de cuenta Google del ChatProvider original
+  String? get googleEmail => _chatService.googleEmail;
+  String? get googleAvatarUrl => _chatService.googleAvatarUrl;
+  String? get googleName => _chatService.googleName;
 
   @override
   void dispose() {

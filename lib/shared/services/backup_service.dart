@@ -113,17 +113,18 @@ class BackupService {
 
   /// Restaura desde un archivo de backup (.zip/.gz/plain) y devuelve el JSON
   /// extraído; la importación al estado de la app corre a cargo del llamador.
-  static Future<String> restoreAndExtractJson(File backupFile) async {
-    final jsonStr = await extractJsonAndRestoreMedia(backupFile);
+  static Future<String> restoreAndExtractJson(String backupPath) async {
+    final jsonStr = await extractJsonAndRestoreMedia(backupPath);
     return jsonStr;
   }
 
   /// Extrae el JSON y restaura ficheros media (images/ y audio/) en los
   /// directorios habituales del sistema de archivos. Devuelve el contenido
   /// JSON extraído (throw en error).
-  static Future<String> extractJsonAndRestoreMedia(File backupFile) async {
+  static Future<String> extractJsonAndRestoreMedia(String backupPath) async {
+    final backupFile = File(backupPath);
     final bytes = await backupFile.readAsBytes();
-    if (backupFile.path.toLowerCase().endsWith('.zip')) {
+    if (backupPath.toLowerCase().endsWith('.zip')) {
       final archive = ZipDecoder().decodeBytes(bytes);
       String? jsonStr;
       // Prepare target dirs

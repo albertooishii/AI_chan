@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:ai_chan/core/models.dart';
@@ -7,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:ai_chan/main.dart';
 import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/shared/widgets/app_dialog.dart';
+import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 
 class ExpandableImageDialog {
   /// images: lista de mensajes con imagePath válido
@@ -16,7 +16,8 @@ class ExpandableImageDialog {
   static void show(
     List<Message> images,
     int initialIndex, {
-    Directory? imageDir,
+    String? imageBasePath,
+    FileUIService? fileUIService,
     void Function(AiImage?)? onImageDeleted,
   }) {
     // Show the dialog using the app's global navigator so callers don't need
@@ -31,7 +32,8 @@ class ExpandableImageDialog {
       builder: (context) => _GalleryImageViewerDialog(
         images: images,
         initialIndex: initialIndex,
-        imageDir: imageDir,
+        imageBasePath: imageBasePath,
+        fileUIService: fileUIService,
         onImageDeleted: onImageDeleted,
       ),
     );
@@ -41,12 +43,14 @@ class ExpandableImageDialog {
 class _GalleryImageViewerDialog extends StatefulWidget {
   final List<Message> images;
   final int initialIndex;
-  final Directory? imageDir;
+  final String? imageBasePath;
+  final FileUIService? fileUIService;
   final void Function(AiImage?)? onImageDeleted;
   const _GalleryImageViewerDialog({
     required this.images,
     required this.initialIndex,
-    this.imageDir,
+    this.imageBasePath,
+    this.fileUIService,
     this.onImageDeleted,
   });
 
@@ -124,6 +128,18 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
   }
 
   DateTime? _lastKeyTime;
+
+  Future<List<int>?> _loadImageBytes(String filePath) async {
+    try {
+      if (widget.fileUIService == null) return null;
+      final exists = await widget.fileUIService!.fileExists(filePath);
+      if (!exists) return null;
+      return await widget.fileUIService!.readFileAsBytes(filePath);
+    } catch (e) {
+      return null;
+    }
+  }
+
   void _onKey(KeyEvent event) {
     // Ignorar eventos duplicados en menos de 100ms
     if (event is KeyDownEvent) {
@@ -177,12 +193,15 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
     if (confirmed != true) return;
 
     // Intentar borrar el archivo si existe
-    if (relPath != null && relPath.isNotEmpty && widget.imageDir != null) {
+    if (relPath != null &&
+        relPath.isNotEmpty &&
+        widget.fileUIService != null &&
+        widget.imageBasePath != null) {
       try {
-        final absPath = '${widget.imageDir!.path}/${relPath.split('/').last}';
-        final file = File(absPath);
-        if (await file.exists()) {
-          await file.delete();
+        final absPath = '${widget.imageBasePath!}/${relPath.split('/').last}';
+        final exists = await widget.fileUIService!.fileExists(absPath);
+        if (exists) {
+          await widget.fileUIService!.deleteFile(absPath);
         }
       } catch (e) {
         // Mostrar aviso, pero continuar con la eliminación de la lista
@@ -289,7 +308,8 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                     itemBuilder: (context, idx) {
                       final msg = widget.images[idx];
                       final relPath = msg.image?.url;
-                      if (widget.imageDir == null ||
+                      if (widget.fileUIService == null ||
+                          widget.imageBasePath == null ||
                           relPath == null ||
                           relPath.isEmpty) {
                         return GestureDetector(
@@ -309,120 +329,141 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                           ),
                         );
                       }
+
                       final absPath =
-                          '${widget.imageDir!.path}/${relPath.split('/').last}';
-                      final file = File(absPath);
-                      final exists = file.existsSync();
-                      if (exists) {
-                        return Stack(
-                          children: [
-                            // Área de cierre al hacer tap fuera de la imagen
-                            Positioned.fill(
-                              child: GestureDetector(
-                                behavior: HitTestBehavior.translucent,
-                                onTap: () => Navigator.of(context).pop(),
-                                child: Container(),
-                              ),
-                            ),
-                            // La imagen en sí
-                            Center(
-                              child: GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: () {
-                                  // Only toggle overlay visibility. Avoid touching the PageController
-                                  // to prevent temporary jumps back to the initial page.
-                                  setState(() {
-                                    _showText = !_showText;
-                                  });
-                                },
-                                child: InteractiveViewer(
-                                  minScale: 1.0,
-                                  maxScale: 6.0,
-                                  clipBehavior: Clip.none,
-                                  child: Image.file(file, fit: BoxFit.contain),
+                          '${widget.imageBasePath!}/${relPath.split('/').last}';
+
+                      return FutureBuilder<List<int>?>(
+                        future: _loadImageBytes(absPath),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+
+                          final imageBytes = snapshot.data;
+                          if (imageBytes == null || imageBytes.isEmpty) {
+                            return GestureDetector(
+                              behavior: HitTestBehavior.translucent,
+                              onTap: () => Navigator.of(context).pop(),
+                              child: Center(
+                                child: Container(
+                                  color: Colors.grey[900],
+                                  width: 200,
+                                  height: 200,
+                                  child: const Icon(
+                                    Icons.broken_image,
+                                    color: Colors.grey,
+                                    size: 80,
+                                  ),
                                 ),
                               ),
-                            ),
-                            // Etiqueta pequeña en la esquina inferior izquierda: "Avatar i/n · dd/MM/yyyy HH:mm"
-                            // Mostrar siempre el contador; añadir la fecha si está disponible
-                            if (_showText)
-                              Builder(
-                                builder: (ctx) {
-                                  final msg = widget.images[_currentIndex];
-                                  final img = msg.image;
-                                  // Considerar avatar solo si tiene createdAtMs; muchas imágenes normales
-                                  // pueden tener seed pero no createdAtMs.
-                                  final bool isAvatar =
-                                      img?.createdAtMs != null;
-                                  final total = widget.images.length;
-                                  final index = (_currentIndex + 1).clamp(
-                                    1,
-                                    total,
-                                  );
+                            );
+                          }
 
-                                  // decidir prefijo
-                                  String label = isAvatar
-                                      ? 'Avatar $index/$total'
-                                      : 'Foto $index/$total';
-
-                                  // fecha: para avatar preferir createdAtMs, para imágenes normales usar message.dateTime
-                                  final int? ms = isAvatar
-                                      ? img?.createdAtMs
-                                      : msg.dateTime.millisecondsSinceEpoch;
-                                  if (ms != null) {
-                                    final dt =
-                                        DateTime.fromMillisecondsSinceEpoch(ms);
-                                    final formatted = DateFormat(
-                                      'dd/MM/yyyy HH:mm',
-                                    ).format(dt);
-                                    label = '$label · $formatted';
-                                  }
-
-                                  return Positioned(
-                                    left: 12,
-                                    bottom: 12,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 4,
-                                        horizontal: 8,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(
-                                          alpha: (0.45 * 255)
-                                              .round()
-                                              .toDouble(),
-                                        ),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        label,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
+                          return Stack(
+                            children: [
+                              // Área de cierre al hacer tap fuera de la imagen
+                              Positioned.fill(
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.translucent,
+                                  onTap: () => Navigator.of(context).pop(),
+                                  child: Container(),
+                                ),
                               ),
-                          ],
-                        );
-                      }
-                      return GestureDetector(
-                        behavior: HitTestBehavior.translucent,
-                        onTap: () => Navigator.of(context).pop(),
-                        child: Center(
-                          child: Container(
-                            color: Colors.grey[900],
-                            width: 200,
-                            height: 200,
-                            child: const Icon(
-                              Icons.broken_image,
-                              color: Colors.grey,
-                              size: 80,
-                            ),
-                          ),
-                        ),
+                              // La imagen en sí
+                              Center(
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () {
+                                    // Only toggle overlay visibility. Avoid touching the PageController
+                                    // to prevent temporary jumps back to the initial page.
+                                    setState(() {
+                                      _showText = !_showText;
+                                    });
+                                  },
+                                  child: InteractiveViewer(
+                                    minScale: 1.0,
+                                    maxScale: 6.0,
+                                    clipBehavior: Clip.none,
+                                    child: Image.memory(
+                                      Uint8List.fromList(imageBytes),
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // Etiqueta pequeña en la esquina inferior izquierda: "Avatar i/n · dd/MM/yyyy HH:mm"
+                              // Mostrar siempre el contador; añadir la fecha si está disponible
+                              if (_showText)
+                                Builder(
+                                  builder: (ctx) {
+                                    final msg = widget.images[_currentIndex];
+                                    final img = msg.image;
+                                    // Considerar avatar solo si tiene createdAtMs; muchas imágenes normales
+                                    // pueden tener seed pero no createdAtMs.
+                                    final bool isAvatar =
+                                        img?.createdAtMs != null;
+                                    final total = widget.images.length;
+                                    final index = (_currentIndex + 1).clamp(
+                                      1,
+                                      total,
+                                    );
+
+                                    // decidir prefijo
+                                    String label = isAvatar
+                                        ? 'Avatar $index/$total'
+                                        : 'Foto $index/$total';
+
+                                    // fecha: para avatar preferir createdAtMs, para imágenes normales usar message.dateTime
+                                    final int? ms = isAvatar
+                                        ? img?.createdAtMs
+                                        : msg.dateTime.millisecondsSinceEpoch;
+                                    if (ms != null) {
+                                      final dt =
+                                          DateTime.fromMillisecondsSinceEpoch(
+                                            ms,
+                                          );
+                                      final formatted = DateFormat(
+                                        'dd/MM/yyyy HH:mm',
+                                      ).format(dt);
+                                      label = '$label · $formatted';
+                                    }
+
+                                    return Positioned(
+                                      left: 12,
+                                      bottom: 12,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 4,
+                                          horizontal: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(
+                                            alpha: (0.45 * 255)
+                                                .round()
+                                                .toDouble(),
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          label,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                            ],
+                          );
+                        },
                       );
                     },
                   ),
@@ -477,10 +518,10 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                               widget.images[_currentIndex].image?.url;
                           if (relPath != null &&
                               relPath.isNotEmpty &&
-                              widget.imageDir != null) {
+                              widget.imageBasePath != null) {
                             // Construir ruta completa
                             final absPath =
-                                '${widget.imageDir!.path}/${relPath.split('/').last}';
+                                '${widget.imageBasePath!}/${relPath.split('/').last}';
                             final result = await downloadImage(absPath);
 
                             if (!mounted) return; // State no longer mounted

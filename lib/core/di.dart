@@ -26,14 +26,22 @@ import 'package:ai_chan/call/application/interfaces/voice_call_controller_builde
 import 'package:ai_chan/call/infrastructure/builders/voice_call_controller_builder.dart';
 import 'package:ai_chan/shared/domain/interfaces/i_file_service.dart';
 import 'package:ai_chan/shared/infrastructure/services/file_service.dart';
+import 'package:ai_chan/shared/domain/interfaces/i_file_operations_service.dart';
+import 'package:ai_chan/shared/infrastructure/services/file_operations_service.dart';
+import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 import 'package:ai_chan/chat/application/services/chat_application_service.dart';
 import 'package:ai_chan/chat/application/controllers/chat_controller.dart';
 import 'package:ai_chan/chat/infrastructure/services/prompt_builder_service.dart';
-import 'package:ai_chan/chat/application/adapters/chat_provider_adapter.dart';
 
 /// Pequeñas fábricas/funciones de DI para la migración incremental.
 /// Idealmente esto evolucionará a un contenedor/locator más completo.
 IChatRepository getChatRepository() => LocalChatRepository();
+
+/// Factory for file operations service - DDD compliance
+IFileOperationsService getFileOperationsService() => FileOperationsService();
+
+/// Factory for File UI Service - DDD compliance for presentation layer
+FileUIService getFileUIService() => FileUIService(getFileOperationsService());
 
 // DI factories and small helpers used across the app. Legacy adapters have
 // been removed and their logic migrated into higher-level use-cases such
@@ -407,12 +415,9 @@ IProfileService getProfileServiceForProvider([String? provider]) {
 ChatApplicationService getChatApplicationService() => ChatApplicationService(
   repository: getChatRepository(),
   promptBuilder: PromptBuilderService(),
+  fileOperations: getFileOperationsService(),
 );
 
 /// Factory for Chat Controller - nueva arquitectura DDD
 ChatController getChatController() =>
     ChatController(chatService: getChatApplicationService());
-
-/// Factory for Chat Provider Adapter - bridge temporal para compatibilidad
-/// ⚠️ TEMPORAL: Este adapter será eliminado una vez completada la migración
-ChatProviderAdapter getChatProviderAdapter() => ChatProviderAdapter();

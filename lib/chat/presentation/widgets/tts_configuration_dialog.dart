@@ -12,10 +12,10 @@ import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared.dart'; // Using centralized shared exports
 import 'package:ai_chan/chat/application/services/tts_voice_service.dart';
 import 'package:ai_chan/shared/utils/openai_voice_utils.dart';
-import 'dart:io' show File;
+import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 
 typedef SynthesizeTtsFn =
-    Future<File?> Function(
+    Future<String?> Function(
       String phrase, {
       required String voice,
       required String language,
@@ -25,6 +25,7 @@ typedef SynthesizeTtsFn =
 class TtsConfigurationDialog extends StatefulWidget {
   final List<String>? userLangCodes;
   final List<String>? aiLangCodes;
+  final FileUIService fileService;
   // Callback that performs TTS synthesis for dialog demos. If null, play demo is disabled.
   final SynthesizeTtsFn? synthesizeTts;
   // Callback to notify the caller that settings changed and it may want to refresh UI
@@ -32,6 +33,7 @@ class TtsConfigurationDialog extends StatefulWidget {
 
   const TtsConfigurationDialog({
     super.key,
+    required this.fileService,
     this.userLangCodes,
     this.aiLangCodes,
     this.synthesizeTts,
@@ -44,6 +46,7 @@ class TtsConfigurationDialog extends StatefulWidget {
   /// Helper para mostrar este widget dentro de un AppAlertDialog.
   static Future<bool?> showAsDialog(
     BuildContext ctx, {
+    required FileUIService fileService,
     List<String>? userLangCodes,
     List<String>? aiLangCodes,
     SynthesizeTtsFn? synthesizeTts,
@@ -65,6 +68,7 @@ class TtsConfigurationDialog extends StatefulWidget {
         ],
         content: TtsConfigurationDialog(
           key: stateKey,
+          fileService: fileService,
           userLangCodes: userLangCodes,
           aiLangCodes: aiLangCodes,
           synthesizeTts: synthesizeTts,
@@ -880,15 +884,20 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                               provider: '${providerKey}_tts_dialog',
                             );
 
-                        if (cachedFile != null) {
+                        final cachedFilePath = cachedFile?.path;
+                        if (cachedFilePath != null) {
                           try {
                             // Debug: ensure file exists and has content before attempting to play
-                            final exists = await cachedFile.exists();
+                            final exists = await widget.fileService.fileExists(
+                              cachedFilePath,
+                            );
                             final length = exists
-                                ? await cachedFile.length()
+                                ? await widget.fileService.getFileSize(
+                                    cachedFilePath,
+                                  )
                                 : 0;
                             debugPrint(
-                              '[TTS_DIALOG] Playing cached audio: path=${cachedFile.path} exists=$exists length=$length',
+                              '[TTS_DIALOG] Playing cached audio: path=$cachedFilePath exists=$exists length=$length',
                             );
                           } catch (e) {
                             debugPrint(
@@ -898,7 +907,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
 
                           // Prefer explicit DeviceFileSource for local files to avoid Uri/FileProvider fallbacks
                           await _audioPlayer.play(
-                            ap.DeviceFileSource(cachedFile.path),
+                            ap.DeviceFileSource(cachedFilePath),
                           );
                           // Esperar a la finalización antes de liberar el player para que se oiga el audio
                           try {
@@ -920,10 +929,14 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                         );
                         if (file != null) {
                           try {
-                            final exists = await file.exists();
-                            final length = exists ? await file.length() : 0;
+                            final exists = await widget.fileService.fileExists(
+                              file,
+                            );
+                            final length = exists
+                                ? await widget.fileService.getFileSize(file)
+                                : 0;
                             debugPrint(
-                              '[TTS_DIALOG] Playing generated audio: path=${file.path} exists=$exists length=$length',
+                              '[TTS_DIALOG] Playing generated audio: path=$file exists=$exists length=$length',
                             );
                           } catch (e) {
                             debugPrint(
@@ -931,9 +944,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                             );
                           }
 
-                          await _audioPlayer.play(
-                            ap.DeviceFileSource(file.path),
-                          );
+                          await _audioPlayer.play(ap.DeviceFileSource(file));
                           // Esperar a que termine la reproducción antes de liberar recursos
                           try {
                             await _audioPlayer.onPlayerComplete.first;

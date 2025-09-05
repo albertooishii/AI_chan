@@ -68,13 +68,6 @@ DOMAIN MUST BE PURE BUSINESS LOGIC
       for (final file in applicationFiles) {
         final content = file.readAsStringSync();
 
-        // TEMPORAL: Permitir ChatProvider mientras migramos a DDD
-        if (file.path.contains('chat_provider.dart')) {
-          // ⚠️ DEUDA TÉCNICA: ChatProvider pendiente de eliminación (ver TECHNICAL_DEBT_ROADMAP.md)
-          // 📝 PRE-COMMIT: print removido para evitar falla, pero migración DDD es exitosa
-          continue;
-        }
-
         // Application forbidden dependencies
         final forbiddenPatterns = [
           '/infrastructure/',
@@ -120,8 +113,6 @@ ${violations.join('\n')}
 APPLICATION LAYER RULES:
 - Only depends on Domain interfaces
 - No direct infrastructure access
-
-⚠️ TEMPORAL: ChatProvider excluido (ver TECHNICAL_DEBT_ROADMAP.md)
       ''',
       );
     });
@@ -173,32 +164,8 @@ INFRASTRUCTURE MUST IMPLEMENT DOMAIN INTERFACES
       final violations = <String>[];
       final presentationFiles = _findFilesInLayer('presentation');
 
-      // Lista de archivos con deuda técnica documentada
-      final temporalFileExceptions = [
-        'message_input.dart',
-        'chat_bubble.dart',
-        'tts_configuration_dialog.dart',
-        'audio_message_player.dart',
-        'expandable_image_dialog.dart',
-        'gallery_screen.dart',
-        'chat_screen.dart',
-        'onboarding_mode_selector.dart',
-      ];
-
       for (final file in presentationFiles) {
         final content = file.readAsStringSync();
-        final fileName = file.path.split('/').last;
-
-        // TEMPORAL: Permitir File() en archivos documentados como deuda técnica
-        final bool isTemporalException = temporalFileExceptions.any(
-          (exception) => fileName == exception,
-        );
-
-        if (isTemporalException && content.contains('File(')) {
-          // ⚠️ DEUDA TÉCNICA: $fileName usa File() directamente (ver TECHNICAL_DEBT_ROADMAP.md)
-          // 📝 PRE-COMMIT: print removido para evitar falla, pero migración DDD es exitosa
-          continue; // Skip validation for this file
-        }
 
         // Presentation should not have business logic
         final businessLogicPatterns = [
@@ -208,17 +175,21 @@ INFRASTRUCTURE MUST IMPLEMENT DOMAIN INTERFACES
           'Directory(',
         ];
 
-        // Solo validar File() para archivos NO excluidos
-        if (!isTemporalException) {
-          businessLogicPatterns.add('File(');
-        }
-
         for (final pattern in businessLogicPatterns) {
           if (content.contains(pattern)) {
             violations.add(
               '❌ ${_getRelativePath(file)}: Contains business logic: $pattern',
             );
           }
+        }
+
+        // Check for File constructor usage (but not method calls like deleteFile(), importJsonFile(), etc.)
+        // Pattern: File( but not preceded by alphanumeric/underscore (to exclude method calls)
+        final fileConstructorRegex = RegExp(r'(?<![a-zA-Z0-9_])File\s*\(');
+        if (fileConstructorRegex.hasMatch(content)) {
+          violations.add(
+            '❌ ${_getRelativePath(file)}: Contains business logic: File( constructor',
+          );
         }
       }
 
@@ -233,8 +204,6 @@ ${violations.join('\n')}
 PRESENTATION RULES:
 - Only UI and user interaction logic
 - Uses application services for business operations
-
-⚠️ TEMPORAL: 8 archivos excluidos de File() validation (ver TECHNICAL_DEBT_ROADMAP.md)
       ''',
       );
     });
