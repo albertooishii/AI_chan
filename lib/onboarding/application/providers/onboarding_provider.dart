@@ -217,7 +217,7 @@ class OnboardingProvider extends ChangeNotifier {
     // notifyListeners(); // Solo si necesitas refresco inmediato en la UI
   }
 
-  void setUserBirthday(DateTime? value) {
+  void setUserBirthdate(DateTime? value) {
     userBirthdate = value;
     if (value != null) {
       birthDateController.text = '${value.day}/${value.month}/${value.year}';
@@ -268,7 +268,7 @@ class OnboardingProvider extends ChangeNotifier {
         child: child!,
       ),
     );
-    if (picked != null) setUserBirthday(picked);
+    if (picked != null) setUserBirthdate(picked);
   }
 
   Future<void> suggestStory(BuildContext context) async {

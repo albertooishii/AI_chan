@@ -6,10 +6,10 @@ class DateUtils {
   static int calculateAge(DateTime birthDate, {DateTime? referenceDate}) {
     final now = referenceDate ?? DateTime.now();
     int age = now.year - birthDate.year;
-    final hasHadBirthdayThisYear =
+    final hasHadBirthdateThisYear =
         (now.month > birthDate.month) ||
         (now.month == birthDate.month && now.day >= birthDate.day);
-    if (!hasHadBirthdayThisYear) age -= 1;
+    if (!hasHadBirthdateThisYear) age -= 1;
     return age;
   }
 

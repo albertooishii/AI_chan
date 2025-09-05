@@ -1325,7 +1325,7 @@ class _ConversationalOnboardingScreenState
             return false;
           }
         }
-        _collectedData['userBirthday'] = _userBirthdate?.toIso8601String();
+        _collectedData['userBirthdate'] = _userBirthdate?.toIso8601String();
         Log.d(
           'userBirthdate: Fecha de nacimiento confirmada y guardada: $processedValue',
           tag: 'CONV_ONBOARDING',

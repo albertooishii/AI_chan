@@ -33,7 +33,7 @@ void main() async {
         // 🎯 PASO 1: Datos de onboarding inicial
         final userName = 'TestUser';
         final aiName = 'MiAI';
-        final userBirthday = DateTime(1995, 6, 15);
+        final userBirthdate = DateTime(1995, 6, 15);
         final meetStory = 'Nos conocimos en una convención de anime';
 
         Log.d(
@@ -79,7 +79,7 @@ void main() async {
         final biography = await generateAIBiographyWithAI(
           userName: userName,
           aiName: aiName,
-          userBirthdate: userBirthday,
+          userBirthdate: userBirthdate,
           meetStory: meetStory,
           userCountryCode: 'ES',
           aiCountryCode: 'JP',

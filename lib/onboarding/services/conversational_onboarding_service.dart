@@ -11,7 +11,7 @@ import 'package:ai_chan/shared/constants/female_names.dart';
 class MemoryData {
   String? userName;
   String? userCountry;
-  String? userBirthdate; // Cambio de birthday a birthdate
+  String? userBirthdate;
   String? aiCountry;
   String? aiName;
   String? meetStory;

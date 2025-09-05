@@ -49,14 +49,14 @@ class AiChanProfile {
         .map((e) => EventEntry.fromJson(e as Map<String, dynamic>))
         .toList();
     DateTime? birth;
-    if (json['userBirthday'] is String &&
-        (json['userBirthday'] as String).isNotEmpty) {
-      birth = DateTime.tryParse(json['userBirthday']);
+    if (json['userBirthdate'] is String &&
+        (json['userBirthdate'] as String).isNotEmpty) {
+      birth = DateTime.tryParse(json['userBirthdate']);
     }
     DateTime? aiBirth;
-    if (json['aiBirthday'] is String &&
-        (json['aiBirthday'] as String).isNotEmpty) {
-      aiBirth = DateTime.tryParse(json['aiBirthday']);
+    if (json['aiBirthdate'] is String &&
+        (json['aiBirthdate'] as String).isNotEmpty) {
+      aiBirth = DateTime.tryParse(json['aiBirthdate']);
     }
     return AiChanProfile(
       userName: json['userName'] ?? '',
@@ -129,10 +129,10 @@ class AiChanProfile {
   Map<String, dynamic> toJson() => {
     'userName': userName,
     'aiName': aiName,
-    'userBirthday': userBirthdate != null
+    'userBirthdate': userBirthdate != null
         ? "${userBirthdate!.year.toString().padLeft(4, '0')}-${userBirthdate!.month.toString().padLeft(2, '0')}-${userBirthdate!.day.toString().padLeft(2, '0')}"
         : null,
-    'aiBirthday': aiBirthdate != null
+    'aiBirthdate': aiBirthdate != null
         ? "${aiBirthdate!.year.toString().padLeft(4, '0')}-${aiBirthdate!.month.toString().padLeft(2, '0')}-${aiBirthdate!.day.toString().padLeft(2, '0')}"
         : null,
     'biography': biography,

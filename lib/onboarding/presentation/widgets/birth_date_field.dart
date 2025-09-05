@@ -2,19 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/constants/app_colors.dart';
 
 /// A presentation-only birth date field. The parent is responsible for
-/// providing a [controller], the current [userBirthday] value and an
-/// [onBirthdayChanged] callback which will be called when the user picks a
+/// providing a [controller], the current [userBirthdate] value and an
+/// [onBirthdateChanged] callback which will be called when the user picks a
 /// date. This keeps the widget free of Provider dependencies.
 class BirthDateField extends StatelessWidget {
   final TextEditingController controller;
   final DateTime? userBirthdate;
-  final ValueChanged<DateTime> onBirthdayChanged;
+  final ValueChanged<DateTime> onBirthdateChanged;
 
   const BirthDateField({
     super.key,
     required this.controller,
     required this.userBirthdate,
-    required this.onBirthdayChanged,
+    required this.onBirthdateChanged,
   });
 
   @override
@@ -60,7 +60,7 @@ class BirthDateField extends StatelessWidget {
             child: child!,
           ),
         );
-        if (picked != null) onBirthdayChanged(picked);
+        if (picked != null) onBirthdateChanged(picked);
       },
     );
   }

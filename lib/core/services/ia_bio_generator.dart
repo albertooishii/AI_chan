@@ -163,11 +163,11 @@ Future<AiChanProfile> generateAIBiographyWithAI({
   AIService? aiServiceOverride,
 }) async {
   // Generar fecha de nacimiento de la IA basada en la edad del usuario
-  final aiBirthdayDate = DateUtils.generateAIBirthdate(
+  final aiBirthdateDate = DateUtils.generateAIBirthdate(
     userBirthdate,
     seed: seed,
   );
-  final aiBirthday = DateUtils.dateToIsoString(aiBirthdayDate);
+  final aiBirthdate = DateUtils.dateToIsoString(aiBirthdateDate);
 
   // Generar fechas para el contexto de la biografía
   final fechaActual = DateUtils.getCurrentDateString();
@@ -262,7 +262,7 @@ Datos adicionales para contexto:
 Personalidad base: $bioDetails
 Lugar de nacimiento: $bioPlace
 Idiomas: $bioLanguages
-Fecha de nacimiento: $aiBirthday
+Fecha de nacimiento: $aiBirthdate
 
 $personalityNote
 Identidad: $aiIdentityInstructions
@@ -275,7 +275,7 @@ Identidad: $aiIdentityInstructions
       userName: userName,
       aiName: aiName,
       userBirthdate: userBirthdate,
-      aiBirthdate: aiBirthdayDate,
+      aiBirthdate: aiBirthdateDate,
       appearance: <String, dynamic>{},
       userCountryCode: userCountryCode?.toUpperCase(),
       aiCountryCode: aiCountryCode?.toUpperCase(),
@@ -347,7 +347,7 @@ Identidad: $aiIdentityInstructions
     userName: userName,
     aiName: aiName,
     userBirthdate: userBirthdate,
-    aiBirthdate: aiBirthdayDate,
+    aiBirthdate: aiBirthdateDate,
     appearance: <String, dynamic>{},
     userCountryCode: userCountryCode?.toUpperCase(),
     aiCountryCode: aiCountryCode?.toUpperCase(),

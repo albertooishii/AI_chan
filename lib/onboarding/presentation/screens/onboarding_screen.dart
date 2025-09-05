@@ -286,7 +286,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               BirthDateField(
                 controller: provider.birthDateController,
                 userBirthdate: provider.userBirthdate,
-                onBirthdayChanged: (d) => provider.setUserBirthday(d),
+                onBirthdateChanged: (d) => provider.setUserBirthdate(d),
               ),
               const SizedBox(height: 18),
 
