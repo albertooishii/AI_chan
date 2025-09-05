@@ -1,6 +1,6 @@
 import 'package:ai_chan/chat/domain/models/chat_result.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/shared/domain/services/event_timeline_service.dart';
+import 'package:ai_chan/shared/application/services/event_timeline_service.dart';
 import 'package:ai_chan/core/config.dart';
 
 // Import new services
@@ -25,8 +25,7 @@ class SendMessageUseCase {
   }) : _retryService = retryService ?? MessageRetryService(),
        _imageService = imageService ?? MessageImageProcessingService(),
        _audioService = audioService ?? MessageAudioProcessingService(),
-       _sanitizationService =
-           sanitizationService ?? MessageSanitizationService();
+       _sanitizationService = sanitizationService ?? MessageSanitizationService();
 
   Future<SendMessageOutcome> sendChat({
     required List<Message> recentMessages,
@@ -42,10 +41,7 @@ class SendMessageUseCase {
     final history = _buildMessageHistory(recentMessages);
 
     // Handle image generation model switching
-    final String selectedModel = await _selectOptimalModel(
-      model,
-      enableImageGeneration,
-    );
+    final String selectedModel = await _selectOptimalModel(model, enableImageGeneration);
 
     // Send message with retry logic
     final response = await _retryService.sendWithRetries(
@@ -58,8 +54,7 @@ class SendMessageUseCase {
     );
 
     // Handle failed responses
-    if (!_retryService.hasValidText(response) ||
-        !_retryService.hasValidAllowedTagsStructure(response.text)) {
+    if (!_retryService.hasValidText(response) || !_retryService.hasValidAllowedTagsStructure(response.text)) {
       return _handleFailedResponse(response, selectedModel);
     }
 
@@ -67,9 +62,7 @@ class SendMessageUseCase {
     final imageResult = await _imageService.processImageResponse(response);
 
     // Sanitize text content
-    final String processedText = _imageService.sanitizeImageUrls(
-      imageResult.processedText,
-    );
+    final String processedText = _imageService.sanitizeImageUrls(imageResult.processedText);
 
     // Process audio tags
     final audioResult = _audioService.processAudioTags(processedText);
@@ -89,12 +82,7 @@ class SendMessageUseCase {
     // Handle event processing if onboarding data provided
     AiChanProfile? updatedProfile;
     if (onboardingData != null) {
-      updatedProfile = await _processEvents(
-        recentMessages,
-        chatResult,
-        onboardingData,
-        saveAll,
-      );
+      updatedProfile = await _processEvents(recentMessages, chatResult, onboardingData, saveAll);
     }
 
     return SendMessageOutcome(
@@ -111,9 +99,7 @@ class SendMessageUseCase {
           (m) => {
             'role': m.sender == MessageSender.user
                 ? 'user'
-                : (m.sender == MessageSender.assistant
-                      ? 'assistant'
-                      : 'system'),
+                : (m.sender == MessageSender.assistant ? 'assistant' : 'system'),
             'content': m.text,
             'datetime': m.dateTime.toIso8601String(),
           },
@@ -121,10 +107,7 @@ class SendMessageUseCase {
         .toList();
   }
 
-  Future<String> _selectOptimalModel(
-    String model,
-    bool enableImageGeneration,
-  ) async {
+  Future<String> _selectOptimalModel(String model, bool enableImageGeneration) async {
     String selected = model;
 
     // Check if we need to switch to image-capable model
@@ -158,11 +141,7 @@ class SendMessageUseCase {
 
     final assistantMessage = _buildAssistantMessage(chatResult);
 
-    return SendMessageOutcome(
-      result: chatResult,
-      assistantMessage: assistantMessage,
-      ttsRequested: false,
-    );
+    return SendMessageOutcome(result: chatResult, assistantMessage: assistantMessage, ttsRequested: false);
   }
 
   Message _buildAssistantMessage(ChatResult chatResult) {
@@ -172,11 +151,7 @@ class SendMessageUseCase {
       dateTime: DateTime.now(),
       isImage: chatResult.isImage,
       image: chatResult.isImage
-          ? AiImage(
-              url: chatResult.imagePath ?? '',
-              seed: chatResult.seed,
-              prompt: chatResult.prompt,
-            )
+          ? AiImage(url: chatResult.imagePath ?? '', seed: chatResult.seed, prompt: chatResult.prompt)
           : null,
       status: MessageStatus.read,
     );

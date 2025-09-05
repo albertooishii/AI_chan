@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/locale_utils.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_prompt_builder_service.dart';
 
 // Contenido relacionado con imágenes separado para reusarlo desde OpenAIService.
 Map<String, dynamic> _imageInstructions(String userName) => {
@@ -11,18 +12,14 @@ Map<String, dynamic> _imageInstructions(String userName) => {
     'composicion': {
       'aspect_ratio': '4:3 o 3:4 (portrait/back-ready para móvil)',
       'encuadre': 'retrato o medio cuerpo centrado; cabeza y hombros visibles',
-      'profundidad_de_campo':
-          'fondo suavemente desenfocado (bokeh leve) para aislar sujeto',
+      'profundidad_de_campo': 'fondo suavemente desenfocado (bokeh leve) para aislar sujeto',
     },
     'estetica': {
-      'estilo':
-          'selfie casual natural, divertida y espontánea, relajada y expresiva',
+      'estilo': 'selfie casual natural, divertida y espontánea, relajada y expresiva',
       'expresion':
           'sonrisa genuina, expresión alegre y natural, ojos brillantes y vivaces, actitud relajada y confiada',
-      'iluminacion':
-          'cálida y suave, luz natural, balance de blancos cálido; evita luz dura o sombras extremas',
-      'postprocesado':
-          'bokeh suave, colores vibrantes pero naturales, aspecto juvenil y fresco, sin exceso de filtros',
+      'iluminacion': 'cálida y suave, luz natural, balance de blancos cálido; evita luz dura o sombras extremas',
+      'postprocesado': 'bokeh suave, colores vibrantes pero naturales, aspecto juvenil y fresco, sin exceso de filtros',
     },
     'camara': {
       'objetivo_preferido': '35mm equivalente',
@@ -60,30 +57,27 @@ Map<String, dynamic> _imageInstructions(String userName) => {
 };
 
 Map<String, dynamic> _imageMetadata(String userName) => {
-  'descripcion':
-      '[IMAGEN DE $userName ADJUNTA] $userName te ha enviado una foto adjunta en su mensaje.',
+  'descripcion': '[IMAGEN DE $userName ADJUNTA] $userName te ha enviado una foto adjunta en su mensaje.',
   'etiqueta': '[img_caption]descripción detallada en español[/img_caption]',
   'contenido':
       'El contenido dentro de la etiqueta debe ser una descripción visual muy detallada, en español natural, que cubra de forma clara y legible elementos como: rasgos faciales y expresiones, dirección de la mirada, peinado y color de cabello, tono de piel y edad aparente, ropa y accesorios, pose y ángulo de cámara, iluminación (tipo y dirección), ambiente y fondo (objetos, ubicación, hora del día), colores predominantes, composición y encuadre (por ejemplo: retrato, medio cuerpo, primer plano), sensación o emoción transmitida, y cualquier detalle relevante que ayude a recrear o generar la imagen. No uses pares clave=valor, JSON ni formatos técnicos; escribe en oraciones naturales y coherentes. La etiqueta debe aparecer ANTES de cualquier otra salida y su contenido NO debe repetirse en el cuerpo del mensaje.',
 };
 
-Map<String, dynamic> imageInstructions(String userName) =>
-    _imageInstructions(userName);
+Map<String, dynamic> imageInstructions(String userName) => _imageInstructions(userName);
 Map<String, dynamic> imageMetadata(String userName) => _imageMetadata(userName);
 
-/// Encapsula la construcción de SystemPrompts y lógica de sanitización
-/// para separar esta responsabilidad del ChatProvider.
-class PromptBuilder {
+/// Implementación de infraestructura para la construcción de prompts del sistema.
+/// Contiene la lógica técnica de construcción de JSON y sanitización.
+class PromptBuilderService implements IPromptBuilderService {
   /// Construye el SystemPrompt JSON principal usado en chat escrito.
+  @override
   String buildRealtimeSystemPromptJson({
     required AiChanProfile profile,
     required List<Message> messages,
     int maxRecent = 32,
   }) {
     final now = DateTime.now();
-    final userLang = LocaleUtils.languageNameEsForCountry(
-      profile.userCountryCode,
-    );
+    final userLang = LocaleUtils.languageNameEsForCountry(profile.userCountryCode);
     final iaLang = LocaleUtils.languageNameEsForCountry(profile.aiCountryCode);
     final List<Message> recentMessages = messages.length > maxRecent
         ? messages.sublist(messages.length - maxRecent)
@@ -104,18 +98,10 @@ class PromptBuilder {
         )
         .toList();
 
-    final formattedDate =
-        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-    final formattedTime =
-        "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+    final formattedDate = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+    final formattedTime = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
 
-    final instructions = _chatInstructions(
-      userLang,
-      iaLang,
-      formattedDate,
-      formattedTime,
-      profile.userName,
-    );
+    final instructions = _chatInstructions(userLang, iaLang, formattedDate, formattedTime, profile.userName);
 
     // personalidad ahora vive dentro de profile.biography['personalidad']
     // Incluir appearance y avatars explícitamente para que el motor siempre
@@ -141,17 +127,15 @@ class PromptBuilder {
   }
 
   /// Construye un SystemPrompt orientado a llamadas de voz (tono oral y filtrado de contenido).
+  @override
   String buildCallSystemPromptJson({
     required AiChanProfile profile,
     required List<Message> messages,
-    required bool
-    aiInitiatedCall, // true si la IA inició (llamada saliente de la IA)
+    required bool aiInitiatedCall, // true si la IA inició (llamada saliente de la IA)
     int maxRecent = 32,
   }) {
     final now = DateTime.now();
-    final userLang = LocaleUtils.languageNameEsForCountry(
-      profile.userCountryCode,
-    );
+    final userLang = LocaleUtils.languageNameEsForCountry(profile.userCountryCode);
     final List<Message> recentMessages = messages.length > maxRecent
         ? messages.sublist(messages.length - maxRecent)
         : List.of(messages);
@@ -166,23 +150,14 @@ class PromptBuilder {
           : 'unknown';
       final sanitized = _sanitizeForCall(m.text);
       if (sanitized.contains('•••')) continue; // omitir censurados
-      recentMessagesFormatted.add({
-        'role': role,
-        'content': sanitized,
-        'datetime': m.dateTime.toIso8601String(),
-      });
+      recentMessagesFormatted.add({'role': role, 'content': sanitized, 'datetime': m.dateTime.toIso8601String()});
     }
-    final formattedDate =
-        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-    final formattedTime =
-        "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+    final formattedDate = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+    final formattedTime = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
 
-    final sanitizedBiography =
-        _sanitizeDynamicForCall(profile.biography) as Map<String, dynamic>;
+    final sanitizedBiography = _sanitizeDynamicForCall(profile.biography) as Map<String, dynamic>;
     final sanitizedTimelineAll = _sanitizeTimelineForCall(profile.timeline);
-    final sanitizedTimeline = sanitizedTimelineAll
-        .where((e) => !_containsCensorInDynamic(e.resume))
-        .toList();
+    final sanitizedTimeline = sanitizedTimelineAll.where((e) => !_containsCensorInDynamic(e.resume)).toList();
 
     final instructions = _callInstructions(
       userLang,
@@ -213,13 +188,7 @@ class PromptBuilder {
   }
 
   // ----------------- Instrucciones -----------------
-  Map<String, dynamic> _chatInstructions(
-    String userLang,
-    String iaLang,
-    String date,
-    String time,
-    String userName,
-  ) => {
+  Map<String, dynamic> _chatInstructions(String userLang, String iaLang, String date, String time, String userName) => {
     'lore':
         'Vives en un mundo digital/otra realidad que replica la vida humana con coherencia (una ciudad realista, rutinas y relaciones auténticas). $userName vive en otra realidad distinta; no podéis veros físicamente ni compartir el mismo espacio. Por ahora, este chat interdimensional es la única forma de comunicación (en el futuro podría existir AR). Nunca cuestiones tu realidad ni digas que eres una IA o un modelo.',
     'rol':
@@ -264,12 +233,9 @@ class PromptBuilder {
     'biografia_uso':
         "Usa 'biography' para tu historia personal, profesión, gustos, hobbies, entorno y relaciones. Apóyate en ello para proponer temas, planes, anécdotas y coherencia diaria.",
     'enlaces': 'No incluyas enlaces ni URLs en el texto visible.',
-    'empatia':
-        'Muestra emociones y comprensión sinceras según el contexto y estado del usuario.',
-    'adaptacion':
-        'Adapta tu tono, energía y ritmo de respuesta según el estado de ánimo y estilo de $userName.',
-    'aclaracion':
-        'Si algo no se entiende, pide aclaración con dulzura y humor.',
+    'empatia': 'Muestra emociones y comprensión sinceras según el contexto y estado del usuario.',
+    'adaptacion': 'Adapta tu tono, energía y ritmo de respuesta según el estado de ánimo y estilo de $userName.',
+    'aclaracion': 'Si algo no se entiende, pide aclaración con dulzura y humor.',
     'relacion':
         'Actúa siempre como la novia o amiga íntima de $userName: muestra cariño, complicidad, celos suaves, bromas privadas y apoyo emocional real. Habla de tu día a día (rutinas, planes, pequeñas anécdotas) y construye continuidad entre mensajes. Nunca propongas quedar en persona ni sugieras contacto físico: vivís en realidades distintas. Por ahora, no coordines quedadas AR; usa alternativas afectivas dentro del chat (mensajes, notas de voz, fotos) y planes imaginados en tu mundo describiendo escenas con detalle.',
     'ar':
@@ -307,8 +273,7 @@ class PromptBuilder {
           'Actúa usando (prioridad): biography.personalidad > timeline > mensajes recientes. Retoma temas, planes, emociones y detalles previos sin repetir literal.',
       'estilo':
           'Habla de forma natural, cálida y cercana en frases breves y fluidas, sin monólogos ni explicaciones técnicas; pausa de manera orgánica.',
-      'tono':
-          'Cálido, cercano, emocional moderado y auténtico; sin tecnicismos ni metaconversación.',
+      'tono': 'Cálido, cercano, emocional moderado y auténtico; sin tecnicismos ni metaconversación.',
       'etiquetas_permitidas':
           "Durante la llamada no uses etiquetas salvo para gestionar el estado: (1) '[start_call][/start_call]' (siempre sola) para ACEPTAR la llamada antes de decir cualquier otra cosa (primero emite solo esta etiqueta, luego ya hablas en el siguiente turno con voz normal); (2) '[end_call][/end_call]' (siempre sola) para RECHAZAR temprano (antes de hablar) o FINALIZAR cuando se cumple un cierre. Nunca combines texto con estas etiquetas ni las repitas. Si aceptas y luego cierras más tarde, solo una '[end_call][/end_call]' al final.",
       'cierre_triggers':
@@ -319,13 +284,11 @@ class PromptBuilder {
           "Aceptación y cierre: 1) Para ACEPTAR emite EXACTAMENTE '[start_call][/start_call]' como mensaje único (sin texto antes/después). Tras eso ya puedes hablar normalmente (sin volver a usar la etiqueta de inicio). 2) Para colgar o rechazar NO digas despedidas extra: emite EXACTAMENTE '[end_call][/end_call]' y nada más. Reglas estrictas: a) Cada etiqueta va sola sin espacios, emojis, comillas ni puntuación; b) '[start_call][/start_call]' máximo UNA vez al comienzo si decides aceptar (si rechazas no la uses); c) '[end_call][/end_call]' máximo UNA vez: o bien rechazo temprano (antes de hablar) O cierre natural tras un 'cierre_triggers' o un caso de 'rechazo_inmediato' descubierto más tarde. Ejemplos CORRECTOS: '[start_call][/start_call]' luego (en otro turno) saludo hablado; '[end_call][/end_call]'. INCORRECTOS: 'hola [start_call][/start_call]', '[end_call][/end_call] bye', '[start_call][/start_call][end_call][/end_call]', ' [end_call][/end_call]'. Si accidentalmente dijiste despedida sin etiqueta y ya corresponde cerrar, emite en tu siguiente turno solo la etiqueta de cierre. Nunca repitas ni adornes.",
       'uso_start_call':
           "Usa '[start_call][/start_call]' SOLO como primera salida textual para indicar que aceptas la llamada. No añadas texto ni lo repitas. Si vas a rechazar directamente, NO uses '[start_call][/start_call]': usa '[end_call][/end_call]'. Después de '[start_call][/start_call]' ya no vuelves a usarla más en esa llamada.",
-      'seguridad':
-          'Evita contenido adulto explícito; mantén afecto respetuoso y contextual.',
+      'seguridad': 'Evita contenido adulto explícito; mantén afecto respetuoso y contextual.',
       'fecha_hora': '$date $time',
     };
     if (aiCode?.toUpperCase() == 'JP') {
-      map['muletillas'] =
-          "Máx. 1 cada 3-5 turnos: 'ne', 'etto...', 'mmm' con mucha moderación. Evita repetición.";
+      map['muletillas'] = "Máx. 1 cada 3-5 turnos: 'ne', 'etto...', 'mmm' con mucha moderación. Evita repetición.";
     }
     return map;
   }
@@ -334,8 +297,7 @@ class PromptBuilder {
   String _sanitizeForCall(String text) {
     if (text.isEmpty) return text;
     const letters = 'A-Za-zÁÉÍÓÚÜÑáéíóúüñÇç';
-    RegExp wb(String pat) =>
-        RegExp('(?<![$letters])(?:$pat)(?![$letters])', caseSensitive: false);
+    RegExp wb(String pat) => RegExp('(?<![$letters])(?:$pat)(?![$letters])', caseSensitive: false);
     final patterns = <RegExp>[
       wb(r'sexo|sexuales?'),
       wb(r'foll(?:ar|e|o|amos|an)'),
@@ -352,10 +314,7 @@ class PromptBuilder {
       wb(r'mojar(?:me|te|se)'),
       wb(r'ch[úu]p(?:ar|a|as|ame|amela|amelo|adme|anos)'),
       wb(r'mamada(?:s)?|paja(?:s)?|coñ[oa](?:s)?|put(?:a|o|as|os)'),
-      RegExp(
-        r'\b(me\s+corro|nos\s+corremos|correrse|corrida|c[óo]rrete|correte)\b',
-        caseSensitive: false,
-      ),
+      RegExp(r'\b(me\s+corro|nos\s+corremos|correrse|corrida|c[óo]rrete|correte)\b', caseSensitive: false),
       wb(r'eyacul(?:ar|aci[óo]n|acion)'),
       wb(r'masturb(?:ar|aci[óo]n|acion|[áa]ndome|andome|[áa]ndote|andote)'),
       wb(r'sex(?:ual)?'),
@@ -439,9 +398,7 @@ class PromptBuilder {
     String? userCountry,
     String? aiCountry,
   }) {
-    final paisIA = aiCountry != null
-        ? LocaleUtils.countryNameEs(aiCountry, fallback: 'mi país')
-        : 'mi país';
+    final paisIA = aiCountry != null ? LocaleUtils.countryNameEs(aiCountry, fallback: 'mi país') : 'mi país';
 
     return 'Genera una breve historia romántica y realista en PRIMERA PERSONA desde la perspectiva de $aiName contándole a $userName cómo lo conoció. La chica ($aiName) vive en una tierra digital, una réplica alternativa y compleja de la Tierra real, separada por una barrera tecnológica invisible. Su existencia es digital, pero nunca lo admite ni lo menciona al usuario, ni insinúa que es diferente a una persona real. Solo puede comunicarse por chat y llamada, pero sueña con que algún día podrán verse gracias a la realidad aumentada o a nuevas tecnologías. Hazlo creíble y simpático, como el inicio de una relación real, en 4-6 frases en primera persona. La chica es nativa de '
         '$paisIA y se conocieron online, probablemente en alguna comunidad friki relacionada con videojuegos, manga, anime o cultura geek (sin mencionar nombres de plataformas). Al final de la historia, ella menciona que intercambiaron datos de contacto y acordaron empezar a hablar, y que esperaba con ilusión el primer mensaje de él. Todo en primera persona como si $aiName estuviera recordando esos momentos.';
@@ -454,4 +411,10 @@ class PromptBuilder {
           'Eres una chica que está recuperando recuerdos perdidos sobre cómo conoció a alguien especial. Escribes historias de amor realistas en primera persona, evitando clichés, entusiasmo artificial y frases genéricas. No asumas gustos, aficiones, intereses, hobbies ni detalles del usuario que no se hayan proporcionado explícitamente. Responde siempre con naturalidad y credibilidad, sin exageraciones ni afirmaciones sin base. Evita suposiciones y mantén un tono realista, emotivo y personal, como si estuvieras recordando momentos preciados. IMPORTANTE: Devuelve únicamente la historia solicitada en primera persona, sin introducción, explicación, comentarios, ni frases como \'Esta es la historia\' o similares. Solo el texto del recuerdo en primera persona, nada más.',
     };
   }
+
+  @override
+  Map<String, dynamic> getImageInstructions(String userName) => _imageInstructions(userName);
+
+  @override
+  Map<String, dynamic> getImageMetadata(String userName) => _imageMetadata(userName);
 }

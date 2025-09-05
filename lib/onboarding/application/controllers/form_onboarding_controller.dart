@@ -4,6 +4,7 @@ import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/onboarding/application/use_cases/form_onboarding_use_case.dart';
 import 'package:ai_chan/onboarding/application/use_cases/import_export_onboarding_use_case.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/core/di.dart' as di;
 
 /// Controller para el onboarding por formulario
 /// Coordina la UI con los casos de uso, manteniendo la separación de responsabilidades
@@ -16,12 +17,9 @@ class FormOnboardingController extends ChangeNotifier {
   String? _errorMessage;
   ImportedChat? _importedData;
 
-  FormOnboardingController({
-    FormOnboardingUseCase? formUseCase,
-    ImportExportOnboardingUseCase? importExportUseCase,
-  }) : _formUseCase = formUseCase ?? FormOnboardingUseCase(),
-       _importExportUseCase =
-           importExportUseCase ?? ImportExportOnboardingUseCase();
+  FormOnboardingController({FormOnboardingUseCase? formUseCase, ImportExportOnboardingUseCase? importExportUseCase})
+    : _formUseCase = formUseCase ?? FormOnboardingUseCase(),
+      _importExportUseCase = importExportUseCase ?? ImportExportOnboardingUseCase(fileService: di.getFileService());
 
   // Getters
   bool get isLoading => _isLoading;
@@ -57,10 +55,7 @@ class FormOnboardingController extends ChangeNotifier {
     _clearError();
 
     try {
-      Log.d(
-        '🎯 Procesando formulario de onboarding',
-        tag: 'FORM_ONBOARDING_CTRL',
-      );
+      Log.d('🎯 Procesando formulario de onboarding', tag: 'FORM_ONBOARDING_CTRL');
 
       final result = await _formUseCase.processFormData(
         userName: userName,
@@ -79,10 +74,7 @@ class FormOnboardingController extends ChangeNotifier {
     } catch (e) {
       Log.e('Error procesando formulario: $e', tag: 'FORM_ONBOARDING_CTRL');
       _setError('Error inesperado procesando el formulario: $e');
-      return OnboardingFormResult(
-        success: false,
-        errors: ['Error inesperado: $e'],
-      );
+      return OnboardingFormResult(success: false, errors: ['Error inesperado: $e']);
     } finally {
       _setLoading(false);
     }

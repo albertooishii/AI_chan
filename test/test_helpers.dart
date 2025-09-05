@@ -1,19 +1,20 @@
-import 'package:ai_chan/chat/application/providers/chat_provider.dart';
 import 'package:ai_chan/core/models.dart';
 
-/// Test helper: crea un ChatProvider con un `onboardingData` mínimo válido.
-ChatProvider createTestChatProvider({AiChanProfile? profile}) {
-  final provider = ChatProvider();
-  provider.onboardingData =
-      profile ??
-      AiChanProfile(
-        userName: 'TestUser',
-        aiName: 'Ai',
-        userBirthdate: null,
-        aiBirthdate: null,
-        biography: <String, dynamic>{},
-        appearance: <String, dynamic>{},
-        timeline: <TimelineEntry>[],
-      );
-  return provider;
+/// Test helper: Crea un AiChanProfile mínimo válido para tests.
+/// Usar esto en lugar del ChatProvider obsoleto.
+AiChanProfile createTestProfile({String userName = 'TestUser', String aiName = 'Ai'}) {
+  return AiChanProfile(
+    userName: userName,
+    aiName: aiName,
+    userBirthdate: null,
+    aiBirthdate: null,
+    biography: <String, dynamic>{},
+    appearance: <String, dynamic>{},
+    timeline: <TimelineEntry>[],
+  );
+}
+
+/// Helper para crear mensajes de test
+Message createTestMessage({String text = 'Test message', MessageSender sender = MessageSender.user}) {
+  return Message(text: text, sender: sender, dateTime: DateTime.now());
 }

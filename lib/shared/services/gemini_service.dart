@@ -5,13 +5,12 @@ import 'ai_service.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
-import 'package:ai_chan/shared/infrastructure/services/prompt_builder.dart';
+import 'package:ai_chan/chat/infrastructure/services/prompt_builder_service.dart';
 // duplicate import removed
 
 class GeminiService implements AIService {
   static String get _primaryKey => Config.getGeminiKey().trim();
-  static String get _fallbackKey =>
-      Config.get('GEMINI_API_KEY_FALLBACK', '').trim();
+  static String get _fallbackKey => Config.get('GEMINI_API_KEY_FALLBACK', '').trim();
   // Recuerda qué clave funcionó la última vez para priorizarla en siguientes llamadas
   static bool _preferFallback = false;
 
@@ -25,9 +24,7 @@ class GeminiService implements AIService {
     }
 
     Future<http.Response> getWithKey(String key) async {
-      final url = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models?key=$key',
-      );
+      final url = Uri.parse('https://generativelanguage.googleapis.com/v1beta/models?key=$key');
       return await HttpConnector.client.get(url);
     }
 
@@ -39,18 +36,12 @@ class GeminiService implements AIService {
       return ['gemini-2.5-pro', 'gemini-2.5-flash'];
     }
     // Elige el orden de prueba en función de la preferencia actual
-    final firstKey = (_preferFallback && fallback.isNotEmpty)
-        ? fallback
-        : (primary.isNotEmpty ? primary : fallback);
+    final firstKey = (_preferFallback && fallback.isNotEmpty) ? fallback : (primary.isNotEmpty ? primary : fallback);
     final secondKey = (firstKey == primary) ? fallback : primary;
     String usedKey = firstKey;
     response = await getWithKey(usedKey);
-    if (response.statusCode != 200 &&
-        secondKey.isNotEmpty &&
-        isQuotaLike(response.statusCode, response.body)) {
-      Log.w(
-        '[Gemini] ${response.statusCode} con primera clave; probando la alternativa.',
-      );
+    if (response.statusCode != 200 && secondKey.isNotEmpty && isQuotaLike(response.statusCode, response.body)) {
+      Log.w('[Gemini] ${response.statusCode} con primera clave; probando la alternativa.');
       final r2 = await getWithKey(secondKey);
       if (r2.statusCode == 200) {
         // Éxito con la alternativa => actualizar preferencia
@@ -93,16 +84,8 @@ class GeminiService implements AIService {
       final ordered = <String>[];
       final sortedVersionKeys = versionGroups.keys.toList()
         ..sort((a, b) {
-          final vA =
-              double.tryParse(
-                RegExp(r'gemini-(\d+\.\d+)').firstMatch(a)?.group(1) ?? '0',
-              ) ??
-              0.0;
-          final vB =
-              double.tryParse(
-                RegExp(r'gemini-(\d+\.\d+)').firstMatch(b)?.group(1) ?? '0',
-              ) ??
-              0.0;
+          final vA = double.tryParse(RegExp(r'gemini-(\d+\.\d+)').firstMatch(a)?.group(1) ?? '0') ?? 0.0;
+          final vB = double.tryParse(RegExp(r'gemini-(\d+\.\d+)').firstMatch(b)?.group(1) ?? '0') ?? 0.0;
           return vB.compareTo(vA);
         });
       for (final key in sortedVersionKeys) {
@@ -142,15 +125,11 @@ class GeminiService implements AIService {
     final primary = _primaryKey;
     final fallback = _fallbackKey;
     if (primary.isEmpty && fallback.isEmpty) {
-      return AIResponse(
-        text:
-            'Error: Falta la API key de Gemini. Por favor, configúrala en el servicio.',
-      );
+      return AIResponse(text: 'Error: Falta la API key de Gemini. Por favor, configúrala en el servicio.');
     }
     final selectedModel = (model ?? 'gemini-2.5-flash').trim();
     final headers = {'Content-Type': 'application/json'};
-    final endpointBase =
-        'https://generativelanguage.googleapis.com/v1beta/models/';
+    final endpointBase = 'https://generativelanguage.googleapis.com/v1beta/models/';
     // Unificar todo el historial en un solo bloque de texto para el content
     final List<Map<String, dynamic>> contents = [];
     // Añadir un bloque de role=system con el SystemPrompt serializado para que Gemini lo reciba
@@ -165,17 +144,13 @@ class GeminiService implements AIService {
           // Inyectar la instrucción para metadatos de imagen cuando el usuario
           // adjunta una imagen (imageBase64 presente).
           if (imageBase64 != null && imageBase64.isNotEmpty) {
-            instrRoot['attached_image_metadata_instructions'] = imageMetadata(
-              systemPrompt.profile.userName,
-            );
+            instrRoot['attached_image_metadata_instructions'] = imageMetadata(systemPrompt.profile.userName);
           }
           // Mantener consistencia con OpenAIService: si se solicita generación
           // de imagen explícita, inyectar también la instrucción de 'foto'.
           if (enableImageGeneration) {
             // Usar la clave unificada 'photo_instructions' (antes 'foto')
-            instrRoot['photo_instructions'] = imageInstructions(
-              systemPrompt.profile.userName,
-            );
+            instrRoot['photo_instructions'] = imageInstructions(systemPrompt.profile.userName);
           }
         }
       } catch (_) {}
@@ -192,10 +167,7 @@ class GeminiService implements AIService {
       systemPromptMap = {};
     }
     final bool hasImage =
-        history.isNotEmpty &&
-        history.last['role'] == 'user' &&
-        imageBase64 != null &&
-        imageBase64.isNotEmpty;
+        history.isNotEmpty && history.last['role'] == 'user' && imageBase64 != null && imageBase64.isNotEmpty;
     if (hasImage) {
       // Si hay imagen, enviar el historial completo y el systemPrompt como texto, y la imagen como segundo part
       final StringBuffer allText = StringBuffer();
@@ -213,10 +185,7 @@ class GeminiService implements AIService {
         'parts': [
           {'text': allText.toString()},
           {
-            'inline_data': {
-              'mime_type': imageMimeType ?? 'image/png',
-              'data': imageBase64,
-            },
+            'inline_data': {'mime_type': imageMimeType ?? 'image/png', 'data': imageBase64},
           },
         ],
       });
@@ -261,9 +230,7 @@ class GeminiService implements AIService {
             final inline = part['inline_data'];
             final mime = (inline['mime_type'] ?? '').toString();
             final dataB64 = inline['data']?.toString();
-            if (mime.startsWith('image/') &&
-                dataB64 != null &&
-                dataB64.isNotEmpty) {
+            if (mime.startsWith('image/') && dataB64 != null && dataB64.isNotEmpty) {
               outBase64 = dataB64;
             }
           }
@@ -289,26 +256,18 @@ class GeminiService implements AIService {
       }
 
       Future<http.Response> doPost(String key) {
-        final mUrl = Uri.parse(
-          '$endpointBase$modelId:generateContent?key=$key',
-        );
+        final mUrl = Uri.parse('$endpointBase$modelId:generateContent?key=$key');
         return HttpConnector.client.post(mUrl, headers: headers, body: body);
       }
 
       // Determina el orden según preferencia y disponibilidad
-      final firstKey = (_preferFallback && fallback.isNotEmpty)
-          ? fallback
-          : (primary.isNotEmpty ? primary : fallback);
+      final firstKey = (_preferFallback && fallback.isNotEmpty) ? fallback : (primary.isNotEmpty ? primary : fallback);
       final secondKey = (firstKey == primary) ? fallback : primary;
 
       String keyUsed = firstKey;
       http.Response resp = await doPost(keyUsed);
-      if (resp.statusCode != 200 &&
-          secondKey.isNotEmpty &&
-          isQuotaLike(resp.statusCode, resp.body)) {
-        Log.w(
-          '[Gemini] ${resp.statusCode} con primera clave; reintentando con alternativa.',
-        );
+      if (resp.statusCode != 200 && secondKey.isNotEmpty && isQuotaLike(resp.statusCode, resp.body)) {
+        Log.w('[Gemini] ${resp.statusCode} con primera clave; reintentando con alternativa.');
         final r2 = await doPost(secondKey);
         if (r2.statusCode == 200) {
           _preferFallback = (secondKey == fallback);
@@ -324,9 +283,7 @@ class GeminiService implements AIService {
       if (resp.statusCode == 200) {
         return await parseAndBuild(resp.body);
       }
-      final bodyPreview = resp.body.length > 1000
-          ? resp.body.substring(0, 1000)
-          : resp.body;
+      final bodyPreview = resp.body.length > 1000 ? resp.body.substring(0, 1000) : resp.body;
       Log.e(
         '[Gemini] Error ${resp.statusCode} con modelo $modelId usando ${keyUsed == primary ? 'PRIMARY' : 'FALLBACK'}: $bodyPreview',
       );
@@ -335,14 +292,9 @@ class GeminiService implements AIService {
       // accesibles con la clave y reintentar con el primero disponible.
       try {
         final decoded = jsonDecode(resp.body);
-        final errMsg = decoded is Map && decoded['error'] != null
-            ? (decoded['error']['message'] ?? '')
-            : '';
-        if (errMsg != null &&
-            errMsg.toString().toLowerCase().contains('does not exist')) {
-          Log.w(
-            '[Gemini] Detectado model-not-found para "$modelId". Consultando modelos disponibles...',
-          );
+        final errMsg = decoded is Map && decoded['error'] != null ? (decoded['error']['message'] ?? '') : '';
+        if (errMsg != null && errMsg.toString().toLowerCase().contains('does not exist')) {
+          Log.w('[Gemini] Detectado model-not-found para "$modelId". Consultando modelos disponibles...');
           final available = await getAvailableModels();
           if (available.isNotEmpty) {
             final fallbackModel = available.firstWhere(
@@ -350,32 +302,18 @@ class GeminiService implements AIService {
               orElse: () => available.first,
             );
             if (fallbackModel.isNotEmpty && fallbackModel != modelId) {
-              Log.d(
-                '[Gemini] Reintentando con modelo alternativo: $fallbackModel',
-              );
+              Log.d('[Gemini] Reintentando con modelo alternativo: $fallbackModel');
               // Intentar con el primer modelo válido encontrado
-              final retryUrl = Uri.parse(
-                '$endpointBase${fallbackModel.trim()}:generateContent?key=$keyUsed',
-              );
-              final retryResp = await HttpConnector.client.post(
-                retryUrl,
-                headers: headers,
-                body: body,
-              );
+              final retryUrl = Uri.parse('$endpointBase${fallbackModel.trim()}:generateContent?key=$keyUsed');
+              final retryResp = await HttpConnector.client.post(retryUrl, headers: headers, body: body);
               if (retryResp.statusCode == 200) {
                 return await parseAndBuild(retryResp.body);
               }
-              final retryPreview = retryResp.body.length > 500
-                  ? retryResp.body.substring(0, 500)
-                  : retryResp.body;
-              Log.w(
-                '[Gemini] Reintento con $fallbackModel falló: ${retryResp.statusCode} $retryPreview',
-              );
+              final retryPreview = retryResp.body.length > 500 ? retryResp.body.substring(0, 500) : retryResp.body;
+              Log.w('[Gemini] Reintento con $fallbackModel falló: ${retryResp.statusCode} $retryPreview');
             }
           } else {
-            Log.w(
-              '[Gemini] getAvailableModels() no devolvió modelos accesibles.',
-            );
+            Log.w('[Gemini] getAvailableModels() no devolvió modelos accesibles.');
           }
           // Si no hay alternativa o reintento falló, retornar el error original con más contexto
           return AIResponse(
@@ -384,9 +322,7 @@ class GeminiService implements AIService {
           );
         }
       } catch (e) {
-        Log.e(
-          '[Gemini] Error al parsear cuerpo de error o intentar fallback: $e',
-        );
+        Log.e('[Gemini] Error al parsear cuerpo de error o intentar fallback: $e');
       }
 
       return AIResponse(text: 'Error al conectar con Gemini: \n$bodyPreview');
@@ -399,10 +335,7 @@ class GeminiService implements AIService {
   }
 
   // Estimación rápida de tokens (igual que OpenAI)
-  int estimateTokens(
-    List<Map<String, String>> history,
-    SystemPrompt systemPrompt,
-  ) {
+  int estimateTokens(List<Map<String, String>> history, SystemPrompt systemPrompt) {
     int charCount = jsonEncode(systemPrompt.toJson()).length;
     for (var msg in history) {
       charCount += msg['content']?.length ?? 0;

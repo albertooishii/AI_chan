@@ -7,8 +7,8 @@ export 'shared/constants.dart';
 export 'shared/screens.dart';
 export 'shared/utils.dart';
 export 'shared/domain/shared_enums.dart';
-export 'shared/domain/services/event_timeline_service.dart';
-export 'shared/domain/services/promise_service.dart';
+export 'shared/application/services/event_timeline_service.dart';
+export 'shared/application/services/promise_service.dart';
 
 export 'shared/services/ai_service.dart';
 export 'shared/services/voice_call_controller.dart';

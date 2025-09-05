@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:ai_chan/core/models.dart';
 
 typedef OnStateChanged = void Function();
@@ -39,8 +38,8 @@ abstract class IAudioChatService {
   /// Toggle playback of a message
   Future<void> togglePlay(Message message, OnStateChanged onState);
 
-  /// Synthesize text to speech and return audio file
-  Future<File?> synthesizeTts(
+  /// Synthesize text to speech and return audio file path
+  Future<String?> synthesizeTts(
     String text, {
     String voice = 'marin',
     String? languageCode,
