@@ -25,6 +25,7 @@ help:
 	@echo "  analyze      - Run Flutter analyzer"
 	@echo "  build        - Alias for analyze (common convention)"
 	@echo "  clean        - Clean build artifacts"
+	@echo "  coverage-report- Generate and show coverage analysis (Dart script)"
 	@echo ""
 	@echo "🔧 Advanced Setup:"
 	@echo "  setup-env    - Interactive environment setup"
@@ -92,10 +93,15 @@ analyze:
 test:
 	@flutter test --coverage
 
+
 clean:
 	@flutter clean
 	@echo "Also cleaning temporary files..."
 	@$(MAKE) clean-tmp
+
+coverage-report:
+	@echo "📊 Generating coverage report..."
+	@dart scripts/coverage_analysis.dart
 
 
 clean-tmp:
