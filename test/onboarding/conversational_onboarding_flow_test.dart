@@ -1,3 +1,4 @@
+import 'package:ai_chan/onboarding/domain/entities/memory_data.dart';
 import 'package:ai_chan/onboarding/services/conversational_onboarding_service.dart';
 import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
@@ -28,7 +29,7 @@ void main() async {
       );
 
       // Crear memoria inicial
-      var currentMemory = MemoryData();
+      var currentMemory = const MemoryData();
 
       // 🎯 PASO 1: Capturar nombre del usuario
       Log.d('   🔸 Paso userName: pidiendo nombre...', tag: 'TEST');
@@ -203,7 +204,7 @@ void main() async {
         },
       );
 
-      final currentMemory = MemoryData();
+      final currentMemory = const MemoryData();
 
       final correctionResponse =
           await ConversationalOnboardingService.processUserResponse(
@@ -223,7 +224,7 @@ void main() async {
     test('🚨 Error Handling: Invalid responses', () async {
       Log.d('🔹 Probando manejo de errores...', tag: 'TEST');
 
-      final currentMemory = MemoryData();
+      final currentMemory = const MemoryData();
 
       try {
         // Simular respuesta inválida (vacía)
@@ -260,7 +261,7 @@ void main() async {
       Log.d('🔹 Probando gestión de datos de memoria...', tag: 'TEST');
 
       // Test de memoria vacía
-      final memory = MemoryData();
+      var memory = const MemoryData();
       expect(memory.isComplete(), isFalse);
       expect(memory.getCompletionPercentage(), equals(0.0));
 
@@ -274,8 +275,7 @@ void main() async {
       expect(missingData, contains('meetStory'));
 
       // Test de memoria parcialmente llena
-      memory.userName = 'Alberto';
-      memory.userCountry = 'ES';
+      memory = memory.copyWith(userName: 'Alberto', userCountry: 'ES');
       expect(memory.getCompletionPercentage(), equals(2.0 / 6.0));
 
       missingData = memory.getMissingData();
@@ -284,10 +284,12 @@ void main() async {
       expect(missingData, isNot(contains('userCountry')));
 
       // Test de memoria completa
-      memory.userBirthdate = '15/03/1990';
-      memory.aiCountry = 'JP';
-      memory.aiName = 'Sakura';
-      memory.meetStory = 'Nos conocimos en una convención';
+      memory = memory.copyWith(
+        userBirthdate: '15/03/1990',
+        aiCountry: 'JP',
+        aiName: 'Sakura',
+        meetStory: 'Nos conocimos en una convención',
+      );
       expect(memory.isComplete(), isTrue);
       expect(memory.getCompletionPercentage(), equals(1.0));
 
@@ -308,10 +310,11 @@ void main() async {
         },
       );
 
-      final currentMemory = MemoryData();
-      currentMemory.userName = 'Alberto';
-      currentMemory.aiName = 'Sakura';
-      currentMemory.aiCountry = 'JP';
+      final currentMemory = const MemoryData(
+        userName: 'Alberto',
+        aiName: 'Sakura',
+        aiCountry: 'JP',
+      );
 
       final userStoryResponse =
           await ConversationalOnboardingService.processUserResponse(

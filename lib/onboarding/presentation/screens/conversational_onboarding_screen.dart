@@ -3,8 +3,8 @@ import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dart';
-import 'package:ai_chan/onboarding/services/conversational_onboarding_service.dart'
-    show MemoryData, ConversationalOnboardingService;
+import 'package:ai_chan/onboarding/domain/entities/memory_data.dart';
+import 'package:ai_chan/onboarding/services/conversational_onboarding_service.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
 import 'package:ai_chan/shared/services/openai_tts_service.dart';
 import 'package:ai_chan/shared/services/hybrid_stt_service.dart';
@@ -93,7 +93,7 @@ class _ConversationalOnboardingScreenState
   final Map<String, dynamic> _collectedData = {};
 
   // Nueva clase de memoria para el enfoque flexible
-  MemoryData _currentMemory = MemoryData();
+  MemoryData _currentMemory = const MemoryData();
 
   // Almacenar la última respuesta del usuario para contexto
   String _lastUserResponse = '';
@@ -108,12 +108,14 @@ class _ConversationalOnboardingScreenState
 
   /// Sincroniza _currentMemory con las variables individuales
   void _syncMemoryFromIndividualFields() {
-    _currentMemory.userName = _userName;
-    _currentMemory.userCountry = _userCountry;
-    _currentMemory.userBirthdate = _userBirthdate?.toIso8601String();
-    _currentMemory.aiCountry = _aiCountry;
-    _currentMemory.aiName = _aiName;
-    _currentMemory.meetStory = _meetStory;
+    _currentMemory = _currentMemory.copyWith(
+      userName: _userName,
+      userCountry: _userCountry,
+      userBirthdate: _userBirthdate?.toIso8601String(),
+      aiCountry: _aiCountry,
+      aiName: _aiName,
+      meetStory: _meetStory,
+    );
   }
 
   /// Sincroniza las variables individuales con _currentMemory

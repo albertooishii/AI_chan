@@ -5,7 +5,7 @@ import 'ai_service.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
-import 'package:ai_chan/core/services/prompt_builder.dart';
+import 'package:ai_chan/shared/infrastructure/services/prompt_builder.dart';
 // duplicate import removed
 
 class GeminiService implements AIService {

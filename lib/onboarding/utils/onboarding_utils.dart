@@ -1,7 +1,7 @@
 import 'package:ai_chan/shared/services/ai_service.dart' as ai_service;
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/core/services/prompt_builder.dart';
+import 'package:ai_chan/shared/infrastructure/services/prompt_builder.dart';
 
 /// Utilidades específicas para el proceso de onboarding
 class OnboardingUtils {

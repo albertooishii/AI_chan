@@ -1,7 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ai_chan/core/services/prompt_builder.dart' as pb;
+import 'package:ai_chan/shared/infrastructure/services/prompt_builder.dart'
+    as pb;
 import '../../test_setup.dart';
 import 'package:ai_chan/core/models.dart';
 

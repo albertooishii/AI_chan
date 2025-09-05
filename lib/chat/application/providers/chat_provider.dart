@@ -24,7 +24,7 @@ import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/chat/domain/models/chat_result.dart';
 import 'package:ai_chan/chat/application/services/tts_service.dart';
 import 'package:ai_chan/chat/domain/services/periodic_ia_message_scheduler.dart';
-import 'package:ai_chan/core/services/prompt_builder.dart';
+import 'package:ai_chan/shared/infrastructure/services/prompt_builder.dart';
 import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/network_utils.dart';

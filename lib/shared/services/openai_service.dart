@@ -9,7 +9,7 @@ import 'package:ai_chan/shared/utils/audio_conversion.dart';
 
 import 'ai_service.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/core/services/prompt_builder.dart';
+import 'package:ai_chan/shared/infrastructure/services/prompt_builder.dart';
 import 'package:http/http.dart' as http;
 import 'package:ai_chan/core/http_connector.dart';
 
