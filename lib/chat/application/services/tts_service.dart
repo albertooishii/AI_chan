@@ -16,16 +16,25 @@ class TtsService {
 
   /// Sintetiza `text` usando el audioService y persiste el fichero en la
   /// carpeta local de audio configurada. Devuelve la ruta final o null.
-  Future<String?> synthesizeAndPersist(String text, {String voice = 'nova'}) async {
+  Future<String?> synthesizeAndPersist(
+    String text, {
+    String voice = 'nova',
+  }) async {
     try {
       // Resolve language code using the injected language resolver
       final lang = await languageResolver.resolveLanguageCode(voice);
 
       // Resolve preferred voice using PrefsUtils helper
-      final preferredVoice = await PrefsUtils.getPreferredVoice(fallback: voice);
+      final preferredVoice = await PrefsUtils.getPreferredVoice(
+        fallback: voice,
+      );
 
       // Synthesize using audio service (returns file path now, not File object)
-      final synthesizedPath = await audioService.synthesizeTts(text, voice: preferredVoice, languageCode: lang);
+      final synthesizedPath = await audioService.synthesizeTts(
+        text,
+        voice: preferredVoice,
+        languageCode: lang,
+      );
 
       if (synthesizedPath == null) return null;
 
@@ -45,7 +54,11 @@ class TtsService {
       // Load source file and save to destination
       final fileData = await fileService.loadFile(synthesizedPath);
       if (fileData != null) {
-        await fileService.saveFile(fileData, 'assistant_tts_$timestamp.$extension', directory: localAudioDir);
+        await fileService.saveFile(
+          fileData,
+          'assistant_tts_$timestamp.$extension',
+          directory: localAudioDir,
+        );
 
         // Try to delete original if it's in a temp location
         try {

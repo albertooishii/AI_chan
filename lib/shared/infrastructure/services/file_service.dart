@@ -6,7 +6,11 @@ import 'package:ai_chan/shared/utils/audio_utils.dart' as audio_utils;
 /// Contiene todas las dependencias de dart:io.
 class FileService implements IFileService {
   @override
-  Future<String> saveFile(List<int> bytes, String filename, {String? directory}) async {
+  Future<String> saveFile(
+    List<int> bytes,
+    String filename, {
+    String? directory,
+  }) async {
     final dir = directory ?? await getLocalAudioDirectory();
     final file = File('$dir/$filename');
 

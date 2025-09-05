@@ -19,15 +19,17 @@ import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
 import 'package:ai_chan/core/infrastructure/adapters/openai_adapter.dart';
 import 'package:ai_chan/core/infrastructure/adapters/gemini_adapter.dart';
 import 'package:ai_chan/core/config.dart';
-import 'package:ai_chan/shared/services/ai_runtime_provider.dart' as runtime_factory;
+import 'package:ai_chan/shared/services/ai_runtime_provider.dart'
+    as runtime_factory;
 import 'package:ai_chan/shared/infrastructure/audio/audio_playback.dart';
 import 'package:ai_chan/call/application/interfaces/voice_call_controller_builder.dart';
 import 'package:ai_chan/call/infrastructure/builders/voice_call_controller_builder.dart';
 import 'package:ai_chan/shared/domain/interfaces/i_file_service.dart';
 import 'package:ai_chan/shared/infrastructure/services/file_service.dart';
 import 'package:ai_chan/chat/application/services/chat_application_service.dart';
-import 'package:ai_chan/chat/presentation/controllers/chat_controller.dart';
+import 'package:ai_chan/chat/application/controllers/chat_controller.dart';
 import 'package:ai_chan/chat/infrastructure/services/prompt_builder_service.dart';
+import 'package:ai_chan/chat/application/adapters/chat_provider_adapter.dart';
 
 /// Pequeñas fábricas/funciones de DI para la migración incremental.
 /// Idealmente esto evolucionará a un contenedor/locator más completo.
@@ -58,7 +60,8 @@ IAIService getAIServiceForModel(String modelId) {
   if (normalized.startsWith('gpt-')) {
     final runtime = runtime_factory.getRuntimeAIServiceForModel(normalized);
     impl = OpenAIAdapter(modelId: normalized, runtime: runtime);
-  } else if (normalized.startsWith('gemini-') || normalized.startsWith('imagen-')) {
+  } else if (normalized.startsWith('gemini-') ||
+      normalized.startsWith('imagen-')) {
     final runtime = runtime_factory.getRuntimeAIServiceForModel(normalized);
     impl = GeminiAdapter(modelId: normalized, runtime: runtime);
   } else if (normalized.isEmpty) {
@@ -99,7 +102,8 @@ ILanguageResolver getLanguageResolver() => LanguageResolverService();
 IFileService getFileService() => FileService();
 
 /// Factory for voice call controller builder
-IVoiceCallControllerBuilder getVoiceCallControllerBuilder() => VoiceCallControllerBuilder();
+IVoiceCallControllerBuilder getVoiceCallControllerBuilder() =>
+    VoiceCallControllerBuilder();
 
 // Test-time overrides (used by tests to inject fakes without touching DI calls)
 ISttService? _testSttOverride;
@@ -163,7 +167,10 @@ typedef RealtimeClientCreator =
 final Map<String, RealtimeClientCreator> _realtimeClientRegistry = {};
 
 /// Register a realtime client factory for a provider key (e.g. 'openai', 'google').
-void registerRealtimeClientFactory(String provider, RealtimeClientCreator creator) {
+void registerRealtimeClientFactory(
+  String provider,
+  RealtimeClientCreator creator,
+) {
   _realtimeClientRegistry[provider.trim().toLowerCase()] = creator;
 }
 
@@ -204,7 +211,9 @@ class NotSupportedRealtimeClient implements IRealtimeClient {
     int? silenceDurationMs,
     Map<String, dynamic>? options,
   }) async {
-    throw UnsupportedError('Realtime provider "$provider" not supported/configured');
+    throw UnsupportedError(
+      'Realtime provider "$provider" not supported/configured',
+    );
   }
 
   @override
@@ -224,7 +233,11 @@ class NotSupportedRealtimeClient implements IRealtimeClient {
 
   // Implementaciones por defecto de los nuevos métodos
   @override
-  void sendImageWithText({required String imageBase64, String? text, String imageFormat = 'png'}) {
+  void sendImageWithText({
+    required String imageBase64,
+    String? text,
+    String imageFormat = 'png',
+  }) {
     // no-op - funcionalidad no soportada
   }
 
@@ -234,7 +247,10 @@ class NotSupportedRealtimeClient implements IRealtimeClient {
   }
 
   @override
-  void sendFunctionCallOutput({required String callId, required String output}) {
+  void sendFunctionCallOutput({
+    required String callId,
+    required String output,
+  }) {
     // no-op - funcionalidad no soportada
   }
 
@@ -319,30 +335,43 @@ IProfileService getProfileServiceForProvider([String? provider]) {
           : Config.getDefaultImageModel();
       // If still empty, fall back to a reasonable image-capable model
       final resolvedImg = imgModel.isNotEmpty ? imgModel : 'gpt-4.1-mini';
-      return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(resolvedImg));
+      return ProfileAdapter(
+        aiService: runtime_factory.getRuntimeAIServiceForModel(resolvedImg),
+      );
     }
     if (p == 'openai') {
       final txtModel = Config.getDefaultTextModel().isNotEmpty
           ? Config.getDefaultTextModel()
           : Config.getDefaultTextModel();
       final resolvedTxt = txtModel.isNotEmpty ? txtModel : 'gpt-4.1-mini';
-      return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(resolvedTxt));
+      return ProfileAdapter(
+        aiService: runtime_factory.getRuntimeAIServiceForModel(resolvedTxt),
+      );
     }
     final fallbackImg = Config.getDefaultImageModel().isNotEmpty
         ? Config.getDefaultImageModel()
         : Config.getDefaultImageModel();
-    final resolvedFallbackImg = fallbackImg.isNotEmpty ? fallbackImg : 'gpt-4.1-mini';
-    return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(resolvedFallbackImg));
+    final resolvedFallbackImg = fallbackImg.isNotEmpty
+        ? fallbackImg
+        : 'gpt-4.1-mini';
+    return ProfileAdapter(
+      aiService: runtime_factory.getRuntimeAIServiceForModel(
+        resolvedFallbackImg,
+      ),
+    );
   }
 
   // Otherwise, prefer the DEFAULT_TEXT_MODEL from config to infer the provider.
   final defaultTextModel = Config.getDefaultTextModel();
   final defaultImageModel = Config.getDefaultImageModel();
   String resolved = '';
-  final modelToCheck = (defaultTextModel.isNotEmpty ? defaultTextModel : defaultImageModel).toLowerCase();
+  final modelToCheck =
+      (defaultTextModel.isNotEmpty ? defaultTextModel : defaultImageModel)
+          .toLowerCase();
   if (modelToCheck.isNotEmpty) {
     if (modelToCheck.startsWith('gpt-')) resolved = 'openai';
-    if (modelToCheck.startsWith('gemini-') || modelToCheck.startsWith('imagen-')) {
+    if (modelToCheck.startsWith('gemini-') ||
+        modelToCheck.startsWith('imagen-')) {
       resolved = 'google';
     }
   }
@@ -354,17 +383,36 @@ IProfileService getProfileServiceForProvider([String? provider]) {
   }
 
   if (resolved == 'google' || resolved == 'gemini') {
-    return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(Config.requireDefaultImageModel()));
+    return ProfileAdapter(
+      aiService: runtime_factory.getRuntimeAIServiceForModel(
+        Config.requireDefaultImageModel(),
+      ),
+    );
   }
   if (resolved == 'openai') {
-    return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(Config.requireDefaultTextModel()));
+    return ProfileAdapter(
+      aiService: runtime_factory.getRuntimeAIServiceForModel(
+        Config.requireDefaultTextModel(),
+      ),
+    );
   }
-  return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(Config.requireDefaultImageModel()));
+  return ProfileAdapter(
+    aiService: runtime_factory.getRuntimeAIServiceForModel(
+      Config.requireDefaultImageModel(),
+    ),
+  );
 }
 
 /// Factory for Chat Application Service - nueva arquitectura DDD
-ChatApplicationService getChatApplicationService() =>
-    ChatApplicationService(repository: getChatRepository(), promptBuilder: PromptBuilderService());
+ChatApplicationService getChatApplicationService() => ChatApplicationService(
+  repository: getChatRepository(),
+  promptBuilder: PromptBuilderService(),
+);
 
 /// Factory for Chat Controller - nueva arquitectura DDD
-ChatController getChatController() => ChatController(chatService: getChatApplicationService());
+ChatController getChatController() =>
+    ChatController(chatService: getChatApplicationService());
+
+/// Factory for Chat Provider Adapter - bridge temporal para compatibilidad
+/// ⚠️ TEMPORAL: Este adapter será eliminado una vez completada la migración
+ChatProviderAdapter getChatProviderAdapter() => ChatProviderAdapter();

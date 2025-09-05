@@ -9,9 +9,12 @@
 ### ✅ PROGRESO - Application Layer
 - [x] `tts_service.dart` - ✅ ARREGLADO (usa IFileService)
 - [x] `import_export_onboarding_use_case.dart` - ✅ ARREGLADO (usa IFileService)
-- [ ] `chat_provider.dart` - ⚠️ PENDIENTE ELIMINACIÓN (reemplazar con DDD)
+- [x] `chat_application_service.dart` - ✅ CREADO (nueva arquitectura DDD)
+- [x] `chat_controller.dart` - ✅ CREADO (coordinador UI limpio)
+- [x] `chat_provider_adapter.dart` - ✅ CREADO (bridge temporal)
+- [ ] `chat_provider.dart` - 🔄 MIGRACIÓN EN PROGRESO (bridge + gradual replacement)
 
-**DECISIÓN:** En lugar de parchear ChatProvider, aceleramos migración completa a ChatController + ChatApplicationService
+**DECISIÓN:** ✅ EJECUTADA - Migración gradual usando ChatProviderAdapter como Strangler Fig Pattern
 
 ### ❌ VIOLACIONES DETECTADAS
 
@@ -27,9 +30,13 @@
 - [ ] **ELIMINAR 80% de tests que testean implementaciones incorrectas**
 - [ ] Conservar solo tests críticos de dominio
 
-### Fase 2: Migración Core Architecture 🏗️
-- [ ] **Eliminar ChatProvider gradualmente**
-- [ ] Migrar a ChatController (UI) + ChatApplicationService (Business)
+### Fase 2: Migración Core Architecture 🏗️ - EN PROGRESO
+- [x] **Crear ChatApplicationService** ✅ COMPLETADO
+- [x] **Crear ChatController** ✅ COMPLETADO  
+- [x] **Crear ChatProviderAdapter como bridge** ✅ COMPLETADO
+- [ ] **Migrar main.dart** 🔄 EN PROGRESO
+- [ ] **Migrar gradualmente 45+ usages de ChatProvider** ⏳ PENDIENTE
+- [ ] **Eliminar ChatProvider original** ⏳ PENDIENTE (al final)
 - [ ] Crear interfaces limpias para infraestructura
 - [ ] Implementar Dependency Injection limpio
 

@@ -14,7 +14,10 @@ import 'package:ai_chan/core/config.dart';
 /// Implementación del builder para VoiceCallScreenController
 class VoiceCallControllerBuilder implements IVoiceCallControllerBuilder {
   @override
-  VoiceCallScreenController create({required ChatProvider chatProvider, required CallType callType}) {
+  VoiceCallScreenController create({
+    required ChatProvider chatProvider,
+    required CallType callType,
+  }) {
     // Crear dependencias de infraestructura
     final aiService = di.getAIServiceForModel(Config.getDefaultTextModel());
     final callController = CallController(aiService: aiService);

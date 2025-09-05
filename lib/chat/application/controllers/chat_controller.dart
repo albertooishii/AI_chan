@@ -41,7 +41,8 @@ class ChatController extends ChangeNotifier {
   // Direct access to audio service for UI components
   IAudioChatService get audioService => _chatService.audioService;
 
-  ChatController({required ChatApplicationService chatService}) : _chatService = chatService;
+  ChatController({required ChatApplicationService chatService})
+    : _chatService = chatService;
 
   /// Inicializa el chat cargando datos
   Future<void> initialize() async {
@@ -57,7 +58,11 @@ class ChatController extends ChangeNotifier {
   }
 
   /// Envía un mensaje
-  Future<void> sendMessage({required String text, String? model, dynamic image}) async {
+  Future<void> sendMessage({
+    required String text,
+    String? model,
+    dynamic image,
+  }) async {
     if (_chatService.profile == null) {
       _setError('Perfil no inicializado');
       return;
@@ -140,7 +145,10 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  Future<void> generateTtsForMessage(Message msg, {String voice = 'nova'}) async {
+  Future<void> generateTtsForMessage(
+    Message msg, {
+    String voice = 'nova',
+  }) async {
     try {
       await _chatService.generateTtsForMessage(msg, voice: voice);
       notifyListeners();
@@ -227,7 +235,11 @@ class ChatController extends ChangeNotifier {
     required AiChanProfile profile,
     required List<Message> messages,
     int maxRecent = 32,
-  }) => _chatService.buildRealtimeSystemPromptJson(profile: profile, messages: messages, maxRecent: maxRecent);
+  }) => _chatService.buildRealtimeSystemPromptJson(
+    profile: profile,
+    messages: messages,
+    maxRecent: maxRecent,
+  );
 
   String buildCallSystemPromptJson({
     required AiChanProfile profile,

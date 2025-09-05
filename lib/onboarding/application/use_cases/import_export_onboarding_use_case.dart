@@ -25,7 +25,9 @@ class ImportExportOnboardingUseCase {
       }
 
       if (jsonStr == null || jsonStr.trim().isEmpty) {
-        return ImportExportResult.error('El archivo está vacío o no contiene datos válidos');
+        return ImportExportResult.error(
+          'El archivo está vacío o no contiene datos válidos',
+        );
       }
 
       String? importError;
@@ -35,20 +37,27 @@ class ImportExportOnboardingUseCase {
       );
 
       if (importError != null || imported == null) {
-        return ImportExportResult.error('No se pudo importar la biografía: ${importError ?? 'Error desconocido'}');
+        return ImportExportResult.error(
+          'No se pudo importar la biografía: ${importError ?? 'Error desconocido'}',
+        );
       }
 
       Log.d('✅ Importación JSON exitosa', tag: 'IMPORT_EXPORT_UC');
       return ImportExportResult.success(data: imported);
     } catch (e) {
       Log.e('Error durante importación JSON: $e', tag: 'IMPORT_EXPORT_UC');
-      return ImportExportResult.error('Error inesperado durante la importación: $e');
+      return ImportExportResult.error(
+        'Error inesperado durante la importación: $e',
+      );
     }
   }
 
   /// Restaura datos desde un backup local (archivo ZIP)
   Future<ImportExportResult> restoreFromLocalBackup() async {
-    Log.d('📥 Iniciando restauración desde backup local', tag: 'IMPORT_EXPORT_UC');
+    Log.d(
+      '📥 Iniciando restauración desde backup local',
+      tag: 'IMPORT_EXPORT_UC',
+    );
 
     try {
       final result = await FilePicker.platform.pickFiles();
@@ -58,7 +67,9 @@ class ImportExportOnboardingUseCase {
 
       final path = result.files.first.path;
       if (path == null) {
-        return ImportExportResult.error('No se pudo acceder al archivo seleccionado');
+        return ImportExportResult.error(
+          'No se pudo acceder al archivo seleccionado',
+        );
       }
 
       if (!await fileService.fileExists(path)) {
@@ -76,7 +87,9 @@ class ImportExportOnboardingUseCase {
       final jsonStr = String.fromCharCodes(fileData);
 
       if (jsonStr.trim().isEmpty) {
-        return ImportExportResult.error('El archivo de backup está vacío o no contiene JSON válido');
+        return ImportExportResult.error(
+          'El archivo de backup está vacío o no contiene JSON válido',
+        );
       }
 
       String? importError;
@@ -86,14 +99,21 @@ class ImportExportOnboardingUseCase {
       );
 
       if (importError != null || imported == null) {
-        return ImportExportResult.error('Error al procesar el backup: ${importError ?? 'Formato inválido'}');
+        return ImportExportResult.error(
+          'Error al procesar el backup: ${importError ?? 'Formato inválido'}',
+        );
       }
 
       Log.d('✅ Restauración de backup exitosa', tag: 'IMPORT_EXPORT_UC');
       return ImportExportResult.success(data: imported);
     } catch (e) {
-      Log.e('Error durante restauración de backup: $e', tag: 'IMPORT_EXPORT_UC');
-      return ImportExportResult.error('Error inesperado durante la restauración: $e');
+      Log.e(
+        'Error durante restauración de backup: $e',
+        tag: 'IMPORT_EXPORT_UC',
+      );
+      return ImportExportResult.error(
+        'Error inesperado durante la restauración: $e',
+      );
     }
   }
 
@@ -123,7 +143,12 @@ class ImportExportResult {
   final String? error;
   final ImportedChat? data;
 
-  const ImportExportResult._({required this.success, required this.cancelled, this.error, this.data});
+  const ImportExportResult._({
+    required this.success,
+    required this.cancelled,
+    this.error,
+    this.data,
+  });
 
   /// Resultado exitoso con datos importados
   factory ImportExportResult.success({required ImportedChat data}) {
@@ -132,7 +157,11 @@ class ImportExportResult {
 
   /// Resultado con error
   factory ImportExportResult.error(String message) {
-    return ImportExportResult._(success: false, cancelled: false, error: message);
+    return ImportExportResult._(
+      success: false,
+      cancelled: false,
+      error: message,
+    );
   }
 
   /// Operación cancelada por el usuario

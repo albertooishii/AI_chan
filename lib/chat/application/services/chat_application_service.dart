@@ -22,8 +22,8 @@ class ChatApplicationService {
   ChatApplicationService({
     required IChatRepository repository,
     required IPromptBuilderService promptBuilder,
-  })  : _repository = repository,
-        _promptBuilder = promptBuilder {
+  }) : _repository = repository,
+       _promptBuilder = promptBuilder {
     // Inicializar audio service con callbacks vacíos por ahora
     _audioService = di.getAudioChatService(
       onStateChanged: () {},
@@ -83,13 +83,13 @@ class ChatApplicationService {
     try {
       // Simular procesamiento de IA
       await Future.delayed(const Duration(seconds: 1));
-      
+
       final responseMessage = Message(
         text: 'Respuesta de IA para: ${message.text}',
         sender: MessageSender.assistant,
         dateTime: DateTime.now(),
       );
-      
+
       _messages.add(responseMessage);
       await _persistState();
     } catch (e) {
@@ -100,7 +100,7 @@ class ChatApplicationService {
   /// Audio methods
   Future<void> startRecording() => _audioService.startRecording();
   Future<void> cancelRecording() => _audioService.cancelRecording();
-  
+
   Future<String?> stopAndSendRecording({String? model}) async {
     return await _audioService.stopRecording();
   }
@@ -109,7 +109,10 @@ class ChatApplicationService {
     await _audioService.togglePlay(msg, () {});
   }
 
-  Future<void> generateTtsForMessage(Message msg, {String voice = 'nova'}) async {
+  Future<void> generateTtsForMessage(
+    Message msg, {
+    String voice = 'nova',
+  }) async {
     final path = await _audioService.synthesizeTts(msg.text, voice: voice);
     if (path != null) {
       // Asociar audio con mensaje
@@ -156,9 +159,9 @@ class ChatApplicationService {
     required List<Message> messages,
     int maxRecent = 32,
   }) => _promptBuilder.buildRealtimeSystemPromptJson(
-    profile: profile, 
-    messages: messages, 
-    maxRecent: maxRecent
+    profile: profile,
+    messages: messages,
+    maxRecent: maxRecent,
   );
 
   String buildCallSystemPromptJson({
@@ -213,10 +216,14 @@ class ChatApplicationService {
       _profile = AiChanProfile.fromJson(data['profile']);
     }
     if (data['messages'] != null) {
-      _messages = (data['messages'] as List).map((m) => Message.fromJson(m)).toList();
+      _messages = (data['messages'] as List)
+          .map((m) => Message.fromJson(m))
+          .toList();
     }
     if (data['events'] != null) {
-      _events = (data['events'] as List).map((e) => EventEntry.fromJson(e)).toList();
+      _events = (data['events'] as List)
+          .map((e) => EventEntry.fromJson(e))
+          .toList();
     }
     if (data['selectedModel'] != null) {
       _selectedModel = data['selectedModel'];

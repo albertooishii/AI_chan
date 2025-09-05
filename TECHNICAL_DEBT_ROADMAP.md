@@ -7,19 +7,36 @@
 - **Application Layer:** ✅ 90% LIMPIO - Solo ChatProvider pendiente de eliminación
   - ✅ TtsService refactorizado para usar IFileService
   - ✅ ImportExportOnboardingUseCase refactorizado para usar IFileService
-  
+  - ✅ **ChatApplicationService creado** - Nueva arquitectura DDD
+  - ✅ **ChatController creado** - Coordinador de UI limpio
+  - ✅ **ChatProviderAdapter creado** - Bridge temporal para migración gradual
+
 ### 🔧 INTERFACES DDD CREADAS
 - ✅ `IFileService` - Interface para operaciones de archivo
 - ✅ `FileService` - Implementación en Infrastructure
 - ✅ `IChatRepository` - Interface del repositorio de chat
 - ✅ `IPromptBuilderService` - Interface para construcción de prompts
 
+### 🔄 SPRINT 1 EN PROGRESO: Eliminar ChatProvider
+**Estrategia:** Migración gradual usando ChatProviderAdapter como bridge
+- ✅ ChatApplicationService implementado con funcionalidad core
+- ✅ ChatController implementado para coordinación de UI
+- ✅ ChatProviderAdapter creado como bridge temporal
+- 🔄 **EN PROGRESO:** Reemplazar ChatProvider en main.dart
+- ⏳ **PENDIENTE:** Migrar todos los usages (45+ archivos)
+
 ## ⚠️ DEUDAS TÉCNICAS DOCUMENTADAS
 
-### 1. Application Layer - ChatProvider Legacy (ALTA PRIORIDAD)
+### 1. Application Layer - ChatProvider Legacy (ALTA PRIORIDAD - EN PROGRESO)
 **Archivo:** `lib/chat/application/providers/chat_provider.dart`
-**Problema:** Usa `dart:io` directamente, viola DDD
-**Solución:** ELIMINAR completamente y migrar a ChatController + ChatApplicationService
+**Problema:** Usa `dart:io` directamente, viola DDD, God Object con 45+ usages
+**Solución:** ✅ MIGRACIÓN EN PROGRESO - ChatController + ChatApplicationService + Bridge temporal
+**Progreso Sprint 1:**
+- ✅ ChatApplicationService creado (core business logic)
+- ✅ ChatController creado (UI coordination) 
+- ✅ ChatProviderAdapter creado (bridge temporal para compatibilidad)
+- 🔄 main.dart migration en progreso
+- ⏳ Pendiente: Migrar 45+ archivos restantes gradualmente
 **Fecha límite:** Sprint 1 (2 semanas)
 **Riesgo:** Alto - Es el núcleo de la funcionalidad de chat
 

@@ -2,7 +2,11 @@
 /// Permite que la Application Layer maneje archivos sin conocer dart:io.
 abstract class IFileService {
   /// Guarda datos binarios en un archivo
-  Future<String> saveFile(List<int> bytes, String filename, {String? directory});
+  Future<String> saveFile(
+    List<int> bytes,
+    String filename, {
+    String? directory,
+  });
 
   /// Carga datos binarios de un archivo
   Future<List<int>?> loadFile(String filePath);

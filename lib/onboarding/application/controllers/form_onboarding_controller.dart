@@ -17,9 +17,13 @@ class FormOnboardingController extends ChangeNotifier {
   String? _errorMessage;
   ImportedChat? _importedData;
 
-  FormOnboardingController({FormOnboardingUseCase? formUseCase, ImportExportOnboardingUseCase? importExportUseCase})
-    : _formUseCase = formUseCase ?? FormOnboardingUseCase(),
-      _importExportUseCase = importExportUseCase ?? ImportExportOnboardingUseCase(fileService: di.getFileService());
+  FormOnboardingController({
+    FormOnboardingUseCase? formUseCase,
+    ImportExportOnboardingUseCase? importExportUseCase,
+  }) : _formUseCase = formUseCase ?? FormOnboardingUseCase(),
+       _importExportUseCase =
+           importExportUseCase ??
+           ImportExportOnboardingUseCase(fileService: di.getFileService());
 
   // Getters
   bool get isLoading => _isLoading;
@@ -55,7 +59,10 @@ class FormOnboardingController extends ChangeNotifier {
     _clearError();
 
     try {
-      Log.d('🎯 Procesando formulario de onboarding', tag: 'FORM_ONBOARDING_CTRL');
+      Log.d(
+        '🎯 Procesando formulario de onboarding',
+        tag: 'FORM_ONBOARDING_CTRL',
+      );
 
       final result = await _formUseCase.processFormData(
         userName: userName,
@@ -74,7 +81,10 @@ class FormOnboardingController extends ChangeNotifier {
     } catch (e) {
       Log.e('Error procesando formulario: $e', tag: 'FORM_ONBOARDING_CTRL');
       _setError('Error inesperado procesando el formulario: $e');
-      return OnboardingFormResult(success: false, errors: ['Error inesperado: $e']);
+      return OnboardingFormResult(
+        success: false,
+        errors: ['Error inesperado: $e'],
+      );
     } finally {
       _setLoading(false);
     }

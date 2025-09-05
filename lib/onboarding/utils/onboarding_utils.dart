@@ -37,10 +37,18 @@ class OnboardingUtils {
     );
 
     final history = [
-      {'role': 'user', 'content': prompt, 'datetime': DateTime.now().toIso8601String()},
+      {
+        'role': 'user',
+        'content': prompt,
+        'datetime': DateTime.now().toIso8601String(),
+      },
     ].map((m) => Map<String, String>.from(m)).toList();
 
-    final response = await ai_service.AIService.sendMessage(history, systemPrompt, model: Config.getDefaultTextModel());
+    final response = await ai_service.AIService.sendMessage(
+      history,
+      systemPrompt,
+      model: Config.getDefaultTextModel(),
+    );
 
     return response.text.trim();
   }
