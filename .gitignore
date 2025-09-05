@@ -49,3 +49,4 @@ app.*.map.json
 /android/app/release
 debug_json_logs
 coverage/lcov.info
+scripts/coverage_analysis.dart

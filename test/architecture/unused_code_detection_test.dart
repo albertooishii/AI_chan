@@ -3,6 +3,20 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('🧹 Unused Code Detection Tests', () {
+    // ⚡ OPTIMIZACIÓN: Cache global de contenidos para reutilizar entre tests
+    late Map<String, String> fileContents;
+
+    setUpAll(() {
+      // Inicializar caché global una sola vez para todos los tests
+      fileContents = <String, String>{};
+    });
+
+    void cacheFileContent(File file) {
+      if (!fileContents.containsKey(file.path)) {
+        fileContents[file.path] = file.readAsStringSync();
+      }
+    }
+
     test(
       'no unused files or public static methods should exist in utility classes',
       () {
@@ -13,74 +27,85 @@ void main() {
         final allFiles = <File>[];
         final utilityFiles = <File>[];
 
-        // Recopilar todos los archivos dart
+        // Recopilar todos los archivos dart y cache contenido
         for (final file in libDir.listSync(recursive: true)) {
           if (file is File && file.path.endsWith('.dart')) {
             allFiles.add(file);
-            if (_isUtilityFile(file.path, file.readAsStringSync())) {
+            cacheFileContent(file);
+            if (_isUtilityFile(file.path, fileContents[file.path]!)) {
               utilityFiles.add(file);
             }
           }
         }
 
-        // Verificar archivos completos no utilizados primero
+        // ⚡ OPTIMIZACIÓN 3: Cache contenido de tests también
+        final testDir = Directory('test');
+        final testFiles = <File>[];
+        if (testDir.existsSync()) {
+          for (final file in testDir.listSync(recursive: true)) {
+            if (file is File && file.path.endsWith('.dart')) {
+              testFiles.add(file);
+              cacheFileContent(file);
+            }
+          }
+        }
+
+        // ⚡ OPTIMIZACIÓN 4: Construir un índice global de imports una sola vez
+        final globalImportIndex = <String, Set<String>>{};
+        void buildImportIndex(List<File> files) {
+          for (final file in files) {
+            final content = fileContents[file.path]!;
+            final imports = <String>{};
+
+            // Regex optimizado para imports
+            final importRegex = RegExp(r'''import\s+['"](.*?)['"]''');
+            final matches = importRegex.allMatches(content);
+            for (final match in matches) {
+              imports.add(match.group(1)!);
+            }
+
+            // También buscar nombres de archivos sin extensión para detección más amplia
+            for (final utilFile in utilityFiles) {
+              final fileName = utilFile.path
+                  .split('/')
+                  .last
+                  .replaceFirst('.dart', '');
+              if (content.contains(fileName)) {
+                imports.add(fileName);
+              }
+            }
+
+            globalImportIndex[file.path] = imports;
+          }
+        }
+
+        buildImportIndex(allFiles);
+        buildImportIndex(testFiles);
+
+        // Verificar archivos completos no utilizados optimizado
         for (final utilityFile in utilityFiles) {
           final relativePath = utilityFile.path.replaceFirst(
             '${libDir.path}/',
             '',
           );
           final packageImport = 'package:ai_chan/$relativePath';
-
-          // Crear diferentes variaciones posibles del import
           final fileName = relativePath
               .split('/')
               .last
               .replaceFirst('.dart', '');
-          final possibleImports = [
-            packageImport,
-            relativePath,
-            '../$fileName.dart',
-            './$fileName.dart',
-            fileName,
-          ];
 
+          // ⚡ OPTIMIZACIÓN 5: Búsqueda O(1) en lugar de O(n)
           bool isFileUsed = false;
 
-          // Buscar imports de este archivo en todo el codebase (incluyendo tests)
-          for (final file in allFiles) {
-            if (file.path == utilityFile.path) continue;
-
-            final content = file.readAsStringSync();
-
-            // Buscar cualquier forma de import/export
-            for (final possibleImport in possibleImports) {
-              if (content.contains(possibleImport)) {
-                isFileUsed = true;
-                break;
-              }
-            }
-
-            if (isFileUsed) break;
-          }
-
-          // También buscar en tests
-          if (!isFileUsed) {
-            final testDir = Directory('test');
-            if (testDir.existsSync()) {
-              for (final file in testDir.listSync(recursive: true)) {
-                if (file is File && file.path.endsWith('.dart')) {
-                  final content = file.readAsStringSync();
-                  for (final possibleImport in possibleImports) {
-                    if (content.contains(possibleImport)) {
-                      isFileUsed = true;
-                      break;
-                    }
-                  }
-                  if (isFileUsed) break;
-                }
-              }
+          for (final imports in globalImportIndex.values) {
+            if (imports.contains(packageImport) ||
+                imports.contains(relativePath) ||
+                imports.contains(fileName)) {
+              isFileUsed = true;
+              break;
             }
           }
+
           if (!isFileUsed) {
             violations.add(
               '🗑️  UNUSED FILE: ${utilityFile.path} - The entire file is not imported/used anywhere. Consider deleting it completely.',
@@ -124,29 +149,39 @@ void main() {
             }
           }
 
-          // Buscar usos de los métodos definidos
+          // Buscar usos de los métodos definidos usando caché
           final methodUsages = <String>{};
 
-          for (final file in allFiles) {
-            final fileContent = file.readAsStringSync();
+          // Usar contenido ya cacheado para búsqueda rápida
+          for (final methodKey in definedMethods.keys) {
+            bool found = false;
 
-            for (final methodKey in definedMethods.keys) {
-              if (_isMethodUsed(fileContent, methodKey)) {
+            // Buscar en archivos lib/ (ya cacheados)
+            for (final content in fileContents.values) {
+              if (_isMethodUsed(content, methodKey)) {
                 methodUsages.add(methodKey);
+                found = true;
+                break; // No necesitamos seguir buscando este método
               }
             }
-          }
 
-          // También buscar en tests
-          final testDir = Directory('test');
-          if (testDir.existsSync()) {
-            for (final file in testDir.listSync(recursive: true)) {
-              if (file is File && file.path.endsWith('.dart')) {
-                final fileContent = file.readAsStringSync();
+            // Si no se encontró en lib/, buscar en tests (cachear también)
+            if (!found) {
+              final testDir = Directory('test');
+              if (testDir.existsSync()) {
+                for (final file in testDir.listSync(recursive: true)) {
+                  if (file is File && file.path.endsWith('.dart')) {
+                    final filePath = file.path;
 
-                for (final methodKey in definedMethods.keys) {
-                  if (_isMethodUsed(fileContent, methodKey)) {
-                    methodUsages.add(methodKey);
+                    // Caché también para archivos de test
+                    if (!fileContents.containsKey(filePath)) {
+                      fileContents[filePath] = file.readAsStringSync();
+                    }
+
+                    if (_isMethodUsed(fileContents[filePath]!, methodKey)) {
+                      methodUsages.add(methodKey);
+                      break; // Encontrado, no seguir buscando
+                    }
                   }
                 }
               }
@@ -228,30 +263,37 @@ void main() {
         }
       }
 
-      // Segunda pasada: buscar usos
-      for (final file in libDir.listSync(recursive: true)) {
-        if (file is! File || !file.path.endsWith('.dart')) continue;
+      // Segunda pasada: buscar usos usando caché global
+      for (final functionName in definedFunctions.keys) {
+        bool found = false;
 
-        final content = file.readAsStringSync();
-
-        for (final functionName in definedFunctions.keys) {
+        // Buscar en contenido ya cacheado de lib/
+        for (final content in fileContents.values) {
           if (content.contains('$functionName(')) {
             functionUsages.add(functionName);
+            found = true;
+            break; // No necesitamos seguir buscando esta función
           }
         }
-      }
 
-      // Buscar en tests también
-      final testDir = Directory('test');
-      if (testDir.existsSync()) {
-        for (final file in testDir.listSync(recursive: true)) {
-          if (file is! File || !file.path.endsWith('.dart')) continue;
+        // Si no se encontró en lib/, buscar en tests
+        if (!found) {
+          final testDir = Directory('test');
+          if (testDir.existsSync()) {
+            for (final file in testDir.listSync(recursive: true)) {
+              if (file is! File || !file.path.endsWith('.dart')) continue;
 
-          final content = file.readAsStringSync();
+              final filePath = file.path;
 
-          for (final functionName in definedFunctions.keys) {
-            if (content.contains('$functionName(')) {
-              functionUsages.add(functionName);
+              // Reutilizar caché de test si ya existe
+              if (!fileContents.containsKey(filePath)) {
+                fileContents[filePath] = file.readAsStringSync();
+              }
+
+              if (fileContents[filePath]!.contains('$functionName(')) {
+                functionUsages.add(functionName);
+                break; // Encontrado, salir del loop
+              }
             }
           }
         }

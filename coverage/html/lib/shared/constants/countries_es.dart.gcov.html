@@ -1,0 +1,393 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - lcov.info - lib/shared/constants/countries_es.dart</title>
+  <link rel="stylesheet" type="text/css" href="../../../gcov.css">
+</head>
+
+<body>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="title">LCOV - code coverage report</td></tr>
+            <tr><td class="ruler"><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
+
+            <tr>
+              <td width="100%">
+                <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="10%" class="headerValue"><a href="../../../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory lib/shared/constants">lib/shared/constants</a> - countries_es.dart</td>
+            <td width="5%"></td>
+            <td width="5%"></td>
+            <td width="5%" class="headerCovTableHead">Coverage</td>
+            <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code">Total</td>
+            <td width="5%" class="headerCovTableHead" title="Exercised code only">Hit</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">lcov.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
+            <td class="headerCovTableEntry">1</td>
+            <td class="headerCovTableEntry">1</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test Date:</td>
+            <td class="headerValue">2025-09-06 01:25:43</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntryHi">-</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">0</td>
+          </tr>
+                  <tr><td><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr><td class="ruler"><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
+          </table>
+
+          <table cellpadding=0 cellspacing=0 border=0>
+            <tr>
+              <td><br></td>
+            </tr>
+            <tr>
+              <td>
+<pre class="sourceHeading">            Line data    Source code</pre>
+<pre class="source">
+<span id="L1"><span class="lineNum">       1</span>              : class CountryItem {</span>
+<span id="L2"><span class="lineNum">       2</span>              :   final String nameEs;</span>
+<span id="L3"><span class="lineNum">       3</span>              :   final String iso2;</span>
+<span id="L4"><span class="lineNum">       4</span> <span class="tlaGNC">           4 :   const CountryItem(this.nameEs, this.iso2);</span></span>
+<span id="L5"><span class="lineNum">       5</span>              : }</span>
+<span id="L6"><span class="lineNum">       6</span>              : </span>
+<span id="L7"><span class="lineNum">       7</span>              : /// Lista ordenada de países (nombre en español → código ISO2) según la selección del usuario.</span>
+<span id="L8"><span class="lineNum">       8</span>              : class CountriesEs {</span>
+<span id="L9"><span class="lineNum">       9</span>              :   static const List&lt;CountryItem&gt; items = [</span>
+<span id="L10"><span class="lineNum">      10</span>              :     CountryItem('España', 'ES'),</span>
+<span id="L11"><span class="lineNum">      11</span>              :     CountryItem('Francia', 'FR'),</span>
+<span id="L12"><span class="lineNum">      12</span>              :     CountryItem('Italia', 'IT'),</span>
+<span id="L13"><span class="lineNum">      13</span>              :     CountryItem('Portugal', 'PT'),</span>
+<span id="L14"><span class="lineNum">      14</span>              :     CountryItem('Alemania', 'DE'),</span>
+<span id="L15"><span class="lineNum">      15</span>              :     CountryItem('Reino Unido', 'GB'),</span>
+<span id="L16"><span class="lineNum">      16</span>              :     CountryItem('Irlanda', 'IE'),</span>
+<span id="L17"><span class="lineNum">      17</span>              :     CountryItem('Bélgica', 'BE'),</span>
+<span id="L18"><span class="lineNum">      18</span>              :     CountryItem('Países Bajos (Holanda)', 'NL'),</span>
+<span id="L19"><span class="lineNum">      19</span>              :     CountryItem('Suiza', 'CH'),</span>
+<span id="L20"><span class="lineNum">      20</span>              :     CountryItem('Austria', 'AT'),</span>
+<span id="L21"><span class="lineNum">      21</span>              :     CountryItem('Grecia', 'GR'),</span>
+<span id="L22"><span class="lineNum">      22</span>              :     CountryItem('Polonia', 'PL'),</span>
+<span id="L23"><span class="lineNum">      23</span>              :     CountryItem('Hungría', 'HU'),</span>
+<span id="L24"><span class="lineNum">      24</span>              :     CountryItem('República Checa', 'CZ'),</span>
+<span id="L25"><span class="lineNum">      25</span>              :     CountryItem('Noruega', 'NO'),</span>
+<span id="L26"><span class="lineNum">      26</span>              :     CountryItem('Suecia', 'SE'),</span>
+<span id="L27"><span class="lineNum">      27</span>              :     CountryItem('Finlandia', 'FI'),</span>
+<span id="L28"><span class="lineNum">      28</span>              :     CountryItem('Dinamarca', 'DK'),</span>
+<span id="L29"><span class="lineNum">      29</span>              :     CountryItem('Islandia', 'IS'),</span>
+<span id="L30"><span class="lineNum">      30</span>              :     CountryItem('Rusia', 'RU'),</span>
+<span id="L31"><span class="lineNum">      31</span>              :     CountryItem('Ucrania', 'UA'),</span>
+<span id="L32"><span class="lineNum">      32</span>              :     CountryItem('Rumanía', 'RO'),</span>
+<span id="L33"><span class="lineNum">      33</span>              :     CountryItem('Bulgaria', 'BG'),</span>
+<span id="L34"><span class="lineNum">      34</span>              :     CountryItem('Croacia', 'HR'),</span>
+<span id="L35"><span class="lineNum">      35</span>              :     CountryItem('Serbia', 'RS'),</span>
+<span id="L36"><span class="lineNum">      36</span>              :     CountryItem('Turquía', 'TR'),</span>
+<span id="L37"><span class="lineNum">      37</span>              :     CountryItem('Malta', 'MT'),</span>
+<span id="L38"><span class="lineNum">      38</span>              :     CountryItem('Andorra', 'AD'),</span>
+<span id="L39"><span class="lineNum">      39</span>              :     CountryItem('Eslovenia', 'SI'),</span>
+<span id="L40"><span class="lineNum">      40</span>              :     CountryItem('Eslovaquia', 'SK'),</span>
+<span id="L41"><span class="lineNum">      41</span>              :     CountryItem('Montenegro', 'ME'),</span>
+<span id="L42"><span class="lineNum">      42</span>              :     CountryItem('Bosnia y Herzegovina', 'BA'),</span>
+<span id="L43"><span class="lineNum">      43</span>              :     CountryItem('Estonia', 'EE'),</span>
+<span id="L44"><span class="lineNum">      44</span>              :     CountryItem('Letonia', 'LV'),</span>
+<span id="L45"><span class="lineNum">      45</span>              :     CountryItem('Estados Unidos', 'US'),</span>
+<span id="L46"><span class="lineNum">      46</span>              :     CountryItem('Canadá', 'CA'),</span>
+<span id="L47"><span class="lineNum">      47</span>              :     CountryItem('México', 'MX'),</span>
+<span id="L48"><span class="lineNum">      48</span>              :     CountryItem('Cuba', 'CU'),</span>
+<span id="L49"><span class="lineNum">      49</span>              :     CountryItem('República Dominicana', 'DO'),</span>
+<span id="L50"><span class="lineNum">      50</span>              :     CountryItem('Puerto Rico', 'PR'),</span>
+<span id="L51"><span class="lineNum">      51</span>              :     CountryItem('Costa Rica', 'CR'),</span>
+<span id="L52"><span class="lineNum">      52</span>              :     CountryItem('Panamá', 'PA'),</span>
+<span id="L53"><span class="lineNum">      53</span>              :     CountryItem('Guatemala', 'GT'),</span>
+<span id="L54"><span class="lineNum">      54</span>              :     CountryItem('Honduras', 'HN'),</span>
+<span id="L55"><span class="lineNum">      55</span>              :     CountryItem('El Salvador', 'SV'),</span>
+<span id="L56"><span class="lineNum">      56</span>              :     CountryItem('Nicaragua', 'NI'),</span>
+<span id="L57"><span class="lineNum">      57</span>              :     CountryItem('Colombia', 'CO'),</span>
+<span id="L58"><span class="lineNum">      58</span>              :     CountryItem('Venezuela', 'VE'),</span>
+<span id="L59"><span class="lineNum">      59</span>              :     CountryItem('Ecuador', 'EC'),</span>
+<span id="L60"><span class="lineNum">      60</span>              :     CountryItem('Perú', 'PE'),</span>
+<span id="L61"><span class="lineNum">      61</span>              :     CountryItem('Bolivia', 'BO'),</span>
+<span id="L62"><span class="lineNum">      62</span>              :     CountryItem('Chile', 'CL'),</span>
+<span id="L63"><span class="lineNum">      63</span>              :     CountryItem('Argentina', 'AR'),</span>
+<span id="L64"><span class="lineNum">      64</span>              :     CountryItem('Brasil', 'BR'),</span>
+<span id="L65"><span class="lineNum">      65</span>              :     CountryItem('Paraguay', 'PY'),</span>
+<span id="L66"><span class="lineNum">      66</span>              :     CountryItem('Uruguay', 'UY'),</span>
+<span id="L67"><span class="lineNum">      67</span>              :     CountryItem('Haití', 'HT'),</span>
+<span id="L68"><span class="lineNum">      68</span>              :     CountryItem('Jamaica', 'JM'),</span>
+<span id="L69"><span class="lineNum">      69</span>              :     CountryItem('Marruecos', 'MA'),</span>
+<span id="L70"><span class="lineNum">      70</span>              :     CountryItem('Argelia', 'DZ'),</span>
+<span id="L71"><span class="lineNum">      71</span>              :     CountryItem('Túnez', 'TN'),</span>
+<span id="L72"><span class="lineNum">      72</span>              :     CountryItem('Egipto', 'EG'),</span>
+<span id="L73"><span class="lineNum">      73</span>              :     CountryItem('Sudán', 'SD'),</span>
+<span id="L74"><span class="lineNum">      74</span>              :     CountryItem('Libia', 'LY'),</span>
+<span id="L75"><span class="lineNum">      75</span>              :     CountryItem('Senegal', 'SN'),</span>
+<span id="L76"><span class="lineNum">      76</span>              :     CountryItem('Gambia', 'GM'),</span>
+<span id="L77"><span class="lineNum">      77</span>              :     CountryItem('Ghana', 'GH'),</span>
+<span id="L78"><span class="lineNum">      78</span>              :     CountryItem('Nigeria', 'NG'),</span>
+<span id="L79"><span class="lineNum">      79</span>              :     CountryItem('Etiopía', 'ET'),</span>
+<span id="L80"><span class="lineNum">      80</span>              :     CountryItem('Kenia', 'KE'),</span>
+<span id="L81"><span class="lineNum">      81</span>              :     CountryItem('Tanzania', 'TZ'),</span>
+<span id="L82"><span class="lineNum">      82</span>              :     CountryItem('Uganda', 'UG'),</span>
+<span id="L83"><span class="lineNum">      83</span>              :     CountryItem('República Democrática del Congo', 'CD'),</span>
+<span id="L84"><span class="lineNum">      84</span>              :     CountryItem('Angola', 'AO'),</span>
+<span id="L85"><span class="lineNum">      85</span>              :     CountryItem('Mozambique', 'MZ'),</span>
+<span id="L86"><span class="lineNum">      86</span>              :     CountryItem('Madagascar', 'MG'),</span>
+<span id="L87"><span class="lineNum">      87</span>              :     CountryItem('Sudáfrica', 'ZA'),</span>
+<span id="L88"><span class="lineNum">      88</span>              :     CountryItem('Guinea Ecuatorial', 'GQ'),</span>
+<span id="L89"><span class="lineNum">      89</span>              :     CountryItem('China', 'CN'),</span>
+<span id="L90"><span class="lineNum">      90</span>              :     CountryItem('Japón', 'JP'),</span>
+<span id="L91"><span class="lineNum">      91</span>              :     CountryItem('Corea del Sur', 'KR'),</span>
+<span id="L92"><span class="lineNum">      92</span>              :     CountryItem('Corea del Norte', 'KP'),</span>
+<span id="L93"><span class="lineNum">      93</span>              :     CountryItem('India', 'IN'),</span>
+<span id="L94"><span class="lineNum">      94</span>              :     CountryItem('Pakistán', 'PK'),</span>
+<span id="L95"><span class="lineNum">      95</span>              :     CountryItem('Nepal', 'NP'),</span>
+<span id="L96"><span class="lineNum">      96</span>              :     CountryItem('Sri Lanka', 'LK'),</span>
+<span id="L97"><span class="lineNum">      97</span>              :     CountryItem('Tailandia', 'TH'),</span>
+<span id="L98"><span class="lineNum">      98</span>              :     CountryItem('Vietnam', 'VN'),</span>
+<span id="L99"><span class="lineNum">      99</span>              :     CountryItem('Camboya', 'KH'),</span>
+<span id="L100"><span class="lineNum">     100</span>              :     CountryItem('Laos', 'LA'),</span>
+<span id="L101"><span class="lineNum">     101</span>              :     CountryItem('Birmania (Myanmar)', 'MM'),</span>
+<span id="L102"><span class="lineNum">     102</span>              :     CountryItem('Malasia', 'MY'),</span>
+<span id="L103"><span class="lineNum">     103</span>              :     CountryItem('Singapur', 'SG'),</span>
+<span id="L104"><span class="lineNum">     104</span>              :     CountryItem('Indonesia', 'ID'),</span>
+<span id="L105"><span class="lineNum">     105</span>              :     CountryItem('Filipinas', 'PH'),</span>
+<span id="L106"><span class="lineNum">     106</span>              :     CountryItem('Israel', 'IL'),</span>
+<span id="L107"><span class="lineNum">     107</span>              :     CountryItem('Australia', 'AU'),</span>
+<span id="L108"><span class="lineNum">     108</span>              :     CountryItem('Nueva Zelanda', 'NZ'),</span>
+<span id="L109"><span class="lineNum">     109</span>              :     CountryItem('Fiyi', 'FJ'),</span>
+<span id="L110"><span class="lineNum">     110</span>              :   ];</span>
+<span id="L111"><span class="lineNum">     111</span>              : </span>
+<span id="L112"><span class="lineNum">     112</span>              :   static const Map&lt;String, String&gt; nameToIso = {</span>
+<span id="L113"><span class="lineNum">     113</span>              :     'España': 'ES',</span>
+<span id="L114"><span class="lineNum">     114</span>              :     'Francia': 'FR',</span>
+<span id="L115"><span class="lineNum">     115</span>              :     'Italia': 'IT',</span>
+<span id="L116"><span class="lineNum">     116</span>              :     'Portugal': 'PT',</span>
+<span id="L117"><span class="lineNum">     117</span>              :     'Alemania': 'DE',</span>
+<span id="L118"><span class="lineNum">     118</span>              :     'Reino Unido': 'GB',</span>
+<span id="L119"><span class="lineNum">     119</span>              :     'Irlanda': 'IE',</span>
+<span id="L120"><span class="lineNum">     120</span>              :     'Bélgica': 'BE',</span>
+<span id="L121"><span class="lineNum">     121</span>              :     'Países Bajos (Holanda)': 'NL',</span>
+<span id="L122"><span class="lineNum">     122</span>              :     'Suiza': 'CH',</span>
+<span id="L123"><span class="lineNum">     123</span>              :     'Austria': 'AT',</span>
+<span id="L124"><span class="lineNum">     124</span>              :     'Grecia': 'GR',</span>
+<span id="L125"><span class="lineNum">     125</span>              :     'Polonia': 'PL',</span>
+<span id="L126"><span class="lineNum">     126</span>              :     'Hungría': 'HU',</span>
+<span id="L127"><span class="lineNum">     127</span>              :     'República Checa': 'CZ',</span>
+<span id="L128"><span class="lineNum">     128</span>              :     'Noruega': 'NO',</span>
+<span id="L129"><span class="lineNum">     129</span>              :     'Suecia': 'SE',</span>
+<span id="L130"><span class="lineNum">     130</span>              :     'Finlandia': 'FI',</span>
+<span id="L131"><span class="lineNum">     131</span>              :     'Dinamarca': 'DK',</span>
+<span id="L132"><span class="lineNum">     132</span>              :     'Islandia': 'IS',</span>
+<span id="L133"><span class="lineNum">     133</span>              :     'Rusia': 'RU',</span>
+<span id="L134"><span class="lineNum">     134</span>              :     'Ucrania': 'UA',</span>
+<span id="L135"><span class="lineNum">     135</span>              :     'Rumanía': 'RO',</span>
+<span id="L136"><span class="lineNum">     136</span>              :     'Bulgaria': 'BG',</span>
+<span id="L137"><span class="lineNum">     137</span>              :     'Croacia': 'HR',</span>
+<span id="L138"><span class="lineNum">     138</span>              :     'Serbia': 'RS',</span>
+<span id="L139"><span class="lineNum">     139</span>              :     'Turquía': 'TR',</span>
+<span id="L140"><span class="lineNum">     140</span>              :     'Malta': 'MT',</span>
+<span id="L141"><span class="lineNum">     141</span>              :     'Andorra': 'AD',</span>
+<span id="L142"><span class="lineNum">     142</span>              :     'Eslovenia': 'SI',</span>
+<span id="L143"><span class="lineNum">     143</span>              :     'Eslovaquia': 'SK',</span>
+<span id="L144"><span class="lineNum">     144</span>              :     'Montenegro': 'ME',</span>
+<span id="L145"><span class="lineNum">     145</span>              :     'Bosnia y Herzegovina': 'BA',</span>
+<span id="L146"><span class="lineNum">     146</span>              :     'Estonia': 'EE',</span>
+<span id="L147"><span class="lineNum">     147</span>              :     'Letonia': 'LV',</span>
+<span id="L148"><span class="lineNum">     148</span>              :     'Estados Unidos': 'US',</span>
+<span id="L149"><span class="lineNum">     149</span>              :     'Canadá': 'CA',</span>
+<span id="L150"><span class="lineNum">     150</span>              :     'México': 'MX',</span>
+<span id="L151"><span class="lineNum">     151</span>              :     'Cuba': 'CU',</span>
+<span id="L152"><span class="lineNum">     152</span>              :     'República Dominicana': 'DO',</span>
+<span id="L153"><span class="lineNum">     153</span>              :     'Puerto Rico': 'PR',</span>
+<span id="L154"><span class="lineNum">     154</span>              :     'Costa Rica': 'CR',</span>
+<span id="L155"><span class="lineNum">     155</span>              :     'Panamá': 'PA',</span>
+<span id="L156"><span class="lineNum">     156</span>              :     'Guatemala': 'GT',</span>
+<span id="L157"><span class="lineNum">     157</span>              :     'Honduras': 'HN',</span>
+<span id="L158"><span class="lineNum">     158</span>              :     'El Salvador': 'SV',</span>
+<span id="L159"><span class="lineNum">     159</span>              :     'Nicaragua': 'NI',</span>
+<span id="L160"><span class="lineNum">     160</span>              :     'Colombia': 'CO',</span>
+<span id="L161"><span class="lineNum">     161</span>              :     'Venezuela': 'VE',</span>
+<span id="L162"><span class="lineNum">     162</span>              :     'Ecuador': 'EC',</span>
+<span id="L163"><span class="lineNum">     163</span>              :     'Perú': 'PE',</span>
+<span id="L164"><span class="lineNum">     164</span>              :     'Bolivia': 'BO',</span>
+<span id="L165"><span class="lineNum">     165</span>              :     'Chile': 'CL',</span>
+<span id="L166"><span class="lineNum">     166</span>              :     'Argentina': 'AR',</span>
+<span id="L167"><span class="lineNum">     167</span>              :     'Brasil': 'BR',</span>
+<span id="L168"><span class="lineNum">     168</span>              :     'Paraguay': 'PY',</span>
+<span id="L169"><span class="lineNum">     169</span>              :     'Uruguay': 'UY',</span>
+<span id="L170"><span class="lineNum">     170</span>              :     'Haití': 'HT',</span>
+<span id="L171"><span class="lineNum">     171</span>              :     'Jamaica': 'JM',</span>
+<span id="L172"><span class="lineNum">     172</span>              :     'Marruecos': 'MA',</span>
+<span id="L173"><span class="lineNum">     173</span>              :     'Argelia': 'DZ',</span>
+<span id="L174"><span class="lineNum">     174</span>              :     'Túnez': 'TN',</span>
+<span id="L175"><span class="lineNum">     175</span>              :     'Egipto': 'EG',</span>
+<span id="L176"><span class="lineNum">     176</span>              :     'Sudán': 'SD',</span>
+<span id="L177"><span class="lineNum">     177</span>              :     'Libia': 'LY',</span>
+<span id="L178"><span class="lineNum">     178</span>              :     'Senegal': 'SN',</span>
+<span id="L179"><span class="lineNum">     179</span>              :     'Gambia': 'GM',</span>
+<span id="L180"><span class="lineNum">     180</span>              :     'Ghana': 'GH',</span>
+<span id="L181"><span class="lineNum">     181</span>              :     'Nigeria': 'NG',</span>
+<span id="L182"><span class="lineNum">     182</span>              :     'Etiopía': 'ET',</span>
+<span id="L183"><span class="lineNum">     183</span>              :     'Kenia': 'KE',</span>
+<span id="L184"><span class="lineNum">     184</span>              :     'Tanzania': 'TZ',</span>
+<span id="L185"><span class="lineNum">     185</span>              :     'Uganda': 'UG',</span>
+<span id="L186"><span class="lineNum">     186</span>              :     'República Democrática del Congo': 'CD',</span>
+<span id="L187"><span class="lineNum">     187</span>              :     'Angola': 'AO',</span>
+<span id="L188"><span class="lineNum">     188</span>              :     'Mozambique': 'MZ',</span>
+<span id="L189"><span class="lineNum">     189</span>              :     'Madagascar': 'MG',</span>
+<span id="L190"><span class="lineNum">     190</span>              :     'Sudáfrica': 'ZA',</span>
+<span id="L191"><span class="lineNum">     191</span>              :     'Guinea Ecuatorial': 'GQ',</span>
+<span id="L192"><span class="lineNum">     192</span>              :     'China': 'CN',</span>
+<span id="L193"><span class="lineNum">     193</span>              :     'Japón': 'JP',</span>
+<span id="L194"><span class="lineNum">     194</span>              :     'Corea del Sur': 'KR',</span>
+<span id="L195"><span class="lineNum">     195</span>              :     'Corea del Norte': 'KP',</span>
+<span id="L196"><span class="lineNum">     196</span>              :     'India': 'IN',</span>
+<span id="L197"><span class="lineNum">     197</span>              :     'Pakistán': 'PK',</span>
+<span id="L198"><span class="lineNum">     198</span>              :     'Nepal': 'NP',</span>
+<span id="L199"><span class="lineNum">     199</span>              :     'Sri Lanka': 'LK',</span>
+<span id="L200"><span class="lineNum">     200</span>              :     'Tailandia': 'TH',</span>
+<span id="L201"><span class="lineNum">     201</span>              :     'Vietnam': 'VN',</span>
+<span id="L202"><span class="lineNum">     202</span>              :     'Camboya': 'KH',</span>
+<span id="L203"><span class="lineNum">     203</span>              :     'Laos': 'LA',</span>
+<span id="L204"><span class="lineNum">     204</span>              :     'Birmania (Myanmar)': 'MM',</span>
+<span id="L205"><span class="lineNum">     205</span>              :     'Malasia': 'MY',</span>
+<span id="L206"><span class="lineNum">     206</span>              :     'Singapur': 'SG',</span>
+<span id="L207"><span class="lineNum">     207</span>              :     'Indonesia': 'ID',</span>
+<span id="L208"><span class="lineNum">     208</span>              :     'Filipinas': 'PH',</span>
+<span id="L209"><span class="lineNum">     209</span>              :     'Israel': 'IL',</span>
+<span id="L210"><span class="lineNum">     210</span>              :     'Australia': 'AU',</span>
+<span id="L211"><span class="lineNum">     211</span>              :     'Nueva Zelanda': 'NZ',</span>
+<span id="L212"><span class="lineNum">     212</span>              :     'Fiyi': 'FJ',</span>
+<span id="L213"><span class="lineNum">     213</span>              :   };</span>
+<span id="L214"><span class="lineNum">     214</span>              : </span>
+<span id="L215"><span class="lineNum">     215</span>              :   static const Map&lt;String, String&gt; codeToName = {</span>
+<span id="L216"><span class="lineNum">     216</span>              :     'ES': 'España',</span>
+<span id="L217"><span class="lineNum">     217</span>              :     'FR': 'Francia',</span>
+<span id="L218"><span class="lineNum">     218</span>              :     'IT': 'Italia',</span>
+<span id="L219"><span class="lineNum">     219</span>              :     'PT': 'Portugal',</span>
+<span id="L220"><span class="lineNum">     220</span>              :     'DE': 'Alemania',</span>
+<span id="L221"><span class="lineNum">     221</span>              :     'GB': 'Reino Unido',</span>
+<span id="L222"><span class="lineNum">     222</span>              :     'IE': 'Irlanda',</span>
+<span id="L223"><span class="lineNum">     223</span>              :     'BE': 'Bélgica',</span>
+<span id="L224"><span class="lineNum">     224</span>              :     'NL': 'Países Bajos (Holanda)',</span>
+<span id="L225"><span class="lineNum">     225</span>              :     'CH': 'Suiza',</span>
+<span id="L226"><span class="lineNum">     226</span>              :     'AT': 'Austria',</span>
+<span id="L227"><span class="lineNum">     227</span>              :     'GR': 'Grecia',</span>
+<span id="L228"><span class="lineNum">     228</span>              :     'PL': 'Polonia',</span>
+<span id="L229"><span class="lineNum">     229</span>              :     'HU': 'Hungría',</span>
+<span id="L230"><span class="lineNum">     230</span>              :     'CZ': 'República Checa',</span>
+<span id="L231"><span class="lineNum">     231</span>              :     'NO': 'Noruega',</span>
+<span id="L232"><span class="lineNum">     232</span>              :     'SE': 'Suecia',</span>
+<span id="L233"><span class="lineNum">     233</span>              :     'FI': 'Finlandia',</span>
+<span id="L234"><span class="lineNum">     234</span>              :     'DK': 'Dinamarca',</span>
+<span id="L235"><span class="lineNum">     235</span>              :     'IS': 'Islandia',</span>
+<span id="L236"><span class="lineNum">     236</span>              :     'RU': 'Rusia',</span>
+<span id="L237"><span class="lineNum">     237</span>              :     'UA': 'Ucrania',</span>
+<span id="L238"><span class="lineNum">     238</span>              :     'RO': 'Rumanía',</span>
+<span id="L239"><span class="lineNum">     239</span>              :     'BG': 'Bulgaria',</span>
+<span id="L240"><span class="lineNum">     240</span>              :     'HR': 'Croacia',</span>
+<span id="L241"><span class="lineNum">     241</span>              :     'RS': 'Serbia',</span>
+<span id="L242"><span class="lineNum">     242</span>              :     'TR': 'Turquía',</span>
+<span id="L243"><span class="lineNum">     243</span>              :     'MT': 'Malta',</span>
+<span id="L244"><span class="lineNum">     244</span>              :     'AD': 'Andorra',</span>
+<span id="L245"><span class="lineNum">     245</span>              :     'SI': 'Eslovenia',</span>
+<span id="L246"><span class="lineNum">     246</span>              :     'SK': 'Eslovaquia',</span>
+<span id="L247"><span class="lineNum">     247</span>              :     'ME': 'Montenegro',</span>
+<span id="L248"><span class="lineNum">     248</span>              :     'BA': 'Bosnia y Herzegovina',</span>
+<span id="L249"><span class="lineNum">     249</span>              :     'EE': 'Estonia',</span>
+<span id="L250"><span class="lineNum">     250</span>              :     'LV': 'Letonia',</span>
+<span id="L251"><span class="lineNum">     251</span>              :     'US': 'Estados Unidos',</span>
+<span id="L252"><span class="lineNum">     252</span>              :     'CA': 'Canadá',</span>
+<span id="L253"><span class="lineNum">     253</span>              :     'MX': 'México',</span>
+<span id="L254"><span class="lineNum">     254</span>              :     'CU': 'Cuba',</span>
+<span id="L255"><span class="lineNum">     255</span>              :     'DO': 'República Dominicana',</span>
+<span id="L256"><span class="lineNum">     256</span>              :     'PR': 'Puerto Rico',</span>
+<span id="L257"><span class="lineNum">     257</span>              :     'CR': 'Costa Rica',</span>
+<span id="L258"><span class="lineNum">     258</span>              :     'PA': 'Panamá',</span>
+<span id="L259"><span class="lineNum">     259</span>              :     'GT': 'Guatemala',</span>
+<span id="L260"><span class="lineNum">     260</span>              :     'HN': 'Honduras',</span>
+<span id="L261"><span class="lineNum">     261</span>              :     'SV': 'El Salvador',</span>
+<span id="L262"><span class="lineNum">     262</span>              :     'NI': 'Nicaragua',</span>
+<span id="L263"><span class="lineNum">     263</span>              :     'CO': 'Colombia',</span>
+<span id="L264"><span class="lineNum">     264</span>              :     'VE': 'Venezuela',</span>
+<span id="L265"><span class="lineNum">     265</span>              :     'EC': 'Ecuador',</span>
+<span id="L266"><span class="lineNum">     266</span>              :     'PE': 'Perú',</span>
+<span id="L267"><span class="lineNum">     267</span>              :     'BO': 'Bolivia',</span>
+<span id="L268"><span class="lineNum">     268</span>              :     'CL': 'Chile',</span>
+<span id="L269"><span class="lineNum">     269</span>              :     'AR': 'Argentina',</span>
+<span id="L270"><span class="lineNum">     270</span>              :     'BR': 'Brasil',</span>
+<span id="L271"><span class="lineNum">     271</span>              :     'PY': 'Paraguay',</span>
+<span id="L272"><span class="lineNum">     272</span>              :     'UY': 'Uruguay',</span>
+<span id="L273"><span class="lineNum">     273</span>              :     'HT': 'Haití',</span>
+<span id="L274"><span class="lineNum">     274</span>              :     'JM': 'Jamaica',</span>
+<span id="L275"><span class="lineNum">     275</span>              :     'MA': 'Marruecos',</span>
+<span id="L276"><span class="lineNum">     276</span>              :     'DZ': 'Argelia',</span>
+<span id="L277"><span class="lineNum">     277</span>              :     'TN': 'Túnez',</span>
+<span id="L278"><span class="lineNum">     278</span>              :     'EG': 'Egipto',</span>
+<span id="L279"><span class="lineNum">     279</span>              :     'SD': 'Sudán',</span>
+<span id="L280"><span class="lineNum">     280</span>              :     'LY': 'Libia',</span>
+<span id="L281"><span class="lineNum">     281</span>              :     'SN': 'Senegal',</span>
+<span id="L282"><span class="lineNum">     282</span>              :     'GM': 'Gambia',</span>
+<span id="L283"><span class="lineNum">     283</span>              :     'GH': 'Ghana',</span>
+<span id="L284"><span class="lineNum">     284</span>              :     'NG': 'Nigeria',</span>
+<span id="L285"><span class="lineNum">     285</span>              :     'ET': 'Etiopía',</span>
+<span id="L286"><span class="lineNum">     286</span>              :     'KE': 'Kenia',</span>
+<span id="L287"><span class="lineNum">     287</span>              :     'TZ': 'Tanzania',</span>
+<span id="L288"><span class="lineNum">     288</span>              :     'UG': 'Uganda',</span>
+<span id="L289"><span class="lineNum">     289</span>              :     'CD': 'República Democrática del Congo',</span>
+<span id="L290"><span class="lineNum">     290</span>              :     'AO': 'Angola',</span>
+<span id="L291"><span class="lineNum">     291</span>              :     'MZ': 'Mozambique',</span>
+<span id="L292"><span class="lineNum">     292</span>              :     'MG': 'Madagascar',</span>
+<span id="L293"><span class="lineNum">     293</span>              :     'ZA': 'Sudáfrica',</span>
+<span id="L294"><span class="lineNum">     294</span>              :     'GQ': 'Guinea Ecuatorial',</span>
+<span id="L295"><span class="lineNum">     295</span>              :     'CN': 'China',</span>
+<span id="L296"><span class="lineNum">     296</span>              :     'JP': 'Japón',</span>
+<span id="L297"><span class="lineNum">     297</span>              :     'KR': 'Corea del Sur',</span>
+<span id="L298"><span class="lineNum">     298</span>              :     'KP': 'Corea del Norte',</span>
+<span id="L299"><span class="lineNum">     299</span>              :     'IN': 'India',</span>
+<span id="L300"><span class="lineNum">     300</span>              :     'PK': 'Pakistán',</span>
+<span id="L301"><span class="lineNum">     301</span>              :     'NP': 'Nepal',</span>
+<span id="L302"><span class="lineNum">     302</span>              :     'LK': 'Sri Lanka',</span>
+<span id="L303"><span class="lineNum">     303</span>              :     'TH': 'Tailandia',</span>
+<span id="L304"><span class="lineNum">     304</span>              :     'VN': 'Vietnam',</span>
+<span id="L305"><span class="lineNum">     305</span>              :     'KH': 'Camboya',</span>
+<span id="L306"><span class="lineNum">     306</span>              :     'LA': 'Laos',</span>
+<span id="L307"><span class="lineNum">     307</span>              :     'MM': 'Birmania (Myanmar)',</span>
+<span id="L308"><span class="lineNum">     308</span>              :     'MY': 'Malasia',</span>
+<span id="L309"><span class="lineNum">     309</span>              :     'SG': 'Singapur',</span>
+<span id="L310"><span class="lineNum">     310</span>              :     'ID': 'Indonesia',</span>
+<span id="L311"><span class="lineNum">     311</span>              :     'PH': 'Filipinas',</span>
+<span id="L312"><span class="lineNum">     312</span>              :     'IL': 'Israel',</span>
+<span id="L313"><span class="lineNum">     313</span>              :     'AU': 'Australia',</span>
+<span id="L314"><span class="lineNum">     314</span>              :     'NZ': 'Nueva Zelanda',</span>
+<span id="L315"><span class="lineNum">     315</span>              :     'FJ': 'Fiyi',</span>
+<span id="L316"><span class="lineNum">     316</span>              :   };</span>
+<span id="L317"><span class="lineNum">     317</span>              : }</span>
+        </pre>
+              </td>
+            </tr>
+          </table>
+          <br>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="ruler"><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.0-1</a></td></tr>
+          </table>
+          <br>
+
+</body>
+</html>

@@ -1,0 +1,434 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - lcov.info - lib/shared/services/ai_service.dart</title>
+  <link rel="stylesheet" type="text/css" href="../../../gcov.css">
+</head>
+
+<body>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="title">LCOV - code coverage report</td></tr>
+            <tr><td class="ruler"><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
+
+            <tr>
+              <td width="100%">
+                <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="10%" class="headerValue"><a href="../../../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory lib/shared/services">lib/shared/services</a> - ai_service.dart</td>
+            <td width="5%"></td>
+            <td width="5%"></td>
+            <td width="5%" class="headerCovTableHead">Coverage</td>
+            <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code">Total</td>
+            <td width="5%" class="headerCovTableHead" title="Exercised code only">Hit</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">lcov.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntryLo">40.5&nbsp;%</td>
+            <td class="headerCovTableEntry">121</td>
+            <td class="headerCovTableEntry">49</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test Date:</td>
+            <td class="headerValue">2025-09-06 01:25:43</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntryHi">-</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">0</td>
+          </tr>
+                  <tr><td><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr><td class="ruler"><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
+          </table>
+
+          <table cellpadding=0 cellspacing=0 border=0>
+            <tr>
+              <td><br></td>
+            </tr>
+            <tr>
+              <td>
+<pre class="sourceHeading">            Line data    Source code</pre>
+<pre class="source">
+<span id="L1"><span class="lineNum">       1</span>              : // dotenv no se usa aquí; la configuración se centraliza en runtime_factory / Config</span>
+<span id="L2"><span class="lineNum">       2</span>              : import '../utils/debug_call_logger/debug_call_logger.dart';</span>
+<span id="L3"><span class="lineNum">       3</span>              : import 'package:flutter/foundation.dart';</span>
+<span id="L4"><span class="lineNum">       4</span>              : import 'package:ai_chan/shared/services/ai_runtime_provider.dart'</span>
+<span id="L5"><span class="lineNum">       5</span>              :     as runtime_factory;</span>
+<span id="L6"><span class="lineNum">       6</span>              : import 'package:ai_chan/core/models.dart';</span>
+<span id="L7"><span class="lineNum">       7</span>              : import 'package:ai_chan/core/config.dart';</span>
+<span id="L8"><span class="lineNum">       8</span>              : import 'package:ai_chan/shared/utils/model_utils.dart';</span>
+<span id="L9"><span class="lineNum">       9</span>              : import 'package:ai_chan/core/cache/cache_service.dart';</span>
+<span id="L10"><span class="lineNum">      10</span>              : </span>
+<span id="L11"><span class="lineNum">      11</span>              : abstract class AIService {</span>
+<span id="L12"><span class="lineNum">      12</span>              :   /// Test hook: permite inyectar una implementación fake durante tests.</span>
+<span id="L13"><span class="lineNum">      13</span>              :   static AIService? testOverride;</span>
+<span id="L14"><span class="lineNum">      14</span>              : </span>
+<span id="L15"><span class="lineNum">      15</span>              :   /// Implementación base para enviar mensajes a la IA.</span>
+<span id="L16"><span class="lineNum">      16</span>              :   ///</span>
+<span id="L17"><span class="lineNum">      17</span>              :   /// Si se adjunta imagen, debe combinarse en el mismo bloque/parte que el texto del último mensaje 'user',</span>
+<span id="L18"><span class="lineNum">      18</span>              :   /// siguiendo el patrón multimodal de OpenAI y Gemini (texto + imagen juntos, no por separado).</span>
+<span id="L19"><span class="lineNum">      19</span>              :   Future&lt;AIResponse&gt; sendMessageImpl(</span>
+<span id="L20"><span class="lineNum">      20</span>              :     List&lt;Map&lt;String, String&gt;&gt; history,</span>
+<span id="L21"><span class="lineNum">      21</span>              :     SystemPrompt systemPrompt, {</span>
+<span id="L22"><span class="lineNum">      22</span>              :     String? model,</span>
+<span id="L23"><span class="lineNum">      23</span>              :     String? imageBase64,</span>
+<span id="L24"><span class="lineNum">      24</span>              :     String? imageMimeType,</span>
+<span id="L25"><span class="lineNum">      25</span>              :     bool enableImageGeneration = false,</span>
+<span id="L26"><span class="lineNum">      26</span>              :   });</span>
+<span id="L27"><span class="lineNum">      27</span>              : </span>
+<span id="L28"><span class="lineNum">      28</span>              :   /// Punto único de entrada para enviar mensajes a la IA con fallback automático.</span>
+<span id="L29"><span class="lineNum">      29</span> <span class="tlaGNC">           6 :   static Future&lt;AIResponse&gt; sendMessage(</span></span>
+<span id="L30"><span class="lineNum">      30</span>              :     List&lt;Map&lt;String, String&gt;&gt; history,</span>
+<span id="L31"><span class="lineNum">      31</span>              :     SystemPrompt systemPrompt, {</span>
+<span id="L32"><span class="lineNum">      32</span>              :     String? model,</span>
+<span id="L33"><span class="lineNum">      33</span>              :     String? imageBase64,</span>
+<span id="L34"><span class="lineNum">      34</span>              :     String? imageMimeType,</span>
+<span id="L35"><span class="lineNum">      35</span>              :     bool enableImageGeneration = false,</span>
+<span id="L36"><span class="lineNum">      36</span>              :   }) async {</span>
+<span id="L37"><span class="lineNum">      37</span> <span class="tlaUNC">           0 :     model = model ?? runtime_factory.getDefaultModelId();</span></span>
+<span id="L38"><span class="lineNum">      38</span>              :     // Resolver runtime: prefer testOverride si está presente, si no usar la fábrica</span>
+<span id="L39"><span class="lineNum">      39</span>              :     final AIService? override = AIService.testOverride;</span>
+<span id="L40"><span class="lineNum">      40</span>              :     late AIService aiService;</span>
+<span id="L41"><span class="lineNum">      41</span>              :     if (override != null) {</span>
+<span id="L42"><span class="lineNum">      42</span>              :       aiService = override;</span>
+<span id="L43"><span class="lineNum">      43</span>              :     } else {</span>
+<span id="L44"><span class="lineNum">      44</span>              :       try {</span>
+<span id="L45"><span class="lineNum">      45</span> <span class="tlaGNC">           2 :         aiService = runtime_factory.getRuntimeAIServiceForModel(model);</span></span>
+<span id="L46"><span class="lineNum">      46</span>              :       } catch (e) {</span>
+<span id="L47"><span class="lineNum">      47</span>              :         // Fall back silently: return an empty response on resolution failure.</span>
+<span id="L48"><span class="lineNum">      48</span> <span class="tlaUNC">           0 :         return AIResponse(text: '');</span></span>
+<span id="L49"><span class="lineNum">      49</span>              :       }</span>
+<span id="L50"><span class="lineNum">      50</span>              :     }</span>
+<span id="L51"><span class="lineNum">      51</span>              : </span>
+<span id="L52"><span class="lineNum">      52</span>              :     // Log which model and runtime implementation we're using (helpful for debugging)</span>
+<span id="L53"><span class="lineNum">      53</span>              :     try {</span>
+<span id="L54"><span class="lineNum">      54</span> <span class="tlaGNC">          12 :       debugPrint(</span></span>
+<span id="L55"><span class="lineNum">      55</span> <span class="tlaGNC">          12 :         '[AIService] sendMessage -&gt; model=&quot;$model&quot;, runtime=&quot;${aiService.runtimeType}&quot;',</span></span>
+<span id="L56"><span class="lineNum">      56</span>              :       );</span>
+<span id="L57"><span class="lineNum">      57</span>              :     } catch (_) {}</span>
+<span id="L58"><span class="lineNum">      58</span>              : </span>
+<span id="L59"><span class="lineNum">      59</span>              :     // Sanity: asegurar que el runtime seleccionado coincide con el prefijo del modelo</span>
+<span id="L60"><span class="lineNum">      60</span>              :     try {</span>
+<span id="L61"><span class="lineNum">      61</span> <span class="tlaGNC">          12 :       final modelNorm = model.trim().toLowerCase();</span></span>
+<span id="L62"><span class="lineNum">      62</span> <span class="tlaGNC">          12 :       final implType = aiService.runtimeType.toString();</span></span>
+<span id="L63"><span class="lineNum">      63</span>              :       // IMPORTANT: If a test override is set, do not replace it. Tests rely on testOverride fakes.</span>
+<span id="L64"><span class="lineNum">      64</span>              :       if (AIService.testOverride == null) {</span>
+<span id="L65"><span class="lineNum">      65</span> <span class="tlaGNC">           2 :         if (modelNorm.startsWith('gpt-') &amp;&amp; implType != 'OpenAIService') {</span></span>
+<span id="L66"><span class="lineNum">      66</span> <span class="tlaUNC">           0 :           debugPrint(</span></span>
+<span id="L67"><span class="lineNum">      67</span> <span class="tlaUNC">           0 :             '[AIService] Runtime mismatch: recreating OpenAIService for $modelNorm',</span></span>
+<span id="L68"><span class="lineNum">      68</span>              :           );</span>
+<span id="L69"><span class="lineNum">      69</span> <span class="tlaUNC">           0 :           aiService = runtime_factory.getRuntimeAIServiceForModel(modelNorm);</span></span>
+<span id="L70"><span class="lineNum">      70</span> <span class="tlaGNC">           2 :         } else if ((modelNorm.startsWith('gemini-') ||</span></span>
+<span id="L71"><span class="lineNum">      71</span> <span class="tlaGNC">           1 :                 modelNorm.startsWith('imagen-')) &amp;&amp;</span></span>
+<span id="L72"><span class="lineNum">      72</span> <span class="tlaGNC">           1 :             implType != 'GeminiService') {</span></span>
+<span id="L73"><span class="lineNum">      73</span> <span class="tlaUNC">           0 :           debugPrint(</span></span>
+<span id="L74"><span class="lineNum">      74</span> <span class="tlaUNC">           0 :             '[AIService] Runtime mismatch: recreating GeminiService for $modelNorm',</span></span>
+<span id="L75"><span class="lineNum">      75</span>              :           );</span>
+<span id="L76"><span class="lineNum">      76</span> <span class="tlaUNC">           0 :           aiService = runtime_factory.getRuntimeAIServiceForModel(modelNorm);</span></span>
+<span id="L77"><span class="lineNum">      77</span>              :         }</span>
+<span id="L78"><span class="lineNum">      78</span>              :       } else {</span>
+<span id="L79"><span class="lineNum">      79</span>              :         // keep test override silently</span>
+<span id="L80"><span class="lineNum">      80</span>              :       }</span>
+<span id="L81"><span class="lineNum">      81</span>              :     } catch (_) {}</span>
+<span id="L82"><span class="lineNum">      82</span>              : </span>
+<span id="L83"><span class="lineNum">      83</span>              :     // Guardar logs usando debugLogCallPrompt (solo en debug/profile y escritorio).</span>
+<span id="L84"><span class="lineNum">      84</span>              :     // Registramos una versión truncada/segura de lo que enviamos: previews del history</span>
+<span id="L85"><span class="lineNum">      85</span>              :     // y del systemPrompt para evitar volcar imágenes completas en disco.</span>
+<span id="L86"><span class="lineNum">      86</span>              :     try {</span>
+<span id="L87"><span class="lineNum">      87</span> <span class="tlaGNC">          12 :       final runtimeTypeStr = aiService.runtimeType.toString();</span></span>
+<span id="L88"><span class="lineNum">      88</span>              :       // Store full history and systemPrompt, but truncate only base64 content.</span>
+<span id="L89"><span class="lineNum">      89</span> <span class="tlaGNC">           6 :       final sysJson = systemPrompt.toJson();</span></span>
+<span id="L90"><span class="lineNum">      90</span> <span class="tlaGNC">          12 :       await debugLogCallPrompt('ai_service_send', {</span></span>
+<span id="L91"><span class="lineNum">      91</span> <span class="tlaGNC">           6 :         'runtime': runtimeTypeStr,</span></span>
+<span id="L92"><span class="lineNum">      92</span> <span class="tlaGNC">           6 :         'model': model,</span></span>
+<span id="L93"><span class="lineNum">      93</span> <span class="tlaGNC">           6 :         'history': history,</span></span>
+<span id="L94"><span class="lineNum">      94</span> <span class="tlaGNC">           6 :         'systemPrompt': sysJson,</span></span>
+<span id="L95"><span class="lineNum">      95</span> <span class="tlaUNC">           0 :         if (imageBase64 != null) 'image_base64_length': imageBase64.length,</span></span>
+<span id="L96"><span class="lineNum">      96</span>              :         if (imageBase64 != null)</span>
+<span id="L97"><span class="lineNum">      97</span> <span class="tlaUNC">           0 :           'image_base64_preview': imageBase64.length &gt; 400</span></span>
+<span id="L98"><span class="lineNum">      98</span> <span class="tlaUNC">           0 :               ? '${imageBase64.substring(0, 400)}...'</span></span>
+<span id="L99"><span class="lineNum">      99</span> <span class="tlaUNC">           0 :               : imageBase64,</span></span>
+<span id="L100"><span class="lineNum">     100</span> <span class="tlaUNC">           0 :         if (imageMimeType != null) 'image_mime_type': imageMimeType,</span></span>
+<span id="L101"><span class="lineNum">     101</span> <span class="tlaGNC">          18 :         'timestamp': DateTime.now().toIso8601String(),</span></span>
+<span id="L102"><span class="lineNum">     102</span>              :       });</span>
+<span id="L103"><span class="lineNum">     103</span>              :     } catch (_) {}</span>
+<span id="L104"><span class="lineNum">     104</span>              :     // Revertir sanitización del history</span>
+<span id="L105"><span class="lineNum">     105</span> <span class="tlaUNC">           0 :     final bool requestHadImage = imageBase64 != null &amp;&amp; imageBase64.isNotEmpty;</span></span>
+<span id="L106"><span class="lineNum">     106</span>              : </span>
+<span id="L107"><span class="lineNum">     107</span> <span class="tlaGNC">          12 :     final int startMs = DateTime.now().millisecondsSinceEpoch;</span></span>
+<span id="L108"><span class="lineNum">     108</span> <span class="tlaGNC">           6 :     AIResponse response = await aiService.sendMessageImpl(</span></span>
+<span id="L109"><span class="lineNum">     109</span>              :       history,</span>
+<span id="L110"><span class="lineNum">     110</span>              :       systemPrompt,</span>
+<span id="L111"><span class="lineNum">     111</span>              :       model: model,</span>
+<span id="L112"><span class="lineNum">     112</span>              :       imageBase64: imageBase64,</span>
+<span id="L113"><span class="lineNum">     113</span>              :       imageMimeType: imageMimeType,</span>
+<span id="L114"><span class="lineNum">     114</span>              :       enableImageGeneration: enableImageGeneration,</span>
+<span id="L115"><span class="lineNum">     115</span>              :     );</span>
+<span id="L116"><span class="lineNum">     116</span>              :     // Eliminar siempre etiquetas [img_caption] del texto de la respuesta.</span>
+<span id="L117"><span class="lineNum">     117</span>              :     // Solo cuando la petición ORIGINAL incluía imagen (requestHadImage) se guardará</span>
+<span id="L118"><span class="lineNum">     118</span>              :     // el prompt extraído; si no, no se guarda nada sobre la imagen (solo se limpia el texto).</span>
+<span id="L119"><span class="lineNum">     119</span> <span class="tlaGNC">          18 :     if (response.text.trim().isNotEmpty) {</span></span>
+<span id="L120"><span class="lineNum">     120</span>              :       try {</span>
+<span id="L121"><span class="lineNum">     121</span> <span class="tlaGNC">           5 :         final tagRegex = RegExp(</span></span>
+<span id="L122"><span class="lineNum">     122</span>              :           r'\[img_caption\](.*?)\[/img_caption\]',</span>
+<span id="L123"><span class="lineNum">     123</span>              :           caseSensitive: false,</span>
+<span id="L124"><span class="lineNum">     124</span>              :           dotAll: true,</span>
+<span id="L125"><span class="lineNum">     125</span>              :         );</span>
+<span id="L126"><span class="lineNum">     126</span> <span class="tlaGNC">          10 :         final match = tagRegex.firstMatch(response.text);</span></span>
+<span id="L127"><span class="lineNum">     127</span> <span class="tlaGNC">          15 :         final cleanedText = response.text.replaceAll(tagRegex, '').trim();</span></span>
+<span id="L128"><span class="lineNum">     128</span>              :         // Además: si el servicio devolvió un `revised_prompt` dentro del texto y</span>
+<span id="L129"><span class="lineNum">     129</span>              :         // `response.prompt` está vacío, extraerlo y usarlo como prompt.</span>
+<span id="L130"><span class="lineNum">     130</span> <span class="tlaGNC">          10 :         String finalPrompt = response.prompt.trim();</span></span>
+<span id="L131"><span class="lineNum">     131</span>              :         // Si el servicio no rellenó 'prompt', intentar extraer 'revised_prompt' de response.text</span>
+<span id="L132"><span class="lineNum">     132</span> <span class="tlaGNC">           5 :         if (finalPrompt.isEmpty) {</span></span>
+<span id="L133"><span class="lineNum">     133</span>              :           try {</span>
+<span id="L134"><span class="lineNum">     134</span> <span class="tlaGNC">           4 :             final patterns = [</span></span>
+<span id="L135"><span class="lineNum">     135</span> <span class="tlaGNC">           4 :               RegExp(r'&quot;revised_prompt&quot;\s*:\s*&quot;([^&quot;]+)&quot;', caseSensitive: false),</span></span>
+<span id="L136"><span class="lineNum">     136</span> <span class="tlaGNC">           4 :               RegExp(r&quot;'revised_prompt'\s*:\s*'([^']+)'&quot;, caseSensitive: false),</span></span>
+<span id="L137"><span class="lineNum">     137</span> <span class="tlaGNC">           4 :               RegExp(</span></span>
+<span id="L138"><span class="lineNum">     138</span>              :                 r'\brevised_prompt\b\s*[:=]\s*&quot;([^&quot;]+)&quot;',</span>
+<span id="L139"><span class="lineNum">     139</span>              :                 caseSensitive: false,</span>
+<span id="L140"><span class="lineNum">     140</span>              :               ),</span>
+<span id="L141"><span class="lineNum">     141</span> <span class="tlaGNC">           4 :               RegExp(</span></span>
+<span id="L142"><span class="lineNum">     142</span>              :                 r'\brevisedPrompt\b\s*[:=]\s*&quot;([^&quot;]+)&quot;',</span>
+<span id="L143"><span class="lineNum">     143</span>              :                 caseSensitive: false,</span>
+<span id="L144"><span class="lineNum">     144</span>              :               ),</span>
+<span id="L145"><span class="lineNum">     145</span> <span class="tlaGNC">           4 :               RegExp(</span></span>
+<span id="L146"><span class="lineNum">     146</span>              :                 r'\brevised_prompt\b\s*[:=]\s*([^\n\r]+)',</span>
+<span id="L147"><span class="lineNum">     147</span>              :                 caseSensitive: false,</span>
+<span id="L148"><span class="lineNum">     148</span>              :               ),</span>
+<span id="L149"><span class="lineNum">     149</span>              :             ];</span>
+<span id="L150"><span class="lineNum">     150</span> <span class="tlaGNC">           8 :             for (final p in patterns) {</span></span>
+<span id="L151"><span class="lineNum">     151</span> <span class="tlaGNC">           8 :               final m = p.firstMatch(response.text);</span></span>
+<span id="L152"><span class="lineNum">     152</span> <span class="tlaUNC">           0 :               if (m != null &amp;&amp; m.groupCount &gt;= 1) {</span></span>
+<span id="L153"><span class="lineNum">     153</span> <span class="tlaUNC">           0 :                 finalPrompt = m.group(1)!.trim();</span></span>
+<span id="L154"><span class="lineNum">     154</span> <span class="tlaUNC">           0 :                 if (finalPrompt.isNotEmpty) break;</span></span>
+<span id="L155"><span class="lineNum">     155</span>              :               }</span>
+<span id="L156"><span class="lineNum">     156</span>              :             }</span>
+<span id="L157"><span class="lineNum">     157</span>              :           } catch (_) {}</span>
+<span id="L158"><span class="lineNum">     158</span>              :         }</span>
+<span id="L159"><span class="lineNum">     159</span>              :         // Determinar si la respuesta incluye una imagen (generada por la IA)</span>
+<span id="L160"><span class="lineNum">     160</span>              :         final bool responseHasImage =</span>
+<span id="L161"><span class="lineNum">     161</span> <span class="tlaGNC">          15 :             response.base64.trim().isNotEmpty ||</span></span>
+<span id="L162"><span class="lineNum">     162</span> <span class="tlaGNC">          15 :             response.seed.trim().isNotEmpty;</span></span>
+<span id="L163"><span class="lineNum">     163</span> <span class="tlaUNC">           0 :         if (match != null &amp;&amp; match.groupCount &gt;= 1) {</span></span>
+<span id="L164"><span class="lineNum">     164</span> <span class="tlaUNC">           0 :           final raw = match.group(1);</span></span>
+<span id="L165"><span class="lineNum">     165</span> <span class="tlaUNC">           0 :           if (raw != null &amp;&amp; raw.trim().isNotEmpty) {</span></span>
+<span id="L166"><span class="lineNum">     166</span> <span class="tlaUNC">           0 :             final extracted = raw.trim();</span></span>
+<span id="L167"><span class="lineNum">     167</span>              :             // Guardar el prompt extraído si la petición original incluía imagen</span>
+<span id="L168"><span class="lineNum">     168</span>              :             // o si la respuesta contiene una imagen generada por la IA (revised_prompt viene del servicio)</span>
+<span id="L169"><span class="lineNum">     169</span>              :             if (requestHadImage || responseHasImage) {</span>
+<span id="L170"><span class="lineNum">     170</span> <span class="tlaUNC">           0 :               finalPrompt = finalPrompt.isEmpty ? extracted : finalPrompt;</span></span>
+<span id="L171"><span class="lineNum">     171</span>              :             } else {</span>
+<span id="L172"><span class="lineNum">     172</span>              :               // No guardar prompts si ni la petición ni la respuesta contienen imagen</span>
+<span id="L173"><span class="lineNum">     173</span>              :               finalPrompt = '';</span>
+<span id="L174"><span class="lineNum">     174</span>              :             }</span>
+<span id="L175"><span class="lineNum">     175</span>              :           }</span>
+<span id="L176"><span class="lineNum">     176</span>              :         } else {</span>
+<span id="L177"><span class="lineNum">     177</span>              :           // No hay match; si ni la petición original ni la respuesta tienen imagen, borrar prompt por seguridad</span>
+<span id="L178"><span class="lineNum">     178</span>              :           if (!requestHadImage &amp;&amp; !responseHasImage) finalPrompt = '';</span>
+<span id="L179"><span class="lineNum">     179</span>              :         }</span>
+<span id="L180"><span class="lineNum">     180</span> <span class="tlaGNC">           5 :         response = AIResponse(</span></span>
+<span id="L181"><span class="lineNum">     181</span>              :           text: cleanedText,</span>
+<span id="L182"><span class="lineNum">     182</span> <span class="tlaGNC">           5 :           base64: response.base64,</span></span>
+<span id="L183"><span class="lineNum">     183</span> <span class="tlaGNC">           5 :           seed: response.seed,</span></span>
+<span id="L184"><span class="lineNum">     184</span>              :           prompt: finalPrompt,</span>
+<span id="L185"><span class="lineNum">     185</span>              :         );</span>
+<span id="L186"><span class="lineNum">     186</span>              :       } catch (_) {}</span>
+<span id="L187"><span class="lineNum">     187</span>              :     }</span>
+<span id="L188"><span class="lineNum">     188</span>              :     // Guardar la respuesta usando debugLogCallPrompt con un preview seguro.</span>
+<span id="L189"><span class="lineNum">     189</span>              :     try {</span>
+<span id="L190"><span class="lineNum">     190</span> <span class="tlaGNC">          12 :       final runtimeTypeStr = aiService.runtimeType.toString();</span></span>
+<span id="L191"><span class="lineNum">     191</span> <span class="tlaGNC">          18 :       final durationMs = DateTime.now().millisecondsSinceEpoch - startMs;</span></span>
+<span id="L192"><span class="lineNum">     192</span> <span class="tlaGNC">          12 :       await debugLogCallPrompt('ai_service_response', {</span></span>
+<span id="L193"><span class="lineNum">     193</span>              :         'runtime': runtimeTypeStr,</span>
+<span id="L194"><span class="lineNum">     194</span>              :         'model': model,</span>
+<span id="L195"><span class="lineNum">     195</span>              :         'duration_ms': durationMs,</span>
+<span id="L196"><span class="lineNum">     196</span>              :         // Keep full text/prompt/seed but truncate only base64.</span>
+<span id="L197"><span class="lineNum">     197</span> <span class="tlaGNC">           6 :         'response_text': response.text,</span></span>
+<span id="L198"><span class="lineNum">     198</span> <span class="tlaGNC">           6 :         'response_prompt': response.prompt,</span></span>
+<span id="L199"><span class="lineNum">     199</span> <span class="tlaGNC">           6 :         'response_seed': response.seed,</span></span>
+<span id="L200"><span class="lineNum">     200</span> <span class="tlaGNC">          12 :         'response_base64_length': response.base64.length,</span></span>
+<span id="L201"><span class="lineNum">     201</span> <span class="tlaGNC">          18 :         'response_base64_preview': response.base64.length &gt; 400</span></span>
+<span id="L202"><span class="lineNum">     202</span> <span class="tlaUNC">           0 :             ? '${response.base64.substring(0, 400)}...'</span></span>
+<span id="L203"><span class="lineNum">     203</span> <span class="tlaGNC">           6 :             : response.base64,</span></span>
+<span id="L204"><span class="lineNum">     204</span> <span class="tlaGNC">          12 :         'timestamp': DateTime.now().toIso8601String(),</span></span>
+<span id="L205"><span class="lineNum">     205</span>              :       });</span>
+<span id="L206"><span class="lineNum">     206</span>              :     } catch (_) {}</span>
+<span id="L207"><span class="lineNum">     207</span>              : </span>
+<span id="L208"><span class="lineNum">     208</span>              :     // Nota: no se reintenta con modelos de fallback automáticamente: la resolución de runtimes</span>
+<span id="L209"><span class="lineNum">     209</span>              :     // debe ser explícita vía DI/fábrica. Si hay un error por cuota, devolvemos la respuesta tal cual</span>
+<span id="L210"><span class="lineNum">     210</span>              :     // y es responsabilidad del caller o la capa superior decidir reintentar con otro modelo.</span>
+<span id="L211"><span class="lineNum">     211</span>              :     return response;</span>
+<span id="L212"><span class="lineNum">     212</span>              :   }</span>
+<span id="L213"><span class="lineNum">     213</span>              : </span>
+<span id="L214"><span class="lineNum">     214</span>              :   Future&lt;List&lt;String&gt;&gt; getAvailableModels();</span>
+<span id="L215"><span class="lineNum">     215</span>              : </span>
+<span id="L216"><span class="lineNum">     216</span>              :   /// Selecciona el servicio IA adecuado según el modelo</span>
+<span id="L217"><span class="lineNum">     217</span>              :   // Note: AIService.select removed — runtime resolution must use runtime_factory.getRuntimeAIServiceForModel</span>
+<span id="L218"><span class="lineNum">     218</span>              : }</span>
+<span id="L219"><span class="lineNum">     219</span>              : </span>
+<span id="L220"><span class="lineNum">     220</span>              : /// Devuelve la lista combinada de modelos de todos los servicios IA</span>
+<span id="L221"><span class="lineNum">     221</span> <span class="tlaUNC">           0 : Future&lt;List&lt;String&gt;&gt; getAllAIModels({bool forceRefresh = false}) async {</span></span>
+<span id="L222"><span class="lineNum">     222</span>              :   // Query providers in preferred UI order and append each provider's list</span>
+<span id="L223"><span class="lineNum">     223</span>              :   // exactly as the provider returns it. This preserves provider-specific</span>
+<span id="L224"><span class="lineNum">     224</span>              :   // ordering (for example OpenAI/Gemini providers already sort by recency).</span>
+<span id="L225"><span class="lineNum">     225</span> <span class="tlaUNC">           0 :   final providerOrder = ModelUtils.preferredOrder();</span></span>
+<span id="L226"><span class="lineNum">     226</span> <span class="tlaUNC">           0 :   final allModels = &lt;String&gt;[];</span></span>
+<span id="L227"><span class="lineNum">     227</span>              : </span>
+<span id="L228"><span class="lineNum">     228</span> <span class="tlaUNC">           0 :   String representativeForProvider(String provider) {</span></span>
+<span id="L229"><span class="lineNum">     229</span>              :     switch (provider) {</span>
+<span id="L230"><span class="lineNum">     230</span> <span class="tlaUNC">           0 :       case 'Google':</span></span>
+<span id="L231"><span class="lineNum">     231</span> <span class="tlaUNC">           0 :         return Config.getDefaultTextModel().startsWith('gemini-')</span></span>
+<span id="L232"><span class="lineNum">     232</span> <span class="tlaUNC">           0 :             ? Config.getDefaultTextModel()</span></span>
+<span id="L233"><span class="lineNum">     233</span>              :             : 'gemini-2.5-pro';</span>
+<span id="L234"><span class="lineNum">     234</span> <span class="tlaUNC">           0 :       case 'Grok':</span></span>
+<span id="L235"><span class="lineNum">     235</span>              :         return 'grok-3';</span>
+<span id="L236"><span class="lineNum">     236</span> <span class="tlaUNC">           0 :       case 'OpenAI':</span></span>
+<span id="L237"><span class="lineNum">     237</span>              :         return 'gpt-4';</span>
+<span id="L238"><span class="lineNum">     238</span>              :       default:</span>
+<span id="L239"><span class="lineNum">     239</span> <span class="tlaUNC">           0 :         return Config.getDefaultTextModel();</span></span>
+<span id="L240"><span class="lineNum">     240</span>              :     }</span>
+<span id="L241"><span class="lineNum">     241</span>              :   }</span>
+<span id="L242"><span class="lineNum">     242</span>              : </span>
+<span id="L243"><span class="lineNum">     243</span>              :   // Función para determinar si la caché parece incompleta para un proveedor</span>
+<span id="L244"><span class="lineNum">     244</span> <span class="tlaUNC">           0 :   bool isCacheIncomplete(String provider, List&lt;String&gt; cachedModels) {</span></span>
+<span id="L245"><span class="lineNum">     245</span>              :     switch (provider) {</span>
+<span id="L246"><span class="lineNum">     246</span> <span class="tlaUNC">           0 :       case 'grokservice':</span></span>
+<span id="L247"><span class="lineNum">     247</span>              :         // Si hay API key de Grok configurada pero la caché tiene pocos modelos (&lt; 5),</span>
+<span id="L248"><span class="lineNum">     248</span>              :         // consideramos que está incompleta</span>
+<span id="L249"><span class="lineNum">     249</span> <span class="tlaUNC">           0 :         final hasGrokKey = Config.getGrokKey().trim().isNotEmpty;</span></span>
+<span id="L250"><span class="lineNum">     250</span> <span class="tlaUNC">           0 :         return hasGrokKey &amp;&amp; cachedModels.length &lt; 5;</span></span>
+<span id="L251"><span class="lineNum">     251</span> <span class="tlaUNC">           0 :       case 'openaiservice':</span></span>
+<span id="L252"><span class="lineNum">     252</span>              :         // Similar para OpenAI</span>
+<span id="L253"><span class="lineNum">     253</span> <span class="tlaUNC">           0 :         final hasOpenAIKey = Config.getOpenAIKey().trim().isNotEmpty;</span></span>
+<span id="L254"><span class="lineNum">     254</span> <span class="tlaUNC">           0 :         return hasOpenAIKey &amp;&amp; cachedModels.length &lt; 5;</span></span>
+<span id="L255"><span class="lineNum">     255</span> <span class="tlaUNC">           0 :       case 'geminiservice':</span></span>
+<span id="L256"><span class="lineNum">     256</span>              :         // Para Gemini, esperamos al menos algunos modelos</span>
+<span id="L257"><span class="lineNum">     257</span> <span class="tlaUNC">           0 :         return cachedModels.length &lt; 3;</span></span>
+<span id="L258"><span class="lineNum">     258</span>              :       default:</span>
+<span id="L259"><span class="lineNum">     259</span>              :         return false;</span>
+<span id="L260"><span class="lineNum">     260</span>              :     }</span>
+<span id="L261"><span class="lineNum">     261</span>              :   }</span>
+<span id="L262"><span class="lineNum">     262</span>              : </span>
+<span id="L263"><span class="lineNum">     263</span> <span class="tlaUNC">           0 :   for (final provider in providerOrder) {</span></span>
+<span id="L264"><span class="lineNum">     264</span>              :     try {</span>
+<span id="L265"><span class="lineNum">     265</span> <span class="tlaUNC">           0 :       final rep = representativeForProvider(provider);</span></span>
+<span id="L266"><span class="lineNum">     266</span> <span class="tlaUNC">           0 :       final service = runtime_factory.getRuntimeAIServiceForModel(rep);</span></span>
+<span id="L267"><span class="lineNum">     267</span> <span class="tlaUNC">           0 :       final providerName = service.runtimeType.toString().toLowerCase();</span></span>
+<span id="L268"><span class="lineNum">     268</span>              : </span>
+<span id="L269"><span class="lineNum">     269</span>              :       // If cache present and allowed, use it as-is (preserves order)</span>
+<span id="L270"><span class="lineNum">     270</span>              :       bool shouldUseCache = !forceRefresh;</span>
+<span id="L271"><span class="lineNum">     271</span>              :       if (shouldUseCache) {</span>
+<span id="L272"><span class="lineNum">     272</span>              :         try {</span>
+<span id="L273"><span class="lineNum">     273</span> <span class="tlaUNC">           0 :           final cached = await CacheService.getCachedModels(</span></span>
+<span id="L274"><span class="lineNum">     274</span>              :             provider: providerName,</span>
+<span id="L275"><span class="lineNum">     275</span>              :           );</span>
+<span id="L276"><span class="lineNum">     276</span> <span class="tlaUNC">           0 :           if (cached != null &amp;&amp; cached.isNotEmpty) {</span></span>
+<span id="L277"><span class="lineNum">     277</span>              :             // Verificar si la caché parece incompleta</span>
+<span id="L278"><span class="lineNum">     278</span> <span class="tlaUNC">           0 :             if (isCacheIncomplete(providerName, cached)) {</span></span>
+<span id="L279"><span class="lineNum">     279</span>              :               // Forzar refresh porque la caché parece incompleta</span>
+<span id="L280"><span class="lineNum">     280</span>              :               shouldUseCache = false;</span>
+<span id="L281"><span class="lineNum">     281</span>              :             } else {</span>
+<span id="L282"><span class="lineNum">     282</span> <span class="tlaUNC">           0 :               allModels.addAll(cached);</span></span>
+<span id="L283"><span class="lineNum">     283</span>              :               continue;</span>
+<span id="L284"><span class="lineNum">     284</span>              :             }</span>
+<span id="L285"><span class="lineNum">     285</span>              :           }</span>
+<span id="L286"><span class="lineNum">     286</span>              :         } catch (_) {}</span>
+<span id="L287"><span class="lineNum">     287</span>              :       }</span>
+<span id="L288"><span class="lineNum">     288</span>              : </span>
+<span id="L289"><span class="lineNum">     289</span>              :       // Fetch live and append exactly as returned (si no usamos caché o está incompleta)</span>
+<span id="L290"><span class="lineNum">     290</span>              :       if (!shouldUseCache) {</span>
+<span id="L291"><span class="lineNum">     291</span>              :         try {</span>
+<span id="L292"><span class="lineNum">     292</span> <span class="tlaUNC">           0 :           final models = await service.getAvailableModels();</span></span>
+<span id="L293"><span class="lineNum">     293</span> <span class="tlaUNC">           0 :           if (models.isNotEmpty) {</span></span>
+<span id="L294"><span class="lineNum">     294</span> <span class="tlaUNC">           0 :             allModels.addAll(models);</span></span>
+<span id="L295"><span class="lineNum">     295</span>              :             try {</span>
+<span id="L296"><span class="lineNum">     296</span> <span class="tlaUNC">           0 :               await CacheService.saveModelsToCache(</span></span>
+<span id="L297"><span class="lineNum">     297</span>              :                 models: models,</span>
+<span id="L298"><span class="lineNum">     298</span>              :                 provider: providerName,</span>
+<span id="L299"><span class="lineNum">     299</span>              :               );</span>
+<span id="L300"><span class="lineNum">     300</span>              :             } catch (_) {}</span>
+<span id="L301"><span class="lineNum">     301</span>              :           }</span>
+<span id="L302"><span class="lineNum">     302</span>              :         } catch (_) {}</span>
+<span id="L303"><span class="lineNum">     303</span>              :       }</span>
+<span id="L304"><span class="lineNum">     304</span>              :     } catch (_) {</span>
+<span id="L305"><span class="lineNum">     305</span>              :       // ignore provider resolution errors</span>
+<span id="L306"><span class="lineNum">     306</span>              :     }</span>
+<span id="L307"><span class="lineNum">     307</span>              :   }</span>
+<span id="L308"><span class="lineNum">     308</span>              : </span>
+<span id="L309"><span class="lineNum">     309</span>              :   // Probe defaults for any runtimes not covered above</span>
+<span id="L310"><span class="lineNum">     310</span>              :   final extras = {</span>
+<span id="L311"><span class="lineNum">     311</span> <span class="tlaUNC">           0 :     Config.requireDefaultImageModel(),</span></span>
+<span id="L312"><span class="lineNum">     312</span> <span class="tlaUNC">           0 :     Config.requireDefaultTextModel(),</span></span>
+<span id="L313"><span class="lineNum">     313</span>              :   };</span>
+<span id="L314"><span class="lineNum">     314</span> <span class="tlaUNC">           0 :   for (final ex in extras) {</span></span>
+<span id="L315"><span class="lineNum">     315</span> <span class="tlaUNC">           0 :     final n = ex.trim().toLowerCase();</span></span>
+<span id="L316"><span class="lineNum">     316</span> <span class="tlaUNC">           0 :     if (n.startsWith('gpt-') &amp;&amp; providerOrder.contains('OpenAI')) continue;</span></span>
+<span id="L317"><span class="lineNum">     317</span> <span class="tlaUNC">           0 :     if ((n.startsWith('gemini-') || n.startsWith('imagen-')) &amp;&amp;</span></span>
+<span id="L318"><span class="lineNum">     318</span> <span class="tlaUNC">           0 :         providerOrder.contains('Google')) {</span></span>
+<span id="L319"><span class="lineNum">     319</span>              :       continue;</span>
+<span id="L320"><span class="lineNum">     320</span>              :     }</span>
+<span id="L321"><span class="lineNum">     321</span> <span class="tlaUNC">           0 :     if (n.startsWith('grok-') &amp;&amp; providerOrder.contains('Grok')) continue;</span></span>
+<span id="L322"><span class="lineNum">     322</span>              :     try {</span>
+<span id="L323"><span class="lineNum">     323</span> <span class="tlaUNC">           0 :       final s = runtime_factory.getRuntimeAIServiceForModel(ex);</span></span>
+<span id="L324"><span class="lineNum">     324</span> <span class="tlaUNC">           0 :       final providerName = s.runtimeType.toString().toLowerCase();</span></span>
+<span id="L325"><span class="lineNum">     325</span>              :       bool shouldUseCache = !forceRefresh;</span>
+<span id="L326"><span class="lineNum">     326</span>              :       if (shouldUseCache) {</span>
+<span id="L327"><span class="lineNum">     327</span>              :         try {</span>
+<span id="L328"><span class="lineNum">     328</span> <span class="tlaUNC">           0 :           final cached = await CacheService.getCachedModels(</span></span>
+<span id="L329"><span class="lineNum">     329</span>              :             provider: providerName,</span>
+<span id="L330"><span class="lineNum">     330</span>              :           );</span>
+<span id="L331"><span class="lineNum">     331</span> <span class="tlaUNC">           0 :           if (cached != null &amp;&amp; cached.isNotEmpty) {</span></span>
+<span id="L332"><span class="lineNum">     332</span>              :             // Verificar si la caché parece incompleta</span>
+<span id="L333"><span class="lineNum">     333</span> <span class="tlaUNC">           0 :             if (isCacheIncomplete(providerName, cached)) {</span></span>
+<span id="L334"><span class="lineNum">     334</span>              :               shouldUseCache = false;</span>
+<span id="L335"><span class="lineNum">     335</span>              :             } else {</span>
+<span id="L336"><span class="lineNum">     336</span> <span class="tlaUNC">           0 :               allModels.addAll(cached);</span></span>
+<span id="L337"><span class="lineNum">     337</span>              :               continue;</span>
+<span id="L338"><span class="lineNum">     338</span>              :             }</span>
+<span id="L339"><span class="lineNum">     339</span>              :           }</span>
+<span id="L340"><span class="lineNum">     340</span>              :         } catch (_) {}</span>
+<span id="L341"><span class="lineNum">     341</span>              :       }</span>
+<span id="L342"><span class="lineNum">     342</span>              :       if (!shouldUseCache) {</span>
+<span id="L343"><span class="lineNum">     343</span> <span class="tlaUNC">           0 :         final models = await s.getAvailableModels();</span></span>
+<span id="L344"><span class="lineNum">     344</span> <span class="tlaUNC">           0 :         if (models.isNotEmpty) {</span></span>
+<span id="L345"><span class="lineNum">     345</span> <span class="tlaUNC">           0 :           allModels.addAll(models);</span></span>
+<span id="L346"><span class="lineNum">     346</span>              :           try {</span>
+<span id="L347"><span class="lineNum">     347</span> <span class="tlaUNC">           0 :             await CacheService.saveModelsToCache(</span></span>
+<span id="L348"><span class="lineNum">     348</span>              :               models: models,</span>
+<span id="L349"><span class="lineNum">     349</span>              :               provider: providerName,</span>
+<span id="L350"><span class="lineNum">     350</span>              :             );</span>
+<span id="L351"><span class="lineNum">     351</span>              :           } catch (_) {}</span>
+<span id="L352"><span class="lineNum">     352</span>              :         }</span>
+<span id="L353"><span class="lineNum">     353</span>              :       }</span>
+<span id="L354"><span class="lineNum">     354</span>              :     } catch (_) {}</span>
+<span id="L355"><span class="lineNum">     355</span>              :   }</span>
+<span id="L356"><span class="lineNum">     356</span>              : </span>
+<span id="L357"><span class="lineNum">     357</span>              :   return allModels;</span>
+<span id="L358"><span class="lineNum">     358</span>              : }</span>
+        </pre>
+              </td>
+            </tr>
+          </table>
+          <br>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="ruler"><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.0-1</a></td></tr>
+          </table>
+          <br>
+
+</body>
+</html>

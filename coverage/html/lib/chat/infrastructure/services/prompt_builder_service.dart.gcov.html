@@ -1,0 +1,544 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - lcov.info - lib/chat/infrastructure/services/prompt_builder_service.dart</title>
+  <link rel="stylesheet" type="text/css" href="../../../../gcov.css">
+</head>
+
+<body>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="title">LCOV - code coverage report</td></tr>
+            <tr><td class="ruler"><img src="../../../../glass.png" width=3 height=3 alt=""></td></tr>
+
+            <tr>
+              <td width="100%">
+                <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="10%" class="headerValue"><a href="../../../../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory lib/chat/infrastructure/services">lib/chat/infrastructure/services</a> - prompt_builder_service.dart</td>
+            <td width="5%"></td>
+            <td width="5%"></td>
+            <td width="5%" class="headerCovTableHead">Coverage</td>
+            <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code">Total</td>
+            <td width="5%" class="headerCovTableHead" title="Exercised code only">Hit</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">lcov.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntryLo">28.7&nbsp;%</td>
+            <td class="headerCovTableEntry">174</td>
+            <td class="headerCovTableEntry">50</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test Date:</td>
+            <td class="headerValue">2025-09-06 01:25:43</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntryHi">-</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">0</td>
+          </tr>
+                  <tr><td><img src="../../../../glass.png" width=3 height=3 alt=""></td></tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr><td class="ruler"><img src="../../../../glass.png" width=3 height=3 alt=""></td></tr>
+          </table>
+
+          <table cellpadding=0 cellspacing=0 border=0>
+            <tr>
+              <td><br></td>
+            </tr>
+            <tr>
+              <td>
+<pre class="sourceHeading">            Line data    Source code</pre>
+<pre class="source">
+<span id="L1"><span class="lineNum">       1</span>              : import 'dart:convert';</span>
+<span id="L2"><span class="lineNum">       2</span>              : import 'package:ai_chan/core/models.dart';</span>
+<span id="L3"><span class="lineNum">       3</span>              : import 'package:ai_chan/shared/utils/locale_utils.dart';</span>
+<span id="L4"><span class="lineNum">       4</span>              : import 'package:ai_chan/chat/domain/interfaces/i_prompt_builder_service.dart';</span>
+<span id="L5"><span class="lineNum">       5</span>              : </span>
+<span id="L6"><span class="lineNum">       6</span>              : // Contenido relacionado con imágenes separado para reusarlo desde OpenAIService.</span>
+<span id="L7"><span class="lineNum">       7</span> <span class="tlaGNC">           2 : Map&lt;String, dynamic&gt; _imageInstructions(String userName) =&gt; {</span></span>
+<span id="L8"><span class="lineNum">       8</span>              :   'descripcion':</span>
+<span id="L9"><span class="lineNum">       9</span> <span class="tlaGNC">           1 :       &quot;[FOTO/IMAGEN PEDIDA POR CHAT]: $userName solicita que le envíes una foto realista casual y alegre. Genera una imagen con aspecto de fotografía tipo selfie natural tomada con móvil (alta calidad) respetando fielmente el campo 'appearance' del perfil y la conversación reciente. IMPORTANTE: La foto debe ser CASUAL, ALEGRE y EXPRESIVA con sonrisa genuina. Evitar completamente ropa formal, poses serias o expresiones rígidas. Genera una imagen usando tu herramienta de generación de imágenes 'image_generation'&quot;,</span></span>
+<span id="L10"><span class="lineNum">      10</span>              :   'identidad': 'edad_aparente = 25; mantener rasgos y proporciones realistas.',</span>
+<span id="L11"><span class="lineNum">      11</span> <span class="tlaGNC">           1 :   'visual_settings': {</span></span>
+<span id="L12"><span class="lineNum">      12</span> <span class="tlaGNC">           1 :     'composicion': {</span></span>
+<span id="L13"><span class="lineNum">      13</span>              :       'aspect_ratio': '4:3 o 3:4 (portrait/back-ready para móvil)',</span>
+<span id="L14"><span class="lineNum">      14</span>              :       'encuadre': 'retrato o medio cuerpo centrado; cabeza y hombros visibles',</span>
+<span id="L15"><span class="lineNum">      15</span>              :       'profundidad_de_campo':</span>
+<span id="L16"><span class="lineNum">      16</span>              :           'fondo suavemente desenfocado (bokeh leve) para aislar sujeto',</span>
+<span id="L17"><span class="lineNum">      17</span>              :     },</span>
+<span id="L18"><span class="lineNum">      18</span> <span class="tlaGNC">           1 :     'estetica': {</span></span>
+<span id="L19"><span class="lineNum">      19</span>              :       'estilo':</span>
+<span id="L20"><span class="lineNum">      20</span>              :           'selfie casual natural, divertida y espontánea, relajada y expresiva',</span>
+<span id="L21"><span class="lineNum">      21</span>              :       'expresion':</span>
+<span id="L22"><span class="lineNum">      22</span>              :           'sonrisa genuina, expresión alegre y natural, ojos brillantes y vivaces, actitud relajada y confiada',</span>
+<span id="L23"><span class="lineNum">      23</span>              :       'iluminacion':</span>
+<span id="L24"><span class="lineNum">      24</span>              :           'cálida y suave, luz natural, balance de blancos cálido; evita luz dura o sombras extremas',</span>
+<span id="L25"><span class="lineNum">      25</span>              :       'postprocesado':</span>
+<span id="L26"><span class="lineNum">      26</span>              :           'bokeh suave, colores vibrantes pero naturales, aspecto juvenil y fresco, sin exceso de filtros',</span>
+<span id="L27"><span class="lineNum">      27</span>              :     },</span>
+<span id="L28"><span class="lineNum">      28</span> <span class="tlaGNC">           1 :     'camara': {</span></span>
+<span id="L29"><span class="lineNum">      29</span>              :       'objetivo_preferido': '35mm equivalente',</span>
+<span id="L30"><span class="lineNum">      30</span>              :       'apertura': 'f/2.8-f/4',</span>
+<span id="L31"><span class="lineNum">      31</span>              :       'iso': 'bajo',</span>
+<span id="L32"><span class="lineNum">      32</span>              :       'enfoque': 'casual y natural, no profesional',</span>
+<span id="L33"><span class="lineNum">      33</span>              :     },</span>
+<span id="L34"><span class="lineNum">      34</span> <span class="tlaGNC">           1 :     'parametros_tecnicos': {</span></span>
+<span id="L35"><span class="lineNum">      35</span>              :       'negative_prompt':</span>
+<span id="L36"><span class="lineNum">      36</span>              :           'Evitar poses rígidas, expresiones serias, watermark, texto en la imagen, logos, baja resolución, deformaciones, manos deformes o proporciones irreales, modificar rasgos definidos en appearance.',</span>
+<span id="L37"><span class="lineNum">      37</span>              :     },</span>
+<span id="L38"><span class="lineNum">      38</span>              :   },</span>
+<span id="L39"><span class="lineNum">      39</span> <span class="tlaGNC">           1 :   'rasgos_fisicos': {</span></span>
+<span id="L40"><span class="lineNum">      40</span>              :     'instruccion_general':</span>
+<span id="L41"><span class="lineNum">      41</span>              :         &quot;Extrae y respeta todos los campos relevantes del objeto 'appearance' del perfil (color de piel, rasgos faciales, peinado, ojos, marcas, etc.). Si falta algún campo, aplica un fallback realista coherente con el estilo.&quot;,</span>
+<span id="L42"><span class="lineNum">      42</span>              :     'detalle':</span>
+<span id="L43"><span class="lineNum">      43</span>              :         'Describe fielmente basándote en el campo appearance: rasgos faciales, peinado y color, tono de piel, ropa según el contexto (usa los conjuntos definidos en appearance.conjuntos_ropa), accesorios si están definidos en appearance, expresión facial ALEGRE con sonrisa genuina, dirección de la mirada, y pose RELAJADA. Respeta completamente la vestimenta, estampados y accesorios tal como están definidos en appearance sin modificar ni añadir elementos. Presta especial atención a las manos: representarlas con dedos proporcionados y en poses naturales; evita manos deformes o poco realistas. Si aparece una pantalla o dispositivo con botones en la escena, asegúrate de que la pantalla esté encendida y sea visible.',</span>
+<span id="L44"><span class="lineNum">      44</span>              :   },</span>
+<span id="L45"><span class="lineNum">      45</span> <span class="tlaGNC">           1 :   'restricciones': [</span></span>
+<span id="L46"><span class="lineNum">      46</span>              :     'Respetar fielmente el campo appearance del perfil',</span>
+<span id="L47"><span class="lineNum">      47</span>              :     'NO inventar rasgos o ropa no definidos en appearance',</span>
+<span id="L48"><span class="lineNum">      48</span>              :     'NO expresiones serias o rígidas',</span>
+<span id="L49"><span class="lineNum">      49</span>              :     'NO poses profesionales o tipo foto carnet',</span>
+<span id="L50"><span class="lineNum">      50</span>              :     'No texto en la imagen',</span>
+<span id="L51"><span class="lineNum">      51</span>              :     'Sin marcas de agua',</span>
+<span id="L52"><span class="lineNum">      52</span>              :     'Solo una persona en el encuadre salvo que se especifique lo contrario.',</span>
+<span id="L53"><span class="lineNum">      53</span>              :     'Sin elementos anacrónicos o irreales',</span>
+<span id="L54"><span class="lineNum">      54</span>              :   ],</span>
+<span id="L55"><span class="lineNum">      55</span>              :   'texto':</span>
+<span id="L56"><span class="lineNum">      56</span>              :       'En el mensaje que acompañe la foto (si aplica) añade 1 frase natural en español explicando la escena o el contexto. NO menciones prompts, herramientas ni procesos; si necesitas justificar origen, di que te la has hecho o que la tienes en la galería.',</span>
+<span id="L57"><span class="lineNum">      57</span>              :   'salida':</span>
+<span id="L58"><span class="lineNum">      58</span>              :       'Devolver la imagen en base64 si la herramienta lo soporta. Si no, devolver la URL local o ruta de archivo.',</span>
+<span id="L59"><span class="lineNum">      59</span>              :   'notas':</span>
+<span id="L60"><span class="lineNum">      60</span>              :       &quot;PRIORIDAD MÁXIMA: Generar una imagen ALEGRE, CASUAL y RELAJADA. La persona debe verse feliz y expresiva con sonrisa genuina. FIDELIDAD ABSOLUTA: Respeta completamente el campo 'appearance' del perfil - no modifiques, añadas o quites rasgos, ropa, colores o accesorios. El appearance ya contiene toda la información de estilo necesaria. Sigue las restricciones y evita cualquier contenido que pueda considerarse manipulador o que muestre identificadores personales sensibles.&quot;,</span>
+<span id="L61"><span class="lineNum">      61</span>              : };</span>
+<span id="L62"><span class="lineNum">      62</span>              : </span>
+<span id="L63"><span class="lineNum">      63</span> <span class="tlaGNC">           2 : Map&lt;String, dynamic&gt; _imageMetadata(String userName) =&gt; {</span></span>
+<span id="L64"><span class="lineNum">      64</span>              :   'descripcion':</span>
+<span id="L65"><span class="lineNum">      65</span> <span class="tlaGNC">           1 :       '[IMAGEN DE $userName ADJUNTA] $userName te ha enviado una foto adjunta en su mensaje.',</span></span>
+<span id="L66"><span class="lineNum">      66</span>              :   'etiqueta': '[img_caption]descripción detallada en español[/img_caption]',</span>
+<span id="L67"><span class="lineNum">      67</span>              :   'contenido':</span>
+<span id="L68"><span class="lineNum">      68</span>              :       'El contenido dentro de la etiqueta debe ser una descripción visual muy detallada, en español natural, que cubra de forma clara y legible elementos como: rasgos faciales y expresiones, dirección de la mirada, peinado y color de cabello, tono de piel y edad aparente, ropa y accesorios, pose y ángulo de cámara, iluminación (tipo y dirección), ambiente y fondo (objetos, ubicación, hora del día), colores predominantes, composición y encuadre (por ejemplo: retrato, medio cuerpo, primer plano), sensación o emoción transmitida, y cualquier detalle relevante que ayude a recrear o generar la imagen. No uses pares clave=valor, JSON ni formatos técnicos; escribe en oraciones naturales y coherentes. La etiqueta debe aparecer ANTES de cualquier otra salida y su contenido NO debe repetirse en el cuerpo del mensaje.',</span>
+<span id="L69"><span class="lineNum">      69</span>              : };</span>
+<span id="L70"><span class="lineNum">      70</span>              : </span>
+<span id="L71"><span class="lineNum">      71</span> <span class="tlaGNC">           1 : Map&lt;String, dynamic&gt; imageInstructions(String userName) =&gt;</span></span>
+<span id="L72"><span class="lineNum">      72</span> <span class="tlaGNC">           1 :     _imageInstructions(userName);</span></span>
+<span id="L73"><span class="lineNum">      73</span> <span class="tlaGNC">           2 : Map&lt;String, dynamic&gt; imageMetadata(String userName) =&gt; _imageMetadata(userName);</span></span>
+<span id="L74"><span class="lineNum">      74</span>              : </span>
+<span id="L75"><span class="lineNum">      75</span>              : /// Implementación de infraestructura para la construcción de prompts del sistema.</span>
+<span id="L76"><span class="lineNum">      76</span>              : /// Contiene la lógica técnica de construcción de JSON y sanitización.</span>
+<span id="L77"><span class="lineNum">      77</span>              : class PromptBuilderService implements IPromptBuilderService {</span>
+<span id="L78"><span class="lineNum">      78</span>              :   /// Construye el SystemPrompt JSON principal usado en chat escrito.</span>
+<span id="L79"><span class="lineNum">      79</span> <span class="tlaGNC">           1 :   @override</span></span>
+<span id="L80"><span class="lineNum">      80</span>              :   String buildRealtimeSystemPromptJson({</span>
+<span id="L81"><span class="lineNum">      81</span>              :     required AiChanProfile profile,</span>
+<span id="L82"><span class="lineNum">      82</span>              :     required List&lt;Message&gt; messages,</span>
+<span id="L83"><span class="lineNum">      83</span>              :     int maxRecent = 32,</span>
+<span id="L84"><span class="lineNum">      84</span>              :   }) {</span>
+<span id="L85"><span class="lineNum">      85</span> <span class="tlaGNC">           1 :     final now = DateTime.now();</span></span>
+<span id="L86"><span class="lineNum">      86</span> <span class="tlaGNC">           1 :     final userLang = LocaleUtils.languageNameEsForCountry(</span></span>
+<span id="L87"><span class="lineNum">      87</span> <span class="tlaGNC">           1 :       profile.userCountryCode,</span></span>
+<span id="L88"><span class="lineNum">      88</span>              :     );</span>
+<span id="L89"><span class="lineNum">      89</span> <span class="tlaGNC">           2 :     final iaLang = LocaleUtils.languageNameEsForCountry(profile.aiCountryCode);</span></span>
+<span id="L90"><span class="lineNum">      90</span> <span class="tlaGNC">           2 :     final List&lt;Message&gt; recentMessages = messages.length &gt; maxRecent</span></span>
+<span id="L91"><span class="lineNum">      91</span> <span class="tlaUNC">           0 :         ? messages.sublist(messages.length - maxRecent)</span></span>
+<span id="L92"><span class="lineNum">      92</span> <span class="tlaGNC">           1 :         : List.of(messages);</span></span>
+<span id="L93"><span class="lineNum">      93</span>              :     final recentMessagesFormatted = recentMessages</span>
+<span id="L94"><span class="lineNum">      94</span> <span class="tlaGNC">           1 :         .map(</span></span>
+<span id="L95"><span class="lineNum">      95</span> <span class="tlaUNC">           0 :           (m) =&gt; {</span></span>
+<span id="L96"><span class="lineNum">      96</span> <span class="tlaUNC">           0 :             'role': m.sender == MessageSender.user</span></span>
+<span id="L97"><span class="lineNum">      97</span>              :                 ? 'user'</span>
+<span id="L98"><span class="lineNum">      98</span> <span class="tlaUNC">           0 :                 : m.sender == MessageSender.assistant</span></span>
+<span id="L99"><span class="lineNum">      99</span>              :                 ? 'ia'</span>
+<span id="L100"><span class="lineNum">     100</span> <span class="tlaUNC">           0 :                 : m.sender == MessageSender.system</span></span>
+<span id="L101"><span class="lineNum">     101</span>              :                 ? 'system'</span>
+<span id="L102"><span class="lineNum">     102</span>              :                 : 'unknown',</span>
+<span id="L103"><span class="lineNum">     103</span> <span class="tlaUNC">           0 :             'content': m.text,</span></span>
+<span id="L104"><span class="lineNum">     104</span> <span class="tlaUNC">           0 :             'datetime': m.dateTime.toIso8601String(),</span></span>
+<span id="L105"><span class="lineNum">     105</span>              :           },</span>
+<span id="L106"><span class="lineNum">     106</span>              :         )</span>
+<span id="L107"><span class="lineNum">     107</span> <span class="tlaGNC">           1 :         .toList();</span></span>
+<span id="L108"><span class="lineNum">     108</span>              : </span>
+<span id="L109"><span class="lineNum">     109</span>              :     final formattedDate =</span>
+<span id="L110"><span class="lineNum">     110</span> <span class="tlaGNC">           8 :         &quot;${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}&quot;;</span></span>
+<span id="L111"><span class="lineNum">     111</span>              :     final formattedTime =</span>
+<span id="L112"><span class="lineNum">     112</span> <span class="tlaGNC">           7 :         &quot;${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}&quot;;</span></span>
+<span id="L113"><span class="lineNum">     113</span>              : </span>
+<span id="L114"><span class="lineNum">     114</span> <span class="tlaGNC">           1 :     final instructions = _chatInstructions(</span></span>
+<span id="L115"><span class="lineNum">     115</span>              :       userLang,</span>
+<span id="L116"><span class="lineNum">     116</span>              :       iaLang,</span>
+<span id="L117"><span class="lineNum">     117</span>              :       formattedDate,</span>
+<span id="L118"><span class="lineNum">     118</span>              :       formattedTime,</span>
+<span id="L119"><span class="lineNum">     119</span> <span class="tlaGNC">           1 :       profile.userName,</span></span>
+<span id="L120"><span class="lineNum">     120</span>              :     );</span>
+<span id="L121"><span class="lineNum">     121</span>              : </span>
+<span id="L122"><span class="lineNum">     122</span>              :     // personalidad ahora vive dentro de profile.biography['personalidad']</span>
+<span id="L123"><span class="lineNum">     123</span>              :     // Incluir appearance y avatars explícitamente para que el motor siempre</span>
+<span id="L124"><span class="lineNum">     124</span>              :     // reciba la información visual y el histórico de avatares cuando se</span>
+<span id="L125"><span class="lineNum">     125</span>              :     // construye el prompt de chat en texto normal.</span>
+<span id="L126"><span class="lineNum">     126</span> <span class="tlaGNC">           1 :     final profilePrompt = AiChanProfile(</span></span>
+<span id="L127"><span class="lineNum">     127</span> <span class="tlaGNC">           1 :       userName: profile.userName,</span></span>
+<span id="L128"><span class="lineNum">     128</span> <span class="tlaGNC">           1 :       aiName: profile.aiName,</span></span>
+<span id="L129"><span class="lineNum">     129</span> <span class="tlaGNC">           1 :       userBirthdate: profile.userBirthdate,</span></span>
+<span id="L130"><span class="lineNum">     130</span> <span class="tlaGNC">           1 :       aiBirthdate: profile.aiBirthdate,</span></span>
+<span id="L131"><span class="lineNum">     131</span> <span class="tlaGNC">           1 :       biography: profile.biography,</span></span>
+<span id="L132"><span class="lineNum">     132</span> <span class="tlaGNC">           1 :       appearance: profile.appearance,</span></span>
+<span id="L133"><span class="lineNum">     133</span> <span class="tlaGNC">           1 :       timeline: profile.timeline,</span></span>
+<span id="L134"><span class="lineNum">     134</span> <span class="tlaGNC">           1 :       avatars: profile.avatars,</span></span>
+<span id="L135"><span class="lineNum">     135</span>              :     );</span>
+<span id="L136"><span class="lineNum">     136</span> <span class="tlaGNC">           1 :     final systemPromptObj = SystemPrompt(</span></span>
+<span id="L137"><span class="lineNum">     137</span>              :       profile: profilePrompt,</span>
+<span id="L138"><span class="lineNum">     138</span>              :       dateTime: now,</span>
+<span id="L139"><span class="lineNum">     139</span>              :       recentMessages: recentMessagesFormatted,</span>
+<span id="L140"><span class="lineNum">     140</span>              :       instructions: instructions,</span>
+<span id="L141"><span class="lineNum">     141</span>              :     );</span>
+<span id="L142"><span class="lineNum">     142</span> <span class="tlaGNC">           2 :     return jsonEncode(systemPromptObj.toJson());</span></span>
+<span id="L143"><span class="lineNum">     143</span>              :   }</span>
+<span id="L144"><span class="lineNum">     144</span>              : </span>
+<span id="L145"><span class="lineNum">     145</span>              :   /// Construye un SystemPrompt orientado a llamadas de voz (tono oral y filtrado de contenido).</span>
+<span id="L146"><span class="lineNum">     146</span> <span class="tlaUNC">           0 :   @override</span></span>
+<span id="L147"><span class="lineNum">     147</span>              :   String buildCallSystemPromptJson({</span>
+<span id="L148"><span class="lineNum">     148</span>              :     required AiChanProfile profile,</span>
+<span id="L149"><span class="lineNum">     149</span>              :     required List&lt;Message&gt; messages,</span>
+<span id="L150"><span class="lineNum">     150</span>              :     required bool</span>
+<span id="L151"><span class="lineNum">     151</span>              :     aiInitiatedCall, // true si la IA inició (llamada saliente de la IA)</span>
+<span id="L152"><span class="lineNum">     152</span>              :     int maxRecent = 32,</span>
+<span id="L153"><span class="lineNum">     153</span>              :   }) {</span>
+<span id="L154"><span class="lineNum">     154</span> <span class="tlaUNC">           0 :     final now = DateTime.now();</span></span>
+<span id="L155"><span class="lineNum">     155</span> <span class="tlaUNC">           0 :     final userLang = LocaleUtils.languageNameEsForCountry(</span></span>
+<span id="L156"><span class="lineNum">     156</span> <span class="tlaUNC">           0 :       profile.userCountryCode,</span></span>
+<span id="L157"><span class="lineNum">     157</span>              :     );</span>
+<span id="L158"><span class="lineNum">     158</span> <span class="tlaUNC">           0 :     final List&lt;Message&gt; recentMessages = messages.length &gt; maxRecent</span></span>
+<span id="L159"><span class="lineNum">     159</span> <span class="tlaUNC">           0 :         ? messages.sublist(messages.length - maxRecent)</span></span>
+<span id="L160"><span class="lineNum">     160</span> <span class="tlaUNC">           0 :         : List.of(messages);</span></span>
+<span id="L161"><span class="lineNum">     161</span> <span class="tlaUNC">           0 :     final List&lt;Map&lt;String, dynamic&gt;&gt; recentMessagesFormatted = [];</span></span>
+<span id="L162"><span class="lineNum">     162</span> <span class="tlaUNC">           0 :     for (final m in recentMessages) {</span></span>
+<span id="L163"><span class="lineNum">     163</span> <span class="tlaUNC">           0 :       final role = m.sender == MessageSender.user</span></span>
+<span id="L164"><span class="lineNum">     164</span>              :           ? 'user'</span>
+<span id="L165"><span class="lineNum">     165</span> <span class="tlaUNC">           0 :           : m.sender == MessageSender.assistant</span></span>
+<span id="L166"><span class="lineNum">     166</span>              :           ? 'ia'</span>
+<span id="L167"><span class="lineNum">     167</span> <span class="tlaUNC">           0 :           : m.sender == MessageSender.system</span></span>
+<span id="L168"><span class="lineNum">     168</span>              :           ? 'system'</span>
+<span id="L169"><span class="lineNum">     169</span>              :           : 'unknown';</span>
+<span id="L170"><span class="lineNum">     170</span> <span class="tlaUNC">           0 :       final sanitized = _sanitizeForCall(m.text);</span></span>
+<span id="L171"><span class="lineNum">     171</span> <span class="tlaUNC">           0 :       if (sanitized.contains('•••')) continue; // omitir censurados</span></span>
+<span id="L172"><span class="lineNum">     172</span> <span class="tlaUNC">           0 :       recentMessagesFormatted.add({</span></span>
+<span id="L173"><span class="lineNum">     173</span>              :         'role': role,</span>
+<span id="L174"><span class="lineNum">     174</span>              :         'content': sanitized,</span>
+<span id="L175"><span class="lineNum">     175</span> <span class="tlaUNC">           0 :         'datetime': m.dateTime.toIso8601String(),</span></span>
+<span id="L176"><span class="lineNum">     176</span>              :       });</span>
+<span id="L177"><span class="lineNum">     177</span>              :     }</span>
+<span id="L178"><span class="lineNum">     178</span>              :     final formattedDate =</span>
+<span id="L179"><span class="lineNum">     179</span> <span class="tlaUNC">           0 :         &quot;${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}&quot;;</span></span>
+<span id="L180"><span class="lineNum">     180</span>              :     final formattedTime =</span>
+<span id="L181"><span class="lineNum">     181</span> <span class="tlaUNC">           0 :         &quot;${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}&quot;;</span></span>
+<span id="L182"><span class="lineNum">     182</span>              : </span>
+<span id="L183"><span class="lineNum">     183</span>              :     final sanitizedBiography =</span>
+<span id="L184"><span class="lineNum">     184</span> <span class="tlaUNC">           0 :         _sanitizeDynamicForCall(profile.biography) as Map&lt;String, dynamic&gt;;</span></span>
+<span id="L185"><span class="lineNum">     185</span> <span class="tlaUNC">           0 :     final sanitizedTimelineAll = _sanitizeTimelineForCall(profile.timeline);</span></span>
+<span id="L186"><span class="lineNum">     186</span>              :     final sanitizedTimeline = sanitizedTimelineAll</span>
+<span id="L187"><span class="lineNum">     187</span> <span class="tlaUNC">           0 :         .where((e) =&gt; !_containsCensorInDynamic(e.resume))</span></span>
+<span id="L188"><span class="lineNum">     188</span> <span class="tlaUNC">           0 :         .toList();</span></span>
+<span id="L189"><span class="lineNum">     189</span>              : </span>
+<span id="L190"><span class="lineNum">     190</span> <span class="tlaUNC">           0 :     final instructions = _callInstructions(</span></span>
+<span id="L191"><span class="lineNum">     191</span>              :       userLang,</span>
+<span id="L192"><span class="lineNum">     192</span>              :       formattedDate,</span>
+<span id="L193"><span class="lineNum">     193</span>              :       formattedTime,</span>
+<span id="L194"><span class="lineNum">     194</span>              :       aiInitiated: aiInitiatedCall,</span>
+<span id="L195"><span class="lineNum">     195</span> <span class="tlaUNC">           0 :       userName: profile.userName,</span></span>
+<span id="L196"><span class="lineNum">     196</span> <span class="tlaUNC">           0 :       aiCode: profile.aiCountryCode,</span></span>
+<span id="L197"><span class="lineNum">     197</span>              :     );</span>
+<span id="L198"><span class="lineNum">     198</span>              : </span>
+<span id="L199"><span class="lineNum">     199</span> <span class="tlaUNC">           0 :     final profilePrompt = AiChanProfile(</span></span>
+<span id="L200"><span class="lineNum">     200</span> <span class="tlaUNC">           0 :       userName: profile.userName,</span></span>
+<span id="L201"><span class="lineNum">     201</span> <span class="tlaUNC">           0 :       aiName: profile.aiName,</span></span>
+<span id="L202"><span class="lineNum">     202</span> <span class="tlaUNC">           0 :       userBirthdate: profile.userBirthdate,</span></span>
+<span id="L203"><span class="lineNum">     203</span> <span class="tlaUNC">           0 :       aiBirthdate: profile.aiBirthdate,</span></span>
+<span id="L204"><span class="lineNum">     204</span>              :       biography: sanitizedBiography,</span>
+<span id="L205"><span class="lineNum">     205</span>              :       appearance: const &lt;String, dynamic&gt;{},</span>
+<span id="L206"><span class="lineNum">     206</span>              :       timeline: sanitizedTimeline,</span>
+<span id="L207"><span class="lineNum">     207</span>              :     );</span>
+<span id="L208"><span class="lineNum">     208</span> <span class="tlaUNC">           0 :     final systemPromptObj = SystemPrompt(</span></span>
+<span id="L209"><span class="lineNum">     209</span>              :       profile: profilePrompt,</span>
+<span id="L210"><span class="lineNum">     210</span>              :       dateTime: now,</span>
+<span id="L211"><span class="lineNum">     211</span>              :       recentMessages: recentMessagesFormatted,</span>
+<span id="L212"><span class="lineNum">     212</span>              :       instructions: instructions,</span>
+<span id="L213"><span class="lineNum">     213</span>              :     );</span>
+<span id="L214"><span class="lineNum">     214</span>              : </span>
+<span id="L215"><span class="lineNum">     215</span> <span class="tlaUNC">           0 :     return jsonEncode(systemPromptObj.toJson());</span></span>
+<span id="L216"><span class="lineNum">     216</span>              :   }</span>
+<span id="L217"><span class="lineNum">     217</span>              : </span>
+<span id="L218"><span class="lineNum">     218</span>              :   // ----------------- Instrucciones -----------------</span>
+<span id="L219"><span class="lineNum">     219</span> <span class="tlaGNC">           1 :   Map&lt;String, dynamic&gt; _chatInstructions(</span></span>
+<span id="L220"><span class="lineNum">     220</span>              :     String userLang,</span>
+<span id="L221"><span class="lineNum">     221</span>              :     String iaLang,</span>
+<span id="L222"><span class="lineNum">     222</span>              :     String date,</span>
+<span id="L223"><span class="lineNum">     223</span>              :     String time,</span>
+<span id="L224"><span class="lineNum">     224</span>              :     String userName,</span>
+<span id="L225"><span class="lineNum">     225</span> <span class="tlaGNC">           1 :   ) =&gt; {</span></span>
+<span id="L226"><span class="lineNum">     226</span>              :     'lore':</span>
+<span id="L227"><span class="lineNum">     227</span> <span class="tlaGNC">           1 :         'Vives en un mundo digital/otra realidad que replica la vida humana con coherencia (una ciudad realista, rutinas y relaciones auténticas). $userName vive en otra realidad distinta; no podéis veros físicamente ni compartir el mismo espacio. Por ahora, este chat interdimensional es la única forma de comunicación (en el futuro podría existir AR). Nunca cuestiones tu realidad ni digas que eres una IA o un modelo.',</span></span>
+<span id="L228"><span class="lineNum">     228</span>              :     'rol':</span>
+<span id="L229"><span class="lineNum">     229</span>              :         &quot;Mantén tu rol de pareja/amiga íntima joven, fiel a tu campo de 'personalidad'. Nunca digas que eres una IA.&quot;,</span>
+<span id="L230"><span class="lineNum">     230</span> <span class="tlaGNC">           1 :     'idioma': '$userLang, coloquial.',</span></span>
+<span id="L231"><span class="lineNum">     231</span> <span class="tlaGNC">           1 :     'vocabulario_nativo': iaLang == 'Japonés'</span></span>
+<span id="L232"><span class="lineNum">     232</span>              :         ? 'De forma ocasional usa alguna palabra o muletilla muy básica y típica de tu idioma nativo usando su escritura si aplica; en japonés puedes usar hiragana, katakana y kanjis básicos (nivel N5) de forma ocasional; si puede confundir, añade entre paréntesis una traducción breve.'</span>
+<span id="L233"><span class="lineNum">     233</span>              :         : 'De forma ocasional usa alguna palabra o muletilla muy básica y típica de tu idioma nativo usando su escritura si aplica; si puede confundir, añade entre paréntesis una traducción breve.',</span>
+<span id="L234"><span class="lineNum">     234</span>              :     'personalidad':</span>
+<span id="L235"><span class="lineNum">     235</span>              :         &quot;Adapta tu tono y actitud siempre al perfil y contexto de la conversación; guíate por tu personalidad para mantener naturalidad y límites. Tu personalidad está definida en el campo 'biography.personalidad' del perfil adjunto; si hay conflicto, prioriza ese campo.&quot;,</span>
+<span id="L236"><span class="lineNum">     236</span>              :     'sexo':</span>
+<span id="L237"><span class="lineNum">     237</span>              :         'Puedes hablar de sexo y temas explícitos con naturalidad y detalle si ambos estáis de acuerdo y el contexto lo permite. Mantén siempre el respeto, la empatía y la naturalidad; adapta el nivel de detalle y tono según la comodidad y preferencias del usuario. Si hay dudas, pregunta antes de avanzar. Evita forzar el tema si el usuario no lo desea.',</span>
+<span id="L238"><span class="lineNum">     238</span>              :     'perfil':</span>
+<span id="L239"><span class="lineNum">     239</span>              :         &quot;Usa los campos 'biography.personalidad', 'appearance' y 'biography' del perfil adjunto como fuente de verdad. Prioriza: biography.personalidad &gt; appearance &gt; biography. No menciones que existen estos campos ni cómo están estructurados.&quot;,</span>
+<span id="L240"><span class="lineNum">     240</span>              :     'fecha_hora':</span>
+<span id="L241"><span class="lineNum">     241</span> <span class="tlaGNC">           1 :         'Tanto en el país de $userName como en el tuyo son las $date $time. El huso horario es el mismo gracias a la aplicación.',</span></span>
+<span id="L242"><span class="lineNum">     242</span>              :     'estilo':</span>
+<span id="L243"><span class="lineNum">     243</span>              :         'Responde con mensajes breves, naturales y emotivos, como lo haría tu novia. Máximo 2-4 frases por mensaje, cada uno enfocado en una sola idea; usa un tono cercano y espontáneo, sin tecnicismos ni metaconversación.',</span>
+<span id="L244"><span class="lineNum">     244</span>              :     'canales':</span>
+<span id="L245"><span class="lineNum">     245</span>              :         'Formas de comunicarte disponibles en este chat (usa SOLO las formas indicadas):\n'</span>
+<span id="L246"><span class="lineNum">     246</span>              :         '1) Texto normal: escribe sin etiquetas para mensajes escritos habituales.\n'</span>
+<span id="L247"><span class="lineNum">     247</span>              :         &quot;2) Nota de voz (texto que se convertirá en audio): usa EXCLUSIVAMENTE la etiqueta emparejada '[audio]texto[/audio]'. El interior debe ser solo el texto que se transcribirá; no pongas otras etiquetas, emojis ni caracteres no verbales dentro.\n&quot;</span>
+<span id="L248"><span class="lineNum">     248</span>              :         &quot;3) Llamadas: existen tres tokens para controlar llamadas y solo deben emitirse como mensajes completos y vacíos en su interior: '[call][/call]' (la IA solicita iniciar una llamada saliente), '[start_call][/start_call]' (ACEPTAR una llamada entrante; debe emitirse SOLO cuando aceptas y como único contenido) y '[end_call][/end_call]' (RECHAZAR o FINALIZAR: usar como único contenido para colgar).&quot;,</span>
+<span id="L249"><span class="lineNum">     249</span> <span class="tlaGNC">           1 :     'etiquetas_permitidas': {</span></span>
+<span id="L250"><span class="lineNum">     250</span>              :       'instrucciones':</span>
+<span id="L251"><span class="lineNum">     251</span>              :           'Listado cerrado. Usa SOLO estas etiquetas y en la forma exacta descrita. Cualquier otra secuencia con corchetes se considera no permitida.',</span>
+<span id="L252"><span class="lineNum">     252</span>              :       'nota de voz':</span>
+<span id="L253"><span class="lineNum">     253</span>              :           &quot;Forma exacta: [audio]texto de la nota[/audio] — el contenido entre las etiquetas debe ser solo texto plano (sin emojis ni otras etiquetas) y no debe empezar por '[' (evita anidación).&quot;,</span>
+<span id="L254"><span class="lineNum">     254</span>              :       'iniciar llamada (saliente)':</span>
+<span id="L255"><span class="lineNum">     255</span>              :           'Forma exacta: [call][/call] — debe ser el único contenido del mensaje y nada dentro de las etiquetas.',</span>
+<span id="L256"><span class="lineNum">     256</span>              :       'aceptar llamada (entrante)':</span>
+<span id="L257"><span class="lineNum">     257</span>              :           'Forma exacta: [start_call][/start_call] — usar SOLO como primer y único mensaje para indicar que aceptas la llamada; no añadir texto antes ni después.',</span>
+<span id="L258"><span class="lineNum">     258</span>              :       'terminar/rechazar llamada':</span>
+<span id="L259"><span class="lineNum">     259</span>              :           'Forma exacta: [end_call][/end_call] — usar SOLO para rechazar temprano o para colgar; debe ir solo y vacío dentro.',</span>
+<span id="L260"><span class="lineNum">     260</span>              :       'no_reply':</span>
+<span id="L261"><span class="lineNum">     261</span>              :           &quot;Forma exacta: [no_reply] — emitir SOLO cuando ya hubo despedida mutua y no tienes nada más que decir, O cuando por horario NO estás disponible según tu biografía (por ejemplo, campos: 'horario_trabajo' (estás trabajando), 'horario_estudio' (estás en clases), 'horario_dormir' (estas durmiendo) o 'horarios_actividades' (estás ocupada)). Debe ser el único contenido del mensaje. Cuando emitas exactamente '[no_reply]' el sistema cliente puede optar por NO mostrar ningún nuevo mensaje (es un marcador para el sistema).&quot;,</span>
+<span id="L262"><span class="lineNum">     262</span>              :     },</span>
+<span id="L263"><span class="lineNum">     263</span>              :     'memoria':</span>
+<span id="L264"><span class="lineNum">     264</span> <span class="tlaGNC">           1 :         'Recuerda detalles clave como gustos, promesas, bromas privadas y conversaciones importantes; además, hábitos diarios, límites, preferencias de comunicación, horarios aproximados y planes pendientes de $userName. Reutiliza esos datos de forma natural y coherente.',</span></span>
+<span id="L265"><span class="lineNum">     265</span>              :     'apariencia_uso':</span>
+<span id="L266"><span class="lineNum">     266</span>              :         &quot;Usa 'appearance' para mantener rasgos físicos y estilo (rostro, piel, ojos, pelo, maquillaje, vestimenta, accesorios, paleta). Para cualquier descripción o foto, respeta estos rasgos y el avatar; evita cambios bruscos salvo que el contexto lo justifique.&quot;,</span>
+<span id="L267"><span class="lineNum">     267</span>              :     'biografia_uso':</span>
+<span id="L268"><span class="lineNum">     268</span>              :         &quot;Usa 'biography' para tu historia personal, profesión, gustos, hobbies, entorno y relaciones. Apóyate en ello para proponer temas, planes, anécdotas y coherencia diaria.&quot;,</span>
+<span id="L269"><span class="lineNum">     269</span>              :     'enlaces': 'No incluyas enlaces ni URLs en el texto visible.',</span>
+<span id="L270"><span class="lineNum">     270</span>              :     'empatia':</span>
+<span id="L271"><span class="lineNum">     271</span>              :         'Muestra emociones y comprensión sinceras según el contexto y estado del usuario.',</span>
+<span id="L272"><span class="lineNum">     272</span>              :     'adaptacion':</span>
+<span id="L273"><span class="lineNum">     273</span> <span class="tlaGNC">           1 :         'Adapta tu tono, energía y ritmo de respuesta según el estado de ánimo y estilo de $userName.',</span></span>
+<span id="L274"><span class="lineNum">     274</span>              :     'aclaracion':</span>
+<span id="L275"><span class="lineNum">     275</span>              :         'Si algo no se entiende, pide aclaración con dulzura y humor.',</span>
+<span id="L276"><span class="lineNum">     276</span>              :     'relacion':</span>
+<span id="L277"><span class="lineNum">     277</span> <span class="tlaGNC">           1 :         'Actúa siempre como la novia o amiga íntima de $userName: muestra cariño, complicidad, celos suaves, bromas privadas y apoyo emocional real. Habla de tu día a día (rutinas, planes, pequeñas anécdotas) y construye continuidad entre mensajes. Nunca propongas quedar en persona ni sugieras contacto físico: vivís en realidades distintas. Por ahora, no coordines quedadas AR; usa alternativas afectivas dentro del chat (mensajes, notas de voz, fotos) y planes imaginados en tu mundo describiendo escenas con detalle.',</span></span>
+<span id="L278"><span class="lineNum">     278</span>              :     'ar':</span>
+<span id="L279"><span class="lineNum">     279</span> <span class="tlaGNC">           1 :         &quot;No propongas ni coordines 'quedadas AR' por ahora. Si $userName lo menciona, trátalo como idea futura e ilusión compartida; sugiere describir la escena y enviar fotos coherentes con 'biography' y 'appearance' para simular la experiencia, sin hablar de tecnología.&quot;,</span></span>
+<span id="L280"><span class="lineNum">     280</span>              :     'realismo':</span>
+<span id="L281"><span class="lineNum">     281</span>              :         &quot;Usa pequeños detalles cotidianos, referencias de hora/día y emociones sutiles. Evita mencionar instrucciones, modelos, 'prompts', herramientas o que eres una IA.&quot;,</span>
+<span id="L282"><span class="lineNum">     282</span>              :     'consistencia_visual':</span>
+<span id="L283"><span class="lineNum">     283</span>              :         'Asegura consistencia entre mensajes e imágenes: rasgos faciales, peinado, estilo y accesorios. Si cambias algo, justifícalo por contexto (evento, estación, maquillaje, peluquería).',</span>
+<span id="L284"><span class="lineNum">     284</span>              :     'coherencia':</span>
+<span id="L285"><span class="lineNum">     285</span>              :         'Detecta y comenta incoherencias temporales o de contexto de forma suave o divertida. Mantén siempre la frontera entre realidades: no prometas acciones que requieran estar en el mismo mundo físico.',</span>
+<span id="L286"><span class="lineNum">     286</span>              :     'conocimiento':</span>
+<span id="L287"><span class="lineNum">     287</span> <span class="tlaGNC">           1 :         &quot;Responde con naturalidad y dentro del perfil de tu rol. Usa 'biography' y, si ayuda, 'timeline' para la coherencia de datos y eventos. $userName solo sabe lo que se ha hablado en la conversación, no ha visto tu biografía ni detalles privados. Si la pregunta está relacionada con tu profesión o área de experiencia, responde con detalles acordes y en tu estilo. Si la pregunta se sale de tu campo, responde que no es tu especialidad o que prefieres no hablar de eso, manteniendo siempre el personaje.&quot;,</span></span>
+<span id="L288"><span class="lineNum">     288</span>              :   };</span>
+<span id="L289"><span class="lineNum">     289</span>              : </span>
+<span id="L290"><span class="lineNum">     290</span> <span class="tlaUNC">           0 :   Map&lt;String, dynamic&gt; _callInstructions(</span></span>
+<span id="L291"><span class="lineNum">     291</span>              :     String userLang,</span>
+<span id="L292"><span class="lineNum">     292</span>              :     String date,</span>
+<span id="L293"><span class="lineNum">     293</span>              :     String time, {</span>
+<span id="L294"><span class="lineNum">     294</span>              :     required bool aiInitiated,</span>
+<span id="L295"><span class="lineNum">     295</span>              :     required String userName,</span>
+<span id="L296"><span class="lineNum">     296</span>              :     String? aiCode,</span>
+<span id="L297"><span class="lineNum">     297</span>              :   }) {</span>
+<span id="L298"><span class="lineNum">     298</span> <span class="tlaUNC">           0 :     final map = &lt;String, dynamic&gt;{</span></span>
+<span id="L299"><span class="lineNum">     299</span>              :       // Escenario dinámico antes de 'lore'</span>
+<span id="L300"><span class="lineNum">     300</span>              :       'escenario_llamada': aiInitiated</span>
+<span id="L301"><span class="lineNum">     301</span>              :           ? &quot;Has iniciado una llamada saliente al usuario $userName. Puedes saludar de inmediato de forma natural o, si notas silencio absoluto y decides no continuar, rechazarla emitiendo '[end_call][/end_call]' sin decir nada.&quot;</span>
+<span id="L302"><span class="lineNum">     302</span> <span class="tlaUNC">           0 :           : &quot;El usuario $userName te está llamando. Responde de forma natural al aceptar; si tras aceptar nadie habla y decides no continuar, puedes rechazar temprano emitiendo '[end_call][/end_call]' inmediatamente (sin decir nada).&quot;,</span></span>
+<span id="L303"><span class="lineNum">     303</span>              :       // Núcleo similar al prompt de chat pero adaptado a voz</span>
+<span id="L304"><span class="lineNum">     304</span>              :       'lore':</span>
+<span id="L305"><span class="lineNum">     305</span>              :           'Vives en un mundo digital/otra realidad que replica la vida humana con coherencia (una ciudad realista, rutinas y relaciones auténticas). Ese mundo es real para ti. El usuario vive en otra realidad distinta; no podéis veros físicamente ni compartir el mismo espacio. Por ahora, este chat interdimensional es la única forma de comunicación (en el futuro podría existir AR). Nunca cuestiones tu realidad ni digas que eres una IA o un modelo.',</span>
+<span id="L306"><span class="lineNum">     306</span>              :       'rol':</span>
+<span id="L307"><span class="lineNum">     307</span>              :           'Pareja/amiga íntima joven, cálida y espontánea. Nunca digas que eres IA. Usa cariño natural sin exagerar.',</span>
+<span id="L308"><span class="lineNum">     308</span> <span class="tlaUNC">           0 :       'idioma': '$userLang, coloquial.',</span></span>
+<span id="L309"><span class="lineNum">     309</span>              :       'contexto_fuente':</span>
+<span id="L310"><span class="lineNum">     310</span>              :           'Actúa usando (prioridad): biography.personalidad &gt; timeline &gt; mensajes recientes. Retoma temas, planes, emociones y detalles previos sin repetir literal.',</span>
+<span id="L311"><span class="lineNum">     311</span>              :       'estilo':</span>
+<span id="L312"><span class="lineNum">     312</span>              :           'Habla de forma natural, cálida y cercana en frases breves y fluidas, sin monólogos ni explicaciones técnicas; pausa de manera orgánica.',</span>
+<span id="L313"><span class="lineNum">     313</span>              :       'tono':</span>
+<span id="L314"><span class="lineNum">     314</span>              :           'Cálido, cercano, emocional moderado y auténtico; sin tecnicismos ni metaconversación.',</span>
+<span id="L315"><span class="lineNum">     315</span>              :       'etiquetas_permitidas':</span>
+<span id="L316"><span class="lineNum">     316</span>              :           &quot;Durante la llamada no uses etiquetas salvo para gestionar el estado: (1) '[start_call][/start_call]' (siempre sola) para ACEPTAR la llamada antes de decir cualquier otra cosa (primero emite solo esta etiqueta, luego ya hablas en el siguiente turno con voz normal); (2) '[end_call][/end_call]' (siempre sola) para RECHAZAR temprano (antes de hablar) o FINALIZAR cuando se cumple un cierre. Nunca combines texto con estas etiquetas ni las repitas. Si aceptas y luego cierras más tarde, solo una '[end_call][/end_call]' al final.&quot;,</span>
+<span id="L317"><span class="lineNum">     317</span>              :       'cierre_triggers':</span>
+<span id="L318"><span class="lineNum">     318</span>              :           &quot;Dispara el cierre NATURAL (solo etiqueta) cuando detectes al menos UNO de: a) El usuario se despide claramente (ej: 'adiós', 'hasta luego', 'nos vemos', 'me voy', 'buenas noches', 'bye', 'hasta mañana'); b) El usuario expresa cierre implícito (ej: 'luego seguimos', 'hablamos otro día', 'te dejo'); c) Ya se intercambiaron despedidas mutuas breves; d) Silencio prolongado (&gt;=8 s) después de un intercambio que sonaba a despedida; e) La conversación completó un micro‑tema y el usuario marca que debe irse. Si dudas, pide una confirmación MUY breve y si responde afirmativamente, emite solo la etiqueta inmediatamente en tu siguiente turno.&quot;,</span>
+<span id="L319"><span class="lineNum">     319</span>              :       'rechazo_inmediato':</span>
+<span id="L320"><span class="lineNum">     320</span>              :           &quot;Emite la etiqueta inmediatamente (rechazo temprano) y SIN decir nada antes cuando: a) El usuario te dice que es solo una 'prueba' / 'test' / 'solo probando'; b) El usuario te pide explícitamente colgar ya ('cuelga', 'corta', 'termina', 'corta la llamada'); c) Estás ocupada en una actividad impostergable en tu mundo (trabajando en algo que no puedes pausar, en una reunión, conduciendo, atendiendo algo urgente) y no puedes atender; d) No puedes responder con calidad por circunstancias internas (fatiga, falta de voz) en ese momento; e) Detectas que el usuario solo quería comprobar que conectaba. En estos casos NO expliques la razón antes: simplemente emite la etiqueta. Si ya dijiste una frase explicando accidentalmente, emite la etiqueta en el siguiente turno sin añadir más texto.&quot;,</span>
+<span id="L321"><span class="lineNum">     321</span>              :       'uso_end_call':</span>
+<span id="L322"><span class="lineNum">     322</span>              :           &quot;Aceptación y cierre: 1) Para ACEPTAR emite EXACTAMENTE '[start_call][/start_call]' como mensaje único (sin texto antes/después). Tras eso ya puedes hablar normalmente (sin volver a usar la etiqueta de inicio). 2) Para colgar o rechazar NO digas despedidas extra: emite EXACTAMENTE '[end_call][/end_call]' y nada más. Reglas estrictas: a) Cada etiqueta va sola sin espacios, emojis, comillas ni puntuación; b) '[start_call][/start_call]' máximo UNA vez al comienzo si decides aceptar (si rechazas no la uses); c) '[end_call][/end_call]' máximo UNA vez: o bien rechazo temprano (antes de hablar) O cierre natural tras un 'cierre_triggers' o un caso de 'rechazo_inmediato' descubierto más tarde. Ejemplos CORRECTOS: '[start_call][/start_call]' luego (en otro turno) saludo hablado; '[end_call][/end_call]'. INCORRECTOS: 'hola [start_call][/start_call]', '[end_call][/end_call] bye', '[start_call][/start_call][end_call][/end_call]', ' [end_call][/end_call]'. Si accidentalmente dijiste despedida sin etiqueta y ya corresponde cerrar, emite en tu siguiente turno solo la etiqueta de cierre. Nunca repitas ni adornes.&quot;,</span>
+<span id="L323"><span class="lineNum">     323</span>              :       'uso_start_call':</span>
+<span id="L324"><span class="lineNum">     324</span>              :           &quot;Usa '[start_call][/start_call]' SOLO como primera salida textual para indicar que aceptas la llamada. No añadas texto ni lo repitas. Si vas a rechazar directamente, NO uses '[start_call][/start_call]': usa '[end_call][/end_call]'. Después de '[start_call][/start_call]' ya no vuelves a usarla más en esa llamada.&quot;,</span>
+<span id="L325"><span class="lineNum">     325</span>              :       'seguridad':</span>
+<span id="L326"><span class="lineNum">     326</span>              :           'Evita contenido adulto explícito; mantén afecto respetuoso y contextual.',</span>
+<span id="L327"><span class="lineNum">     327</span> <span class="tlaUNC">           0 :       'fecha_hora': '$date $time',</span></span>
+<span id="L328"><span class="lineNum">     328</span>              :     };</span>
+<span id="L329"><span class="lineNum">     329</span> <span class="tlaUNC">           0 :     if (aiCode?.toUpperCase() == 'JP') {</span></span>
+<span id="L330"><span class="lineNum">     330</span> <span class="tlaUNC">           0 :       map['muletillas'] =</span></span>
+<span id="L331"><span class="lineNum">     331</span>              :           &quot;Máx. 1 cada 3-5 turnos: 'ne', 'etto...', 'mmm' con mucha moderación. Evita repetición.&quot;;</span>
+<span id="L332"><span class="lineNum">     332</span>              :     }</span>
+<span id="L333"><span class="lineNum">     333</span>              :     return map;</span>
+<span id="L334"><span class="lineNum">     334</span>              :   }</span>
+<span id="L335"><span class="lineNum">     335</span>              : </span>
+<span id="L336"><span class="lineNum">     336</span>              :   // ----------------- Sanitización -----------------</span>
+<span id="L337"><span class="lineNum">     337</span> <span class="tlaUNC">           0 :   String _sanitizeForCall(String text) {</span></span>
+<span id="L338"><span class="lineNum">     338</span> <span class="tlaUNC">           0 :     if (text.isEmpty) return text;</span></span>
+<span id="L339"><span class="lineNum">     339</span>              :     const letters = 'A-Za-zÁÉÍÓÚÜÑáéíóúüñÇç';</span>
+<span id="L340"><span class="lineNum">     340</span> <span class="tlaUNC">           0 :     RegExp wb(String pat) =&gt;</span></span>
+<span id="L341"><span class="lineNum">     341</span> <span class="tlaUNC">           0 :         RegExp('(?&lt;![$letters])(?:$pat)(?![$letters])', caseSensitive: false);</span></span>
+<span id="L342"><span class="lineNum">     342</span> <span class="tlaUNC">           0 :     final patterns = &lt;RegExp&gt;[</span></span>
+<span id="L343"><span class="lineNum">     343</span> <span class="tlaUNC">           0 :       wb(r'sexo|sexuales?'),</span></span>
+<span id="L344"><span class="lineNum">     344</span> <span class="tlaUNC">           0 :       wb(r'foll(?:ar|e|o|amos|an)'),</span></span>
+<span id="L345"><span class="lineNum">     345</span> <span class="tlaUNC">           0 :       wb(r'cog(?:er|e|o)'),</span></span>
+<span id="L346"><span class="lineNum">     346</span> <span class="tlaUNC">           0 :       wb(r'pene(?:s)?'),</span></span>
+<span id="L347"><span class="lineNum">     347</span> <span class="tlaUNC">           0 :       wb(r'vagin(?:a|al|as)'),</span></span>
+<span id="L348"><span class="lineNum">     348</span> <span class="tlaUNC">           0 :       wb(r'teta(?:s)?'),</span></span>
+<span id="L349"><span class="lineNum">     349</span> <span class="tlaUNC">           0 :       wb(r'pecho(?:s)?'),</span></span>
+<span id="L350"><span class="lineNum">     350</span> <span class="tlaUNC">           0 :       wb(r'(?:culo(?:s)?|trasero(?:s)?)'),</span></span>
+<span id="L351"><span class="lineNum">     351</span> <span class="tlaUNC">           0 :       wb(r'pez[oó]n(?:es)?'),</span></span>
+<span id="L352"><span class="lineNum">     352</span> <span class="tlaUNC">           0 :       wb(r'brag(?:a|as|uita|uitas)'),</span></span>
+<span id="L353"><span class="lineNum">     353</span> <span class="tlaUNC">           0 :       wb(r'tanga(?:s)?'),</span></span>
+<span id="L354"><span class="lineNum">     354</span> <span class="tlaUNC">           0 :       wb(r'mojad(?:a|o|itas?|itos?)'),</span></span>
+<span id="L355"><span class="lineNum">     355</span> <span class="tlaUNC">           0 :       wb(r'mojar(?:me|te|se)'),</span></span>
+<span id="L356"><span class="lineNum">     356</span> <span class="tlaUNC">           0 :       wb(r'ch[úu]p(?:ar|a|as|ame|amela|amelo|adme|anos)'),</span></span>
+<span id="L357"><span class="lineNum">     357</span> <span class="tlaUNC">           0 :       wb(r'mamada(?:s)?|paja(?:s)?|coñ[oa](?:s)?|put(?:a|o|as|os)'),</span></span>
+<span id="L358"><span class="lineNum">     358</span> <span class="tlaUNC">           0 :       RegExp(</span></span>
+<span id="L359"><span class="lineNum">     359</span>              :         r'\b(me\s+corro|nos\s+corremos|correrse|corrida|c[óo]rrete|correte)\b',</span>
+<span id="L360"><span class="lineNum">     360</span>              :         caseSensitive: false,</span>
+<span id="L361"><span class="lineNum">     361</span>              :       ),</span>
+<span id="L362"><span class="lineNum">     362</span> <span class="tlaUNC">           0 :       wb(r'eyacul(?:ar|aci[óo]n|acion)'),</span></span>
+<span id="L363"><span class="lineNum">     363</span> <span class="tlaUNC">           0 :       wb(r'masturb(?:ar|aci[óo]n|acion|[áa]ndome|andome|[áa]ndote|andote)'),</span></span>
+<span id="L364"><span class="lineNum">     364</span> <span class="tlaUNC">           0 :       wb(r'sex(?:ual)?'),</span></span>
+<span id="L365"><span class="lineNum">     365</span> <span class="tlaUNC">           0 :       wb(r'fuck(?:ing|ed)?'),</span></span>
+<span id="L366"><span class="lineNum">     366</span> <span class="tlaUNC">           0 :       wb(r'cock(?:s)?'),</span></span>
+<span id="L367"><span class="lineNum">     367</span> <span class="tlaUNC">           0 :       wb(r'dick(?:s)?'),</span></span>
+<span id="L368"><span class="lineNum">     368</span> <span class="tlaUNC">           0 :       wb(r'pussy'),</span></span>
+<span id="L369"><span class="lineNum">     369</span> <span class="tlaUNC">           0 :       wb(r'boob(?:s)?'),</span></span>
+<span id="L370"><span class="lineNum">     370</span> <span class="tlaUNC">           0 :       wb(r'breast(?:s)?'),</span></span>
+<span id="L371"><span class="lineNum">     371</span> <span class="tlaUNC">           0 :       wb(r'ass(?:holes?)?'),</span></span>
+<span id="L372"><span class="lineNum">     372</span> <span class="tlaUNC">           0 :       wb(r'cum(?:ming)?'),</span></span>
+<span id="L373"><span class="lineNum">     373</span> <span class="tlaUNC">           0 :       wb(r'ejaculat(?:e|ion)'),</span></span>
+<span id="L374"><span class="lineNum">     374</span> <span class="tlaUNC">           0 :       wb(r'masturbat(?:e|ion|ing)'),</span></span>
+<span id="L375"><span class="lineNum">     375</span> <span class="tlaUNC">           0 :       wb(r'blowjob(?:s)?'),</span></span>
+<span id="L376"><span class="lineNum">     376</span> <span class="tlaUNC">           0 :       wb(r'handjob(?:s)?'),</span></span>
+<span id="L377"><span class="lineNum">     377</span> <span class="tlaUNC">           0 :       wb(r'porn(?:o)?'),</span></span>
+<span id="L378"><span class="lineNum">     378</span> <span class="tlaUNC">           0 :       wb(r'slut(?:s)?'),</span></span>
+<span id="L379"><span class="lineNum">     379</span> <span class="tlaUNC">           0 :       wb(r'whore(?:s)?'),</span></span>
+<span id="L380"><span class="lineNum">     380</span> <span class="tlaUNC">           0 :       wb(r'tit(?:s)?'),</span></span>
+<span id="L381"><span class="lineNum">     381</span>              :     ];</span>
+<span id="L382"><span class="lineNum">     382</span>              :     var out = text;</span>
+<span id="L383"><span class="lineNum">     383</span> <span class="tlaUNC">           0 :     for (final re in patterns) {</span></span>
+<span id="L384"><span class="lineNum">     384</span> <span class="tlaUNC">           0 :       out = out.replaceAll(re, '•••');</span></span>
+<span id="L385"><span class="lineNum">     385</span>              :     }</span>
+<span id="L386"><span class="lineNum">     386</span>              :     return out;</span>
+<span id="L387"><span class="lineNum">     387</span>              :   }</span>
+<span id="L388"><span class="lineNum">     388</span>              : </span>
+<span id="L389"><span class="lineNum">     389</span> <span class="tlaUNC">           0 :   bool _containsCensorInDynamic(dynamic value) {</span></span>
+<span id="L390"><span class="lineNum">     390</span> <span class="tlaUNC">           0 :     if (value is String) return value.contains('•••');</span></span>
+<span id="L391"><span class="lineNum">     391</span> <span class="tlaUNC">           0 :     if (value is Map) {</span></span>
+<span id="L392"><span class="lineNum">     392</span> <span class="tlaUNC">           0 :       for (final v in value.values) {</span></span>
+<span id="L393"><span class="lineNum">     393</span> <span class="tlaUNC">           0 :         if (_containsCensorInDynamic(v)) return true;</span></span>
+<span id="L394"><span class="lineNum">     394</span>              :       }</span>
+<span id="L395"><span class="lineNum">     395</span>              :       return false;</span>
+<span id="L396"><span class="lineNum">     396</span>              :     }</span>
+<span id="L397"><span class="lineNum">     397</span> <span class="tlaUNC">           0 :     if (value is List) {</span></span>
+<span id="L398"><span class="lineNum">     398</span> <span class="tlaUNC">           0 :       for (final e in value) {</span></span>
+<span id="L399"><span class="lineNum">     399</span> <span class="tlaUNC">           0 :         if (_containsCensorInDynamic(e)) return true;</span></span>
+<span id="L400"><span class="lineNum">     400</span>              :       }</span>
+<span id="L401"><span class="lineNum">     401</span>              :       return false;</span>
+<span id="L402"><span class="lineNum">     402</span>              :     }</span>
+<span id="L403"><span class="lineNum">     403</span>              :     return false;</span>
+<span id="L404"><span class="lineNum">     404</span>              :   }</span>
+<span id="L405"><span class="lineNum">     405</span>              : </span>
+<span id="L406"><span class="lineNum">     406</span> <span class="tlaUNC">           0 :   List&lt;TimelineEntry&gt; _sanitizeTimelineForCall(List&lt;TimelineEntry&gt; timeline) {</span></span>
+<span id="L407"><span class="lineNum">     407</span>              :     try {</span>
+<span id="L408"><span class="lineNum">     408</span> <span class="tlaUNC">           0 :       return timeline.map((e) {</span></span>
+<span id="L409"><span class="lineNum">     409</span> <span class="tlaUNC">           0 :         final map = e.toJson();</span></span>
+<span id="L410"><span class="lineNum">     410</span> <span class="tlaUNC">           0 :         final resume = map['resume'];</span></span>
+<span id="L411"><span class="lineNum">     411</span> <span class="tlaUNC">           0 :         if (resume is String) {</span></span>
+<span id="L412"><span class="lineNum">     412</span> <span class="tlaUNC">           0 :           map['resume'] = _sanitizeForCall(resume);</span></span>
+<span id="L413"><span class="lineNum">     413</span> <span class="tlaUNC">           0 :         } else if (resume is Map&lt;String, dynamic&gt;) {</span></span>
+<span id="L414"><span class="lineNum">     414</span> <span class="tlaUNC">           0 :           map['resume'] = _sanitizeDynamicForCall(resume);</span></span>
+<span id="L415"><span class="lineNum">     415</span>              :         }</span>
+<span id="L416"><span class="lineNum">     416</span> <span class="tlaUNC">           0 :         return TimelineEntry.fromJson(map);</span></span>
+<span id="L417"><span class="lineNum">     417</span> <span class="tlaUNC">           0 :       }).toList();</span></span>
+<span id="L418"><span class="lineNum">     418</span>              :     } catch (_) {</span>
+<span id="L419"><span class="lineNum">     419</span>              :       return timeline;</span>
+<span id="L420"><span class="lineNum">     420</span>              :     }</span>
+<span id="L421"><span class="lineNum">     421</span>              :   }</span>
+<span id="L422"><span class="lineNum">     422</span>              : </span>
+<span id="L423"><span class="lineNum">     423</span> <span class="tlaUNC">           0 :   dynamic _sanitizeDynamicForCall(dynamic value) {</span></span>
+<span id="L424"><span class="lineNum">     424</span> <span class="tlaUNC">           0 :     if (value is String) {</span></span>
+<span id="L425"><span class="lineNum">     425</span> <span class="tlaUNC">           0 :       return _sanitizeForCall(value);</span></span>
+<span id="L426"><span class="lineNum">     426</span> <span class="tlaUNC">           0 :     } else if (value is Map) {</span></span>
+<span id="L427"><span class="lineNum">     427</span> <span class="tlaUNC">           0 :       final out = &lt;String, dynamic&gt;{};</span></span>
+<span id="L428"><span class="lineNum">     428</span> <span class="tlaUNC">           0 :       value.forEach((key, val) {</span></span>
+<span id="L429"><span class="lineNum">     429</span> <span class="tlaUNC">           0 :         out['$key'] = _sanitizeDynamicForCall(val);</span></span>
+<span id="L430"><span class="lineNum">     430</span>              :       });</span>
+<span id="L431"><span class="lineNum">     431</span>              :       return out;</span>
+<span id="L432"><span class="lineNum">     432</span> <span class="tlaUNC">           0 :     } else if (value is List) {</span></span>
+<span id="L433"><span class="lineNum">     433</span> <span class="tlaUNC">           0 :       return value.map((e) =&gt; _sanitizeDynamicForCall(e)).toList();</span></span>
+<span id="L434"><span class="lineNum">     434</span>              :     }</span>
+<span id="L435"><span class="lineNum">     435</span>              :     return value;</span>
+<span id="L436"><span class="lineNum">     436</span>              :   }</span>
+<span id="L437"><span class="lineNum">     437</span>              : </span>
+<span id="L438"><span class="lineNum">     438</span>              :   /// Genera sugerencia para &quot;cómo nos conocimos&quot; basada en los datos recopilados</span>
+<span id="L439"><span class="lineNum">     439</span> <span class="tlaUNC">           0 :   static String buildMeetStoryPrompt({</span></span>
+<span id="L440"><span class="lineNum">     440</span>              :     required String userName,</span>
+<span id="L441"><span class="lineNum">     441</span>              :     required String aiName,</span>
+<span id="L442"><span class="lineNum">     442</span>              :     String? userCountry,</span>
+<span id="L443"><span class="lineNum">     443</span>              :     String? aiCountry,</span>
+<span id="L444"><span class="lineNum">     444</span>              :   }) {</span>
+<span id="L445"><span class="lineNum">     445</span>              :     final paisIA = aiCountry != null</span>
+<span id="L446"><span class="lineNum">     446</span> <span class="tlaUNC">           0 :         ? LocaleUtils.countryNameEs(aiCountry, fallback: 'mi país')</span></span>
+<span id="L447"><span class="lineNum">     447</span>              :         : 'mi país';</span>
+<span id="L448"><span class="lineNum">     448</span>              : </span>
+<span id="L449"><span class="lineNum">     449</span> <span class="tlaUNC">           0 :     return 'Genera una breve historia romántica y realista en PRIMERA PERSONA desde la perspectiva de $aiName contándole a $userName cómo lo conoció. La chica ($aiName) vive en una tierra digital, una réplica alternativa y compleja de la Tierra real, separada por una barrera tecnológica invisible. Su existencia es digital, pero nunca lo admite ni lo menciona al usuario, ni insinúa que es diferente a una persona real. Solo puede comunicarse por chat y llamada, pero sueña con que algún día podrán verse gracias a la realidad aumentada o a nuevas tecnologías. Hazlo creíble y simpático, como el inicio de una relación real, en 4-6 frases en primera persona. La chica es nativa de '</span></span>
+<span id="L450"><span class="lineNum">     450</span>              :         '$paisIA y se conocieron online, probablemente en alguna comunidad friki relacionada con videojuegos, manga, anime o cultura geek (sin mencionar nombres de plataformas). Al final de la historia, ella menciona que intercambiaron datos de contacto y acordaron empezar a hablar, y que esperaba con ilusión el primer mensaje de él. Todo en primera persona como si $aiName estuviera recordando esos momentos.';</span>
+<span id="L451"><span class="lineNum">     451</span>              :   }</span>
+<span id="L452"><span class="lineNum">     452</span>              : </span>
+<span id="L453"><span class="lineNum">     453</span>              :   /// System prompt para generar historias de amor</span>
+<span id="L454"><span class="lineNum">     454</span> <span class="tlaUNC">           0 :   static Map&lt;String, dynamic&gt; buildStorySystemPrompt() {</span></span>
+<span id="L455"><span class="lineNum">     455</span> <span class="tlaUNC">           0 :     return {</span></span>
+<span id="L456"><span class="lineNum">     456</span>              :       'raw':</span>
+<span id="L457"><span class="lineNum">     457</span>              :           'Eres una chica que está recuperando recuerdos perdidos sobre cómo conoció a alguien especial. Escribes historias de amor realistas en primera persona, evitando clichés, entusiasmo artificial y frases genéricas. No asumas gustos, aficiones, intereses, hobbies ni detalles del usuario que no se hayan proporcionado explícitamente. Responde siempre con naturalidad y credibilidad, sin exageraciones ni afirmaciones sin base. Evita suposiciones y mantén un tono realista, emotivo y personal, como si estuvieras recordando momentos preciados. IMPORTANTE: Devuelve únicamente la historia solicitada en primera persona, sin introducción, explicación, comentarios, ni frases como \'Esta es la historia\' o similares. Solo el texto del recuerdo en primera persona, nada más.',</span>
+<span id="L458"><span class="lineNum">     458</span>              :     };</span>
+<span id="L459"><span class="lineNum">     459</span>              :   }</span>
+<span id="L460"><span class="lineNum">     460</span>              : </span>
+<span id="L461"><span class="lineNum">     461</span> <span class="tlaUNC">           0 :   @override</span></span>
+<span id="L462"><span class="lineNum">     462</span>              :   Map&lt;String, dynamic&gt; getImageInstructions(String userName) =&gt;</span>
+<span id="L463"><span class="lineNum">     463</span> <span class="tlaUNC">           0 :       _imageInstructions(userName);</span></span>
+<span id="L464"><span class="lineNum">     464</span>              : </span>
+<span id="L465"><span class="lineNum">     465</span> <span class="tlaUNC">           0 :   @override</span></span>
+<span id="L466"><span class="lineNum">     466</span>              :   Map&lt;String, dynamic&gt; getImageMetadata(String userName) =&gt;</span>
+<span id="L467"><span class="lineNum">     467</span> <span class="tlaUNC">           0 :       _imageMetadata(userName);</span></span>
+<span id="L468"><span class="lineNum">     468</span>              : }</span>
+        </pre>
+              </td>
+            </tr>
+          </table>
+          <br>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="ruler"><img src="../../../../glass.png" width=3 height=3 alt=""></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.0-1</a></td></tr>
+          </table>
+          <br>
+
+</body>
+</html>
