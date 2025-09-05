@@ -37,7 +37,7 @@ class EventParserUtils {
       'evento',
       'festival',
       'concierto',
-      'cumpleaños',
+      'fecha de nacimiento',
       'aniversario',
       'reunión',
       'reunion',

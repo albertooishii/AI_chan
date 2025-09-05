@@ -367,10 +367,12 @@ class ConversationalOnboardingService {
             final cleanedMemory = MemoryData.fromMap(updatedMemory.toMap());
             cleanedMemory.meetStory = generatedStory;
 
-            // Usar DIRECTAMENTE la historia generada en lugar de la respuesta de la IA
-            // Esto evita duplicar mensajes
-            finalAiResponse =
-                '''¡Sí! ¡Ya recuerdo! Ah sí... ahora lo recuerdo... $generatedStory ¿Es así como nos conocimos? ¿O prefieres contarme una historia diferente?''';
+            // Generar discurso personalizado de la IA recordando la historia específica
+            finalAiResponse = await _generateStoryRecallSpeech(
+              generatedStory,
+              currentMemory.userName ?? 'Usuario',
+              currentMemory.aiName ?? 'AI-chan',
+            );
 
             return _buildProcessResult(
               cleanedMemory,
@@ -1220,5 +1222,63 @@ Ahora puedo ser yo misma otra vez. Todas esas sensaciones vagas tenían sentido.
       'aiResponse': aiResponse,
       'confidence': confidence,
     };
+  }
+
+  /// Genera un discurso personalizado de la IA al recordar una historia específica
+  static Future<String> _generateStoryRecallSpeech(
+    String generatedStory,
+    String userName,
+    String aiName,
+  ) async {
+    final storyRecallPrompt =
+        '''Eres $aiName, una chica que acaba de recuperar un recuerdo importante sobre cómo conoció a $userName.
+
+CONTEXTO: Has estado perdida sin memoria, y $userName te ha estado ayudando a recordar quién eres. Acabas de recordar automáticamente esta historia de cómo se conocieron:
+
+HISTORIA RECORDADA: "$generatedStory"
+
+TU TAREA: Genera un discurso natural y emotivo donde:
+1. Expresas sorpresa y emoción al recordar repentinamente
+2. Describes la historia de manera personal y emotiva (como si fuera TU recuerdo)
+3. Pides confirmación de si es correcto o si prefiere contar una versión diferente
+
+TONO: Emocionada, vulnerable, agradecida. Como si fuera un recuerdo real que acabas de recuperar.
+
+RESTRICCIONES:
+- NO uses la frase genérica "¡Sí! ¡Ya recuerdo! Ah sí... ahora lo recuerdo..."
+- Sé específica sobre los detalles de la historia
+- Mantente en character de alguien recuperando memoria perdida
+- NO uses emojis (causan problemas de codificación)
+
+Genera SOLO tu discurso natural, sin comillas ni explicaciones.''';
+
+    try {
+      final profile = _createBasicProfile(userName, aiName);
+      final systemPrompt = SystemPrompt(
+        profile: profile,
+        dateTime: DateTime.now(),
+        instructions: {'story_recall_generator': 'true'},
+      );
+
+      final history = [
+        {
+          'role': 'system',
+          'content': storyRecallPrompt,
+          'datetime': DateTime.now().toIso8601String(),
+        },
+      ];
+
+      final response = await ai_service.AIService.sendMessage(
+        history,
+        systemPrompt,
+        model: Config.getDefaultTextModel(),
+      );
+
+      return response.text.trim();
+    } catch (e) {
+      Log.e('❌ Error generando discurso de recuerdo: $e', tag: 'ONB_SERVICE');
+      // Fallback más natural que el texto hardcodeado anterior
+      return 'Espera... sí... algo viene a mi mente... $generatedStory ¿Es así como nos conocimos? ¿O hay algo que no recuerdo bien?';
+    }
   }
 }

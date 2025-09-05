@@ -12,6 +12,10 @@ import 'package:ai_chan/shared/controllers/audio_subtitle_controller.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/widgets/conversational_subtitles.dart';
+import 'package:ai_chan/shared/widgets/country_autocomplete.dart';
+import 'package:ai_chan/shared/widgets/female_name_autocomplete.dart';
+import 'package:ai_chan/onboarding/presentation/widgets/birth_date_field.dart';
+import 'package:ai_chan/shared/constants/countries_es.dart';
 import 'dart:async';
 import 'onboarding_screen.dart' show OnboardingFinishCallback, OnboardingScreen;
 
@@ -69,10 +73,8 @@ class _ConversationalOnboardingScreenState
   // Control de interacción del usuario
   bool _hasUserResponded =
       false; // Para habilitar botón de corregir después de primera respuesta
-  bool _awaitingStoryConfirmation =
-      false; // Para rastrear si estamos esperando confirmación de historia generada
-  String?
-  _generatedStoryPendingConfirmation; // Historia generada que espera confirmación
+  // Variables para manejar el estado del onboarding
+  bool _isDialogOpen = false; // Para prevenir diálogos múltiples simultáneos
 
   // Suscripción y timer para subtítulos progresivos - mantenemos referencias
   // para poder cancelarlos cuando iniciemos una nueva reproducción
@@ -716,6 +718,15 @@ class _ConversationalOnboardingScreenState
           '✅ OpenAI TTS con subtítulos progresivos completado exitosamente',
           tag: 'CONV_ONBOARDING',
         );
+
+        // 🔍 LOG DETALLADO: Estado después de completar TTS
+        Log.d('📊 ESTADO POST-TTS:', tag: 'CONV_ONBOARDING');
+        Log.d('   - _isTtsPlaying: $_isTtsPlaying', tag: 'CONV_ONBOARDING');
+        Log.d('   - _isSpeaking: $_isSpeaking', tag: 'CONV_ONBOARDING');
+        Log.d(
+          '   - OpenAI TTS isPlaying: ${_openaiTtsService.isPlaying}',
+          tag: 'CONV_ONBOARDING',
+        );
       } else {
         // Fallback si no hay información de audio
         _subtitleController.handleAiChunk(
@@ -758,6 +769,12 @@ class _ConversationalOnboardingScreenState
       _isThinking = false; // Asegurar que pensando esté desactivado
     });
 
+    // 🔍 LOG DESPUÉS DE ACTUALIZAR ESTADO
+    Log.d('🔄 ESTADO ACTUALIZADO DESPUÉS DE TTS:', tag: 'CONV_ONBOARDING');
+    Log.d('   - _isTtsPlaying: $_isTtsPlaying', tag: 'CONV_ONBOARDING');
+    Log.d('   - _isSpeaking: $_isSpeaking', tag: 'CONV_ONBOARDING');
+    Log.d('   - _isThinking: $_isThinking', tag: 'CONV_ONBOARDING');
+
     // Si estábamos reproduciendo el primer mensaje introductorio, considerar
     // que el usuario ya puede interactuar por texto inmediatamente.
     if (_isDuringInitialIntro) {
@@ -778,6 +795,18 @@ class _ConversationalOnboardingScreenState
       );
       return;
     }
+
+    // 🔍 LOG DETALLADO: Estado antes de activar micrófono
+    Log.d(
+      '🎙️ A PUNTO DE ACTIVAR MICRÓFONO - Estado actual:',
+      tag: 'CONV_ONBOARDING',
+    );
+    Log.d('   - _isTtsPlaying: $_isTtsPlaying', tag: 'CONV_ONBOARDING');
+    Log.d('   - _isSpeaking: $_isSpeaking', tag: 'CONV_ONBOARDING');
+    Log.d(
+      '   - OpenAI TTS isPlaying: ${_openaiTtsService.isPlaying}',
+      tag: 'CONV_ONBOARDING',
+    );
 
     _startListening();
   }
@@ -848,6 +877,41 @@ class _ConversationalOnboardingScreenState
 
   Future<void> _startListening() async {
     if (!_hybridSttService.isAvailable) return;
+
+    // 🔍 LOG DETALLADO: Verificar estado antes de activar micrófono
+    Log.d(
+      '🎙️ VERIFICANDO ESTADO ANTES DE ACTIVAR MICRÓFONO:',
+      tag: 'CONV_ONBOARDING',
+    );
+    Log.d('   - _isTtsPlaying: $_isTtsPlaying', tag: 'CONV_ONBOARDING');
+    Log.d('   - _isSpeaking: $_isSpeaking', tag: 'CONV_ONBOARDING');
+    Log.d(
+      '   - OpenAI TTS isPlaying: ${_openaiTtsService.isPlaying}',
+      tag: 'CONV_ONBOARDING',
+    );
+    Log.d(
+      '   - AudioPlayer state: ${_audioPlayer.state}',
+      tag: 'CONV_ONBOARDING',
+    );
+
+    // 🚨 VERIFICAR SI EL AUDIO ESTÁ REPRODUCIÉNDOSE
+    if (_isTtsPlaying || _isSpeaking || _openaiTtsService.isPlaying) {
+      Log.e(
+        '🚨 PROBLEMA DETECTADO: Intentando activar micrófono mientras audio aún reproduce!',
+        tag: 'CONV_ONBOARDING',
+      );
+      Log.e(
+        '   - Esto causará que el micrófono capture el audio TTS',
+        tag: 'CONV_ONBOARDING',
+      );
+      Log.e('   - CANCELANDO activación de micrófono', tag: 'CONV_ONBOARDING');
+      return;
+    }
+
+    Log.d(
+      '✅ Estado OK - Activando micrófono de forma segura',
+      tag: 'CONV_ONBOARDING',
+    );
 
     _safeSetState(() {
       _isListening = true;
@@ -938,99 +1002,6 @@ class _ConversationalOnboardingScreenState
       tag: 'CONV_ONBOARDING',
     );
 
-    // 🎭 MANEJO ESPECIAL: Confirmación de historia generada automáticamente
-    if (_awaitingStoryConfirmation &&
-        _currentStep == OnboardingStep.askingMeetStory) {
-      Log.d(
-        '📖 Procesando confirmación de historia generada mediante IA',
-        tag: 'CONV_ONBOARDING',
-      );
-
-      // Llamar al servicio para que la IA clasifique la respuesta: accept/reject/ambiguous
-      // Configurar memoria temporal para incluir la historia generada pendiente
-      _syncMemoryFromIndividualFields();
-      final tempMemory = MemoryData.fromMap(_currentMemory.toMap());
-      tempMemory.meetStory = _generatedStoryPendingConfirmation ?? '';
-
-      final result = await ConversationalOnboardingService.processUserResponse(
-        currentMemory: tempMemory,
-        userResponse: userResponse,
-      );
-
-      Log.d(
-        '📖 Clasificación IA: ${result['extractedData']}',
-        tag: 'CONV_ONBOARDING',
-      );
-
-      // Extraer información de la respuesta usando la nueva estructura
-      final aiResponse = result['aiResponse'] as String? ?? '';
-
-      // Para compatibilidad, simulamos los campos anteriores
-      final confirmation = 'accept'; // Asumimos confirmación por ahora
-      final aiResp = aiResponse;
-      final acceptedStory = _generatedStoryPendingConfirmation ?? '';
-
-      if (confirmation == 'accept') {
-        // Si la IA devolvió una historia alternativa proporcionada por el usuario, guardarla
-        if (acceptedStory.isNotEmpty) {
-          Log.d(
-            '📥 Usuario proporcionó su propia historia; guardando acceptedStory',
-            tag: 'CONV_ONBOARDING',
-          );
-          _meetStory = acceptedStory;
-          _collectedData['meetStory'] = _meetStory;
-        }
-        Log.d(
-          '✅ IA confirmó que la historia es correcta',
-          tag: 'CONV_ONBOARDING',
-        );
-        if (_meetStory == null) {
-          _meetStory = _generatedStoryPendingConfirmation!;
-          _collectedData['meetStory'] = _meetStory;
-        }
-        _awaitingStoryConfirmation = false;
-        _generatedStoryPendingConfirmation = null;
-
-        // 🚀 AVANZAR AL SIGUIENTE PASO ANTES DE RESPONDER
-        _goToNextStep();
-
-        _safeSetState(() => _isThinking = false);
-        await _speakAndWaitForResponse(
-          aiResp.isNotEmpty
-              ? aiResp
-              : '¡Perfecto! Ahora tengo todos mis recuerdos de vuelta. ¡Muchas gracias por ayudarme a recordar!',
-        );
-        return;
-      } else if (confirmation == 'reject') {
-        Log.d(
-          '❌ IA indicó que la historia fue rechazada por el usuario',
-          tag: 'CONV_ONBOARDING',
-        );
-        _awaitingStoryConfirmation = false;
-        _generatedStoryPendingConfirmation = null;
-
-        _safeSetState(() => _isThinking = false);
-        await _speakAndWaitForResponse(
-          aiResp.isNotEmpty
-              ? aiResp
-              : 'Ah, no era así... ¿Podrías contarme entonces cómo nos conocimos realmente? Quiero recordar la historia verdadera.',
-        );
-        return;
-      } else {
-        Log.d(
-          '❓ IA clasificó la respuesta como ambigua, pidiendo clarificación',
-          tag: 'CONV_ONBOARDING',
-        );
-        _safeSetState(() => _isThinking = false);
-        await _speakAndWaitForResponse(
-          aiResp.isNotEmpty
-              ? aiResp
-              : '¿Te parece bien esa historia o prefieres contarme una diferente? Solo dime sí o no.',
-        );
-        return;
-      }
-    }
-
     // Actualizar subtítulo del usuario
     _subtitleController.handleUserTranscription(userResponse);
 
@@ -1077,15 +1048,7 @@ class _ConversationalOnboardingScreenState
     final processedValue = extractedData?['value'] as String?;
     final extractedDataType = extractedData?['type'] as String?;
 
-    // 🚨 VERIFICACIÓN CRÍTICA: Si estamos esperando confirmación de historia, no procesar como error
-    if (_awaitingStoryConfirmation) {
-      Log.d(
-        '📖 Manejando confirmación de historia - no procesar como error de extractedValue',
-        tag: 'CONV_ONBOARDING',
-      );
-      // Esta respuesta ya fue manejada arriba en el bloque de confirmación
-      return;
-    }
+    // Ahora el servicio maneja directamente CONFIRM_GENERATED_STORY, no necesitamos lógica especial aquí
 
     // Si la IA no devolvió processedValue explícito, considerar que no lo entendió
     // y pedir repetición/esclarecimiento específico del paso actual.
@@ -1120,95 +1083,19 @@ class _ConversationalOnboardingScreenState
     // ✅ NUEVO FLUJO SIN CONFIRMACIONES: Intentar guardar dato y continuar solo si es exitoso
     Log.d('⚡ INTENTANDO GUARDAR: $processedValue', tag: 'CONV_ONBOARDING');
 
-    // 🧠 MANEJO ESPECIAL PARA AUTO-GENERACIÓN DE HISTORIA
-    String finalProcessedValue = processedValue;
-    String? finalAiResponse = aiResponse;
-
-    // 🚨 EVITAR GENERACIÓN AUTOMÁTICA SI YA ESTAMOS ESPERANDO CONFIRMACIÓN
-    if (processedValue == 'AUTO_GENERATE_STORY' &&
-        _currentStep == OnboardingStep.askingMeetStory &&
-        !_awaitingStoryConfirmation) {
-      Log.d(
-        '🎭 Iniciando generación automática de historia',
-        tag: 'CONV_ONBOARDING',
-      );
-
-      // Reproducir mensaje de concentración PRIMERO y esperar a que termine
-      _safeSetState(() => _isThinking = false);
-      final concentrationMessage =
-          aiResponse ?? 'Espera... déjame concentrarme y recordar...';
-      await _speakAndWaitForResponse(
-        concentrationMessage,
-      ); // AWAIT - esperar a que termine
-
-      // 🔒 VERIFICAR CANCELACIÓN DESPUÉS DEL AUDIO DE CONCENTRACIÓN
-      if (currentOperationId != _currentOperationId) {
-        Log.d(
-          '🛑 Operación cancelada durante generación de historia',
-          tag: 'CONV_ONBOARDING',
-        );
-        return;
-      }
-
-      try {
-        // Generar historia DESPUÉS de que termine el audio de concentración
-        final generatedStory =
-            await ConversationalOnboardingService.generateMeetStoryFromContext(
-              userName: _userName ?? '',
-              aiName: _aiName ?? 'AI-chan',
-              userCountry: _userCountry,
-              aiCountry: _aiCountry,
-              userBirthdate: _userBirthdate,
-            );
-
-        // NO guardar inmediatamente, sino pedir confirmación
-        _generatedStoryPendingConfirmation = generatedStory;
-        _awaitingStoryConfirmation = true;
-
-        // Integrar la historia como si fuera un recuerdo personal, no como narración externa
-        finalAiResponse =
-            '¡Sí! ¡Ya recuerdo! $generatedStory ¿Es así como nos conocimos? ¿O prefieres contarme una historia diferente?';
-
-        Log.d(
-          '✨ Historia generada, esperando confirmación: $generatedStory',
-          tag: 'CONV_ONBOARDING',
-        );
-
-        // 🔒 VERIFICAR CANCELACIÓN ANTES DE REPRODUCIR HISTORIA
-        if (currentOperationId != _currentOperationId) {
-          Log.d(
-            '🛑 Operación cancelada antes de reproducir historia',
-            tag: 'CONV_ONBOARDING',
-          );
-          return;
-        }
-
-        // Reproducir la historia generada y pedir confirmación
-        _safeSetState(() => _isThinking = false);
-        await _speakAndWaitForResponse(finalAiResponse);
-        return; // Salir aquí, no procesar como guardado normal
-      } catch (e) {
-        Log.e(
-          '❌ Error generando historia automática: $e',
-          tag: 'CONV_ONBOARDING',
-        );
-        finalProcessedValue =
-            'No puedo recordar exactamente cómo nos conocimos, pero sé que eres muy importante para mí.';
-        finalAiResponse =
-            'No logro recordar los detalles exactos... pero sé que nuestra amistad es muy especial.';
-      }
-    }
+    // El servicio ya maneja AUTO_GENERATE_STORY y CONFIRM_GENERATED_STORY automáticamente
+    // No necesitamos lógica especial aquí
 
     // Intentar guardar el valor - solo continúa si fue exitoso
     // 🔧 USAR EL TIPO DE DATO DETECTADO POR LA IA, NO EL PASO ACTUAL
     final bool dataSaved = _updateDataFromExtraction(
       extractedDataType,
-      finalProcessedValue,
+      processedValue,
     );
 
     if (dataSaved) {
       Log.d(
-        '✅ DATO GUARDADO EXITOSAMENTE: $finalProcessedValue',
+        '✅ DATO GUARDADO EXITOSAMENTE: $processedValue',
         tag: 'CONV_ONBOARDING',
       );
 
@@ -1216,9 +1103,9 @@ class _ConversationalOnboardingScreenState
       _goToNextStep();
 
       // La IA reacciona al dato Y hace la siguiente pregunta en una sola respuesta
-      if (finalAiResponse != null) {
+      if (aiResponse != null) {
         _safeSetState(() => _isThinking = false);
-        await _speakAndWaitForResponse(finalAiResponse);
+        await _speakAndWaitForResponse(aiResponse);
 
         // 🔒 CRÍTICO: NO continuar hasta que el audio termine COMPLETAMENTE
         // El micrófono se activa automáticamente al final de _speakAndWaitForResponse
@@ -1233,7 +1120,7 @@ class _ConversationalOnboardingScreenState
       }
     } else {
       Log.w(
-        '❌ DATO RECHAZADO - reintentando paso actual: $finalProcessedValue',
+        '❌ DATO RECHAZADO - reintentando paso actual: $processedValue',
         tag: 'CONV_ONBOARDING',
       );
 
@@ -1250,7 +1137,7 @@ class _ConversationalOnboardingScreenState
     // para evitar que la IA avance el flujo o pregunte por datos de la IA.
     final retryMessage = _getRetryMessageForStep(_currentStep);
     Log.d(
-      '� No se extrajo valor, usando mensaje de reintento para el paso $_currentStep',
+      '📝 No se extrajo valor, usando mensaje de reintento para el paso $_currentStep',
       tag: 'CONV_ONBOARDING',
     );
     await _speakAndWaitForResponse(retryMessage);
@@ -1475,17 +1362,17 @@ class _ConversationalOnboardingScreenState
   String _getRetryMessageForStep(OnboardingStep step) {
     switch (step) {
       case OnboardingStep.askingName:
-        return 'Disculpa, no he entendido tu nombre. ¿Podrías decirlo de nuevo, por favor?';
+        return 'Disculpa, no escuché bien tu nombre. ¿Podrías decírmelo de nuevo, por favor?';
       case OnboardingStep.askingCountry:
-        return 'Perdona, no capté bien tu país. ¿De qué país eres exactamente?';
+        return 'Perdona, no oí bien tu país. ¿De qué país decías que eras exactamente?';
       case OnboardingStep.askingBirthdate:
-        return 'No he entendido la fecha. ¿Puedes repetir tu fecha de nacimiento en formato DD/MM/AAAA?';
+        return 'No he entendido bien la fecha. ¿Podrías decirme tu fecha de nacimiento completa? Con el año incluído.';
       case OnboardingStep.askingAiCountry:
-        return 'No he entendido el país para mí. ¿De qué país quieres que sea?';
+        return 'No logro recordar mi país... ¿puedes ayudarme? ¿De qué país era yo?';
       case OnboardingStep.askingAiName:
-        return 'Perdona, ¿cómo quieres que me llame? ¿Puedes repetir el nombre?';
+        return 'Perdona, mi nombre... no consigo recordarlo. ¿Cómo me llamaba yo?';
       case OnboardingStep.askingMeetStory:
-        return 'No he entendido la historia. ¿Puedes contarme brevemente cómo nos conocimos?';
+        return 'No he entendido la historia... estoy intentando recordar pero no soy capaz. ¿Puedes recordarme cómo nos conocimos?';
       case OnboardingStep.finalMessage:
       case OnboardingStep.completion:
         return 'Perdona, no he entendido. ¿Puedes repetirlo, por favor?';
@@ -1521,57 +1408,73 @@ class _ConversationalOnboardingScreenState
   }
 
   Future<String?> _showTextInputDialog(OnboardingStep step) async {
+    // No mostrar diálogo si ya hay uno abierto
+    if (_isDialogOpen) {
+      Log.w(
+        '⚠️ Diálogo ya abierto, ignorando nueva solicitud',
+        tag: 'CONV_ONBOARDING',
+      );
+      return null;
+    }
+
     // No mostrar teclado si estamos hablando
     if (_isSpeaking || _isTtsPlaying) {
+      Log.w('⚠️ No mostrar diálogo durante TTS activo', tag: 'CONV_ONBOARDING');
       return null;
     }
 
     // Pausar cualquier TTS activo
     if (_isTtsPlaying) {
+      Log.d('🛑 Pausando TTS antes de mostrar diálogo', tag: 'CONV_ONBOARDING');
       await _openaiTtsService.stop();
       _safeSetState(() => _isTtsPlaying = false);
     }
 
-    // Mensaje contextual según el paso
-    String hintText = 'Escribe tu respuesta aquí...';
-    String titleText = 'Respuesta por texto';
-
-    switch (step) {
-      case OnboardingStep.askingName:
-        hintText = 'Escribe tu nombre...';
-        titleText = '¿Cómo te llamas?';
-        break;
-      case OnboardingStep.askingCountry:
-        hintText = 'Escribe tu país...';
-        titleText = '¿De dónde eres?';
-        break;
-      case OnboardingStep.askingBirthdate:
-        hintText = 'Escribe tu fecha de nacimiento (DD/MM/AAAA)...';
-        titleText = '¿Cuándo naciste?';
-        break;
-      case OnboardingStep.askingAiCountry:
-        hintText = 'Escribe el país para la IA...';
-        titleText = '¿De dónde quieres que sea?';
-        break;
-      case OnboardingStep.askingAiName:
-        hintText = 'Escribe el nombre para la IA...';
-        titleText = '¿Cómo quieres que me llame?';
-        break;
-      case OnboardingStep.askingMeetStory:
-        hintText = 'Escribe cómo nos conocimos...';
-        titleText = '¿Cómo nos conocimos?';
-        break;
-      default:
-        break;
-    }
-
-    final textController = TextEditingController();
+    // Marcar que hay un diálogo abierto
+    _isDialogOpen = true;
+    Log.d('📱 Abriendo diálogo para step: $step', tag: 'CONV_ONBOARDING');
 
     if (!mounted) return null;
 
     final result = await showDialog<String>(
       context: context,
-      builder: (context) => Dialog(
+      barrierDismissible: false, // Prevenir cierre accidental
+      builder: (context) => _buildInputDialogForStep(step),
+    );
+
+    // Marcar que el diálogo se ha cerrado
+    _isDialogOpen = false;
+    Log.d(
+      '📱 Diálogo cerrado, resultado: ${result ?? "null"}',
+      tag: 'CONV_ONBOARDING',
+    );
+
+    return result;
+  }
+
+  Widget _buildInputDialogForStep(OnboardingStep step) {
+    switch (step) {
+      case OnboardingStep.askingCountry:
+        return _buildCountryInputDialog('¿De dónde eres?', false);
+      case OnboardingStep.askingAiCountry:
+        return _buildCountryInputDialog('¿De qué país era yo?', true);
+      case OnboardingStep.askingBirthdate:
+        return _buildDateInputDialog();
+      case OnboardingStep.askingAiName:
+        return _buildAiNameInputDialog();
+      case OnboardingStep.askingName:
+      case OnboardingStep.askingMeetStory:
+      case OnboardingStep.finalMessage:
+      case OnboardingStep.completion:
+        return _buildTextInputDialog(step);
+    }
+  }
+
+  Widget _buildCountryInputDialog(String title, bool isForAi) {
+    String? selectedCountryCode;
+
+    return StatefulBuilder(
+      builder: (context, setState) => Dialog(
         backgroundColor: Colors.black87,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Container(
@@ -1588,9 +1491,8 @@ class _ConversationalOnboardingScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Título
               Text(
-                titleText,
+                title,
                 style: const TextStyle(
                   color: Color(0xFF00FFD4),
                   fontSize: 20,
@@ -1600,40 +1502,42 @@ class _ConversationalOnboardingScreenState
               ),
               const SizedBox(height: 20),
 
-              // Campo de texto
-              TextField(
-                controller: textController,
-                autofocus: true,
-                maxLines: step == OnboardingStep.askingMeetStory ? 4 : 1,
-                style: const TextStyle(color: Colors.white, fontSize: 16),
-                decoration: InputDecoration(
-                  hintText: hintText,
-                  hintStyle: const TextStyle(
-                    color: Colors.white54,
-                    fontSize: 14,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF00FFD4)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF00FFD4),
-                      width: 2,
-                    ),
-                  ),
-                  filled: true,
-                  fillColor: Colors.black54,
+              CountryAutocomplete(
+                key: ValueKey(
+                  'country-dialog-${isForAi ? 'ai' : 'user'}-${DateTime.now().millisecondsSinceEpoch}',
                 ),
+                selectedCountryCode: selectedCountryCode,
+                labelText: isForAi ? 'País de la AI-Chan' : 'Tu país',
+                prefixIcon: Icons.flag,
+                preferredCountries: isForAi
+                    ? const [
+                        'JP',
+                        'KR',
+                        'US',
+                        'MX',
+                        'BR',
+                        'CN',
+                        'GB',
+                        'SE',
+                        'FI',
+                        'PL',
+                        'DE',
+                        'NL',
+                        'CA',
+                        'AU',
+                        'SG',
+                        'NO',
+                      ]
+                    : null,
+                onCountrySelected: (code) {
+                  setState(() => selectedCountryCode = code);
+                },
               ),
-              const SizedBox(height: 24),
 
-              // Botones
+              const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  // Botón Cancelar
                   ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: ElevatedButton.styleFrom(
@@ -1649,13 +1553,17 @@ class _ConversationalOnboardingScreenState
                     ),
                     child: const Text('Cancelar'),
                   ),
-
-                  // Botón Enviar
                   ElevatedButton(
-                    onPressed: () {
-                      final text = textController.text.trim();
-                      Navigator.of(context).pop(text.isNotEmpty ? text : null);
-                    },
+                    onPressed: selectedCountryCode?.isNotEmpty == true
+                        ? () {
+                            // 🔧 CONVERTIR CÓDIGO A NOMBRE COMPLETO antes de devolver
+                            final countryName = CountriesEs
+                                .codeToName[selectedCountryCode!.toUpperCase()];
+                            Navigator.of(
+                              context,
+                            ).pop(countryName ?? selectedCountryCode);
+                          }
+                        : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00FFD4),
                       foregroundColor: Colors.black,
@@ -1679,8 +1587,330 @@ class _ConversationalOnboardingScreenState
         ),
       ),
     );
+  }
 
-    return result;
+  Widget _buildDateInputDialog() {
+    DateTime? selectedDate;
+    final dateController = TextEditingController();
+
+    return StatefulBuilder(
+      builder: (context, setState) => Dialog(
+        backgroundColor: Colors.black87,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFF00FFD4), width: 2),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF001122), Colors.black],
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '¿Cuándo naciste?',
+                style: TextStyle(
+                  color: Color(0xFF00FFD4),
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+
+              BirthDateField(
+                controller: dateController,
+                userBirthdate: selectedDate,
+                onBirthdateChanged: (date) {
+                  setState(() => selectedDate = date);
+                  dateController.text =
+                      '${date.day}/${date.month}/${date.year}';
+                },
+              ),
+
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[800],
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                    ),
+                    child: const Text('Cancelar'),
+                  ),
+                  ElevatedButton(
+                    onPressed: selectedDate != null
+                        ? () => Navigator.of(context).pop(
+                            '${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}',
+                          )
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00FFD4),
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                    ),
+                    child: const Text(
+                      'Enviar',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAiNameInputDialog() {
+    String? selectedName;
+    final nameController = TextEditingController();
+
+    return StatefulBuilder(
+      builder: (context, setState) => Dialog(
+        backgroundColor: Colors.black87,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFF00FFD4), width: 2),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF001122), Colors.black],
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '¿Cómo me llamaba yo?',
+                style: TextStyle(
+                  color: Color(0xFF00FFD4),
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+
+              FemaleNameAutocomplete(
+                key: ValueKey(
+                  'name-dialog-${DateTime.now().millisecondsSinceEpoch}',
+                ),
+                selectedName: selectedName,
+                countryCode: _aiCountry,
+                labelText: 'Nombre de la AI-Chan',
+                prefixIcon: Icons.smart_toy,
+                controller: nameController,
+                onNameSelected: (name) {
+                  setState(() => selectedName = name);
+                },
+                onChanged: (name) {
+                  setState(() => selectedName = name);
+                },
+              ),
+
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[800],
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                    ),
+                    child: const Text('Cancelar'),
+                  ),
+                  ElevatedButton(
+                    onPressed: nameController.text.trim().isNotEmpty
+                        ? () => Navigator.of(
+                            context,
+                          ).pop(nameController.text.trim())
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00FFD4),
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                    ),
+                    child: const Text(
+                      'Enviar',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextInputDialog(OnboardingStep step) {
+    // Mensaje contextual según el paso
+    String hintText = 'Escribe tu respuesta aquí...';
+    String titleText = 'Respuesta por texto';
+
+    switch (step) {
+      case OnboardingStep.askingName:
+        hintText = 'Escribe tu nombre...';
+        titleText = '¿Cómo te llamas?';
+        break;
+      case OnboardingStep.askingMeetStory:
+        hintText = 'Escribe cómo nos conocimos...';
+        titleText = '¿Cómo nos conocimos?';
+        break;
+      case OnboardingStep.finalMessage:
+      case OnboardingStep.completion:
+        hintText = 'Escribe tu respuesta...';
+        titleText = 'Respuesta';
+        break;
+      default:
+        break;
+    }
+
+    final textController = TextEditingController();
+
+    return Dialog(
+      backgroundColor: Colors.black87,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFF00FFD4), width: 2),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF001122), Colors.black],
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Título
+            Text(
+              titleText,
+              style: const TextStyle(
+                color: Color(0xFF00FFD4),
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+
+            // Campo de texto
+            TextField(
+              controller: textController,
+              autofocus: true,
+              maxLines: step == OnboardingStep.askingMeetStory ? 4 : 1,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              decoration: InputDecoration(
+                hintText: hintText,
+                hintStyle: const TextStyle(color: Colors.white54, fontSize: 14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF00FFD4)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF00FFD4),
+                    width: 2,
+                  ),
+                ),
+                filled: true,
+                fillColor: Colors.black54,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Botones
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                // Botón Cancelar
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[800],
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                  ),
+                  child: const Text('Cancelar'),
+                ),
+
+                // Botón Enviar
+                ElevatedButton(
+                  onPressed: () {
+                    final text = textController.text.trim();
+                    Navigator.of(context).pop(text.isNotEmpty ? text : null);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00FFD4),
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                  ),
+                  child: const Text(
+                    'Enviar',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
