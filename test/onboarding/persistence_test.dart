@@ -33,8 +33,8 @@ void main() {
       final profile = AiChanProfile(
         userName: 'Usuario Test',
         aiName: 'AiChan',
-        userBirthday: DateTime(1990),
-        aiBirthday: DateTime(2024),
+        userBirthdate: DateTime(1990),
+        aiBirthdate: DateTime(2024),
         biography: {'short': 'Biografía de prueba'},
         appearance: {'hair': 'negro'},
         timeline: timeline,
@@ -143,8 +143,8 @@ void main() {
       final profile = AiChanProfile(
         userName: 'Usuario Reload',
         aiName: 'AiChan',
-        userBirthday: DateTime(1990),
-        aiBirthday: DateTime(2024),
+        userBirthdate: DateTime(1990),
+        aiBirthdate: DateTime(2024),
         biography: {'short': 'Biografía recarga'},
         appearance: {'hair': 'negro'},
         timeline: timeline,
@@ -199,8 +199,8 @@ void main() {
       final profile = AiChanProfile(
         userName: 'ImportTest',
         aiName: 'AiChan',
-        userBirthday: DateTime(1990),
-        aiBirthday: DateTime(2024),
+        userBirthdate: DateTime(1990),
+        aiBirthdate: DateTime(2024),
         biography: {'short': 'bio'},
         appearance: {'hair': 'negro'},
         timeline: timeline,

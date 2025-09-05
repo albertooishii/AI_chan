@@ -84,7 +84,7 @@ void main() {
     final profile = await adapter.generateBiography(
       userName: 'User',
       aiName: 'AiChan',
-      userBirthday: now,
+      userBirthdate: now,
       meetStory: 'A test meet',
     );
     expect(profile, isA<AiChanProfile>());

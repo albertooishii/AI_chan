@@ -25,8 +25,8 @@ void main() {
       final profile = AiChanProfile(
         userName: 'u',
         aiName: 'ai',
-        userBirthday: DateTime(2000),
-        aiBirthday: DateTime(2000),
+        userBirthdate: DateTime(2000),
+        aiBirthdate: DateTime(2000),
         biography: {},
         appearance: {},
         timeline: [],
@@ -70,8 +70,8 @@ void main() {
       final profile = AiChanProfile(
         userName: 'u',
         aiName: 'ai',
-        userBirthday: DateTime(2000),
-        aiBirthday: DateTime(2000),
+        userBirthdate: DateTime(2000),
+        aiBirthdate: DateTime(2000),
         biography: {},
         appearance: {},
         timeline: [],
@@ -116,8 +116,8 @@ void main() {
       final profile2 = AiChanProfile(
         userName: 'u',
         aiName: 'ai',
-        userBirthday: DateTime(2000),
-        aiBirthday: DateTime(2000),
+        userBirthdate: DateTime(2000),
+        aiBirthdate: DateTime(2000),
         biography: {},
         appearance: {},
         timeline: [],

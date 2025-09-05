@@ -130,7 +130,7 @@ class OnboardingScreenController extends ChangeNotifier {
     required BuildContext context,
     required String userName,
     required String aiName,
-    required DateTime userBirthday,
+    required DateTime? userBirthdate,
     required String meetStory,
     String? userCountryCode,
     String? aiCountryCode,
@@ -141,7 +141,7 @@ class OnboardingScreenController extends ChangeNotifier {
       await _biographyUseCase.generateCompleteBiography(
         userName: userName,
         aiName: aiName,
-        userBirthday: userBirthday,
+        userBirthdate: userBirthdate,
         meetStory: meetStory,
         userCountryCode: userCountryCode,
         aiCountryCode: aiCountryCode,

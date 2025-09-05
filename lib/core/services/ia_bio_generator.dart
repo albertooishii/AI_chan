@@ -155,7 +155,7 @@ String _biographyTemplateToString() =>
 Future<AiChanProfile> generateAIBiographyWithAI({
   required String userName,
   required String aiName,
-  required DateTime userBirthday,
+  required DateTime? userBirthdate,
   required String meetStory,
   String? userCountryCode,
   String? aiCountryCode,
@@ -164,7 +164,7 @@ Future<AiChanProfile> generateAIBiographyWithAI({
 }) async {
   // Generar fecha de nacimiento de la IA basada en la edad del usuario
   final aiBirthdayDate = DateUtils.generateAIBirthdate(
-    userBirthday,
+    userBirthdate,
     seed: seed,
   );
   final aiBirthday = DateUtils.dateToIsoString(aiBirthdayDate);
@@ -274,8 +274,8 @@ Identidad: $aiIdentityInstructions
       timeline: [],
       userName: userName,
       aiName: aiName,
-      userBirthday: userBirthday,
-      aiBirthday: aiBirthdayDate,
+      userBirthdate: userBirthdate,
+      aiBirthdate: aiBirthdayDate,
       appearance: <String, dynamic>{},
       userCountryCode: userCountryCode?.toUpperCase(),
       aiCountryCode: aiCountryCode?.toUpperCase(),
@@ -346,8 +346,8 @@ Identidad: $aiIdentityInstructions
     ],
     userName: userName,
     aiName: aiName,
-    userBirthday: userBirthday,
-    aiBirthday: aiBirthdayDate,
+    userBirthdate: userBirthdate,
+    aiBirthdate: aiBirthdayDate,
     appearance: <String, dynamic>{},
     userCountryCode: userCountryCode?.toUpperCase(),
     aiCountryCode: aiCountryCode?.toUpperCase(),

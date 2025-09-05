@@ -18,8 +18,8 @@ void main() {
         biography: <String, dynamic>{},
         userName: 'u',
         aiName: 'ai',
-        userBirthday: null,
-        aiBirthday: null,
+        userBirthdate: null,
+        aiBirthdate: null,
         appearance: <String, dynamic>{},
         timeline: [],
       );
@@ -51,8 +51,8 @@ void main() {
         biography: <String, dynamic>{},
         userName: 'u',
         aiName: 'ai',
-        userBirthday: null,
-        aiBirthday: null,
+        userBirthdate: null,
+        aiBirthdate: null,
         appearance: <String, dynamic>{},
         timeline: [],
       );

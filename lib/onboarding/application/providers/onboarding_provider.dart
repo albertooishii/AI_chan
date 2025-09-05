@@ -14,7 +14,7 @@ import 'package:ai_chan/shared/utils/log_utils.dart';
 
 class OnboardingProvider extends ChangeNotifier {
   bool loadingStory = false;
-  DateTime? userBirthday;
+  DateTime? userBirthdate;
   final IProfileService _profileService = di.getProfileServiceForProvider();
   final Future<String?> Function(String base64, {String prefix})?
   saveImageFunc = null;
@@ -107,7 +107,7 @@ class OnboardingProvider extends ChangeNotifier {
     required BuildContext context,
     required String userName,
     required String aiName,
-    required DateTime userBirthday,
+    required DateTime? userBirthdate,
     required String meetStory,
     String? userCountryCode,
     String? aiCountryCode,
@@ -120,7 +120,7 @@ class OnboardingProvider extends ChangeNotifier {
       final biography = await _profileService.generateBiography(
         userName: userName,
         aiName: aiName,
-        userBirthday: userBirthday,
+        userBirthdate: userBirthdate,
         meetStory: meetStory,
         userCountryCode: userCountryCode,
         aiCountryCode: aiCountryCode,
@@ -218,7 +218,7 @@ class OnboardingProvider extends ChangeNotifier {
   }
 
   void setUserBirthday(DateTime? value) {
-    userBirthday = value;
+    userBirthdate = value;
     if (value != null) {
       birthDateController.text = '${value.day}/${value.month}/${value.year}';
     } else {
@@ -252,7 +252,7 @@ class OnboardingProvider extends ChangeNotifier {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: userBirthday ?? DateTime(now.year - 25),
+      initialDate: userBirthdate ?? DateTime(now.year - 25),
       firstDate: DateTime(1950),
       lastDate: now,
       locale: const Locale('es'),
@@ -283,7 +283,7 @@ class OnboardingProvider extends ChangeNotifier {
           aiName: aiNameController?.text ?? '',
           userCountry: userCountryCode,
           aiCountry: aiCountryCode,
-          userBirthday: userBirthday,
+          userBirthdate: userBirthdate,
         );
 
         if (!context.mounted) return;

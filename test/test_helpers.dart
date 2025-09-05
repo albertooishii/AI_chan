@@ -9,8 +9,8 @@ ChatProvider createTestChatProvider({AiChanProfile? profile}) {
       AiChanProfile(
         userName: 'TestUser',
         aiName: 'Ai',
-        userBirthday: null,
-        aiBirthday: null,
+        userBirthdate: null,
+        aiBirthdate: null,
         biography: <String, dynamic>{},
         appearance: <String, dynamic>{},
         timeline: <TimelineEntry>[],

@@ -27,12 +27,22 @@ class BiographyGenerationUseCase {
   Future<AiChanProfile> generateCompleteBiography({
     required String userName,
     required String aiName,
-    required DateTime userBirthday,
+    required DateTime? userBirthdate,
     required String meetStory,
     String? userCountryCode,
     String? aiCountryCode,
     void Function(BiographyGenerationStep)? onProgress,
   }) async {
+    // Validate input parameters first
+    if (!_isValidInput(
+      userName: userName,
+      aiName: aiName,
+      userBirthdate: userBirthdate,
+      meetStory: meetStory,
+    )) {
+      throw ArgumentError('Invalid input parameters for biography generation');
+    }
+
     try {
       // Step 1: Generate basic biography
       onProgress?.call(BiographyGenerationStep.generatingBiography);
@@ -40,7 +50,7 @@ class BiographyGenerationUseCase {
       final biography = await _profileService.generateBiography(
         userName: userName,
         aiName: aiName,
-        userBirthday: userBirthday,
+        userBirthdate: userBirthdate,
         meetStory: meetStory,
         userCountryCode: userCountryCode,
         aiCountryCode: aiCountryCode,
@@ -93,16 +103,17 @@ class BiographyGenerationUseCase {
   }
 
   /// Validates biography generation parameters
-  bool validateParameters({
+  static bool _isValidInput({
     required String userName,
     required String aiName,
-    required DateTime userBirthday,
+    required DateTime? userBirthdate,
     required String meetStory,
   }) {
     return userName.trim().isNotEmpty &&
         aiName.trim().isNotEmpty &&
         meetStory.trim().isNotEmpty &&
-        userBirthday.isBefore(DateTime.now());
+        userBirthdate != null &&
+        userBirthdate.isBefore(DateTime.now());
   }
 
   /// Checks if a complete biography exists in storage

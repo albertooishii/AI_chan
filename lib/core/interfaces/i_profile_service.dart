@@ -4,7 +4,7 @@ abstract class IProfileService {
   Future<AiChanProfile> generateBiography({
     required String userName,
     required String aiName,
-    required DateTime userBirthday,
+    required DateTime? userBirthdate,
     required String meetStory,
     String? userCountryCode,
     String? aiCountryCode,

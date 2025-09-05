@@ -132,8 +132,8 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
         _chatProvider!.onboardingData = AiChanProfile(
           userName: '',
           aiName: '',
-          userBirthday: DateTime.now(),
-          aiBirthday: DateTime.now(),
+          userBirthdate: DateTime.now(),
+          aiBirthdate: DateTime.now(),
           biography: {},
           appearance: {},
           timeline: [],
@@ -150,7 +150,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       widget.onboardingProvider.birthDateController.clear();
       widget.onboardingProvider.userCountryCode = null;
       widget.onboardingProvider.aiCountryCode = null;
-      widget.onboardingProvider.userBirthday = null;
+      widget.onboardingProvider.userBirthdate = null;
 
       // Nullificar ChatProvider para forzar recreación limpia
       _chatProvider = null;
@@ -237,7 +237,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
             ({
               required String userName,
               required String aiName,
-              required DateTime userBirthday,
+              required DateTime? userBirthdate,
               required String meetStory,
               String? userCountryCode,
               String? aiCountryCode,
@@ -256,7 +256,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
                             context: context,
                             userName: userName,
                             aiName: aiName,
-                            userBirthday: userBirthday,
+                            userBirthdate: userBirthdate,
                             meetStory: meetStory,
                             userCountryCode: userCountryCode,
                             aiCountryCode: aiCountryCode,

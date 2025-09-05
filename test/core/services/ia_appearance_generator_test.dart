@@ -20,8 +20,8 @@ void main() {
         biography: <String, dynamic>{'text': 'Le gusta bailar'},
         userName: 'u',
         aiName: 'a',
-        userBirthday: null,
-        aiBirthday: null,
+        userBirthdate: null,
+        aiBirthdate: null,
         appearance: <String, dynamic>{},
         timeline: [],
       );

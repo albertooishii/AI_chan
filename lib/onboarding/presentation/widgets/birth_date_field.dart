@@ -7,13 +7,13 @@ import 'package:ai_chan/shared/constants/app_colors.dart';
 /// date. This keeps the widget free of Provider dependencies.
 class BirthDateField extends StatelessWidget {
   final TextEditingController controller;
-  final DateTime? userBirthday;
+  final DateTime? userBirthdate;
   final ValueChanged<DateTime> onBirthdayChanged;
 
   const BirthDateField({
     super.key,
     required this.controller,
-    required this.userBirthday,
+    required this.userBirthdate,
     required this.onBirthdayChanged,
   });
 
@@ -38,13 +38,13 @@ class BirthDateField extends StatelessWidget {
         hintText: 'Selecciona tu fecha',
         hintStyle: TextStyle(color: AppColors.primary),
       ),
-      validator: (v) => userBirthday == null ? 'Obligatorio' : null,
+      validator: (v) => userBirthdate == null ? 'Obligatorio' : null,
       onTap: () async {
         final now = DateTime.now();
         final minAgeDate = DateTime(now.year - 18, now.month, now.day);
         final picked = await showDatePicker(
           context: context,
-          initialDate: userBirthday ?? DateTime(now.year - 25),
+          initialDate: userBirthdate ?? DateTime(now.year - 25),
           firstDate: DateTime(1950),
           lastDate: minAgeDate,
           locale: const Locale('es'),

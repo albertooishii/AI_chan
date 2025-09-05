@@ -22,7 +22,6 @@ class HybridSttService {
   bool _isInitialized = false;
   Timer? _silenceTimer;
   Timer? _timeoutTimer;
-  String? _currentContextPrompt; // Para almacenar el prompt actual
 
   // Callbacks
   void Function(String text)? _onResult;
@@ -94,8 +93,8 @@ class HybridSttService {
     required void Function(String text) onResult,
     String localeId = 'es-ES',
     Duration timeout = const Duration(
-      seconds: 30,
-    ), // Volver a timeout generoso como nativo
+      seconds: 60, // 🎯 Timeout más generoso para historias largas
+    ),
     String?
     contextPrompt, // Contexto opcional para mejorar precisión en OpenAI STT
   }) async {
@@ -140,8 +139,7 @@ class HybridSttService {
     required Duration timeout,
     String? contextPrompt,
   }) async {
-    _currentContextPrompt =
-        contextPrompt; // Almacenar para usar en transcripción
+    // Contexto temporalmente deshabilitado para evitar prompt leakage
     try {
       Log.d('🎙️ Iniciando grabación para OpenAI STT...', tag: 'HYBRID_STT');
 
@@ -203,11 +201,8 @@ class HybridSttService {
         return;
       }
 
-      // Transcribir con OpenAI
-      final transcription = await _transcribeWithOpenAI(
-        path,
-        _currentContextPrompt,
-      );
+      // Transcribir con OpenAI (sin contexto para evitar prompt leakage)
+      final transcription = await _transcribeWithOpenAI(path);
 
       if (transcription.isNotEmpty) {
         Log.d('✅ Transcripción: "$transcription"', tag: 'HYBRID_STT');
@@ -231,10 +226,7 @@ class HybridSttService {
   }
 
   /// Transcribe audio usando OpenAI Whisper API
-  Future<String> _transcribeWithOpenAI(
-    String audioPath, [
-    String? contextPrompt,
-  ]) async {
+  Future<String> _transcribeWithOpenAI(String audioPath) async {
     try {
       final file = File(audioPath);
       final audioBytes = await file.readAsBytes();
@@ -261,9 +253,10 @@ class HybridSttService {
           '0.0'; // Más conservador para evitar alucinaciones
 
       // Añadir contexto solo si se proporcionó
-      if (contextPrompt != null && contextPrompt.isNotEmpty) {
-        request.fields['prompt'] = contextPrompt;
-      }
+      // TEMPORALMENTE DESHABILITADO: El prompt largo causa que Whisper devuelva el prompt mismo
+      // if (contextPrompt != null && contextPrompt.isNotEmpty) {
+      //   request.fields['prompt'] = contextPrompt;
+      // }
 
       // Archivo de audio
       request.files.add(

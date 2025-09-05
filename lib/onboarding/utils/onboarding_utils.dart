@@ -11,7 +11,7 @@ class OnboardingUtils {
     required String aiName,
     String? userCountry,
     String? aiCountry,
-    DateTime? userBirthday,
+    DateTime? userBirthdate,
   }) async {
     final prompt = PromptBuilder.buildMeetStoryPrompt(
       userName: userName,
@@ -23,8 +23,8 @@ class OnboardingUtils {
     final profile = AiChanProfile(
       userName: userName,
       aiName: aiName,
-      userBirthday: userBirthday ?? DateTime.now(),
-      aiBirthday: DateTime.now(),
+      userBirthdate: userBirthdate ?? DateTime.now(),
+      aiBirthdate: DateTime.now(),
       biography: {},
       appearance: {},
       timeline: [],

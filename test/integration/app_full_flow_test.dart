@@ -79,7 +79,7 @@ void main() async {
         final biography = await generateAIBiographyWithAI(
           userName: userName,
           aiName: aiName,
-          userBirthday: userBirthday,
+          userBirthdate: userBirthday,
           meetStory: meetStory,
           userCountryCode: 'ES',
           aiCountryCode: 'JP',
@@ -334,7 +334,7 @@ void main() async {
           await generateAIBiographyWithAI(
             userName: 'ErrorTest',
             aiName: 'ErrorAI',
-            userBirthday: DateTime(1990),
+            userBirthdate: DateTime(1990),
             meetStory: 'Test error',
             aiServiceOverride: failingService,
           );
@@ -348,8 +348,8 @@ void main() async {
         final fallbackProfile = AiChanProfile(
           userName: 'ErrorTest',
           aiName: 'ErrorAI',
-          userBirthday: DateTime(1990),
-          aiBirthday: DateTime(2024),
+          userBirthdate: DateTime(1990),
+          aiBirthdate: DateTime(2024),
           biography: {'fallback': 'Perfil de respaldo'},
           appearance: {'fallback': 'Apariencia básica'},
           timeline: [],
@@ -413,7 +413,7 @@ void main() async {
         final bio = await generateAIBiographyWithAI(
           userName: 'User${testCase['user']}',
           aiName: 'AI${testCase['ai']}',
-          userBirthday: DateTime(1995, 5, 15),
+          userBirthdate: DateTime(1995, 5, 15),
           meetStory: 'Conocimiento de prueba',
           userCountryCode: testCase['user']!,
           aiCountryCode: testCase['ai']!,
@@ -486,7 +486,7 @@ void main() async {
         final originalBio = await generateAIBiographyWithAI(
           userName: originalUserName,
           aiName: originalAiName,
-          userBirthday: DateTime(1990, 3, 15),
+          userBirthdate: DateTime(1990, 3, 15),
           meetStory: originalMeetStory,
           userCountryCode: 'US',
           aiCountryCode: 'JP',
@@ -688,7 +688,7 @@ void main() async {
         final newBio = await generateAIBiographyWithAI(
           userName: newUserName,
           aiName: newAiName,
-          userBirthday: DateTime(1995, 8, 22),
+          userBirthdate: DateTime(1995, 8, 22),
           meetStory: newMeetStory,
           userCountryCode: 'ES',
           aiCountryCode: 'KR',

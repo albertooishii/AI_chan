@@ -160,8 +160,8 @@ void main() {
         chatProvider.onboardingData = AiChanProfile(
           userName: 'TestUser',
           aiName: 'TestAI',
-          userBirthday: DateTime(1990),
-          aiBirthday: DateTime(2024),
+          userBirthdate: DateTime(1990),
+          aiBirthdate: DateTime(2024),
           biography: {'personalidad': 'Test personality'},
           appearance: <String, dynamic>{},
           timeline: [],

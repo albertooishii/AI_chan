@@ -26,8 +26,8 @@ class MemorySummaryService {
     final minimalProfile = AiChanProfile(
       userName: profileOverride?.userName ?? profile.userName,
       aiName: profileOverride?.aiName ?? profile.aiName,
-      userBirthday: profileOverride?.userBirthday ?? profile.userBirthday,
-      aiBirthday: profileOverride?.aiBirthday ?? profile.aiBirthday,
+      userBirthdate: profileOverride?.userBirthdate ?? profile.userBirthdate,
+      aiBirthdate: profileOverride?.aiBirthdate ?? profile.aiBirthdate,
       appearance: {},
       timeline: [],
       biography: {},
@@ -302,8 +302,8 @@ class MemorySummaryService {
             profileOverride: AiChanProfile(
               userName: profile.userName,
               aiName: profile.aiName,
-              userBirthday: profile.userBirthday,
-              aiBirthday: profile.aiBirthday,
+              userBirthdate: profile.userBirthdate,
+              aiBirthdate: profile.aiBirthdate,
               appearance: {},
               timeline: [],
               biography: {},
@@ -358,8 +358,8 @@ class MemorySummaryService {
           profileOverride: AiChanProfile(
             userName: profile.userName,
             aiName: profile.aiName,
-            userBirthday: profile.userBirthday,
-            aiBirthday: profile.aiBirthday,
+            userBirthdate: profile.userBirthdate,
+            aiBirthdate: profile.aiBirthdate,
             appearance: {},
             timeline: [],
             biography: {},

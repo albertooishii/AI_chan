@@ -4,7 +4,7 @@ enum OnboardingStep {
   awakening, // Primer despertar de AI-chan
   askingName, // Preguntando el nombre del usuario
   askingCountry, // Preguntando el país del usuario
-  askingBirthday, // Preguntando la fecha de nacimiento
+  askingBirthdate, // Preguntando la fecha de nacimiento
   askingAiCountry, // Preguntando el país de la IA
   askingAiName, // Preguntando el nombre para la IA
   askingMeetStory, // Preguntando cómo se conocieron
@@ -22,8 +22,8 @@ extension OnboardingStepExtension on OnboardingStep {
         return 'Preguntando nombre';
       case OnboardingStep.askingCountry:
         return 'Preguntando país';
-      case OnboardingStep.askingBirthday:
-        return 'Preguntando cumpleaños';
+      case OnboardingStep.askingBirthdate:
+        return 'Preguntando fecha de nacimiento';
       case OnboardingStep.askingAiName:
         return 'Preguntando nombre de IA';
       case OnboardingStep.askingAiCountry:
@@ -41,7 +41,7 @@ extension OnboardingStepExtension on OnboardingStep {
   bool get isAskingUserData => [
     OnboardingStep.askingName,
     OnboardingStep.askingCountry,
-    OnboardingStep.askingBirthday,
+    OnboardingStep.askingBirthdate,
   ].contains(this);
 
   bool get isAskingAiData => [

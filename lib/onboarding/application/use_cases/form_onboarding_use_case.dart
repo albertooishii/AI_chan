@@ -35,17 +35,17 @@ class FormOnboardingUseCase {
     }
 
     // Validar y parsear fecha de nacimiento
-    DateTime? userBirthday;
+    DateTime? userBirthdate;
     if (birthDateText.trim().isEmpty) {
       errors.add('La fecha de nacimiento es obligatoria');
     } else {
-      userBirthday = _parseBirthDate(birthDateText);
-      if (userBirthday == null) {
+      userBirthdate = _parseBirthDate(birthDateText);
+      if (userBirthdate == null) {
         errors.add('La fecha de nacimiento no es válida');
       } else {
         // Validar que la fecha sea razonable
         final now = DateTime.now();
-        final age = now.year - userBirthday.year;
+        final age = now.year - userBirthdate.year;
 
         if (age < 13 || age > 120) {
           errors.add('La edad debe estar entre 13 y 120 años');
@@ -63,7 +63,7 @@ class FormOnboardingUseCase {
       success: true,
       userName: userName.trim(),
       aiName: aiName.trim(),
-      userBirthday: userBirthday!,
+      userBirthdate: userBirthdate!,
       meetStory: meetStory.trim(),
       userCountryCode: userCountryCode,
       aiCountryCode: aiCountryCode,
@@ -117,7 +117,7 @@ class OnboardingFormResult {
   final List<String> errors;
   final String? userName;
   final String? aiName;
-  final DateTime? userBirthday;
+  final DateTime? userBirthdate;
   final String? meetStory;
   final String? userCountryCode;
   final String? aiCountryCode;
@@ -127,7 +127,7 @@ class OnboardingFormResult {
     this.errors = const [],
     this.userName,
     this.aiName,
-    this.userBirthday,
+    this.userBirthdate,
     this.meetStory,
     this.userCountryCode,
     this.aiCountryCode,

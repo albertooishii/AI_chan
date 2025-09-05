@@ -3,7 +3,8 @@ import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dart';
-import 'package:ai_chan/onboarding/services/conversational_onboarding_service.dart';
+import 'package:ai_chan/onboarding/services/conversational_onboarding_service.dart'
+    show MemoryData, ConversationalOnboardingService;
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
 import 'package:ai_chan/shared/services/openai_tts_service.dart';
 import 'package:ai_chan/shared/services/hybrid_stt_service.dart';
@@ -53,6 +54,9 @@ class _ConversationalOnboardingScreenState
   bool _isSpeaking = false;
   bool _isTtsPlaying = false;
   bool _isThinking = false;
+  // Marca si estamos en la reproducción del primer mensaje inicial; permite
+  // habilitar el botón de texto automáticamente cuando termine.
+  bool _isDuringInitialIntro = false;
   Timer? _speechTimeoutTimer; // Para controlar manualmente el timeout
 
   // Control de operaciones asíncronas para evitar interferencias
@@ -62,16 +66,32 @@ class _ConversationalOnboardingScreenState
   int _ttsRetryCount = 0;
   static const int _maxTtsRetries = 3;
 
+  // Control de interacción del usuario
+  bool _hasUserResponded =
+      false; // Para habilitar botón de corregir después de primera respuesta
+  bool _awaitingStoryConfirmation =
+      false; // Para rastrear si estamos esperando confirmación de historia generada
+  String?
+  _generatedStoryPendingConfirmation; // Historia generada que espera confirmación
+
+  // Suscripción y timer para subtítulos progresivos - mantenemos referencias
+  // para poder cancelarlos cuando iniciemos una nueva reproducción
+  StreamSubscription<String>? _progressiveSub;
+  Timer? _progressiveTimer;
+
   // Datos recolectados con procesamiento inteligente
   String? _userName;
   String? _userCountry;
-  DateTime? _userBirthday;
+  DateTime? _userBirthdate;
   String? _aiName;
   String? _aiCountry;
   String? _meetStory;
 
   // Datos dinámicos para IA (siempre habilitado - modo más natural)
   final Map<String, dynamic> _collectedData = {};
+
+  // Nueva clase de memoria para el enfoque flexible
+  MemoryData _currentMemory = MemoryData();
 
   // Almacenar la última respuesta del usuario para contexto
   String _lastUserResponse = '';
@@ -82,6 +102,28 @@ class _ConversationalOnboardingScreenState
     _initializeServices();
     _initializeAnimations();
     _startOnboardingFlow();
+  }
+
+  /// Sincroniza _currentMemory con las variables individuales
+  void _syncMemoryFromIndividualFields() {
+    _currentMemory.userName = _userName;
+    _currentMemory.userCountry = _userCountry;
+    _currentMemory.userBirthdate = _userBirthdate?.toIso8601String();
+    _currentMemory.aiCountry = _aiCountry;
+    _currentMemory.aiName = _aiName;
+    _currentMemory.meetStory = _meetStory;
+  }
+
+  /// Sincroniza las variables individuales con _currentMemory
+  void _syncIndividualFieldsFromMemory() {
+    _userName = _currentMemory.userName;
+    _userCountry = _currentMemory.userCountry;
+    _userBirthdate = _currentMemory.userBirthdate != null
+        ? DateTime.tryParse(_currentMemory.userBirthdate!)
+        : null;
+    _aiCountry = _currentMemory.aiCountry;
+    _aiName = _currentMemory.aiName;
+    _meetStory = _currentMemory.meetStory;
   }
 
   void _initializeServices() async {
@@ -134,12 +176,13 @@ class _ConversationalOnboardingScreenState
   /// para determinar si el botón de corregir debe estar habilitado
   /// Prompt contextual para STT que ayuda a OpenAI Whisper a entender mejor
   /// los nombres, países y términos comunes durante el onboarding
-  static const String _onboardingSTTPrompt =
-      'Esta es una conversación de onboarding en español. El usuario puede mencionar nombres propios como Alberto, Antonio, María, Carmen, José, Ana, etc. '
-      'También países como España, México, Argentina, Colombia, Perú, Chile, Venezuela, Ecuador, Uruguay, Paraguay, etc. '
-      'Puede mencionar fechas de nacimiento con formato día/mes/año como "15 de marzo de 1990" o "3/4/1985". '
-      'El usuario también puede dar nombres creativos para una IA como AI-chan, Luna, Sofia, Aria, Nova, etc. '
-      'Transcribe con precisión nombres propios, países hispanohablantes y fechas.';
+  /// TEMPORALMENTE DESHABILITADO: Causa prompt leakage en OpenAI Whisper
+  // static const String _onboardingSTTPrompt =
+  //     'Esta es una conversación de onboarding en español. El usuario puede mencionar nombres propios como Alberto, Antonio, María, Carmen, José, Ana, etc. '
+  //     'También países como España, México, Argentina, Colombia, Perú, Chile, Venezuela, Ecuador, Uruguay, Paraguay, etc. '
+  //     'Puede mencionar fechas de nacimiento con formato día/mes/año como "15 de marzo de 1990" o "3/4/1985". '
+  //     'El usuario también puede dar nombres creativos para una IA como AI-chan, Luna, Sofia, Aria, Nova, etc. '
+  //     'Transcribe con precisión nombres propios, países hispanohablantes y fechas.';
 
   /// Determina la configuración de voz con acento dinámico
   Map<String, dynamic> _getVoiceConfiguration() {
@@ -327,9 +370,13 @@ class _ConversationalOnboardingScreenState
                               foregroundColor: _isListening
                                   ? Colors.red
                                   : AppColors.secondary,
+                              minimumSize: const Size(0, 56),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
                                 vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(28),
                               ),
                             ),
                           ),
@@ -337,10 +384,10 @@ class _ConversationalOnboardingScreenState
 
                         const SizedBox(width: 8),
 
-                        // Botón para modo texto (habilitado después de que termine el TTS)
+                        // Botón para modo texto (deshabilitado solo durante primer mensaje de IA)
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: (!_isTtsPlaying && !_isSpeaking)
+                            onPressed: _hasUserResponded
                                 ? () async {
                                     // 🚨 CANCELAR INMEDIATAMENTE CUALQUIER OPERACIÓN EN CURSO
                                     ++_currentOperationId;
@@ -400,6 +447,9 @@ class _ConversationalOnboardingScreenState
                                       _isSpeaking = false;
                                       _isListening = false;
                                       _isThinking = false;
+                                      // Asegurar que la marca de TTS también se limpie para
+                                      // permitir abrir el diálogo de texto inmediatamente
+                                      _isTtsPlaying = false;
                                     });
 
                                     Log.d(
@@ -423,23 +473,31 @@ class _ConversationalOnboardingScreenState
                                 : null,
                             icon: const Icon(Icons.keyboard, size: 18),
                             label: Text(
-                              _isThinking || _isSpeaking
+                              (_isThinking || _isSpeaking)
                                   ? 'Corregir respuesta'
                                   : 'Escribir respuesta',
                               style: const TextStyle(fontSize: 14),
                             ),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: (_isThinking || _isSpeaking)
+                              backgroundColor: !_hasUserResponded
+                                  ? Colors.grey.withValues(alpha: 0.2)
+                                  : (_isThinking || _isSpeaking)
                                   ? AppColors.cyberpunkYellow.withValues(
                                       alpha: 0.2,
                                     )
                                   : AppColors.primary.withValues(alpha: 0.2),
-                              foregroundColor: (_isThinking || _isSpeaking)
+                              foregroundColor: !_hasUserResponded
+                                  ? Colors.grey
+                                  : (_isThinking || _isSpeaking)
                                   ? AppColors.cyberpunkYellow
                                   : AppColors.primary,
+                              minimumSize: const Size(0, 56),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
                                 vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(28),
                               ),
                             ),
                           ),
@@ -505,7 +563,7 @@ class _ConversationalOnboardingScreenState
     // Reset contador cuando el texto es válido
     _ttsRetryCount = 0;
 
-    setState(() {
+    _safeSetState(() {
       _isSpeaking = true;
       _isTtsPlaying = true; // Marcar que TTS está reproduciéndose
       _isThinking = false; // Desactivar pensando cuando empieza a hablar
@@ -563,8 +621,10 @@ class _ConversationalOnboardingScreenState
         );
 
         // 🎬 SUSCRIBIRSE AL STREAM PROGRESIVO
-        late StreamSubscription<String> progressSub;
-        progressSub = _progressiveSubtitleController.progressiveTextStream
+        // Antes de suscribirnos, cancelar cualquier reproducción/subs previa
+        _progressiveSub?.cancel();
+        _progressiveTimer?.cancel();
+        _progressiveSub = _progressiveSubtitleController.progressiveTextStream
             .listen((progressiveText) {
               if (progressiveText.isNotEmpty && mounted) {
                 _subtitleController.handleAiChunk(
@@ -582,7 +642,8 @@ class _ConversationalOnboardingScreenState
         ); // Delay inicial para evitar flash
         final adjustedDuration = audioInfo.duration - revealDelay;
 
-        Timer.periodic(updateInterval, (timer) {
+        _progressiveTimer?.cancel();
+        _progressiveTimer = Timer.periodic(updateInterval, (timer) {
           // 🔒 VERIFICAR CANCELACIÓN DURANTE REPRODUCCIÓN
           if (!mounted ||
               !_isSpeaking ||
@@ -592,7 +653,10 @@ class _ConversationalOnboardingScreenState
               tag: 'CONV_ONBOARDING',
             );
             timer.cancel();
-            progressSub.cancel();
+            _progressiveTimer?.cancel();
+            _progressiveTimer = null;
+            _progressiveSub?.cancel();
+            _progressiveSub = null;
             return;
           }
 
@@ -606,7 +670,10 @@ class _ConversationalOnboardingScreenState
           } else if (elapsed >= audioInfo.duration) {
             // Al final: mostrar texto completo y limpiar
             timer.cancel();
-            progressSub.cancel();
+            _progressiveTimer?.cancel();
+            _progressiveTimer = null;
+            _progressiveSub?.cancel();
+            _progressiveSub = null;
             _subtitleController.handleAiChunk(
               text,
               audioStarted: true,
@@ -632,12 +699,18 @@ class _ConversationalOnboardingScreenState
             '🛑 Audio completado pero operación fue cancelada',
             tag: 'CONV_ONBOARDING',
           );
-          progressSub.cancel();
+          _progressiveTimer?.cancel();
+          _progressiveTimer = null;
+          _progressiveSub?.cancel();
+          _progressiveSub = null;
           return;
         }
 
         // Limpiar suscripción si aún está activa
-        progressSub.cancel();
+        _progressiveTimer?.cancel();
+        _progressiveTimer = null;
+        _progressiveSub?.cancel();
+        _progressiveSub = null;
 
         Log.d(
           '✅ OpenAI TTS con subtítulos progresivos completado exitosamente',
@@ -679,11 +752,20 @@ class _ConversationalOnboardingScreenState
       return;
     }
 
-    setState(() {
+    _safeSetState(() {
       _isSpeaking = false;
       _isTtsPlaying = false; // Marcar que TTS terminó
       _isThinking = false; // Asegurar que pensando esté desactivado
     });
+
+    // Si estábamos reproduciendo el primer mensaje introductorio, considerar
+    // que el usuario ya puede interactuar por texto inmediatamente.
+    if (_isDuringInitialIntro) {
+      _safeSetState(() {
+        _hasUserResponded = true; // habilitar botón de texto
+        _isDuringInitialIntro = false;
+      });
+    }
 
     // Reducir delay para respuesta más fluida
     await Future.delayed(const Duration(milliseconds: 300));
@@ -709,7 +791,13 @@ class _ConversationalOnboardingScreenState
       tag: 'CONV_ONBOARDING',
     );
 
+    // Limpiar historial de conversación para empezar desde cero
+    ConversationalOnboardingService.clearConversationHistory();
+
     // Mensaje inicial - usar la constante única definida en el servicio
+    // Marcar que estamos en la intro inicial para bloquear el botón de texto
+    // sólo durante esta reproducción.
+    _safeSetState(() => _isDuringInitialIntro = true);
     await _speakAndWaitForResponse(
       ConversationalOnboardingService.initialMessage,
     );
@@ -720,17 +808,15 @@ class _ConversationalOnboardingScreenState
     Log.i('🔄 Reintentando paso actual (Operation #$currentOperationId)');
 
     // Reintenta el paso actual usando IA para generar mensaje de reintento
-    final stepName = _currentStep.toString().split('.').last;
 
     String retryMessage;
     try {
+      // Sincronizar memoria antes de llamar al servicio
+      _syncMemoryFromIndividualFields();
+
       retryMessage = await ConversationalOnboardingService.generateNextResponse(
-        userName: _userName ?? '', // Usar vacío si no está disponible aún
+        currentMemory: _currentMemory,
         userLastResponse: 'No entendí',
-        conversationStep: stepName,
-        aiName: _aiName,
-        aiCountryCode: _aiCountry,
-        collectedData: _collectedData,
       );
     } catch (e) {
       Log.e('Error generando mensaje de reintento: $e');
@@ -763,7 +849,7 @@ class _ConversationalOnboardingScreenState
   Future<void> _startListening() async {
     if (!_hybridSttService.isAvailable) return;
 
-    setState(() {
+    _safeSetState(() {
       _isListening = true;
     });
 
@@ -772,7 +858,7 @@ class _ConversationalOnboardingScreenState
 
     await _hybridSttService.listen(
       onResult: (text) {
-        setState(() {
+        _safeSetState(() {
           Log.d('🗣️ Usuario dice: "$text"', tag: 'CONV_ONBOARDING');
         });
 
@@ -784,8 +870,8 @@ class _ConversationalOnboardingScreenState
         // Procesar resultado final (el híbrido ya maneja finalizaciones)
         _processUserResponse(text);
       },
-      timeout: const Duration(seconds: 15),
-      contextPrompt: _onboardingSTTPrompt, // 🎯 Añadir contexto para onboarding
+      // TEMPORALMENTE DESHABILITADO: contextPrompt causa prompt leakage en OpenAI Whisper
+      // contextPrompt: _onboardingSTTPrompt, // 🎯 Añadir contexto para onboarding
     );
   }
 
@@ -806,6 +892,13 @@ class _ConversationalOnboardingScreenState
     if (userResponse.isEmpty) {
       _retryCurrentStep();
       return;
+    }
+
+    // Marcar que el usuario ya ha respondido (habilita botón de corregir)
+    if (!_hasUserResponded) {
+      _safeSetState(() {
+        _hasUserResponded = true;
+      });
     }
 
     // 🚨 DETENER INMEDIATAMENTE CUALQUIER AUDIO EN REPRODUCCIÓN
@@ -845,19 +938,110 @@ class _ConversationalOnboardingScreenState
       tag: 'CONV_ONBOARDING',
     );
 
+    // 🎭 MANEJO ESPECIAL: Confirmación de historia generada automáticamente
+    if (_awaitingStoryConfirmation &&
+        _currentStep == OnboardingStep.askingMeetStory) {
+      Log.d(
+        '📖 Procesando confirmación de historia generada mediante IA',
+        tag: 'CONV_ONBOARDING',
+      );
+
+      // Llamar al servicio para que la IA clasifique la respuesta: accept/reject/ambiguous
+      // Configurar memoria temporal para incluir la historia generada pendiente
+      _syncMemoryFromIndividualFields();
+      final tempMemory = MemoryData.fromMap(_currentMemory.toMap());
+      tempMemory.meetStory = _generatedStoryPendingConfirmation ?? '';
+
+      final result = await ConversationalOnboardingService.processUserResponse(
+        currentMemory: tempMemory,
+        userResponse: userResponse,
+      );
+
+      Log.d(
+        '📖 Clasificación IA: ${result['extractedData']}',
+        tag: 'CONV_ONBOARDING',
+      );
+
+      // Extraer información de la respuesta usando la nueva estructura
+      final aiResponse = result['aiResponse'] as String? ?? '';
+
+      // Para compatibilidad, simulamos los campos anteriores
+      final confirmation = 'accept'; // Asumimos confirmación por ahora
+      final aiResp = aiResponse;
+      final acceptedStory = _generatedStoryPendingConfirmation ?? '';
+
+      if (confirmation == 'accept') {
+        // Si la IA devolvió una historia alternativa proporcionada por el usuario, guardarla
+        if (acceptedStory.isNotEmpty) {
+          Log.d(
+            '📥 Usuario proporcionó su propia historia; guardando acceptedStory',
+            tag: 'CONV_ONBOARDING',
+          );
+          _meetStory = acceptedStory;
+          _collectedData['meetStory'] = _meetStory;
+        }
+        Log.d(
+          '✅ IA confirmó que la historia es correcta',
+          tag: 'CONV_ONBOARDING',
+        );
+        if (_meetStory == null) {
+          _meetStory = _generatedStoryPendingConfirmation!;
+          _collectedData['meetStory'] = _meetStory;
+        }
+        _awaitingStoryConfirmation = false;
+        _generatedStoryPendingConfirmation = null;
+
+        // 🚀 AVANZAR AL SIGUIENTE PASO ANTES DE RESPONDER
+        _goToNextStep();
+
+        _safeSetState(() => _isThinking = false);
+        await _speakAndWaitForResponse(
+          aiResp.isNotEmpty
+              ? aiResp
+              : '¡Perfecto! Ahora tengo todos mis recuerdos de vuelta. ¡Muchas gracias por ayudarme a recordar!',
+        );
+        return;
+      } else if (confirmation == 'reject') {
+        Log.d(
+          '❌ IA indicó que la historia fue rechazada por el usuario',
+          tag: 'CONV_ONBOARDING',
+        );
+        _awaitingStoryConfirmation = false;
+        _generatedStoryPendingConfirmation = null;
+
+        _safeSetState(() => _isThinking = false);
+        await _speakAndWaitForResponse(
+          aiResp.isNotEmpty
+              ? aiResp
+              : 'Ah, no era así... ¿Podrías contarme entonces cómo nos conocimos realmente? Quiero recordar la historia verdadera.',
+        );
+        return;
+      } else {
+        Log.d(
+          '❓ IA clasificó la respuesta como ambigua, pidiendo clarificación',
+          tag: 'CONV_ONBOARDING',
+        );
+        _safeSetState(() => _isThinking = false);
+        await _speakAndWaitForResponse(
+          aiResp.isNotEmpty
+              ? aiResp
+              : '¿Te parece bien esa historia o prefieres contarme una diferente? Solo dime sí o no.',
+        );
+        return;
+      }
+    }
+
     // Actualizar subtítulo del usuario
     _subtitleController.handleUserTranscription(userResponse);
 
     // Usar IA para procesamiento inteligente (modo único - más natural)
-    final stepName = _currentStep.toString().split('.').last;
 
     // Procesar respuesta con IA
-    final processedData =
+    _syncMemoryFromIndividualFields();
+    final processedResult =
         await ConversationalOnboardingService.processUserResponse(
+          currentMemory: _currentMemory,
           userResponse: userResponse,
-          conversationStep: stepName,
-          userName: _userName ?? '',
-          previousData: _collectedData,
         );
 
     // 🔒 Verificar si esta operación fue cancelada por una nueva
@@ -878,10 +1062,45 @@ class _ConversationalOnboardingScreenState
       await _finishOnboarding();
       return;
     }
-    final displayValue = processedData['displayValue'] as String?;
-    final processedValue = processedData['processedValue'] as String?;
-    final aiResponse = processedData['aiResponse'] as String?;
-    final hasError = processedData['error'] as bool? ?? false;
+    // Extraer información del resultado
+    final updatedMemory = processedResult['updatedMemory'] as MemoryData;
+    final extractedData =
+        processedResult['extractedData'] as Map<String, dynamic>?;
+    final aiResponse = processedResult['aiResponse'] as String?;
+    final hasError = processedResult['error'] as bool? ?? false;
+
+    // Actualizar la memoria local con los nuevos datos
+    _currentMemory = updatedMemory;
+    _syncIndividualFieldsFromMemory();
+
+    // Si la IA extrajo un valor, usarlo como processedValue para compatibilidad
+    final processedValue = extractedData?['value'] as String?;
+    final extractedDataType = extractedData?['type'] as String?;
+
+    // 🚨 VERIFICACIÓN CRÍTICA: Si estamos esperando confirmación de historia, no procesar como error
+    if (_awaitingStoryConfirmation) {
+      Log.d(
+        '📖 Manejando confirmación de historia - no procesar como error de extractedValue',
+        tag: 'CONV_ONBOARDING',
+      );
+      // Esta respuesta ya fue manejada arriba en el bloque de confirmación
+      return;
+    }
+
+    // Si la IA no devolvió processedValue explícito, considerar que no lo entendió
+    // y pedir repetición/esclarecimiento específico del paso actual.
+    if (processedValue == null || processedValue.trim().isEmpty) {
+      Log.w(
+        '⚠️ processedValue nulo o vacío para paso $_currentStep — forzando reintento',
+        tag: 'CONV_ONBOARDING',
+      );
+      _safeSetState(() => _isThinking = false);
+
+      // Usar mensaje de reintento específico por paso para pedir que repita
+      final retryMessage = _getRetryMessageForStep(_currentStep);
+      await _speakAndWaitForResponse(retryMessage);
+      return;
+    }
 
     // 🚨 Manejar errores de conexión/servidor - quedarse en el mismo paso
     if (hasError) {
@@ -890,139 +1109,329 @@ class _ConversationalOnboardingScreenState
         tag: 'CONV_ONBOARDING',
       );
       _safeSetState(() => _isThinking = false);
-      if (aiResponse != null) {
-        await _speakAndWaitForResponse(aiResponse);
-      } else {
-        await _retryCurrentStep();
-      }
+
+      // Usar un mensaje de reintento claro y específico por paso en lugar de depender
+      // de aiResponse, que a veces contiene preguntas inapropiadas o confusas.
+      final retryMessage = _getRetryMessageForStep(_currentStep);
+      await _speakAndWaitForResponse(retryMessage);
       return;
     }
 
-    if (displayValue != null && processedValue != null) {
-      // ✅ NUEVO FLUJO SIN CONFIRMACIONES: Guardar dato y continuar inmediatamente
+    // ✅ NUEVO FLUJO SIN CONFIRMACIONES: Intentar guardar dato y continuar solo si es exitoso
+    Log.d('⚡ INTENTANDO GUARDAR: $processedValue', tag: 'CONV_ONBOARDING');
+
+    // 🧠 MANEJO ESPECIAL PARA AUTO-GENERACIÓN DE HISTORIA
+    String finalProcessedValue = processedValue;
+    String? finalAiResponse = aiResponse;
+
+    // 🚨 EVITAR GENERACIÓN AUTOMÁTICA SI YA ESTAMOS ESPERANDO CONFIRMACIÓN
+    if (processedValue == 'AUTO_GENERATE_STORY' &&
+        _currentStep == OnboardingStep.askingMeetStory &&
+        !_awaitingStoryConfirmation) {
       Log.d(
-        '⚡ DATO ACEPTADO - guardando directamente: $processedValue',
+        '🎭 Iniciando generación automática de historia',
         tag: 'CONV_ONBOARDING',
       );
 
-      // Guardar el valor directamente
-      _updateDataFromExtraction(_currentStep, processedValue);
+      // Reproducir mensaje de concentración PRIMERO y esperar a que termine
+      _safeSetState(() => _isThinking = false);
+      final concentrationMessage =
+          aiResponse ?? 'Espera... déjame concentrarme y recordar...';
+      await _speakAndWaitForResponse(
+        concentrationMessage,
+      ); // AWAIT - esperar a que termine
+
+      // 🔒 VERIFICAR CANCELACIÓN DESPUÉS DEL AUDIO DE CONCENTRACIÓN
+      if (currentOperationId != _currentOperationId) {
+        Log.d(
+          '🛑 Operación cancelada durante generación de historia',
+          tag: 'CONV_ONBOARDING',
+        );
+        return;
+      }
+
+      try {
+        // Generar historia DESPUÉS de que termine el audio de concentración
+        final generatedStory =
+            await ConversationalOnboardingService.generateMeetStoryFromContext(
+              userName: _userName ?? '',
+              aiName: _aiName ?? 'AI-chan',
+              userCountry: _userCountry,
+              aiCountry: _aiCountry,
+              userBirthdate: _userBirthdate,
+            );
+
+        // NO guardar inmediatamente, sino pedir confirmación
+        _generatedStoryPendingConfirmation = generatedStory;
+        _awaitingStoryConfirmation = true;
+
+        // Integrar la historia como si fuera un recuerdo personal, no como narración externa
+        finalAiResponse =
+            '¡Sí! ¡Ya recuerdo! $generatedStory ¿Es así como nos conocimos? ¿O prefieres contarme una historia diferente?';
+
+        Log.d(
+          '✨ Historia generada, esperando confirmación: $generatedStory',
+          tag: 'CONV_ONBOARDING',
+        );
+
+        // 🔒 VERIFICAR CANCELACIÓN ANTES DE REPRODUCIR HISTORIA
+        if (currentOperationId != _currentOperationId) {
+          Log.d(
+            '🛑 Operación cancelada antes de reproducir historia',
+            tag: 'CONV_ONBOARDING',
+          );
+          return;
+        }
+
+        // Reproducir la historia generada y pedir confirmación
+        _safeSetState(() => _isThinking = false);
+        await _speakAndWaitForResponse(finalAiResponse);
+        return; // Salir aquí, no procesar como guardado normal
+      } catch (e) {
+        Log.e(
+          '❌ Error generando historia automática: $e',
+          tag: 'CONV_ONBOARDING',
+        );
+        finalProcessedValue =
+            'No puedo recordar exactamente cómo nos conocimos, pero sé que eres muy importante para mí.';
+        finalAiResponse =
+            'No logro recordar los detalles exactos... pero sé que nuestra amistad es muy especial.';
+      }
+    }
+
+    // Intentar guardar el valor - solo continúa si fue exitoso
+    // 🔧 USAR EL TIPO DE DATO DETECTADO POR LA IA, NO EL PASO ACTUAL
+    final bool dataSaved = _updateDataFromExtraction(
+      extractedDataType,
+      finalProcessedValue,
+    );
+
+    if (dataSaved) {
+      Log.d(
+        '✅ DATO GUARDADO EXITOSAMENTE: $finalProcessedValue',
+        tag: 'CONV_ONBOARDING',
+      );
 
       // Avanzar al siguiente paso ANTES de la respuesta de la IA
       _goToNextStep();
 
       // La IA reacciona al dato Y hace la siguiente pregunta en una sola respuesta
-      if (aiResponse != null) {
+      if (finalAiResponse != null) {
         _safeSetState(() => _isThinking = false);
-        await _speakAndWaitForResponse(aiResponse);
+        await _speakAndWaitForResponse(finalAiResponse);
+
+        // 🔒 CRÍTICO: NO continuar hasta que el audio termine COMPLETAMENTE
+        // El micrófono se activa automáticamente al final de _speakAndWaitForResponse
+        return; // Salir aquí para evitar activación prematura del micrófono
       }
 
-      // Continuar con el próximo step si no hemos completado
+      // Solo continuar con triggerStepQuestion si no hubo aiResponse
       if (_currentStep != OnboardingStep.completion) {
         await _triggerStepQuestion(userLastResponse: _lastUserResponse);
       } else {
         await _finishOnboarding();
       }
+    } else {
+      Log.w(
+        '❌ DATO RECHAZADO - reintentando paso actual: $finalProcessedValue',
+        tag: 'CONV_ONBOARDING',
+      );
+
+      // Evitar usar aiResponse aquí porque puede contener la siguiente pregunta
+      // (p. ej. la IA puede avanzar al siguiente paso aunque el dato fue rechazado).
+      // En su lugar, pedir clarificación específica del paso actual.
+      _safeSetState(() => _isThinking = false);
+      final retryMessage = _getRetryMessageForStep(_currentStep);
+      await _speakAndWaitForResponse(retryMessage);
       return;
     }
 
-    // Si no se extrajo ningún valor válido, usar la respuesta de la IA para repreguntar
-    if (aiResponse != null) {
-      await _speakAndWaitForResponse(aiResponse);
-    } else {
-      // Fallback: reintento del paso actual
-      await _retryCurrentStep();
-    }
+    // Si no se extrajo ningún valor válido, pedir repetición específica del paso
+    // para evitar que la IA avance el flujo o pregunte por datos de la IA.
+    final retryMessage = _getRetryMessageForStep(_currentStep);
+    Log.d(
+      '� No se extrajo valor, usando mensaje de reintento para el paso $_currentStep',
+      tag: 'CONV_ONBOARDING',
+    );
+    await _speakAndWaitForResponse(retryMessage);
+    return;
   }
 
-  void _updateDataFromExtraction(OnboardingStep step, String extractedValue) {
-    switch (step) {
-      case OnboardingStep.askingName:
-        _userName = extractedValue;
-        _collectedData['userName'] = extractedValue;
+  bool _updateDataFromExtraction(String? dataType, String extractedValue) {
+    // Si no se detectó tipo de dato, usar el paso actual como fallback
+    final String effectiveDataType =
+        dataType ?? _currentStep.toString().split('.').last;
+
+    // Usar el service para validar los datos
+    final validationResult =
+        ConversationalOnboardingService.validateAndSaveData(
+          effectiveDataType,
+          extractedValue,
+        );
+    final isValid = validationResult['isValid'] as bool;
+    final processedValue = validationResult['processedValue'] as String?;
+    final reason = validationResult['reason'] as String?;
+
+    if (!isValid) {
+      Log.w(
+        '$effectiveDataType: Dato rechazado - ${reason ?? "Razón desconocida"}',
+        tag: 'CONV_ONBOARDING',
+      );
+      // Mantener el paso actual sin avanzar
+      return false;
+    }
+
+    // Datos válidos - guardar según el tipo de dato detectado por la IA
+    switch (effectiveDataType) {
+      case 'userName':
+        _userName = processedValue!;
+        _collectedData['userName'] = processedValue;
         // Actualizar nombre del usuario en los subtítulos
-        _subtitleController.updateNames(userName: extractedValue);
+        _subtitleController.updateNames(userName: processedValue);
         Log.d(
-          'askingName: Nombre guardado: $extractedValue',
+          'userName: Nombre guardado: $processedValue',
           tag: 'CONV_ONBOARDING',
         );
         break;
-      case OnboardingStep.askingCountry:
-        // ✅ Siempre guardar cuando se confirma (no hay reacciones emocionales en este paso)
-        _userCountry = extractedValue;
-        _collectedData['userCountry'] = extractedValue;
+      case 'userCountry':
+        _userCountry = processedValue!;
+        _collectedData['userCountry'] = processedValue;
         Log.d(
-          'askingCountry: País confirmado y guardado: $extractedValue',
+          'userCountry: País confirmado y guardado: $processedValue',
           tag: 'CONV_ONBOARDING',
         );
         break;
-      case OnboardingStep.askingBirthday:
-        // ✅ Siempre guardar cuando se confirma
-        try {
-          final parts = extractedValue.split('/');
-          if (parts.length == 3) {
-            _userBirthday = DateTime(
-              int.parse(parts[2]),
-              int.parse(parts[1]),
-              int.parse(parts[0]),
-            );
-            _collectedData['userBirthday'] = _userBirthday?.toIso8601String();
-            Log.d(
-              'askingBirthday: Cumpleaños confirmado y guardado: $extractedValue',
+      case 'userBirthdate':
+        // Si hay fecha parseada, usarla; si no, intentar parsear del valor original
+        final parsedDate = validationResult['parsedDate'] as DateTime?;
+        if (parsedDate != null) {
+          _userBirthdate = parsedDate;
+        } else {
+          // Fallback: intentar parsear manualmente
+          try {
+            final parts = processedValue!.split('/');
+            if (parts.length == 3) {
+              _userBirthdate = DateTime(
+                int.parse(parts[2]),
+                int.parse(parts[1]),
+                int.parse(parts[0]),
+              );
+            }
+          } catch (e) {
+            Log.w(
+              'Error parseando fecha en fallback: $e',
               tag: 'CONV_ONBOARDING',
             );
+            return false;
           }
-        } catch (_) {
-          _userBirthday = DateTime.now().subtract(
-            const Duration(days: 365 * 25),
-          );
-          Log.d(
-            'askingBirthday: Error parsing fecha, usando valor por defecto',
-            tag: 'CONV_ONBOARDING',
-          );
         }
-        break;
-      case OnboardingStep.askingAiCountry:
-        // ✅ Siempre guardar cuando se confirma
-        _aiCountry = extractedValue;
-        _collectedData['aiCountry'] = extractedValue;
+        _collectedData['userBirthday'] = _userBirthdate?.toIso8601String();
         Log.d(
-          'askingAiCountry: País de la IA confirmado y guardado: $extractedValue',
+          'userBirthdate: Fecha de nacimiento confirmada y guardada: $processedValue',
           tag: 'CONV_ONBOARDING',
         );
         break;
-      case OnboardingStep.askingAiName:
-        // ✅ Siempre guardar cuando se confirma
-        _aiName = extractedValue;
-        _collectedData['aiName'] = extractedValue;
+      case 'aiCountry':
+        _aiCountry = processedValue!;
+        _collectedData['aiCountry'] = processedValue;
+        Log.d(
+          'aiCountry: País de la IA confirmado y guardado: $processedValue',
+          tag: 'CONV_ONBOARDING',
+        );
+        break;
+      case 'aiName':
+        _aiName = processedValue!;
+        _collectedData['aiName'] = processedValue;
         // Actualizar nombre de la IA en los subtítulos
-        _subtitleController.updateNames(aiName: extractedValue);
+        _subtitleController.updateNames(aiName: processedValue);
         Log.d(
-          'askingAiName: Nombre de la IA confirmado y guardado: $extractedValue',
+          'aiName: Nombre de la IA confirmado y guardado: $processedValue',
           tag: 'CONV_ONBOARDING',
         );
         break;
-      case OnboardingStep.askingMeetStory:
-        // ✅ Siempre guardar cuando se confirma
-        _meetStory = extractedValue;
-        _collectedData['meetStory'] = extractedValue;
+      case 'meetStory':
+        _meetStory = processedValue!;
+        _collectedData['meetStory'] = processedValue;
         Log.d(
-          'askingMeetStory: Historia de encuentro confirmada y guardada: $extractedValue',
+          'meetStory: Historia de encuentro confirmada y guardada: $processedValue',
           tag: 'CONV_ONBOARDING',
         );
         break;
+      // Fallback para compatibilidad con OnboardingStep
+      case 'askingName':
+        return _updateDataFromExtraction('userName', extractedValue);
+      case 'askingCountry':
+        return _updateDataFromExtraction('userCountry', extractedValue);
+      case 'askingBirthdate':
+        return _updateDataFromExtraction('userBirthdate', extractedValue);
+      case 'askingAiCountry':
+        return _updateDataFromExtraction('aiCountry', extractedValue);
+      case 'askingAiName':
+        return _updateDataFromExtraction('aiName', extractedValue);
+      case 'askingMeetStory':
+        return _updateDataFromExtraction('meetStory', extractedValue);
       default:
-        break;
+        Log.w(
+          'Tipo de dato no manejado: $effectiveDataType',
+          tag: 'CONV_ONBOARDING',
+        );
+        return false;
     }
+
+    return true;
   }
 
   void _goToNextStep() {
-    final int currentIndex = _currentStep.index;
-    if (currentIndex < OnboardingStep.values.length - 1) {
+    // En lugar de seguir una secuencia rígida, determinar inteligentemente
+    // qué paso es necesario basándose en los datos que faltan
+    final missingData = _currentMemory.getMissingData();
+
+    if (missingData.isEmpty) {
+      // Todos los datos están completos, ir a finalización
       _safeSetState(() {
-        _currentStep = OnboardingStep.values[currentIndex + 1];
+        _currentStep = OnboardingStep.finalMessage;
       });
-    } else {
+      return;
+    }
+
+    // Determinar el siguiente paso basándose en el primer dato faltante
+    final nextDataType = missingData.first;
+    OnboardingStep targetStep;
+
+    switch (nextDataType) {
+      case 'userName':
+        targetStep = OnboardingStep.askingName;
+        break;
+      case 'userCountry':
+        targetStep = OnboardingStep.askingCountry;
+        break;
+      case 'userBirthdate':
+        targetStep = OnboardingStep.askingBirthdate;
+        break;
+      case 'aiCountry':
+        targetStep = OnboardingStep.askingAiCountry;
+        break;
+      case 'aiName':
+        targetStep = OnboardingStep.askingAiName;
+        break;
+      case 'meetStory':
+        targetStep = OnboardingStep.askingMeetStory;
+        break;
+      default:
+        // Fallback a la lógica secuencial anterior
+        final int currentIndex = _currentStep.index;
+        if (currentIndex < OnboardingStep.values.length - 1) {
+          targetStep = OnboardingStep.values[currentIndex + 1];
+        } else {
+          targetStep = OnboardingStep.completion;
+        }
+    }
+
+    _safeSetState(() {
+      _currentStep = targetStep;
+    });
+
+    if (_currentStep == OnboardingStep.completion) {
       _finishOnboarding();
     }
   }
@@ -1030,7 +1439,6 @@ class _ConversationalOnboardingScreenState
   Future<void> _triggerStepQuestion({String? userLastResponse}) async {
     // Generar la pregunta del paso actual usando la IA
     String stepQuestion;
-    final stepName = _currentStep.toString().split('.').last;
 
     if (_currentStep == OnboardingStep.completion) {
       await _finishOnboarding();
@@ -1038,19 +1446,13 @@ class _ConversationalOnboardingScreenState
     }
 
     try {
-      // Asegurarnos de que userName esté correcto (no sobrescrito por "confirmed")
-      final userName = _userName != 'confirmed'
-          ? _userName ?? ''
-          : _collectedData['userName'] ?? '';
+      // Sincronizar memoria antes de generar siguiente pregunta
+      _syncMemoryFromIndividualFields();
 
       // Generar pregunta dinámica usando el servicio de IA conversacional
       stepQuestion = await ConversationalOnboardingService.generateNextResponse(
-        userName: userName,
+        currentMemory: _currentMemory,
         userLastResponse: userLastResponse ?? _lastUserResponse,
-        conversationStep: stepName,
-        aiName: _aiName,
-        aiCountryCode: _aiCountry,
-        collectedData: _collectedData,
       );
     } catch (e) {
       Log.e('Error generando pregunta con IA: $e');
@@ -1069,35 +1471,53 @@ class _ConversationalOnboardingScreenState
     await _speakAndWaitForResponse(stepQuestion);
   }
 
-  Future<void> _finishOnboarding() async {
-    // ✅ VALIDACIÓN CRÍTICA: Todos los datos deben estar presentes
-    if (_userName == null ||
-        _userName!.isEmpty ||
-        _aiName == null ||
-        _aiName!.isEmpty ||
-        _userBirthday == null ||
-        _meetStory == null ||
-        _meetStory!.isEmpty ||
-        _userCountry == null ||
-        _userCountry!.isEmpty ||
-        _aiCountry == null ||
-        _aiCountry!.isEmpty) {
-      Log.e('❌ DATOS INCOMPLETOS - no se puede completar onboarding');
-      await _retryCurrentStep();
-      return;
+  /// Devuelve un mensaje de reintento específico por paso cuando no se entendió el dato
+  String _getRetryMessageForStep(OnboardingStep step) {
+    switch (step) {
+      case OnboardingStep.askingName:
+        return 'Disculpa, no he entendido tu nombre. ¿Podrías decirlo de nuevo, por favor?';
+      case OnboardingStep.askingCountry:
+        return 'Perdona, no capté bien tu país. ¿De qué país eres exactamente?';
+      case OnboardingStep.askingBirthdate:
+        return 'No he entendido la fecha. ¿Puedes repetir tu fecha de nacimiento en formato DD/MM/AAAA?';
+      case OnboardingStep.askingAiCountry:
+        return 'No he entendido el país para mí. ¿De qué país quieres que sea?';
+      case OnboardingStep.askingAiName:
+        return 'Perdona, ¿cómo quieres que me llame? ¿Puedes repetir el nombre?';
+      case OnboardingStep.askingMeetStory:
+        return 'No he entendido la historia. ¿Puedes contarme brevemente cómo nos conocimos?';
+      case OnboardingStep.finalMessage:
+      case OnboardingStep.completion:
+        return 'Perdona, no he entendido. ¿Puedes repetirlo, por favor?';
     }
+  }
 
-    // ✅ TODOS LOS DATOS VALIDADOS - Proceder con el onboarding
-    Log.d('✅ DATOS COMPLETOS - Finalizando onboarding', tag: 'CONV_ONBOARDING');
+  Future<void> _finishOnboarding() async {
+    // ✅ Sincronizar memoria final
+    _syncMemoryFromIndividualFields();
 
-    await widget.onFinish(
-      userName: _userName!,
-      aiName: _aiName!,
-      userBirthday: _userBirthday!,
-      meetStory: _meetStory!,
-      userCountryCode: _userCountry!,
-      aiCountryCode: _aiCountry!,
-    );
+    // ✅ Si todos los datos están disponibles, completar onboarding
+    if (_currentMemory.isComplete() && _userBirthdate != null) {
+      Log.d(
+        '✅ DATOS COMPLETOS - Finalizando onboarding',
+        tag: 'CONV_ONBOARDING',
+      );
+
+      await widget.onFinish(
+        userName: _currentMemory.userName!,
+        aiName: _currentMemory.aiName!,
+        userBirthdate: _userBirthdate!,
+        meetStory: _currentMemory.meetStory!,
+        userCountryCode: _currentMemory.userCountry!,
+        aiCountryCode: _currentMemory.aiCountry!,
+      );
+    } else {
+      // Si faltan datos, continuar con el flujo normal
+      Log.w(
+        '⚠️ Faltan datos, continuando flujo normal',
+        tag: 'CONV_ONBOARDING',
+      );
+    }
   }
 
   Future<String?> _showTextInputDialog(OnboardingStep step) async {
@@ -1125,7 +1545,7 @@ class _ConversationalOnboardingScreenState
         hintText = 'Escribe tu país...';
         titleText = '¿De dónde eres?';
         break;
-      case OnboardingStep.askingBirthday:
+      case OnboardingStep.askingBirthdate:
         hintText = 'Escribe tu fecha de nacimiento (DD/MM/AAAA)...';
         titleText = '¿Cuándo naciste?';
         break;
@@ -1272,6 +1692,11 @@ class _ConversationalOnboardingScreenState
     _openaiTtsService.dispose();
     _subtitleController.dispose();
     _progressiveSubtitleController.dispose();
+    // Asegurar que no queden timers o subscripciones activas de subtítulos
+    _progressiveTimer?.cancel();
+    _progressiveTimer = null;
+    _progressiveSub?.cancel();
+    _progressiveSub = null;
     super.dispose();
   }
 }
@@ -1280,7 +1705,7 @@ class _ConversationalOnboardingScreenState
 enum OnboardingStep {
   askingName, // "¿Cómo te llamas?" (nombre del usuario)
   askingCountry, // "¿De qué país eres?" (país del usuario)
-  askingBirthday, // "¿Cuándo naciste?" (fecha de nacimiento del usuario)
+  askingBirthdate, // "¿Cuándo naciste?" (fecha de nacimiento del usuario)
   askingAiCountry, // "¿De qué país quieres que sea?" (país de la IA)
   askingAiName, // "¿Cómo quieres llamarme?" (nombre de la IA)
   askingMeetStory, // "¿Cómo nos conocimos?" (historia de cómo se conocieron)

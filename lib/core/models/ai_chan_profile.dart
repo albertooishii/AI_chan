@@ -6,8 +6,8 @@ class AiChanProfile {
   // Todos los campos al mismo nivel (estructura plana)
   final String userName;
   final String aiName;
-  final DateTime? userBirthday;
-  final DateTime? aiBirthday;
+  final DateTime? userBirthdate;
+  final DateTime? aiBirthdate;
   final Map<String, dynamic> biography;
   final Map<String, dynamic> appearance;
   final List<TimelineEntry> timeline;
@@ -25,8 +25,8 @@ class AiChanProfile {
     this.events,
     required this.userName,
     required this.aiName,
-    required this.userBirthday,
-    required this.aiBirthday,
+    required this.userBirthdate,
+    required this.aiBirthdate,
     required this.biography,
     required this.appearance,
     required this.timeline,
@@ -61,8 +61,8 @@ class AiChanProfile {
     return AiChanProfile(
       userName: json['userName'] ?? '',
       aiName: json['aiName'] ?? '',
-      userBirthday: birth,
-      aiBirthday: aiBirth,
+      userBirthdate: birth,
+      aiBirthdate: aiBirth,
       biography: json['biography'] is Map<String, dynamic>
           ? json['biography'] as Map<String, dynamic>
           : <String, dynamic>{},
@@ -129,11 +129,11 @@ class AiChanProfile {
   Map<String, dynamic> toJson() => {
     'userName': userName,
     'aiName': aiName,
-    'userBirthday': userBirthday != null
-        ? "${userBirthday!.year.toString().padLeft(4, '0')}-${userBirthday!.month.toString().padLeft(2, '0')}-${userBirthday!.day.toString().padLeft(2, '0')}"
+    'userBirthday': userBirthdate != null
+        ? "${userBirthdate!.year.toString().padLeft(4, '0')}-${userBirthdate!.month.toString().padLeft(2, '0')}-${userBirthdate!.day.toString().padLeft(2, '0')}"
         : null,
-    'aiBirthday': aiBirthday != null
-        ? "${aiBirthday!.year.toString().padLeft(4, '0')}-${aiBirthday!.month.toString().padLeft(2, '0')}-${aiBirthday!.day.toString().padLeft(2, '0')}"
+    'aiBirthday': aiBirthdate != null
+        ? "${aiBirthdate!.year.toString().padLeft(4, '0')}-${aiBirthdate!.month.toString().padLeft(2, '0')}-${aiBirthdate!.day.toString().padLeft(2, '0')}"
         : null,
     'biography': biography,
     'appearance': appearance,
@@ -149,8 +149,8 @@ class AiChanProfile {
     List<EventEntry>? events,
     String? userName,
     String? aiName,
-    DateTime? userBirthday,
-    DateTime? aiBirthday,
+    DateTime? userBirthdate,
+    DateTime? aiBirthdate,
     Map<String, dynamic>? biography,
     Map<String, dynamic>? appearance,
     List<TimelineEntry>? timeline,
@@ -162,8 +162,8 @@ class AiChanProfile {
       events: events ?? this.events,
       userName: userName ?? this.userName,
       aiName: aiName ?? this.aiName,
-      userBirthday: userBirthday ?? this.userBirthday,
-      aiBirthday: aiBirthday ?? this.aiBirthday,
+      userBirthdate: userBirthdate ?? this.userBirthdate,
+      aiBirthdate: aiBirthdate ?? this.aiBirthdate,
       biography: biography ?? this.biography,
       appearance: appearance ?? this.appearance,
       timeline: timeline ?? this.timeline,

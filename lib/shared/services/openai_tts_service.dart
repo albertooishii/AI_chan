@@ -131,7 +131,15 @@ class OpenAITtsService {
     if (_currentAudioPath != null) {
       try {
         final audioFile = File(_currentAudioPath!);
-        if (await audioFile.exists()) {
+
+        // NO eliminar archivos de caché persistente - solo temporales
+        if (_currentAudioPath!.contains('AI_chan_cache')) {
+          Log.d(
+            '💾 Archivo de caché persistente conservado: $_currentAudioPath',
+            tag: 'OPENAI_TTS',
+          );
+        } else if (await audioFile.exists()) {
+          // Solo eliminar archivos temporales
           await audioFile.delete();
           Log.d(
             '🗑️ Archivo TTS temporal eliminado: $_currentAudioPath',
@@ -139,7 +147,7 @@ class OpenAITtsService {
           );
         }
       } catch (e) {
-        Log.w('Error eliminando archivo temporal: $e', tag: 'OPENAI_TTS');
+        Log.w('Error procesando archivo temporal: $e', tag: 'OPENAI_TTS');
       }
       _currentAudioPath = null;
       _currentAudioDuration = null;

@@ -18,7 +18,7 @@ typedef OnboardingFinishCallback =
     Future<void> Function({
       required String userName,
       required String aiName,
-      required DateTime userBirthday,
+      required DateTime? userBirthdate,
       required String meetStory,
       String? userCountryCode,
       String? aiCountryCode,
@@ -148,7 +148,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
     final provider = widget.onboardingProvider;
     return provider.userNameController.text.trim().isNotEmpty &&
         (provider.aiNameController?.text.trim().isNotEmpty ?? false) &&
-        provider.userBirthday != null &&
+        provider.userBirthdate != null &&
         provider.meetStoryController.text.trim().isNotEmpty &&
         (provider.userCountryCode?.trim().isNotEmpty ?? false) &&
         (provider.aiCountryCode?.trim().isNotEmpty ?? false);
@@ -285,7 +285,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               // 3) Fecha de nacimiento
               BirthDateField(
                 controller: provider.birthDateController,
-                userBirthday: provider.userBirthday,
+                userBirthdate: provider.userBirthdate,
                 onBirthdayChanged: (d) => provider.setUserBirthday(d),
               ),
               const SizedBox(height: 18),
@@ -407,7 +407,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                           await widget.onFinish(
                             userName: result.userName!,
                             aiName: result.aiName!,
-                            userBirthday: result.userBirthday!,
+                            userBirthdate: result.userBirthdate!,
                             meetStory: result.meetStory!,
                             userCountryCode: result.userCountryCode,
                             aiCountryCode: result.aiCountryCode,

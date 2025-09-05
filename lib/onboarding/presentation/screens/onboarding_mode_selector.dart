@@ -19,7 +19,7 @@ typedef OnboardingFinishCallback =
     Future<void> Function({
       required String userName,
       required String aiName,
-      required DateTime userBirthday,
+      required DateTime? userBirthdate,
       required String meetStory,
       String? userCountryCode,
       String? aiCountryCode,

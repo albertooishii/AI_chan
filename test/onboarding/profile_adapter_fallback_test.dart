@@ -15,7 +15,7 @@ void main() {
       final p = await adapter.generateBiography(
         userName: 'User',
         aiName: 'Ai',
-        userBirthday: DateTime(1990),
+        userBirthdate: DateTime(1990),
         meetStory: 'meet',
       );
 

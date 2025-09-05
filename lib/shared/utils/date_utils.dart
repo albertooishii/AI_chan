@@ -15,14 +15,16 @@ class DateUtils {
 
   /// Genera una fecha de nacimiento aleatoria para la IA basada en la edad del usuario
   static DateTime generateAIBirthdate(
-    DateTime userBirthday, {
+    DateTime? userBirthdate, {
     int? seed,
     DateTime? referenceDate,
   }) {
     final rng = seed != null ? Random(seed) : Random();
     final now = referenceDate ?? DateTime.now();
 
-    final userAge = calculateAge(userBirthday, referenceDate: referenceDate);
+    final userAge = userBirthdate != null
+        ? calculateAge(userBirthdate, referenceDate: referenceDate)
+        : 25; // Default age if no userBirthdate provided
     final targetAge = (userAge - 2) < 18 ? 18 : (userAge - 2);
     final aiYear = now.year - targetAge;
     final aiMonth = rng.nextInt(12) + 1;

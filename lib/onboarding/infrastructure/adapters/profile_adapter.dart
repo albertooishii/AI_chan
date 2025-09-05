@@ -20,7 +20,7 @@ class ProfileAdapter implements IProfileService {
   Future<AiChanProfile> generateBiography({
     required String userName,
     required String aiName,
-    required DateTime userBirthday,
+    required DateTime? userBirthdate,
     required String meetStory,
     String? userCountryCode,
     String? aiCountryCode,
@@ -38,7 +38,7 @@ class ProfileAdapter implements IProfileService {
       return await generateAIBiographyWithAI(
         userName: userName,
         aiName: aiName,
-        userBirthday: userBirthday,
+        userBirthdate: userBirthdate,
         meetStory: meetStory,
         userCountryCode: userCountryCode,
         aiCountryCode: aiCountryCode,
@@ -48,8 +48,8 @@ class ProfileAdapter implements IProfileService {
       return AiChanProfile(
         userName: userName,
         aiName: aiName,
-        userBirthday: userBirthday,
-        aiBirthday: DateTime.now(),
+        userBirthdate: userBirthdate,
+        aiBirthdate: DateTime.now(),
         biography: {
           'summary':
               'Generated fallback biography for $aiName due to unavailable remote service.',

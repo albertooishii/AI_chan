@@ -124,8 +124,8 @@ class PromptBuilder {
     final profilePrompt = AiChanProfile(
       userName: profile.userName,
       aiName: profile.aiName,
-      userBirthday: profile.userBirthday,
-      aiBirthday: profile.aiBirthday,
+      userBirthdate: profile.userBirthdate,
+      aiBirthdate: profile.aiBirthdate,
       biography: profile.biography,
       appearance: profile.appearance,
       timeline: profile.timeline,
@@ -196,8 +196,8 @@ class PromptBuilder {
     final profilePrompt = AiChanProfile(
       userName: profile.userName,
       aiName: profile.aiName,
-      userBirthday: profile.userBirthday,
-      aiBirthday: profile.aiBirthday,
+      userBirthdate: profile.userBirthdate,
+      aiBirthdate: profile.aiBirthdate,
       biography: sanitizedBiography,
       appearance: const <String, dynamic>{},
       timeline: sanitizedTimeline,

@@ -8,8 +8,8 @@ void main() {
     final profile = AiChanProfile(
       userName: 'TestUser',
       aiName: 'TestAI',
-      userBirthday: DateTime(1990),
-      aiBirthday: DateTime(2020),
+      userBirthdate: DateTime(1990),
+      aiBirthdate: DateTime(2020),
       timeline: [],
       biography: {},
       appearance: {},
