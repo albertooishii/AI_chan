@@ -25,6 +25,9 @@ import 'package:ai_chan/call/application/interfaces/voice_call_controller_builde
 import 'package:ai_chan/call/infrastructure/builders/voice_call_controller_builder.dart';
 import 'package:ai_chan/shared/domain/interfaces/i_file_service.dart';
 import 'package:ai_chan/shared/infrastructure/services/file_service.dart';
+import 'package:ai_chan/chat/application/services/chat_application_service.dart';
+import 'package:ai_chan/chat/presentation/controllers/chat_controller.dart';
+import 'package:ai_chan/chat/infrastructure/services/prompt_builder_service.dart';
 
 /// Pequeñas fábricas/funciones de DI para la migración incremental.
 /// Idealmente esto evolucionará a un contenedor/locator más completo.
@@ -358,3 +361,10 @@ IProfileService getProfileServiceForProvider([String? provider]) {
   }
   return ProfileAdapter(aiService: runtime_factory.getRuntimeAIServiceForModel(Config.requireDefaultImageModel()));
 }
+
+/// Factory for Chat Application Service - nueva arquitectura DDD
+ChatApplicationService getChatApplicationService() =>
+    ChatApplicationService(repository: getChatRepository(), promptBuilder: PromptBuilderService());
+
+/// Factory for Chat Controller - nueva arquitectura DDD
+ChatController getChatController() => ChatController(chatService: getChatApplicationService());
