@@ -7,12 +7,12 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/services/google_backup_service.dart';
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
-import 'package:ai_chan/chat/application/providers/chat_provider.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
+import 'package:ai_chan/chat/application/adapters/chat_provider_adapter.dart'; // ✅ DDD: Para type safety en ETAPA 2
 
 /// Widget de diagnóstico para verificar el estado de backups automáticos y autenticación Google
 class BackupDiagnosticsDialog extends StatefulWidget {
-  final ChatProvider? chatProvider;
+  final ChatProviderAdapter? chatProvider; // ✅ DDD: Type safety en ETAPA 2
 
   const BackupDiagnosticsDialog({super.key, this.chatProvider});
 

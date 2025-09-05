@@ -15,13 +15,19 @@ class ChatProviderAdapter extends ChangeNotifier {
   late final ChatApplicationService _service;
 
   // Compatibility layer - exposes the same interface as ChatProvider
-  ChatProviderAdapter({ChatController? controller, ChatApplicationService? service}) {
+  ChatProviderAdapter({
+    ChatController? controller,
+    ChatApplicationService? service,
+  }) {
     _service = service ?? di.getChatApplicationService();
     _controller = controller ?? ChatController(chatService: _service);
 
     // Forward notifications
     _controller.addListener(() => notifyListeners());
   }
+
+  // ✅ MIGRATION HELPER: Expose internal controller for gradual migration
+  ChatController get controller => _controller;
 
   // =======================================
   // INTERFACE COMPATIBILITY WITH ChatProvider
@@ -42,7 +48,8 @@ class ChatProviderAdapter extends ChangeNotifier {
         appearance: {},
         timeline: [],
       );
-  set onboardingData(AiChanProfile profile) => _controller.updateProfile(profile);
+  set onboardingData(AiChanProfile profile) =>
+      _controller.updateProfile(profile);
 
   // Model management
   String? get selectedModel => _controller.selectedModel;
@@ -91,8 +98,10 @@ class ChatProviderAdapter extends ChangeNotifier {
   /// Audio methods
   Future<void> startRecording() => _controller.startRecording();
   Future<void> cancelRecording() => _controller.cancelRecording();
-  Future<void> stopAndSendRecording({String? model}) => _controller.stopAndSendRecording(model: model);
-  Future<void> togglePlayAudio(Message msg, [BuildContext? context]) => _controller.togglePlayAudio(msg);
+  Future<void> stopAndSendRecording({String? model}) =>
+      _controller.stopAndSendRecording(model: model);
+  Future<void> togglePlayAudio(Message msg, [BuildContext? context]) =>
+      _controller.togglePlayAudio(msg);
   Future<void> generateTtsForMessage(Message msg, {String voice = 'nova'}) =>
       _controller.generateTtsForMessage(msg, voice: voice);
 
@@ -101,7 +110,8 @@ class ChatProviderAdapter extends ChangeNotifier {
   void clearPendingIncomingCall() => _controller.clearPendingIncomingCall();
 
   /// Event management
-  void schedulePromiseEvent(EventEntry event) => _controller.schedulePromiseEvent(event);
+  void schedulePromiseEvent(EventEntry event) =>
+      _controller.schedulePromiseEvent(event);
   void onIaMessageSent() {
     // TODO: Implement IA message sent callback if needed
   }
@@ -111,12 +121,15 @@ class ChatProviderAdapter extends ChangeNotifier {
       _controller.getAllModels(forceRefresh: forceRefresh);
 
   /// Google integration
-  Future<Map<String, dynamic>> diagnoseGoogleState() => _controller.diagnoseGoogleState();
+  Future<Map<String, dynamic>> diagnoseGoogleState() =>
+      _controller.diagnoseGoogleState();
 
   /// Import/Export
-  Future<void> applyImportedChat(Map<String, dynamic> imported) => _controller.applyImportedChat(imported);
+  Future<void> applyImportedChat(Map<String, dynamic> imported) =>
+      _controller.applyImportedChat(imported);
 
-  Future<String> exportAllToJson(Map<String, dynamic> data) => _controller.exportChat();
+  Future<String> exportAllToJson(Map<String, dynamic> data) =>
+      _controller.exportChat();
 
   /// Persistence
   Future<void> saveAll() async {
@@ -132,7 +145,11 @@ class ChatProviderAdapter extends ChangeNotifier {
     required AiChanProfile profile,
     required List<Message> messages,
     int maxRecent = 32,
-  }) => _controller.buildRealtimeSystemPromptJson(profile: profile, messages: messages, maxRecent: maxRecent);
+  }) => _controller.buildRealtimeSystemPromptJson(
+    profile: profile,
+    messages: messages,
+    maxRecent: maxRecent,
+  );
 
   String buildCallSystemPromptJson({
     required AiChanProfile profile,
@@ -160,6 +177,15 @@ class ChatProviderAdapter extends ChangeNotifier {
     // Implement if needed
   }
 
+  /// Update or add call status message - Bridge para compatibilidad
+  Future<void> updateOrAddCallStatusMessage(
+    String status, {
+    String? metadata,
+  }) async {
+    // Delegar al controller para manejar mensajes de estado de llamada
+    await _controller.sendMessage(text: status); // Usar parámetro nombrado
+  }
+
   void stopPeriodicIaMessages() {
     // Implement if needed
   }
@@ -167,9 +193,58 @@ class ChatProviderAdapter extends ChangeNotifier {
   /// Queue management (legacy compatibility)
   int get queuedCount => 0; // Simplified for now
 
-  void scheduleSendMessage({required String text, String? model, dynamic image}) {
+  // ✅ COMPATIBILITY: UI state getters
+  bool get isSendingImage => _controller.isLoading; // Simplified mapping
+  bool get isSendingAudio => _controller.isLoading; // Simplified mapping
+  bool get isTyping => _controller.isTyping;
+
+  // ✅ COMPATIBILITY: Audio playback
+  bool isPlaying(Message msg) {
+    // For now, simplified - could check actual audio state
+    return false;
+  }
+
+  // ✅ COMPATIBILITY: Message retry
+  Future<void> retryLastFailedMessage({String? model}) async {
+    // Find last failed message and retry it
+    final failedMessages = messages
+        .where((m) => m.status == MessageStatus.failed)
+        .toList();
+    if (failedMessages.isNotEmpty) {
+      final lastFailed = failedMessages.last;
+      await _controller.sendMessage(text: lastFailed.text, model: model);
+    }
+  }
+
+  // ✅ COMPATIBILITY: Appearance generation - Simplified for now
+  Future<void> regenerateAppearance() async {
+    // TODO: Implement when service has this method
+    // For now, no-op to maintain compatibility
+  }
+
+  Future<void> generateAvatarFromAppearance({bool replace = false}) async {
+    // TODO: Implement when service has this method
+    // For now, no-op to maintain compatibility
+  }
+
+  // ✅ COMPATIBILITY: Scheduling with support for imageMimeType
+  void scheduleSendMessage(
+    String text, {
+    String? model,
+    dynamic image,
+    String? imageMimeType, // Add this parameter for compatibility
+  }) {
     // Bridge: Queue method delegates directly to send message
     sendMessage(text, model: model, image: image);
+  }
+
+  // ✅ COMPATIBILITY: Google account management - Stubbed for now
+  Future<void> updateGoogleAccountInfo() async {
+    // TODO: Implement when Google integration is ready
+  }
+
+  void clearGoogleAccountInfo() {
+    // TODO: Implement when Google integration is ready
   }
 
   @override

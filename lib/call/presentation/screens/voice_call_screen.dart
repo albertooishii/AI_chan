@@ -1,18 +1,18 @@
 import 'package:ai_chan/call/application/controllers/voice_call_screen_controller.dart';
 import 'package:flutter/material.dart';
-import 'package:ai_chan/chat/application/providers/chat_provider.dart';
 import 'package:ai_chan/call/domain/entities/voice_call_state.dart';
 import 'package:ai_chan/call/presentation/widgets/cyberpunk_painters.dart';
 import 'package:ai_chan/core/di.dart' as di;
+import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro
 
 class VoiceCallScreen extends StatefulWidget {
   final bool incoming;
-  final ChatProvider chatProvider;
+  final ChatController chatController; // ✅ DDD: ETAPA 3 - DDD puro
 
   const VoiceCallScreen({
     super.key,
     this.incoming = false,
-    required this.chatProvider,
+    required this.chatController,
   });
 
   @override
@@ -35,7 +35,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
     // Usar DI para obtener builder y crear controller con todas las dependencias
     final builder = di.getVoiceCallControllerBuilder();
     _controller = builder.create(
-      chatProvider: widget.chatProvider,
+      chatController: widget.chatController,
       callType: widget.incoming ? CallType.incoming : CallType.outgoing,
     );
 

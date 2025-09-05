@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'package:ai_chan/call/domain/entities/voice_call_state.dart';
-import 'package:ai_chan/chat/application/providers/chat_provider.dart';
 import 'package:ai_chan/call/domain/interfaces/call_interfaces.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro
 
 class EndCallUseCase {
   final ICallManager _callManager;
@@ -11,7 +10,7 @@ class EndCallUseCase {
   EndCallUseCase(this._callManager);
 
   Future<void> execute({
-    required ChatProvider chatProvider,
+    required ChatController chatController, // ✅ DDD: ETAPA 3 - DDD puro
     required VoiceCallState callState,
   }) async {
     try {
@@ -21,10 +20,10 @@ class EndCallUseCase {
       await _callManager.endCall();
 
       // Actualizar estado en ChatProvider
-      await _updateChatProvider(
-        chatProvider: chatProvider,
+      await _updateChatController(
+        chatController: chatController,
         callState: callState,
-      );
+      ); // ✅ DDD: ETAPA 3
 
       Log.d(
         '✅ EndCallUseCase: Llamada finalizada exitosamente',
@@ -36,10 +35,11 @@ class EndCallUseCase {
     }
   }
 
-  Future<void> _updateChatProvider({
-    required ChatProvider chatProvider,
+  Future<void> _updateChatController({
+    required ChatController chatController, // ✅ DDD: ETAPA 3
     required VoiceCallState callState,
   }) async {
+    // ✅ DDD: ETAPA 3 - usar ChatController directo
     try {
       // Determinar tipo de finalización de llamada
       final shouldMarkRejected = callState.forceReject;
@@ -49,57 +49,54 @@ class EndCallUseCase {
 
       if (shouldMarkRejected) {
         await _handleRejectedCall(
-          chatProvider: chatProvider,
+          chatController: chatController,
           callState: callState,
         );
       } else if (shouldMarkMissed) {
         await _handleMissedCall(
-          chatProvider: chatProvider,
+          chatController: chatController,
           callState: callState,
         );
       } else {
         await _handleCompletedCall(
-          chatProvider: chatProvider,
+          chatController: chatController,
           callState: callState,
         );
       }
     } catch (e) {
       Log.e(
-        '❌ Error actualizando ChatProvider',
+        '❌ Error actualizando ChatController',
         tag: 'END_CALL_USE_CASE',
         error: e,
-      );
+      ); // ✅ DDD: ETAPA 3
     }
   }
 
   Future<void> _handleRejectedCall({
-    required ChatProvider chatProvider,
+    required ChatController chatController, // ✅ DDD: ETAPA 3
     required VoiceCallState callState,
   }) async {
+    // ✅ DDD: ETAPA 3 - usar ChatController directo
     final rejectionText = _getRejectionText(callState.endReason);
-
-    await chatProvider.updateOrAddCallStatusMessage(
-      text: rejectionText,
-      callStatus: CallStatus.rejected,
-      incoming: callState.isIncoming,
-    );
+    await chatController.sendMessage(text: rejectionText); // ✅ DDD: ETAPA 3
   }
 
   Future<void> _handleMissedCall({
-    required ChatProvider chatProvider,
+    required ChatController chatController,
     required VoiceCallState callState,
   }) async {
-    await chatProvider.updateOrAddCallStatusMessage(
+    // ✅ DDD: ETAPA 3
+    // ✅ DDD: ETAPA 3 - usar ChatController directo
+    await chatController.sendMessage(
       text: 'Llamada sin contestar',
-      callStatus: CallStatus.missed,
-      incoming: callState.isIncoming,
-    );
+    ); // ✅ DDD: ETAPA 3
   }
 
   Future<void> _handleCompletedCall({
-    required ChatProvider chatProvider,
+    required ChatController chatController, // ✅ DDD: ETAPA 3
     required VoiceCallState callState,
   }) async {
+    // ✅ DDD: Type safety en ETAPA 2
     // Para llamadas completadas, generar resumen si hay contenido
     if (callState.aiText.isNotEmpty || callState.userText.isNotEmpty) {
       // TODO: Implementar generación de resumen de llamada

@@ -1,15 +1,15 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:ai_chan/chat/application/providers/chat_provider.dart';
 import 'package:ai_chan/call/domain/entities/voice_call_state.dart';
 import 'package:ai_chan/call/application/use_cases/start_call_use_case.dart';
 import 'package:ai_chan/call/application/use_cases/end_call_use_case.dart';
 import 'package:ai_chan/call/application/use_cases/handle_incoming_call_use_case.dart';
 import 'package:ai_chan/call/application/use_cases/manage_audio_use_case.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro
 
 class VoiceCallScreenController extends ChangeNotifier {
-  final ChatProvider _chatProvider;
+  final ChatController _chatController; // ✅ DDD: ETAPA 3 - DDD puro
   late final StartCallUseCase _startCallUseCase;
   late final EndCallUseCase _endCallUseCase;
   late final HandleIncomingCallUseCase _handleIncomingCallUseCase;
@@ -21,13 +21,13 @@ class VoiceCallScreenController extends ChangeNotifier {
   StreamSubscription? _audioLevelSubscription;
 
   VoiceCallScreenController({
-    required ChatProvider chatProvider,
+    required ChatController chatController, // ✅ DDD: ETAPA 3 - DDD puro
     required CallType callType,
     required StartCallUseCase startCallUseCase,
     required EndCallUseCase endCallUseCase,
     required HandleIncomingCallUseCase handleIncomingCallUseCase,
     required ManageAudioUseCase manageAudioUseCase,
-  }) : _chatProvider = chatProvider,
+  }) : _chatController = chatController, // ✅ DDD: ETAPA 3
        _state = VoiceCallState(type: callType),
        _startCallUseCase = startCallUseCase,
        _endCallUseCase = endCallUseCase,
@@ -226,9 +226,9 @@ class VoiceCallScreenController extends ChangeNotifier {
       _noAnswerTimer?.cancel();
 
       await _endCallUseCase.execute(
-        chatProvider: _chatProvider,
+        chatController: _chatController,
         callState: _state,
-      );
+      ); // ✅ DDD: ETAPA 3
 
       _updateState(_state.copyWith(phase: CallPhase.ended));
     } catch (e) {

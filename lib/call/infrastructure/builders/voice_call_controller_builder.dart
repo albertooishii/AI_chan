@@ -7,17 +7,18 @@ import 'package:ai_chan/call/infrastructure/adapters/call_controller.dart';
 import 'package:ai_chan/call/infrastructure/adapters/call_manager_adapter.dart';
 import 'package:ai_chan/call/domain/entities/voice_call_state.dart';
 import 'package:ai_chan/call/application/interfaces/voice_call_controller_builder.dart';
-import 'package:ai_chan/chat/application/providers/chat_provider.dart';
 import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro
 
 /// Implementación del builder para VoiceCallScreenController
 class VoiceCallControllerBuilder implements IVoiceCallControllerBuilder {
   @override
   VoiceCallScreenController create({
-    required ChatProvider chatProvider,
+    required ChatController chatController,
     required CallType callType,
   }) {
+    // ✅ DDD: ETAPA 3 - DDD puro
     // Crear dependencias de infraestructura
     final aiService = di.getAIServiceForModel(Config.getDefaultTextModel());
     final callController = CallController(aiService: aiService);
@@ -34,7 +35,7 @@ class VoiceCallControllerBuilder implements IVoiceCallControllerBuilder {
 
     // Crear controller con todas las dependencias
     return VoiceCallScreenController(
-      chatProvider: chatProvider,
+      chatController: chatController,
       callType: callType,
       startCallUseCase: startCallUseCase,
       endCallUseCase: endCallUseCase,

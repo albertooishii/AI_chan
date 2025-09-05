@@ -1,5 +1,4 @@
 import 'package:ai_chan/core/presentation/widgets/cyberpunk_button.dart';
-import 'package:ai_chan/chat/application/providers/chat_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/core/config.dart';
@@ -12,6 +11,7 @@ import 'package:ai_chan/shared/widgets/country_autocomplete.dart';
 import 'package:ai_chan/shared/widgets/female_name_autocomplete.dart';
 import 'package:ai_chan/onboarding/application/controllers/form_onboarding_controller.dart';
 import 'conversational_onboarding_screen.dart';
+import 'package:ai_chan/chat/application/adapters/chat_provider_adapter.dart'; // ✅ DDD: Para type safety en ETAPA 2
 
 /// Callback typedef para finalizar el onboarding
 typedef OnboardingFinishCallback =
@@ -33,7 +33,7 @@ class OnboardingScreen extends StatefulWidget {
   final OnboardingProvider? onboardingProvider;
   // Optional ChatProvider instance so presentation widgets receive it via constructor
   // instead of depending on provider package APIs internally.
-  final ChatProvider? chatProvider;
+  final ChatProviderAdapter? chatProvider; // ✅ DDD: Type safety en ETAPA 2
 
   const OnboardingScreen({
     super.key,
@@ -88,7 +88,7 @@ class _OnboardingScreenContent extends StatefulWidget {
   // does not call provider package APIs internally.
   final OnboardingProvider onboardingProvider;
   // Optional chat provider instance passed from the parent to avoid Provider.of inside presentation.
-  final ChatProvider? chatProvider;
+  final ChatProviderAdapter? chatProvider; // ✅ DDD: Type safety en ETAPA 2
   final OnboardingFinishCallback onFinish;
   final void Function()? onClearAllDebug;
   final Future<void> Function(ImportedChat importedChat)? onImportJson;

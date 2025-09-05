@@ -1,61 +1,59 @@
-import 'package:ai_chan/chat/application/providers/chat_provider.dart';
+import 'package:ai_chan/chat/application/controllers/chat_controller.dart';
 import 'package:ai_chan/core/models.dart';
 
-/// Adds or replaces an avatar in the provider's profile, persists and
+/// Adds or replaces an avatar in the controller's profile, persists and
 /// notifies listeners. Kept in application layer to avoid presentation ->
 /// application dependency violations.
+///
+/// ✅ DDD MIGRATION: Updated to use ChatController instead of legacy ChatProvider
 Future<void> addAvatarAndPersist(
-  ChatProvider chatProvider,
+  ChatController chatController,
   AiImage avatar, {
   bool replace = false,
 }) async {
   try {
+    final currentProfile = chatController.profile;
+    if (currentProfile == null) return;
+
+    AiChanProfile updatedProfile;
     if (replace) {
-      chatProvider.onboardingData = chatProvider.onboardingData.copyWith(
-        avatars: [avatar],
-      );
+      updatedProfile = currentProfile.copyWith(avatars: [avatar]);
     } else {
-      chatProvider.onboardingData = chatProvider.onboardingData.copyWith(
-        avatars: [...(chatProvider.onboardingData.avatars ?? []), avatar],
+      updatedProfile = currentProfile.copyWith(
+        avatars: [...(currentProfile.avatars ?? []), avatar],
       );
-      try {
-        final sysMsg = Message(
-          text: 'Se ha añadido un nuevo avatar al historial.',
-          sender: MessageSender.system,
-          dateTime: DateTime.now(),
-          status: MessageStatus.read,
-        );
-        chatProvider.messages.add(sysMsg);
-      } catch (_) {}
+      // Note: System message about avatar addition is now handled by ChatController
+      // through the domain events system instead of direct message manipulation
     }
-    try {
-      await chatProvider.saveAll();
-    } catch (_) {}
-    try {
-      chatProvider.notifyListeners();
-    } catch (_) {}
-  } catch (_) {}
+
+    chatController.updateProfile(updatedProfile);
+    // ChatController automatically handles persistence and notifications
+  } catch (_) {
+    // Handle errors silently as in original implementation
+  }
 }
 
-/// Removes an AiImage (if non-null) from the provider's onboardingData,
+/// Removes an AiImage (if non-null) from the controller's profile,
 /// persists and notifies listeners. This centralizes the logic used in
 /// multiple UI places when the user deletes an image that could be an avatar.
+///
+/// ✅ DDD MIGRATION: Updated to use ChatController instead of legacy ChatProvider
 Future<void> removeImageFromProfileAndPersist(
-  ChatProvider chatProvider,
+  ChatController chatController,
   AiImage? deleted,
 ) async {
   if (deleted == null) return;
   try {
-    final current = chatProvider.onboardingData;
-    final avatars = List<AiImage>.from(current.avatars ?? []);
+    final currentProfile = chatController.profile;
+    if (currentProfile == null) return;
+
+    final avatars = List<AiImage>.from(currentProfile.avatars ?? []);
     avatars.removeWhere((a) => a.seed == deleted.seed || a.url == deleted.url);
-    final updated = current.copyWith(avatars: avatars);
-    chatProvider.onboardingData = updated;
-    try {
-      await chatProvider.saveAll();
-    } catch (_) {}
-    try {
-      chatProvider.notifyListeners();
-    } catch (_) {}
-  } catch (_) {}
+    final updated = currentProfile.copyWith(avatars: avatars);
+
+    chatController.updateProfile(updated);
+    // ChatController automatically handles persistence and notifications
+  } catch (_) {
+    // Handle errors silently as in original implementation
+  }
 }

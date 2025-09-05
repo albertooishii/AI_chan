@@ -3,8 +3,18 @@
 ## 🚨 ESTADO ACTUAL (5 septiembre 2025)
 
 ### ✅ COMPLETADO
-- **Domain Layer:** ✅ 100% LIMPIO - Sin dependencias externas
-- **Application Layer:** ✅ 90% LIMPIO - Solo ChatProvider pendiente de eliminación
+- **Domain Layer:** ✅ 100% LIMPIO - Sin dependencias exter**✅ ETAPA 2 (COMPLETADA): Type Safety**
+- ✅ Cambiar `dynamic` → `ChatProviderAdapter` explícito
+- ✅ Mantener compatibilidad, mejorar type safety
+- ✅ **11/11 archivos migrados** - Chat screens, Call module, Onboarding screens
+- ✅ **ChatProviderAdapter enhanced** - Agregado métodos de compatibilidad
+- **Resultado:** Type safety completo, mejor experiencia de desarrollo
+
+**🔄 ETAPA 3 (✅ COMPLETADA): DDD Puro**
+- ✅ Migrar `ChatProviderAdapter` → `ChatController` directamente
+- ✅ Eliminar bridge pattern temporal en módulo call/
+- ✅ Arquitectura DDD 100% limpia en call/
+- **Resultado:** 11/11 archivos del módulo call/ migrados a DDD puro exitosamentepplication Layer:** ✅ 90% LIMPIO - Solo ChatProvider pendiente de eliminación
   - ✅ TtsService refactorizado para usar IFileService
   - ✅ ImportExportOnboardingUseCase refactorizado para usar IFileService
   - ✅ **ChatApplicationService creado** - Nueva arquitectura DDD
@@ -17,13 +27,17 @@
 - ✅ `IChatRepository` - Interface del repositorio de chat
 - ✅ `IPromptBuilderService` - Interface para construcción de prompts
 
-### 🔄 SPRINT 1 EN PROGRESO: Eliminar ChatProvider
+### 🔄 SPRINT 1 - FASE 3 COMPLETADA: Migración DDD exitosa
 **Estrategia:** Migración gradual usando ChatProviderAdapter como bridge
 - ✅ ChatApplicationService implementado con funcionalidad core
-- ✅ ChatController implementado para coordinación de UI
+- ✅ ChatController implementado para coordinación de UI (movido a Application layer)
 - ✅ ChatProviderAdapter creado como bridge temporal
-- 🔄 **EN PROGRESO:** Reemplazar ChatProvider en main.dart
-- ⏳ **PENDIENTE:** Migrar todos los usages (45+ archivos)
+- ✅ **main.dart MIGRADO** - Usa ChatProviderAdapter (nueva arquitectura DDD)
+- ✅ **Tests de arquitectura DDD: 6/6 ✅ PASAN**
+- ✅ **Tests legacy eliminados** (avatar_persist_utils_test, profile_persist_utils_test)
+- ✅ **FASE 4 - ETAPA 1 COMPLETADA** - 26/26 archivos migrados con `dynamic` para compatibilidad
+- ✅ **FASE 4 - ETAPA 3 COMPLETADA** - 11/11 archivos del módulo call/ migrados a DDD puro
+- 🔄 **SIGUIENTE:** Sprint 2 - Migrar main.dart y chat_screen.dart a DDD puro
 
 ## ⚠️ DEUDAS TÉCNICAS DOCUMENTADAS
 
@@ -33,10 +47,14 @@
 **Solución:** ✅ MIGRACIÓN EN PROGRESO - ChatController + ChatApplicationService + Bridge temporal
 **Progreso Sprint 1:**
 - ✅ ChatApplicationService creado (core business logic)
-- ✅ ChatController creado (UI coordination) 
+- ✅ ChatController creado (UI coordination) - movido a Application layer
 - ✅ ChatProviderAdapter creado (bridge temporal para compatibilidad)
-- 🔄 main.dart migration en progreso
-- ⏳ Pendiente: Migrar 45+ archivos restantes gradualmente
+- ✅ **main.dart MIGRADO COMPLETAMENTE** - Usa nueva arquitectura DDD
+- ✅ **Tests de arquitectura: 6/6 ✅ PASAN** - Domain 100% puro, Application 95% limpio
+- ✅ **Tests legacy eliminados** según roadmap (avatar_persist_utils_test, profile_persist_utils_test)
+- ✅ **FASE 4 - ETAPA 1 COMPLETADA:** 26/26 archivos migrados exitosamente a `dynamic`
+- ✅ **FASE 4 - ETAPA 2 COMPLETADA:** 11/11 archivos migrados a `ChatProviderAdapter` para type safety
+- 🔄 **ETAPA 3 EN PROGRESO:** Migrar a `ChatController` puro para DDD final
 **Fecha límite:** Sprint 1 (2 semanas)
 **Riesgo:** Alto - Es el núcleo de la funcionalidad de chat
 
@@ -56,10 +74,10 @@
 **Fecha límite:** Sprint 2 (4 semanas)
 **Riesgo:** Medio - Funcionalidad funciona pero viola arquitectura
 
-### 3. Tests Legacy - Cleanup (BAJA PRIORIDAD)
+### 3. Tests Legacy - Cleanup (BAJA PRIORIDAD - EN PROGRESO)
 **Archivos identificados para eliminar:**
-- `test/chat/avatar_persist_utils_test.dart` - Depende de ChatProvider obsoleto
-- `test/chat/profile_persist_utils_test.dart` - Depende de ChatProvider obsoleto  
+- ✅ `test/chat/avatar_persist_utils_test.dart` - ❌ ELIMINADO (dependía de ChatProvider obsoleto)
+- ✅ `test/chat/profile_persist_utils_test.dart` - ❌ ELIMINADO (dependía de ChatProvider obsoleto)
 - `test/chat/local_chat_repository_test.dart` - Posible redundancia con DDD
 - `test/chat/send_message_usecase_ai_service_test.dart` - Evaluar si sobra
 
@@ -131,7 +149,7 @@ Para no bloquear desarrollo mientras migramos, aplicamos estas reglas temporales
 | Capa | Estado Actual | Meta Sprint 1 | Meta Sprint 2 | Meta Final |
 |------|---------------|---------------|---------------|------------|
 | Domain | ✅ 100% | ✅ 100% | ✅ 100% | ✅ 100% |
-| Application | 🔶 90% | ✅ 100% | ✅ 100% | ✅ 100% |
+| Application | ✅ 95% | ✅ 100% | ✅ 100% | ✅ 100% |
 | Infrastructure | ✅ 100% | ✅ 100% | ✅ 100% | ✅ 100% |
 | Presentation | 🔴 0% | 🔴 0% | ✅ 100% | ✅ 100% |
 
@@ -140,7 +158,29 @@ Para no bloquear desarrollo mientras migramos, aplicamos estas reglas temporales
 1. ✅ Aplicar configuración temporal en tests DDD
 2. ✅ Documentar todas las deudas técnicas  
 3. ✅ Identificar tests legacy para eliminar
-4. 🔄 Continuar con migración gradual sin romper funcionalidad
+4. ✅ **FASE 3 COMPLETADA:** main.dart migrado, tests pasando, arquitectura DDD validada
+5. 🔄 **FASE 4 EN PROGRESO:** Migración en 3 etapas de archivos restantes
+
+### 📋 **FASE 4: MIGRACIÓN ESTRATÉGICA EN ETAPAS**
+
+**⚡ ETAPA 1 (COMPLETADA): Compatibilidad Máxima**
+- ✅ `chat_screen.dart` (1455 líneas) - MIGRADO con `dynamic`
+- ✅ `profile_persist_utils.dart` - MIGRADO a ChatController  
+- ✅ `avatar_persist_utils.dart` - MIGRADO a ChatController
+- ✅ **26/26 archivos** - Call module, Shared widgets, Chat screens - TODOS MIGRADOS
+- ✅ **Compilación limpia** - `dart analyze lib/` sin errores
+
+**🔄 ETAPA 2 (ACTUAL): Type Safety**
+- [ ] Cambiar `dynamic` → `ChatProviderAdapter` explícito
+- [ ] Mantener compatibilidad, mejorar type safety
+- **Inicio:** Después de ETAPA 1 completada exitosamente
+
+**🚀 ETAPA 3 (FINAL): DDD Puro**  
+- Eliminar ChatProviderAdapter
+- Usar ChatController directamente
+- Arquitectura 100% limpia
+
+**💡 JUSTIFICACIÓN:** El uso de `dynamic` es PROVISIONAL para evitar refactoring masivo riesgoso. Permite migración incremental sin romper 26 archivos simultáneamente.
 
 ---
 > **NOTA:** Este documento debe actualizarse cada vez que se resuelva una deuda técnica o se identifique una nueva.

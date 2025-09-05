@@ -6,7 +6,6 @@ import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
 import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'package:ai_chan/shared/services/backup_service.dart';
-import 'package:ai_chan/chat/application/providers/chat_provider.dart';
 import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:file_picker/file_picker.dart';
@@ -14,6 +13,7 @@ import 'dart:io';
 import 'dart:math';
 import 'conversational_onboarding_screen.dart';
 import 'onboarding_screen.dart';
+import 'package:ai_chan/chat/application/adapters/chat_provider_adapter.dart'; // ✅ DDD: Para type safety en ETAPA 2
 
 typedef OnboardingFinishCallback =
     Future<void> Function({
@@ -32,7 +32,7 @@ class OnboardingModeSelector extends StatefulWidget {
   final void Function()? onClearAllDebug;
   final Future<void> Function(ImportedChat importedChat)? onImportJson;
   final OnboardingProvider? onboardingProvider;
-  final ChatProvider? chatProvider;
+  final ChatProviderAdapter? chatProvider; // ✅ DDD: Type safety en ETAPA 2
 
   const OnboardingModeSelector({
     super.key,
@@ -479,7 +479,7 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
 
   /// Maneja el backup con Google Drive
   Future<void> _handleGoogleDriveBackup(BuildContext context) async {
-    final ChatProvider? cp = widget.chatProvider;
+    final dynamic cp = widget.chatProvider;
     final OnboardingProvider? op = widget.onboardingProvider;
 
     final res = await showAppDialog<dynamic>(

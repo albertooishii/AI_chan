@@ -1,26 +1,29 @@
 import 'package:flutter/foundation.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/chat/application/providers/chat_provider.dart';
+import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro
 
 /// Application Controller for Chat Screen
 /// Orchestrates business logic for the chat interface
 /// Following Clean Architecture principles
 class ChatScreenController extends ChangeNotifier {
-  final ChatProvider _chatProvider;
+  final ChatController _chatController; // ✅ DDD: ETAPA 3 - DDD puro
 
   // UI State
   bool _isLoading = false;
   String? _errorMessage;
   int _displayedMessageCount = 50;
 
-  ChatScreenController({required ChatProvider chatProvider})
-    : _chatProvider = chatProvider;
+  ChatScreenController({
+    required ChatController chatController,
+  }) // ✅ DDD: ETAPA 3 - DDD puro
+  : _chatController = chatController;
 
   // Getters
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   int get displayedMessageCount => _displayedMessageCount;
-  ChatProvider get chatProvider => _chatProvider;
+  ChatController get chatController =>
+      _chatController; // ✅ DDD: ETAPA 3 - DDD puro
 
   // UI State Management
   void setLoading(bool loading) {
@@ -46,7 +49,8 @@ class ChatScreenController extends ChangeNotifier {
   }
 
   List<Message> getFilteredMessages() {
-    return _chatProvider.messages
+    return _chatController
+        .messages // ✅ DDD: ETAPA 3 - usar ChatController directo
         .where(
           (m) =>
               m.sender != MessageSender.system ||
@@ -71,7 +75,9 @@ class ChatScreenController extends ChangeNotifier {
       setLoading(true);
       clearError();
 
-      await _chatProvider.sendMessage(message);
+      await _chatController.sendMessage(
+        text: message,
+      ); // ✅ DDD: ETAPA 3 - usar ChatController directo
     } catch (e) {
       setError('Error sending message: $e');
     } finally {
@@ -83,7 +89,9 @@ class ChatScreenController extends ChangeNotifier {
   void selectModel(String model) {
     try {
       clearError();
-      _chatProvider.selectedModel = model;
+      _chatController.setSelectedModel(
+        model,
+      ); // ✅ DDD: ETAPA 3 - usar ChatController directo
     } catch (e) {
       setError('Error changing model: $e');
     }
@@ -95,7 +103,8 @@ class ChatScreenController extends ChangeNotifier {
   }
 
   // Additional helper methods
-  String get currentModel => _chatProvider.selectedModel ?? 'No model selected';
-  bool get hasMessages => _chatProvider.messages.isNotEmpty;
+  String get currentModel =>
+      _chatController.selectedModel ?? 'No model selected'; // ✅ DDD: ETAPA 3
+  bool get hasMessages => _chatController.messages.isNotEmpty; // ✅ DDD: ETAPA 3
   bool get isSending => _isLoading; // Use local loading state
 }

@@ -14,6 +14,8 @@ import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/core/services/memory_summary_service.dart';
 import 'dart:io';
 import 'package:ai_chan/core/services/ia_appearance_generator.dart';
+import 'package:ai_chan/core/di.dart'
+    as di; // ✅ DDD: Para acceder a ChatController en migración
 import 'package:ai_chan/core/services/ia_avatar_generator.dart';
 import 'package:ai_chan/chat/application/utils/avatar_persist_utils.dart';
 import 'package:ai_chan/core/services/image_request_service.dart';
@@ -25,7 +27,6 @@ import 'package:ai_chan/chat/domain/models/chat_result.dart';
 import 'package:ai_chan/chat/application/services/tts_service.dart';
 import 'package:ai_chan/chat/domain/services/periodic_ia_message_scheduler.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_prompt_builder_service.dart';
-import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/network_utils.dart';
 import 'package:ai_chan/chat/application/use_cases/send_message_use_case.dart';
@@ -1932,7 +1933,11 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
     required bool replace,
   }) async {
     // Delegate to centralized util that persists and notifies.
-    await addAvatarAndPersist(this, avatar, replace: replace);
+    await addAvatarAndPersist(
+      di.getChatController(),
+      avatar,
+      replace: replace,
+    ); // ✅ DDD: Usar ChatController durante migración
   }
 
   /// Nuevo nombre: Regenera la apariencia (JSON) usando IAAppearanceGenerator
@@ -2510,7 +2515,11 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
                   updatedProfile,
                   appendAvatar: true,
                 );
-            await addAvatarAndPersist(this, avatar, replace: true);
+            await addAvatarAndPersist(
+              di.getChatController(),
+              avatar,
+              replace: true,
+            ); // ✅ DDD: Usar ChatController durante migración
             // Insertar un mensaje system para que la IA tenga consciencia de la actualización
             try {
               final sysMsg = Message(
@@ -2544,7 +2553,11 @@ class ChatProvider extends ChangeNotifier with DebouncedPersistenceMixin {
                         updatedProfile2,
                         appendAvatar: true,
                       );
-                  await addAvatarAndPersist(this, avatar2, replace: true);
+                  await addAvatarAndPersist(
+                    di.getChatController(),
+                    avatar2,
+                    replace: true,
+                  ); // ✅ DDD: Usar ChatController durante migración
                   try {
                     final sysMsg2 = Message(
                       text:

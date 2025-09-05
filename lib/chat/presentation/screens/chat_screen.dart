@@ -4,7 +4,6 @@ import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'package:flutter/material.dart';
 import 'dart:io';
-import '../../application/providers/chat_provider.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/message_input.dart';
 import '../controllers/chat_input_controller.dart';
@@ -24,11 +23,12 @@ import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
 import 'package:ai_chan/shared/widgets/local_backup_dialog.dart';
 import 'package:ai_chan/shared/widgets/backup_diagnostics_dialog.dart';
 import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
+import 'package:ai_chan/chat/application/adapters/chat_provider_adapter.dart'; // ✅ DDD: Para type safety en ETAPA 2
 
 class ChatScreen extends StatefulWidget {
   final AiChanProfile bio;
   final String aiName;
-  final ChatProvider chatProvider;
+  final ChatProviderAdapter chatProvider; // ✅ DDD: Type safety en ETAPA 2
   final Future<void> Function()? onClearAllDebug;
   final Future<void> Function(ImportedChat importedChat)? onImportJson;
 
@@ -154,7 +154,9 @@ class _ChatScreenState extends State<ChatScreen> {
     await Future.delayed(const Duration(milliseconds: 120));
     if (!mounted) return;
     setState(() {
-      _displayedCount = (_displayedCount + _pageSize).clamp(0, filtered.length);
+      _displayedCount = (_displayedCount + _pageSize)
+          .clamp(0, filtered.length)
+          .toInt();
     });
 
     // Allow a frame to render the newly added items and then adjust scroll
@@ -175,7 +177,8 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _isLoadingMore = false);
   }
 
-  Future<void> _showImportDialog(ChatProvider chatProvider) async {
+  Future<void> _showImportDialog(ChatProviderAdapter chatProvider) async {
+    // ✅ DDD: Type safety en ETAPA 2
     final (jsonStr, error) =
         await chat_json_utils.ChatJsonUtils.importJsonFile();
     if (error != null) {
@@ -192,7 +195,7 @@ class _ChatScreenState extends State<ChatScreen> {
           await widget.onImportJson!.call(imported);
         } else {
           if (imported != null) {
-            await chatProvider.applyImportedChat(imported);
+            await chatProvider.applyImportedChat(imported.toJson());
             if (mounted) setState(() {});
             _showImportSuccessSnackBar();
           } else {
@@ -208,8 +211,9 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<String?> _showModelSelectionDialog(
     List<String> models,
     String? initialModel,
-    ChatProvider chatProvider,
+    ChatProviderAdapter chatProvider,
   ) async {
+    // ✅ DDD: Type safety en ETAPA 2
     final navCtx = navigatorKey.currentContext;
     if (navCtx == null) return null;
     // Use StatefulBuilder to allow in-dialog refresh of models
@@ -367,8 +371,9 @@ class _ChatScreenState extends State<ChatScreen> {
   void _setSelectedModel(
     String? selected,
     String? current,
-    ChatProvider chatProvider,
+    ChatProviderAdapter chatProvider,
   ) {
+    // ✅ DDD: Type safety en ETAPA 2
     if (!mounted) return;
     if (selected != null && selected != current) {
       chatProvider.selectedModel = selected;
@@ -381,7 +386,8 @@ class _ChatScreenState extends State<ChatScreen> {
     showAppSnackBar('Chat importado correctamente.', preferRootMessenger: true);
   }
 
-  void _showExportDialog(String jsonStr, ChatProvider chatProvider) {
+  void _showExportDialog(String jsonStr, ChatProviderAdapter chatProvider) {
+    // ✅ DDD: Type safety en ETAPA 2
     final importedChat = ImportedChat(
       profile: chatProvider.onboardingData,
       messages: chatProvider.messages,
@@ -399,7 +405,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _handleImageDeleted(AiImage? deleted) async {
     try {
       final chatProvider = widget.chatProvider;
-      await removeImageFromProfileAndPersist(chatProvider, deleted);
+      await removeImageFromProfileAndPersist(chatProvider.controller, deleted);
     } catch (_) {}
   }
 
@@ -429,8 +435,10 @@ class _ChatScreenState extends State<ChatScreen> {
           chatProvider.clearPendingIncomingCall();
           navigator.push(
             MaterialPageRoute(
-              builder: (_) =>
-                  VoiceCallScreen(incoming: true, chatProvider: chatProvider),
+              builder: (_) => VoiceCallScreen(
+                incoming: true,
+                chatController: chatProvider.controller,
+              ),
             ),
           );
         }
@@ -571,7 +579,8 @@ class _ChatScreenState extends State<ChatScreen> {
               final existing = widget.chatProvider;
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => VoiceCallScreen(chatProvider: existing),
+                  builder: (_) =>
+                      VoiceCallScreen(chatController: existing.controller),
                 ),
               );
             },
@@ -847,7 +856,9 @@ class _ChatScreenState extends State<ChatScreen> {
                         );
                       },
                       onImportedJson: (imported) async {
-                        await widget.chatProvider.applyImportedChat(imported);
+                        await widget.chatProvider.applyImportedChat(
+                          imported.toJson(),
+                        );
                         if (mounted) setState(() {});
                       },
                       onImportError: (err) {
@@ -874,9 +885,7 @@ class _ChatScreenState extends State<ChatScreen> {
               } else if (value == 'add_new_avatar') {
                 setState(() => _isRegeneratingAppearance = true);
                 try {
-                  await widget.chatProvider.generateAvatarFromAppearance(
-                    replace: false,
-                  );
+                  await widget.chatProvider.generateAvatarFromAppearance();
                 } catch (e) {
                   if (!mounted) return;
                   showErrorDialog('Error al generar avatar:\n$e');
@@ -1114,9 +1123,8 @@ class _ChatScreenState extends State<ChatScreen> {
                         imageDir: _imageDir,
                         onRetry: () async {
                           try {
-                            chatProvider.retryLastFailedMessage(
-                              onError: (e) {},
-                            );
+                            chatProvider
+                                .retryLastFailedMessage(); // ✅ DDD: Método compatible con ChatProviderAdapter
                           } catch (_) {}
                         },
                         onImageTap: () async {
@@ -1398,7 +1406,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   /// Helper para crear GoogleDriveBackupDialog con callbacks estandarizados
-  GoogleDriveBackupDialog _buildGoogleDriveBackupDialog(ChatProvider provider) {
+  GoogleDriveBackupDialog _buildGoogleDriveBackupDialog(dynamic provider) {
     return GoogleDriveBackupDialog(
       requestBackupJson: () async => await BackupUtils.exportChatPartsToJson(
         profile: provider.onboardingData,
@@ -1410,7 +1418,7 @@ class _ChatScreenState extends State<ChatScreen> {
           jsonStr,
         );
         if (imported != null) {
-          await widget.chatProvider.applyImportedChat(imported);
+          await widget.chatProvider.applyImportedChat(imported.toJson());
         }
       },
       onAccountInfoUpdated:
