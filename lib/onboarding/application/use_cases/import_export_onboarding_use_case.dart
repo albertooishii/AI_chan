@@ -1,6 +1,7 @@
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'package:ai_chan/shared/domain/interfaces/i_file_service.dart';
+import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:file_picker/file_picker.dart';
 
@@ -9,7 +10,8 @@ import 'package:file_picker/file_picker.dart';
 class ImportExportOnboardingUseCase {
   final IFileService fileService;
 
-  ImportExportOnboardingUseCase({required this.fileService});
+  ImportExportOnboardingUseCase({IFileService? fileService})
+    : fileService = fileService ?? di.getFileService();
 
   /// Importa datos desde un archivo JSON
   Future<ImportExportResult> importFromJson() async {

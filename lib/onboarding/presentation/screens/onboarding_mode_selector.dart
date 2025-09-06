@@ -6,7 +6,7 @@ import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
 import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'package:ai_chan/shared/services/backup_service.dart';
-import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dart';
+import 'package:ai_chan/onboarding/application/controllers/onboarding_lifecycle_controller.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:ai_chan/core/di.dart' as di;
@@ -32,7 +32,7 @@ class OnboardingModeSelector extends StatefulWidget {
   final OnboardingFinishCallback onFinish;
   final void Function()? onClearAllDebug;
   final Future<void> Function(ImportedChat importedChat)? onImportJson;
-  final OnboardingProvider? onboardingProvider;
+  final OnboardingLifecycleController? onboardingLifecycle;
   final ChatApplicationService?
   chatProvider; // ✅ DDD: ETAPA 3 - Migrado a ChatApplicationService
 
@@ -41,7 +41,7 @@ class OnboardingModeSelector extends StatefulWidget {
     required this.onFinish,
     this.onClearAllDebug,
     this.onImportJson,
-    this.onboardingProvider,
+    this.onboardingLifecycle,
     this.chatProvider,
   });
 
@@ -238,8 +238,8 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
                                             builder: (_) =>
                                                 ConversationalOnboardingScreen(
                                                   onFinish: widget.onFinish,
-                                                  onboardingProvider:
-                                                      widget.onboardingProvider,
+                                                  onboardingLifecycle: widget
+                                                      .onboardingLifecycle,
                                                 ),
                                           ),
                                         );
@@ -288,8 +288,8 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
                                           onClearAllDebug:
                                               widget.onClearAllDebug,
                                           onImportJson: widget.onImportJson,
-                                          onboardingProvider:
-                                              widget.onboardingProvider,
+                                          onboardingLifecycle:
+                                              widget.onboardingLifecycle,
                                           chatProvider: widget.chatProvider,
                                         ),
                                       ),
@@ -504,7 +504,7 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
   /// Maneja el backup con Google Drive
   Future<void> _handleGoogleDriveBackup(BuildContext context) async {
     final dynamic cp = widget.chatProvider;
-    final OnboardingProvider? op = widget.onboardingProvider;
+    final OnboardingLifecycleController? op = widget.onboardingLifecycle;
 
     final res = await showAppDialog<dynamic>(
       builder: (ctx) => AlertDialog(

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/core/config.dart';
 import '../widgets/birth_date_field.dart';
-import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dart';
+import 'package:ai_chan/onboarding/application/controllers/onboarding_lifecycle_controller.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/locale_utils.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
@@ -30,7 +30,7 @@ class OnboardingScreen extends StatefulWidget {
   final void Function()? onClearAllDebug;
   final Future<void> Function(ImportedChat importedChat)? onImportJson;
   // Optional external provider instance (presentation widgets should avoid creating providers internally when possible)
-  final OnboardingProvider? onboardingProvider;
+  final OnboardingLifecycleController? onboardingLifecycle;
   // Optional ChatProvider instance so presentation widgets receive it via constructor
   // instead of depending on provider package APIs internally.
   final ChatApplicationService?
@@ -41,7 +41,7 @@ class OnboardingScreen extends StatefulWidget {
     required this.onFinish,
     this.onClearAllDebug,
     this.onImportJson,
-    this.onboardingProvider,
+    this.onboardingLifecycle,
     this.chatProvider,
   });
 
@@ -50,14 +50,14 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
-  OnboardingProvider? _createdProvider;
+  OnboardingLifecycleController? _createdLifecycle;
 
   @override
   void initState() {
     super.initState();
     // If no external provider was supplied, create one and retain it across rebuilds.
-    if (widget.onboardingProvider == null) {
-      _createdProvider = OnboardingProvider();
+    if (widget.onboardingLifecycle == null) {
+      _createdLifecycle = OnboardingLifecycleController();
     }
   }
 
@@ -65,18 +65,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void dispose() {
     try {
       // Only dispose if we created it here.
-      _createdProvider?.dispose();
+      _createdLifecycle?.dispose();
     } catch (_) {}
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final effectiveProvider = widget.onboardingProvider ?? _createdProvider!;
-    // The onboarding provider instance is passed explicitly to the presentation
+    final effectiveLifecycle = widget.onboardingLifecycle ?? _createdLifecycle!;
+    // The onboarding lifecycle controller is passed explicitly to the presentation
     // content. Presentation widgets must not call provider package APIs directly.
     return _OnboardingScreenContent(
-      onboardingProvider: effectiveProvider,
+      onboardingLifecycle: effectiveLifecycle,
       chatProvider: widget.chatProvider,
       onFinish: widget.onFinish,
       onClearAllDebug: widget.onClearAllDebug,
@@ -87,7 +87,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
 class _OnboardingScreenContent extends StatefulWidget {
   // does not call provider package APIs internally.
-  final OnboardingProvider onboardingProvider;
+  final OnboardingLifecycleController onboardingLifecycle;
   // Optional chat provider instance passed from the parent to avoid Provider.of inside presentation.
   final ChatApplicationService?
   chatProvider; // ✅ DDD: ETAPA 3 - Migrado a ChatApplicationService
@@ -99,7 +99,7 @@ class _OnboardingScreenContent extends StatefulWidget {
     required this.onFinish,
     this.onClearAllDebug,
     this.onImportJson,
-    required this.onboardingProvider,
+    required this.onboardingLifecycle,
     this.chatProvider,
   });
 
@@ -146,15 +146,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
     );
   }
 
-  bool get _formCompleto {
-    final provider = widget.onboardingProvider;
-    return provider.userNameController.text.trim().isNotEmpty &&
-        (provider.aiNameController?.text.trim().isNotEmpty ?? false) &&
-        provider.userBirthdate != null &&
-        provider.meetStoryController.text.trim().isNotEmpty &&
-        (provider.userCountryCode?.trim().isNotEmpty ?? false) &&
-        (provider.aiCountryCode?.trim().isNotEmpty ?? false);
-  }
+  // _formCompleto replaced by _formController.isFormCompleteComputed
 
   late final TextEditingController _userNameController;
 
@@ -164,16 +156,18 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
     // Clean Architecture: Initialize controller
     _formController = FormOnboardingController();
     _userNameController = TextEditingController(
-      text: widget.onboardingProvider.userNameController.text,
+      text: _formController.userNameController.text,
     );
-    // Register a listener to refresh the UI whenever the provider notifies listeners.
-    widget.onboardingProvider.addListener(_onProviderChanged);
+    // Register listeners: provider for onboarding lifecycle and controller for form state
+    widget.onboardingLifecycle.addListener(_onProviderChanged);
+    _formController.addListener(_onProviderChanged);
     // No preload persisted Google account info: menu shows a static label now.
   }
 
   @override
   void dispose() {
-    widget.onboardingProvider.removeListener(_onProviderChanged);
+    widget.onboardingLifecycle.removeListener(_onProviderChanged);
+    _formController.removeListener(_onProviderChanged);
     _userNameController.dispose();
     _formController.dispose();
     super.dispose();
@@ -186,9 +180,8 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = widget.onboardingProvider;
     void onMeetStoryChanged(String value) {
-      provider.setMeetStory(value);
+      _formController.setMeetStory(value);
       setState(() {}); // Fuerza refresco para reactivar el botón
     }
 
@@ -215,7 +208,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                 MaterialPageRoute(
                   builder: (_) => ConversationalOnboardingScreen(
                     onFinish: widget.onFinish,
-                    onboardingProvider: widget.onboardingProvider,
+                    onboardingLifecycle: widget.onboardingLifecycle,
                   ),
                 ),
               );
@@ -235,24 +228,25 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(
-          key: provider.formKey,
+          key: _formController.formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // 1) País de usuario
               _sectionHeader('Mis datos', icon: Icons.person),
               CountryAutocomplete(
-                selectedCountryCode: provider.userCountryCode,
+                selectedCountryCode: _formController.userCountryCode,
                 labelText: 'Tu país',
                 prefixIcon: Icons.flag,
-                validator: (_) => provider.userCountryCode?.isNotEmpty == true
+                validator: (_) =>
+                    _formController.userCountryCode?.isNotEmpty == true
                     ? null
                     : 'Obligatorio',
-                helperText: provider.userCountryCode?.isNotEmpty == true
-                    ? 'Idioma: ${LocaleUtils.languageNameEsForCountry(provider.userCountryCode!)}'
+                helperText: _formController.userCountryCode?.isNotEmpty == true
+                    ? 'Idioma: ${LocaleUtils.languageNameEsForCountry(_formController.userCountryCode!)}'
                     : null,
                 onCountrySelected: (code) {
-                  provider.setUserCountryCode(code);
+                  _formController.setUserCountryCode(code);
                 },
               ),
               const SizedBox(height: 18),
@@ -261,7 +255,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               TextFormField(
                 controller: _userNameController,
                 onChanged: (value) {
-                  provider.setUserName(value);
+                  _formController.setUserName(value);
                 },
                 style: const TextStyle(
                   color: AppColors.primary,
@@ -286,24 +280,27 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
 
               // 3) Fecha de nacimiento
               BirthDateField(
-                controller: provider.birthDateController,
-                userBirthdate: provider.userBirthdate,
-                onBirthdateChanged: (d) => provider.setUserBirthdate(d),
+                controller: _formController.birthDateController,
+                userBirthdate: _formController.userBirthdate,
+                onBirthdateChanged: (d) => _formController.setUserBirthdate(d),
               ),
               const SizedBox(height: 18),
 
               // 4) País de la IA
               _sectionHeader('Datos de la AI-Chan', icon: Icons.smart_toy),
               CountryAutocomplete(
-                key: ValueKey('ai-country-${provider.aiCountryCode ?? 'none'}'),
-                selectedCountryCode: provider.aiCountryCode,
+                key: ValueKey(
+                  'ai-country-${_formController.aiCountryCode ?? 'none'}',
+                ),
+                selectedCountryCode: _formController.aiCountryCode,
                 labelText: 'País de la AI-Chan',
                 prefixIcon: Icons.flag,
-                validator: (_) => provider.aiCountryCode?.isNotEmpty == true
+                validator: (_) =>
+                    _formController.aiCountryCode?.isNotEmpty == true
                     ? null
                     : 'Obligatorio',
-                helperText: provider.aiCountryCode?.isNotEmpty == true
-                    ? 'Idioma: ${LocaleUtils.languageNameEsForCountry(provider.aiCountryCode!)}'
+                helperText: _formController.aiCountryCode?.isNotEmpty == true
+                    ? 'Idioma: ${LocaleUtils.languageNameEsForCountry(_formController.aiCountryCode!)}'
                     : null,
                 // Lista de países preferidos (cultura otaku/friki, industria tech)
                 preferredCountries: const [
@@ -325,32 +322,34 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                   'NO', // Noruega
                 ],
                 onCountrySelected: (code) {
-                  provider.setAiCountryCode(code);
+                  _formController.setAiCountryCode(code);
                 },
               ),
               const SizedBox(height: 18),
 
               // 5) Nombre de la IA
               FemaleNameAutocomplete(
-                key: ValueKey('ai-name-${provider.aiCountryCode ?? 'none'}'),
-                selectedName: provider.aiNameController?.text,
-                countryCode: provider.aiCountryCode,
+                key: ValueKey(
+                  'ai-name-${_formController.aiCountryCode ?? 'none'}',
+                ),
+                selectedName: _formController.aiNameController.text,
+                countryCode: _formController.aiCountryCode,
                 labelText: 'Nombre de la AI-Chan',
                 prefixIcon: Icons.smart_toy,
-                controller: provider.aiNameController,
+                controller: _formController.aiNameController,
                 validator: (v) => v == null || v.isEmpty ? 'Obligatorio' : null,
                 onNameSelected: (name) {
-                  provider.setAiName(name);
+                  _formController.setAiName(name);
                 },
                 onChanged: (name) {
-                  provider.setAiName(name);
+                  _formController.setAiName(name);
                 },
               ),
               const SizedBox(height: 18),
 
               // Historia de cómo se conocieron
               TextFormField(
-                controller: provider.meetStoryController,
+                controller: _formController.meetStoryController,
                 onChanged: onMeetStoryChanged,
                 style: const TextStyle(
                   color: AppColors.primary,
@@ -375,11 +374,11 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               ),
               const SizedBox(height: 8),
               CyberpunkButton(
-                onPressed: provider.loadingStory
+                onPressed: _formController.isLoading
                     ? null
-                    : () => provider.suggestStory(context),
+                    : () => _formController.suggestStory(context),
                 text: 'Sugerir historia',
-                icon: provider.loadingStory
+                icon: _formController.isLoading
                     ? const SizedBox(
                         width: 18,
                         height: 18,
@@ -393,16 +392,19 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               const SizedBox(height: 28),
 
               CyberpunkButton(
-                onPressed: _formCompleto && !provider.loadingStory
+                onPressed:
+                    _formController.isFormCompleteComputed &&
+                        !_formController.isLoading
                     ? () async {
                         // Clean Architecture: Use FormOnboardingController for form processing
                         final result = await _formController.processForm(
-                          userName: provider.userNameController.text,
-                          aiName: provider.aiNameController?.text ?? '',
-                          birthDateText: provider.birthDateController.text,
-                          meetStory: provider.meetStoryController.text,
-                          userCountryCode: provider.userCountryCode,
-                          aiCountryCode: provider.aiCountryCode,
+                          userName: _formController.userNameController.text,
+                          aiName: _formController.aiNameController.text,
+                          birthDateText:
+                              _formController.birthDateController.text,
+                          meetStory: _formController.meetStoryController.text,
+                          userCountryCode: _formController.userCountryCode,
+                          aiCountryCode: _formController.aiCountryCode,
                         );
 
                         if (result.success) {

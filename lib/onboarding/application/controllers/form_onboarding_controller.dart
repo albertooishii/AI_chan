@@ -1,10 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/onboarding/application/use_cases/form_onboarding_use_case.dart';
 import 'package:ai_chan/onboarding/application/use_cases/import_export_onboarding_use_case.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
-import 'package:ai_chan/core/di.dart' as di;
+import 'package:ai_chan/onboarding/utils/onboarding_utils.dart';
 
 /// Controller para el onboarding por formulario
 /// Coordina la UI con los casos de uso, manteniendo la separación de responsabilidades
@@ -17,19 +16,37 @@ class FormOnboardingController extends ChangeNotifier {
   String? _errorMessage;
   ImportedChat? _importedData;
 
+  // Form fields owned by the controller (migrating responsibility from provider)
+  // Keep a form key so presentation code can reference the same key as before
+  late final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+  final userNameController = TextEditingController();
+  final aiNameController = TextEditingController();
+  final meetStoryController = TextEditingController();
+  final birthDateController = TextEditingController();
+  DateTime? userBirthdate;
+  String? userCountryCode;
+  String? aiCountryCode;
+
   FormOnboardingController({
     FormOnboardingUseCase? formUseCase,
     ImportExportOnboardingUseCase? importExportUseCase,
   }) : _formUseCase = formUseCase ?? FormOnboardingUseCase(),
        _importExportUseCase =
-           importExportUseCase ??
-           ImportExportOnboardingUseCase(fileService: di.getFileService());
+           importExportUseCase ?? ImportExportOnboardingUseCase();
 
   // Getters
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   ImportedChat? get importedData => _importedData;
   bool get hasError => _errorMessage != null;
+
+  // Convenience getter that mirrors old provider logic
+  bool get isFormCompleteComputed => isFormComplete(
+    userName: userNameController.text,
+    aiName: aiNameController.text,
+    birthDateText: birthDateController.text,
+    meetStory: meetStoryController.text,
+  );
 
   /// Valida si el formulario está completo
   bool isFormComplete({
@@ -153,6 +170,87 @@ class FormOnboardingController extends ChangeNotifier {
     _importedData = null;
     _clearError();
     notifyListeners();
+  }
+
+  // --- Form state setters (migrated from provider) ---
+  void setUserName(String value) {
+    userNameController.text = value;
+    notifyListeners();
+  }
+
+  void setAiName(String value) {
+    aiNameController.text = value;
+    notifyListeners();
+  }
+
+  void setUserBirthdate(DateTime? value) {
+    userBirthdate = value;
+    if (value != null) {
+      birthDateController.text = '${value.day}/${value.month}/${value.year}';
+    } else {
+      birthDateController.text = '';
+    }
+    notifyListeners();
+  }
+
+  void setMeetStory(String value) {
+    if (meetStoryController.text != value) {
+      meetStoryController.text = value;
+      notifyListeners();
+    }
+  }
+
+  void setUserCountryCode(String value) {
+    userCountryCode = value.trim().toUpperCase();
+    notifyListeners();
+  }
+
+  void setAiCountryCode(String value) {
+    aiCountryCode = value.trim().toUpperCase();
+    notifyListeners();
+  }
+
+  /// Forwarder for suggestStory that existed on the provider. It delegates to
+  /// the same helper used previously via OnboardingUtils through the use case.
+  Future<void> suggestStory(BuildContext context) async {
+    try {
+      if (userNameController.text.isNotEmpty &&
+          aiNameController.text.isNotEmpty) {
+        _setLoading(true);
+        meetStoryController.text = 'Generando historia...';
+        final storyText = await OnboardingUtils.generateMeetStoryFromContext(
+          userName: userNameController.text,
+          aiName: aiNameController.text,
+          userCountry: userCountryCode,
+          aiCountry: aiCountryCode,
+          userBirthdate: userBirthdate,
+        );
+
+        if (storyText.toLowerCase().contains('error')) {
+          _setError(storyText);
+          meetStoryController.text = '';
+        } else {
+          meetStoryController.text = storyText.trim();
+        }
+      }
+    } catch (e) {
+      _setError(e.toString());
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  String get birthDateText => birthDateController.text;
+
+  @override
+  void dispose() {
+    try {
+      userNameController.dispose();
+      aiNameController.dispose();
+      meetStoryController.dispose();
+      birthDateController.dispose();
+    } catch (_) {}
+    super.dispose();
   }
 
   /// Limpia el mensaje de error

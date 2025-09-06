@@ -58,18 +58,18 @@ class RootApp extends StatefulWidget {
 }
 
 class _RootAppState extends State<RootApp> {
-  late final OnboardingProvider _onboardingProvider;
+  late final OnboardingLifecycleController _onboardingLifecycle;
 
   @override
   void initState() {
     super.initState();
-    _onboardingProvider = OnboardingProvider();
+    _onboardingLifecycle = OnboardingLifecycleController();
   }
 
   @override
   void dispose() {
     try {
-      _onboardingProvider.dispose();
+      _onboardingLifecycle.dispose();
     } catch (_) {}
     super.dispose();
   }
@@ -77,7 +77,7 @@ class _RootAppState extends State<RootApp> {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider.value(
-      value: _onboardingProvider,
+      value: _onboardingLifecycle,
       child: MaterialApp(
         navigatorKey: navigatorKey,
         scaffoldMessengerKey: scaffoldMessengerKey,
@@ -92,7 +92,7 @@ class _RootAppState extends State<RootApp> {
           useMaterial3: true,
         ),
         debugShowCheckedModeBanner: false,
-        home: MyApp(onboardingProvider: _onboardingProvider),
+        home: MyApp(onboardingLifecycle: _onboardingLifecycle),
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
@@ -104,8 +104,8 @@ class _RootAppState extends State<RootApp> {
 }
 
 class MyApp extends StatefulWidget {
-  final OnboardingProvider onboardingProvider;
-  const MyApp({super.key, required this.onboardingProvider});
+  final OnboardingLifecycleController onboardingLifecycle;
+  const MyApp({super.key, required this.onboardingLifecycle});
 
   @override
   State<MyApp> createState() => MyAppState();
@@ -118,7 +118,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     // Debug: estado antes del reset
     Log.d(
-      'resetApp ANTES: generatedBiography=${widget.onboardingProvider.generatedBiography?.aiName}, biographySaved=${widget.onboardingProvider.biographySaved}',
+      'resetApp ANTES: generatedBiography=${widget.onboardingLifecycle.generatedBiography?.aiName}, biographySaved=${widget.onboardingLifecycle.biographySaved}',
     );
 
     try {
@@ -145,16 +145,8 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ); // ✅ DDD: ETAPA 3 - Cerrar constructor AiChanProfile y updateProfile
 
         // Resetear provider OnboardingProvider usando método público reset()
-        widget.onboardingProvider.reset();
-
-        // Limpiar controladores de texto manualmente
-        widget.onboardingProvider.userNameController.clear();
-        widget.onboardingProvider.aiNameController?.clear();
-        widget.onboardingProvider.meetStoryController.clear();
-        widget.onboardingProvider.birthDateController.clear();
-        widget.onboardingProvider.userCountryCode = null;
-        widget.onboardingProvider.aiCountryCode = null;
-        widget.onboardingProvider.userBirthdate = null;
+        // Resetear lifecycle controller state
+        await widget.onboardingLifecycle.reset();
       }
 
       // Nullificar ChatController para forzar recreación limpia
@@ -162,7 +154,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
       // Debug: estado después del reset
       Log.d(
-        'resetApp DESPUÉS: generatedBiography=${widget.onboardingProvider.generatedBiography?.aiName}, biographySaved=${widget.onboardingProvider.biographySaved}',
+        'resetApp DESPUÉS: generatedBiography=${widget.onboardingLifecycle.generatedBiography?.aiName}, biographySaved=${widget.onboardingLifecycle.biographySaved}',
       );
 
       Log.i('resetApp completado exitosamente');
@@ -223,8 +215,8 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       );
     }
 
-    final onboardingProvider = widget.onboardingProvider;
-    if (onboardingProvider.loading) {
+    final onboardingLifecycle = widget.onboardingLifecycle;
+    if (onboardingLifecycle.loading) {
       return const Scaffold(
         backgroundColor: Colors.black,
         body: Center(
@@ -236,7 +228,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       );
     }
 
-    if (!onboardingProvider.biographySaved) {
+    if (!onboardingLifecycle.biographySaved) {
       return OnboardingModeSelector(
         onFinish:
             ({
@@ -249,15 +241,16 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
               Map<String, dynamic>? appearance,
             }) async {
               final navigator = Navigator.of(context);
-              onboardingProvider.setUserName(userName);
-              onboardingProvider.setAiName(aiName);
+              // Lifecycle controller only owns lifecycle; form controllers will be
+              // created by the onboarding screens. Use the lifecycle to generate
+              // and persist the biography once the form finishes.
               await navigator.push<AiChanProfile>(
                 MaterialPageRoute(
                   fullscreenDialog: true,
                   builder: (_) => InitializingScreen(
                     bioFutureFactory:
                         ([void Function(String)? onProgress]) async {
-                          await onboardingProvider.generateAndSaveBiography(
+                          await onboardingLifecycle.generateAndSaveBiography(
                             context: context,
                             userName: userName,
                             aiName: aiName,
@@ -268,10 +261,10 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
                             appearance: appearance,
                             onProgress: onProgress,
                           );
-                          if (onboardingProvider.generatedBiography == null) {
+                          if (onboardingLifecycle.generatedBiography == null) {
                             throw Exception('No se pudo generar la biografía');
                           }
-                          return onboardingProvider.generatedBiography!;
+                          return onboardingLifecycle.generatedBiography!;
                         },
                   ),
                 ),
@@ -284,14 +277,14 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
           final imported =
               await chat_json_utils.ChatJsonUtils.importAllFromJson(
                 jsonStr,
-                onError: (err) => onboardingProvider.setImportError(err),
+                onError: (err) => onboardingLifecycle.setImportError(err),
               );
           if (imported != null) {
-            await onboardingProvider.applyImportedChat(imported);
+            await onboardingLifecycle.applyImportedChat(imported);
             if (mounted) setState(() {});
           }
         },
-        onboardingProvider: onboardingProvider,
+        onboardingLifecycle: onboardingLifecycle,
       );
     }
 
@@ -304,18 +297,18 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
       // Solo persistir datos si realmente hay una biografía válida Y los datos están guardados
       // Esto evita que se persistan datos fantasma después de un resetApp()
-      if (onboardingProvider.generatedBiography != null &&
-          onboardingProvider.biographySaved) {
+      if (onboardingLifecycle.generatedBiography != null &&
+          onboardingLifecycle.biographySaved) {
         Log.i(
-          'MAIN: Persistiendo biografía: ${onboardingProvider.generatedBiography!.aiName}',
+          'MAIN: Persistiendo biografía: ${onboardingLifecycle.generatedBiography!.aiName}',
         );
         profile_persist_utils.setOnboardingDataAndPersist(
           _chatController!, // ✅ DDD: ETAPA 3 - Direct ChatController
-          onboardingProvider.generatedBiography!,
+          onboardingLifecycle.generatedBiography!,
         );
       } else {
         Log.i(
-          'MAIN: NO persistiendo biografía (generatedBiography=${onboardingProvider.generatedBiography?.aiName}, biographySaved=${onboardingProvider.biographySaved})',
+          'MAIN: NO persistiendo biografía (generatedBiography=${onboardingLifecycle.generatedBiography?.aiName}, biographySaved=${onboardingLifecycle.biographySaved})',
         );
       }
 
@@ -331,12 +324,12 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       value:
           _chatController, // ✅ DDD: ETAPA 3 COMPLETADA - Usar ChatController directamente
       child: ChatScreen(
-        bio: onboardingProvider.generatedBiography!,
-        aiName: onboardingProvider.generatedBiography!.aiName,
+        bio: onboardingLifecycle.generatedBiography!,
+        aiName: onboardingLifecycle.generatedBiography!.aiName,
         chatController: _chatController!,
         onClearAllDebug: resetApp,
         onImportJson: (importedChat) async {
-          final ob = onboardingProvider;
+          final ob = onboardingLifecycle;
           final jsonStr = jsonEncode(importedChat.toJson());
           final imported =
               await chat_json_utils.ChatJsonUtils.importAllFromJson(

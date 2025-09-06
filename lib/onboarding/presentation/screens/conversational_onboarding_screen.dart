@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/di.dart' as di;
-import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dart';
+import 'package:ai_chan/onboarding/application/controllers/onboarding_lifecycle_controller.dart';
 import 'package:ai_chan/onboarding/domain/entities/memory_data.dart';
 import 'package:ai_chan/onboarding/services/conversational_onboarding_service.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
@@ -24,13 +24,13 @@ import 'onboarding_screen.dart' show OnboardingFinishCallback, OnboardingScreen;
 class ConversationalOnboardingScreen extends StatefulWidget {
   final OnboardingFinishCallback onFinish;
   final void Function()? onClearAllDebug;
-  final OnboardingProvider? onboardingProvider;
+  final OnboardingLifecycleController? onboardingLifecycle;
 
   const ConversationalOnboardingScreen({
     super.key,
     required this.onFinish,
     this.onClearAllDebug,
-    this.onboardingProvider,
+    this.onboardingLifecycle,
   });
 
   @override
@@ -244,7 +244,7 @@ class _ConversationalOnboardingScreenState
                             builder: (_) => OnboardingScreen(
                               onFinish: widget.onFinish,
                               onClearAllDebug: widget.onClearAllDebug,
-                              onboardingProvider: widget.onboardingProvider,
+                              onboardingLifecycle: widget.onboardingLifecycle,
                             ),
                           ),
                         );

@@ -1,35 +1,38 @@
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/onboarding/utils/onboarding_utils.dart';
-import 'package:ai_chan/shared/utils/dialog_utils.dart';
-import 'package:ai_chan/shared/utils/provider_persist_utils.dart';
+import 'package:ai_chan/onboarding/application/use_cases/biography_generation_use_case.dart';
+import 'package:ai_chan/onboarding/application/use_cases/import_export_onboarding_use_case.dart';
+import 'package:ai_chan/onboarding/application/use_cases/save_imported_chat_use_case.dart';
 import 'package:flutter/material.dart';
-import 'package:ai_chan/shared/utils/prefs_utils.dart';
-import 'dart:convert';
-import 'package:ai_chan/core/services/ia_appearance_generator.dart';
-import 'package:ai_chan/core/services/ia_avatar_generator.dart';
-import 'package:ai_chan/core/interfaces/i_profile_service.dart';
-import 'package:ai_chan/core/di.dart' as di;
-import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'package:ai_chan/shared/utils/log_utils.dart';
 
-class OnboardingProvider extends ChangeNotifier {
+// Deprecated placeholder of original OnboardingProvider kept for history
+class OnboardingProviderDeprecated extends ChangeNotifier {
   bool loadingStory = false;
   DateTime? userBirthdate;
-  final IProfileService _profileService = di.getProfileServiceForProvider();
-  final Future<String?> Function(String base64, {String prefix})?
-  saveImageFunc = null;
+  final BiographyGenerationUseCase _biographyUseCase;
+  final ImportExportOnboardingUseCase _importExportUseCase;
+  final SaveImportedChatUseCase _saveImportedChatUseCase;
 
-  OnboardingProvider() {
+  OnboardingProviderDeprecated({
+    BiographyGenerationUseCase? biographyUseCase,
+    ImportExportOnboardingUseCase? importExportUseCase,
+    SaveImportedChatUseCase? saveImportedChatUseCase,
+  }) : _biographyUseCase = biographyUseCase ?? BiographyGenerationUseCase(),
+       _importExportUseCase =
+           importExportUseCase ?? ImportExportOnboardingUseCase(),
+       _saveImportedChatUseCase =
+           saveImportedChatUseCase ?? SaveImportedChatUseCase() {
     // Initialize form key to avoid duplicate GlobalKey errors
     formKey = GlobalKey<FormState>();
     // Inicialización asíncrona que carga datos guardados y actualiza `loading`
-    _loadBiographyFromPrefs();
+    _loadBiographyFromStorage();
   }
   bool loading = true;
 
   /// Aplica un `ImportedChat` ya parseado al provider y lo persiste.
   Future<void> applyImportedChat(ImportedChat imported) async {
-    await ProviderPersistUtils.saveImportedChat(imported);
+    await _saveImportedChatUseCase.saveImportedChat(imported);
     _generatedBiography = imported.profile;
     _biographySaved = true;
     notifyListeners();
@@ -56,38 +59,24 @@ class OnboardingProvider extends ChangeNotifier {
   /// Limpia los datos de SharedPreferences de forma asíncrona
   void _clearPrefsData() async {
     try {
-      await PrefsUtils.removeOnboardingData();
-      await PrefsUtils.removeChatHistory();
+      await _biographyUseCase.clearSavedBiography();
     } catch (e) {
-      Log.w('Error limpiando SharedPreferences en reset(): $e');
+      Log.w('Error limpiando almacenamiento en reset(): $e');
     }
   }
 
   // Carga inicial desde SharedPreferences (sin UI) para tests y arranque
-  Future<void> _loadBiographyFromPrefs() async {
+  Future<void> _loadBiographyFromStorage() async {
     try {
-      // Use centralized StorageUtils to load imported chat (keeps format stable)
-      final jsonStr = await PrefsUtils.getOnboardingData();
-      if (jsonStr != null && jsonStr.trim().isNotEmpty) {
-        final Map<String, dynamic> json = jsonDecode(jsonStr);
-        final profile = await AiChanProfile.tryFromJson(json);
-        if (profile != null) {
-          _generatedBiography = profile;
-          _biographySaved = true;
-        } else {
-          _generatedBiography = null;
-          _biographySaved = false;
-        }
+      final profile = await _biographyUseCase.loadExistingBiography();
+      if (profile != null) {
+        _generatedBiography = profile;
+        _biographySaved = true;
       } else {
         _generatedBiography = null;
         _biographySaved = false;
       }
     } catch (e) {
-      // En tests/entorno sin UI no mostramos diálogos; limpiamos prefs si hay corrupción
-      try {
-        await PrefsUtils.removeOnboardingData();
-        await PrefsUtils.removeChatHistory();
-      } catch (_) {}
       _generatedBiography = null;
       _biographySaved = false;
     } finally {
@@ -117,61 +106,24 @@ class OnboardingProvider extends ChangeNotifier {
     _biographySaved = false;
     try {
       onProgress?.call('start');
-      final biography = await _profileService.generateBiography(
+      final finalBiography = await _biographyUseCase.generateCompleteBiography(
         userName: userName,
         aiName: aiName,
         userBirthdate: userBirthdate,
         meetStory: meetStory,
         userCountryCode: userCountryCode,
         aiCountryCode: aiCountryCode,
+        onProgress: (step) => onProgress?.call(step.toString()),
       );
-      onProgress?.call('generating_basic');
-      // Generar apariencia y avatar
-      // Señalizamos el inicio de la generación de apariencia (índice 12)
-      onProgress?.call('appearance');
-      final appearanceMap = await IAAppearanceGenerator()
-          .generateAppearanceFromBiography(biography);
-      // Señalizamos la fase de estilo de apariencia (índice 13)
-      onProgress?.call('style');
-      // Preparar fases de generación de avatar: 'avatar' (índice 14)
-      // y 'finish' (índice 15) se emitirán antes de la llamada al generador
-      // para que ambos pasos se muestren durante la generación del avatar.
-      onProgress?.call('avatar');
-      onProgress?.call('finish');
-      // Generate avatar (replace existing) and attach to biography
-      final updatedBiography = biography.copyWith(appearance: appearanceMap);
-      final avatar = await IAAvatarGenerator().generateAvatarFromAppearance(
-        updatedBiography,
-      );
-      final biographyWithAvatar = updatedBiography.copyWith(avatars: [avatar]);
-      // Tras completarse la creación del avatar, emitir 'finalize' (índice 16)
-      // y mantener ese estado visible unos segundos para la transición UX.
-      onProgress?.call('finalize');
-      // Dejar la pantalla en el estado final unos segundos para que el usuario
-      // aprecie el paso 16 antes de persistir/navegar.
-      await Future.delayed(const Duration(seconds: 3));
-      // Persistir siempre en SharedPreferences aunque el contexto UI haya sido desmontado.
-      final jsonBio = jsonEncode(biographyWithAvatar.toJson());
-      await PrefsUtils.setOnboardingData(jsonBio);
-      _generatedBiography = biographyWithAvatar;
+
+      _generatedBiography = finalBiography;
       _biographySaved = true;
-      // Notificar listeners (si los hay). Mostrar diálogos UI solo si el context está montado.
       notifyListeners();
     } catch (e) {
       _biographySaved = false;
-      if (!context.mounted) return;
-      await showAppDialog(
-        builder: (ctx) => AlertDialog(
-          title: const Text('Error al crear biografía'),
-          content: Text(e.toString()),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+      // Exponer error a la UI; dejar que la UI muestre el diálogo si es necesario
+      importError = e.toString();
+      notifyListeners();
     }
   }
 
@@ -290,15 +242,17 @@ class OnboardingProvider extends ChangeNotifier {
 
         if (storyText.toLowerCase().contains('error al conectar con la ia') ||
             storyText.toLowerCase().contains('"error"')) {
-          await showErrorDialog(storyText);
+          importError = storyText;
           meetStoryController.text = '';
+          notifyListeners();
         } else {
           meetStoryController.text = storyText.trim();
         }
       } catch (e) {
         if (!context.mounted) return;
         meetStoryController.text = '';
-        await showErrorDialog(e.toString());
+        importError = e.toString();
+        notifyListeners();
       } finally {
         setLoadingStory(false);
       }
@@ -309,51 +263,18 @@ class OnboardingProvider extends ChangeNotifier {
     BuildContext context,
     Future<void> Function(ImportedChat importedChat)? onImportJson,
   ) async {
-    final result = await chat_json_utils.ChatJsonUtils.importJsonFile();
-    if (!context.mounted) return;
-    final String? jsonStr = result.$1;
-    final String? error = result.$2;
-    if (!context.mounted) return;
-    if (error != null) {
-      await showAppDialog(
-        builder: (ctx) => AlertDialog(
-          title: const Text('Error al leer archivo'),
-          content: Text(error),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-    if (jsonStr != null && jsonStr.trim().isNotEmpty && onImportJson != null) {
-      final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
-        jsonStr,
-        onError: (err) {
-          importError = err;
-          notifyListeners();
-        },
-      );
-      if (importError != null || imported == null) {
-        if (!context.mounted) return;
-        await showAppDialog(
-          builder: (ctx) => AlertDialog(
-            title: const Text('Error al importar'),
-            content: Text(importError ?? 'Error desconocido al importar JSON'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-        return;
+    // Delegate to use case which encapsulates file interactions and parsing
+    try {
+      final result = await _importExportUseCase.importFromJson();
+      if (result.isSuccess && result.data != null && onImportJson != null) {
+        await onImportJson(result.data!);
+      } else if (result.hasError) {
+        importError = result.error;
+        notifyListeners();
       }
-      await onImportJson(imported);
+    } catch (e) {
+      importError = e.toString();
+      notifyListeners();
     }
   }
 

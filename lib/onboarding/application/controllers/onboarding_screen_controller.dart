@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ai_chan/onboarding/application/providers/onboarding_provider.dart';
+import 'package:ai_chan/onboarding/application/controllers/onboarding_lifecycle_controller.dart';
 import 'package:ai_chan/onboarding/application/controllers/form_onboarding_controller.dart';
 import 'package:ai_chan/onboarding/application/use_cases/biography_generation_use_case.dart';
 import 'package:ai_chan/core/models.dart';
@@ -8,7 +8,7 @@ import 'package:ai_chan/core/models.dart';
 /// Orchestrates business logic for the onboarding interface
 /// Following Clean Architecture principles
 class OnboardingScreenController extends ChangeNotifier {
-  final OnboardingProvider _onboardingProvider;
+  final OnboardingLifecycleController _lifecycleController;
   final FormOnboardingController? _formController;
   final BiographyGenerationUseCase _biographyUseCase;
 
@@ -18,10 +18,10 @@ class OnboardingScreenController extends ChangeNotifier {
   OnboardingStep _currentStep = OnboardingStep.biography;
 
   OnboardingScreenController({
-    required OnboardingProvider onboardingProvider,
+    required OnboardingLifecycleController onboardingLifecycle,
     FormOnboardingController? formController,
     BiographyGenerationUseCase? biographyUseCase,
-  }) : _onboardingProvider = onboardingProvider,
+  }) : _lifecycleController = onboardingLifecycle,
        _formController = formController,
        _biographyUseCase = biographyUseCase ?? BiographyGenerationUseCase();
 
@@ -29,7 +29,7 @@ class OnboardingScreenController extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   OnboardingStep get currentStep => _currentStep;
-  OnboardingProvider get onboardingProvider => _onboardingProvider;
+  OnboardingLifecycleController get onboardingLifecycle => _lifecycleController;
   FormOnboardingController? get formController => _formController;
 
   // UI State Management
@@ -151,16 +151,39 @@ class OnboardingScreenController extends ChangeNotifier {
   }
 
   Future<void> suggestMeetStory(BuildContext context) async {
-    await _executeWithLoadingState(
-      () async => await _onboardingProvider.suggestStory(context),
-      errorPrefix: 'Error generating story',
-    );
+    await _executeWithLoadingState(() async {
+      if (_formController != null) {
+        await _formController.suggestStory(context);
+      }
+    }, errorPrefix: 'Error generating story');
   }
 
   Future<void> pickBirthDate(BuildContext context) async {
     try {
       clearError();
-      await _onboardingProvider.pickBirthDate(context);
+      // Show date picker here and delegate resulting date into the form controller
+      final now = DateTime.now();
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: DateTime(now.year - 25),
+        firstDate: DateTime(1950),
+        lastDate: now,
+        locale: const Locale('es'),
+        builder: (context, child) => Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Colors.pinkAccent,
+              surface: Colors.black,
+              onSurface: Colors.pinkAccent,
+            ),
+            dialogTheme: const DialogThemeData(backgroundColor: Colors.black),
+          ),
+          child: child!,
+        ),
+      );
+      if (picked != null && _formController != null) {
+        _formController.setUserBirthdate(picked);
+      }
     } catch (e) {
       setError('Error picking birth date: $e');
     }
@@ -234,12 +257,12 @@ class OnboardingScreenController extends ChangeNotifier {
   bool get canGoNext {
     switch (_currentStep) {
       case OnboardingStep.biography:
-        return _onboardingProvider.biographySaved;
+        return _lifecycleController.biographySaved;
       case OnboardingStep.appearance:
-        return _onboardingProvider.generatedBiography?.appearance.isNotEmpty ==
+        return _lifecycleController.generatedBiography?.appearance.isNotEmpty ==
             true;
       case OnboardingStep.avatar:
-        return _onboardingProvider.generatedBiography?.avatars?.isNotEmpty ==
+        return _lifecycleController.generatedBiography?.avatars?.isNotEmpty ==
             true;
       case OnboardingStep.complete:
         return false;
@@ -284,7 +307,7 @@ class OnboardingScreenController extends ChangeNotifier {
     try {
       await _biographyUseCase.clearSavedBiography();
       // Also reset provider state
-      _onboardingProvider.reset();
+      _lifecycleController.reset();
     } catch (e) {
       setError('Error clearing biography: $e');
     }
