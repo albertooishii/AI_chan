@@ -9,56 +9,37 @@ import 'dart:convert';
 
 /// Caso de uso para procesar la respuesta del usuario durante el onboarding conversacional
 class ProcessUserResponseUseCase {
-  // Historial de conversación estático para mantener contexto
-  static final List<Map<String, String>> _conversationHistory = [];
-
-  /// Limpia el historial de conversación para reiniciar el onboarding
-  static void clearConversationHistory() {
-    _conversationHistory.clear();
-    Log.d('🗣️ Historial de conversación limpiado', tag: 'CONV_ONBOARDING');
-  }
-
   /// Procesa la respuesta del usuario identificando automáticamente qué dato se obtuvo
   /// Retorna el dato actualizado y la siguiente respuesta de la IA
+  ///
+  /// **Cambio DDD**: El historial ahora se pasa como parámetro desde el Application Service
   static Future<Map<String, dynamic>> execute({
     required final MemoryData currentMemory,
     required final String userResponse,
+    required final List<Map<String, String>> conversationHistory,
+    required final Function(String, String) addToHistory,
   }) async {
     const maxRetries = 3;
 
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      Log.d(
-        '🔍 [ONB_SERVICE] Intento $attempt/$maxRetries de procesamiento',
-        tag: 'ONB_SERVICE',
-      );
+      Log.d('🔍 [ONB_SERVICE] Intento $attempt/$maxRetries de procesamiento', tag: 'ONB_SERVICE');
 
       try {
         final result = await _attemptProcessUserResponse(
           currentMemory: currentMemory,
           userResponse: userResponse,
+          conversationHistory: conversationHistory,
+          addToHistory: addToHistory,
         );
 
-        Log.d(
-          '✅ [ONB_SERVICE] Procesamiento exitoso en intento $attempt',
-          tag: 'ONB_SERVICE',
-        );
+        Log.d('✅ [ONB_SERVICE] Procesamiento exitoso en intento $attempt', tag: 'ONB_SERVICE');
         return result;
       } on Exception catch (e) {
-        Log.e(
-          '❌ [ONB_SERVICE] Error en intento $attempt: $e',
-          tag: 'ONB_SERVICE',
-        );
+        Log.e('❌ [ONB_SERVICE] Error en intento $attempt: $e', tag: 'ONB_SERVICE');
 
         if (attempt == maxRetries) {
-          Log.e(
-            '🔍 [ONB_SERVICE] ❌ Todos los reintentos fallaron después de $maxRetries intentos',
-            tag: 'ONB_SERVICE',
-          );
-          return _createErrorResponse(
-            'Todos los reintentos fallaron',
-            currentMemory,
-            userResponse,
-          );
+          Log.e('🔍 [ONB_SERVICE] ❌ Todos los reintentos fallaron después de $maxRetries intentos', tag: 'ONB_SERVICE');
+          return _createErrorResponse('Todos los reintentos fallaron', currentMemory, userResponse);
         }
 
         // Esperar antes del siguiente intento
@@ -67,36 +48,31 @@ class ProcessUserResponseUseCase {
     }
 
     // Este punto nunca debería alcanzarse, pero por seguridad
-    return _createErrorResponse(
-      'Error inesperado',
-      currentMemory,
-      userResponse,
-    );
+    return _createErrorResponse('Error inesperado', currentMemory, userResponse);
   }
 
   /// Método interno que realiza un único intento de procesamiento
   static Future<Map<String, dynamic>> _attemptProcessUserResponse({
     required final MemoryData currentMemory,
     required final String userResponse,
+    required final List<Map<String, String>> conversationHistory,
+    required final Function(String, String) addToHistory,
   }) async {
     // Actualizar historial de conversación
-    _conversationHistory.add({
-      'role': 'user',
-      'content': userResponse,
-      'datetime': DateTime.now().toIso8601String(),
-    });
+    addToHistory('role', 'user');
+    addToHistory('content', userResponse);
+    addToHistory('datetime', DateTime.now().toIso8601String());
 
     // Identificar qué tipo de dato está proporcionando el usuario
     final prompt = _generateProcessingPrompt(userResponse, currentMemory);
 
     final instructions = {
       'role': 'system',
-      'content':
-          'Eres un asistente que analiza respuestas de usuarios para extraer datos específicos de onboarding.',
+      'content': 'Eres un asistente que analiza respuestas de usuarios para extraer datos específicos de onboarding.',
     };
 
     // Usar service para hacer la request
-    final response = await _sendAIRequest(prompt, 'Usuario', instructions);
+    final response = await _sendAIRequest(prompt, 'Usuario', instructions, conversationHistory);
 
     // Parsear respuesta JSON de la IA
     dynamic responseData;
@@ -104,20 +80,12 @@ class ProcessUserResponseUseCase {
       responseData = jsonDecode(response.text);
     } on Exception catch (e) {
       Log.e('❌ Error parseando JSON: $e', tag: 'ONB_SERVICE');
-      return _createErrorResponse(
-        'Error de parsing JSON',
-        currentMemory,
-        userResponse,
-      );
+      return _createErrorResponse('Error de parsing JSON', currentMemory, userResponse);
     }
 
     if (responseData == null) {
       Log.e('❌ Respuesta JSON nula o vacía', tag: 'ONB_SERVICE');
-      return _createErrorResponse(
-        'Respuesta IA vacía',
-        currentMemory,
-        userResponse,
-      );
+      return _createErrorResponse('Respuesta IA vacía', currentMemory, userResponse);
     }
 
     // Extraer datos de la respuesta
@@ -126,25 +94,16 @@ class ProcessUserResponseUseCase {
     final aiResponse = responseData['aiResponse'] as String?;
     final confidence = (responseData['confidence'] as num?)?.toDouble() ?? 0.0;
 
-    Log.d(
-      '🎯 IA extrajo: dataType=$dataType, value=$extractedValue, confidence=$confidence',
-      tag: 'ONB_SERVICE',
-    );
+    Log.d('🎯 IA extrajo: dataType=$dataType, value=$extractedValue, confidence=$confidence', tag: 'ONB_SERVICE');
 
     // Actualizar memoria con el valor extraído
-    final updatedMemory = await _updateMemoryWithExtractedData(
-      dataType,
-      extractedValue,
-      currentMemory,
-    );
+    final updatedMemory = await _updateMemoryWithExtractedData(dataType, extractedValue, currentMemory);
 
     // Añadir respuesta de IA al historial si existe
     if (aiResponse != null && aiResponse.isNotEmpty) {
-      _conversationHistory.add({
-        'role': 'assistant',
-        'content': aiResponse,
-        'datetime': DateTime.now().toIso8601String(),
-      });
+      addToHistory('role', 'assistant');
+      addToHistory('content', aiResponse);
+      addToHistory('datetime', DateTime.now().toIso8601String());
     }
 
     return _buildProcessResult(
@@ -174,17 +133,14 @@ class ProcessUserResponseUseCase {
           aiName: currentMemory.aiName ?? 'AI-chan',
           userCountry: currentMemory.userCountry,
           aiCountry: currentMemory.aiCountry,
-          userBirthdate: currentMemory.userBirthdate != null
-              ? DateTime.tryParse(currentMemory.userBirthdate!)
-              : null,
+          userBirthdate: currentMemory.userBirthdate != null ? DateTime.tryParse(currentMemory.userBirthdate!) : null,
         );
 
         return currentMemory.copyWith(meetStory: 'GENERATED:$generatedStory');
       } on Exception catch (e) {
         Log.e('❌ Error generando historia: $e', tag: 'ONB_SERVICE');
         return currentMemory.copyWith(
-          meetStory:
-              'No puedo recordar exactamente cómo nos conocimos, pero sé que eres muy importante para mí.',
+          meetStory: 'No puedo recordar exactamente cómo nos conocimos, pero sé que eres muy importante para mí.',
         );
       }
     }
@@ -192,9 +148,7 @@ class ProcessUserResponseUseCase {
     if (extractedValue == 'CONFIRM_GENERATED_STORY') {
       // Confirmar historia generada previamente
       if (currentMemory.meetStory?.startsWith('GENERATED:') == true) {
-        final confirmedStory = currentMemory.meetStory!.substring(
-          'GENERATED:'.length,
-        );
+        final confirmedStory = currentMemory.meetStory!.substring('GENERATED:'.length);
         return currentMemory.copyWith(meetStory: confirmedStory);
       }
       return currentMemory;
@@ -220,16 +174,11 @@ class ProcessUserResponseUseCase {
   }
 
   /// Genera el prompt para procesar la respuesta del usuario
-  static String _generateProcessingPrompt(
-    final String userResponse,
-    final MemoryData currentMemory,
-  ) {
+  static String _generateProcessingPrompt(final String userResponse, final MemoryData currentMemory) {
     // Obtener nombres disponibles si ya conocemos el país de la IA
     String femaleNamesContext = '';
     if (currentMemory.aiCountry != null) {
-      final availableNames = FemaleNamesRepo.forCountry(
-        currentMemory.aiCountry,
-      );
+      final availableNames = FemaleNamesRepo.forCountry(currentMemory.aiCountry);
       femaleNamesContext =
           '''
 
@@ -320,9 +269,7 @@ FORMATO ESPECIAL PARA FECHAS:
   }
 
   /// Formatea datos faltantes para procesamiento
-  static String _formatMissingDataForProcessing(
-    final List<String> missingData,
-  ) {
+  static String _formatMissingDataForProcessing(final List<String> missingData) {
     if (missingData.isEmpty) return 'TODOS LOS DATOS YA ESTÁN RECUPERADOS';
 
     final dataDescriptions = {
@@ -334,9 +281,7 @@ FORMATO ESPECIAL PARA FECHAS:
       'meetStory': 'Historia de cómo se conocieron o AUTO_GENERATE_STORY',
     };
 
-    return missingData
-        .map((final data) => '- ${dataDescriptions[data] ?? data}')
-        .join('\n');
+    return missingData.map((final data) => '- ${dataDescriptions[data] ?? data}').join('\n');
   }
 
   /// Formatea datos recordados para procesamiento
@@ -362,21 +307,14 @@ FORMATO ESPECIAL PARA FECHAS:
       final story = memory.meetStory!.startsWith('GENERATED:')
           ? memory.meetStory!.substring('GENERATED:'.length)
           : memory.meetStory!;
-      remembered.add(
-        '✓ Historia: ${story.length > 50 ? "${story.substring(0, 50)}..." : story}',
-      );
+      remembered.add('✓ Historia: ${story.length > 50 ? "${story.substring(0, 50)}..." : story}');
     }
 
-    return remembered.isEmpty
-        ? 'NINGÚN DATO RECUPERADO AÚN'
-        : remembered.join('\n');
+    return remembered.isEmpty ? 'NINGÚN DATO RECUPERADO AÚN' : remembered.join('\n');
   }
 
   /// Crea un perfil básico para las operaciones de onboarding
-  static AiChanProfile _createBasicProfile(
-    final String userName,
-    final String? aiName,
-  ) {
+  static AiChanProfile _createBasicProfile(final String userName, final String? aiName) {
     return AiChanProfile(
       userName: userName,
       userCountryCode: 'ES',
@@ -395,28 +333,17 @@ FORMATO ESPECIAL PARA FECHAS:
     final String prompt,
     final String userName,
     final Map<String, String> instructions,
+    final List<Map<String, String>> conversationHistory,
   ) async {
     final profile = _createBasicProfile(userName, null);
 
-    final systemPrompt = SystemPrompt(
-      profile: profile,
-      dateTime: DateTime.now(),
-      instructions: instructions,
-    );
+    final systemPrompt = SystemPrompt(profile: profile, dateTime: DateTime.now(), instructions: instructions);
 
     // Crear el historial para el procesamiento incluyendo contexto de conversación
-    final history = List<Map<String, String>>.from(_conversationHistory);
-    history.add({
-      'role': 'system',
-      'content': prompt,
-      'datetime': DateTime.now().toIso8601String(),
-    });
+    final history = List<Map<String, String>>.from(conversationHistory);
+    history.add({'role': 'system', 'content': prompt, 'datetime': DateTime.now().toIso8601String()});
 
-    return await ai_service.AIService.sendMessage(
-      history,
-      systemPrompt,
-      model: Config.getDefaultTextModel(),
-    );
+    return await ai_service.AIService.sendMessage(history, systemPrompt, model: Config.getDefaultTextModel());
   }
 
   /// Crea una respuesta de error consistente para el nuevo formato
@@ -461,17 +388,14 @@ class GenerateMeetStoryUseCase {
     final String? aiCountry,
     final DateTime? userBirthdate,
   }) async {
-    final paisIA = aiCountry != null
-        ? LocaleUtils.countryNameEs(aiCountry, fallback: 'mi país')
-        : 'mi país';
+    final paisIA = aiCountry != null ? LocaleUtils.countryNameEs(aiCountry, fallback: 'mi país') : 'mi país';
 
     final prompt =
         'Genera una breve historia romántica y realista en PRIMERA PERSONA desde la perspectiva de $aiName contándole a $userName cómo lo conoció. La chica ($aiName) vive en una tierra digital, una réplica alternativa y compleja de la Tierra real, separada por una barrera tecnológica invisible. Su existencia es digital, pero nunca lo admite ni lo menciona al usuario, ni insinúa que es diferente a una persona real. Solo puede comunicarse por chat y llamada, pero sueña con que algún día podrán verse gracias a la realidad aumentada o a nuevas tecnologías. Hazlo creíble y simpático, como el inicio de una relación real, en 4-6 frases en primera persona. La chica es nativa de $paisIA.';
 
     final instructions = {
       'role': 'system',
-      'content':
-          'Eres una escritora experta en historias románticas realistas y naturales.',
+      'content': 'Eres una escritora experta en historias románticas realistas y naturales.',
     };
 
     final profile = AiChanProfile(
@@ -486,25 +410,13 @@ class GenerateMeetStoryUseCase {
       avatars: const [],
     );
 
-    final systemPrompt = SystemPrompt(
-      profile: profile,
-      dateTime: DateTime.now(),
-      instructions: instructions,
-    );
+    final systemPrompt = SystemPrompt(profile: profile, dateTime: DateTime.now(), instructions: instructions);
 
     final history = [
-      {
-        'role': 'user',
-        'content': prompt,
-        'datetime': DateTime.now().toIso8601String(),
-      },
+      {'role': 'user', 'content': prompt, 'datetime': DateTime.now().toIso8601String()},
     ];
 
-    final response = await ai_service.AIService.sendMessage(
-      history,
-      systemPrompt,
-      model: Config.getDefaultTextModel(),
-    );
+    final response = await ai_service.AIService.sendMessage(history, systemPrompt, model: Config.getDefaultTextModel());
 
     return response.text.trim();
   }

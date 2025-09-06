@@ -19,10 +19,28 @@ import '../../domain/entities/memory_data.dart';
 /// - ✅ Single Responsibility (solo coordinación)
 /// - ✅ Open/Closed (extensible sin modificación)
 class OnboardingApplicationService {
+  OnboardingApplicationService();
   // Nota: Los Use Cases actuales son static, pero mantenemos el patrón DDD
   // para futura refactorización hacia dependency injection
 
-  const OnboardingApplicationService();
+  /// 💾 **Estado de la conversación**
+  /// Gestión centralizada del historial conversacional siguiendo DDD
+  final List<Map<String, String>> _conversationHistory = [];
+
+  /// 📝 **Gestión de Historial de Conversación**
+  ///
+  /// Métodos para manejar el estado conversacional centralizado
+  void addConversationEntry(final String key, final String value) {
+    _conversationHistory.add({key: value});
+  }
+
+  List<Map<String, String>> getConversationHistory() {
+    return List.from(_conversationHistory);
+  }
+
+  void clearConversationHistory() {
+    _conversationHistory.clear();
+  }
 
   /// 🗣️ **Flujo Conversacional Completo**
   /// Coordina el proceso completo de onboarding conversacional
@@ -35,6 +53,8 @@ class OnboardingApplicationService {
       final response = await ProcessUserResponseUseCase.execute(
         currentMemory: currentMemory,
         userResponse: userResponse,
+        conversationHistory: getConversationHistory(),
+        addToHistory: addConversationEntry,
       );
 
       // Extraer datos del response
@@ -85,10 +105,10 @@ class OnboardingApplicationService {
   /// Coordina el reinicio completo del proceso de onboarding
   Future<void> resetOnboarding() async {
     try {
-      // Limpiar estado estático (temporal hasta refactorizar ProcessUserResponseUseCase)
-      ProcessUserResponseUseCase.clearConversationHistory();
+      // Limpiar estado del historial conversacional
+      clearConversationHistory();
 
-      // TODO: Cuando eliminemos el estado estático, esto se manejará via repositorio
+      // Estado ahora gestionado en Application Service siguiendo DDD
     } catch (e) {
       throw OnboardingApplicationException('Error reiniciando onboarding: ${e.toString()}');
     }
@@ -125,7 +145,6 @@ class OnboardingApplicationService {
 
 /// 📊 **Resultado del Flujo Conversacional**
 class OnboardingConversationResult {
-
   const OnboardingConversationResult({required this.memory, this.aiResponse, required this.isComplete});
   final MemoryData memory;
   final String? aiResponse;
@@ -134,7 +153,6 @@ class OnboardingConversationResult {
 
 /// 📈 **Progreso del Onboarding**
 class OnboardingProgress {
-
   const OnboardingProgress({
     required this.completedFields,
     required this.totalFields,

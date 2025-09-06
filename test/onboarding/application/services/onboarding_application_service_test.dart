@@ -7,7 +7,7 @@ void main() {
     late OnboardingApplicationService service;
 
     setUp(() {
-      service = const OnboardingApplicationService();
+      service = OnboardingApplicationService();
     });
 
     group('📊 Architecture Validation', () {
