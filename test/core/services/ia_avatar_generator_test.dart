@@ -5,8 +5,12 @@ import '../../fakes/fake_ai_service.dart';
 import 'package:ai_chan/core/models.dart';
 import 'dart:io';
 import 'package:ai_chan/core/config.dart';
+import '../../test_setup.dart';
 
 void main() {
+  setUpAll(() async {
+    await initializeTestEnvironment();
+  });
   test(
     'generateAvatarWithRetries returns AiImage when AI provides base64',
     () async {

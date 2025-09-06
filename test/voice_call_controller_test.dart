@@ -5,9 +5,12 @@ import 'package:ai_chan/call/infrastructure/adapters/call_controller.dart';
 import 'fakes/fake_realtime_impl.dart';
 import 'fakes/fake_voice_services.dart';
 import 'fakes/fake_audio_player.dart';
+import 'test_setup.dart';
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async {
+    await initializeTestEnvironment();
+  });
   group('CallController basic integration with IRealtimeClient', () {
     late CallController controller;
     late FakeRealtimeIClient fakeClient;

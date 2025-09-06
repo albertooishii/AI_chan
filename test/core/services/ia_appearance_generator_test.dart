@@ -3,8 +3,12 @@ import 'package:ai_chan/core/services/ia_appearance_generator.dart';
 import 'package:ai_chan/shared/services/ai_service.dart';
 import '../../fakes/fake_ai_service.dart';
 import 'package:ai_chan/core/models.dart';
+import '../../test_setup.dart';
 
 void main() {
+  setUpAll(() async {
+    await initializeTestEnvironment();
+  });
   test(
     'generateAppearanceFromBiography parses JSON and forces edad_aparente=25',
     () async {

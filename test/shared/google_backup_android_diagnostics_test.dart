@@ -1,7 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/shared/services/google_backup_service.dart';
+import '../test_setup.dart';
 
 void main() {
+  setUpAll(() async {
+    await initializeTestEnvironment();
+  });
   group('Google Backup Android Diagnostics', () {
     setUp(() {
       GoogleBackupService.resetCircuitBreakerForTesting();

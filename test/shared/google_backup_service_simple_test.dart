@@ -5,9 +5,12 @@ import 'package:ai_chan/shared/services/google_backup_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import '../test_setup.dart';
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async {
+    await initializeTestEnvironment();
+  });
 
   group('GoogleBackupService - Basic Functionality', () {
     setUp(() async {

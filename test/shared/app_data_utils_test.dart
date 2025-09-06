@@ -1,9 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/shared/utils/app_data_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../test_setup.dart';
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async {
+    await initializeTestEnvironment();
+  });
 
   group('AppDataUtils - Clear All Data Tests', () {
     setUp(() async {

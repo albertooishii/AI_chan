@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/onboarding/infrastructure/adapters/profile_adapter.dart';
 import 'package:ai_chan/shared/services/ai_service.dart';
+import '../test_setup.dart';
 
 class ThrowingAIService implements AIService {
   @override
@@ -8,6 +9,9 @@ class ThrowingAIService implements AIService {
 }
 
 void main() {
+  setUpAll(() async {
+    await initializeTestEnvironment();
+  });
   test(
     'ProfileAdapter returns fallback profile when AI service throws',
     () async {

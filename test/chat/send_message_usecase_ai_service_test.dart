@@ -3,8 +3,12 @@ import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/chat/application/use_cases/send_message_use_case.dart';
 import '../fakes/fake_ai_service.dart';
+import '../test_setup.dart';
 
 void main() {
+  setUpAll(() async {
+    await initializeTestEnvironment();
+  });
   test(
     'SendMessageUseCase uses AIService when no injectedService provided',
     () async {
