@@ -31,11 +31,17 @@ void main() {
           'getMemoryState',
           'isOnboardingComplete',
           'getProgress',
+          'addConversationEntry',
+          'getConversationHistory',
+          'clearConversationHistory',
         ];
 
         // Verificar que los métodos están disponibles
         expect(() => service.getMemoryState(), returnsNormally);
         expect(() => service.isOnboardingComplete(const MemoryData()), returnsNormally);
+        expect(() => service.getProgress(const MemoryData()), returnsNormally);
+        expect(() => service.getConversationHistory(), returnsNormally);
+        expect(() => service.clearConversationHistory(), returnsNormally);
       });
 
       test('debe mantener Single Responsibility Principle', () {
@@ -154,12 +160,18 @@ void main() {
       test('OnboardingConversationResult debe tener estructura correcta', () {
         // ✅ GIVEN: Resultado de conversación
         const memory = MemoryData(userName: 'Test');
-        const result = OnboardingConversationResult(memory: memory, aiResponse: 'Hola Test', isComplete: false);
+        const result = OnboardingConversationResult(
+          memory: memory,
+          aiResponse: 'Hola Test',
+          isComplete: false,
+          success: true,
+        );
 
         // ✅ THEN: Debe tener todos los campos
         expect(result.memory, equals(memory));
         expect(result.aiResponse, equals('Hola Test'));
         expect(result.isComplete, isFalse);
+        expect(result.success, isTrue);
       });
 
       test('OnboardingProgress debe tener estructura correcta', () {

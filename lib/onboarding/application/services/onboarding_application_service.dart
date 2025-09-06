@@ -73,6 +73,9 @@ class OnboardingApplicationService {
           memory: updatedMemory,
           aiResponse: response['aiResponse'] as String?,
           isComplete: true,
+          success: true,
+          extractedDataType: response['extractedData']?['type'] as String?,
+          extractedDataValue: response['extractedData']?['value'] as String?,
         );
       }
 
@@ -82,7 +85,14 @@ class OnboardingApplicationService {
         lastUserResponse: userResponse,
       );
 
-      return OnboardingConversationResult(memory: updatedMemory, aiResponse: nextQuestion, isComplete: false);
+      return OnboardingConversationResult(
+        memory: updatedMemory,
+        aiResponse: nextQuestion,
+        isComplete: false,
+        success: true,
+        extractedDataType: response['extractedData']?['type'] as String?,
+        extractedDataValue: response['extractedData']?['value'] as String?,
+      );
     } catch (e) {
       throw OnboardingApplicationException('Error en flujo conversacional: ${e.toString()}');
     }
@@ -145,10 +155,26 @@ class OnboardingApplicationService {
 
 /// 📊 **Resultado del Flujo Conversacional**
 class OnboardingConversationResult {
-  const OnboardingConversationResult({required this.memory, this.aiResponse, required this.isComplete});
+  const OnboardingConversationResult({
+    required this.memory,
+    this.aiResponse,
+    required this.isComplete,
+    required this.success,
+    this.extractedDataType,
+    this.extractedDataValue,
+    this.error,
+  });
+
   final MemoryData memory;
   final String? aiResponse;
   final bool isComplete;
+  final bool success;
+  final String? extractedDataType;
+  final String? extractedDataValue;
+  final String? error;
+
+  /// Getter para compatibilidad con API existente
+  MemoryData get updatedMemory => memory;
 }
 
 /// 📈 **Progreso del Onboarding**

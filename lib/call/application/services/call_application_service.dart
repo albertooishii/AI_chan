@@ -49,7 +49,10 @@ class CallApplicationService {
 
   /// ⏹️ **Coordinar Fin de Llamada**
   /// Orquesta el proceso completo de finalización de llamada
-  Future<CallCoordinationResult> coordinateCallEnd({required final String callId, final bool saveHistory = true}) async {
+  Future<CallCoordinationResult> coordinateCallEnd({
+    required final String callId,
+    final bool saveHistory = true,
+  }) async {
     try {
       return CallCoordinationResult(
         success: true,
@@ -144,7 +147,11 @@ class CallApplicationService {
 
   /// 📜 **Coordinar Obtención de Historial**
   /// Orquesta la obtención del historial de llamadas
-  Future<CallCoordinationResult> coordinateHistoryRetrieval({final int? limit, final DateTime? fromDate, final DateTime? toDate}) async {
+  Future<CallCoordinationResult> coordinateHistoryRetrieval({
+    final int? limit,
+    final DateTime? fromDate,
+    final DateTime? toDate,
+  }) async {
     try {
       return CallCoordinationResult(
         success: true,
@@ -210,7 +217,6 @@ class CallApplicationService {
 
 /// Resultado de coordinación general para operaciones del Application Service
 class CallCoordinationResult {
-
   const CallCoordinationResult({
     required this.success,
     required this.operation,
@@ -227,7 +233,6 @@ class CallCoordinationResult {
 
 /// Estado de coordinación del Application Service
 class CallCoordinationState {
-
   const CallCoordinationState({
     required this.isActive,
     required this.operationsCount,
