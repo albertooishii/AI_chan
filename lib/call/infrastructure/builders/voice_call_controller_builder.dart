@@ -1,4 +1,5 @@
 import 'package:ai_chan/call/application/controllers/voice_call_screen_controller.dart';
+import 'package:ai_chan/call/application/services/voice_call_application_service.dart';
 import 'package:ai_chan/call/application/use_cases/start_call_use_case.dart';
 import 'package:ai_chan/call/application/use_cases/end_call_use_case.dart';
 import 'package:ai_chan/call/application/use_cases/handle_incoming_call_use_case.dart';
@@ -14,10 +15,7 @@ import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // �
 /// Implementación del builder para VoiceCallScreenController
 class VoiceCallControllerBuilder implements IVoiceCallControllerBuilder {
   @override
-  VoiceCallScreenController create({
-    required final ChatController chatController,
-    required final CallType callType,
-  }) {
+  VoiceCallScreenController create({required final ChatController chatController, required final CallType callType}) {
     // ✅ DDD: ETAPA 3 - DDD puro
     // Crear dependencias de infraestructura
     final aiService = di.getAIServiceForModel(Config.getDefaultTextModel());
@@ -33,14 +31,19 @@ class VoiceCallControllerBuilder implements IVoiceCallControllerBuilder {
     final handleIncomingCallUseCase = HandleIncomingCallUseCase(callManager);
     final manageAudioUseCase = ManageAudioUseCase(audioManager);
 
-    // Crear controller con todas las dependencias
-    return VoiceCallScreenController(
-      chatController: chatController,
-      callType: callType,
+    // ✅ DDD: Create Application Service to coordinate use cases and resolve SRP violations
+    final voiceCallService = VoiceCallApplicationService(
       startCallUseCase: startCallUseCase,
       endCallUseCase: endCallUseCase,
       handleIncomingCallUseCase: handleIncomingCallUseCase,
       manageAudioUseCase: manageAudioUseCase,
+    );
+
+    // ✅ DDD: Inject Application Service instead of individual use cases (SRP resolution)
+    return VoiceCallScreenController(
+      chatController: chatController,
+      callType: callType,
+      voiceCallService: voiceCallService, // ✅ Single dependency replacing 4 use cases
     );
   }
 }

@@ -1,10 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:ai_chan/call/domain/entities/voice_call_state.dart';
-import 'package:ai_chan/call/application/use_cases/start_call_use_case.dart';
-import 'package:ai_chan/call/application/use_cases/end_call_use_case.dart';
-import 'package:ai_chan/call/application/use_cases/handle_incoming_call_use_case.dart';
-import 'package:ai_chan/call/application/use_cases/manage_audio_use_case.dart';
+import 'package:ai_chan/call/application/services/voice_call_application_service.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro
 
@@ -12,21 +9,13 @@ class VoiceCallScreenController extends ChangeNotifier {
   VoiceCallScreenController({
     required final ChatController chatController, // ✅ DDD: ETAPA 3 - DDD puro
     required final CallType callType,
-    required final StartCallUseCase startCallUseCase,
-    required final EndCallUseCase endCallUseCase,
-    required final HandleIncomingCallUseCase handleIncomingCallUseCase,
-    required final ManageAudioUseCase manageAudioUseCase,
+    required final VoiceCallApplicationService voiceCallService, // ✅ DDD: Application Service injection
   }) : _chatController = chatController, // ✅ DDD: ETAPA 3
        _state = VoiceCallState(type: callType),
-       _startCallUseCase = startCallUseCase,
-       _endCallUseCase = endCallUseCase,
-       _handleIncomingCallUseCase = handleIncomingCallUseCase,
-       _manageAudioUseCase = manageAudioUseCase;
+       _voiceCallService = voiceCallService; // ✅ DDD: Single Application Service dependency
+
   final ChatController _chatController; // ✅ DDD: ETAPA 3 - DDD puro
-  late final StartCallUseCase _startCallUseCase;
-  late final EndCallUseCase _endCallUseCase;
-  late final HandleIncomingCallUseCase _handleIncomingCallUseCase;
-  late final ManageAudioUseCase _manageAudioUseCase;
+  final VoiceCallApplicationService _voiceCallService; // ✅ DDD: Coordinated use cases
 
   VoiceCallState _state;
   Timer? _incomingAnswerTimer;
@@ -48,16 +37,16 @@ class VoiceCallScreenController extends ChangeNotifier {
 
   Future<void> initialize() async {
     try {
-      Log.d(
-        '🎯 Inicializando VoiceCallScreenController',
-        tag: 'VOICE_CALL_CONTROLLER',
-      );
+      Log.d('🎯 Inicializando VoiceCallScreenController', tag: 'VOICE_CALL_CONTROLLER');
 
-      // Configurar audio management
-      await _manageAudioUseCase.initialize();
+      // ✅ DDD: Use Application Service for coordination
+      final initResult = await _voiceCallService.initializeVoiceCall();
+      if (!initResult.success) {
+        throw Exception(initResult.errorMessage ?? 'Failed to initialize voice call');
+      }
 
-      // Configurar listeners de audio
-      _audioLevelSubscription = _manageAudioUseCase.audioLevelStream.listen(
+      // Configurar listeners de audio usando Application Service
+      _audioLevelSubscription = _voiceCallService.audioLevelStream.listen(
         (final level) => _updateState(_state.copyWith(soundLevel: level)),
       );
 
@@ -68,48 +57,29 @@ class VoiceCallScreenController extends ChangeNotifier {
         await _startOutgoingCall();
       }
     } on Exception catch (e) {
-      Log.e(
-        '❌ Error inicializando controller',
-        tag: 'VOICE_CALL_CONTROLLER',
-        error: e,
-      );
-      _updateState(
-        _state.copyWith(
-          phase: CallPhase.ended,
-          endReason: CallEndReason.error,
-          errorMessage: e.toString(),
-        ),
-      );
+      Log.e('❌ Error inicializando controller', tag: 'VOICE_CALL_CONTROLLER', error: e);
+      _updateState(_state.copyWith(phase: CallPhase.ended, endReason: CallEndReason.error, errorMessage: e.toString()));
     }
   }
 
   Future<void> _handleIncomingCall() async {
     try {
-      await _handleIncomingCallUseCase.startRinging();
+      // ✅ DDD: Use Application Service for incoming call coordination
+      final result = await _voiceCallService.handleIncomingCall();
+      if (!result.success) {
+        throw Exception(result.errorMessage ?? 'Failed to handle incoming call');
+      }
 
       // Timeout para llamada entrante no aceptada
       _incomingAnswerTimer = Timer(const Duration(seconds: 10), () {
         if (!_state.isAccepted && _state.phase == CallPhase.ringing) {
-          Log.d(
-            '⏰ Timeout llamada entrante no aceptada',
-            tag: 'VOICE_CALL_CONTROLLER',
-          );
+          Log.d('⏰ Timeout llamada entrante no aceptada', tag: 'VOICE_CALL_CONTROLLER');
           _endCall(reason: CallEndReason.timeout);
         }
       });
     } on Exception catch (e) {
-      Log.e(
-        '❌ Error manejando llamada entrante',
-        tag: 'VOICE_CALL_CONTROLLER',
-        error: e,
-      );
-      _updateState(
-        _state.copyWith(
-          phase: CallPhase.ended,
-          endReason: CallEndReason.error,
-          errorMessage: e.toString(),
-        ),
-      );
+      Log.e('❌ Error manejando llamada entrante', tag: 'VOICE_CALL_CONTROLLER', error: e);
+      _updateState(_state.copyWith(phase: CallPhase.ended, endReason: CallEndReason.error, errorMessage: e.toString()));
     }
   }
 
@@ -120,26 +90,19 @@ class VoiceCallScreenController extends ChangeNotifier {
       Log.d('📞 Aceptando llamada entrante', tag: 'VOICE_CALL_CONTROLLER');
 
       _incomingAnswerTimer?.cancel();
-      await _handleIncomingCallUseCase.stopRinging();
 
-      _updateState(
-        _state.copyWith(isAccepted: true, phase: CallPhase.connecting),
-      );
+      // ✅ DDD: Use Application Service for accepting incoming call
+      final result = await _voiceCallService.acceptIncomingCall();
+      if (!result.success) {
+        throw Exception(result.errorMessage ?? 'Failed to accept incoming call');
+      }
+
+      _updateState(_state.copyWith(isAccepted: true, phase: CallPhase.connecting));
 
       await _startCallInternal();
     } on Exception catch (e) {
-      Log.e(
-        '❌ Error aceptando llamada',
-        tag: 'VOICE_CALL_CONTROLLER',
-        error: e,
-      );
-      _updateState(
-        _state.copyWith(
-          phase: CallPhase.ended,
-          endReason: CallEndReason.error,
-          errorMessage: e.toString(),
-        ),
-      );
+      Log.e('❌ Error aceptando llamada', tag: 'VOICE_CALL_CONTROLLER', error: e);
+      _updateState(_state.copyWith(phase: CallPhase.ended, endReason: CallEndReason.error, errorMessage: e.toString()));
     }
   }
 
@@ -149,18 +112,8 @@ class VoiceCallScreenController extends ChangeNotifier {
       _updateState(_state.copyWith(phase: CallPhase.connecting));
       await _startCallInternal();
     } on Exception catch (e) {
-      Log.e(
-        '❌ Error iniciando llamada saliente',
-        tag: 'VOICE_CALL_CONTROLLER',
-        error: e,
-      );
-      _updateState(
-        _state.copyWith(
-          phase: CallPhase.ended,
-          endReason: CallEndReason.error,
-          errorMessage: e.toString(),
-        ),
-      );
+      Log.e('❌ Error iniciando llamada saliente', tag: 'VOICE_CALL_CONTROLLER', error: e);
+      _updateState(_state.copyWith(phase: CallPhase.ended, endReason: CallEndReason.error, errorMessage: e.toString()));
     }
   }
 
@@ -169,36 +122,28 @@ class VoiceCallScreenController extends ChangeNotifier {
       // TODO: En el futuro, el sistema será más complejo y manejará el prompt del sistema
       // Por ahora, simplemente iniciamos la llamada
 
-      await _startCallUseCase.execute(
+      // ✅ DDD: Use Application Service for call start coordination
+      final result = await _voiceCallService.startCallInternal(
         isIncoming: _state.isIncoming,
-        onCallStarted: () =>
-            _updateState(_state.copyWith(phase: CallPhase.active)),
+        onCallStarted: () => _updateState(_state.copyWith(phase: CallPhase.active)),
         onCallEnded: (final reason) => _endCall(reason: reason),
       );
+
+      if (!result.success) {
+        throw Exception(result.errorMessage ?? 'Failed to start call');
+      }
     } on Exception catch (e) {
-      Log.e(
-        '❌ Error en _startCallInternal',
-        tag: 'VOICE_CALL_CONTROLLER',
-        error: e,
-      );
-      _updateState(
-        _state.copyWith(
-          phase: CallPhase.ended,
-          endReason: CallEndReason.error,
-          errorMessage: e.toString(),
-        ),
-      );
+      Log.e('❌ Error en _startCallInternal', tag: 'VOICE_CALL_CONTROLLER', error: e);
+      _updateState(_state.copyWith(phase: CallPhase.ended, endReason: CallEndReason.error, errorMessage: e.toString()));
     }
   }
 
   void toggleMute() {
     final newMuted = !_state.isMuted;
-    _manageAudioUseCase.setMuted(newMuted);
+    // ✅ DDD: Use Application Service for audio management
+    _voiceCallService.setAudioMuted(newMuted);
     _updateState(_state.copyWith(isMuted: newMuted));
-    Log.d(
-      '🎤 Micrófono ${newMuted ? "silenciado" : "activado"}',
-      tag: 'VOICE_CALL_CONTROLLER',
-    );
+    Log.d('🎤 Micrófono ${newMuted ? "silenciado" : "activado"}', tag: 'VOICE_CALL_CONTROLLER');
   }
 
   Future<void> hangUp() async {
@@ -212,48 +157,39 @@ class VoiceCallScreenController extends ChangeNotifier {
     try {
       Log.d('🔚 Finalizando llamada: $reason', tag: 'VOICE_CALL_CONTROLLER');
 
-      _updateState(
-        _state.copyWith(
-          hangupInProgress: true,
-          phase: CallPhase.ending,
-          endReason: reason,
-        ),
-      );
+      _updateState(_state.copyWith(hangupInProgress: true, phase: CallPhase.ending, endReason: reason));
 
       // Cancelar timers
       _incomingAnswerTimer?.cancel();
       _noAnswerTimer?.cancel();
 
-      await _endCallUseCase.execute(
+      // ✅ DDD: Use Application Service for call termination coordination
+      final result = await _voiceCallService.endVoiceCall(
         chatController: _chatController,
         callState: _state,
       ); // ✅ DDD: ETAPA 3
 
+      if (!result.success) {
+        throw Exception(result.errorMessage ?? 'Failed to end call');
+      }
+
       _updateState(_state.copyWith(phase: CallPhase.ended));
     } on Exception catch (e) {
-      Log.e(
-        '❌ Error finalizando llamada',
-        tag: 'VOICE_CALL_CONTROLLER',
-        error: e,
-      );
-      _updateState(
-        _state.copyWith(phase: CallPhase.ended, errorMessage: e.toString()),
-      );
+      Log.e('❌ Error finalizando llamada', tag: 'VOICE_CALL_CONTROLLER', error: e);
+      _updateState(_state.copyWith(phase: CallPhase.ended, errorMessage: e.toString()));
     }
   }
 
   @override
   void dispose() {
-    Log.d(
-      '🗑️ Disposing VoiceCallScreenController',
-      tag: 'VOICE_CALL_CONTROLLER',
-    );
+    Log.d('🗑️ Disposing VoiceCallScreenController', tag: 'VOICE_CALL_CONTROLLER');
 
     _incomingAnswerTimer?.cancel();
     _noAnswerTimer?.cancel();
     _audioLevelSubscription?.cancel();
 
-    _manageAudioUseCase.dispose();
+    // ✅ DDD: Use Application Service for proper disposal
+    _voiceCallService.dispose();
 
     super.dispose();
   }
