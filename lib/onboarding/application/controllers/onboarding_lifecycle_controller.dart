@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/onboarding/application/use_cases/biography_generation_use_case.dart';
-import 'package:ai_chan/onboarding/application/use_cases/import_export_onboarding_use_case.dart';
-import 'package:ai_chan/onboarding/application/use_cases/save_chat_export_use_case.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared/utils/provider_persist_utils.dart';
 
 /// Lifecycle controller that owns onboarding lifecycle state (biography loading,
 /// saved/generated biography, import errors). This intentionally does NOT own
@@ -11,15 +10,10 @@ import 'package:ai_chan/shared/utils/log_utils.dart';
 class OnboardingLifecycleController extends ChangeNotifier {
   OnboardingLifecycleController({
     final BiographyGenerationUseCase? biographyUseCase,
-    final ImportExportOnboardingUseCase? importExportUseCase,
-    final SaveChatExportUseCase? saveChatExportUseCase,
-  }) : _biographyUseCase = biographyUseCase ?? BiographyGenerationUseCase(),
-       _saveChatExportUseCase =
-           saveChatExportUseCase ?? SaveChatExportUseCase() {
+  }) : _biographyUseCase = biographyUseCase ?? BiographyGenerationUseCase() {
     _loadExistingBiography();
   }
   final BiographyGenerationUseCase _biographyUseCase;
-  final SaveChatExportUseCase _saveChatExportUseCase;
 
   bool loading = true;
   AiChanProfile? _generatedBiography;
@@ -131,7 +125,7 @@ class OnboardingLifecycleController extends ChangeNotifier {
   }
 
   Future<void> applyChatExport(final ChatExport exported) async {
-    await _saveChatExportUseCase.saveChatExport(exported);
+    await ProviderPersistUtils.saveChatExport(exported);
     _generatedBiography = exported.profile;
     _biographySaved = true;
     notifyListeners();

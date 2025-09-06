@@ -24,21 +24,12 @@ void main() {
         expect(service, isNotNull);
 
         // ✅ THEN: Debe tener métodos de coordinación, no lógica compleja
-        final methods = [
-          'processConversationalFlow',
-          'generateNextQuestion',
-          'resetOnboarding',
-          'getMemoryState',
-          'isOnboardingComplete',
-          'getProgress',
-          'addConversationEntry',
-          'getConversationHistory',
-          'clearConversationHistory',
-        ];
-
         // Verificar que los métodos están disponibles
         expect(() => service.getMemoryState(), returnsNormally);
-        expect(() => service.isOnboardingComplete(const MemoryData()), returnsNormally);
+        expect(
+          () => service.isOnboardingComplete(const MemoryData()),
+          returnsNormally,
+        );
         expect(() => service.getProgress(const MemoryData()), returnsNormally);
         expect(() => service.getConversationHistory(), returnsNormally);
         expect(() => service.clearConversationHistory(), returnsNormally);
@@ -49,7 +40,10 @@ void main() {
         // ✅ THEN: Solo debe coordinar, no implementar lógica de dominio
 
         // Verifica que no tiene dependencias complejas inyectadas
-        expect(service.runtimeType.toString(), contains('OnboardingApplicationService'));
+        expect(
+          service.runtimeType.toString(),
+          contains('OnboardingApplicationService'),
+        );
 
         // Verifica que tiene una responsabilidad clara
         final memory = const MemoryData();
@@ -113,7 +107,10 @@ void main() {
         final progress = service.getProgress(partialMemory);
 
         // ✅ THEN: Debe mostrar progreso correcto
-        expect(progress.completedFields, equals(3)); // userName, userCountry, aiCountry
+        expect(
+          progress.completedFields,
+          equals(3),
+        ); // userName, userCountry, aiCountry
         expect(progress.totalFields, equals(6));
         expect(progress.progressPercentage, equals(50.0)); // 3/6 = 50%
         expect(progress.nextRequiredField, equals('userBirthdate'));
@@ -198,7 +195,10 @@ void main() {
 
         // ✅ THEN: Debe tener mensaje correcto
         expect(exception.message, equals('Test error'));
-        expect(exception.toString(), contains('OnboardingApplicationException'));
+        expect(
+          exception.toString(),
+          contains('OnboardingApplicationException'),
+        );
         expect(exception.toString(), contains('Test error'));
       });
     });

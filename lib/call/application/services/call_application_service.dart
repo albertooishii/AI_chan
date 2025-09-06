@@ -24,7 +24,9 @@ class CallApplicationService {
 
   /// 📞 **Coordinar Inicio de Llamada**
   /// Orquesta el proceso completo de inicio de llamada
-  Future<CallCoordinationResult> coordinateCallStart({required final Map<String, dynamic> callParameters}) async {
+  Future<CallCoordinationResult> coordinateCallStart({
+    required final Map<String, dynamic> callParameters,
+  }) async {
     try {
       // Por ahora, este método actúa como coordinador conceptual
       // Los use cases reales requieren dependency injection que
@@ -60,7 +62,7 @@ class CallApplicationService {
         message: 'Finalización coordinada correctamente',
         data: {'callId': callId, 'saveHistory': saveHistory},
       );
-    } catch (e) {
+    } on Exception catch (e) {
       return CallCoordinationResult(
         success: false,
         operation: 'call_end',
@@ -83,9 +85,13 @@ class CallApplicationService {
         success: true,
         operation: 'audio_processing',
         message: 'Audio procesado correctamente',
-        data: {'callId': callId, 'action': audioAction, 'parameters': parameters},
+        data: {
+          'callId': callId,
+          'action': audioAction,
+          'parameters': parameters,
+        },
       );
-    } catch (e) {
+    } on Exception catch (e) {
       return CallCoordinationResult(
         success: false,
         operation: 'audio_processing',
@@ -108,9 +114,13 @@ class CallApplicationService {
         success: true,
         operation: 'assistant_response',
         message: 'Respuesta del asistente coordinada',
-        data: {'callId': callId, 'responseText': responseText, 'options': options},
+        data: {
+          'callId': callId,
+          'responseText': responseText,
+          'options': options,
+        },
       );
-    } catch (e) {
+    } on Exception catch (e) {
       return CallCoordinationResult(
         success: false,
         operation: 'assistant_response',
@@ -134,7 +144,7 @@ class CallApplicationService {
         message: 'Llamada entrante coordinada',
         data: {'callerId': callerId, 'metadata': metadata},
       );
-    } catch (e) {
+    } on Exception catch (e) {
       return CallCoordinationResult(
         success: false,
         operation: 'incoming_call',
@@ -157,9 +167,13 @@ class CallApplicationService {
         success: true,
         operation: 'history_retrieval',
         message: 'Historial obtenido correctamente',
-        data: {'limit': limit, 'fromDate': fromDate?.toIso8601String(), 'toDate': toDate?.toIso8601String()},
+        data: {
+          'limit': limit,
+          'fromDate': fromDate?.toIso8601String(),
+          'toDate': toDate?.toIso8601String(),
+        },
       );
-    } catch (e) {
+    } on Exception catch (e) {
       return CallCoordinationResult(
         success: false,
         operation: 'history_retrieval',
@@ -183,7 +197,7 @@ class CallApplicationService {
         message: 'Configuración aplicada correctamente',
         data: {'configType': configType, 'configData': configData},
       );
-    } catch (e) {
+    } on Exception catch (e) {
       return CallCoordinationResult(
         success: false,
         operation: 'configuration',

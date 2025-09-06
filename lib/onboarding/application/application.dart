@@ -10,8 +10,6 @@ export 'controllers/onboarding_lifecycle_controller.dart';
 
 // Use Cases
 export 'use_cases/biography_generation_use_case.dart';
-export 'use_cases/form_onboarding_use_case.dart';
-export 'use_cases/import_export_onboarding_use_case.dart';
 
 // Application Services
-// Note: Services would be exported here once implemented
+export 'services/onboarding_application_service.dart';

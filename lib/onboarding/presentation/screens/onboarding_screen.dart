@@ -444,7 +444,9 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                           await showAppDialog(
                             builder: (final ctx) => AlertDialog(
                               title: const Text('Error en el formulario'),
-                              content: Text(result.errorMessage),
+                              content: Text(
+                                result.errorMessage ?? 'Error desconocido',
+                              ),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.of(ctx).pop(),

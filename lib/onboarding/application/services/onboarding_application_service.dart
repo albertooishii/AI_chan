@@ -62,7 +62,9 @@ class OnboardingApplicationService {
       final error = response['error'] as bool? ?? false;
 
       if (error) {
-        throw OnboardingApplicationException('Error procesando respuesta: ${response['exception']}');
+        throw OnboardingApplicationException(
+          'Error procesando respuesta: ${response['exception']}',
+        );
       }
 
       // 2. Verificar si el onboarding está completo
@@ -94,20 +96,27 @@ class OnboardingApplicationService {
         extractedDataValue: response['extractedData']?['value'] as String?,
       );
     } catch (e) {
-      throw OnboardingApplicationException('Error en flujo conversacional: ${e.toString()}');
+      throw OnboardingApplicationException(
+        'Error en flujo conversacional: ${e.toString()}',
+      );
     }
   }
 
   /// � **Generar Siguiente Pregunta**
   /// Coordina la generación de la siguiente pregunta del onboarding
-  Future<String> generateNextQuestion({required final MemoryData currentMemory, final String? lastUserResponse}) async {
+  Future<String> generateNextQuestion({
+    required final MemoryData currentMemory,
+    final String? lastUserResponse,
+  }) async {
     try {
       return await GenerateNextQuestionUseCase.execute(
         currentMemory: currentMemory,
         lastUserResponse: lastUserResponse,
       );
     } catch (e) {
-      throw OnboardingApplicationException('Error generando siguiente pregunta: ${e.toString()}');
+      throw OnboardingApplicationException(
+        'Error generando siguiente pregunta: ${e.toString()}',
+      );
     }
   }
 
@@ -120,7 +129,9 @@ class OnboardingApplicationService {
 
       // Estado ahora gestionado en Application Service siguiendo DDD
     } catch (e) {
-      throw OnboardingApplicationException('Error reiniciando onboarding: ${e.toString()}');
+      throw OnboardingApplicationException(
+        'Error reiniciando onboarding: ${e.toString()}',
+      );
     }
   }
 
@@ -141,7 +152,8 @@ class OnboardingApplicationService {
   /// Coordina el cálculo del progreso del onboarding
   OnboardingProgress getProgress(final MemoryData memory) {
     final missingData = memory.getMissingData();
-    final totalFields = 6; // userName, userCountry, userBirthdate, aiCountry, aiName, meetStory
+    final totalFields =
+        6; // userName, userCountry, userBirthdate, aiCountry, aiName, meetStory
     final completedFields = totalFields - missingData.length;
 
     return OnboardingProgress(

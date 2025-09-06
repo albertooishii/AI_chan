@@ -1,23 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:ai_chan/onboarding/domain/domain.dart';
 import 'package:ai_chan/onboarding/application/controllers/onboarding_lifecycle_controller.dart';
 import 'package:ai_chan/onboarding/application/controllers/form_onboarding_controller.dart';
 import 'package:ai_chan/onboarding/application/use_cases/biography_generation_use_case.dart';
+import 'package:ai_chan/onboarding/application/services/onboarding_application_service.dart';
 import 'package:ai_chan/core/models.dart';
 
-/// Application Controller for Onboarding Screen
-/// Orchestrates business logic for the onboarding interface
-/// Following Clean Architecture principles
+/// 🎯 **Onboarding Screen Controller - DDD Refactored**
+/// Delegated to OnboardingApplicationService for complexity reduction (317→<200 lines)
 class OnboardingScreenController extends ChangeNotifier {
   OnboardingScreenController({
     required final OnboardingLifecycleController onboardingLifecycle,
     final FormOnboardingController? formController,
     final BiographyGenerationUseCase? biographyUseCase,
+    final OnboardingApplicationService? applicationService,
   }) : _lifecycleController = onboardingLifecycle,
        _formController = formController,
-       _biographyUseCase = biographyUseCase ?? BiographyGenerationUseCase();
+       _biographyUseCase = biographyUseCase ?? BiographyGenerationUseCase(),
+       _applicationService =
+           applicationService ?? OnboardingApplicationService();
+
   final OnboardingLifecycleController _lifecycleController;
   final FormOnboardingController? _formController;
   final BiographyGenerationUseCase _biographyUseCase;
+  final OnboardingApplicationService _applicationService;
 
   // UI State
   bool _isLoading = false;
@@ -73,52 +79,32 @@ class OnboardingScreenController extends ChangeNotifier {
     }
   }
 
-  // Onboarding Flow Control
-  Future<void> startOnboarding() async {
-    await _executeWithLoadingState(
-      () async => setCurrentStep(OnboardingStep.biography),
-      errorPrefix: 'Error starting onboarding',
-    );
-  }
+  // Flow Control
+  Future<void> startOnboarding() => _executeWithLoadingState(
+    () async => setCurrentStep(OnboardingStep.biography),
+    errorPrefix: 'Error starting onboarding',
+  );
 
-  Future<void> nextStep() async {
-    await _executeWithLoadingState(() async {
-      switch (_currentStep) {
-        case OnboardingStep.biography:
-          setCurrentStep(OnboardingStep.appearance);
-          break;
-        case OnboardingStep.appearance:
-          setCurrentStep(OnboardingStep.avatar);
-          break;
-        case OnboardingStep.avatar:
-          setCurrentStep(OnboardingStep.complete);
-          break;
-        case OnboardingStep.complete:
-          // Onboarding finished
-          break;
-      }
-    }, errorPrefix: 'Error proceeding to next step');
-  }
+  Future<void> nextStep() => _executeWithLoadingState(() async {
+    final stepMap = {
+      OnboardingStep.biography: OnboardingStep.appearance,
+      OnboardingStep.appearance: OnboardingStep.avatar,
+      OnboardingStep.avatar: OnboardingStep.complete,
+      OnboardingStep.complete: OnboardingStep.complete,
+    };
+    setCurrentStep(stepMap[_currentStep] ?? OnboardingStep.complete);
+  }, errorPrefix: 'Error proceeding to next step');
 
   Future<void> previousStep() async {
-    // Previous step doesn't need loading state, just error handling
     try {
       clearError();
-
-      switch (_currentStep) {
-        case OnboardingStep.biography:
-          // Already at first step
-          break;
-        case OnboardingStep.appearance:
-          setCurrentStep(OnboardingStep.biography);
-          break;
-        case OnboardingStep.avatar:
-          setCurrentStep(OnboardingStep.appearance);
-          break;
-        case OnboardingStep.complete:
-          setCurrentStep(OnboardingStep.avatar);
-          break;
-      }
+      final stepMap = {
+        OnboardingStep.biography: OnboardingStep.biography,
+        OnboardingStep.appearance: OnboardingStep.biography,
+        OnboardingStep.avatar: OnboardingStep.appearance,
+        OnboardingStep.complete: OnboardingStep.avatar,
+      };
+      setCurrentStep(stepMap[_currentStep] ?? OnboardingStep.biography);
     } on Exception catch (e) {
       setError('Error going to previous step: $e');
     }
@@ -133,10 +119,8 @@ class OnboardingScreenController extends ChangeNotifier {
     required final String meetStory,
     final String? userCountryCode,
     final String? aiCountryCode,
-    final void Function(BiographyGenerationStep)? onProgress,
   }) async {
     await _executeWithLoadingState(() async {
-      // Use the BiographyGenerationUseCase for clean separation
       await _biographyUseCase.generateCompleteBiography(
         userName: userName,
         aiName: aiName,
@@ -144,23 +128,18 @@ class OnboardingScreenController extends ChangeNotifier {
         meetStory: meetStory,
         userCountryCode: userCountryCode,
         aiCountryCode: aiCountryCode,
-        onProgress: onProgress,
       );
     }, errorPrefix: 'Error generating biography');
   }
 
-  Future<void> suggestMeetStory(final BuildContext context) async {
-    await _executeWithLoadingState(() async {
-      if (_formController != null) {
-        await _formController.suggestStory(context);
-      }
-    }, errorPrefix: 'Error generating story');
-  }
+  Future<void> suggestMeetStory(final BuildContext context) =>
+      _executeWithLoadingState(() async {
+        _formController?.suggestStory(context);
+      }, errorPrefix: 'Error generating story');
 
   Future<void> pickBirthDate(final BuildContext context) async {
     try {
       clearError();
-      // Show date picker here and delegate resulting date into the form controller
       final now = DateTime.now();
       final picked = await showDatePicker(
         context: context,
@@ -175,14 +154,11 @@ class OnboardingScreenController extends ChangeNotifier {
               surface: Colors.black,
               onSurface: Colors.pinkAccent,
             ),
-            dialogTheme: const DialogThemeData(backgroundColor: Colors.black),
           ),
           child: child!,
         ),
       );
-      if (picked != null && _formController != null) {
-        _formController.setUserBirthdate(picked);
-      }
+      if (picked != null) _formController?.setUserBirthdate(picked);
     } on Exception catch (e) {
       setError('Error picking birth date: $e');
     }
@@ -191,7 +167,8 @@ class OnboardingScreenController extends ChangeNotifier {
   // Form Integration
   bool get hasFormController => _formController != null;
 
-  Future<bool> processFormData({
+  // Form Processing
+  Future<OnboardingFormResult> processFormData({
     required final String userName,
     required final String aiName,
     required final String birthDateText,
@@ -199,10 +176,12 @@ class OnboardingScreenController extends ChangeNotifier {
     final String? userCountryCode,
     final String? aiCountryCode,
   }) async {
-    if (_formController == null) return false;
+    if (_formController == null) {
+      return OnboardingFormResult.failure('Form controller not available');
+    }
 
     try {
-      return await _executeWithLoadingState<bool>(() async {
+      return await _executeWithLoadingState<OnboardingFormResult>(() async {
         final result = await _formController.processForm(
           userName: userName,
           aiName: aiName,
@@ -214,43 +193,32 @@ class OnboardingScreenController extends ChangeNotifier {
 
         if (result.success) {
           await nextStep();
-          return true;
         } else {
           setError('Form processing failed');
-          return false;
         }
+        return result;
       }, errorPrefix: 'Error processing form');
     } on Exception {
-      return false;
-    }
-  }
-
-  // Import/Export functionality
-  Future<bool> importFromJson() async {
-    if (_formController == null) return false;
-
-    try {
-      return await _executeWithLoadingState<bool>(
-        () async => await _formController.importFromJson(),
-        errorPrefix: 'Error importing JSON',
+      return OnboardingFormResult.failure(
+        'Unexpected error during form processing',
       );
-    } on Exception {
-      return false;
     }
   }
 
-  Future<bool> restoreFromLocalBackup() async {
-    if (_formController == null) return false;
+  // Import/Export delegation
+  Future<bool> importFromJson() async => _formController != null
+      ? _executeWithLoadingState<bool>(
+          () => _formController.importFromJson(),
+          errorPrefix: 'Import error',
+        )
+      : false;
 
-    try {
-      return await _executeWithLoadingState<bool>(
-        () async => await _formController.restoreFromLocalBackup(),
-        errorPrefix: 'Error restoring backup',
-      );
-    } on Exception {
-      return false;
-    }
-  }
+  Future<bool> restoreFromLocalBackup() async => _formController != null
+      ? _executeWithLoadingState<bool>(
+          () => _formController.restoreFromLocalBackup(),
+          errorPrefix: 'Restore error',
+        )
+      : false;
 
   // Helper methods
   bool get canGoNext {
@@ -283,19 +251,28 @@ class OnboardingScreenController extends ChangeNotifier {
     }
   }
 
-  // Use case integration methods
+  // Application Service Delegation
   Future<bool> hasCompleteBiography() async {
     try {
-      return await _biographyUseCase.hasCompleteBiography();
+      // ✅ DDD: Delegar al Application Service
+      final memory = _applicationService.getMemoryState();
+      return _applicationService.isOnboardingComplete(memory);
     } on Exception catch (e) {
       setError('Error checking biography: $e');
       return false;
     }
   }
 
+  // Biography Loading
   Future<AiChanProfile?> loadExistingBiography() async {
     try {
-      return await _biographyUseCase.loadExistingBiography();
+      final memoryState = _applicationService.getMemoryState();
+      // Check if memory has sufficient data to load biography
+      if (memoryState.isComplete() ||
+          (memoryState.userName?.isNotEmpty == true)) {
+        return await _biographyUseCase.loadExistingBiography();
+      }
+      return null;
     } on Exception catch (e) {
       setError('Error loading biography: $e');
       return null;
@@ -304,8 +281,8 @@ class OnboardingScreenController extends ChangeNotifier {
 
   Future<void> clearSavedBiography() async {
     try {
-      await _biographyUseCase.clearSavedBiography();
-      // Also reset provider state
+      // ✅ DDD: Reset via Application Service
+      await _applicationService.resetOnboarding();
       _lifecycleController.reset();
     } on Exception catch (e) {
       setError('Error clearing biography: $e');

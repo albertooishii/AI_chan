@@ -13,7 +13,11 @@ void main() {
             .list(recursive: true)
             .where((final entity) => entity is File)
             .cast<File>()
-            .where((final file) => file.path.contains('controller') && file.path.endsWith('.dart'))
+            .where(
+              (final file) =>
+                  file.path.contains('controller') &&
+                  file.path.endsWith('.dart'),
+            )
             .toList();
 
         for (final file in controllerFiles) {
@@ -21,7 +25,9 @@ void main() {
           final useCaseCount = _countUseCaseInjections(content);
 
           if (useCaseCount > 3) {
-            violations.add('${file.path}: $useCaseCount use cases inyectados (máximo: 3)');
+            violations.add(
+              '${file.path}: $useCaseCount use cases inyectados (máximo: 3)',
+            );
           }
         }
 
@@ -33,33 +39,42 @@ void main() {
         }
       });
 
-      test('controllers no deben tener más de 5 dependencias inyectadas', () async {
-        final violations = <String>[];
+      test(
+        'controllers no deben tener más de 5 dependencias inyectadas',
+        () async {
+          final violations = <String>[];
 
-        final controllersDir = Directory('lib');
-        final controllerFiles = await controllersDir
-            .list(recursive: true)
-            .where((final entity) => entity is File)
-            .cast<File>()
-            .where((final file) => file.path.contains('controller') && file.path.endsWith('.dart'))
-            .toList();
+          final controllersDir = Directory('lib');
+          final controllerFiles = await controllersDir
+              .list(recursive: true)
+              .where((final entity) => entity is File)
+              .cast<File>()
+              .where(
+                (final file) =>
+                    file.path.contains('controller') &&
+                    file.path.endsWith('.dart'),
+              )
+              .toList();
 
-        for (final file in controllerFiles) {
-          final content = await file.readAsString();
-          final dependencyCount = _countConstructorDependencies(content);
+          for (final file in controllerFiles) {
+            final content = await file.readAsString();
+            final dependencyCount = _countConstructorDependencies(content);
 
-          if (dependencyCount > 5) {
-            violations.add('${file.path}: $dependencyCount dependencias (máximo: 5)');
+            if (dependencyCount > 5) {
+              violations.add(
+                '${file.path}: $dependencyCount dependencias (máximo: 5)',
+              );
+            }
           }
-        }
 
-        if (violations.isNotEmpty) {
-          fail(
-            '❌ SRP VIOLATIONS - Controllers con demasiadas dependencias:\n${violations.join('\n')}\n\n'
-            '💡 SOLUCIÓN: Crear Application Service como Facade pattern',
-          );
-        }
-      });
+          if (violations.isNotEmpty) {
+            fail(
+              '❌ SRP VIOLATIONS - Controllers con demasiadas dependencias:\n${violations.join('\n')}\n\n'
+              '💡 SOLUCIÓN: Crear Application Service como Facade pattern',
+            );
+          }
+        },
+      );
     });
 
     group('Application Layer - Missing Application Services', () {
@@ -70,7 +85,9 @@ void main() {
         final requiredModules = ['call', 'onboarding'];
 
         for (final module in requiredModules) {
-          final serviceFile = File('lib/$module/application/services/${module}_application_service.dart');
+          final serviceFile = File(
+            'lib/$module/application/services/${module}_application_service.dart',
+          );
           if (!serviceFile.existsSync()) {
             violations.add('❌ Falta: ${serviceFile.path}');
 
@@ -79,7 +96,9 @@ void main() {
             if (useCasesDir.existsSync()) {
               final useCaseCount = useCasesDir.listSync().length;
               if (useCaseCount > 2) {
-                violations.add('   📊 $module tiene $useCaseCount use cases sin coordinador');
+                violations.add(
+                  '   📊 $module tiene $useCaseCount use cases sin coordinador',
+                );
               }
             }
           }
@@ -101,7 +120,10 @@ void main() {
             .list(recursive: true)
             .where((final entity) => entity is File)
             .cast<File>()
-            .where((final file) => file.path.contains('use_case') && file.path.endsWith('.dart'))
+            .where(
+              (final file) =>
+                  file.path.contains('use_case') && file.path.endsWith('.dart'),
+            )
             .toList();
 
         for (final file in useCaseFiles) {
@@ -126,65 +148,86 @@ void main() {
     });
 
     group('Architecture - Dependency Direction', () {
-      test('controllers no deben importar directamente use cases de otros módulos', () async {
-        final violations = <String>[];
+      test(
+        'controllers no deben importar directamente use cases de otros módulos',
+        () async {
+          final violations = <String>[];
 
-        final controllersDir = Directory('lib');
-        final controllerFiles = await controllersDir
-            .list(recursive: true)
-            .where((final entity) => entity is File)
-            .cast<File>()
-            .where((final file) => file.path.contains('controller') && file.path.endsWith('.dart'))
-            .toList();
+          final controllersDir = Directory('lib');
+          final controllerFiles = await controllersDir
+              .list(recursive: true)
+              .where((final entity) => entity is File)
+              .cast<File>()
+              .where(
+                (final file) =>
+                    file.path.contains('controller') &&
+                    file.path.endsWith('.dart'),
+              )
+              .toList();
 
-        for (final file in controllerFiles) {
-          final content = await file.readAsString();
-          final currentModule = _extractModuleName(file.path);
+          for (final file in controllerFiles) {
+            final content = await file.readAsString();
+            final currentModule = _extractModuleName(file.path);
 
-          // Detectar imports cross-module
-          final crossModuleImports = _findCrossModuleUseCaseImports(content, currentModule);
-          if (crossModuleImports.isNotEmpty) {
-            violations.add('${file.path}: Imports cross-module: ${crossModuleImports.join(', ')}');
+            // Detectar imports cross-module
+            final crossModuleImports = _findCrossModuleUseCaseImports(
+              content,
+              currentModule,
+            );
+            if (crossModuleImports.isNotEmpty) {
+              violations.add(
+                '${file.path}: Imports cross-module: ${crossModuleImports.join(', ')}',
+              );
+            }
           }
-        }
 
-        if (violations.isNotEmpty) {
-          fail(
-            '❌ SRP VIOLATIONS - Controllers con dependencias cross-module:\n${violations.join('\n')}\n\n'
-            '💡 SOLUCIÓN: Usar Application Services como boundaries entre módulos',
-          );
-        }
-      });
+          if (violations.isNotEmpty) {
+            fail(
+              '❌ SRP VIOLATIONS - Controllers con dependencias cross-module:\n${violations.join('\n')}\n\n'
+              '💡 SOLUCIÓN: Usar Application Services como boundaries entre módulos',
+            );
+          }
+        },
+      );
     });
 
     group('Code Metrics - Complexity', () {
-      test('controllers no deben superar 200 líneas (alta complejidad)', () async {
-        final violations = <String>[];
+      test(
+        'controllers no deben superar 200 líneas (alta complejidad)',
+        () async {
+          final violations = <String>[];
 
-        final controllersDir = Directory('lib');
-        final controllerFiles = await controllersDir
-            .list(recursive: true)
-            .where((final entity) => entity is File)
-            .cast<File>()
-            .where((final file) => file.path.contains('controller') && file.path.endsWith('.dart'))
-            .toList();
+          final controllersDir = Directory('lib');
+          final controllerFiles = await controllersDir
+              .list(recursive: true)
+              .where((final entity) => entity is File)
+              .cast<File>()
+              .where(
+                (final file) =>
+                    file.path.contains('controller') &&
+                    file.path.endsWith('.dart'),
+              )
+              .toList();
 
-        for (final file in controllerFiles) {
-          final content = await file.readAsString();
-          final lineCount = content.split('\n').length;
+          for (final file in controllerFiles) {
+            final content = await file.readAsString();
+            final lineCount = content.split('\n').length;
 
-          if (lineCount > 200) {
-            violations.add('${file.path}: $lineCount líneas (máximo recomendado: 200)');
+            if (lineCount > 200) {
+              violations.add(
+                '${file.path}: $lineCount líneas (máximo recomendado: 200)',
+              );
+            }
           }
-        }
 
-        if (violations.isNotEmpty) {
-          fail(
-            '❌ SRP VIOLATIONS - Controllers muy complejos:\n${violations.join('\n')}\n\n'
-            '💡 SOLUCIÓN: Extraer lógica a Application Services',
-          );
-        }
-      });
+          if (violations.isNotEmpty) {
+            fail(
+              '❌ SRP VIOLATIONS - Controllers muy complejos:\n${violations.join('\n')}\n\n'
+              '💡 SOLUCIÓN: Extraer lógica a Application Services',
+            );
+          }
+        },
+      );
     });
   });
 }
@@ -198,7 +241,11 @@ int _countUseCaseInjections(final String content) {
 /// Cuenta dependencias en el constructor
 int _countConstructorDependencies(final String content) {
   // Buscar parámetros required en constructor
-  final constructorMatch = RegExp(r'(\w+)\s*\(\s*\{([^}]+)\}', multiLine: true, dotAll: true).firstMatch(content);
+  final constructorMatch = RegExp(
+    r'(\w+)\s*\(\s*\{([^}]+)\}',
+    multiLine: true,
+    dotAll: true,
+  ).firstMatch(content);
 
   if (constructorMatch == null) return 0;
 
@@ -218,13 +265,21 @@ String _extractModuleName(final String filePath) {
 }
 
 /// Encuentra imports de use cases de otros módulos
-List<String> _findCrossModuleUseCaseImports(final String content, final String currentModule) {
+List<String> _findCrossModuleUseCaseImports(
+  final String content,
+  final String currentModule,
+) {
   final violations = <String>[];
-  final importPattern = RegExp(r"import\s+'package:ai_chan/(\w+)/.*use_case.*'", multiLine: true);
+  final importPattern = RegExp(
+    r"import\s+'package:ai_chan/(\w+)/.*use_case.*'",
+    multiLine: true,
+  );
 
   for (final match in importPattern.allMatches(content)) {
     final importedModule = match.group(1);
-    if (importedModule != null && importedModule != currentModule && importedModule != 'shared') {
+    if (importedModule != null &&
+        importedModule != currentModule &&
+        importedModule != 'shared') {
       violations.add('$importedModule use case');
     }
   }
