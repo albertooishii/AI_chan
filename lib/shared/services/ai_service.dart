@@ -17,22 +17,22 @@ abstract class AIService {
   /// Si se adjunta imagen, debe combinarse en el mismo bloque/parte que el texto del último mensaje 'user',
   /// siguiendo el patrón multimodal de OpenAI y Gemini (texto + imagen juntos, no por separado).
   Future<AIResponse> sendMessageImpl(
-    List<Map<String, String>> history,
-    SystemPrompt systemPrompt, {
-    String? model,
-    String? imageBase64,
-    String? imageMimeType,
-    bool enableImageGeneration = false,
+    final List<Map<String, String>> history,
+    final SystemPrompt systemPrompt, {
+    final String? model,
+    final String? imageBase64,
+    final String? imageMimeType,
+    final bool enableImageGeneration = false,
   });
 
   /// Punto único de entrada para enviar mensajes a la IA con fallback automático.
   static Future<AIResponse> sendMessage(
-    List<Map<String, String>> history,
-    SystemPrompt systemPrompt, {
+    final List<Map<String, String>> history,
+    final SystemPrompt systemPrompt, {
     String? model,
-    String? imageBase64,
-    String? imageMimeType,
-    bool enableImageGeneration = false,
+    final String? imageBase64,
+    final String? imageMimeType,
+    final bool enableImageGeneration = false,
   }) async {
     model = model ?? runtime_factory.getDefaultModelId();
     // Resolver runtime: prefer testOverride si está presente, si no usar la fábrica
@@ -218,14 +218,14 @@ abstract class AIService {
 }
 
 /// Devuelve la lista combinada de modelos de todos los servicios IA
-Future<List<String>> getAllAIModels({bool forceRefresh = false}) async {
+Future<List<String>> getAllAIModels({final bool forceRefresh = false}) async {
   // Query providers in preferred UI order and append each provider's list
   // exactly as the provider returns it. This preserves provider-specific
   // ordering (for example OpenAI/Gemini providers already sort by recency).
   final providerOrder = ModelUtils.preferredOrder();
   final allModels = <String>[];
 
-  String representativeForProvider(String provider) {
+  String representativeForProvider(final String provider) {
     switch (provider) {
       case 'Google':
         return Config.getDefaultTextModel().startsWith('gemini-')
@@ -241,7 +241,10 @@ Future<List<String>> getAllAIModels({bool forceRefresh = false}) async {
   }
 
   // Función para determinar si la caché parece incompleta para un proveedor
-  bool isCacheIncomplete(String provider, List<String> cachedModels) {
+  bool isCacheIncomplete(
+    final String provider,
+    final List<String> cachedModels,
+  ) {
     switch (provider) {
       case 'grokservice':
         // Si hay API key de Grok configurada pero la caché tiene pocos modelos (< 5),

@@ -1,7 +1,7 @@
 /// Service responsible for processing audio tags and TTS requests
 class MessageAudioProcessingService {
   /// Extract and process [audio]...[/audio] tags from AI response
-  AudioProcessingResult processAudioTags(String text) {
+  AudioProcessingResult processAudioTags(final String text) {
     const openTag = '[audio]';
     const closeTag = '[/audio]';
 
@@ -34,11 +34,10 @@ class MessageAudioProcessingService {
 
 /// Result of audio processing
 class AudioProcessingResult {
-  final bool ttsRequested;
-  final String cleanedText;
-
   AudioProcessingResult({
     required this.ttsRequested,
     required this.cleanedText,
   });
+  final bool ttsRequested;
+  final String cleanedText;
 }

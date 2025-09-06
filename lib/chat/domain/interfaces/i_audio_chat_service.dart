@@ -24,26 +24,26 @@ abstract class IAudioChatService {
   Duration get currentDuration;
 
   /// Check if a message is currently playing
-  bool isPlayingMessage(Message message);
+  bool isPlayingMessage(final Message message);
 
   /// Start audio recording
   Future<void> startRecording();
 
   /// Stop recording and return the file path
-  Future<String?> stopRecording({bool cancelled = false});
+  Future<String?> stopRecording({final bool cancelled = false});
 
   /// Cancel current recording
   Future<void> cancelRecording();
 
   /// Toggle playback of a message
-  Future<void> togglePlay(Message message, OnStateChanged onState);
+  Future<void> togglePlay(final Message message, final OnStateChanged onState);
 
   /// Synthesize text to speech and return audio file path
   Future<String?> synthesizeTts(
-    String text, {
-    String voice = 'marin',
-    String? languageCode,
-    bool forDialogDemo = false,
+    final String text, {
+    final String voice = 'marin',
+    final String? languageCode,
+    final bool forDialogDemo = false,
   });
 
   /// Dispose of resources

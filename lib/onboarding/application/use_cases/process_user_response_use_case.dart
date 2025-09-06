@@ -21,8 +21,8 @@ class ProcessUserResponseUseCase {
   /// Procesa la respuesta del usuario identificando automáticamente qué dato se obtuvo
   /// Retorna el dato actualizado y la siguiente respuesta de la IA
   static Future<Map<String, dynamic>> execute({
-    required MemoryData currentMemory,
-    required String userResponse,
+    required final MemoryData currentMemory,
+    required final String userResponse,
   }) async {
     const maxRetries = 3;
 
@@ -76,8 +76,8 @@ class ProcessUserResponseUseCase {
 
   /// Método interno que realiza un único intento de procesamiento
   static Future<Map<String, dynamic>> _attemptProcessUserResponse({
-    required MemoryData currentMemory,
-    required String userResponse,
+    required final MemoryData currentMemory,
+    required final String userResponse,
   }) async {
     // Actualizar historial de conversación
     _conversationHistory.add({
@@ -157,9 +157,9 @@ class ProcessUserResponseUseCase {
 
   /// Actualiza la memoria con un nuevo dato extraído
   static Future<MemoryData> _updateMemoryWithExtractedData(
-    String? dataType,
-    String? extractedValue,
-    MemoryData currentMemory,
+    final String? dataType,
+    final String? extractedValue,
+    final MemoryData currentMemory,
   ) async {
     if (dataType == null || extractedValue == null) {
       return currentMemory;
@@ -221,8 +221,8 @@ class ProcessUserResponseUseCase {
 
   /// Genera el prompt para procesar la respuesta del usuario
   static String _generateProcessingPrompt(
-    String userResponse,
-    MemoryData currentMemory,
+    final String userResponse,
+    final MemoryData currentMemory,
   ) {
     // Obtener nombres disponibles si ya conocemos el país de la IA
     String femaleNamesContext = '';
@@ -320,7 +320,9 @@ FORMATO ESPECIAL PARA FECHAS:
   }
 
   /// Formatea datos faltantes para procesamiento
-  static String _formatMissingDataForProcessing(List<String> missingData) {
+  static String _formatMissingDataForProcessing(
+    final List<String> missingData,
+  ) {
     if (missingData.isEmpty) return 'TODOS LOS DATOS YA ESTÁN RECUPERADOS';
 
     final dataDescriptions = {
@@ -333,12 +335,12 @@ FORMATO ESPECIAL PARA FECHAS:
     };
 
     return missingData
-        .map((data) => '- ${dataDescriptions[data] ?? data}')
+        .map((final data) => '- ${dataDescriptions[data] ?? data}')
         .join('\n');
   }
 
   /// Formatea datos recordados para procesamiento
-  static String _formatRememberedDataForProcessing(MemoryData memory) {
+  static String _formatRememberedDataForProcessing(final MemoryData memory) {
     final remembered = <String>[];
 
     if (memory.userName != null && memory.userName!.isNotEmpty) {
@@ -371,7 +373,10 @@ FORMATO ESPECIAL PARA FECHAS:
   }
 
   /// Crea un perfil básico para las operaciones de onboarding
-  static AiChanProfile _createBasicProfile(String userName, String? aiName) {
+  static AiChanProfile _createBasicProfile(
+    final String userName,
+    final String? aiName,
+  ) {
     return AiChanProfile(
       userName: userName,
       userCountryCode: 'ES',
@@ -382,15 +387,14 @@ FORMATO ESPECIAL PARA FECHAS:
       biography: const {},
       appearance: const {},
       avatars: const [],
-      timeline: const [],
     );
   }
 
   /// Helper method para enviar requests a la IA eliminando duplicación de código
   static Future<dynamic> _sendAIRequest(
-    String prompt,
-    String userName,
-    Map<String, String> instructions,
+    final String prompt,
+    final String userName,
+    final Map<String, String> instructions,
   ) async {
     final profile = _createBasicProfile(userName, null);
 
@@ -417,9 +421,9 @@ FORMATO ESPECIAL PARA FECHAS:
 
   /// Crea una respuesta de error consistente para el nuevo formato
   static Map<String, dynamic> _createErrorResponse(
-    String? exception,
-    MemoryData currentMemory,
-    String userResponse,
+    final String? exception,
+    final MemoryData currentMemory,
+    final String userResponse,
   ) {
     return {
       'updatedMemory': currentMemory,
@@ -432,10 +436,10 @@ FORMATO ESPECIAL PARA FECHAS:
 
   /// Helper method to build consistent process result responses
   static Map<String, dynamic> _buildProcessResult({
-    required MemoryData updatedMemory,
-    required Map<String, dynamic> extractedData,
-    required String? aiResponse,
-    required double confidence,
+    required final MemoryData updatedMemory,
+    required final Map<String, dynamic> extractedData,
+    required final String? aiResponse,
+    required final double confidence,
   }) {
     return {
       'updatedMemory': updatedMemory,
@@ -451,11 +455,11 @@ FORMATO ESPECIAL PARA FECHAS:
 class GenerateMeetStoryUseCase {
   /// Genera una historia de encuentro automática basada en los datos disponibles
   static Future<String> execute({
-    required String userName,
-    required String aiName,
-    String? userCountry,
-    String? aiCountry,
-    DateTime? userBirthdate,
+    required final String userName,
+    required final String aiName,
+    final String? userCountry,
+    final String? aiCountry,
+    final DateTime? userBirthdate,
   }) async {
     final paisIA = aiCountry != null
         ? LocaleUtils.countryNameEs(aiCountry, fallback: 'mi país')
@@ -480,7 +484,6 @@ class GenerateMeetStoryUseCase {
       biography: const {},
       appearance: const {},
       avatars: const [],
-      timeline: const [],
     );
 
     final systemPrompt = SystemPrompt(

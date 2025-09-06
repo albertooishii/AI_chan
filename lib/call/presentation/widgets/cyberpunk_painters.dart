@@ -2,13 +2,12 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 class CyberpunkGlowPainter extends CustomPainter {
+  CyberpunkGlowPainter({required this.baseColor, required this.accentColor});
   final Color baseColor;
   final Color accentColor;
 
-  CyberpunkGlowPainter({required this.baseColor, required this.accentColor});
-
   @override
-  void paint(Canvas canvas, Size size) {
+  void paint(final Canvas canvas, final Size size) {
     final paint = Paint()..style = PaintingStyle.fill;
 
     // Crear gradiente radial con efectos de glow
@@ -32,7 +31,7 @@ class CyberpunkGlowPainter extends CustomPainter {
     _drawCyberpunkLines(canvas, size);
   }
 
-  void _drawCyberpunkLines(Canvas canvas, Size size) {
+  void _drawCyberpunkLines(final Canvas canvas, final Size size) {
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
@@ -55,7 +54,7 @@ class CyberpunkGlowPainter extends CustomPainter {
     canvas.drawPath(hexPath, paint);
   }
 
-  Path _createHexagonPath(Size size) {
+  Path _createHexagonPath(final Size size) {
     final path = Path();
     final center = Offset(size.width / 2, size.height / 2);
     final radius = min(size.width, size.height) * 0.3;
@@ -77,27 +76,26 @@ class CyberpunkGlowPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(CyberpunkGlowPainter oldDelegate) {
+  bool shouldRepaint(final CyberpunkGlowPainter oldDelegate) {
     return oldDelegate.baseColor != baseColor ||
         oldDelegate.accentColor != accentColor;
   }
 }
 
 class WavePainter extends CustomPainter {
-  final double animation;
-  final double soundLevel;
-  final Color baseColor;
-  final Color accentColor;
-
   WavePainter({
     required this.animation,
     required this.soundLevel,
     required this.baseColor,
     required this.accentColor,
   });
+  final double animation;
+  final double soundLevel;
+  final Color baseColor;
+  final Color accentColor;
 
   @override
-  void paint(Canvas canvas, Size size) {
+  void paint(final Canvas canvas, final Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final paint = Paint()..style = PaintingStyle.stroke;
 
@@ -135,7 +133,11 @@ class WavePainter extends CustomPainter {
     }
   }
 
-  void _drawSoundParticles(Canvas canvas, Size size, double intensity) {
+  void _drawSoundParticles(
+    final Canvas canvas,
+    final Size size,
+    final double intensity,
+  ) {
     final paint = Paint()..style = PaintingStyle.fill;
     final center = Offset(size.width / 2, size.height / 2);
     final particleCount = (intensity * 12).round();
@@ -158,7 +160,7 @@ class WavePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(WavePainter oldDelegate) {
+  bool shouldRepaint(final WavePainter oldDelegate) {
     return oldDelegate.animation != animation ||
         oldDelegate.soundLevel != soundLevel ||
         oldDelegate.baseColor != baseColor ||

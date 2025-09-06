@@ -8,19 +8,18 @@ import 'package:ai_chan/main.dart' show navigatorKey;
 import 'package:ai_chan/core/models.dart';
 
 class LocalBackupDialog extends StatefulWidget {
-  // Callback that returns the JSON string to export. If null, export UI is disabled.
-  final Future<String> Function()? requestExportJson;
-  // Callback invoked when an ImportedChat is available after a restore.
-  final Future<void> Function(ImportedChat imported)? onImportedJson;
-  // Optional error callback for parse errors.
-  final void Function(String error)? onImportError;
-
   const LocalBackupDialog({
     super.key,
     this.requestExportJson,
     this.onImportedJson,
     this.onImportError,
   });
+  // Callback that returns the JSON string to export. If null, export UI is disabled.
+  final Future<String> Function()? requestExportJson;
+  // Callback invoked when a ChatExport is available after a restore.
+  final Future<void> Function(ChatExport chatExport)? onImportedJson;
+  // Optional error callback for parse errors.
+  final void Function(String error)? onImportError;
 
   @override
   State<LocalBackupDialog> createState() => _LocalBackupDialogState();
@@ -30,7 +29,7 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
   String? _status;
   bool _working = false;
 
-  void _safeSetState(VoidCallback fn) {
+  void _safeSetState(final VoidCallback fn) {
     if (!mounted) return;
     setState(fn);
   }
@@ -131,9 +130,9 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     return Builder(
-      builder: (ctx) {
+      builder: (final ctx) {
         final screenSize = MediaQuery.of(ctx).size;
         final screenW = screenSize.width;
         final screenH = screenSize.height;
@@ -230,7 +229,7 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
                 const SizedBox(height: 16), // Más espacio antes de los botones
                 // Layout inteligente y responsivo de botones
                 LayoutBuilder(
-                  builder: (context, constraints) {
+                  builder: (final context, final constraints) {
                     final availableWidth = constraints.maxWidth;
 
                     // Crear botones con el mismo estilo que el diálogo de Google Drive

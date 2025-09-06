@@ -65,7 +65,7 @@ class VoiceDisplayUtils {
   /// Devuelve el nombre real tal como lo proporciona la API.
   /// Prioridad: `displayName` / `display_name` (si existe) -> `name`.
   /// NO recorta ni elimina partes del nombre: se presenta exactamente como viene.
-  static String getGoogleVoiceFriendlyName(Map<String, dynamic> voice) {
+  static String getGoogleVoiceFriendlyName(final Map<String, dynamic> voice) {
     final display =
         voice['displayName'] as String? ??
         voice['display_name'] as String? ??
@@ -78,7 +78,7 @@ class VoiceDisplayUtils {
   /// Normaliza un código de idioma como 'es_es' o 'es-es' a la forma
   /// 'es-ES' cuando sea posible. Si la entrada no tiene región, devuelve
   /// la parte de idioma en minúsculas ('es').
-  static String _normalizeLangCode(String code) {
+  static String _normalizeLangCode(final String code) {
     if (code.trim().isEmpty) return code;
     final cleaned = code.replaceAll('_', '-').trim();
     final parts = cleaned.split('-');
@@ -91,12 +91,12 @@ class VoiceDisplayUtils {
   // ...existing code...
 
   /// Obtiene el nombre técnico original de la voz (para usar en la API)
-  static String getVoiceTechnicalName(Map<String, dynamic> voice) {
+  static String getVoiceTechnicalName(final Map<String, dynamic> voice) {
     return voice['name'] as String? ?? '';
   }
 
   /// Genera información de subtítulo para mostrar en la UI
-  static String getVoiceSubtitle(Map<String, dynamic> voice) {
+  static String getVoiceSubtitle(final Map<String, dynamic> voice) {
     final gender = voice['ssmlGender'] as String? ?? '';
     final languageCodes =
         (voice['languageCodes'] as List<dynamic>?)?.cast<String>() ?? [];
@@ -144,7 +144,7 @@ class VoiceDisplayUtils {
   /// Devuelve únicamente la etiqueta de idioma/país para una voz, por ejemplo
   /// 'Español (España)'. Se basa en la misma tabla usada por
   /// `getVoiceSubtitle` y aplica las mismas reglas de fallback.
-  static String getLanguageLabelFromVoice(Map<String, dynamic> voice) {
+  static String getLanguageLabelFromVoice(final Map<String, dynamic> voice) {
     final languageCodes =
         (voice['languageCodes'] as List<dynamic>?)?.cast<String>() ?? [];
     final name = voice['name'] as String? ?? '';

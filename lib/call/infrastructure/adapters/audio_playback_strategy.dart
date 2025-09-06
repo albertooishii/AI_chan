@@ -6,13 +6,13 @@ import 'package:ai_chan/call/domain/interfaces/audio_scheduling_service.dart';
 abstract class AudioPlaybackStrategy implements AudioSchedulingService {
   /// Schedule audio playback with provider-specific timing
   @override
-  void schedulePlayback(Function playbackFunction);
+  void schedulePlayback(final Function playbackFunction);
 }
 
 /// OpenAI audio playback strategy with 40ms delay
 class OpenAIAudioPlaybackStrategy implements AudioPlaybackStrategy {
   @override
-  void schedulePlayback(Function playbackFunction) {
+  void schedulePlayback(final Function playbackFunction) {
     Log.d('OpenAI strategy: Scheduling playback with 40ms delay');
     Timer(const Duration(milliseconds: 40), () {
       try {
@@ -27,7 +27,7 @@ class OpenAIAudioPlaybackStrategy implements AudioPlaybackStrategy {
 /// Gemini audio playback strategy with 200ms delay and retry logic
 class GeminiAudioPlaybackStrategy implements AudioPlaybackStrategy {
   @override
-  void schedulePlayback(Function playbackFunction) {
+  void schedulePlayback(final Function playbackFunction) {
     Log.d('Gemini strategy: Scheduling playback with 200ms delay + retry');
     Timer(const Duration(milliseconds: 200), () {
       try {

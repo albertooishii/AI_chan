@@ -10,14 +10,14 @@ const EdgeInsets kAppDialogInnerPadding = EdgeInsets.symmetric(
   horizontal: kAppDialogSidePadding,
 );
 
-double dialogTopOffset(BuildContext context) =>
+double dialogTopOffset(final BuildContext context) =>
     MediaQuery.of(context).padding.top + kAppDialogSidePadding;
-double dialogLeftOffset(BuildContext context) =>
+double dialogLeftOffset(final BuildContext context) =>
     MediaQuery.of(context).padding.left + kAppDialogSidePadding;
-double dialogRightOffset(BuildContext context) =>
+double dialogRightOffset(final BuildContext context) =>
     MediaQuery.of(context).padding.right + kAppDialogSidePadding;
 
-double dialogContentMaxWidth(BuildContext context) {
+double dialogContentMaxWidth(final BuildContext context) {
   final size = MediaQuery.of(context).size;
   return size.width - dialogLeftOffset(context) - dialogRightOffset(context);
 }
@@ -26,13 +26,6 @@ double dialogContentMaxWidth(BuildContext context) {
 /// Acepta un título (Widget), contenido (Widget) y acciones. Opcionalmente se
 /// pueden pasar ancho/alto para acomodar vistas grandes (por ejemplo vista previa JSON).
 class AppAlertDialog extends StatelessWidget {
-  final Widget? title;
-  final Widget? content;
-  final List<Widget>? actions;
-
-  /// Widgets que se colocarán en la cabecera (AppBar.actions) del diálogo.
-  final List<Widget>? headerActions;
-
   const AppAlertDialog({
     super.key,
     this.title,
@@ -40,9 +33,15 @@ class AppAlertDialog extends StatelessWidget {
     this.actions,
     this.headerActions,
   });
+  final Widget? title;
+  final Widget? content;
+  final List<Widget>? actions;
+
+  /// Widgets que se colocarán en la cabecera (AppBar.actions) del diálogo.
+  final List<Widget>? headerActions;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     // Force the dialog to cover the full screen, but keep an internal padding
     // so inner widgets (e.g., JSON preview) don't touch the device edges.
     final size = MediaQuery.of(context).size;

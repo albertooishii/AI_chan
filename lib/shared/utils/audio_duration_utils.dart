@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 class AudioDurationUtils {
   /// Obtiene la duración real de un archivo de audio
   /// Devuelve null si no se puede obtener la duración
-  static Future<Duration?> getAudioDuration(String filePath) async {
+  static Future<Duration?> getAudioDuration(final String filePath) async {
     if (filePath.isEmpty) return null;
 
     try {

@@ -9,17 +9,6 @@ import 'floating_audio_subtitle.dart';
 
 /// Widget compuesto: reproductor + subtítulo flotante cyberpunk sincronizado.
 class AudioMessagePlayerWithSubs extends StatefulWidget {
-  final Message message;
-  final double width;
-  final bool
-  globalOverlay; // muestra subtítulos estilo video ocupando ancho pantalla
-  // Playback callbacks/readers injected by parent to avoid Provider here.
-  final bool Function(Message) isPlaying;
-  final Future<void> Function(Message) togglePlay;
-  final Duration Function()? getPlayingPosition;
-  final Duration Function()? getPlayingDuration;
-  final FileUIService fileService;
-
   const AudioMessagePlayerWithSubs({
     super.key,
     required this.message,
@@ -31,6 +20,16 @@ class AudioMessagePlayerWithSubs extends StatefulWidget {
     this.getPlayingDuration,
     required this.fileService,
   });
+  final Message message;
+  final double width;
+  final bool
+  globalOverlay; // muestra subtítulos estilo video ocupando ancho pantalla
+  // Playback callbacks/readers injected by parent to avoid Provider here.
+  final bool Function(Message) isPlaying;
+  final Future<void> Function(Message) togglePlay;
+  final Duration Function()? getPlayingPosition;
+  final Duration Function()? getPlayingDuration;
+  final FileUIService fileService;
 
   static bool _defaultIsPlaying(Message _) => false;
   static Future<void> _defaultTogglePlay(Message _) async {}
@@ -74,7 +73,7 @@ class _AudioMessagePlayerWithSubsState
     _baseText = _sanitizePlainText(_baseText);
   }
 
-  String _sanitizePlainText(String input) {
+  String _sanitizePlainText(final String input) {
     // Eliminar caracteres fuera del BMP (code points > 0xFFFF) y de control excepto saltos de línea/espacio
     final buf = StringBuffer();
     for (final rune in input.runes) {
@@ -94,7 +93,7 @@ class _AudioMessagePlayerWithSubsState
   }
 
   @override
-  void didUpdateWidget(covariant AudioMessagePlayerWithSubs oldWidget) {
+  void didUpdateWidget(covariant final AudioMessagePlayerWithSubs oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.message.audio?.url != widget.message.audio?.url ||
         oldWidget.message.text != widget.message.text) {
@@ -116,7 +115,7 @@ class _AudioMessagePlayerWithSubsState
       if (_overlayEntry != null) return; // pudo haberse creado ya
       final overlay = Overlay.of(context);
       _overlayEntry = OverlayEntry(
-        builder: (ctx) {
+        builder: (final ctx) {
           final media = MediaQuery.of(ctx);
           final screenWidth = media.size.width;
           final horizontalMargin = 16.0;
@@ -187,7 +186,7 @@ class _AudioMessagePlayerWithSubsState
     });
   }
 
-  void _setOverlayOpacity(double value) {
+  void _setOverlayOpacity(final double value) {
     if (_overlayOpacity == value) return;
     _overlayOpacity = value;
     if (mounted) {
@@ -207,7 +206,7 @@ class _AudioMessagePlayerWithSubsState
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     final isPlaying = widget.isPlaying(widget.message);
     final pos = widget.getPlayingPosition?.call() ?? Duration.zero;
     final rawDur = widget.getPlayingDuration?.call() ?? Duration.zero;

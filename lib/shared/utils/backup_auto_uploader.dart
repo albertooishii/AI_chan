@@ -25,11 +25,11 @@ class BackupAutoUploader {
   /// performs non-blocking work and returns when the attempt has been
   /// scheduled/completed. Errors are caught and logged but not rethrown.
   static Future<void> maybeUploadAfterSummary({
-    required AiChanProfile profile,
-    required List<Message> messages,
-    required List<TimelineEntry> timeline,
-    required bool googleLinked,
-    dynamic repository,
+    required final AiChanProfile profile,
+    required final List<Message> messages,
+    required final List<TimelineEntry> timeline,
+    required final bool googleLinked,
+    final dynamic repository,
   }) async {
     if (!googleLinked) return;
     // Simple in-memory coalescing to avoid repeated uploads in quick bursts.
@@ -55,6 +55,7 @@ class BackupAutoUploader {
         profile: profile,
         messages: messages,
         events: [],
+        timeline: timeline,
         repository: repository,
       );
       // Create the tmp dir where the ZIP would be placed. We will try to

@@ -9,6 +9,19 @@ import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro
 
 class VoiceCallScreenController extends ChangeNotifier {
+  VoiceCallScreenController({
+    required final ChatController chatController, // ✅ DDD: ETAPA 3 - DDD puro
+    required final CallType callType,
+    required final StartCallUseCase startCallUseCase,
+    required final EndCallUseCase endCallUseCase,
+    required final HandleIncomingCallUseCase handleIncomingCallUseCase,
+    required final ManageAudioUseCase manageAudioUseCase,
+  }) : _chatController = chatController, // ✅ DDD: ETAPA 3
+       _state = VoiceCallState(type: callType),
+       _startCallUseCase = startCallUseCase,
+       _endCallUseCase = endCallUseCase,
+       _handleIncomingCallUseCase = handleIncomingCallUseCase,
+       _manageAudioUseCase = manageAudioUseCase;
   final ChatController _chatController; // ✅ DDD: ETAPA 3 - DDD puro
   late final StartCallUseCase _startCallUseCase;
   late final EndCallUseCase _endCallUseCase;
@@ -20,27 +33,13 @@ class VoiceCallScreenController extends ChangeNotifier {
   Timer? _noAnswerTimer;
   StreamSubscription? _audioLevelSubscription;
 
-  VoiceCallScreenController({
-    required ChatController chatController, // ✅ DDD: ETAPA 3 - DDD puro
-    required CallType callType,
-    required StartCallUseCase startCallUseCase,
-    required EndCallUseCase endCallUseCase,
-    required HandleIncomingCallUseCase handleIncomingCallUseCase,
-    required ManageAudioUseCase manageAudioUseCase,
-  }) : _chatController = chatController, // ✅ DDD: ETAPA 3
-       _state = VoiceCallState(type: callType),
-       _startCallUseCase = startCallUseCase,
-       _endCallUseCase = endCallUseCase,
-       _handleIncomingCallUseCase = handleIncomingCallUseCase,
-       _manageAudioUseCase = manageAudioUseCase;
-
   VoiceCallState get state => _state;
   bool get isIncoming => _state.isIncoming;
   bool get canAccept => _state.canAccept;
   bool get canHangup => _state.canHangup;
   bool get showAcceptButton => _state.showAcceptButton;
 
-  void _updateState(VoiceCallState newState) {
+  void _updateState(final VoiceCallState newState) {
     if (_state != newState) {
       _state = newState;
       notifyListeners();
@@ -59,7 +58,7 @@ class VoiceCallScreenController extends ChangeNotifier {
 
       // Configurar listeners de audio
       _audioLevelSubscription = _manageAudioUseCase.audioLevelStream.listen(
-        (level) => _updateState(_state.copyWith(soundLevel: level)),
+        (final level) => _updateState(_state.copyWith(soundLevel: level)),
       );
 
       if (_state.isIncoming) {
@@ -174,7 +173,7 @@ class VoiceCallScreenController extends ChangeNotifier {
         isIncoming: _state.isIncoming,
         onCallStarted: () =>
             _updateState(_state.copyWith(phase: CallPhase.active)),
-        onCallEnded: (reason) => _endCall(reason: reason),
+        onCallEnded: (final reason) => _endCall(reason: reason),
       );
     } catch (e) {
       Log.e(
@@ -207,7 +206,7 @@ class VoiceCallScreenController extends ChangeNotifier {
     await _endCall(reason: CallEndReason.hangup);
   }
 
-  Future<void> _endCall({required CallEndReason reason}) async {
+  Future<void> _endCall({required final CallEndReason reason}) async {
     if (_state.hangupInProgress) return;
 
     try {

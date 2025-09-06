@@ -6,11 +6,11 @@ import 'package:ai_chan/shared/utils/string_utils.dart';
 /// Diseñado para mostrar subtítulos inmediatamente según llegan los chunks de IA,
 /// sin esperar a que termine el audio completo.
 class StreamingSubtitleController {
-  StreamingSubtitleController({bool debug = false}) : _debug = debug;
+  StreamingSubtitleController({final bool debug = false}) : _debug = debug;
 
   bool _debug;
   bool get debug => _debug;
-  void setDebug(bool value) => _debug = value;
+  void setDebug(final bool value) => _debug = value;
 
   final ValueNotifier<String> ai = ValueNotifier<String>('');
   final ValueNotifier<String> user = ValueNotifier<String>('');
@@ -38,9 +38,9 @@ class StreamingSubtitleController {
 
   /// Maneja chunks de IA en tiempo real - muestra inmediatamente
   void handleAiChunk(
-    String chunk, {
-    required bool audioStarted,
-    required bool suppressFurther,
+    final String chunk, {
+    required final bool audioStarted,
+    required final bool suppressFurther,
   }) {
     if (_disposed) return;
 
@@ -74,7 +74,7 @@ class StreamingSubtitleController {
   }
 
   /// Maneja transcripciones del usuario
-  void handleUserTranscription(String text) {
+  void handleUserTranscription(final String text) {
     if (_disposed) return;
 
     final raw = text.trim();
@@ -133,7 +133,7 @@ class StreamingSubtitleController {
   }
 
   /// Muestra texto de IA instantáneamente (para casos especiales)
-  void showAiTextInstant(String text) {
+  void showAiTextInstant(final String text) {
     if (_disposed) return;
 
     final cleaned = cleanSubtitleText(text);

@@ -30,8 +30,8 @@ void main() {
 }
 
 void _verifyBoundedContextIsolation(
-  String contextPath,
-  List<String> forbiddenContexts,
+  final String contextPath,
+  final List<String> forbiddenContexts,
 ) {
   final dir = Directory(contextPath);
   if (!dir.existsSync()) return;

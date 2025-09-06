@@ -4,7 +4,7 @@ import 'package:ai_chan/shared/services/ai_service.dart';
 
 class ThrowingAIService implements AIService {
   @override
-  noSuchMethod(Invocation invocation) => throw Exception('AI failure');
+  noSuchMethod(final Invocation invocation) => throw Exception('AI failure');
 }
 
 void main() {

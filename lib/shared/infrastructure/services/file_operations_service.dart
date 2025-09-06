@@ -5,7 +5,7 @@ import 'package:ai_chan/shared/domain/interfaces/i_file_operations_service.dart'
 /// Encapsula todas las operaciones dart:io en Infrastructure Layer
 class FileOperationsService implements IFileOperationsService {
   @override
-  Future<bool> fileExists(String path) async {
+  Future<bool> fileExists(final String path) async {
     try {
       final file = File(path);
       return await file.exists();
@@ -15,7 +15,7 @@ class FileOperationsService implements IFileOperationsService {
   }
 
   @override
-  Future<List<int>?> readFileAsBytes(String path) async {
+  Future<List<int>?> readFileAsBytes(final String path) async {
     try {
       final file = File(path);
       if (await file.exists()) {
@@ -28,7 +28,7 @@ class FileOperationsService implements IFileOperationsService {
   }
 
   @override
-  Future<String?> readFileAsString(String path) async {
+  Future<String?> readFileAsString(final String path) async {
     try {
       final file = File(path);
       if (await file.exists()) {
@@ -41,21 +41,27 @@ class FileOperationsService implements IFileOperationsService {
   }
 
   @override
-  Future<void> writeFileAsBytes(String path, List<int> bytes) async {
+  Future<void> writeFileAsBytes(
+    final String path,
+    final List<int> bytes,
+  ) async {
     final file = File(path);
     await file.parent.create(recursive: true);
     await file.writeAsBytes(bytes);
   }
 
   @override
-  Future<void> writeFileAsString(String path, String content) async {
+  Future<void> writeFileAsString(
+    final String path,
+    final String content,
+  ) async {
     final file = File(path);
     await file.parent.create(recursive: true);
     await file.writeAsString(content);
   }
 
   @override
-  Future<void> deleteFile(String path) async {
+  Future<void> deleteFile(final String path) async {
     final file = File(path);
     if (await file.exists()) {
       await file.delete();
@@ -63,7 +69,7 @@ class FileOperationsService implements IFileOperationsService {
   }
 
   @override
-  Future<int> getFileSize(String path) async {
+  Future<int> getFileSize(final String path) async {
     try {
       final file = File(path);
       if (await file.exists()) {
@@ -76,7 +82,7 @@ class FileOperationsService implements IFileOperationsService {
   }
 
   @override
-  Future<void> createDirectories(String path) async {
+  Future<void> createDirectories(final String path) async {
     final directory = Directory(path);
     await directory.create(recursive: true);
   }

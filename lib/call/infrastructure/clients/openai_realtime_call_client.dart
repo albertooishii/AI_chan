@@ -9,6 +9,14 @@ import 'package:ai_chan/call/domain/interfaces/call_interfaces.dart';
 
 /// Cliente OpenAI Realtime adaptado para la interfaz del dominio
 class OpenAIRealtimeCallClient implements IRealtimeCallClient {
+  OpenAIRealtimeCallClient({final String? model})
+    : model = model ?? Config.requireOpenAIRealtimeModel() {
+    _textController = StreamController<String>.broadcast();
+    _audioController = StreamController<Uint8List>.broadcast();
+    _userTranscriptionController = StreamController<String>.broadcast();
+    _errorController = StreamController<Object>.broadcast();
+    _completionController = StreamController<void>.broadcast();
+  }
   final String model;
   IRealtimeClient? _client;
 
@@ -27,15 +35,6 @@ class OpenAIRealtimeCallClient implements IRealtimeCallClient {
   late final StreamController<String> _userTranscriptionController;
   late final StreamController<Object> _errorController;
   late final StreamController<void> _completionController;
-
-  OpenAIRealtimeCallClient({String? model})
-    : model = model ?? Config.requireOpenAIRealtimeModel() {
-    _textController = StreamController<String>.broadcast();
-    _audioController = StreamController<Uint8List>.broadcast();
-    _userTranscriptionController = StreamController<String>.broadcast();
-    _errorController = StreamController<Object>.broadcast();
-    _completionController = StreamController<void>.broadcast();
-  }
 
   @override
   bool get isConnected => _connected;
@@ -58,9 +57,9 @@ class OpenAIRealtimeCallClient implements IRealtimeCallClient {
 
   @override
   Future<void> connect({
-    required String systemPrompt,
-    String voice = 'default',
-    Map<String, dynamic>? options,
+    required final String systemPrompt,
+    final String voice = 'default',
+    final Map<String, dynamic>? options,
   }) async {
     // API key check is performed by provider-specific clients (eg. OpenAIRealtimeClient).
     // The voice-level client should allow test-time factories to be injected via DI
@@ -70,10 +69,10 @@ class OpenAIRealtimeCallClient implements IRealtimeCallClient {
     _client = getRealtimeClientForProvider(
       'openai',
       model: model,
-      onText: (t) {
+      onText: (final t) {
         if (t.trim().isNotEmpty) _textController.add(t.trim());
       },
-      onAudio: (b) {
+      onAudio: (final b) {
         try {
           _audioController.add(Uint8List.fromList(b));
         } catch (e) {
@@ -81,8 +80,8 @@ class OpenAIRealtimeCallClient implements IRealtimeCallClient {
         }
       },
       onCompleted: () => _completionController.add(null),
-      onError: (e) => _errorController.add(e),
-      onUserTranscription: (s) {
+      onError: (final e) => _errorController.add(e),
+      onUserTranscription: (final s) {
         if (s.trim().isNotEmpty) _userTranscriptionController.add(s.trim());
       },
     );
@@ -119,7 +118,7 @@ class OpenAIRealtimeCallClient implements IRealtimeCallClient {
   }
 
   @override
-  void sendAudio(List<int> audioBytes) {
+  void sendAudio(final List<int> audioBytes) {
     if (!_connected) return;
 
     _client?.appendAudio(audioBytes);
@@ -132,21 +131,21 @@ class OpenAIRealtimeCallClient implements IRealtimeCallClient {
   }
 
   @override
-  void sendText(String text) {
+  void sendText(final String text) {
     if (!_connected) return;
     _client?.sendText(text);
     requestResponse();
   }
 
   @override
-  void updateVoice(String voice) {
+  void updateVoice(final String voice) {
     if (!_connected) return;
     _voice = voice;
     _client?.updateVoice(voice);
   }
 
   @override
-  void requestResponse({bool audio = true, bool text = true}) {
+  void requestResponse({final bool audio = true, final bool text = true}) {
     if (!_connected || _hasActiveResponse) return;
 
     _commitAudioBuffer();

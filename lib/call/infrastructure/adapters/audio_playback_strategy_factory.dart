@@ -5,7 +5,7 @@ import 'audio_playback_strategy.dart';
 class AudioPlaybackStrategyFactory {
   /// Creates appropriate strategy based on realtime provider
   static AudioPlaybackStrategy createStrategy({
-    required RealtimeProvider provider,
+    required final RealtimeProvider provider,
   }) {
     switch (provider) {
       case RealtimeProvider.openai:

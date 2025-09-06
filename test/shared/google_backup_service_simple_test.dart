@@ -17,7 +17,7 @@ void main() {
 
     group('☁️ Drive Upload Tests', () {
       test('should upload backup with resumable upload - Happy Path', () async {
-        final client = MockClient((request) async {
+        final client = MockClient((final request) async {
           final url = request.url.toString();
 
           // Mock resumable upload initiation
@@ -65,7 +65,7 @@ void main() {
       });
 
       test('should handle network failures gracefully', () async {
-        final networkFailureClient = MockClient((request) async {
+        final networkFailureClient = MockClient((final request) async {
           throw const SocketException('Network unreachable');
         });
 
@@ -87,7 +87,7 @@ void main() {
       });
 
       test('should handle HTTP errors during upload', () async {
-        final errorClient = MockClient((request) async {
+        final errorClient = MockClient((final request) async {
           return http.Response('Internal Server Error', 500);
         });
 
@@ -111,7 +111,7 @@ void main() {
 
     group('📋 List Backups Tests', () {
       test('should list existing backups', () async {
-        final client = MockClient((request) async {
+        final client = MockClient((final request) async {
           final url = request.url.toString();
 
           if (url.contains('/drive/v3/files') && request.method == 'GET') {
@@ -153,7 +153,7 @@ void main() {
       });
 
       test('should handle empty backup list', () async {
-        final client = MockClient((request) async {
+        final client = MockClient((final request) async {
           final url = request.url.toString();
 
           if (url.contains('/drive/v3/files') && request.method == 'GET') {
@@ -175,7 +175,7 @@ void main() {
 
     group('🗑️ Delete Backup Tests', () {
       test('should delete backup file successfully', () async {
-        final client = MockClient((request) async {
+        final client = MockClient((final request) async {
           if (request.method == 'DELETE' &&
               request.url.toString().contains(
                 '/drive/v3/files/backup_to_delete',
@@ -195,7 +195,7 @@ void main() {
       });
 
       test('should handle delete errors', () async {
-        final client = MockClient((request) async {
+        final client = MockClient((final request) async {
           if (request.method == 'DELETE') {
             return http.Response('Not Found', 404);
           }

@@ -9,19 +9,18 @@ import '../fakes/fake_audio_player.dart';
 /// A minimal fake realtime client that emulates the buffered (Gemini/Google)
 /// orchestrator behavior used by the CallController in buffered mode.
 class _FakeBufferedClient implements IRealtimeClient {
+  _FakeBufferedClient({final void Function(String)? onUserTranscription}) {
+    _onUserTranscription = onUserTranscription;
+  }
   bool connected = false;
   bool commitCalled = false;
   void Function(String)? _onUserTranscription;
-
-  _FakeBufferedClient({void Function(String)? onUserTranscription}) {
-    _onUserTranscription = onUserTranscription;
-  }
 
   @override
   bool get isConnected => connected;
 
   @override
-  void appendAudio(List<int> bytes) {
+  void appendAudio(final List<int> bytes) {
     // buffered flow doesn't use appendAudio in tests
   }
 
@@ -36,25 +35,25 @@ class _FakeBufferedClient implements IRealtimeClient {
 
   @override
   Future<void> connect({
-    required String systemPrompt,
-    String voice = '',
-    String? inputAudioFormat,
-    String? outputAudioFormat,
-    String? turnDetectionType,
-    int? silenceDurationMs,
-    Map<String, dynamic>? options,
+    required final String systemPrompt,
+    final String voice = '',
+    final String? inputAudioFormat,
+    final String? outputAudioFormat,
+    final String? turnDetectionType,
+    final int? silenceDurationMs,
+    final Map<String, dynamic>? options,
   }) async {
     connected = true;
   }
 
   @override
-  void requestResponse({bool audio = true, bool text = true}) {}
+  void requestResponse({final bool audio = true, final bool text = true}) {}
 
   @override
-  void sendText(String text) {}
+  void sendText(final String text) {}
 
   @override
-  void updateVoice(String voice) {}
+  void updateVoice(final String voice) {}
 
   @override
   Future<void> close() async {
@@ -64,28 +63,28 @@ class _FakeBufferedClient implements IRealtimeClient {
   // Implementaciones por defecto de los nuevos métodos
   @override
   void sendImageWithText({
-    required String imageBase64,
-    String? text,
-    String imageFormat = 'png',
+    required final String imageBase64,
+    final String? text,
+    final String imageFormat = 'png',
   }) {
     // Fake implementation for test
   }
 
   @override
-  void configureTools(List<Map<String, dynamic>> tools) {
+  void configureTools(final List<Map<String, dynamic>> tools) {
     // Fake implementation for test
   }
 
   @override
   void sendFunctionCallOutput({
-    required String callId,
-    required String output,
+    required final String callId,
+    required final String output,
   }) {
     // Fake implementation for test
   }
 
   @override
-  void cancelResponse({String? itemId, int? sampleCount}) {
+  void cancelResponse({final String? itemId, final int? sampleCount}) {
     // Fake implementation for test
   }
 }
@@ -101,13 +100,13 @@ void main() {
       // Install a DI factory that returns our fake buffered client wired to
       // the callbacks CallController expects
       di.setTestRealtimeClientFactory((
-        provider, {
-        model,
-        onText,
-        onAudio,
-        onCompleted,
-        onError,
-        onUserTranscription,
+        final provider, {
+        final model,
+        final onText,
+        final onAudio,
+        final onCompleted,
+        final onError,
+        final onUserTranscription,
       }) {
         return _FakeBufferedClient(onUserTranscription: onUserTranscription);
       });
@@ -127,8 +126,8 @@ void main() {
       await controller.startContinuousCall(
         systemPrompt: 'test',
         providerNameOverride: 'google',
-        onText: (t) {},
-        onUserTranscription: (t) {
+        onText: (final t) {},
+        onUserTranscription: (final t) {
           receivedUserTranscription = t;
         },
       );

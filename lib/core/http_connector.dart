@@ -8,7 +8,7 @@ class HttpConnector {
   static http.Client client = http.Client();
 
   /// Tests can replace the client with a fake implementation
-  static void setClient(http.Client c) {
+  static void setClient(final http.Client c) {
     client = c;
   }
 

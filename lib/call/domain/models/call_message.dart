@@ -3,16 +3,6 @@ import 'package:ai_chan/core/models.dart';
 
 /// Mensaje dentro de una llamada de voz
 class CallMessage {
-  final String id;
-  final MessageType type;
-  final MessageSender sender;
-  final DateTime timestamp;
-  final String? text;
-  final Uint8List? audioData;
-  final String? audioPath;
-  final Duration? audioDuration;
-  final Map<String, dynamic>? metadata;
-
   const CallMessage({
     required this.id,
     required this.type,
@@ -24,6 +14,120 @@ class CallMessage {
     this.audioDuration,
     this.metadata,
   });
+
+  /// Crea un mensaje de texto del usuario
+  factory CallMessage.userText({
+    required final String id,
+    required final String text,
+    final Map<String, dynamic>? metadata,
+  }) {
+    return _createTextMessage(
+      id: id,
+      text: text,
+      sender: MessageSender.user,
+      metadata: metadata,
+    );
+  }
+
+  /// Crea un mensaje de audio del usuario
+  factory CallMessage.userAudio({
+    required final String id,
+    final Uint8List? audioData,
+    final String? audioPath,
+    final Duration? audioDuration,
+    final Map<String, dynamic>? metadata,
+  }) {
+    return _createAudioMessage(
+      id: id,
+      sender: MessageSender.user,
+      audioData: audioData,
+      audioPath: audioPath,
+      audioDuration: audioDuration,
+      metadata: metadata,
+    );
+  }
+
+  /// Crea un mensaje de texto del asistente
+  factory CallMessage.assistantText({
+    required final String id,
+    required final String text,
+    final Map<String, dynamic>? metadata,
+  }) {
+    return _createTextMessage(
+      id: id,
+      text: text,
+      sender: MessageSender.assistant,
+      metadata: metadata,
+    );
+  }
+
+  /// Crea un mensaje de audio del asistente
+  factory CallMessage.assistantAudio({
+    required final String id,
+    final Uint8List? audioData,
+    final String? audioPath,
+    final Duration? audioDuration,
+    final Map<String, dynamic>? metadata,
+  }) {
+    return _createAudioMessage(
+      id: id,
+      sender: MessageSender.assistant,
+      audioData: audioData,
+      audioPath: audioPath,
+      audioDuration: audioDuration,
+      metadata: metadata,
+    );
+  }
+
+  /// Crea un mensaje mixto (texto + audio) del asistente
+  factory CallMessage.assistantMixed({
+    required final String id,
+    required final String text,
+    final Uint8List? audioData,
+    final String? audioPath,
+    final Duration? audioDuration,
+    final Map<String, dynamic>? metadata,
+  }) {
+    return CallMessage(
+      id: id,
+      type: MessageType.mixed,
+      sender: MessageSender.assistant,
+      timestamp: DateTime.now(),
+      text: text,
+      audioData: audioData,
+      audioPath: audioPath,
+      audioDuration: audioDuration,
+      metadata: metadata,
+    );
+  }
+
+  /// Crea desde mapa
+  factory CallMessage.fromMap(final Map<String, dynamic> map) {
+    return CallMessage(
+      id: map['id'] as String,
+      type: MessageTypeExtension.fromString(map['type'] as String),
+      sender: MessageSenderExtension.fromString(map['sender'] as String),
+      timestamp: DateTime.parse(map['timestamp'] as String),
+      text: map['text'] as String?,
+      audioData: map['audioData'] != null
+          ? Uint8List.fromList((map['audioData'] as List<dynamic>).cast<int>())
+          : null,
+      audioPath: map['audioPath'] as String?,
+      audioDuration: map['audioDuration'] != null
+          ? Duration(milliseconds: map['audioDuration'] as int)
+          : null,
+      metadata: map['metadata'] as Map<String, dynamic>?,
+    );
+  }
+  final String id;
+  final MessageType type;
+  final MessageSender sender;
+  final DateTime timestamp;
+  final String? text;
+  final Uint8List? audioData;
+  final String? audioPath;
+  final Duration? audioDuration;
+  final Map<String, dynamic>? metadata;
 
   /// Verifica si el mensaje contiene audio
   bool get hasAudio => audioData != null || audioPath != null;
@@ -39,10 +143,10 @@ class CallMessage {
 
   /// Helper interno para crear mensaje de texto
   static CallMessage _createTextMessage({
-    required String id,
-    required String text,
-    required MessageSender sender,
-    Map<String, dynamic>? metadata,
+    required final String id,
+    required final String text,
+    required final MessageSender sender,
+    final Map<String, dynamic>? metadata,
   }) {
     return CallMessage(
       id: id,
@@ -56,12 +160,12 @@ class CallMessage {
 
   /// Helper interno para crear mensaje de audio
   static CallMessage _createAudioMessage({
-    required String id,
-    required MessageSender sender,
-    Uint8List? audioData,
-    String? audioPath,
-    Duration? audioDuration,
-    Map<String, dynamic>? metadata,
+    required final String id,
+    required final MessageSender sender,
+    final Uint8List? audioData,
+    final String? audioPath,
+    final Duration? audioDuration,
+    final Map<String, dynamic>? metadata,
   }) {
     return CallMessage(
       id: id,
@@ -75,103 +179,17 @@ class CallMessage {
     );
   }
 
-  /// Crea un mensaje de texto del usuario
-  factory CallMessage.userText({
-    required String id,
-    required String text,
-    Map<String, dynamic>? metadata,
-  }) {
-    return _createTextMessage(
-      id: id,
-      text: text,
-      sender: MessageSender.user,
-      metadata: metadata,
-    );
-  }
-
-  /// Crea un mensaje de audio del usuario
-  factory CallMessage.userAudio({
-    required String id,
-    Uint8List? audioData,
-    String? audioPath,
-    Duration? audioDuration,
-    Map<String, dynamic>? metadata,
-  }) {
-    return _createAudioMessage(
-      id: id,
-      sender: MessageSender.user,
-      audioData: audioData,
-      audioPath: audioPath,
-      audioDuration: audioDuration,
-      metadata: metadata,
-    );
-  }
-
-  /// Crea un mensaje de texto del asistente
-  factory CallMessage.assistantText({
-    required String id,
-    required String text,
-    Map<String, dynamic>? metadata,
-  }) {
-    return _createTextMessage(
-      id: id,
-      text: text,
-      sender: MessageSender.assistant,
-      metadata: metadata,
-    );
-  }
-
-  /// Crea un mensaje de audio del asistente
-  factory CallMessage.assistantAudio({
-    required String id,
-    Uint8List? audioData,
-    String? audioPath,
-    Duration? audioDuration,
-    Map<String, dynamic>? metadata,
-  }) {
-    return _createAudioMessage(
-      id: id,
-      sender: MessageSender.assistant,
-      audioData: audioData,
-      audioPath: audioPath,
-      audioDuration: audioDuration,
-      metadata: metadata,
-    );
-  }
-
-  /// Crea un mensaje mixto (texto + audio) del asistente
-  factory CallMessage.assistantMixed({
-    required String id,
-    required String text,
-    Uint8List? audioData,
-    String? audioPath,
-    Duration? audioDuration,
-    Map<String, dynamic>? metadata,
-  }) {
-    return CallMessage(
-      id: id,
-      type: MessageType.mixed,
-      sender: MessageSender.assistant,
-      timestamp: DateTime.now(),
-      text: text,
-      audioData: audioData,
-      audioPath: audioPath,
-      audioDuration: audioDuration,
-      metadata: metadata,
-    );
-  }
-
   /// Copia con nuevos valores
   CallMessage copyWith({
-    String? id,
-    MessageType? type,
-    MessageSender? sender,
-    DateTime? timestamp,
-    String? text,
-    Uint8List? audioData,
-    String? audioPath,
-    Duration? audioDuration,
-    Map<String, dynamic>? metadata,
+    final String? id,
+    final MessageType? type,
+    final MessageSender? sender,
+    final DateTime? timestamp,
+    final String? text,
+    final Uint8List? audioData,
+    final String? audioPath,
+    final Duration? audioDuration,
+    final Map<String, dynamic>? metadata,
   }) {
     return CallMessage(
       id: id ?? this.id,
@@ -201,32 +219,13 @@ class CallMessage {
     };
   }
 
-  /// Crea desde mapa
-  factory CallMessage.fromMap(Map<String, dynamic> map) {
-    return CallMessage(
-      id: map['id'] as String,
-      type: MessageTypeExtension.fromString(map['type'] as String),
-      sender: MessageSenderExtension.fromString(map['sender'] as String),
-      timestamp: DateTime.parse(map['timestamp'] as String),
-      text: map['text'] as String?,
-      audioData: map['audioData'] != null
-          ? Uint8List.fromList((map['audioData'] as List<dynamic>).cast<int>())
-          : null,
-      audioPath: map['audioPath'] as String?,
-      audioDuration: map['audioDuration'] != null
-          ? Duration(milliseconds: map['audioDuration'] as int)
-          : null,
-      metadata: map['metadata'] as Map<String, dynamic>?,
-    );
-  }
-
   @override
   String toString() {
     return 'CallMessage(id: $id, type: ${type.name}, sender: ${sender.name}, hasText: $hasText, hasAudio: $hasAudio)';
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(final Object other) {
     if (identical(this, other)) return true;
     return other is CallMessage && other.id == id;
   }
@@ -251,7 +250,7 @@ extension MessageTypeExtension on MessageType {
     }
   }
 
-  static MessageType fromString(String value) {
+  static MessageType fromString(final String value) {
     switch (value.toLowerCase()) {
       case 'text':
         return MessageType.text;

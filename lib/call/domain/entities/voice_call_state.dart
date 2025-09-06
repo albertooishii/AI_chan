@@ -13,26 +13,6 @@ enum CallEndReason {
 }
 
 class VoiceCallState {
-  final CallPhase phase;
-  final CallType type;
-  final bool isAccepted;
-  final bool isMuted;
-  final bool hangupInProgress;
-  final bool endCallTagReceived;
-  final bool startCallTagReceived;
-  final bool forceReject;
-  final bool userHasAcceptedCall;
-  final bool isAISpeaking;
-  final bool isUserSpeaking;
-  final int callDuration;
-  final double soundLevel;
-  final String aiText;
-  final String userText;
-  final String aiLabel;
-  final String userLabel;
-  final CallEndReason? endReason;
-  final String? errorMessage;
-
   const VoiceCallState({
     this.phase = CallPhase.initializing,
     required this.type,
@@ -56,9 +36,28 @@ class VoiceCallState {
   });
 
   // Factory constructor for initial state
-  factory VoiceCallState.initial({CallType? callType}) {
+  factory VoiceCallState.initial({final CallType? callType}) {
     return VoiceCallState(type: callType ?? CallType.outgoing);
   }
+  final CallPhase phase;
+  final CallType type;
+  final bool isAccepted;
+  final bool isMuted;
+  final bool hangupInProgress;
+  final bool endCallTagReceived;
+  final bool startCallTagReceived;
+  final bool forceReject;
+  final bool userHasAcceptedCall;
+  final bool isAISpeaking;
+  final bool isUserSpeaking;
+  final int callDuration;
+  final double soundLevel;
+  final String aiText;
+  final String userText;
+  final String aiLabel;
+  final String userLabel;
+  final CallEndReason? endReason;
+  final String? errorMessage;
 
   // Computed properties para compatibilidad
   bool get isIncoming => type == CallType.incoming;
@@ -72,25 +71,25 @@ class VoiceCallState {
       isIncoming && !userHasAcceptedCall && phase == CallPhase.ringing;
 
   VoiceCallState copyWith({
-    CallPhase? phase,
-    CallType? type,
-    bool? isAccepted,
-    bool? isMuted,
-    bool? hangupInProgress,
-    bool? endCallTagReceived,
-    bool? startCallTagReceived,
-    bool? forceReject,
-    bool? userHasAcceptedCall,
-    bool? isAISpeaking,
-    bool? isUserSpeaking,
-    int? callDuration,
-    double? soundLevel,
-    String? aiText,
-    String? userText,
-    String? aiLabel,
-    String? userLabel,
-    CallEndReason? endReason,
-    String? errorMessage,
+    final CallPhase? phase,
+    final CallType? type,
+    final bool? isAccepted,
+    final bool? isMuted,
+    final bool? hangupInProgress,
+    final bool? endCallTagReceived,
+    final bool? startCallTagReceived,
+    final bool? forceReject,
+    final bool? userHasAcceptedCall,
+    final bool? isAISpeaking,
+    final bool? isUserSpeaking,
+    final int? callDuration,
+    final double? soundLevel,
+    final String? aiText,
+    final String? userText,
+    final String? aiLabel,
+    final String? userLabel,
+    final CallEndReason? endReason,
+    final String? errorMessage,
   }) {
     return VoiceCallState(
       phase: phase ?? this.phase,
@@ -116,7 +115,7 @@ class VoiceCallState {
   }
 
   @override
-  bool operator ==(Object other) =>
+  bool operator ==(final Object other) =>
       identical(this, other) ||
       other is VoiceCallState &&
           runtimeType == other.runtimeType &&

@@ -15,8 +15,8 @@ import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // â
 class VoiceCallControllerBuilder implements IVoiceCallControllerBuilder {
   @override
   VoiceCallScreenController create({
-    required ChatController chatController,
-    required CallType callType,
+    required final ChatController chatController,
+    required final CallType callType,
   }) {
     // âœ… DDD: ETAPA 3 - DDD puro
     // Crear dependencias de infraestructura

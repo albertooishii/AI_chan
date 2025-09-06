@@ -9,13 +9,26 @@ import 'package:ai_chan/chat/application/services/message_text_processor_service
 import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 
 class ChatBubble extends StatelessWidget {
+  const ChatBubble({
+    required this.message,
+    required this.fileService,
+    this.isLastUserMessage = false,
+    this.imageDir,
+    this.onRetry,
+    this.onImageTap,
+    this.isAudioPlaying,
+    this.onToggleAudio,
+    this.getAudioPosition,
+    this.getAudioDuration,
+    super.key,
+  });
   // ===== Helpers de UI reutilizables para reducir duplicación =====
   Widget _footerRow({
-    required BuildContext context,
-    required Message message,
-    required bool isUser,
-    required Widget statusWidget,
-    bool showRetry = true,
+    required final BuildContext context,
+    required final Message message,
+    required final bool isUser,
+    required final Widget statusWidget,
+    final bool showRetry = true,
   }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
@@ -45,7 +58,7 @@ class ChatBubble extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildMarkdownBlocks(String text) {
+  List<Widget> _buildMarkdownBlocks(final String text) {
     if (text.trim().isEmpty) return const [];
     return MarkdownGenerator().buildWidgets(
       MessageTextProcessorService.cleanMessageText(text),
@@ -53,10 +66,10 @@ class ChatBubble extends StatelessWidget {
   }
 
   Widget _callHeader({
-    required bool isUser,
-    required bool isSummary,
-    required bool isPlaceholder,
-    CallStatus? callStatus,
+    required final bool isUser,
+    required final bool isSummary,
+    required final bool isPlaceholder,
+    final CallStatus? callStatus,
   }) {
     String title;
     IconData icon;
@@ -127,14 +140,14 @@ class ChatBubble extends StatelessWidget {
   }
 
   Widget _buildBubbleContent({
-    required BuildContext context,
-    required Widget child,
-    required bool useIntrinsicWidth,
-    required bool isUser,
-    required Color borderColor,
-    required Color glowColor,
-    EdgeInsetsGeometry? padding,
-    bool forceFullWidth = false,
+    required final BuildContext context,
+    required final Widget child,
+    required final bool useIntrinsicWidth,
+    required final bool isUser,
+    required final Color borderColor,
+    required final Color glowColor,
+    final EdgeInsetsGeometry? padding,
+    final bool forceFullWidth = false,
   }) {
     final bubble = Container(
       margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
@@ -215,21 +228,7 @@ class ChatBubble extends StatelessWidget {
   final Duration Function()? getAudioPosition;
   final Duration Function()? getAudioDuration;
 
-  const ChatBubble({
-    required this.message,
-    required this.fileService,
-    this.isLastUserMessage = false,
-    this.imageDir,
-    this.onRetry,
-    this.onImageTap,
-    this.isAudioPlaying,
-    this.onToggleAudio,
-    this.getAudioPosition,
-    this.getAudioDuration,
-    super.key,
-  });
-
-  Widget _buildImageContent(Message message, Color glowColor) {
+  Widget _buildImageContent(final Message message, final Color glowColor) {
     final imageUrl = message.image?.url;
     if (imageUrl != null && imageUrl.isNotEmpty && imageDir != null) {
       final fileName = fileService.getFileName(imageUrl);
@@ -237,7 +236,7 @@ class ChatBubble extends StatelessWidget {
 
       return FutureBuilder<bool>(
         future: fileService.fileExists(absPath),
-        builder: (context, snapshot) {
+        builder: (final context, final snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const SizedBox(
               width: 150,
@@ -257,10 +256,14 @@ class ChatBubble extends StatelessWidget {
     return const SizedBox.shrink();
   }
 
-  Widget _buildImageWidget(String imagePath, Message message, Color glowColor) {
+  Widget _buildImageWidget(
+    final String imagePath,
+    final Message message,
+    final Color glowColor,
+  ) {
     final isUser = message.sender == MessageSender.user;
     return Builder(
-      builder: (context) {
+      builder: (final context) {
         // Calcular ancho máximo disponible y orientación, pero respetar breakpoint
         final media = MediaQuery.of(context);
         final mediaWidth = media.size.width;
@@ -291,7 +294,7 @@ class ChatBubble extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               child: FutureBuilder<List<int>?>(
                 future: fileService.readFileAsBytes(imagePath),
-                builder: (context, snapshot) {
+                builder: (final context, final snapshot) {
                   if (snapshot.hasData && snapshot.data != null) {
                     return Image.memory(
                       Uint8List.fromList(snapshot.data!),
@@ -316,7 +319,7 @@ class ChatBubble extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     final isUser = message.sender == MessageSender.user;
     final borderColor = isUser ? AppColors.primary : AppColors.secondary;
     final glowColor = isUser ? AppColors.primary : AppColors.secondary;

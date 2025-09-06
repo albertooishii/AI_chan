@@ -14,9 +14,9 @@ class AudioConversion {
   }
 
   static Future<File?> convertFileToFormat(
-    File src,
-    String format, {
-    List<String>? extraArgs,
+    final File src,
+    final String format, {
+    final List<String>? extraArgs,
   }) async {
     if (!await ffmpegAvailable()) return null;
     try {
@@ -43,9 +43,9 @@ class AudioConversion {
   }
 
   static Future<Uint8List?> convertBytesToFormat(
-    Uint8List inputBytes,
-    String format, {
-    List<String>? extraArgs,
+    final Uint8List inputBytes,
+    final String format, {
+    final List<String>? extraArgs,
   }) async {
     if (!await ffmpegAvailable()) return null;
     try {
@@ -79,7 +79,7 @@ class AudioConversion {
     return null;
   }
 
-  static Future<File?> convertToWavIfPossible(File src) async {
+  static Future<File?> convertToWavIfPossible(final File src) async {
     return await convertFileToFormat(
       src,
       'wav',
@@ -87,7 +87,7 @@ class AudioConversion {
     );
   }
 
-  static Future<File?> convertToMp3IfPossible(File src) async {
+  static Future<File?> convertToMp3IfPossible(final File src) async {
     return await convertFileToFormat(
       src,
       'mp3',
@@ -106,8 +106,8 @@ class AudioConversion {
 
   /// Convert bytes to a preferred compressed container (mp3 or m4a).
   static Future<Uint8List?> convertBytesToPreferredCompressed(
-    Uint8List inputBytes,
-    String preferredFormat,
+    final Uint8List inputBytes,
+    final String preferredFormat,
   ) async {
     final pref = preferredFormat.trim().toLowerCase();
     if (pref == 'm4a') {

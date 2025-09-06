@@ -21,11 +21,11 @@ linter:
   # `// ignore_for_file: name_of_lint` syntax on the line or in the file
   # producing the lint.
   rules:
-    # Formatting / style
+    # =================== FORMATTING / STYLE ===================
     lines_longer_than_80_chars: false
     prefer_single_quotes: true  # ✅ Aplicado automáticamente con dart fix
     
-    # Performance / correctness
+    # =================== PERFORMANCE / CORRECTNESS ===================
     prefer_const_constructors: true  # ✅ Aplicado automáticamente con dart fix
     prefer_const_literals_to_create_immutables: true  # ✅ Aplicado automáticamente con dart fix
     prefer_final_fields: true
@@ -33,38 +33,92 @@ linter:
     prefer_is_not_empty: true
     prefer_is_empty: true
     
-    # Safety / best practices - CRÍTICAS PARA SEGURIDAD
-    avoid_print: true  # Prohibir uso de print() - usar Log.d/w/e en su lugar
+    # =================== DDD / HEXAGONAL ARCHITECTURE ===================
+    # Inmutabilidad (crítico para Value Objects y Domain Entities)
+    prefer_final_in_for_each: true     # 🏗️ Variables inmutables en loops
+    prefer_final_parameters: true      # 🏗️ Parámetros inmutables por defecto
+    
+    # Prevenir dependencias incorrectas entre capas
+    avoid_classes_with_only_static_members: false  # Permitir Utils temporalmente
+    one_member_abstracts: false         # ✅ Permitir interfaces de un método (DDD ports)
+    
+    # Principio de Responsabilidad Única (SRP)
+    avoid_catches_without_on_clauses: true    # 🎯 Catch específico por responsabilidad
+    avoid_catching_errors: true              # 🎯 No catch genérico de Error
+    
+    # =================== DRY (DON'T REPEAT YOURSELF) ===================
+    # Eliminar duplicación de código
+    avoid_redundant_argument_values: true  # ✅ Aplicado automáticamente con dart fix
+    avoid_unnecessary_containers: true     # 🔄 Evitar Widgets redundantes
+    prefer_collection_literals: true       # 🔄 Literals directos vs constructores
+    prefer_if_null_operators: true         # 🔄 ?? operator vs if/else
+    prefer_null_aware_operators: true      # 🔄 ?. operator vs null checks
+    prefer_spread_collections: true        # 🔄 Spread operator vs addAll()
+    
+    # Constructores y inicialización DRY
+    sort_constructors_first: true          # 📋 Organización consistente
+    prefer_initializing_formals: true      # 🔄 this.field vs field = field
+    
+    # =================== SAFETY / BEST PRACTICES ===================
+    avoid_print: true  # 🔒 Prohibir print() - usar Log.d/w/e del proyecto
     # NOTA: Para debugPrint también usar Log.d/w/e. No hay regla lint específica
     # pero el equipo debe usar consistentemente el sistema Log.* del proyecto
-    cancel_subscriptions: true
-    use_build_context_synchronously: true
-    close_sinks: true
+    cancel_subscriptions: true           # 🔒 Evitar memory leaks
+    use_build_context_synchronously: true # 🔒 BuildContext seguro
+    close_sinks: true                    # 🔒 Cerrar Streams/Sinks
     
-    # Code quality - CRÍTICAS PARA CORRECTNESS
-    avoid_empty_else: true
-    avoid_redundant_argument_values: true  # ✅ Aplicado automáticamente con dart fix
-    avoid_returning_null_for_void: true
-    avoid_unnecessary_containers: true
-    prefer_collection_literals: true
-    prefer_if_null_operators: true
-    prefer_null_aware_operators: true
+    # Null safety y manejo de errores
+    avoid_null_checks_in_equality_operators: true  # 🔒 == operators seguros
+    avoid_returning_null_for_void: true           # 🔒 void methods consistentes
+    avoid_slow_async_io: true                     # ⚡ I/O performance
     
-    # DDD/Architecture specific
-    # avoid_classes_with_only_static_members: true  # TODO: 41 utility classes por convertir gradualmente
-    one_member_abstracts: false  # Permitimos abstracts de un método para interfaces DDD
+    # =================== CODE QUALITY ===================
+    # Prevenir code smells
+    avoid_empty_else: true               # 🧹 else vacíos son code smell
+    avoid_void_async: true               # 🧹 async void problemático
     
-    # Flutter specific
-    use_key_in_widget_constructors: true
-    sized_box_for_whitespace: true
-    avoid_web_libraries_in_flutter: true
+    # Consistencia y legibilidad
+    curly_braces_in_flow_control_structures: true  # 📖 Always use braces
+    prefer_contains: true                          # 📖 .contains() vs indexOf >= 0
+    prefer_for_elements_to_map_fromIterable: true  # 📖 For loops vs Map.fromIterable
+    prefer_function_declarations_over_variables: true  # 📖 Function declarations
+    prefer_if_elements_to_conditional_expressions: true  # 📖 Collection if
+    prefer_inlined_adds: true                          # 📖 Inline adds vs separate
     
-    # Documentation
-    public_member_api_docs: false  # Desactivado por ahora, activar cuando esté listo para documentar APIs públicas
+    # =================== FLUTTER SPECIFIC ===================
+    use_key_in_widget_constructors: true        # 🎨 Widget keys para performance
+    sized_box_for_whitespace: true              # 🎨 SizedBox vs Container vacío
+    avoid_web_libraries_in_flutter: true        # 🎨 No dart:html en Flutter
+    prefer_const_constructors_in_immutables: true  # 🎨 Const constructors en @immutable
+    
+    # =================== DOCUMENTATION ===================
+    public_member_api_docs: false  # 📚 Desactivado por ahora, activar cuando esté listo
+    
+    # =================== EXPERIMENTAL / ADVANCED ===================
+    # Estas reglas son más estrictas, evaluar gradualmente
+    # prefer_relative_imports: true       # 📁 Imports relativos vs package:
+    # avoid_dynamic_calls: true           # 🔒 Evitar dynamic (muy estricto)
+    # require_trailing_commas: true       # 📋 Trailing commas (opinionated)
+    # sort_pub_dependencies: true         # 📋 Organizar pubspec.yaml
 
 analyzer:
   errors:
     todo: ignore
+    # ACTIVAR DETECCIÓN AUTOMÁTICA DE CÓDIGO NO USADO ⚡
+    unused_element: warning      # 🧹 Métodos, clases no usados
+    unused_field: warning        # 🧹 Campos de clase no usados  
+    unused_import: warning       # 🧹 Imports no usados
+    unused_local_variable: info  # 🧹 Variables locales no usadas (info level)
+    
+    # NUEVAS REGLAS DDD/HEXAGONAL - EMPEZAR COMO INFO PARA NO ROMPER BUILD
+    avoid_catches_without_on_clauses: info    # 🎯 Catch específico (687 violaciones)
+    avoid_slow_async_io: info                 # ⚡ I/O performance (65 violaciones)
+    prefer_final_parameters: info             # 🏗️ Inmutabilidad en parámetros
+    prefer_final_in_for_each: info            # 🏗️ Inmutabilidad en loops
+    
+    # UPGRADE GRADUAL: Cambiar a warning cuando estén arregladas
+    # avoid_catches_without_on_clauses: warning  # 🎯 Después de arreglar catch clauses
+    # avoid_slow_async_io: warning               # ⚡ Después de optimizar I/O
   exclude:
     - '**/*.g.dart'
     - 'build/**'

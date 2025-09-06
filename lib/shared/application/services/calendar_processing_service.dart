@@ -4,15 +4,15 @@ import 'package:ai_chan/shared/utils/schedule_utils.dart';
 /// Separa el parsing y validación de horarios de la capa de presentación
 class CalendarProcessingService {
   /// Procesa una cadena de horario y devuelve una especificación de horario
-  static dynamic processScheduleString(String daysString) {
+  static dynamic processScheduleString(final String daysString) {
     return ScheduleUtils.parseScheduleString(daysString);
   }
 
   /// Procesa una entrada de calendario raw con validaciones
   static Map<String, dynamic> processCalendarEntry({
-    required String daysString,
-    required DateTime day,
-    Map<String, String>? rawEntry,
+    required final String daysString,
+    required final DateTime day,
+    final Map<String, String>? rawEntry,
   }) {
     final spec = processScheduleString(daysString);
 
@@ -48,7 +48,10 @@ class CalendarProcessingService {
   }
 
   /// Procesa una cadena de tiempo en formato HH:MM
-  static DateTime? processTimeString(DateTime baseDay, String hhmm) {
+  static DateTime? processTimeString(
+    final DateTime baseDay,
+    final String hhmm,
+  ) {
     final parts = hhmm.split(':');
     if (parts.length != 2) return null;
     final h = int.tryParse(parts[0]);
@@ -58,7 +61,11 @@ class CalendarProcessingService {
   }
 
   /// Verifica si una fecha está dentro de un rango de tiempo
-  static bool rangeContains(DateTime now, DateTime start, DateTime end) {
+  static bool rangeContains(
+    final DateTime now,
+    final DateTime start,
+    final DateTime end,
+  ) {
     if (end.isBefore(start)) {
       // Rango cruza medianoche: end pertenece al día siguiente
       return now.isAfter(start) || now.isBefore(end);

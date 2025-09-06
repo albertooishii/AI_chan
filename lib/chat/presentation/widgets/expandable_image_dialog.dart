@@ -14,11 +14,11 @@ class ExpandableImageDialog {
   /// [onImageDeleted] callback receives the deleted AiImage (if any) so callers
   /// can update their authoritative state (for example, remove from saved avatars).
   static void show(
-    List<Message> images,
-    int initialIndex, {
-    String? imageBasePath,
-    FileUIService? fileUIService,
-    void Function(AiImage?)? onImageDeleted,
+    final List<Message> images,
+    final int initialIndex, {
+    final String? imageBasePath,
+    final FileUIService? fileUIService,
+    final void Function(AiImage?)? onImageDeleted,
   }) {
     // Show the dialog using the app's global navigator so callers don't need
     // to pass a BuildContext (avoids accidental use across async gaps).
@@ -29,7 +29,7 @@ class ExpandableImageDialog {
       // para que el ScaffoldMessenger raíz (scaffoldMessengerKey) pueda
       // mostrar SnackBars por encima del diálogo.
       useRootNavigator: false,
-      builder: (context) => _GalleryImageViewerDialog(
+      builder: (final context) => _GalleryImageViewerDialog(
         images: images,
         initialIndex: initialIndex,
         imageBasePath: imageBasePath,
@@ -41,11 +41,6 @@ class ExpandableImageDialog {
 }
 
 class _GalleryImageViewerDialog extends StatefulWidget {
-  final List<Message> images;
-  final int initialIndex;
-  final String? imageBasePath;
-  final FileUIService? fileUIService;
-  final void Function(AiImage?)? onImageDeleted;
   const _GalleryImageViewerDialog({
     required this.images,
     required this.initialIndex,
@@ -53,6 +48,11 @@ class _GalleryImageViewerDialog extends StatefulWidget {
     this.fileUIService,
     this.onImageDeleted,
   });
+  final List<Message> images;
+  final int initialIndex;
+  final String? imageBasePath;
+  final FileUIService? fileUIService;
+  final void Function(AiImage?)? onImageDeleted;
 
   @override
   State<_GalleryImageViewerDialog> createState() =>
@@ -62,11 +62,11 @@ class _GalleryImageViewerDialog extends StatefulWidget {
 class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
   bool _showText = true;
 
-  void _showImageDescriptionDialog(String? description) async {
+  Future<void> _showImageDescriptionDialog(final String? description) async {
     // If the widget is no longer mounted (dialog dismissed), skip the description dialog
     if (!mounted) return;
     showAppDialog(
-      builder: (ctx) => AlertDialog(
+      builder: (final ctx) => AlertDialog(
         backgroundColor: Colors.black,
         title: const Text(
           'Descripción de la imagen',
@@ -123,13 +123,13 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
     });
   }
 
-  void _onPageChanged(int idx) {
+  void _onPageChanged(final int idx) {
     setState(() => _currentIndex = idx);
   }
 
   DateTime? _lastKeyTime;
 
-  Future<List<int>?> _loadImageBytes(String filePath) async {
+  Future<List<int>?> _loadImageBytes(final String filePath) async {
     try {
       if (widget.fileUIService == null) return null;
       final exists = await widget.fileUIService!.fileExists(filePath);
@@ -140,7 +140,7 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
     }
   }
 
-  void _onKey(KeyEvent event) {
+  void _onKey(final KeyEvent event) {
     // Ignorar eventos duplicados en menos de 100ms
     if (event is KeyDownEvent) {
       final now = DateTime.now();
@@ -172,7 +172,7 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
     final relPath = msg.image?.url;
 
     final confirmed = await showAppDialog<bool>(
-      builder: (ctx) => AlertDialog(
+      builder: (final ctx) => AlertDialog(
         title: const Text('Eliminar imagen'),
         content: const Text(
           '¿Estás seguro de que deseas eliminar esta imagen? Esta acción no se puede deshacer.',
@@ -242,7 +242,7 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
   // Métodos _showIcon y _hideIcon eliminados (ya no se usan)
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     // Proteger contra cambios concurrentes en la lista de imágenes.
     // Si la lista queda vacía, cerrar el diálogo de forma segura.
     if (widget.images.isEmpty) {
@@ -268,7 +268,7 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
       child: KeyboardListener(
         autofocus: true,
         focusNode: _focusNode,
-        onKeyEvent: (event) => _onKey(event),
+        onKeyEvent: (final event) => _onKey(event),
         child: Stack(
           children: [
             // Fondo con blur suave cuando se muestran los controles.
@@ -305,7 +305,7 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                     controller: _controller,
                     onPageChanged: _onPageChanged,
                     itemCount: widget.images.length,
-                    itemBuilder: (context, idx) {
+                    itemBuilder: (final context, final idx) {
                       final msg = widget.images[idx];
                       final relPath = msg.image?.url;
                       if (widget.fileUIService == null ||
@@ -335,7 +335,7 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
 
                       return FutureBuilder<List<int>?>(
                         future: _loadImageBytes(absPath),
-                        builder: (context, snapshot) {
+                        builder: (final context, final snapshot) {
                           if (snapshot.connectionState ==
                               ConnectionState.waiting) {
                             return const Center(
@@ -399,7 +399,7 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                               // Mostrar siempre el contador; añadir la fecha si está disponible
                               if (_showText)
                                 Builder(
-                                  builder: (ctx) {
+                                  builder: (final ctx) {
                                     final msg = widget.images[_currentIndex];
                                     final img = msg.image;
                                     // Considerar avatar solo si tiene createdAtMs; muchas imágenes normales
@@ -554,7 +554,7 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                           size: 24,
                         ),
                         tooltip: 'Opciones',
-                        onSelected: (value) async {
+                        onSelected: (final value) async {
                           if (value == 'description') {
                             _showImageDescriptionDialog(
                               widget.images[_currentIndex].image?.prompt,
@@ -563,7 +563,7 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
                             await _confirmAndDeleteCurrentImage();
                           }
                         },
-                        itemBuilder: (context) {
+                        itemBuilder: (final context) {
                           return [
                             const PopupMenuItem<String>(
                               value: 'description',

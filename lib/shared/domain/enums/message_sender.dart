@@ -14,7 +14,7 @@ extension MessageSenderExtension on MessageSender {
     }
   }
 
-  static MessageSender fromString(String value) {
+  static MessageSender fromString(final String value) {
     switch (value.toLowerCase()) {
       case 'user':
         return MessageSender.user;

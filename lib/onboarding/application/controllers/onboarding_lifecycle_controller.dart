@@ -2,30 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/onboarding/application/use_cases/biography_generation_use_case.dart';
 import 'package:ai_chan/onboarding/application/use_cases/import_export_onboarding_use_case.dart';
-import 'package:ai_chan/onboarding/application/use_cases/save_imported_chat_use_case.dart';
+import 'package:ai_chan/onboarding/application/use_cases/save_chat_export_use_case.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 
 /// Lifecycle controller that owns onboarding lifecycle state (biography loading,
 /// saved/generated biography, import errors). This intentionally does NOT own
 /// form controllers — those live in `FormOnboardingController`.
 class OnboardingLifecycleController extends ChangeNotifier {
+  OnboardingLifecycleController({
+    final BiographyGenerationUseCase? biographyUseCase,
+    final ImportExportOnboardingUseCase? importExportUseCase,
+    final SaveChatExportUseCase? saveChatExportUseCase,
+  }) : _biographyUseCase = biographyUseCase ?? BiographyGenerationUseCase(),
+       _saveChatExportUseCase =
+           saveChatExportUseCase ?? SaveChatExportUseCase() {
+    _loadExistingBiography();
+  }
   final BiographyGenerationUseCase _biographyUseCase;
-  final SaveImportedChatUseCase _saveImportedChatUseCase;
+  final SaveChatExportUseCase _saveChatExportUseCase;
 
   bool loading = true;
   AiChanProfile? _generatedBiography;
   bool _biographySaved = false;
   String? importError;
-
-  OnboardingLifecycleController({
-    BiographyGenerationUseCase? biographyUseCase,
-    ImportExportOnboardingUseCase? importExportUseCase,
-    SaveImportedChatUseCase? saveImportedChatUseCase,
-  }) : _biographyUseCase = biographyUseCase ?? BiographyGenerationUseCase(),
-       _saveImportedChatUseCase =
-           saveImportedChatUseCase ?? SaveImportedChatUseCase() {
-    _loadExistingBiography();
-  }
 
   AiChanProfile? get generatedBiography => _generatedBiography;
   bool get biographySaved => _biographySaved;
@@ -36,11 +35,21 @@ class OnboardingLifecycleController extends ChangeNotifier {
       if (profile != null) {
         _generatedBiography = profile;
         _biographySaved = true;
+        try {
+          Log.i(
+            'OnboardingLifecycle: loaded existing biography from prefs: aiName=${profile.aiName}',
+            tag: 'ONBOARDING',
+          );
+        } catch (_) {}
       } else {
         _generatedBiography = null;
         _biographySaved = false;
       }
     } catch (e) {
+      Log.e(
+        'OnboardingLifecycle: failed to load existing biography: $e',
+        tag: 'ONBOARDING',
+      );
       _generatedBiography = null;
       _biographySaved = false;
     } finally {
@@ -51,18 +60,41 @@ class OnboardingLifecycleController extends ChangeNotifier {
 
   /// Generate and save biography delegating to use case. Exposes importError on failure.
   Future<void> generateAndSaveBiography({
-    required BuildContext context,
-    required String userName,
-    required String aiName,
-    required DateTime? userBirthdate,
-    required String meetStory,
-    String? userCountryCode,
-    String? aiCountryCode,
-    Map<String, dynamic>? appearance,
-    void Function(String)? onProgress,
+    required final BuildContext context,
+    required final String userName,
+    required final String aiName,
+    required final DateTime? userBirthdate,
+    required final String meetStory,
+    final String? userCountryCode,
+    final String? aiCountryCode,
+    final Map<String, dynamic>? appearance,
+    final void Function(String)? onProgress,
   }) async {
     _biographySaved = false;
     try {
+      // Map the BiographyGenerationStep enum emitted by the use case to the
+      // short keys expected by the UI's initializing screen (e.g. 'appearance',
+      // 'avatar', 'finalize'). This ensures the screen's Completers complete
+      // and the flow can proceed to the chat screen.
+      String mapStepToKey(final BiographyGenerationStep step) {
+        switch (step) {
+          case BiographyGenerationStep.generatingBiography:
+            return 'generating_basic';
+          case BiographyGenerationStep.generatingAppearance:
+            return 'appearance';
+          case BiographyGenerationStep.generatingAvatar:
+            return 'avatar';
+          case BiographyGenerationStep.finalizing:
+            return 'finalize';
+          case BiographyGenerationStep.saving:
+            return 'finish';
+          case BiographyGenerationStep.completed:
+            return 'finalize';
+          case BiographyGenerationStep.error:
+            return 'finalize';
+        }
+      }
+
       final finalBiography = await _biographyUseCase.generateCompleteBiography(
         userName: userName,
         aiName: aiName,
@@ -70,28 +102,42 @@ class OnboardingLifecycleController extends ChangeNotifier {
         meetStory: meetStory,
         userCountryCode: userCountryCode,
         aiCountryCode: aiCountryCode,
-        onProgress: (step) => onProgress?.call(step.toString()),
+        onProgress: (final step) {
+          final mapped = mapStepToKey(step);
+          Log.d(
+            '[OnboardingLifecycle] usecase emitted step=$step mapped="$mapped"',
+          );
+          onProgress?.call(mapped);
+        },
       );
 
       _generatedBiography = finalBiography;
       _biographySaved = true;
       importError = null;
+      Log.i(
+        'OnboardingLifecycle: biography generated for aiName=${finalBiography.aiName}',
+      );
       notifyListeners();
     } catch (e) {
       _biographySaved = false;
       importError = e.toString();
+      Log.e(
+        'OnboardingLifecycle: error generating biography: $e',
+        tag: 'ONBOARDING',
+        error: e,
+      );
       notifyListeners();
     }
   }
 
-  Future<void> applyImportedChat(ImportedChat imported) async {
-    await _saveImportedChatUseCase.saveImportedChat(imported);
-    _generatedBiography = imported.profile;
+  Future<void> applyChatExport(final ChatExport exported) async {
+    await _saveChatExportUseCase.saveChatExport(exported);
+    _generatedBiography = exported.profile;
     _biographySaved = true;
     notifyListeners();
   }
 
-  void setImportError(String? e) {
+  void setImportError(final String? e) {
     importError = e;
     notifyListeners();
   }

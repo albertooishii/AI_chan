@@ -1,16 +1,8 @@
 // Copia de lib/models/image.dart para core/shared models
 class AiImage {
-  final String? base64;
-  final String? seed;
-  final String? url;
-  final String? prompt;
-
-  /// Unix timestamp in milliseconds when this image/avatar was created.
-  final int? createdAtMs;
-
   AiImage({this.base64, this.seed, this.url, this.prompt, this.createdAtMs});
 
-  factory AiImage.fromJson(Map<String, dynamic> json) {
+  factory AiImage.fromJson(final Map<String, dynamic> json) {
     return AiImage(
       base64: json['base64'] as String?,
       seed: json['seed'] as String?,
@@ -23,6 +15,13 @@ class AiImage {
                 : null),
     );
   }
+  final String? base64;
+  final String? seed;
+  final String? url;
+  final String? prompt;
+
+  /// Unix timestamp in milliseconds when this image/avatar was created.
+  final int? createdAtMs;
 
   Map<String, dynamic> toJson() => {
     if (base64 != null) 'base64': base64,
@@ -33,11 +32,11 @@ class AiImage {
   };
 
   AiImage copyWith({
-    String? base64,
-    String? seed,
-    String? url,
-    String? prompt,
-    int? createdAtMs,
+    final String? base64,
+    final String? seed,
+    final String? url,
+    final String? prompt,
+    final int? createdAtMs,
   }) {
     return AiImage(
       base64: base64 ?? this.base64,

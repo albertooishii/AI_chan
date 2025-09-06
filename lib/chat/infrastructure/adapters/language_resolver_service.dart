@@ -6,7 +6,7 @@ import 'package:ai_chan/call/infrastructure/adapters/google_speech_service.dart'
 /// Specializes in Google TTS voice format detection
 class LanguageResolverService implements ILanguageResolver {
   @override
-  Future<String> resolveLanguageCode(String voiceName) async {
+  Future<String> resolveLanguageCode(final String voiceName) async {
     try {
       // Detectar si es una voz de Google (formato: "es-ES-Standard-A", "en-US-Wavenet-D")
       final googleVoicePattern = RegExp(
@@ -23,7 +23,7 @@ class LanguageResolverService implements ILanguageResolver {
           final googleVoices = await GoogleSpeechService.fetchGoogleVoices();
           final matchingVoices = googleVoices
               .where(
-                (voice) =>
+                (final voice) =>
                     voice['name']?.toString() == voiceName &&
                     voice['languageCodes']?.toString().contains(languageCode) ==
                         true,

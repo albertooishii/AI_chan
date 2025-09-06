@@ -34,8 +34,8 @@ class DefaultTtsService implements ITtsService {
 
   @override
   Future<String?> synthesizeToFile({
-    required String text,
-    Map<String, dynamic>? options,
+    required final String text,
+    final Map<String, dynamic>? options,
   }) async {
     var voice = options?['voice'] as String? ?? 'marin';
     final languageCode = options?['languageCode'] as String? ?? 'es-ES';

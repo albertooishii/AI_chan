@@ -10,10 +10,10 @@ import 'package:ai_chan/shared/application/services/calendar_processing_service.
 import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro completado
 
 class CalendarScreen extends StatefulWidget {
-  final ChatController
-  chatProvider; // ✅ DDD: ETAPA 3 - Usar ChatController directamente
+  // ✅ DDD: ETAPA 3 - Usar ChatController directamente
 
   const CalendarScreen({super.key, required this.chatProvider});
+  final ChatController chatProvider;
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -26,7 +26,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   bool _showPromises = true;
 
   /// Helper para configuración completa de chips por tipo
-  Map<String, dynamic> _getChipConfig(String type) {
+  Map<String, dynamic> _getChipConfig(final String type) {
     switch (type) {
       case 'sleep':
         return {
@@ -66,15 +66,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
-  Color _chipBg(String type) => _getChipConfig(type)['bg'] as Color;
+  Color _chipBg(final String type) => _getChipConfig(type)['bg'] as Color;
 
-  String _typeLabel(String type) => _getChipConfig(type)['label'] as String;
+  String _typeLabel(final String type) =>
+      _getChipConfig(type)['label'] as String;
 
-  Color _chipFg(String type) => _getChipConfig(type)['fg'] as Color;
+  Color _chipFg(final String type) => _getChipConfig(type)['fg'] as Color;
 
-  IconData _chipIcon(String type) => _getChipConfig(type)['icon'] as IconData;
+  IconData _chipIcon(final String type) =>
+      _getChipConfig(type)['icon'] as IconData;
 
-  Map<DateTime, List<EventEntry>> _groupEventsByDay(List<EventEntry> events) {
+  Map<DateTime, List<EventEntry>> _groupEventsByDay(
+    final List<EventEntry> events,
+  ) {
     final Map<DateTime, List<EventEntry>> map = {};
     for (final e in events) {
       if (e.date == null) continue;
@@ -85,7 +89,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return map;
   }
 
-  Color _dotColorFor(EventEntry e) {
+  Color _dotColorFor(final EventEntry e) {
     switch (e.type) {
       case 'promesa':
         return AppColors.cyberpunkYellow;
@@ -96,9 +100,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Future<void> _openEventEditor(
-    BuildContext context, {
-    EventEntry? existing,
-    DateTime? defaultDay,
+    final BuildContext context, {
+    final EventEntry? existing,
+    final DateTime? defaultDay,
   }) async {
     final chatProvider = widget.chatProvider;
     final formKey = GlobalKey<FormState>();
@@ -111,7 +115,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     String motivo = existing?.extra?['motivo']?.toString() ?? '';
 
     final saved = await showAppDialog<bool>(
-      builder: (ctx) {
+      builder: (final ctx) {
         return AlertDialog(
           backgroundColor: Colors.black,
           title: Text(
@@ -139,7 +143,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         ),
                       ),
                     ),
-                    validator: (v) => (v == null || v.trim().isEmpty)
+                    validator: (final v) => (v == null || v.trim().isEmpty)
                         ? 'Añade una descripción'
                         : null,
                   ),
@@ -175,7 +179,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               ),
                             ),
                           ),
-                          onChanged: (v) =>
+                          onChanged: (final v) =>
                               setState(() => type = v ?? 'evento'),
                         ),
                       ),
@@ -253,7 +257,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         Expanded(
                           child: TextFormField(
                             initialValue: motivo,
-                            onChanged: (v) => motivo = v,
+                            onChanged: (final v) => motivo = v,
                             style: const TextStyle(color: AppColors.primary),
                             decoration: const InputDecoration(
                               labelText: 'Motivo (opcional)',
@@ -318,13 +322,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
       // Añadir o reemplazar en el perfil
       final events = List<EventEntry>.from(
-        chatProvider.profile?.events ??
-            [], // ✅ DDD: ETAPA 3 - Usar profile en lugar de onboardingData
+        chatProvider.events, // ✅ DDD: ETAPA 3 - Usar events del controlador
       );
       int? replaceIdx;
       if (existing != null) {
         replaceIdx = events.indexWhere(
-          (e) =>
+          (final e) =>
               e.type == existing.type &&
               e.description == existing.description &&
               e.date == existing.date,
@@ -346,10 +349,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
-  void _deleteEvent(BuildContext context, EventEntry e) async {
+  Future<void> _deleteEvent(
+    final BuildContext context,
+    final EventEntry e,
+  ) async {
     final chatProvider = widget.chatProvider;
     final confirm = await showAppDialog<bool>(
-      builder: (ctx) => AlertDialog(
+      builder: (final ctx) => AlertDialog(
         backgroundColor: Colors.black,
         title: const Text(
           'Eliminar evento',
@@ -379,11 +385,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
     if (confirm != true) return;
     final events = List<EventEntry>.from(
-      chatProvider.profile?.events ??
-          [], // ✅ DDD: ETAPA 3 - Usar profile en lugar de onboardingData
+      chatProvider.events, // ✅ DDD: ETAPA 3 - Usar events del controlador
     );
     events.removeWhere(
-      (x) =>
+      (final x) =>
           x.type == e.type &&
           x.description == e.description &&
           x.date == e.date,
@@ -396,7 +401,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     final chatProvider = widget.chatProvider;
     final events = chatProvider.events;
     final bio = chatProvider
@@ -404,9 +409,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
         ?.biography; // ✅ DDD: ETAPA 3 - Usar profile en lugar de onboardingData
     // Funciones auxiliares para filtrar y mostrar horarios por día seleccionado
     bool dayMatchesWithInterval(
-      String daysStr,
-      DateTime day,
-      Map<String, String>? rawEntry,
+      final String daysStr,
+      final DateTime day,
+      final Map<String, String>? rawEntry,
     ) {
       final processedData = CalendarProcessingService.processCalendarEntry(
         daysString: daysStr,
@@ -432,11 +437,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
       return ScheduleUtils.matchesDateWithInterval(day, spec);
     }
 
-    DateTime? parseTime(DateTime baseDay, String hhmm) {
+    DateTime? parseTime(final DateTime baseDay, final String hhmm) {
       return CalendarProcessingService.processTimeString(baseDay, hhmm);
     }
 
-    bool rangeContains(DateTime now, DateTime start, DateTime end) {
+    bool rangeContains(
+      final DateTime now,
+      final DateTime start,
+      final DateTime end,
+    ) {
       return CalendarProcessingService.rangeContains(now, start, end);
     }
 
@@ -498,7 +507,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final now = DateTime.now();
     final schedulesForDay = <Map<String, String>>[];
     for (final s in rawSchedules().where(
-      (s) => dayMatchesWithInterval(s['days'] ?? '', selected, s),
+      (final s) => dayMatchesWithInterval(s['days'] ?? '', selected, s),
     )) {
       final fromStr = (s['from'] ?? '').trim();
       final toStr = (s['to'] ?? '').trim();
@@ -573,16 +582,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
       }
     }
     schedulesForDay.sort(
-      (a, b) => (a['from'] ?? '').compareTo(b['from'] ?? ''),
+      (final a, final b) => (a['from'] ?? '').compareTo(b['from'] ?? ''),
     );
     final grouped = _groupEventsByDay(events);
 
-    List<EventEntry> getEventsForDay(DateTime day) {
+    List<EventEntry> getEventsForDay(final DateTime day) {
       final key = DateTime(day.year, day.month, day.day);
       final list = grouped[key] ?? [];
       return list
           .where(
-            (e) =>
+            (final e) =>
                 (e.type == 'evento' && _showEvents) ||
                 (e.type == 'promesa' && _showPromises),
           )
@@ -619,7 +628,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 FilterChip(
                   selected: _showEvents,
                   label: const Text('Eventos'),
-                  onSelected: (v) => setState(() => _showEvents = v),
+                  onSelected: (final v) => setState(() => _showEvents = v),
                   selectedColor: AppColors.secondary.withValues(alpha: 0.2),
                   checkmarkColor: AppColors.secondary,
                   labelStyle: const TextStyle(color: AppColors.primary),
@@ -628,7 +637,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 FilterChip(
                   selected: _showPromises,
                   label: const Text('Promesas'),
-                  onSelected: (v) => setState(() => _showPromises = v),
+                  onSelected: (final v) => setState(() => _showPromises = v),
                   selectedColor: AppColors.cyberpunkYellow.withValues(
                     alpha: 0.2,
                   ),
@@ -644,8 +653,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
             focusedDay: _focusedDay,
             locale: 'es',
             startingDayOfWeek: StartingDayOfWeek.monday,
-            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-            onDaySelected: (selectedDay, focusedDay) {
+            selectedDayPredicate: (final day) => isSameDay(_selectedDay, day),
+            onDaySelected: (final selectedDay, final focusedDay) {
               setState(() {
                 _selectedDay = selectedDay;
                 _focusedDay = focusedDay;
@@ -682,14 +691,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
             eventLoader: getEventsForDay,
             calendarBuilders: CalendarBuilders<EventEntry>(
-              markerBuilder: (context, day, events) {
+              markerBuilder: (final context, final day, final events) {
                 if (events.isEmpty) return null;
                 return Wrap(
                   spacing: 2,
                   children: events
                       .take(4)
                       .map(
-                        (e) =>
+                        (final e) =>
                             Icon(Icons.circle, size: 6, color: _dotColorFor(e)),
                       )
                       .toList(),
@@ -732,7 +741,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     child: Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: schedulesForDay.map<Widget>((s) {
+                      children: schedulesForDay.map<Widget>((final s) {
                         final type = s['type'] ?? '';
                         final active = s['active'] == '1';
                         final fg = _chipFg(type);
@@ -788,7 +797,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     ),
                   ),
                 ...getEventsForDay(_selectedDay ?? DateTime.now()).map(
-                  (e) => ListTile(
+                  (final e) => ListTile(
                     onTap: () => _openEventEditor(
                       context,
                       existing: e,

@@ -3,7 +3,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 
 /// Guarda una imagen en la carpeta Descargas en Android. Devuelve (success, error) y deja el feedback al widget.
-Future<(bool success, String? error)> downloadImage(String imagePath) async {
+Future<(bool success, String? error)> downloadImage(
+  final String imagePath,
+) async {
   try {
     final fileName = imagePath.split('/').last;
     final bytes = await File(imagePath).readAsBytes();

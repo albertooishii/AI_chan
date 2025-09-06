@@ -4,11 +4,10 @@ import 'package:ai_chan/core/interfaces/ai_service.dart';
 import 'package:ai_chan/core/config.dart';
 
 class GeminiAdapter implements IAIService {
+  const GeminiAdapter({final String? modelId, this.runtime})
+    : modelId = modelId ?? '';
   final String modelId;
   final dynamic runtime;
-
-  const GeminiAdapter({String? modelId, this.runtime})
-    : modelId = modelId ?? '';
 
   dynamic get _impl {
     final resolvedModel = modelId.isNotEmpty
@@ -31,8 +30,8 @@ class GeminiAdapter implements IAIService {
 
   @override
   Future<Map<String, dynamic>> sendMessage({
-    required List<Map<String, dynamic>> messages,
-    Map<String, dynamic>? options,
+    required final List<Map<String, dynamic>> messages,
+    final Map<String, dynamic>? options,
   }) async {
     try {
       final model = options?['model'] as String?;
@@ -57,9 +56,9 @@ class GeminiAdapter implements IAIService {
 
   @override
   Future<String?> textToSpeech(
-    String text, {
-    String voice = '',
-    Map<String, dynamic>? options,
+    final String text, {
+    final String voice = '',
+    final Map<String, dynamic>? options,
   }) async {
     try {
       final file = await _impl.textToSpeech(text: text, voice: voice);

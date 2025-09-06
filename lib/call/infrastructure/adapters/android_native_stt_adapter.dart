@@ -17,7 +17,7 @@ class AndroidNativeSttAdapter implements ISttService {
   /// en background. Como compromiso, si recibimos un archivo, intentamos
   /// devolver null para indicar que la app debe caer a OpenAI/Google.
   @override
-  Future<String?> transcribeAudio(String path) async {
+  Future<String?> transcribeAudio(final String path) async {
     try {
       if (!Platform.isAndroid) {
         Log.d('[AndroidSTT] Platform is not Android, skipping native STT');
@@ -47,8 +47,8 @@ class AndroidNativeSttAdapter implements ISttService {
 
   @override
   Future<String?> transcribeFile({
-    required String filePath,
-    Map<String, dynamic>? options,
+    required final String filePath,
+    final Map<String, dynamic>? options,
   }) async {
     return await transcribeAudio(filePath);
   }

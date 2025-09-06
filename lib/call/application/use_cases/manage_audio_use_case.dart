@@ -3,9 +3,8 @@ import 'package:ai_chan/call/domain/interfaces/call_interfaces.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 
 class ManageAudioUseCase {
-  final IAudioManager _audioManager;
-
   ManageAudioUseCase(this._audioManager);
+  final IAudioManager _audioManager;
 
   Stream<double> get audioLevelStream => _audioManager.audioLevelStream;
 
@@ -26,7 +25,7 @@ class ManageAudioUseCase {
     }
   }
 
-  void setMuted(bool muted) {
+  void setMuted(final bool muted) {
     try {
       _audioManager.setMuted(muted);
       Log.d(
@@ -40,7 +39,7 @@ class ManageAudioUseCase {
 
   bool get isMuted => _audioManager.isMuted;
 
-  void updateAudioLevel(double level) {
+  void updateAudioLevel(final double level) {
     _audioManager.updateAudioLevel(level);
   }
 

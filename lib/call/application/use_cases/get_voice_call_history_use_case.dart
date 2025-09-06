@@ -3,9 +3,8 @@ import 'package:ai_chan/core/models.dart';
 
 /// Caso de uso para obtener el historial de llamadas
 class GetCallHistoryUseCase {
-  final ICallRepository _repository;
-
   const GetCallHistoryUseCase(this._repository);
+  final ICallRepository _repository;
 
   /// Obtiene todas las llamadas
   Future<List<Call>> execute() async {
@@ -13,32 +12,32 @@ class GetCallHistoryUseCase {
   }
 
   /// Obtiene una llamada específica por ID
-  Future<Call?> executeById(String callId) async {
+  Future<Call?> executeById(final String callId) async {
     return await _repository.getCall(callId);
   }
 
   /// Obtiene llamadas por rango de fechas
   Future<List<Call>> executeByDateRange({
-    required DateTime from,
-    required DateTime to,
+    required final DateTime from,
+    required final DateTime to,
   }) async {
     return await _repository.getCallsByDateRange(from, to);
   }
 
   /// Obtiene llamadas filtradas por proveedor
-  Future<List<Call>> executeByProvider(CallProvider provider) async {
+  Future<List<Call>> executeByProvider(final CallProvider provider) async {
     final allCalls = await _repository.getAllCalls();
-    return allCalls.where((call) => call.provider == provider).toList();
+    return allCalls.where((final call) => call.provider == provider).toList();
   }
 
   /// Obtiene llamadas filtradas por estado
-  Future<List<Call>> executeByStatus(CallStatus status) async {
+  Future<List<Call>> executeByStatus(final CallStatus status) async {
     final allCalls = await _repository.getAllCalls();
-    return allCalls.where((call) => call.status == status).toList();
+    return allCalls.where((final call) => call.status == status).toList();
   }
 
   /// Obtiene estadísticas de una llamada
-  Future<Map<String, dynamic>?> executeGetStats(String callId) async {
+  Future<Map<String, dynamic>?> executeGetStats(final String callId) async {
     final call = await _repository.getCall(callId);
     if (call == null) return null;
 
@@ -62,18 +61,18 @@ class GetCallHistoryUseCase {
     }
 
     final completedCalls = allCalls
-        .where((c) => c.status == CallStatus.completed)
+        .where((final c) => c.status == CallStatus.completed)
         .length;
     final failedCalls = allCalls
-        .where((c) => c.status == CallStatus.failed)
+        .where((final c) => c.status == CallStatus.failed)
         .length;
     final cancelledCalls = allCalls
-        .where((c) => c.status == CallStatus.canceled)
+        .where((final c) => c.status == CallStatus.canceled)
         .length;
 
     final totalDuration = allCalls.fold<Duration>(
       Duration.zero,
-      (sum, call) => sum + call.duration,
+      (final sum, final call) => sum + call.duration,
     );
 
     final averageDuration = Duration(
@@ -82,7 +81,7 @@ class GetCallHistoryUseCase {
 
     final totalMessages = allCalls.fold<int>(
       0,
-      (sum, call) => sum + call.messages.length,
+      (final sum, final call) => sum + call.messages.length,
     );
 
     return {

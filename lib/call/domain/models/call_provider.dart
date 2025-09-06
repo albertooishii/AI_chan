@@ -38,7 +38,7 @@ extension CallProviderExtension on CallProvider {
     }
   }
 
-  static CallProvider fromString(String value) {
+  static CallProvider fromString(final String value) {
     switch (value.toLowerCase()) {
       case 'openai':
         return CallProvider.openai;
@@ -65,9 +65,9 @@ class CallProviderHelper {
 
   /// Lista de proveedores que soportan tiempo real nativo
   static List<CallProvider> get realtimeProviders =>
-      CallProvider.values.where((p) => p.supportsRealtime).toList();
+      CallProvider.values.where((final p) => p.supportsRealtime).toList();
 
   /// Lista de proveedores que requieren STT/TTS separados
   static List<CallProvider> get sttTtsProviders =>
-      CallProvider.values.where((p) => p.requiresSeparateSTTTTS).toList();
+      CallProvider.values.where((final p) => p.requiresSeparateSTTTTS).toList();
 }

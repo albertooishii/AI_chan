@@ -39,7 +39,7 @@ class AndroidNativeTtsService {
       final voices = await _flutterTts.getVoices;
       if (voices == null) return [];
       return (voices as List<dynamic>)
-          .map((v) => Map<String, dynamic>.from(v as Map))
+          .map((final v) => Map<String, dynamic>.from(v as Map))
           .toList();
     } catch (e) {
       Log.e('[AndroidTTS] Error obteniendo voces (flutter_tts): $e');
@@ -49,7 +49,7 @@ class AndroidNativeTtsService {
 
   /// Obtiene voces filtradas por idioma
   static Future<List<Map<String, dynamic>>> getVoicesForLanguage(
-    String languageCode,
+    final String languageCode,
   ) async {
     final allVoices = await getAvailableVoices();
 
@@ -59,7 +59,7 @@ class AndroidNativeTtsService {
     // Primero intentar coincidencia exacta (lang-region) si se proporcionó región
     final requestedParts = requested.split('-');
     if (requestedParts.length >= 2) {
-      final exact = allVoices.where((voice) {
+      final exact = allVoices.where((final voice) {
         final locale = (voice['locale'] as String?)
             ?.replaceAll('_', '-')
             .toLowerCase();
@@ -73,7 +73,7 @@ class AndroidNativeTtsService {
 
     // Fallback: comparar solo la parte de idioma (ej: 'es' coincide con 'es-ES', 'es-MX', etc.)
     final lang = requested.split('-').first.toLowerCase();
-    return allVoices.where((voice) {
+    return allVoices.where((final voice) {
       final locale = (voice['locale'] as String?)
           ?.replaceAll('_', '-')
           .toLowerCase();
@@ -89,9 +89,9 @@ class AndroidNativeTtsService {
   /// - Si se solicita al menos un código con región, requiere coincidencia exacta de región.
   /// - En caso contrario, permite coincidencia por idioma.
   static Future<List<Map<String, dynamic>>> filterVoicesByTargetCodes(
-    List<Map<String, dynamic>> voices,
-    List<String> userCodes,
-    List<String> aiCodes,
+    final List<Map<String, dynamic>> voices,
+    final List<String> userCodes,
+    final List<String> aiCodes,
   ) async {
     final all = voices;
     final allLanguageCodes = <String>[];
@@ -102,9 +102,9 @@ class AndroidNativeTtsService {
     if (allLanguageCodes.isEmpty) return all;
 
     final Set<String> targetCodes = allLanguageCodes.toSet();
-    final hasExactRegion = targetCodes.any((t) => t.contains('-'));
+    final hasExactRegion = targetCodes.any((final t) => t.contains('-'));
 
-    return all.where((voice) {
+    return all.where((final voice) {
       final Set<String> voiceLangCodes = {};
       try {
         final languageCodesField = voice['languageCodes'];
@@ -119,9 +119,11 @@ class AndroidNativeTtsService {
       locale = locale.replaceAll('_', '-').toLowerCase();
 
       if (hasExactRegion) {
-        final exactTargets = targetCodes.where((t) => t.contains('-')).toSet();
+        final exactTargets = targetCodes
+            .where((final t) => t.contains('-'))
+            .toSet();
         if (voiceLangCodes.isNotEmpty) {
-          if (voiceLangCodes.any((vlc) => exactTargets.contains(vlc))) {
+          if (voiceLangCodes.any((final vlc) => exactTargets.contains(vlc))) {
             return true;
           }
         }
@@ -133,7 +135,7 @@ class AndroidNativeTtsService {
         for (final t in targetCodes) {
           final tLang = t.split('-').first;
           if (voiceLangCodes.any(
-            (vlc) => vlc == tLang || vlc.startsWith('$tLang-'),
+            (final vlc) => vlc == tLang || vlc.startsWith('$tLang-'),
           )) {
             return true;
           }
@@ -157,15 +159,15 @@ class AndroidNativeTtsService {
   /// Uso: AndroidNativeTtsService.dumpVoicesJsonForLanguage('es-ES');
   /// Si `exactOnly` es true, requerirá coincidencia exacta de región (ej. 'es-ES').
   static Future<String> dumpVoicesJsonForLanguage(
-    String languageCode, {
-    bool exactOnly = false,
+    final String languageCode, {
+    final bool exactOnly = false,
   }) async {
     final all = await getAvailableVoices();
     final requested = languageCode.replaceAll('_', '-').toLowerCase();
 
     List<Map<String, dynamic>> matched;
     if (exactOnly) {
-      matched = all.where((voice) {
+      matched = all.where((final voice) {
         final locale = (voice['locale'] as String?)
             ?.replaceAll('_', '-')
             .toLowerCase();
@@ -186,12 +188,12 @@ class AndroidNativeTtsService {
 
   /// Sintetiza texto a archivo de audio
   static Future<String?> synthesizeToFile({
-    required String text,
-    required String outputPath,
-    String? voiceName,
-    String languageCode = 'es-ES',
-    double pitch = 1.0,
-    double speechRate = 0.5,
+    required final String text,
+    required final String outputPath,
+    final String? voiceName,
+    final String languageCode = 'es-ES',
+    final double pitch = 1.0,
+    final double speechRate = 0.5,
   }) async {
     if (!isAndroid) return null;
     try {
@@ -284,7 +286,9 @@ class AndroidNativeTtsService {
       );
       if (result == null) return [];
 
-      return result.map((lang) => Map<String, dynamic>.from(lang)).toList();
+      return result
+          .map((final lang) => Map<String, dynamic>.from(lang))
+          .toList();
     } catch (e) {
       Log.e('[AndroidTTS] Error obteniendo idiomas descargables: $e');
       return [];
@@ -292,7 +296,9 @@ class AndroidNativeTtsService {
   }
 
   /// Verifica el estado de descarga de un idioma
-  static Future<String> getLanguageDownloadStatus(String languageCode) async {
+  static Future<String> getLanguageDownloadStatus(
+    final String languageCode,
+  ) async {
     if (!isAndroid) return 'not_supported';
 
     try {
@@ -308,7 +314,7 @@ class AndroidNativeTtsService {
   }
 
   /// Formatea la información de una voz para mostrar
-  static String formatVoiceInfo(Map<String, dynamic> voice) {
+  static String formatVoiceInfo(final Map<String, dynamic> voice) {
     final name = voice['name'] as String? ?? 'Sin nombre';
     final locale = voice['locale'] as String? ?? '';
     final quality = voice['quality'] as String? ?? 'normal';
@@ -354,7 +360,7 @@ class AndroidNativeTtsService {
   }
 
   /// Normaliza/limita el valor de speechRate al rango válido del plugin.
-  static Future<double> _normalizeSpeechRate(double requested) async {
+  static Future<double> _normalizeSpeechRate(final double requested) async {
     try {
       // The plugin exposes a getter for the valid range. Use it if present.
       final range = await _flutterTts.getSpeechRateValidRange;

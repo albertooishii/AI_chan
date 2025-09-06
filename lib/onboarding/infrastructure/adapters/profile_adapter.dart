@@ -11,19 +11,18 @@ import 'package:ai_chan/core/config.dart';
 ///
 /// Permite inyectar una implementación de [AIService] para tests.
 class ProfileAdapter implements IProfileService {
-  final AIService _aiService;
-
   /// Constructor que requiere la inyección de una implementación de `AIService`.
-  ProfileAdapter({required AIService aiService}) : _aiService = aiService;
+  ProfileAdapter({required final AIService aiService}) : _aiService = aiService;
+  final AIService _aiService;
 
   @override
   Future<AiChanProfile> generateBiography({
-    required String userName,
-    required String aiName,
-    required DateTime? userBirthdate,
-    required String meetStory,
-    String? userCountryCode,
-    String? aiCountryCode,
+    required final String userName,
+    required final String aiName,
+    required final DateTime? userBirthdate,
+    required final String meetStory,
+    final String? userCountryCode,
+    final String? aiCountryCode,
   }) async {
     try {
       // Sólo pasar el override si el runtime coincide con el modelo por defecto
@@ -56,13 +55,12 @@ class ProfileAdapter implements IProfileService {
           'note': e.toString(),
         },
         appearance: {'style': 'fallback'},
-        timeline: [],
       );
     }
   }
 
   @override
-  Future<AiImage?> generateAppearance(AiChanProfile profile) async {
+  Future<AiImage?> generateAppearance(final AiChanProfile profile) async {
     try {
       final generator = IAAppearanceGenerator();
       final appearanceMap = await generator.generateAppearanceFromBiography(
@@ -84,7 +82,7 @@ class ProfileAdapter implements IProfileService {
   }
 
   @override
-  Future<void> saveProfile(AiChanProfile profile) async {
+  Future<void> saveProfile(final AiChanProfile profile) async {
     return;
   }
 }

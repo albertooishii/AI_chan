@@ -7,9 +7,9 @@ import 'dart:typed_data';
 import '../widgets/expandable_image_dialog.dart';
 
 class GalleryScreen extends StatefulWidget {
+  const GalleryScreen({super.key, required this.images, this.onImageDeleted});
   final List<Message> images;
   final Future<void> Function(AiImage?)? onImageDeleted;
-  const GalleryScreen({super.key, required this.images, this.onImageDeleted});
 
   @override
   State<GalleryScreen> createState() => _GalleryScreenState();
@@ -25,10 +25,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     return FutureBuilder<String>(
       future: _getImageDirPath(),
-      builder: (context, dirSnapshot) {
+      builder: (final context, final dirSnapshot) {
         if (!dirSnapshot.hasData) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
@@ -37,7 +37,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
         final absDir = dirSnapshot.data!;
         return FutureBuilder<List<Message>>(
           future: _getExistingImages(absDir),
-          builder: (context, imagesSnapshot) {
+          builder: (final context, final imagesSnapshot) {
             if (!imagesSnapshot.hasData) {
               return const Scaffold(
                 body: Center(child: CircularProgressIndicator()),
@@ -61,12 +61,13 @@ class _GalleryScreenState extends State<GalleryScreen> {
                             mainAxisSpacing: 4,
                           ),
                       itemCount: existingImages.length,
-                      itemBuilder: (context, index) => _buildImageItem(
-                        context,
-                        existingImages,
-                        index,
-                        absDir,
-                      ),
+                      itemBuilder: (final context, final index) =>
+                          _buildImageItem(
+                            context,
+                            existingImages,
+                            index,
+                            absDir,
+                          ),
                     ),
             );
           },
@@ -80,7 +81,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     return dir.path;
   }
 
-  Future<List<Message>> _getExistingImages(String absDir) async {
+  Future<List<Message>> _getExistingImages(final String absDir) async {
     final existingImages = <Message>[];
     for (final msg in widget.images) {
       final relPath = msg.image?.url;
@@ -94,10 +95,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   Widget _buildImageItem(
-    BuildContext context,
-    List<Message> existingImages,
-    int index,
-    String absDir,
+    final BuildContext context,
+    final List<Message> existingImages,
+    final int index,
+    final String absDir,
   ) {
     final msg = existingImages[index];
     final relPath = msg.image?.url ?? '';
@@ -115,7 +116,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
       },
       child: FutureBuilder<List<int>?>(
         future: _fileUIService.readFileAsBytes(absPath),
-        builder: (context, snapshot) {
+        builder: (final context, final snapshot) {
           if (!snapshot.hasData || snapshot.data == null) {
             return Container(
               color: Colors.grey[800],

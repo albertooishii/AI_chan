@@ -27,7 +27,16 @@ echo "[pre-commit] Applying automatic fixes with dart fix..."
 dart fix --apply
 
 echo "[pre-commit] Running flutter analyze..."
-flutter analyze
+# Solo fallar en errores y warnings, permitir info level
+# Las nuevas reglas DDD/Hexagonal están en info level para migración gradual
+if flutter analyze --no-fatal-infos; then
+    echo "✅ [pre-commit] ANALYZE PASSED! (info level allowed)"
+else
+    echo "❌ [pre-commit] ANALYZE FAILED! Critical errors or warnings found."
+    echo "💡 Info level violations are allowed during DDD migration."
+    echo "💡 Use 'git commit --no-verify' to skip pre-commit hooks if needed."
+    exit 1
+fi
 
 echo "[pre-commit] Running flutter test..."
 if flutter test --coverage; then

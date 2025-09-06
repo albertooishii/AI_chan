@@ -2,19 +2,18 @@ import 'package:ai_chan/call/domain/domain.dart';
 
 /// Caso de uso para iniciar una nueva llamada de voz
 class StartCallUseCase {
+  const StartCallUseCase(this._repository, this._realtimeClient);
   final ICallRepository _repository;
   final IRealtimeCallClient _realtimeClient;
 
-  const StartCallUseCase(this._repository, this._realtimeClient);
-
   /// Inicia una nueva llamada de voz
   Future<Call> execute({
-    required CallProvider provider,
-    required String model,
-    required String voice,
-    String languageCode = 'es-ES',
-    CallConfig? config,
-    Map<String, dynamic>? metadata,
+    required final CallProvider provider,
+    required final String model,
+    required final String voice,
+    final String languageCode = 'es-ES',
+    final CallConfig? config,
+    final Map<String, dynamic>? metadata,
   }) async {
     // Validar configuración
     final effectiveConfig = config ?? CallConfig.defaultConfig();

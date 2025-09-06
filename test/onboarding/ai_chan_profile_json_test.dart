@@ -12,7 +12,6 @@ void main() {
       userBirthdate: DateTime(1990),
       aiBirthdate: DateTime(2000, 5, 10),
       appearance: {'seed': 42},
-      timeline: [],
     );
 
     final json = profile.toJson();

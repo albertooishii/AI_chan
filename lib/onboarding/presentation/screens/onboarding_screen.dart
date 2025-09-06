@@ -11,6 +11,7 @@ import 'package:ai_chan/shared/widgets/country_autocomplete.dart';
 import 'package:ai_chan/shared/widgets/female_name_autocomplete.dart';
 import 'package:ai_chan/onboarding/application/controllers/form_onboarding_controller.dart';
 import 'conversational_onboarding_screen.dart';
+import 'onboarding_mode_selector.dart';
 import 'package:ai_chan/chat/application/services/chat_application_service.dart'; // ✅ DDD: ETAPA 3 - ChatApplicationService directo
 
 /// Callback typedef para finalizar el onboarding
@@ -26,15 +27,7 @@ typedef OnboardingFinishCallback =
     });
 
 class OnboardingScreen extends StatefulWidget {
-  final OnboardingFinishCallback onFinish;
-  final void Function()? onClearAllDebug;
-  final Future<void> Function(ImportedChat importedChat)? onImportJson;
-  // Optional external provider instance (presentation widgets should avoid creating providers internally when possible)
-  final OnboardingLifecycleController? onboardingLifecycle;
-  // Optional ChatProvider instance so presentation widgets receive it via constructor
-  // instead of depending on provider package APIs internally.
-  final ChatApplicationService?
-  chatProvider; // ✅ DDD: ETAPA 3 - Migrado a ChatApplicationService
+  // ✅ DDD: ETAPA 3 - Migrado a ChatApplicationService
 
   const OnboardingScreen({
     super.key,
@@ -44,6 +37,14 @@ class OnboardingScreen extends StatefulWidget {
     this.onboardingLifecycle,
     this.chatProvider,
   });
+  final OnboardingFinishCallback onFinish;
+  final void Function()? onClearAllDebug;
+  final Future<void> Function(ChatExport importedChat)? onImportJson;
+  // Optional external provider instance (presentation widgets should avoid creating providers internally when possible)
+  final OnboardingLifecycleController? onboardingLifecycle;
+  // Optional ChatProvider instance so presentation widgets receive it via constructor
+  // instead of depending on provider package APIs internally.
+  final ChatApplicationService? chatProvider;
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -71,7 +72,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     final effectiveLifecycle = widget.onboardingLifecycle ?? _createdLifecycle!;
     // The onboarding lifecycle controller is passed explicitly to the presentation
     // content. Presentation widgets must not call provider package APIs directly.
@@ -86,15 +87,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 }
 
 class _OnboardingScreenContent extends StatefulWidget {
-  // does not call provider package APIs internally.
-  final OnboardingLifecycleController onboardingLifecycle;
-  // Optional chat provider instance passed from the parent to avoid Provider.of inside presentation.
-  final ChatApplicationService?
-  chatProvider; // ✅ DDD: ETAPA 3 - Migrado a ChatApplicationService
-  final OnboardingFinishCallback onFinish;
-  final void Function()? onClearAllDebug;
-  final Future<void> Function(ImportedChat importedChat)? onImportJson;
-
   const _OnboardingScreenContent({
     required this.onFinish,
     this.onClearAllDebug,
@@ -102,6 +94,14 @@ class _OnboardingScreenContent extends StatefulWidget {
     required this.onboardingLifecycle,
     this.chatProvider,
   });
+  // does not call provider package APIs internally.
+  final OnboardingLifecycleController onboardingLifecycle;
+  // Optional chat provider instance passed from the parent to avoid Provider.of inside presentation.
+  final ChatApplicationService?
+  chatProvider; // ✅ DDD: ETAPA 3 - Migrado a ChatApplicationService
+  final OnboardingFinishCallback onFinish;
+  final void Function()? onClearAllDebug;
+  final Future<void> Function(ChatExport importedChat)? onImportJson;
 
   @override
   State<_OnboardingScreenContent> createState() =>
@@ -115,7 +115,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
   // Persisted Google account fallback (removed: menu now shows a static entry)
 
   // Subtítulo con divisor para secciones (estilo sutil)
-  Widget _sectionHeader(String title, {IconData? icon}) {
+  Widget _sectionHeader(final String title, {final IconData? icon}) {
     final subtleColor = AppColors.secondary.withValues(alpha: 0.7);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -179,14 +179,33 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    void onMeetStoryChanged(String value) {
+  Widget build(final BuildContext context) {
+    void onMeetStoryChanged(final String value) {
       _formController.setMeetStory(value);
       setState(() {}); // Fuerza refresco para reactivar el botón
     }
 
     return Scaffold(
       appBar: AppBar(
+        // Mostrar siempre un botón explícito de 'atrás' que lleve al selector
+        // de modo de onboarding. Usamos pushReplacement para garantizar que
+        // no existan múltiples rutas de onboarding en la pila.
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+          onPressed: () {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => OnboardingModeSelector(
+                  onFinish: widget.onFinish,
+                  onClearAllDebug: widget.onClearAllDebug,
+                  onImportJson: widget.onImportJson,
+                  onboardingLifecycle: widget.onboardingLifecycle,
+                  chatProvider: widget.chatProvider,
+                ),
+              ),
+            );
+          },
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text.rich(
@@ -245,7 +264,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                 helperText: _formController.userCountryCode?.isNotEmpty == true
                     ? 'Idioma: ${LocaleUtils.languageNameEsForCountry(_formController.userCountryCode!)}'
                     : null,
-                onCountrySelected: (code) {
+                onCountrySelected: (final code) {
                   _formController.setUserCountryCode(code);
                 },
               ),
@@ -254,7 +273,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               // 2) Nombre de usuario
               TextFormField(
                 controller: _userNameController,
-                onChanged: (value) {
+                onChanged: (final value) {
                   _formController.setUserName(value);
                 },
                 style: const TextStyle(
@@ -274,7 +293,8 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                   fillColor: Colors.black,
                   filled: true,
                 ),
-                validator: (v) => v == null || v.isEmpty ? 'Obligatorio' : null,
+                validator: (final v) =>
+                    v == null || v.isEmpty ? 'Obligatorio' : null,
               ),
               const SizedBox(height: 18),
 
@@ -282,7 +302,8 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               BirthDateField(
                 controller: _formController.birthDateController,
                 userBirthdate: _formController.userBirthdate,
-                onBirthdateChanged: (d) => _formController.setUserBirthdate(d),
+                onBirthdateChanged: (final d) =>
+                    _formController.setUserBirthdate(d),
               ),
               const SizedBox(height: 18),
 
@@ -321,7 +342,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                   'SG', // Singapur
                   'NO', // Noruega
                 ],
-                onCountrySelected: (code) {
+                onCountrySelected: (final code) {
                   _formController.setAiCountryCode(code);
                 },
               ),
@@ -337,11 +358,12 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                 labelText: 'Nombre de la AI-Chan',
                 prefixIcon: Icons.smart_toy,
                 controller: _formController.aiNameController,
-                validator: (v) => v == null || v.isEmpty ? 'Obligatorio' : null,
-                onNameSelected: (name) {
+                validator: (final v) =>
+                    v == null || v.isEmpty ? 'Obligatorio' : null,
+                onNameSelected: (final name) {
                   _formController.setAiName(name);
                 },
-                onChanged: (name) {
+                onChanged: (final name) {
                   _formController.setAiName(name);
                 },
               ),
@@ -370,7 +392,8 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                   filled: true,
                 ),
                 maxLines: 2,
-                validator: (v) => v == null || v.isEmpty ? 'Obligatorio' : null,
+                validator: (final v) =>
+                    v == null || v.isEmpty ? 'Obligatorio' : null,
               ),
               const SizedBox(height: 8),
               CyberpunkButton(
@@ -419,7 +442,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
                           );
                         } else {
                           await showAppDialog(
-                            builder: (ctx) => AlertDialog(
+                            builder: (final ctx) => AlertDialog(
                               title: const Text('Error en el formulario'),
                               content: Text(result.errorMessage),
                               actions: [

@@ -7,15 +7,14 @@ import 'package:ai_chan/core/interfaces/ai_service.dart';
 /// the runtime instance created by runtime_factory. This keeps DI stable
 /// while allowing runtimes to be created centrally.
 class OpenAIAdapter implements IAIService {
-  final String modelId;
-  final dynamic runtime;
-
   /// Optional [runtime] allows tests or the DI layer to inject a concrete
   /// runtime instance (OpenAIService) instead of relying on the internal
   /// factory. If not provided, the adapter falls back to the centralized
   /// runtime factory.
-  OpenAIAdapter({String? modelId, this.runtime})
+  OpenAIAdapter({final String? modelId, this.runtime})
     : modelId = modelId ?? Config.getDefaultTextModel();
+  final String modelId;
+  final dynamic runtime;
 
   dynamic get _impl {
     final resolved = (runtime != null)
@@ -37,8 +36,8 @@ class OpenAIAdapter implements IAIService {
 
   @override
   Future<Map<String, dynamic>> sendMessage({
-    required List<Map<String, dynamic>> messages,
-    Map<String, dynamic>? options,
+    required final List<Map<String, dynamic>> messages,
+    final Map<String, dynamic>? options,
   }) async {
     try {
       final model = options?['model'] as String?;
@@ -63,9 +62,9 @@ class OpenAIAdapter implements IAIService {
 
   @override
   Future<String?> textToSpeech(
-    String text, {
-    String voice = '',
-    Map<String, dynamic>? options,
+    final String text, {
+    final String voice = '',
+    final Map<String, dynamic>? options,
   }) async {
     try {
       // Extraer opciones adicionales para OpenAI TTS

@@ -12,9 +12,9 @@ import '../widgets/app_dialog.dart';
 
 /// Utilities to export/import chat JSON and show a preview dialog with copy/save actions.
 class ChatJsonUtils {
-  /// Guarda un ImportedChat en un archivo seleccionado por el usuario y retorna éxito o error
+  /// Guarda un ChatExport en un archivo seleccionado por el usuario y retorna éxito o error
   static Future<(bool success, String? error)> saveJsonFile(
-    ImportedChat chat,
+    final ChatExport chat,
   ) async {
     try {
       final map = chat.toJson();
@@ -101,10 +101,10 @@ class ChatJsonUtils {
     }
   }
 
-  /// Importa perfil y mensajes desde un JSON plano y devuelve un ImportedChat (async)
-  static Future<ImportedChat?> importAllFromJson(
-    String jsonStr, {
-    void Function(String error)? onError,
+  /// Importa perfil y mensajes desde un JSON plano y devuelve un ChatExport (async)
+  static Future<ChatExport?> importAllFromJson(
+    final String jsonStr, {
+    final void Function(String error)? onError,
   }) async {
     try {
       final decoded = jsonDecode(jsonStr);
@@ -120,13 +120,14 @@ class ChatJsonUtils {
         );
         return null;
       }
-      final imported = ImportedChat.fromJson(decoded);
+      final imported = ChatExport.fromJson(decoded);
       final profile = imported.profile;
       final AiChanProfile updatedProfile = profile;
-      final result = ImportedChat(
+      final result = ChatExport(
         profile: updatedProfile,
         messages: imported.messages,
         events: imported.events,
+        timeline: imported.timeline,
       );
       if (result.profile.userName.isEmpty) {
         onError?.call('userName');
@@ -145,8 +146,8 @@ class ChatJsonUtils {
   /// Muestra un diálogo con la vista previa del JSON (formateado). Permite copiar o guardar.
   /// Si se pasa [chat], el guardado usará la representación de modelo (evita reserializar en el caller).
   static Future<void> showExportedJsonDialog(
-    String json, {
-    ImportedChat? chat,
+    final String json, {
+    final ChatExport? chat,
   }) async {
     String preview = json;
     try {
@@ -158,7 +159,7 @@ class ChatJsonUtils {
     }
 
     return await showAppDialog<void>(
-      builder: (ctx) {
+      builder: (final ctx) {
         final previewScrollController = ScrollController();
         // Calcular offsets lateral para alinear título/label y preview con AppAlertDialog
         final leftOffset = dialogLeftOffset(ctx);
@@ -278,7 +279,7 @@ class ChatJsonUtils {
               ),
               Flexible(
                 child: Builder(
-                  builder: (innerCtx) {
+                  builder: (final innerCtx) {
                     return Align(
                       alignment: Alignment.topLeft,
                       child: Padding(

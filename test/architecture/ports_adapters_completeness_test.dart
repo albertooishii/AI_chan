@@ -39,7 +39,7 @@ void main() {
         final missing = <String>[];
 
         for (final iface in domainInterfaces.keys) {
-          final hasImpl = infraFiles.any((f) {
+          final hasImpl = infraFiles.any((final f) {
             final content = f.readAsStringSync();
             return content.contains('implements $iface') ||
                 content.contains('implementss+$iface');

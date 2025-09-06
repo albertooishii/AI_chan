@@ -4,15 +4,6 @@ import 'package:ai_chan/shared/constants/female_names.dart';
 
 /// Widget reutilizable para autocompletar nombres femeninos
 class FemaleNameAutocomplete extends StatelessWidget {
-  final String? selectedName;
-  final String? countryCode; // Para filtrar nombres por país
-  final void Function(String name) onNameSelected;
-  final void Function(String name)? onChanged;
-  final String labelText;
-  final IconData? prefixIcon;
-  final String? Function(String?)? validator;
-  final TextEditingController? controller;
-
   const FemaleNameAutocomplete({
     super.key,
     required this.selectedName,
@@ -24,12 +15,20 @@ class FemaleNameAutocomplete extends StatelessWidget {
     this.validator,
     this.controller,
   });
+  final String? selectedName;
+  final String? countryCode; // Para filtrar nombres por país
+  final void Function(String name) onNameSelected;
+  final void Function(String name)? onChanged;
+  final String labelText;
+  final IconData? prefixIcon;
+  final String? Function(String?)? validator;
+  final TextEditingController? controller;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     return Autocomplete<String>(
       key: ValueKey('name-autocomplete-${countryCode ?? 'none'}'),
-      optionsBuilder: (TextEditingValue textEditingValue) {
+      optionsBuilder: (final TextEditingValue textEditingValue) {
         if (textEditingValue.text == '') {
           // Sugerencias base por país si no hay texto
           final base = FemaleNamesRepo.forCountry(countryCode);
@@ -38,25 +37,32 @@ class FemaleNameAutocomplete extends StatelessWidget {
         final source = FemaleNamesRepo.forCountry(countryCode);
         return source
             .where(
-              (option) => option.toLowerCase().contains(
+              (final option) => option.toLowerCase().contains(
                 textEditingValue.text.toLowerCase(),
               ),
             )
             .take(50);
       },
       fieldViewBuilder:
-          (context, fieldController, focusNode, onEditingComplete) {
-            // Usar el controller proporcionado o el interno
-            final effectiveController = controller ?? fieldController;
-
-            // Sincronizar el valor inicial solo si está vacío
-            if (effectiveController.text.isEmpty &&
-                selectedName?.isNotEmpty == true) {
-              effectiveController.text = selectedName!;
+          (
+            final context,
+            final fieldController,
+            final focusNode,
+            final onEditingComplete,
+          ) {
+            // Siempre usar el controlador interno de Autocomplete (fieldController)
+            // para que Autocomplete pueda escuchar los cambios y mostrar sugerencias.
+            // Inicializar el texto interno a partir del controller externo o selectedName.
+            if (fieldController.text.isEmpty) {
+              if (controller != null && controller!.text.isNotEmpty) {
+                fieldController.text = controller!.text;
+              } else if (selectedName?.isNotEmpty == true) {
+                fieldController.text = selectedName!;
+              }
             }
 
             return TextFormField(
-              controller: effectiveController,
+              controller: fieldController,
               focusNode: focusNode,
               onChanged: onChanged,
               style: const TextStyle(
@@ -82,7 +88,7 @@ class FemaleNameAutocomplete extends StatelessWidget {
               onEditingComplete: onEditingComplete,
             );
           },
-      onSelected: (selection) {
+      onSelected: (final selection) {
         onNameSelected(selection);
       },
     );

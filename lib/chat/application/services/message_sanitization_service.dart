@@ -1,7 +1,7 @@
 /// Service responsible for sanitizing and cleaning message content
 class MessageSanitizationService {
   /// Sanitize message by removing forbidden tags and cleaning content
-  String sanitizeMessage(String text) {
+  String sanitizeMessage(final String text) {
     // Remove any tags that are not in the allowed list
     final String sanitized = text.replaceAll(
       RegExp(r'\[(?!/?(?:audio|img_caption|call|end_call)\b)[^\]\[]+\]'),
@@ -12,7 +12,7 @@ class MessageSanitizationService {
   }
 
   /// Check if response indicates an API error that should throw exception
-  bool isApiError(String text) {
+  bool isApiError(final String text) {
     final errorPatterns = [
       RegExp(r'error.*\d{3}'), // HTTP error codes
       RegExp(r'unknown variant'), // Deserialization errors
@@ -25,6 +25,8 @@ class MessageSanitizationService {
       RegExp(r'insufficient.*funds'), // Insufficient funds
     ];
 
-    return errorPatterns.any((pattern) => pattern.hasMatch(text.toLowerCase()));
+    return errorPatterns.any(
+      (final pattern) => pattern.hasMatch(text.toLowerCase()),
+    );
   }
 }

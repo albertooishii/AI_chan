@@ -1,5 +1,5 @@
 class ScheduleUtils {
-  static int? parseHmToMinutes(String s) {
+  static int? parseHmToMinutes(final String s) {
     final parts = s.split(':');
     if (parts.length != 2) {
       return null;
@@ -19,9 +19,9 @@ class ScheduleUtils {
   /// donde from y to son cadenas HH:mm. Maneja rangos que cruzan medianoche.
   /// Si el rango es inválido, devuelve null.
   static bool? isTimeInRange({
-    required int currentMinutes,
-    required String from,
-    required String to,
+    required final int currentMinutes,
+    required final String from,
+    required final String to,
   }) {
     if (from.isEmpty || to.isEmpty) {
       return null;
@@ -39,7 +39,7 @@ class ScheduleUtils {
     return currentMinutes >= fm && currentMinutes < tm;
   }
 
-  static Set<int>? parseDiasToWeekdaySet(String dias) {
+  static Set<int>? parseDiasToWeekdaySet(final String dias) {
     final d = dias.trim().toLowerCase();
     if (d.isEmpty) {
       return null; // null => aplica todos los días
@@ -104,7 +104,7 @@ class ScheduleUtils {
   // Especificación de schedule más completa
   // days: set de weekdays (1..7), interval: número (ej. 2 para cada 2 semanas),
   // unit: 'weeks'|'months'|'days', startDate: fecha base para calcular paridad
-  static ScheduleSpec parseScheduleString(String raw) {
+  static ScheduleSpec parseScheduleString(final String raw) {
     final s = raw.trim();
     final days = parseDiasToWeekdaySet(s);
     int? interval;
@@ -178,7 +178,10 @@ class ScheduleUtils {
     );
   }
 
-  static bool matchesDateWithInterval(DateTime date, ScheduleSpec spec) {
+  static bool matchesDateWithInterval(
+    final DateTime date,
+    final ScheduleSpec spec,
+  ) {
     // Si no hay days especificados, aplica siempre
     if (spec.days == null) return true;
     if (!spec.days!.contains(date.weekday)) return false;
@@ -206,9 +209,9 @@ class ScheduleUtils {
 }
 
 class ScheduleSpec {
+  const ScheduleSpec({this.days, this.interval, this.unit, this.startDate});
   final Set<int>? days;
   final int? interval;
   final String? unit;
   final DateTime? startDate;
-  const ScheduleSpec({this.days, this.interval, this.unit, this.startDate});
 }

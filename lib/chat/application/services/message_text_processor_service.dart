@@ -2,7 +2,7 @@
 /// Maneja la eliminación de contenido de llamadas y caracteres de escape
 class MessageTextProcessorService {
   /// Limpia el texto de un mensaje eliminando caracteres de escape y contenido de llamadas
-  static String cleanMessageText(String text) {
+  static String cleanMessageText(final String text) {
     String cleaned = text.replaceAll(r'\n', '\n').replaceAll(r'\"', '"');
     cleaned = cleaned.replaceAll(RegExp(r'\\(?!n|\")'), '');
     cleaned = cleaned.replaceAll(r'\\', '');
@@ -19,12 +19,12 @@ class MessageTextProcessorService {
   }
 
   /// Formatea la hora de un mensaje para mostrar en la UI
-  static String formatMessageTime(DateTime dateTime) {
+  static String formatMessageTime(final DateTime dateTime) {
     return "${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}";
   }
 
   /// Colapsa espacios múltiples en un texto y elimina espacios al inicio y final
-  static String collapseWhitespace(String text) {
+  static String collapseWhitespace(final String text) {
     return text.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 }

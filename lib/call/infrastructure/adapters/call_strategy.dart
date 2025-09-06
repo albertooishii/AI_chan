@@ -5,7 +5,7 @@
 /// realtime; others (google/gemini) use buffered utterance flow.
 enum CallMode { realtime, buffered }
 
-CallMode callModeForProvider(String provider) {
+CallMode callModeForProvider(final String provider) {
   final p = provider.trim().toLowerCase();
   if (p == 'openai') return CallMode.realtime;
   return CallMode.buffered;

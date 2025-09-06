@@ -5,13 +5,13 @@ import 'package:ai_chan/shared/services/ai_service.dart';
 class MessageRetryService {
   /// Retry sending message with validation and exponential backoff
   Future<AIResponse> sendWithRetries({
-    required List<Map<String, String>> history,
-    required SystemPrompt systemPrompt,
-    required String model,
-    String? imageBase64,
-    String? imageMimeType,
-    bool enableImageGeneration = false,
-    int maxRetries = 3,
+    required final List<Map<String, String>> history,
+    required final SystemPrompt systemPrompt,
+    required final String model,
+    final String? imageBase64,
+    final String? imageMimeType,
+    final bool enableImageGeneration = false,
+    final int maxRetries = 3,
   }) async {
     AIResponse response = await AIService.sendMessage(
       history,
@@ -43,7 +43,7 @@ class MessageRetryService {
     return response;
   }
 
-  int _extractWaitSeconds(String text) {
+  int _extractWaitSeconds(final String text) {
     final regex = RegExp(r'try again in ([\d\.]+)s');
     final match = regex.firstMatch(text);
     if (match != null && match.groupCount > 0) {
@@ -52,7 +52,7 @@ class MessageRetryService {
     return 8;
   }
 
-  bool hasValidText(AIResponse r) {
+  bool hasValidText(final AIResponse r) {
     final t = r.text.trim();
     if (t.isEmpty) return r.base64.isNotEmpty; // allow only image
     final lower = t.toLowerCase();
@@ -61,7 +61,7 @@ class MessageRetryService {
     return true;
   }
 
-  bool hasValidAllowedTagsStructure(String text) {
+  bool hasValidAllowedTagsStructure(final String text) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return true;
     final tagToken = RegExp(r'\[/?([a-zA-Z0-9_]+)\]');
@@ -112,7 +112,7 @@ class MessageRetryService {
       final afterAudio = trimmed.substring(closeIdx + audioClose.length);
       if (afterAudio.contains(audioOpen)) return false;
     }
-    bool balanced(String name) {
+    bool balanced(final String name) {
       final openCount = RegExp('\\[$name\\]').allMatches(trimmed).length;
       final closeCount = RegExp('\\[/$name\\]').allMatches(trimmed).length;
       return openCount == closeCount;

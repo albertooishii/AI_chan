@@ -2,15 +2,15 @@ import 'package:ai_chan/core/models.dart';
 
 abstract class IProfileService {
   Future<AiChanProfile> generateBiography({
-    required String userName,
-    required String aiName,
-    required DateTime? userBirthdate,
-    required String meetStory,
-    String? userCountryCode,
-    String? aiCountryCode,
+    required final String userName,
+    required final String aiName,
+    required final DateTime? userBirthdate,
+    required final String meetStory,
+    final String? userCountryCode,
+    final String? aiCountryCode,
   });
 
-  Future<AiImage?> generateAppearance(AiChanProfile profile);
+  Future<AiImage?> generateAppearance(final AiChanProfile profile);
 
-  Future<void> saveProfile(AiChanProfile profile);
+  Future<void> saveProfile(final AiChanProfile profile);
 }

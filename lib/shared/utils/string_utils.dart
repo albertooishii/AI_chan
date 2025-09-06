@@ -4,7 +4,7 @@
 /// ```dart
 /// normalizeForSearch("José María") // -> "jose maria"
 /// ```
-String normalizeForSearch(String text) {
+String normalizeForSearch(final String text) {
   return text
       .toLowerCase()
       .replaceAll(RegExp('[áàäâã]'), 'a')
@@ -22,7 +22,7 @@ String normalizeForSearch(String text) {
 /// ```dart
 /// removeAccents("José María") // -> "Jose Maria"
 /// ```
-String removeAccents(String text) {
+String removeAccents(final String text) {
   return text
       .replaceAll(RegExp('[áàäâã]'), 'a')
       .replaceAll(RegExp('[éèëê]'), 'e')
@@ -46,7 +46,7 @@ String removeAccents(String text) {
 /// ```dart
 /// normalizeTranscription("¡Hola, mundo!  ") // -> "hola mundo"
 /// ```
-String normalizeTranscription(String text) {
+String normalizeTranscription(final String text) {
   return text
       .toLowerCase()
       .replaceAll(RegExp(r'[^\w\s]'), '') // Remover puntuación
@@ -60,7 +60,7 @@ String normalizeTranscription(String text) {
 /// ```dart
 /// cleanSubtitleText("¡  Hola    mundo!") // -> "¡Hola mundo!"
 /// ```
-String cleanSubtitleText(String text) {
+String cleanSubtitleText(final String text) {
   var cleaned = text.trim();
   if (cleaned.isEmpty) return '';
 
@@ -70,7 +70,7 @@ String cleanSubtitleText(String text) {
   // Pegar signos de apertura con la siguiente palabra
   cleaned = cleaned.replaceAllMapped(
     RegExp(r'([¡¿])\s+([A-Za-zÁÉÍÓÚáéíóúÑñ])'),
-    (m) => '${m.group(1)}${m.group(2)}',
+    (final m) => '${m.group(1)}${m.group(2)}',
   );
 
   return cleaned;

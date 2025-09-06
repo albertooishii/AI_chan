@@ -7,13 +7,13 @@ import 'package:ai_chan/main.dart';
 // Tracks the currently visible overlay snack so we keep only one at a time.
 OverlayEntry? _currentOverlaySnackBarEntry;
 
-Future<void> showSuccessDialog(String title, String message) async {
+Future<void> showSuccessDialog(final String title, final String message) async {
   // Usar el navigatorKey global para obtener contexto, igual que showAppSnackBar
   final navState = navigatorKey.currentState;
   if (navState == null) return;
 
   return showAppDialog<void>(
-    builder: (ctx2) => AlertDialog(
+    builder: (final ctx2) => AlertDialog(
       backgroundColor: Colors.black,
       title: Text(title, style: const TextStyle(color: Colors.cyanAccent)),
       content: Text(message, style: const TextStyle(color: Colors.cyanAccent)),
@@ -28,7 +28,7 @@ Future<void> showSuccessDialog(String title, String message) async {
 }
 
 /// Muestra un diálogo de error centralizado
-Future<void> showErrorDialog(String error) async {
+Future<void> showErrorDialog(final String error) async {
   Log.e('Error mostrado', tag: 'DIALOG_UTILS', error: error);
 
   // Usar el navigatorKey global para obtener contexto, igual que showAppSnackBar
@@ -44,7 +44,7 @@ Future<void> showErrorDialog(String error) async {
   }
 
   return showAppDialog(
-    builder: (ctx2) => AlertDialog(
+    builder: (final ctx2) => AlertDialog(
       backgroundColor: Colors.black,
       title: const Text('Error', style: TextStyle(color: AppColors.secondary)),
       content: Text(error, style: const TextStyle(color: AppColors.primary)),
@@ -65,14 +65,14 @@ Future<void> showErrorDialog(String error) async {
 /// - Si `isError` es false: fondo amarillo (`AppColors.cyberpunkYellow`) y texto negro.
 /// - Si `isError` es true: fondo `AppColors.secondary` (pinkAccent) y texto blanco.
 void showAppSnackBar(
-  String message, {
-  bool isError = false,
-  Duration duration = const Duration(seconds: 3),
-  SnackBarAction? action,
+  final String message, {
+  final bool isError = false,
+  final Duration duration = const Duration(seconds: 3),
+  final SnackBarAction? action,
 
   /// Si true, usar el ScaffoldMessenger raíz si existe; por defecto false
   /// para usar la implementación basada en [Overlay] (más visible sobre dialogs).
-  bool preferRootMessenger = false,
+  final bool preferRootMessenger = false,
 }) {
   // Resolve a safe context via the global navigator key.
   final navState = navigatorKey.currentState;
@@ -118,10 +118,10 @@ void showAppSnackBar(
 ///
 /// PRIVADO: Solo debe usarse internamente. La API pública es showAppSnackBar.
 void _showOverlaySnackBar(
-  String message, {
-  bool isError = false,
-  Duration duration = const Duration(seconds: 3),
-  SnackBarAction? action,
+  final String message, {
+  final bool isError = false,
+  final Duration duration = const Duration(seconds: 3),
+  final SnackBarAction? action,
 }) {
   // Resolve a safe overlay context using the global navigator key so callers
   // don't need to pass a BuildContext (prevents use_build_context_synchronously).
@@ -138,7 +138,7 @@ void _showOverlaySnackBar(
 
   late final OverlayEntry entry;
   entry = OverlayEntry(
-    builder: (ctx) {
+    builder: (final ctx) {
       return Positioned(
         bottom: 24,
         left: 24,
@@ -217,13 +217,13 @@ void _showOverlaySnackBar(
 /// as a fallback for `context` so dialogs can be triggered from anywhere.
 /// Signature mirrors Flutter's `showDialog` to keep compatibility.
 Future<T?> showAppDialog<T>({
-  required WidgetBuilder builder,
-  bool barrierDismissible = true,
-  Color? barrierColor,
-  String? barrierLabel,
-  bool useRootNavigator = true,
-  bool useSafeArea = true,
-  RouteSettings? routeSettings,
+  required final WidgetBuilder builder,
+  final bool barrierDismissible = true,
+  final Color? barrierColor,
+  final String? barrierLabel,
+  final bool useRootNavigator = true,
+  final bool useSafeArea = true,
+  final RouteSettings? routeSettings,
 }) {
   // Resolve a safe context via the global navigator key so callers don't
   // need to pass a BuildContext. This avoids accidental capture of
@@ -244,11 +244,11 @@ Future<T?> showAppDialog<T>({
 
   return showDialog<T>(
     context: ctx,
-    builder: (dialogCtx) {
+    builder: (final dialogCtx) {
       return Theme(
         data: baseTheme.copyWith(dialogTheme: tightened),
         child: Builder(
-          builder: (innerCtx) {
+          builder: (final innerCtx) {
             // Invoke the original builder using an inner context so the
             // Theme we just inserted is visible to widgets that read
             // Theme.of(context) during their build (for example AlertDialog).
@@ -280,14 +280,13 @@ Future<T?> showAppDialog<T>({
 ///   ),
 /// ```
 class CyberpunkLoader extends StatefulWidget {
-  final String message;
-  final bool showProgressBar;
-
   const CyberpunkLoader({
     super.key,
     required this.message,
     this.showProgressBar = false,
   });
+  final String message;
+  final bool showProgressBar;
 
   @override
   State<CyberpunkLoader> createState() => _CyberpunkLoaderState();
@@ -381,7 +380,7 @@ class _CyberpunkLoaderState extends State<CyberpunkLoader>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     return AnimatedOpacity(
       opacity: _isVisible ? 1.0 : 0.7,
       duration: const Duration(milliseconds: 100),

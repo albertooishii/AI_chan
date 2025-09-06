@@ -137,7 +137,7 @@ APPLICATION LAYER RULES:
       // Check critical implementations exist
       final criticalInterfaces = ['IChatRepository', 'IPromptBuilderService'];
       for (final interface in criticalInterfaces) {
-        final hasImplementation = infraFiles.any((file) {
+        final hasImplementation = infraFiles.any((final file) {
           final content = file.readAsStringSync();
           return content.contains('implements $interface');
         });
@@ -296,7 +296,7 @@ REQUIRED FOR CLEAN ARCHITECTURE:
   });
 }
 
-List<File> _findFilesInLayer(String layer) {
+List<File> _findFilesInLayer(final String layer) {
   final files = <File>[];
   final layerDir = Directory('lib');
 
@@ -314,6 +314,6 @@ List<File> _findFilesInLayer(String layer) {
   return files;
 }
 
-String _getRelativePath(File file) {
+String _getRelativePath(final File file) {
   return file.path.replaceFirst(RegExp(r'^.*lib/'), 'lib/');
 }

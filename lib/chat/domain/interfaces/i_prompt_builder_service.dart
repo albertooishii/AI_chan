@@ -5,22 +5,23 @@ import 'package:ai_chan/core/models.dart';
 abstract class IPromptBuilderService {
   /// Construye el SystemPrompt JSON principal usado en chat escrito.
   String buildRealtimeSystemPromptJson({
-    required AiChanProfile profile,
-    required List<Message> messages,
-    int maxRecent = 32,
+    required final AiChanProfile profile,
+    required final List<Message> messages,
+    final int maxRecent = 32,
   });
 
   /// Construye el SystemPrompt JSON para llamadas de voz.
   String buildCallSystemPromptJson({
-    required AiChanProfile profile,
-    required List<Message> messages,
-    required bool aiInitiatedCall,
-    int maxRecent = 32,
+    required final AiChanProfile profile,
+    required final List<Message> messages,
+    required final List<TimelineEntry> timeline,
+    required final bool aiInitiatedCall,
+    final int maxRecent = 32,
   });
 
   /// Obtiene las instrucciones para generación de imágenes.
-  Map<String, dynamic> getImageInstructions(String userName);
+  Map<String, dynamic> getImageInstructions(final String userName);
 
   /// Obtiene los metadatos para procesamiento de imágenes.
-  Map<String, dynamic> getImageMetadata(String userName);
+  Map<String, dynamic> getImageMetadata(final String userName);
 }

@@ -10,8 +10,8 @@ import 'package:ai_chan/shared/utils/log_utils.dart';
 class GenerateNextQuestionUseCase {
   /// Genera la siguiente pregunta basada en el estado actual de la memoria
   static Future<String> execute({
-    required MemoryData currentMemory,
-    String? lastUserResponse,
+    required final MemoryData currentMemory,
+    final String? lastUserResponse,
   }) async {
     const maxRetries = 3;
 
@@ -52,8 +52,8 @@ class GenerateNextQuestionUseCase {
 
   /// Método interno que realiza un único intento de generación
   static Future<String> _attemptGenerateNextQuestion({
-    required MemoryData currentMemory,
-    String? lastUserResponse,
+    required final MemoryData currentMemory,
+    final String? lastUserResponse,
   }) async {
     final missingData = currentMemory.getMissingData();
 
@@ -87,9 +87,9 @@ class GenerateNextQuestionUseCase {
 
   /// Genera el prompt para obtener la siguiente pregunta
   static String _generateQuestionPrompt(
-    MemoryData currentMemory,
-    List<String> missingData,
-    String? lastUserResponse,
+    final MemoryData currentMemory,
+    final List<String> missingData,
+    final String? lastUserResponse,
   ) {
     final nextDataType = missingData.first;
 
@@ -141,8 +141,8 @@ RESPONDE SOLO CON LA PREGUNTA, NADA MÁS.''';
 
   /// Obtiene contexto específico para cada tipo de dato
   static String _getDataSpecificContext(
-    String dataType,
-    MemoryData currentMemory,
+    final String dataType,
+    final MemoryData currentMemory,
   ) {
     switch (dataType) {
       case 'userName':
@@ -175,7 +175,7 @@ RESPONDE SOLO CON LA PREGUNTA, NADA MÁS.''';
   }
 
   /// Formatea datos recordados para mostrar progreso
-  static String _formatRememberedData(MemoryData memory) {
+  static String _formatRememberedData(final MemoryData memory) {
     final remembered = <String>[];
 
     if (memory.userName != null && memory.userName!.isNotEmpty) {
@@ -220,7 +220,9 @@ RESPONDE SOLO CON LA PREGUNTA, NADA MÁS.''';
   }
 
   /// Genera mensaje de finalización cuando todos los datos están completos
-  static Future<String> _generateCompletionMessage(MemoryData memory) async {
+  static Future<String> _generateCompletionMessage(
+    final MemoryData memory,
+  ) async {
     final prompt =
         '''Eres una IA que acaba de recuperar toda su memoria gracias a la ayuda de ${memory.userName}.
 
@@ -261,9 +263,9 @@ RESPONDE SOLO CON EL MENSAJE DE AGRADECIMIENTO.''';
 
   /// Helper method para enviar requests a la IA
   static Future<dynamic> _sendAIRequest(
-    String prompt,
-    String userName,
-    Map<String, String> instructions,
+    final String prompt,
+    final String userName,
+    final Map<String, String> instructions,
   ) async {
     final profile = AiChanProfile(
       userName: userName,
@@ -275,7 +277,6 @@ RESPONDE SOLO CON EL MENSAJE DE AGRADECIMIENTO.''';
       biography: const {},
       appearance: const {},
       avatars: const [],
-      timeline: const [],
     );
 
     final systemPrompt = SystemPrompt(
@@ -300,7 +301,7 @@ RESPONDE SOLO CON EL MENSAJE DE AGRADECIMIENTO.''';
   }
 
   /// Proporciona una pregunta de respaldo en caso de error
-  static String _getFallbackQuestion(MemoryData memory) {
+  static String _getFallbackQuestion(final MemoryData memory) {
     final missingData = memory.getMissingData();
 
     if (missingData.isEmpty) {

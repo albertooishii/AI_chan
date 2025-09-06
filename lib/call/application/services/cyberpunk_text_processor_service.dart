@@ -60,7 +60,7 @@ class CyberpunkTextProcessorService {
   static const List<String> _vowels = ['ア', 'エ', 'イ', 'オ', 'ウ'];
 
   /// Verifica si un caracter es puntuación o espacio
-  static bool isPunctuationOrSpace(String char) {
+  static bool isPunctuationOrSpace(final String char) {
     return _punctOrSpace.hasMatch(char);
   }
 
@@ -70,12 +70,12 @@ class CyberpunkTextProcessorService {
   }
 
   /// Verifica si un texto contiene puntuación o espacios
-  static bool containsPunctuationOrSpace(String text) {
+  static bool containsPunctuationOrSpace(final String text) {
     return _punctOrSpace.hasMatch(text);
   }
 
   /// Genera un caracter aleatorio de una lista de códigos de caracter
-  static String randomCharFromCodes(List<int> codes) {
+  static String randomCharFromCodes(final List<int> codes) {
     return String.fromCharCode(codes[_rand.nextInt(codes.length)]);
   }
 

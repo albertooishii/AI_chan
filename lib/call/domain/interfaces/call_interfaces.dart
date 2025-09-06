@@ -6,31 +6,34 @@ import 'package:ai_chan/call/domain/models/call_message.dart';
 /// Repositorio para persistir y recuperar llamadas
 abstract interface class ICallRepository {
   /// Guarda una llamada
-  Future<void> saveCall(Call call);
+  Future<void> saveCall(final Call call);
 
   /// Recupera una llamada por ID
-  Future<Call?> getCall(String id);
+  Future<Call?> getCall(final String id);
 
   /// Recupera todas las llamadas
   Future<List<Call>> getAllCalls();
 
   /// Recupera llamadas por rango de fechas
-  Future<List<Call>> getCallsByDateRange(DateTime from, DateTime to);
+  Future<List<Call>> getCallsByDateRange(
+    final DateTime from,
+    final DateTime to,
+  );
 
   /// Elimina una llamada
-  Future<void> deleteCall(String id);
+  Future<void> deleteCall(final String id);
 
   /// Elimina todas las llamadas
   Future<void> deleteAllCalls();
 
   /// Actualiza una llamada existente
-  Future<void> updateCall(Call call);
+  Future<void> updateCall(final Call call);
 
   /// Agrega un mensaje a una llamada existente
-  Future<void> addMessageToCall(String callId, CallMessage message);
+  Future<void> addMessageToCall(final String callId, final CallMessage message);
 
   /// Obtiene el historial de mensajes de una llamada
-  Future<List<CallMessage>> getCallMessages(String callId);
+  Future<List<CallMessage>> getCallMessages(final String callId);
 }
 
 // Nota: Las interfaces IVoiceSttService, IVoiceTtsService e IVoiceAiService
@@ -43,9 +46,9 @@ abstract interface class ICallRepository {
 abstract interface class IRealtimeCallClient {
   /// Conecta al servicio de tiempo real
   Future<void> connect({
-    required String systemPrompt,
-    String voice = 'default',
-    Map<String, dynamic>? options,
+    required final String systemPrompt,
+    final String voice = 'default',
+    final Map<String, dynamic>? options,
   });
 
   /// Desconecta del servicio
@@ -55,16 +58,16 @@ abstract interface class IRealtimeCallClient {
   bool get isConnected;
 
   /// Envía audio al servicio
-  void sendAudio(List<int> audioBytes);
+  void sendAudio(final List<int> audioBytes);
 
   /// Envía texto al servicio
-  void sendText(String text);
+  void sendText(final String text);
 
   /// Actualiza la voz en tiempo real
-  void updateVoice(String voice);
+  void updateVoice(final String voice);
 
   /// Solicita una respuesta del asistente
-  void requestResponse({bool audio = true, bool text = true});
+  void requestResponse({final bool audio = true, final bool text = true});
 
   /// Stream de texto recibido del asistente
   Stream<String> get textStream;
@@ -104,7 +107,7 @@ abstract interface class IVoiceCallController {
   bool get isMuted;
 
   /// Envía audio al servicio
-  void sendAudio(List<int> audioBytes);
+  void sendAudio(final List<int> audioBytes);
 
   /// Obtiene el nivel de audio actual
   double get audioLevel;
@@ -129,7 +132,7 @@ abstract interface class IVoiceCallController {
 /// Se usa en use cases para abstraer la implementación específica
 abstract interface class IAudioManager {
   /// Configura si el micrófono está silenciado
-  void setMuted(bool muted);
+  void setMuted(final bool muted);
 
   /// Obtiene el estado actual del micrófono
   bool get isMuted;
@@ -138,7 +141,7 @@ abstract interface class IAudioManager {
   Stream<double> get audioLevelStream;
 
   /// Actualiza el nivel de audio
-  void updateAudioLevel(double level);
+  void updateAudioLevel(final double level);
 
   /// Inicializa el manejo de audio
   Future<void> initialize();

@@ -6,17 +6,16 @@ import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // �
 /// Orchestrates business logic for the chat interface
 /// Following Clean Architecture principles
 class ChatScreenController extends ChangeNotifier {
+  ChatScreenController({
+    required final ChatController chatController,
+  }) // ✅ DDD: ETAPA 3 - DDD puro
+  : _chatController = chatController;
   final ChatController _chatController; // ✅ DDD: ETAPA 3 - DDD puro
 
   // UI State
   bool _isLoading = false;
   String? _errorMessage;
   int _displayedMessageCount = 50;
-
-  ChatScreenController({
-    required ChatController chatController,
-  }) // ✅ DDD: ETAPA 3 - DDD puro
-  : _chatController = chatController;
 
   // Getters
   bool get isLoading => _isLoading;
@@ -26,14 +25,14 @@ class ChatScreenController extends ChangeNotifier {
       _chatController; // ✅ DDD: ETAPA 3 - DDD puro
 
   // UI State Management
-  void setLoading(bool loading) {
+  void setLoading(final bool loading) {
     if (_isLoading != loading) {
       _isLoading = loading;
       notifyListeners();
     }
   }
 
-  void setError(String? error) {
+  void setError(final String? error) {
     if (_errorMessage != error) {
       _errorMessage = error;
       notifyListeners();
@@ -52,7 +51,7 @@ class ChatScreenController extends ChangeNotifier {
     return _chatController
         .messages // ✅ DDD: ETAPA 3 - usar ChatController directo
         .where(
-          (m) =>
+          (final m) =>
               m.sender != MessageSender.system ||
               (m.sender == MessageSender.system && m.text.contains('[call]')),
         )
@@ -70,7 +69,7 @@ class ChatScreenController extends ChangeNotifier {
   }
 
   // Chat Operations - delegate to ChatProvider
-  Future<void> sendMessage(String message) async {
+  Future<void> sendMessage(final String message) async {
     try {
       setLoading(true);
       clearError();
@@ -86,7 +85,7 @@ class ChatScreenController extends ChangeNotifier {
   }
 
   // Model Selection
-  void selectModel(String model) {
+  void selectModel(final String model) {
     try {
       clearError();
       _chatController.setSelectedModel(

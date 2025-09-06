@@ -9,6 +9,27 @@ import 'package:http/http.dart' as http;
 /// Native Google Sign-In adapter for Android/iOS with proper token handling
 /// Singleton pattern to avoid multiple event listeners
 class GoogleSignInMobileAdapter {
+  GoogleSignInMobileAdapter._internal({
+    required this.scopes,
+    this.clientId,
+    this.serverClientId,
+  }) {
+    _signIn = GoogleSignIn.instance;
+  }
+
+  /// Get singleton instance
+  factory GoogleSignInMobileAdapter({
+    required final List<String> scopes,
+    final String? clientId,
+    final String? serverClientId,
+  }) {
+    _instance ??= GoogleSignInMobileAdapter._internal(
+      scopes: scopes,
+      clientId: clientId,
+      serverClientId: serverClientId,
+    );
+    return _instance!;
+  }
   static GoogleSignInMobileAdapter? _instance;
 
   final List<String> scopes;
@@ -20,28 +41,6 @@ class GoogleSignInMobileAdapter {
   StreamSubscription<GoogleSignInAuthenticationEvent>? _authSubscription;
 
   late final GoogleSignIn _signIn;
-
-  GoogleSignInMobileAdapter._internal({
-    required this.scopes,
-    this.clientId,
-    this.serverClientId,
-  }) {
-    _signIn = GoogleSignIn.instance;
-  }
-
-  /// Get singleton instance
-  factory GoogleSignInMobileAdapter({
-    required List<String> scopes,
-    String? clientId,
-    String? serverClientId,
-  }) {
-    _instance ??= GoogleSignInMobileAdapter._internal(
-      scopes: scopes,
-      clientId: clientId,
-      serverClientId: serverClientId,
-    );
-    return _instance!;
-  }
 
   /// Initialize the adapter and configure GoogleSignIn
   Future<void> initialize() async {
@@ -79,7 +78,7 @@ class GoogleSignInMobileAdapter {
 
   /// Handle authentication events from GoogleSignIn
   Future<void> _handleAuthenticationEvent(
-    GoogleSignInAuthenticationEvent event,
+    final GoogleSignInAuthenticationEvent event,
   ) async {
     switch (event) {
       case GoogleSignInAuthenticationEventSignIn():
@@ -100,7 +99,7 @@ class GoogleSignInMobileAdapter {
   }
 
   /// Handle authentication errors
-  Future<void> _handleAuthenticationError(Object error) async {
+  Future<void> _handleAuthenticationError(final Object error) async {
     Log.e(
       'GoogleSignInMobileAdapter: authentication error: $error',
       tag: 'GoogleSignIn',
@@ -169,8 +168,8 @@ class GoogleSignInMobileAdapter {
 
   /// Sign in with Google and obtain tokens including refresh_token
   Future<Map<String, dynamic>> signIn({
-    List<String>? scopes,
-    bool forceAccountChooser = true,
+    final List<String>? scopes,
+    final bool forceAccountChooser = true,
   }) async {
     final usedScopes = scopes ?? this.scopes;
     Log.d(
@@ -238,9 +237,9 @@ class GoogleSignInMobileAdapter {
 
   /// Build token map from authorization
   Future<Map<String, dynamic>> _buildTokenMap(
-    GoogleSignInAccount account,
-    GoogleSignInClientAuthorization authorization,
-    List<String> scopes,
+    final GoogleSignInAccount account,
+    final GoogleSignInClientAuthorization authorization,
+    final List<String> scopes,
   ) async {
     try {
       final headers = await account.authorizationClient.authorizationHeaders(
@@ -311,7 +310,7 @@ class GoogleSignInMobileAdapter {
   }
 
   /// Extract access token from authorization headers
-  String? _extractAccessTokenFromHeaders(Map<String, String>? headers) {
+  String? _extractAccessTokenFromHeaders(final Map<String, String>? headers) {
     if (headers == null) return null;
 
     final authHeader = headers['Authorization'];
@@ -323,7 +322,9 @@ class GoogleSignInMobileAdapter {
   }
 
   /// Sign in silently without showing account chooser
-  Future<Map<String, dynamic>?> signInSilently({List<String>? scopes}) async {
+  Future<Map<String, dynamic>?> signInSilently({
+    final List<String>? scopes,
+  }) async {
     final usedScopes = scopes ?? this.scopes;
 
     try {
@@ -361,7 +362,7 @@ class GoogleSignInMobileAdapter {
 
   /// Exchange server auth code for refresh token
   Future<Map<String, dynamic>> _exchangeServerAuthCode(
-    String serverAuthCode,
+    final String serverAuthCode,
   ) async {
     final webClientId = Config.get('GOOGLE_CLIENT_ID_WEB', '').trim();
     final webClientSecret = Config.get('GOOGLE_CLIENT_SECRET_WEB', '').trim();

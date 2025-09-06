@@ -3,11 +3,6 @@ import 'package:ai_chan/core/models.dart';
 /// Chat Conversation - Domain Aggregate
 /// Representa una conversación de chat completa con sus mensajes y eventos
 class ChatConversation {
-  final List<Message> messages;
-  final List<ChatEvent> events;
-  final DateTime createdAt;
-  final DateTime lastUpdatedAt;
-
   ChatConversation({
     required this.messages,
     required this.events,
@@ -26,8 +21,33 @@ class ChatConversation {
     );
   }
 
+  /// Deserialización desde persistencia
+  factory ChatConversation.fromJson(final Map<String, dynamic> json) {
+    final messagesList = (json['messages'] as List? ?? [])
+        .cast<Map<String, dynamic>>()
+        .map(Message.fromJson)
+        .toList();
+
+    final eventsList = (json['events'] as List? ?? [])
+        .cast<Map<String, dynamic>>()
+        .map(ChatEvent.fromJson)
+        .toList();
+
+    return ChatConversation(
+      messages: messagesList,
+      events: eventsList,
+      createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
+      lastUpdatedAt:
+          DateTime.tryParse(json['lastUpdatedAt'] ?? '') ?? DateTime.now(),
+    );
+  }
+  final List<Message> messages;
+  final List<ChatEvent> events;
+  final DateTime createdAt;
+  final DateTime lastUpdatedAt;
+
   /// Añade un mensaje a la conversación
-  ChatConversation addMessage(Message message) {
+  ChatConversation addMessage(final Message message) {
     final updatedMessages = List<Message>.from(messages)..add(message);
     return ChatConversation(
       messages: updatedMessages,
@@ -38,7 +58,7 @@ class ChatConversation {
   }
 
   /// Añade un evento a la conversación
-  ChatConversation addEvent(ChatEvent event) {
+  ChatConversation addEvent(final ChatEvent event) {
     final updatedEvents = List<ChatEvent>.from(events)..add(event);
     return ChatConversation(
       messages: messages,
@@ -50,8 +70,8 @@ class ChatConversation {
 
   /// Actualiza el estado de un mensaje específico
   ChatConversation updateMessageStatus(
-    int messageIndex,
-    MessageStatus newStatus,
+    final int messageIndex,
+    final MessageStatus newStatus,
   ) {
     if (messageIndex < 0 || messageIndex >= messages.length) {
       return this; // No cambios si el índice es inválido
@@ -71,14 +91,16 @@ class ChatConversation {
   }
 
   /// Obtiene los mensajes más recientes limitados por cantidad
-  List<Message> getRecentMessages(int limit) {
+  List<Message> getRecentMessages(final int limit) {
     if (messages.length <= limit) return List.unmodifiable(messages);
     return List.unmodifiable(messages.sublist(messages.length - limit));
   }
 
   /// Obtiene solo los mensajes que no son del sistema
   List<Message> get userAndAssistantMessages {
-    return messages.where((msg) => msg.sender != MessageSender.system).toList();
+    return messages
+        .where((final msg) => msg.sender != MessageSender.system)
+        .toList();
   }
 
   /// Obtiene la cantidad total de mensajes
@@ -97,30 +119,9 @@ class ChatConversation {
 
   /// Serialización para persistencia
   Map<String, dynamic> toJson() => {
-    'messages': messages.map((m) => m.toJson()).toList(),
-    'events': events.map((e) => e.toJson()).toList(),
+    'messages': messages.map((final m) => m.toJson()).toList(),
+    'events': events.map((final e) => e.toJson()).toList(),
     'createdAt': createdAt.toIso8601String(),
     'lastUpdatedAt': lastUpdatedAt.toIso8601String(),
   };
-
-  /// Deserialización desde persistencia
-  factory ChatConversation.fromJson(Map<String, dynamic> json) {
-    final messagesList = (json['messages'] as List? ?? [])
-        .cast<Map<String, dynamic>>()
-        .map(Message.fromJson)
-        .toList();
-
-    final eventsList = (json['events'] as List? ?? [])
-        .cast<Map<String, dynamic>>()
-        .map(ChatEvent.fromJson)
-        .toList();
-
-    return ChatConversation(
-      messages: messagesList,
-      events: eventsList,
-      createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
-      lastUpdatedAt:
-          DateTime.tryParse(json['lastUpdatedAt'] ?? '') ?? DateTime.now(),
-    );
-  }
 }

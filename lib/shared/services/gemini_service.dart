@@ -19,12 +19,12 @@ class GeminiService implements AIService {
   @override
   Future<List<String>> getAvailableModels() async {
     // Obtiene la lista real de modelos desde el endpoint de Gemini con fallback de API key
-    bool isQuotaLike(int code, String body) {
+    bool isQuotaLike(final int code, final String body) {
       if (code == 400 || code == 403 || code == 429) return true;
       return false;
     }
 
-    Future<http.Response> getWithKey(String key) async {
+    Future<http.Response> getWithKey(final String key) async {
       final url = Uri.parse(
         'https://generativelanguage.googleapis.com/v1beta/models?key=$key',
       );
@@ -92,7 +92,7 @@ class GeminiService implements AIService {
       // Ordena los grupos con versión por versión descendente
       final ordered = <String>[];
       final sortedVersionKeys = versionGroups.keys.toList()
-        ..sort((a, b) {
+        ..sort((final a, final b) {
           final vA =
               double.tryParse(
                 RegExp(r'gemini-(\d+\.\d+)').firstMatch(a)?.group(1) ?? '0',
@@ -108,7 +108,7 @@ class GeminiService implements AIService {
       for (final key in sortedVersionKeys) {
         final models = versionGroups[key]!;
         // El modelo base primero, luego variantes alfabéticamente
-        models.sort((a, b) {
+        models.sort((final a, final b) {
           if (a == key) return -1;
           if (b == key) return 1;
           return a.compareTo(b);
@@ -132,12 +132,12 @@ class GeminiService implements AIService {
   /// Envía un mensaje a Gemini o genera una imagen con Imagen según el modelo seleccionado
   @override
   Future<AIResponse> sendMessageImpl(
-    List<Map<String, String>> history,
-    SystemPrompt systemPrompt, {
-    String? model,
-    String? imageBase64,
-    String? imageMimeType,
-    bool enableImageGeneration = false,
+    final List<Map<String, String>> history,
+    final SystemPrompt systemPrompt, {
+    final String? model,
+    final String? imageBase64,
+    final String? imageMimeType,
+    final bool enableImageGeneration = false,
   }) async {
     final primary = _primaryKey;
     final fallback = _fallbackKey;
@@ -245,7 +245,7 @@ class GeminiService implements AIService {
     final Map<String, dynamic> requestPayload = {'contents': contents};
     final body = jsonEncode(requestPayload);
 
-    Future<AIResponse> parseAndBuild(String respBody) async {
+    Future<AIResponse> parseAndBuild(final String respBody) async {
       final data = jsonDecode(respBody);
       String? text;
       String? imagePrompt;
@@ -283,12 +283,12 @@ class GeminiService implements AIService {
       if (modelId.startsWith('models/')) {
         modelId = modelId.replaceFirst('models/', '');
       }
-      bool isQuotaLike(int code, String body) {
+      bool isQuotaLike(final int code, final String body) {
         if (code == 400 || code == 403 || code == 429) return true;
         return false;
       }
 
-      Future<http.Response> doPost(String key) {
+      Future<http.Response> doPost(final String key) {
         final mUrl = Uri.parse(
           '$endpointBase$modelId:generateContent?key=$key',
         );
@@ -346,7 +346,7 @@ class GeminiService implements AIService {
           final available = await getAvailableModels();
           if (available.isNotEmpty) {
             final fallbackModel = available.firstWhere(
-              (m) => m.trim().isNotEmpty && m != modelId,
+              (final m) => m.trim().isNotEmpty && m != modelId,
               orElse: () => available.first,
             );
             if (fallbackModel.isNotEmpty && fallbackModel != modelId) {
@@ -400,11 +400,11 @@ class GeminiService implements AIService {
 
   // Estimación rápida de tokens (igual que OpenAI)
   int estimateTokens(
-    List<Map<String, String>> history,
-    SystemPrompt systemPrompt,
+    final List<Map<String, String>> history,
+    final SystemPrompt systemPrompt,
   ) {
     int charCount = jsonEncode(systemPrompt.toJson()).length;
-    for (var msg in history) {
+    for (final msg in history) {
       charCount += msg['content']?.length ?? 0;
     }
     return (charCount / 4).round();

@@ -5,16 +5,15 @@ import 'package:ai_chan/core/config.dart';
 
 /// Servicio unificado de promesas IA: detección, duplicados, restauración y scheduling.
 class PromiseService {
-  final List<EventEntry> events; // referencia viva a la lista de eventos global
-  final VoidCallback onEventsChanged;
-  final Future<void> Function(String text, {String? callPrompt, String? model})
-  sendSystemPrompt;
-
   PromiseService({
     required this.events,
     required this.onEventsChanged,
     required this.sendSystemPrompt,
   });
+  final List<EventEntry> events; // referencia viva a la lista de eventos global
+  final VoidCallback onEventsChanged;
+  final Future<void> Function(String text, {String? callPrompt, String? model})
+  sendSystemPrompt;
 
   final List<Timer> _timers = [];
 
@@ -35,7 +34,11 @@ class PromiseService {
   }
 
   // ================== SCHEDULING ==================
-  void _scheduleTimer(DateTime target, String motivo, String originalText) {
+  void _scheduleTimer(
+    final DateTime target,
+    final String motivo,
+    final String originalText,
+  ) {
     final now = DateTime.now();
     final delay = target.difference(now);
     if (delay.inSeconds <= 0) return;
@@ -48,7 +51,7 @@ class PromiseService {
     _timers.add(t);
   }
 
-  void schedulePromiseEvent(EventEntry e) {
+  void schedulePromiseEvent(final EventEntry e) {
     if (e.type == 'promesa' &&
         e.date != null &&
         e.date!.isAfter(DateTime.now())) {
@@ -94,10 +97,10 @@ class PromiseService {
   ];
 
   bool _isDuplicated({
-    String? motivo,
-    DateTime? target,
-    String? originalText,
-    Duration window = const Duration(minutes: 10),
+    final String? motivo,
+    final DateTime? target,
+    final String? originalText,
+    final Duration window = const Duration(minutes: 10),
   }) {
     final now = DateTime.now();
     final motivoLower = motivo?.toLowerCase() ?? '';
@@ -122,7 +125,7 @@ class PromiseService {
       }
       if (motivoLower.isNotEmpty) {
         final overlap = _keywords.any(
-          (kw) => motivoLower.contains(kw) && eventMotivo.contains(kw),
+          (final kw) => motivoLower.contains(kw) && eventMotivo.contains(kw),
         );
         if (overlap) {
           if (target == null) {
@@ -137,7 +140,7 @@ class PromiseService {
     return false;
   }
 
-  void analyzeAfterIaMessage(List<Message> messages) {
+  void analyzeAfterIaMessage(final List<Message> messages) {
     if (messages.isEmpty) return;
     final last = messages.last;
     if (last.sender != MessageSender.assistant) return;
@@ -256,7 +259,9 @@ class PromiseService {
       'si me acuerdo te llamo',
     ];
     final matchVago = regexVago.firstMatch(text);
-    final contieneCondicional = condicionales.any((c) => text.contains(c));
+    final contieneCondicional = condicionales.any(
+      (final c) => text.contains(c),
+    );
     final palabrasTiempo = [
       'mañana',
       'noche',
@@ -267,7 +272,7 @@ class PromiseService {
       'más tarde',
       'luego',
     ];
-    final contieneTiempo = palabrasTiempo.any((p) => text.contains(p));
+    final contieneTiempo = palabrasTiempo.any((final p) => text.contains(p));
     if (matchVago != null && !contieneCondicional && !contieneTiempo) {
       final now = DateTime.now();
       final minutosRestantes = 60 - now.minute;

@@ -50,15 +50,15 @@ FileUIService getFileUIService() => FileUIService(getFileOperationsService());
 
 /// Factory for audio chat service with required callbacks
 IAudioChatService getAudioChatService({
-  required void Function() onStateChanged,
-  required void Function(List<int>) onWaveform,
+  required final void Function() onStateChanged,
+  required final void Function(List<int>) onWaveform,
 }) => AudioChatService(onStateChanged: onStateChanged, onWaveform: onWaveform);
 
 /// Fábrica centralizada para obtener instancias de `IAIService` por modelo.
 /// Mantiene singletons por proveedor para reutilizar estado interno (caches, preferencias de clave, etc.).
 final Map<String, IAIService> _aiServiceSingletons = {};
 
-IAIService getAIServiceForModel(String modelId) {
+IAIService getAIServiceForModel(final String modelId) {
   final normalized = modelId.trim().toLowerCase();
   String key = normalized;
   if (key.isEmpty) key = 'default';
@@ -121,22 +121,22 @@ AudioPlayback? _testAudioPlaybackOverride;
 
 /// Factory for production code to obtain an AudioPlayback instance. Tests can
 /// override it via [setTestAudioPlaybackOverride].
-AudioPlayback getAudioPlayback([dynamic candidate]) {
+AudioPlayback getAudioPlayback([final dynamic candidate]) {
   if (_testAudioPlaybackOverride != null) return _testAudioPlaybackOverride!;
   return AudioPlayback.adapt(candidate);
 }
 
-void setTestAudioPlaybackOverride(AudioPlayback? impl) {
+void setTestAudioPlaybackOverride(final AudioPlayback? impl) {
   _testAudioPlaybackOverride = impl;
 }
 
 /// Permite a los tests inyectar un ISttService falso globalmente.
-void setTestSttOverride(ISttService? impl) {
+void setTestSttOverride(final ISttService? impl) {
   _testSttOverride = impl;
 }
 
 /// Provider-specific factories (useful for calls where we want Google-backed STT/TTS)
-ISttService getSttServiceForProvider(String provider) {
+ISttService getSttServiceForProvider(final String provider) {
   final p = provider.toLowerCase();
   if (p == 'google') {
     return _testSttOverride ?? const GoogleSttAdapter();
@@ -150,7 +150,7 @@ ISttService getSttServiceForProvider(String provider) {
   return getSttService();
 }
 
-ITtsService getTtsServiceForProvider(String provider) {
+ITtsService getTtsServiceForProvider(final String provider) {
   final p = provider.toLowerCase();
   if (p == 'google') {
     return const GoogleTtsAdapter();
@@ -176,8 +176,8 @@ final Map<String, RealtimeClientCreator> _realtimeClientRegistry = {};
 
 /// Register a realtime client factory for a provider key (e.g. 'openai', 'google').
 void registerRealtimeClientFactory(
-  String provider,
-  RealtimeClientCreator creator,
+  final String provider,
+  final RealtimeClientCreator creator,
 ) {
   _realtimeClientRegistry[provider.trim().toLowerCase()] = creator;
 }
@@ -188,14 +188,14 @@ void registerRealtimeClientFactory(
 
 /// A fallback client returned when a provider has not been registered.
 class NotSupportedRealtimeClient implements IRealtimeClient {
-  final String provider;
   NotSupportedRealtimeClient(this.provider);
+  final String provider;
 
   @override
   bool get isConnected => false;
 
   @override
-  void appendAudio(List<int> bytes) {
+  void appendAudio(final List<int> bytes) {
     // no-op
   }
 
@@ -211,13 +211,13 @@ class NotSupportedRealtimeClient implements IRealtimeClient {
 
   @override
   Future<void> connect({
-    required String systemPrompt,
-    String voice = 'marin',
-    String? inputAudioFormat,
-    String? outputAudioFormat,
-    String? turnDetectionType,
-    int? silenceDurationMs,
-    Map<String, dynamic>? options,
+    required final String systemPrompt,
+    final String voice = 'marin',
+    final String? inputAudioFormat,
+    final String? outputAudioFormat,
+    final String? turnDetectionType,
+    final int? silenceDurationMs,
+    final Map<String, dynamic>? options,
   }) async {
     throw UnsupportedError(
       'Realtime provider "$provider" not supported/configured',
@@ -225,45 +225,45 @@ class NotSupportedRealtimeClient implements IRealtimeClient {
   }
 
   @override
-  void requestResponse({bool audio = true, bool text = true}) {
+  void requestResponse({final bool audio = true, final bool text = true}) {
     // no-op
   }
 
   @override
-  void sendText(String text) {
+  void sendText(final String text) {
     // no-op
   }
 
   @override
-  void updateVoice(String voice) {
+  void updateVoice(final String voice) {
     // no-op
   }
 
   // Implementaciones por defecto de los nuevos métodos
   @override
   void sendImageWithText({
-    required String imageBase64,
-    String? text,
-    String imageFormat = 'png',
+    required final String imageBase64,
+    final String? text,
+    final String imageFormat = 'png',
   }) {
     // no-op - funcionalidad no soportada
   }
 
   @override
-  void configureTools(List<Map<String, dynamic>> tools) {
+  void configureTools(final List<Map<String, dynamic>> tools) {
     // no-op - funcionalidad no soportada
   }
 
   @override
   void sendFunctionCallOutput({
-    required String callId,
-    required String output,
+    required final String callId,
+    required final String output,
   }) {
     // no-op - funcionalidad no soportada
   }
 
   @override
-  void cancelResponse({String? itemId, int? sampleCount}) {
+  void cancelResponse({final String? itemId, final int? sampleCount}) {
     // no-op - funcionalidad no soportada
   }
 }
@@ -285,19 +285,19 @@ typedef RealtimeClientFactory =
 RealtimeClientFactory? _testRealtimeClientFactory;
 
 /// Allow tests to install a factory to create a fake realtime client.
-void setTestRealtimeClientFactory(RealtimeClientFactory? factory) {
+void setTestRealtimeClientFactory(final RealtimeClientFactory? factory) {
   _testRealtimeClientFactory = factory;
 }
 
 /// Factory that uses the registry (or the test override) to create a realtime client.
 IRealtimeClient getRealtimeClientForProvider(
-  String provider, {
-  String? model,
-  void Function(String)? onText,
-  void Function(Uint8List)? onAudio,
-  void Function()? onCompleted,
-  void Function(Object)? onError,
-  void Function(String)? onUserTranscription,
+  final String provider, {
+  final String? model,
+  final void Function(String)? onText,
+  final void Function(Uint8List)? onAudio,
+  final void Function()? onCompleted,
+  final void Function(Object)? onError,
+  final void Function(String)? onUserTranscription,
 }) {
   // Test override: if tests provided a factory, use it so tests can inject
   // a fake realtime client wired with the same callbacks the production
@@ -333,7 +333,7 @@ IRealtimeClient getRealtimeClientForProvider(
   return NotSupportedRealtimeClient(provider);
 }
 
-IProfileService getProfileServiceForProvider([String? provider]) {
+IProfileService getProfileServiceForProvider([final String? provider]) {
   // If caller passes provider explicitly, use it.
   if (provider != null && provider.trim().isNotEmpty) {
     final p = provider.toLowerCase();

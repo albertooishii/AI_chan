@@ -7,11 +7,11 @@ import 'package:ai_chan/chat/infrastructure/services/prompt_builder_service.dart
 class OnboardingUtils {
   /// Genera sugerencia para "cómo nos conocimos" basada en los datos recopilados
   static Future<String> generateMeetStoryFromContext({
-    required String userName,
-    required String aiName,
-    String? userCountry,
-    String? aiCountry,
-    DateTime? userBirthdate,
+    required final String userName,
+    required final String aiName,
+    final String? userCountry,
+    final String? aiCountry,
+    final DateTime? userBirthdate,
   }) async {
     final prompt = PromptBuilderService.buildMeetStoryPrompt(
       userName: userName,
@@ -27,7 +27,6 @@ class OnboardingUtils {
       aiBirthdate: DateTime.now(),
       biography: {},
       appearance: {},
-      timeline: [],
     );
 
     final systemPrompt = SystemPrompt(
@@ -42,7 +41,7 @@ class OnboardingUtils {
         'content': prompt,
         'datetime': DateTime.now().toIso8601String(),
       },
-    ].map((m) => Map<String, String>.from(m)).toList();
+    ].map((final m) => Map<String, String>.from(m)).toList();
 
     final response = await ai_service.AIService.sendMessage(
       history,

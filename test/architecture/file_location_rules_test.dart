@@ -10,7 +10,7 @@ void main() {
       final files = libDir
           .listSync(recursive: true)
           .whereType<File>()
-          .where((f) => f.path.endsWith('.dart'))
+          .where((final f) => f.path.endsWith('.dart'))
           .toList();
 
       final violations = <String>[];
@@ -53,7 +53,7 @@ void main() {
         final files = libDir
             .listSync(recursive: true)
             .whereType<File>()
-            .where((f) => f.path.endsWith('.dart'))
+            .where((final f) => f.path.endsWith('.dart'))
             .toList();
 
         final violations = <String>[];

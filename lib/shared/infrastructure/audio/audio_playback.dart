@@ -15,18 +15,18 @@ abstract class AudioPlayback implements AudioPlaybackService {
   @override
   Stream<Duration> get onPositionChanged;
   @override
-  Future<void> play(dynamic source);
+  Future<void> play(final dynamic source);
   @override
   Future<void> stop();
   @override
   Future<void> dispose();
   @override
-  Future<void> setReleaseMode(dynamic mode);
+  Future<void> setReleaseMode(final dynamic mode);
 
   /// Helper to adapt either an existing [ap.AudioPlayer] or an [AudioPlayback]
   /// instance into an [AudioPlayback]. If [candidate] is null a new real
   /// [ap.AudioPlayer] wrapped will be returned.
-  static AudioPlayback adapt(dynamic candidate) {
+  static AudioPlayback adapt(final dynamic candidate) {
     if (candidate == null) return RealAudioPlayback(ap.AudioPlayer());
     if (candidate is AudioPlayback) return candidate;
     if (candidate is ap.AudioPlayer) return RealAudioPlayback(candidate);
@@ -36,9 +36,9 @@ abstract class AudioPlayback implements AudioPlaybackService {
 }
 
 class RealAudioPlayback implements AudioPlayback {
-  final ap.AudioPlayer _player;
-  RealAudioPlayback([ap.AudioPlayer? player])
+  RealAudioPlayback([final ap.AudioPlayer? player])
     : _player = player ?? ap.AudioPlayer();
+  final ap.AudioPlayer _player;
 
   @override
   // ignore: avoid_returning_null_for_void
@@ -50,7 +50,7 @@ class RealAudioPlayback implements AudioPlayback {
 
   @override
   @override
-  Future<void> play(dynamic source) async {
+  Future<void> play(final dynamic source) async {
     // Run the playback logic in a guarded zone so asynchronous exceptions
     // coming from the native plugin (which can surface via platform
     // callbacks) are captured and don't bubble up as uncaught
@@ -167,7 +167,7 @@ class RealAudioPlayback implements AudioPlayback {
           if (!completer.isCompleted) completer.complete();
         }();
       },
-      (error, stack) {
+      (final error, final stack) {
         try {
           debugPrint(
             '[AudioPlayback] uncaught async error in playback zone: $error',
@@ -192,6 +192,6 @@ class RealAudioPlayback implements AudioPlayback {
   Future<void> dispose() async => _player.dispose();
 
   @override
-  Future<void> setReleaseMode(dynamic mode) async =>
+  Future<void> setReleaseMode(final dynamic mode) async =>
       _player.setReleaseMode(mode);
 }

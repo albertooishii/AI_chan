@@ -2,15 +2,14 @@ import 'package:ai_chan/call/domain/domain.dart';
 
 /// Caso de uso para gestionar la configuración de llamadas
 class ManageCallConfigUseCase {
+  const ManageCallConfigUseCase(this._repository, this._realtimeClient);
   final ICallRepository _repository;
   final IRealtimeCallClient _realtimeClient;
 
-  const ManageCallConfigUseCase(this._repository, this._realtimeClient);
-
   /// Actualiza la voz durante una llamada activa
   Future<void> executeUpdateVoice({
-    required String callId,
-    required String newVoice,
+    required final String callId,
+    required final String newVoice,
   }) async {
     // Verificar que la llamada existe y está activa
     final call = await _repository.getCall(callId);
@@ -33,7 +32,7 @@ class ManageCallConfigUseCase {
   }
 
   /// Pausa una llamada activa
-  Future<Call> executePause(String callId) async {
+  Future<Call> executePause(final String callId) async {
     // Obtener llamada actual
     final call = await _repository.getCall(callId);
     if (call == null) {
@@ -50,7 +49,7 @@ class ManageCallConfigUseCase {
   }
 
   /// Reanuda una llamada pausada
-  Future<Call> executeResume(String callId) async {
+  Future<Call> executeResume(final String callId) async {
     // Obtener llamada actual
     final call = await _repository.getCall(callId);
     if (call == null) {
@@ -68,8 +67,8 @@ class ManageCallConfigUseCase {
 
   /// Actualiza metadatos de una llamada
   Future<Call> executeUpdateMetadata({
-    required String callId,
-    required Map<String, dynamic> metadata,
+    required final String callId,
+    required final Map<String, dynamic> metadata,
   }) async {
     // Obtener llamada actual
     final call = await _repository.getCall(callId);
@@ -88,7 +87,7 @@ class ManageCallConfigUseCase {
   }
 
   /// Elimina una llamada del historial
-  Future<void> executeDelete(String callId) async {
+  Future<void> executeDelete(final String callId) async {
     await _repository.deleteCall(callId);
   }
 

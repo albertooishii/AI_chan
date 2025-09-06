@@ -11,7 +11,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // ✅ MIGR
 import 'dart:convert'; // ✅ MIGRACIÓN: Para jsonDecode
 import 'package:ai_chan/chat/application/services/memory_manager.dart'; // ✅ INTEGRACIÓN: Para gestión de memoria
 import 'package:ai_chan/chat/domain/services/periodic_ia_message_scheduler.dart'; // ✅ INTEGRACIÓN: Para mensajes periódicos
-import 'package:ai_chan/chat/application/services/timeline_updater.dart'; // ✅ INTEGRACIÓN: Para actualización de timeline
 import 'package:ai_chan/shared/utils/log_utils.dart'; // ✅ INTEGRACIÓN: Para logging
 import 'package:ai_chan/core/services/memory_summary_service.dart'; // ✅ INTEGRACIÓN: Para resumen de memoria
 import 'package:ai_chan/chat/application/services/message_queue_manager.dart'; // ✅ INTEGRACIÓN: Para gestión de cola de mensajes
@@ -27,6 +26,93 @@ import 'package:ai_chan/chat/application/services/debounced_save.dart'; // ✅ M
 /// Orquesta casos de uso y servicios de dominio.
 /// Esta clase reemplaza gradualmente las responsabilidades de ChatProvider.
 class ChatApplicationService {
+  ChatApplicationService({
+    required final IChatRepository repository,
+    required final IPromptBuilderService promptBuilder,
+    required final IFileOperationsService fileOperations,
+    final MemoryManager? memoryManagerParam,
+    final PeriodicIaMessageScheduler? periodicScheduler,
+  }) : _repository = repository,
+       _promptBuilder = promptBuilder,
+       _fileOperations = fileOperations,
+       memoryManager = memoryManagerParam,
+       _periodicScheduler = periodicScheduler ?? PeriodicIaMessageScheduler() {
+    // Inicializar audio service con callbacks vacíos por ahora
+    _audioService = di.getAudioChatService(
+      onStateChanged: () {},
+      onWaveform: (final waveform) {},
+    );
+
+    // ✅ INTEGRACIÓN: Inicializar MessageQueueManager
+    _queueManager = MessageQueueManager(
+      onFlush: (final ids, final lastLocalId, final options) {
+        try {
+          // Marcar todos los mensajes anteriores como enviados excepto el último
+          for (final lid in ids) {
+            if (lid == lastLocalId) continue;
+            final idx = _messages.indexWhere((final m) => m.localId == lid);
+            if (idx != -1) {
+              final m = _messages[idx];
+              if (m.sender == MessageSender.user &&
+                  m.status == MessageStatus.sending) {
+                _messages[idx] = m.copyWith(status: MessageStatus.sent);
+              }
+            }
+          }
+
+          // Encontrar el último mensaje y procesarlo
+          final lastIdx = _messages.indexWhere(
+            (final m) => m.localId == lastLocalId,
+          );
+          if (lastIdx != -1) {
+            final lastMsg = _messages[lastIdx];
+            // Marcar como enviado inmediatamente para evitar UI stuck
+            if (lastMsg.sender == MessageSender.user &&
+                lastMsg.status == MessageStatus.sending) {
+              _messages[lastIdx] = lastMsg.copyWith(status: MessageStatus.sent);
+            }
+            // Procesar el mensaje usando las opciones de la cola
+            _processQueuedMessage(lastMsg, options);
+          }
+        } catch (_) {}
+      },
+    );
+
+    // ✅ INTEGRACIÓN: Inicializar PromiseService
+    _promiseService = PromiseService(
+      events: _events,
+      onEventsChanged: () {}, // notifyListeners se maneja en el controller
+      sendSystemPrompt:
+          (final text, {final String? callPrompt, final String? model}) =>
+              sendMessage(text: text, model: model),
+    );
+
+    // ✅ MIGRACIÓN FASE 5: Elemento medio 5/6 - Inicializar DebouncedSave para optimización
+    _debouncedPersistence = DebouncedSave(
+      const Duration(seconds: 1),
+      () => _persistStateImmediate(),
+    );
+  }
+
+  /// ✅ MIGRACIÓN FASE 5: Elemento menor 6/6 - Factory method enhancement
+  /// Factory method simplificado que crea ChatApplicationService.
+  /// Útil para testing y compatibilidad con código existente.
+  factory ChatApplicationService.withDefaults({
+    required final IChatRepository repository,
+    required final IPromptBuilderService promptBuilder,
+    final MemoryManager? memoryManager,
+    final PeriodicIaMessageScheduler? periodicScheduler,
+  }) {
+    // Factory method simplificado para casos de testing
+    // En producción usar el constructor principal con DI
+    return ChatApplicationService(
+      repository: repository,
+      promptBuilder: promptBuilder,
+      fileOperations: di.getFileOperationsService(),
+      memoryManagerParam: memoryManager,
+      periodicScheduler: periodicScheduler,
+    );
+  }
   final IChatRepository _repository;
   final IPromptBuilderService _promptBuilder;
   final IFileOperationsService _fileOperations;
@@ -42,6 +128,7 @@ class ChatApplicationService {
   List<Message> _messages = [];
   AiChanProfile? _profile;
   List<EventEntry> _events = [];
+  List<TimelineEntry> _timeline = [];
   String? _selectedModel;
   bool _googleLinked = false;
   TimelineEntry? superbloqueEntry;
@@ -65,80 +152,16 @@ class ChatApplicationService {
   String? googleAvatarUrl;
   String? googleName;
 
-  ChatApplicationService({
-    required IChatRepository repository,
-    required IPromptBuilderService promptBuilder,
-    required IFileOperationsService fileOperations,
-    MemoryManager? memoryManagerParam,
-    PeriodicIaMessageScheduler? periodicScheduler,
-  }) : _repository = repository,
-       _promptBuilder = promptBuilder,
-       _fileOperations = fileOperations,
-       memoryManager = memoryManagerParam,
-       _periodicScheduler = periodicScheduler ?? PeriodicIaMessageScheduler() {
-    // Inicializar audio service con callbacks vacíos por ahora
-    _audioService = di.getAudioChatService(
-      onStateChanged: () {},
-      onWaveform: (waveform) {},
-    );
-
-    // ✅ INTEGRACIÓN: Inicializar MessageQueueManager
-    _queueManager = MessageQueueManager(
-      onFlush: (ids, lastLocalId, options) {
-        try {
-          // Marcar todos los mensajes anteriores como enviados excepto el último
-          for (final lid in ids) {
-            if (lid == lastLocalId) continue;
-            final idx = _messages.indexWhere((m) => m.localId == lid);
-            if (idx != -1) {
-              final m = _messages[idx];
-              if (m.sender == MessageSender.user &&
-                  m.status == MessageStatus.sending) {
-                _messages[idx] = m.copyWith(status: MessageStatus.sent);
-              }
-            }
-          }
-
-          // Encontrar el último mensaje y procesarlo
-          final lastIdx = _messages.indexWhere((m) => m.localId == lastLocalId);
-          if (lastIdx != -1) {
-            final lastMsg = _messages[lastIdx];
-            // Marcar como enviado inmediatamente para evitar UI stuck
-            if (lastMsg.sender == MessageSender.user &&
-                lastMsg.status == MessageStatus.sending) {
-              _messages[lastIdx] = lastMsg.copyWith(status: MessageStatus.sent);
-            }
-            // Procesar el mensaje usando las opciones de la cola
-            _processQueuedMessage(lastMsg, options);
-          }
-        } catch (_) {}
-      },
-    );
-
-    // ✅ INTEGRACIÓN: Inicializar PromiseService
-    _promiseService = PromiseService(
-      events: _events,
-      onEventsChanged: () {}, // notifyListeners se maneja en el controller
-      sendSystemPrompt: (text, {String? callPrompt, String? model}) =>
-          sendMessage(text: text, model: model),
-    );
-
-    // ✅ MIGRACIÓN FASE 5: Elemento medio 5/6 - Inicializar DebouncedSave para optimización
-    _debouncedPersistence = DebouncedSave(
-      const Duration(seconds: 1),
-      () => _persistStateImmediate(),
-    );
-  }
-
   // Getters públicos
   List<Message> get messages => List.unmodifiable(_messages);
   AiChanProfile? get profile => _profile;
   List<EventEntry> get events => List.unmodifiable(_events);
+  List<TimelineEntry> get timeline => List.unmodifiable(_timeline);
   String? get selectedModel => _selectedModel;
 
   /// ✅ MIGRACIÓN FASE 5: Elemento medio 4/6 - selectedModel setter interface
   /// Setter para el modelo seleccionado, mantiene compatibilidad con ChatProvider
-  set selectedModel(String? model) {
+  set selectedModel(final String? model) {
     _selectedModel = model;
     _saveSelectedModel();
     // Nota: En DDD no usamos notifyListeners() aquí, se maneja en la UI layer
@@ -160,9 +183,27 @@ class ChatApplicationService {
 
   /// Inicializa el servicio cargando datos
   Future<void> initialize() async {
-    final data = await _repository.loadAll();
-    if (data != null) {
-      _loadFromData(data);
+    try {
+      final data = await _repository.loadAll();
+      if (data != null) {
+        _loadFromData(data);
+        Log.d(
+          'ChatApplicationService: loaded persisted data (messages=${_messages.length}, profile=${_profile?.aiName})',
+          tag: 'CHAT_SERVICE',
+        );
+      } else {
+        Log.d(
+          'ChatApplicationService: no persisted data found',
+          tag: 'CHAT_SERVICE',
+        );
+      }
+    } catch (e, st) {
+      Log.e(
+        'ChatApplicationService: error loading persisted data: $e',
+        tag: 'CHAT_SERVICE',
+        error: e,
+      );
+      Log.e(st.toString(), tag: 'CHAT_SERVICE');
     }
     // ✅ MIGRACIÓN: Cargar modelo seleccionado como en ChatProvider original
     await _loadSelectedModel();
@@ -173,8 +214,8 @@ class ChatApplicationService {
 
   /// ✅ INTEGRACIÓN: Procesa mensaje desde la cola con opciones
   Future<void> _processQueuedMessage(
-    Message message,
-    QueuedSendOptions? options,
+    final Message message,
+    final QueuedSendOptions? options,
   ) async {
     try {
       await sendMessage(
@@ -185,12 +226,14 @@ class ChatApplicationService {
         preTranscribedText: options?.preTranscribedText,
         userAudioPath: options?.userAudioPath,
         existingMessageIndex: _messages.indexWhere(
-          (m) => m.localId == message.localId,
+          (final m) => m.localId == message.localId,
         ),
       );
     } catch (e) {
       // Marcar como fallido en caso de error
-      final idx = _messages.indexWhere((m) => m.localId == message.localId);
+      final idx = _messages.indexWhere(
+        (final m) => m.localId == message.localId,
+      );
       if (idx != -1) {
         _messages[idx] = _messages[idx].copyWith(status: MessageStatus.failed);
       }
@@ -199,13 +242,13 @@ class ChatApplicationService {
 
   /// Envía un mensaje
   Future<void> sendMessage({
-    required String text,
-    String? model,
-    dynamic image,
-    String? imageMimeType,
-    String? preTranscribedText,
-    String? userAudioPath,
-    int?
+    required final String text,
+    final String? model,
+    final dynamic image,
+    final String? imageMimeType,
+    final String? preTranscribedText,
+    final String? userAudioPath,
+    final int?
     existingMessageIndex, // ✅ MIGRACIÓN: Para reintentos como en ChatProvider original
   }) async {
     if (_profile == null) throw Exception('Perfil no inicializado');
@@ -280,7 +323,10 @@ class ChatApplicationService {
   }
 
   /// Procesa el envío de un mensaje
-  Future<void> _processSendMessage(Message message, String? model) async {
+  Future<void> _processSendMessage(
+    final Message message,
+    final String? model,
+  ) async {
     try {
       // ✅ MIGRACIÓN: Verificar conectividad antes de procesar como en ChatProvider
       final hasConnection = await hasInternetConnection();
@@ -291,7 +337,7 @@ class ChatApplicationService {
         );
         // Marcar mensaje como fallido por conectividad
         final failedIndex = _messages.indexWhere(
-          (m) => m.localId == message.localId,
+          (final m) => m.localId == message.localId,
         );
         if (failedIndex != -1) {
           _messages[failedIndex] = _messages[failedIndex].copyWith(
@@ -301,40 +347,88 @@ class ChatApplicationService {
         throw Exception('Sin conexión a internet');
       }
 
-      // Simular procesamiento de IA
-      await Future.delayed(const Duration(seconds: 1));
-
-      // ✅ MIGRACIÓN: Marcar mensaje como enviado como en ChatProvider original
-      final sentIndex = _messages.indexWhere(
-        (m) => m.localId == message.localId,
+      Log.d(
+        'ChatApplicationService: starting AI response processing',
+        tag: 'CHAT_SERVICE',
       );
-      if (sentIndex != -1) {
-        _messages[sentIndex] = _messages[sentIndex].copyWith(
-          status: MessageStatus.sent,
+
+      // Indicar que la IA está escribiendo/respondiendo
+      isTyping = true;
+      Log.d(
+        'ChatApplicationService: isTyping set true (AI responding)',
+        tag: 'CHAT_SERVICE',
+      );
+
+      try {
+        // Simular procesamiento de IA
+        await Future.delayed(const Duration(seconds: 1));
+
+        // ✅ MIGRACIÓN: Marcar mensaje del usuario como enviado primero
+        final sentIndex = _messages.indexWhere(
+          (final m) => m.localId == message.localId,
+        );
+        if (sentIndex != -1) {
+          _messages[sentIndex] = _messages[sentIndex].copyWith(
+            status: MessageStatus.sent,
+          );
+          Log.d(
+            'ChatApplicationService: user message marked as sent localId=${message.localId}',
+            tag: 'CHAT_SERVICE',
+          );
+          // Persist immediately to avoid UI stuck states
+          await _persistStateImmediate();
+        }
+
+        final responseMessage = Message(
+          text: 'Respuesta de IA para: ${message.text}',
+          sender: MessageSender.assistant,
+          dateTime: DateTime.now(),
+          status: MessageStatus.read,
+        );
+
+        _messages.add(responseMessage);
+
+        // ✅ MIGRACIÓN: Resetear estados UI como en ChatProvider original
+        isSendingImage = false;
+        isSendingAudio = false;
+
+        // ✅ MIGRACIÓN FASE 5: Elemento crítico 3/6 - Incrementar imageRequestId al completar
+        _imageRequestId++;
+
+        // Persist assistant response as well
+        await _persistStateImmediate();
+      } catch (e, st) {
+        Log.e(
+          'ChatApplicationService: error processing AI response for localId=${message.localId} | error=$e',
+          tag: 'CHAT_SERVICE',
+        );
+        Log.e(st.toString(), tag: 'CHAT_SERVICE');
+        // Marcar el mensaje del usuario como fallido para evitar estados 'sending' indefinidos
+        final idx = _messages.indexWhere(
+          (final m) => m.localId == message.localId,
+        );
+        if (idx != -1) {
+          _messages[idx] = _messages[idx].copyWith(
+            status: MessageStatus.failed,
+          );
+          Log.d(
+            'ChatApplicationService: user message marked failed localId=${message.localId}',
+            tag: 'CHAT_SERVICE',
+          );
+          await _persistStateImmediate();
+        }
+      } finally {
+        // IA terminó de escribir (o hubo un error)
+        isTyping = false;
+        Log.d(
+          'ChatApplicationService: isTyping set false (AI response complete/failed)',
+          tag: 'CHAT_SERVICE',
         );
       }
-
-      final responseMessage = Message(
-        text: 'Respuesta de IA para: ${message.text}',
-        sender: MessageSender.assistant,
-        dateTime: DateTime.now(),
-        status: MessageStatus.read,
-      );
-
-      _messages.add(responseMessage);
-
-      // ✅ MIGRACIÓN: Resetear estados UI como en ChatProvider original
-      isSendingImage = false;
-      isSendingAudio = false;
-
-      // ✅ MIGRACIÓN FASE 5: Elemento crítico 3/6 - Incrementar imageRequestId al completar
-      _imageRequestId++;
-
-      await _persistState();
     } catch (e) {
       // ✅ MIGRACIÓN: Marcar mensaje como fallido en caso de error
       final failedIndex = _messages.indexWhere(
-        (m) => m.localId == message.localId,
+        (final m) => m.localId == message.localId,
       );
       if (failedIndex != -1) {
         _messages[failedIndex] = _messages[failedIndex].copyWith(
@@ -357,7 +451,7 @@ class ChatApplicationService {
   Future<void> startRecording() => _audioService.startRecording();
   Future<void> cancelRecording() => _audioService.cancelRecording();
 
-  Future<String?> stopAndSendRecording({String? model}) async {
+  Future<String?> stopAndSendRecording({final String? model}) async {
     final path = await _audioService.stopRecording();
     if (path == null) return null; // cancelado o error
 
@@ -416,21 +510,21 @@ class ChatApplicationService {
     return path;
   }
 
-  Future<void> togglePlayAudio(Message msg) async {
+  Future<void> togglePlayAudio(final Message msg) async {
     await _audioService.togglePlay(msg, () {});
   }
 
   /// ✅ MIGRACIÓN: Método isPlaying correcto del ChatProvider original
-  bool isPlaying(Message msg) => _audioService.isPlayingMessage(msg);
+  bool isPlaying(final Message msg) => _audioService.isPlayingMessage(msg);
 
   Future<void> generateTtsForMessage(
-    Message msg, {
-    String voice = 'nova',
+    final Message msg, {
+    final String voice = 'nova',
   }) async {
     final path = await _audioService.synthesizeTts(msg.text, voice: voice);
     if (path != null) {
       // ✅ MIGRACIÓN: Actualizar mensaje con audio TTS como en ChatProvider original
-      final idx = _messages.indexWhere((m) => m.localId == msg.localId);
+      final idx = _messages.indexWhere((final m) => m.localId == msg.localId);
       if (idx != -1) {
         // Calcular duración del audio
         Duration? audioDuration;
@@ -460,7 +554,7 @@ class ChatApplicationService {
   }
 
   /// ✅ MIGRACIÓN: Calcula y actualiza la duración del audio grabado por el usuario
-  Future<void> _calculateUserAudioDuration(Message message) async {
+  Future<void> _calculateUserAudioDuration(final Message message) async {
     if (message.audio?.url == null || message.audio!.url!.isEmpty) return;
 
     try {
@@ -468,7 +562,7 @@ class ChatApplicationService {
         message.audio!.url!,
       );
       final messageIndex = _messages.indexWhere(
-        (m) => m.localId == message.localId,
+        (final m) => m.localId == message.localId,
       );
 
       if (messageIndex != -1 && audioDuration != null) {
@@ -499,13 +593,13 @@ class ChatApplicationService {
 
   /// Event management
   /// ✅ INTEGRACIÓN: Event management con PromiseService
-  void schedulePromiseEvent(EventEntry event) {
+  void schedulePromiseEvent(final EventEntry event) {
     _events.add(event);
     _promiseService.schedulePromiseEvent(event);
   }
 
   /// Model management
-  void setSelectedModel(String? model) {
+  void setSelectedModel(final String? model) {
     _selectedModel = model;
     _saveSelectedModel();
   }
@@ -533,22 +627,22 @@ class ChatApplicationService {
     }
   }
 
-  Future<List<String>> getAllModels({bool forceRefresh = false}) async {
+  Future<List<String>> getAllModels({final bool forceRefresh = false}) async {
     return ['gpt-4', 'gpt-3.5-turbo', 'claude-3'];
   }
 
   /// Google integration
-  void setGoogleLinked(bool linked) {
+  void setGoogleLinked(final bool linked) {
     _googleLinked = linked;
   }
 
   /// ✅ MIGRACIÓN: updateGoogleAccountInfo completo del ChatProvider original
   Future<void> updateGoogleAccountInfo({
-    String? email,
-    String? avatarUrl,
-    String? name,
-    bool linked = true,
-    bool triggerAutoBackup = false,
+    final String? email,
+    final String? avatarUrl,
+    final String? name,
+    final bool linked = true,
+    final bool triggerAutoBackup = false,
   }) async {
     googleEmail = email;
     googleAvatarUrl = avatarUrl;
@@ -653,7 +747,7 @@ class ChatApplicationService {
       await BackupAutoUploader.maybeUploadAfterSummary(
         profile: _profile!,
         messages: _messages,
-        timeline: _profile!.timeline,
+        timeline: _timeline,
         googleLinked: googleLinked,
         repository: _repository,
       );
@@ -669,7 +763,7 @@ class ChatApplicationService {
 
   /// ✅ MIGRACIÓN COMPLETA: Lógica de auto backup completa del ChatProvider original
   /// Incluye verificación 24h, verificación de credenciales, y verificación de backups existentes
-  Future<void> _executeAutoBackupLogic(String branchName) async {
+  Future<void> _executeAutoBackupLogic(final String branchName) async {
     if (!googleLinked) {
       Log.d(
         'Auto-backup: skip (not linked to Google Drive)',
@@ -812,7 +906,7 @@ class ChatApplicationService {
       await BackupAutoUploader.maybeUploadAfterSummary(
         profile: _profile!,
         messages: _messages,
-        timeline: _profile!.timeline,
+        timeline: _timeline,
         googleLinked: googleLinked,
         repository: _repository,
       );
@@ -832,15 +926,15 @@ class ChatApplicationService {
   }
 
   /// Profile management
-  void updateProfile(AiChanProfile profile) {
+  void updateProfile(final AiChanProfile profile) {
     _profile = profile;
   }
 
   /// Prompt building
   String buildRealtimeSystemPromptJson({
-    required AiChanProfile profile,
-    required List<Message> messages,
-    int maxRecent = 32,
+    required final AiChanProfile profile,
+    required final List<Message> messages,
+    final int maxRecent = 32,
   }) => _promptBuilder.buildRealtimeSystemPromptJson(
     profile: profile,
     messages: messages,
@@ -848,19 +942,20 @@ class ChatApplicationService {
   );
 
   String buildCallSystemPromptJson({
-    required AiChanProfile profile,
-    required List<Message> messages,
-    required bool aiInitiatedCall,
-    int maxRecent = 32,
+    required final AiChanProfile profile,
+    required final List<Message> messages,
+    required final bool aiInitiatedCall,
+    final int maxRecent = 32,
   }) => _promptBuilder.buildCallSystemPromptJson(
     profile: profile,
     messages: messages,
+    timeline: _timeline,
     aiInitiatedCall: aiInitiatedCall,
     maxRecent: maxRecent,
   );
 
   /// Persistence methods
-  Future<void> saveAll(Map<String, dynamic> exportedJson) async {
+  Future<void> saveAll(final Map<String, dynamic> exportedJson) async {
     await _repository.saveAll(exportedJson);
   }
 
@@ -875,24 +970,40 @@ class ChatApplicationService {
     _profile = null;
   }
 
-  Future<String> exportAllToJson(Map<String, dynamic> exportedJson) async {
+  Future<String> exportAllToJson(
+    final Map<String, dynamic> exportedJson,
+  ) async {
     return await _repository.exportAllToJson(exportedJson);
   }
 
-  Future<Map<String, dynamic>?> importAllFromJson(String jsonStr) async {
+  Future<Map<String, dynamic>?> importAllFromJson(final String jsonStr) async {
     return await _repository.importAllFromJson(jsonStr);
   }
 
-  Future<void> applyImportedChat(Map<String, dynamic> imported) async {
-    _loadFromData(imported);
+  Future<void> applyChatExport(final Map<String, dynamic> chatExport) async {
+    _loadFromData(chatExport);
     await _persistState();
   }
 
   /// ✅ MIGRACIÓN FASE 5: Elemento medio 5/6 - Persistencia con debouncing
   /// Persistencia inmediata (sin debouncing) para casos críticos
   Future<void> _persistStateImmediate() async {
-    final data = exportToData();
-    await _repository.saveAll(data);
+    try {
+      final data = exportToData();
+      await _repository.saveAll(data);
+      Log.d(
+        'ChatApplicationService: persisted stateImmediate (messages=${_messages.length})',
+        tag: 'PERSIST',
+      );
+    } catch (e, st) {
+      Log.e(
+        'ChatApplicationService: failed to persist stateImmediate: $e',
+        tag: 'PERSIST',
+        error: e,
+      );
+      Log.e(st.toString(), tag: 'PERSIST');
+      rethrow;
+    }
   }
 
   /// Persistencia optimizada con debouncing para llamadas frecuentes
@@ -900,18 +1011,44 @@ class ChatApplicationService {
     _debouncedPersistence?.trigger();
   }
 
-  void _loadFromData(Map<String, dynamic> data) {
+  void _loadFromData(final Map<String, dynamic> data) {
+    // Handle both old format (with 'profile' key) and new flattened format
     if (data['profile'] != null) {
+      // Old format: profile is nested
       _profile = AiChanProfile.fromJson(data['profile']);
+    } else {
+      // New flattened format: profile fields are at top level
+      // Extract profile fields by creating a copy and removing non-profile keys
+      final Map<String, dynamic> profileData = Map<String, dynamic>.from(data);
+      profileData.remove('messages');
+      profileData.remove('events');
+      profileData.remove('timeline');
+      profileData.remove('selectedModel');
+      profileData.remove('googleLinked');
+
+      try {
+        _profile = AiChanProfile.fromJson(profileData);
+      } catch (e) {
+        Log.w(
+          'ChatApplicationService: Failed to parse flattened profile: $e',
+          tag: 'CHAT_SERVICE',
+        );
+      }
     }
+
     if (data['messages'] != null) {
       _messages = (data['messages'] as List)
-          .map((m) => Message.fromJson(m))
+          .map((final m) => Message.fromJson(m))
           .toList();
     }
     if (data['events'] != null) {
       _events = (data['events'] as List)
-          .map((e) => EventEntry.fromJson(e))
+          .map((final e) => EventEntry.fromJson(e))
+          .toList();
+    }
+    if (data['timeline'] != null) {
+      _timeline = (data['timeline'] as List)
+          .map((final t) => TimelineEntry.fromJson(t))
           .toList();
     }
     if (data['selectedModel'] != null) {
@@ -923,13 +1060,21 @@ class ChatApplicationService {
   }
 
   Map<String, dynamic> exportToData() {
-    return {
-      'profile': _profile?.toJson(),
-      'messages': _messages.map((m) => m.toJson()).toList(),
-      'events': _events.map((e) => e.toJson()).toList(),
-      'selectedModel': _selectedModel,
-      'googleLinked': _googleLinked,
-    };
+    final Map<String, dynamic> result = {};
+
+    // Flatten the profile at the top level (compatible with ChatExport.fromJson)
+    if (_profile != null) {
+      result.addAll(_profile!.toJson());
+    }
+
+    // Add other data
+    result['messages'] = _messages.map((final m) => m.toJson()).toList();
+    result['events'] = _events.map((final e) => e.toJson()).toList();
+    result['timeline'] = _timeline.map((final t) => t.toJson()).toList();
+    result['selectedModel'] = _selectedModel;
+    result['googleLinked'] = _googleLinked;
+
+    return result;
   }
 
   /// Limpieza de recursos
@@ -947,25 +1092,23 @@ class ChatApplicationService {
   // ✅ INTEGRACIÓN COMPLETA: Métodos de memoria y timeline
 
   /// Helper común para actualizar memoria y timeline tras mensajes IA
-  Future<void> _updateMemoryAndTimeline({String debugContext = ''}) async {
+  Future<void> _updateMemoryAndTimeline({
+    final String debugContext = '',
+  }) async {
     if (_profile == null) return;
 
     try {
       final memManager = memoryManager ?? MemoryManager(profile: _profile!);
-      final oldLevel0Keys = (_profile!.timeline)
-          .where((t) => t.level == 0)
-          .map((t) => '${t.startDate ?? ''}|${t.endDate ?? ''}')
+      final oldLevel0Keys = (_timeline)
+          .where((final t) => t.level == 0)
+          .map((final t) => '${t.startDate ?? ''}|${t.endDate ?? ''}')
           .toSet();
       final memResult = await memManager.processAllSummariesAndSuperblock(
         messages: _messages,
-        timeline: _profile!.timeline,
+        timeline: _timeline,
         superbloqueEntry: superbloqueEntry,
       );
-      _profile = TimelineUpdater.applyTimelineUpdate(
-        profile: _profile!,
-        timeline: memResult.timeline,
-        superbloqueEntry: memResult.superbloqueEntry,
-      );
+      _timeline = memResult.timeline;
       superbloqueEntry = memResult.superbloqueEntry;
       if (_hasNewLevel0EntriesFromKeys(oldLevel0Keys, memResult.timeline)) {
         final context = debugContext.isNotEmpty ? ' ($debugContext)' : '';
@@ -990,11 +1133,11 @@ class ChatApplicationService {
 
   /// Verifica si hay nuevas entradas de nivel 0 comparando con claves anteriores
   bool _hasNewLevel0EntriesFromKeys(
-    Set<String> oldKeys,
-    List<TimelineEntry> newTimeline,
+    final Set<String> oldKeys,
+    final List<TimelineEntry> newTimeline,
   ) {
     try {
-      for (final t in newTimeline.where((t) => t.level == 0)) {
+      for (final t in newTimeline.where((final t) => t.level == 0)) {
         final key = '${t.startDate ?? ''}|${t.endDate ?? ''}';
         if (!oldKeys.contains(key)) return true;
       }
@@ -1012,11 +1155,12 @@ class ChatApplicationService {
   /// Devuelve true si arrancó un reintento, false si no había mensajes failed.
   /// ✅ MIGRACIÓN FASE 5: Elemento crítico 2/6 - signature corregida
   Future<bool> retryLastFailedMessage({
-    String? model,
-    void Function(String)? onError,
+    final String? model,
+    final void Function(String)? onError,
   }) async {
     final idx = _messages.lastIndexWhere(
-      (m) => m.sender == MessageSender.user && m.status == MessageStatus.failed,
+      (final m) =>
+          m.sender == MessageSender.user && m.status == MessageStatus.failed,
     );
     if (idx == -1) return false;
 
@@ -1059,12 +1203,14 @@ class ChatApplicationService {
   }
 
   /// Generate avatar from current appearance
-  Future<void> generateAvatarFromAppearance({bool replace = false}) async {
+  Future<void> generateAvatarFromAppearance({
+    final bool replace = false,
+  }) async {
     await createAvatarFromAppearance(replace: replace);
   }
 
   /// ✅ MIGRACIÓN: createAvatarFromAppearance completo del ChatProvider original
-  Future<void> createAvatarFromAppearance({bool replace = false}) async {
+  Future<void> createAvatarFromAppearance({final bool replace = false}) async {
     if (_profile == null) {
       throw Exception('No hay perfil para generar avatar');
     }
@@ -1119,13 +1265,13 @@ class ChatApplicationService {
 
   /// Schedule send message - funcionalidad completa del ChatProvider original con cola
   void scheduleSendMessage(
-    String text, {
-    String? callPrompt,
-    String? model,
-    dynamic image,
-    String? imageMimeType,
-    String? preTranscribedText,
-    String? userAudioPath,
+    final String text, {
+    final String? callPrompt,
+    final String? model,
+    final dynamic image,
+    final String? imageMimeType,
+    final String? preTranscribedText,
+    final String? userAudioPath,
   }) {
     // ✅ INTEGRACIÓN: Crear mensaje y encolarlo usando MessageQueueManager
     final now = DateTime.now();
@@ -1152,7 +1298,7 @@ class ChatApplicationService {
   }
 
   /// User typing handler - funcionalidad completa del ChatProvider original con cola
-  void onUserTyping(String text) {
+  void onUserTyping(final String text) {
     final empty = text.trim().isEmpty;
     if (!empty) {
       // ✅ INTEGRACIÓN: Cancelar timer de queue cuando usuario está escribiendo
@@ -1185,9 +1331,9 @@ class ChatApplicationService {
   }
 
   void replaceIncomingCallPlaceholder({
-    required int index,
-    required VoiceCallSummary summary,
-    required String summaryText,
+    required final int index,
+    required final VoiceCallSummary summary,
+    required final String summaryText,
   }) {
     if (index < 0 || index >= _messages.length) return;
     final original = _messages[index];
@@ -1219,8 +1365,8 @@ class ChatApplicationService {
   }
 
   void rejectIncomingCallPlaceholder({
-    required int index,
-    required String rejectionText,
+    required final int index,
+    required final String rejectionText,
   }) {
     if (index < 0 || index >= _messages.length) return;
     final original = _messages[index];
@@ -1242,16 +1388,16 @@ class ChatApplicationService {
     Future.microtask(() async {
       try {
         final memoryService = MemorySummaryService(profile: _profile!);
-        final oldLevel0Keys = (_profile!.timeline)
-            .where((t) => t.level == 0)
-            .map((t) => '${t.startDate ?? ''}|${t.endDate ?? ''}')
+        final oldLevel0Keys = (_timeline)
+            .where((final t) => t.level == 0)
+            .map((final t) => '${t.startDate ?? ''}|${t.endDate ?? ''}')
             .toSet();
         final result = await memoryService.processAllSummariesAndSuperblock(
           messages: _messages,
-          timeline: _profile!.timeline,
+          timeline: _timeline,
           superbloqueEntry: superbloqueEntry,
         );
-        _profile = _profile!.copyWith(timeline: result.timeline);
+        _timeline = result.timeline;
         superbloqueEntry = result.superbloqueEntry;
         if (_hasNewLevel0EntriesFromKeys(oldLevel0Keys, result.timeline)) {
           Log.d(
@@ -1277,7 +1423,8 @@ class ChatApplicationService {
     _periodicScheduler.start(
       profileGetter: () => _profile!,
       messagesGetter: () => _messages,
-      triggerSend: (prompt, model) => sendMessage(text: prompt, model: model),
+      triggerSend: (final prompt, final model) =>
+          sendMessage(text: prompt, model: model),
     );
   }
 
@@ -1287,20 +1434,25 @@ class ChatApplicationService {
 
   /// Save all events - funcionalidad completa del original
   Future<void> saveAllEvents() async {
-    final eventsJson = jsonEncode(_events.map((e) => e.toJson()).toList());
+    final eventsJson = jsonEncode(
+      _events.map((final e) => e.toJson()).toList(),
+    );
     try {
       await PrefsUtils.setEvents(eventsJson);
     } catch (_) {}
   }
 
   /// Message management helpers
-  void addUserImageMessage(Message msg) {
+  void addUserImageMessage(final Message msg) {
     _messages.add(msg);
     _persistState();
     // notifyListeners no es necesario aquí - se maneja en el controller
   }
 
-  Future<void> addAssistantMessage(String text, {bool isAudio = false}) async {
+  Future<void> addAssistantMessage(
+    final String text, {
+    final bool isAudio = false,
+  }) async {
     final isCallPlaceholder = text.trim() == '[call][/call]';
     final msg = Message(
       text: text,
@@ -1319,20 +1471,16 @@ class ChatApplicationService {
     // Actualizar memoria/cronología igual que tras respuestas IA normales
     try {
       final memManager = memoryManager ?? MemoryManager(profile: _profile!);
-      final oldLevel0Keys = (_profile!.timeline)
-          .where((t) => t.level == 0)
-          .map((t) => '${t.startDate ?? ''}|${t.endDate ?? ''}')
+      final oldLevel0Keys = (_timeline)
+          .where((final t) => t.level == 0)
+          .map((final t) => '${t.startDate ?? ''}|${t.endDate ?? ''}')
           .toSet();
       final memResult = await memManager.processAllSummariesAndSuperblock(
         messages: _messages,
-        timeline: _profile!.timeline,
+        timeline: _timeline,
         superbloqueEntry: superbloqueEntry,
       );
-      _profile = TimelineUpdater.applyTimelineUpdate(
-        profile: _profile!,
-        timeline: memResult.timeline,
-        superbloqueEntry: memResult.superbloqueEntry,
-      );
+      _timeline = memResult.timeline;
       superbloqueEntry = memResult.superbloqueEntry;
       if (_hasNewLevel0EntriesFromKeys(oldLevel0Keys, memResult.timeline)) {
         Log.d(
@@ -1353,7 +1501,7 @@ class ChatApplicationService {
     await _persistState();
   }
 
-  Future<void> addUserMessage(Message message) async {
+  Future<void> addUserMessage(final Message message) async {
     // Completar callStatus si viene con duración y no está seteado
     Message finalMessage = message;
     if (message.callDuration != null && message.callStatus == null) {
@@ -1367,14 +1515,10 @@ class ChatApplicationService {
       final memManager = memoryManager ?? MemoryManager(profile: _profile!);
       final memResult = await memManager.processAllSummariesAndSuperblock(
         messages: _messages,
-        timeline: _profile!.timeline,
+        timeline: _timeline,
         superbloqueEntry: superbloqueEntry,
       );
-      _profile = TimelineUpdater.applyTimelineUpdate(
-        profile: _profile!,
-        timeline: memResult.timeline,
-        superbloqueEntry: memResult.superbloqueEntry,
-      );
+      _timeline = memResult.timeline;
       superbloqueEntry = memResult.superbloqueEntry;
     } catch (e) {
       Log.w('[AI-chan][WARN] Falló actualización de memoria post-message: $e');
@@ -1384,11 +1528,11 @@ class ChatApplicationService {
   }
 
   Future<void> updateOrAddCallStatusMessage({
-    required String status,
-    String? metadata,
-    CallStatus? callStatus,
-    bool incoming = false,
-    int? placeholderIndex,
+    required final String status,
+    final String? metadata,
+    final CallStatus? callStatus,
+    final bool incoming = false,
+    final int? placeholderIndex,
   }) async {
     // Determinar sender deseado y callStatus si no se proporciona
     final MessageSender sender = incoming
@@ -1446,7 +1590,7 @@ class ChatApplicationService {
   ///
   /// [modelId] ID del modelo para el cual obtener el servicio
   /// Returns: El servicio de IA correspondiente o null si hay error
-  dynamic getServiceForModel(String modelId) {
+  dynamic getServiceForModel(final String modelId) {
     if (_services.containsKey(modelId)) {
       return _services[modelId];
     }
@@ -1460,25 +1604,5 @@ class ChatApplicationService {
       // En caso de error, retornar null como lo hacía ChatProvider
       return null;
     }
-  }
-
-  /// ✅ MIGRACIÓN FASE 5: Elemento menor 6/6 - Factory method enhancement
-  /// Factory method simplificado que crea ChatApplicationService.
-  /// Útil para testing y compatibilidad con código existente.
-  factory ChatApplicationService.withDefaults({
-    required IChatRepository repository,
-    required IPromptBuilderService promptBuilder,
-    MemoryManager? memoryManager,
-    PeriodicIaMessageScheduler? periodicScheduler,
-  }) {
-    // Factory method simplificado para casos de testing
-    // En producción usar el constructor principal con DI
-    return ChatApplicationService(
-      repository: repository,
-      promptBuilder: promptBuilder,
-      fileOperations: di.getFileOperationsService(),
-      memoryManagerParam: memoryManager,
-      periodicScheduler: periodicScheduler,
-    );
   }
 }

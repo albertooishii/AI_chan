@@ -12,7 +12,7 @@ class PrefsTestUtils {
 
   /// Set mock initial values for SharedPreferences in tests.
   /// If [prefs] is null, the defaultMockValues() map is used.
-  static void setMockInitialValues([Map<String, Object>? prefs]) {
+  static void setMockInitialValues([final Map<String, Object>? prefs]) {
     SharedPreferences.setMockInitialValues(prefs ?? defaultMockValues());
   }
 }

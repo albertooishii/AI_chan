@@ -5,7 +5,9 @@ import 'package:ai_chan/shared/utils/log_utils.dart';
 /// Service responsible for processing AI-generated images
 class MessageImageProcessingService {
   /// Process image response from AI and save it locally
-  Future<MessageImageResult> processImageResponse(AIResponse response) async {
+  Future<MessageImageResult> processImageResponse(
+    final AIResponse response,
+  ) async {
     if (response.base64.isEmpty) {
       return MessageImageResult(
         isImage: false,
@@ -59,7 +61,7 @@ class MessageImageProcessingService {
   }
 
   /// Sanitize text that contains markdown images or URLs
-  String sanitizeImageUrls(String text) {
+  String sanitizeImageUrls(final String text) {
     final markdownImagePattern = RegExp(r'!\[.*?\]\((https?:\/\/.*?)\)');
     final urlInTextPattern = RegExp(r'https?:\/\/\S+\.(jpg|jpeg|png|webp|gif)');
 
@@ -78,13 +80,12 @@ class MessageImageProcessingService {
 
 /// Result of image processing
 class MessageImageResult {
-  final bool isImage;
-  final String? imagePath;
-  final String processedText;
-
   MessageImageResult({
     required this.isImage,
     required this.imagePath,
     required this.processedText,
   });
+  final bool isImage;
+  final String? imagePath;
+  final String processedText;
 }

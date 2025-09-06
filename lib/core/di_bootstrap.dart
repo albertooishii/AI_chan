@@ -9,12 +9,12 @@ import 'package:ai_chan/core/config.dart';
 void registerDefaultRealtimeClientFactories() {
   // OpenAI factory
   di.registerRealtimeClientFactory('openai', ({
-    model,
-    onText,
-    onAudio,
-    onCompleted,
-    onError,
-    onUserTranscription,
+    final model,
+    final onText,
+    final onAudio,
+    final onCompleted,
+    final onError,
+    final onUserTranscription,
   }) {
     return OpenAIRealtimeClient(
       model: model ?? Config.requireOpenAIRealtimeModel(),
@@ -28,12 +28,12 @@ void registerDefaultRealtimeClientFactories() {
 
   // Factory compartido para Gemini/Google
   GeminiRealtimeClient geminiFactory({
-    model,
-    onText,
-    onAudio,
-    onCompleted,
-    onError,
-    onUserTranscription,
+    final model,
+    final onText,
+    final onAudio,
+    final onCompleted,
+    final onError,
+    final onUserTranscription,
   }) {
     return GeminiRealtimeClient();
   }

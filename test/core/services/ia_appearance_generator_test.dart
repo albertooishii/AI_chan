@@ -23,7 +23,6 @@ void main() {
         userBirthdate: null,
         aiBirthdate: null,
         appearance: <String, dynamic>{},
-        timeline: [],
       );
       final map = await gen.generateAppearanceFromBiography(profile);
       expect(map, isNotNull);

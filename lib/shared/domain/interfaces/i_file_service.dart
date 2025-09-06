@@ -3,19 +3,19 @@
 abstract class IFileService {
   /// Guarda datos binarios en un archivo
   Future<String> saveFile(
-    List<int> bytes,
-    String filename, {
-    String? directory,
+    final List<int> bytes,
+    final String filename, {
+    final String? directory,
   });
 
   /// Carga datos binarios de un archivo
-  Future<List<int>?> loadFile(String filePath);
+  Future<List<int>?> loadFile(final String filePath);
 
   /// Verifica si un archivo existe
-  Future<bool> fileExists(String filePath);
+  Future<bool> fileExists(final String filePath);
 
   /// Elimina un archivo
-  Future<void> deleteFile(String filePath);
+  Future<void> deleteFile(final String filePath);
 
   /// Obtiene el directorio de audio local
   Future<String> getLocalAudioDirectory();

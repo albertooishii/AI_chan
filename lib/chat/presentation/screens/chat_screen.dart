@@ -29,12 +29,6 @@ import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 import 'dart:typed_data';
 
 class ChatScreen extends StatefulWidget {
-  final AiChanProfile bio;
-  final String aiName;
-  final ChatController chatController; // ✅ DDD: ETAPA 3 - DDD puro
-  final Future<void> Function()? onClearAllDebug;
-  final Future<void> Function(ImportedChat importedChat)? onImportJson;
-
   const ChatScreen({
     super.key,
     required this.bio,
@@ -43,6 +37,11 @@ class ChatScreen extends StatefulWidget {
     this.onClearAllDebug,
     this.onImportJson,
   });
+  final AiChanProfile bio;
+  final String aiName;
+  final ChatController chatController; // ✅ DDD: ETAPA 3 - DDD puro
+  final Future<void> Function()? onClearAllDebug;
+  final Future<void> Function(ChatExport chatExport)? onImportJson;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -70,7 +69,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _fileUIService = di.getFileUIService();
-    getLocalImageDir().then((dir) {
+    getLocalImageDir().then((final dir) {
       if (mounted) setState(() => _imageDir = dir);
     });
     _scrollController = ScrollController();
@@ -98,7 +97,7 @@ class _ChatScreenState extends State<ChatScreen> {
       try {
         final provider = widget.chatController;
         _chatInputController = ChatInputController(
-          scheduleSend: (text, {image, imageMimeType}) async {
+          scheduleSend: (final text, {final image, final imageMimeType}) async {
             provider.scheduleSendMessage(
               text,
               image: image,
@@ -110,7 +109,7 @@ class _ChatScreenState extends State<ChatScreen> {
           stopAndSendRecording: () async =>
               await provider.stopAndSendRecording(),
           cancelRecording: () async => await provider.cancelRecording(),
-          onUserTyping: (text) => provider.onUserTyping(text),
+          onUserTyping: (final text) => provider.onUserTyping(text),
         );
 
         // Listener to push provider recording-related state into controller streams
@@ -142,7 +141,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final chatController = widget.chatController;
     final filtered = chatController.messages
         .where(
-          (m) =>
+          (final m) =>
               m.sender != MessageSender.system ||
               (m.sender == MessageSender.system && m.text.contains('[call]')),
         )
@@ -182,7 +181,7 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _isLoadingMore = false);
   }
 
-  Future<void> _showImportDialog(ChatController chatController) async {
+  Future<void> _showImportDialog(final ChatController chatController) async {
     // ✅ DDD: ETAPA 3
     // ✅ DDD: Type safety en ETAPA 2
     final (jsonStr, error) =
@@ -201,7 +200,7 @@ class _ChatScreenState extends State<ChatScreen> {
           await widget.onImportJson!.call(imported);
         } else {
           if (imported != null) {
-            await chatController.applyImportedChat(imported.toJson());
+            await chatController.applyChatExport(imported.toJson());
             if (mounted) setState(() {});
             _showImportSuccessSnackBar();
           } else {
@@ -215,9 +214,9 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<String?> _showModelSelectionDialog(
-    List<String> models,
-    String? initialModel,
-    ChatController chatController, // ✅ DDD: ETAPA 3
+    final List<String> models,
+    final String? initialModel,
+    final ChatController chatController, // ✅ DDD: ETAPA 3
   ) async {
     // ✅ DDD: Type safety en ETAPA 2
     final navCtx = navigatorKey.currentContext;
@@ -227,8 +226,8 @@ class _ChatScreenState extends State<ChatScreen> {
     List<String> localModels = List.from(models);
 
     return await showAppDialog<String>(
-      builder: (dialogCtx) => StatefulBuilder(
-        builder: (dialogCtxInner, setStateDialog) {
+      builder: (final dialogCtx) => StatefulBuilder(
+        builder: (final dialogCtxInner, final setStateDialog) {
           Future<void> refreshModels() async {
             if (localLoading) return;
             setStateDialog(() => localLoading = true);
@@ -274,7 +273,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     style: TextStyle(color: AppColors.primary),
                   )
                 : Builder(
-                    builder: (innerCtx) {
+                    builder: (final innerCtx) {
                       final double maxWidth = dialogContentMaxWidth(innerCtx);
                       // Use the full available dialog content width so the scroll bar
                       // sits at the right edge of the dialog (no forced narrow column).
@@ -293,12 +292,14 @@ class _ChatScreenState extends State<ChatScreen> {
                               final preferred = ModelUtils.preferredOrder();
                               final others =
                                   grouped.keys
-                                      .where((k) => !preferred.contains(k))
+                                      .where(
+                                        (final k) => !preferred.contains(k),
+                                      )
                                       .toList()
                                     ..sort();
                               final order = [
                                 ...preferred.where(
-                                  (k) => grouped.containsKey(k),
+                                  (final k) => grouped.containsKey(k),
                                 ),
                                 ...others,
                               ];
@@ -326,7 +327,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 );
                                 widgets.addAll(
                                   items.map(
-                                    (m) => ListTile(
+                                    (final m) => ListTile(
                                       contentPadding:
                                           const EdgeInsets.symmetric(
                                             horizontal: 12.0,
@@ -375,9 +376,9 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _setSelectedModel(
-    String? selected,
-    String? current,
-    ChatController chatController,
+    final String? selected,
+    final String? current,
+    final ChatController chatController,
   ) {
     // ✅ DDD: ETAPA 3
     // ✅ DDD: Type safety en ETAPA 2
@@ -395,24 +396,28 @@ class _ChatScreenState extends State<ChatScreen> {
     showAppSnackBar('Chat importado correctamente.', preferRootMessenger: true);
   }
 
-  void _showExportDialog(String jsonStr, ChatController chatController) {
+  void _showExportDialog(
+    final String jsonStr,
+    final ChatController chatController,
+  ) {
     // ✅ DDD: ETAPA 3
     // ✅ DDD: Type safety en ETAPA 2
-    final importedChat = ImportedChat(
+    final chatExport = ChatExport(
       profile: chatController.profile!,
       messages: chatController.messages,
-      events: chatController.events,
+      events: [],
+      timeline: chatController.timeline,
     );
     // Delegate to shared util which shows preview and offers copy/save
     chat_json_utils.ChatJsonUtils.showExportedJsonDialog(
       jsonStr,
-      chat: importedChat,
+      chat: chatExport,
     );
   }
 
   // Central handler para eliminaciones de imagenes desde los viewers/galería.
   // Mantener aquí la llamada al util para evitar duplicación en varios sitios.
-  Future<void> _handleImageDeleted(AiImage? deleted) async {
+  Future<void> _handleImageDeleted(final AiImage? deleted) async {
     try {
       final chatController = widget.chatController;
       await removeImageFromProfileAndPersist(chatController, deleted);
@@ -423,13 +428,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
   bool _loadingModels = false;
 
-  void _showErrorDialog(String error) {
+  void _showErrorDialog(final String error) {
     if (!mounted) return;
     showErrorDialog(error);
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     final chatController = widget.chatController;
     final aiName = widget.aiName;
     // Detectar llamada entrante pendiente y abrir pantalla si aún no está abierta
@@ -527,7 +532,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         onTap: () {
                           // Construir lista de Message para ExpandableImageDialog a partir de avatars
                           final avatars = chatController.profile!.avatars!;
-                          final messages = avatars.map((a) {
+                          final messages = avatars.map((final a) {
                             final filename = a.url?.split('/').last ?? '';
                             return Message(
                               image: AiImage(
@@ -555,7 +560,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           future: _fileUIService.readFileAsBytes(
                             '${_imageDir!.path}/${chatController.profile!.avatars!.last.url!.split('/').last}',
                           ),
-                          builder: (context, snapshot) {
+                          builder: (final context, final snapshot) {
                             if (snapshot.hasData && snapshot.data != null) {
                               return CircleAvatar(
                                 radius: 16,
@@ -610,7 +615,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: AppColors.primary),
-            itemBuilder: (context) => [
+            itemBuilder: (final context) => [
               // Galería primero
               _buildMenuItem(
                 value: 'gallery',
@@ -638,7 +643,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Builder(
-                        builder: (context) {
+                        builder: (final context) {
                           final defaultModel = Config.getDefaultTextModel();
                           final selected =
                               chatController.selectedModel ?? defaultModel;
@@ -689,7 +694,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Builder(
-                        builder: (ctx) {
+                        builder: (final ctx) {
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
@@ -705,7 +710,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 children: [
                                   FutureBuilder<String>(
                                     future: _loadActiveAudioProvider(),
-                                    builder: (context, snap2) {
+                                    builder: (final context, final snap2) {
                                       final p = snap2.data;
                                       if (p == null || p.isEmpty) {
                                         return const SizedBox.shrink();
@@ -724,7 +729,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                   ),
                                   FutureBuilder<String?>(
                                     future: _loadActiveVoice(),
-                                    builder: (context, snap) {
+                                    builder: (final context, final snap) {
                                       final v = snap.data;
                                       if (v == null) {
                                         return const SizedBox.shrink();
@@ -813,11 +818,11 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               // Debug options removed: import chat and clear all not applicable in release flows
             ],
-            onSelected: (value) async {
+            onSelected: (final value) async {
               if (value == 'gallery') {
                 final images = chatController.messages
                     .where(
-                      (m) =>
+                      (final m) =>
                           m.isImage &&
                           m.image != null &&
                           m.image!.url != null &&
@@ -850,6 +855,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     profile: widget.chatController.profile!,
                     messages: widget.chatController.messages,
                     events: widget.chatController.events,
+                    timeline: widget.chatController.timeline,
                   );
                   final navCtx = navigatorKey.currentContext;
                   if (navCtx == null) return;
@@ -869,7 +875,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 final navCtx = navigatorKey.currentContext;
                 if (navCtx == null) return;
                 await showAppDialog<void>(
-                  builder: (ctx) => AlertDialog(
+                  builder: (final ctx) => AlertDialog(
                     backgroundColor: Colors.black,
                     content: LocalBackupDialog(
                       requestExportJson: () async {
@@ -877,15 +883,16 @@ class _ChatScreenState extends State<ChatScreen> {
                           profile: widget.chatController.profile!,
                           messages: widget.chatController.messages,
                           events: widget.chatController.events,
+                          timeline: widget.chatController.timeline,
                         );
                       },
-                      onImportedJson: (imported) async {
-                        await widget.chatController.applyImportedChat(
+                      onImportedJson: (final imported) async {
+                        await widget.chatController.applyChatExport(
                           imported.toJson(),
                         );
                         if (mounted) setState(() {});
                       },
-                      onImportError: (err) {
+                      onImportError: (final err) {
                         showErrorDialog(err);
                       },
                     ),
@@ -922,7 +929,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 final navCtx = navigatorKey.currentContext;
                 if (navCtx == null) return;
                 final confirm = await showAppDialog<bool>(
-                  builder: (ctx) => AlertDialog(
+                  builder: (final ctx) => AlertDialog(
                     backgroundColor: Colors.black,
                     title: const Text(
                       'Cerrar sesión',
@@ -966,7 +973,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 final navCtx = navigatorKey.currentContext;
                 if (navCtx == null) return;
                 await showAppDialog<void>(
-                  builder: (ctx) => BackupDiagnosticsDialog(
+                  builder: (final ctx) => BackupDiagnosticsDialog(
                     chatProvider: widget.chatController,
                   ), // ✅ DDD: ETAPA 3 - ChatController directo
                 );
@@ -1025,10 +1032,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   fileService: _fileUIService,
                   synthesizeTts:
                       (
-                        phrase, {
-                        required voice,
-                        required language,
-                        required forDialogDemo,
+                        final phrase, {
+                        required final voice,
+                        required final language,
+                        required final forDialogDemo,
                       }) async {
                         try {
                           final file = await widget.chatController.audioService
@@ -1055,7 +1062,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 final navCtx = navigatorKey.currentContext;
                 if (navCtx == null) return;
                 await showAppDialog<void>(
-                  builder: (ctx) => AlertDialog(
+                  builder: (final ctx) => AlertDialog(
                     backgroundColor: Colors.black,
                     content: _buildGoogleDriveBackupDialog(
                       widget.chatController,
@@ -1067,7 +1074,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 final navCtx = navigatorKey.currentContext;
                 if (navCtx == null) return;
                 await showAppDialog<void>(
-                  builder: (ctx) => AlertDialog(
+                  builder: (final ctx) => AlertDialog(
                     backgroundColor: Colors.black,
                     content: _buildGoogleDriveBackupDialog(
                       widget.chatController,
@@ -1085,10 +1092,10 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             Expanded(
               child: Builder(
-                builder: (ctx) {
+                builder: (final ctx) {
                   final filteredMessages = chatController.messages
                       .where(
-                        (m) =>
+                        (final m) =>
                             m.sender != MessageSender.system ||
                             (m.sender == MessageSender.system &&
                                 m.text.contains('[call]')),
@@ -1114,7 +1121,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       horizontal: 8,
                     ),
                     itemCount: totalCount,
-                    itemBuilder: (context, index) {
+                    itemBuilder: (final context, final index) {
                       if (index == reversedShown.length && hasMore) {
                         // slot para indicador de carga (mensajes antiguos)
                         return const Padding(
@@ -1144,7 +1151,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       if (message.sender == MessageSender.user) {
                         isLastUserMessage = !reversedShown
                             .skip(index + 1)
-                            .any((m) => m.sender == MessageSender.user);
+                            .any((final m) => m.sender == MessageSender.user);
                       }
                       return ChatBubble(
                         message: message,
@@ -1161,7 +1168,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           try {
                             final images = chatController.messages
                                 .where(
-                                  (m) =>
+                                  (final m) =>
                                       m.isImage &&
                                       m.image != null &&
                                       m.image!.url != null &&
@@ -1169,7 +1176,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 )
                                 .toList();
                             final idx = images.indexWhere(
-                              (m) => m.image?.url == message.image?.url,
+                              (final m) => m.image?.url == message.image?.url,
                             );
                             if (idx != -1) {
                               ExpandableImageDialog.show(
@@ -1182,8 +1189,9 @@ class _ChatScreenState extends State<ChatScreen> {
                             }
                           } catch (_) {}
                         },
-                        isAudioPlaying: (msg) => chatController.isPlaying(msg),
-                        onToggleAudio: (msg) =>
+                        isAudioPlaying: (final msg) =>
+                            chatController.isPlaying(msg),
+                        onToggleAudio: (final msg) =>
                             chatController.togglePlayAudio(msg),
                         getAudioPosition: () => chatController.playingPosition,
                         getAudioDuration: () => chatController.playingDuration,
@@ -1340,21 +1348,23 @@ class _ChatScreenState extends State<ChatScreen> {
               controller:
                   _chatInputController ??
                   ChatInputController(
-                    scheduleSend: (text, {image, imageMimeType}) async {
-                      chatController.scheduleSendMessage(
-                        text,
-                        image: image,
-                        imageMimeType: imageMimeType,
-                      );
-                      return Future.value();
-                    },
+                    scheduleSend:
+                        (final text, {final image, final imageMimeType}) async {
+                          chatController.scheduleSendMessage(
+                            text,
+                            image: image,
+                            imageMimeType: imageMimeType,
+                          );
+                          return Future.value();
+                        },
                     startRecording: () async =>
                         await chatController.startRecording(),
                     stopAndSendRecording: () async =>
                         await chatController.stopAndSendRecording(),
                     cancelRecording: () async =>
                         await chatController.cancelRecording(),
-                    onUserTyping: (text) => chatController.onUserTyping(text),
+                    onUserTyping: (final text) =>
+                        chatController.onUserTyping(text),
                   ),
               fileService: _fileUIService,
             ),
@@ -1417,11 +1427,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
   /// Helper para crear PopupMenuItems con el patrón estándar de icono + texto
   PopupMenuItem<String> _buildMenuItem({
-    required String value,
-    required IconData icon,
-    required String text,
-    bool enabled = true,
-    Color? color,
+    required final String value,
+    required final IconData icon,
+    required final String text,
+    final bool enabled = true,
+    final Color? color,
   }) {
     final itemColor = color ?? AppColors.primary;
     return PopupMenuItem<String>(
@@ -1438,28 +1448,31 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   /// Helper para crear GoogleDriveBackupDialog con callbacks estandarizados
-  GoogleDriveBackupDialog _buildGoogleDriveBackupDialog(dynamic provider) {
+  GoogleDriveBackupDialog _buildGoogleDriveBackupDialog(
+    final dynamic provider,
+  ) {
     return GoogleDriveBackupDialog(
       requestBackupJson: () async => await BackupUtils.exportChatPartsToJson(
         profile: provider.onboardingData,
         messages: provider.messages,
         events: provider.events,
+        timeline: provider.timeline,
       ),
-      onImportedJson: (jsonStr) async {
+      onImportedJson: (final jsonStr) async {
         final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
           jsonStr,
         );
         if (imported != null) {
-          await widget.chatController.applyImportedChat(imported.toJson());
+          await widget.chatController.applyChatExport(imported.toJson());
         }
       },
       onAccountInfoUpdated:
           ({
-            String? email,
-            String? avatarUrl,
-            String? name,
-            bool linked = false,
-            bool triggerAutoBackup = false,
+            final String? email,
+            final String? avatarUrl,
+            final String? name,
+            final bool linked = false,
+            final bool triggerAutoBackup = false,
           }) async {
             await provider.updateGoogleAccountInfo(
               email: email,

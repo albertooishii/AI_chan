@@ -4,18 +4,6 @@ import 'package:ai_chan/core/models.dart';
 
 /// Agregado de dominio que representa una llamada completa
 class Call {
-  final String id;
-  final DateTime startTime;
-  final DateTime? endTime;
-  final CallProvider provider;
-  final String model;
-  final String voice;
-  final String languageCode;
-  final List<CallMessage> messages;
-  final CallStatus status;
-  final CallConfig config;
-  final Map<String, dynamic>? metadata;
-
   const Call({
     required this.id,
     required this.startTime,
@@ -30,27 +18,15 @@ class Call {
     this.metadata,
   });
 
-  /// Duración de la llamada
-  Duration get duration {
-    final end = endTime ?? DateTime.now();
-    return end.difference(startTime);
-  }
-
-  /// Verifica si la llamada está activa
-  bool get isActive => status == CallStatus.active;
-
-  /// Verifica si la llamada está finalizada
-  bool get isCompleted => status == CallStatus.completed;
-
   /// Crea una nueva llamada
   factory Call.create({
-    required String id,
-    required CallProvider provider,
-    required String model,
-    required String voice,
-    required String languageCode,
-    required CallConfig config,
-    Map<String, dynamic>? metadata,
+    required final String id,
+    required final CallProvider provider,
+    required final String model,
+    required final String voice,
+    required final String languageCode,
+    required final CallConfig config,
+    final Map<String, dynamic>? metadata,
   }) {
     return Call(
       id: id,
@@ -66,19 +42,63 @@ class Call {
     );
   }
 
+  /// Crea desde mapa
+  factory Call.fromMap(final Map<String, dynamic> map) {
+    return Call(
+      id: map['id'] as String,
+      startTime: DateTime.parse(map['startTime'] as String),
+      endTime: map['endTime'] != null
+          ? DateTime.parse(map['endTime'] as String)
+          : null,
+      provider: CallProviderExtension.fromString(map['provider'] as String),
+      model: map['model'] as String,
+      voice: map['voice'] as String,
+      languageCode: map['languageCode'] as String,
+      messages: (map['messages'] as List<dynamic>)
+          .map((final m) => CallMessage.fromMap(m as Map<String, dynamic>))
+          .toList(),
+      status: CallStatusExtension.fromString(map['status'] as String),
+      config: CallConfig.fromMap(map['config'] as Map<String, dynamic>),
+      metadata: map['metadata'] as Map<String, dynamic>?,
+    );
+  }
+  final String id;
+  final DateTime startTime;
+  final DateTime? endTime;
+  final CallProvider provider;
+  final String model;
+  final String voice;
+  final String languageCode;
+  final List<CallMessage> messages;
+  final CallStatus status;
+  final CallConfig config;
+  final Map<String, dynamic>? metadata;
+
+  /// Duración de la llamada
+  Duration get duration {
+    final end = endTime ?? DateTime.now();
+    return end.difference(startTime);
+  }
+
+  /// Verifica si la llamada está activa
+  bool get isActive => status == CallStatus.active;
+
+  /// Verifica si la llamada está finalizada
+  bool get isCompleted => status == CallStatus.completed;
+
   /// Copia con nuevos valores
   Call copyWith({
-    String? id,
-    DateTime? startTime,
-    DateTime? endTime,
-    CallProvider? provider,
-    String? model,
-    String? voice,
-    String? languageCode,
-    List<CallMessage>? messages,
-    CallStatus? status,
-    CallConfig? config,
-    Map<String, dynamic>? metadata,
+    final String? id,
+    final DateTime? startTime,
+    final DateTime? endTime,
+    final CallProvider? provider,
+    final String? model,
+    final String? voice,
+    final String? languageCode,
+    final List<CallMessage>? messages,
+    final CallStatus? status,
+    final CallConfig? config,
+    final Map<String, dynamic>? metadata,
   }) {
     return Call(
       id: id ?? this.id,
@@ -105,32 +125,11 @@ class Call {
       'model': model,
       'voice': voice,
       'languageCode': languageCode,
-      'messages': messages.map((m) => m.toMap()).toList(),
+      'messages': messages.map((final m) => m.toMap()).toList(),
       'status': status.name,
       'config': config.toMap(),
       'metadata': metadata,
     };
-  }
-
-  /// Crea desde mapa
-  factory Call.fromMap(Map<String, dynamic> map) {
-    return Call(
-      id: map['id'] as String,
-      startTime: DateTime.parse(map['startTime'] as String),
-      endTime: map['endTime'] != null
-          ? DateTime.parse(map['endTime'] as String)
-          : null,
-      provider: CallProviderExtension.fromString(map['provider'] as String),
-      model: map['model'] as String,
-      voice: map['voice'] as String,
-      languageCode: map['languageCode'] as String,
-      messages: (map['messages'] as List<dynamic>)
-          .map((m) => CallMessage.fromMap(m as Map<String, dynamic>))
-          .toList(),
-      status: CallStatusExtension.fromString(map['status'] as String),
-      config: CallConfig.fromMap(map['config'] as Map<String, dynamic>),
-      metadata: map['metadata'] as Map<String, dynamic>?,
-    );
   }
 
   @override
@@ -139,7 +138,7 @@ class Call {
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(final Object other) {
     if (identical(this, other)) return true;
     return other is Call && other.id == id;
   }
@@ -150,14 +149,6 @@ class Call {
 
 /// Configuración de una llamada de voz
 class CallConfig {
-  final String systemPrompt;
-  final bool audioEnabled;
-  final bool textEnabled;
-  final String turnDetectionType;
-  final double temperature;
-  final int maxTokens;
-  final Map<String, dynamic>? additionalOptions;
-
   const CallConfig({
     required this.systemPrompt,
     this.audioEnabled = true,
@@ -175,15 +166,35 @@ class CallConfig {
     );
   }
 
+  /// Crea desde mapa
+  factory CallConfig.fromMap(final Map<String, dynamic> map) {
+    return CallConfig(
+      systemPrompt: map['systemPrompt'] as String,
+      audioEnabled: map['audioEnabled'] as bool? ?? true,
+      textEnabled: map['textEnabled'] as bool? ?? true,
+      turnDetectionType: map['turnDetectionType'] as String? ?? 'server_vad',
+      temperature: (map['temperature'] as num?)?.toDouble() ?? 0.7,
+      maxTokens: map['maxTokens'] as int? ?? 4096,
+      additionalOptions: map['additionalOptions'] as Map<String, dynamic>?,
+    );
+  }
+  final String systemPrompt;
+  final bool audioEnabled;
+  final bool textEnabled;
+  final String turnDetectionType;
+  final double temperature;
+  final int maxTokens;
+  final Map<String, dynamic>? additionalOptions;
+
   /// Copia con nuevos valores
   CallConfig copyWith({
-    String? systemPrompt,
-    bool? audioEnabled,
-    bool? textEnabled,
-    String? turnDetectionType,
-    double? temperature,
-    int? maxTokens,
-    Map<String, dynamic>? additionalOptions,
+    final String? systemPrompt,
+    final bool? audioEnabled,
+    final bool? textEnabled,
+    final String? turnDetectionType,
+    final double? temperature,
+    final int? maxTokens,
+    final Map<String, dynamic>? additionalOptions,
   }) {
     return CallConfig(
       systemPrompt: systemPrompt ?? this.systemPrompt,
@@ -207,18 +218,5 @@ class CallConfig {
       'maxTokens': maxTokens,
       'additionalOptions': additionalOptions,
     };
-  }
-
-  /// Crea desde mapa
-  factory CallConfig.fromMap(Map<String, dynamic> map) {
-    return CallConfig(
-      systemPrompt: map['systemPrompt'] as String,
-      audioEnabled: map['audioEnabled'] as bool? ?? true,
-      textEnabled: map['textEnabled'] as bool? ?? true,
-      turnDetectionType: map['turnDetectionType'] as String? ?? 'server_vad',
-      temperature: (map['temperature'] as num?)?.toDouble() ?? 0.7,
-      maxTokens: map['maxTokens'] as int? ?? 4096,
-      additionalOptions: map['additionalOptions'] as Map<String, dynamic>?,
-    );
   }
 }

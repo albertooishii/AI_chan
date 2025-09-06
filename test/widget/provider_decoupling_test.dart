@@ -13,7 +13,7 @@ void main() {
         .whereType<File>()
         // include Dart files under presentation/, widgets/ and shared/screen( s ) folders
         .where(
-          (f) =>
+          (final f) =>
               f.path.endsWith('.dart') &&
               (f.path.contains('/widgets/') ||
                   f.path.contains('/presentation/') ||
@@ -58,7 +58,7 @@ void main() {
         'Provider API usage found inside presentation/widgets code. Presentation and widget files must not call Provider API directly.',
       );
       buffer.writeln('Offending files and matches:');
-      offenders.forEach((path, issues) {
+      offenders.forEach((final path, final issues) {
         buffer.writeln('- $path');
         for (final it in issues) {
           buffer.writeln('    $it');

@@ -7,14 +7,6 @@ import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 /// Reproductor compacto de mensajes de sonido.
 /// Extrae la lógica de ChatBubble para poder reutilizarlo / refactorizar.
 class AudioMessagePlayer extends StatefulWidget {
-  final Message message;
-  final FileUIService fileService;
-  final double width;
-  final int bars; // número de barras de la forma de onda sintética
-  // Externalized playback state and action to avoid Provider inside the widget.
-  final bool isPlaying;
-  final Future<void> Function()? onTap;
-
   const AudioMessagePlayer({
     super.key,
     required this.message,
@@ -24,6 +16,13 @@ class AudioMessagePlayer extends StatefulWidget {
     this.isPlaying = false,
     this.onTap,
   });
+  final Message message;
+  final FileUIService fileService;
+  final double width;
+  final int bars; // número de barras de la forma de onda sintética
+  // Externalized playback state and action to avoid Provider inside the widget.
+  final bool isPlaying;
+  final Future<void> Function()? onTap;
 
   @override
   State<AudioMessagePlayer> createState() => _AudioMessagePlayerState();
@@ -50,7 +49,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer>
   }
 
   @override
-  void didUpdateWidget(covariant AudioMessagePlayer oldWidget) {
+  void didUpdateWidget(covariant final AudioMessagePlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.message.audio?.url != widget.message.audio?.url) {
       _waveform = _generateWaveform(
@@ -68,7 +67,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer>
     super.dispose();
   }
 
-  void _computeDuration() async {
+  Future<void> _computeDuration() async {
     final path = widget.message.audio?.url;
     if (path == null) return;
     try {
@@ -82,20 +81,20 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer>
     } catch (_) {}
   }
 
-  List<int> _generateWaveform(int n, {int? seed}) {
+  List<int> _generateWaveform(final int n, {final int? seed}) {
     final rnd = Random(seed ?? DateTime.now().millisecondsSinceEpoch);
-    return List.generate(n, (i) {
+    return List.generate(n, (final i) {
       final base = 40 + rnd.nextInt(55); // 40..94
       final mod = (sin(i / 2) * 20).abs();
       return (base + mod).clamp(0, 100).round();
     });
   }
 
-  String _fmt(int s) =>
+  String _fmt(final int s) =>
       '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     final isPlaying = widget.isPlaying;
     final glowColor = widget.message.sender == MessageSender.user
         ? AppColors.primary
@@ -105,7 +104,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer>
         : '--:--';
     // Use LayoutBuilder so the player expands to the bubble's available width.
     return LayoutBuilder(
-      builder: (context, constraints) {
+      builder: (final context, final constraints) {
         double finalWidth;
         if (constraints.hasBoundedWidth &&
             constraints.maxWidth.isFinite &&
@@ -158,7 +157,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer>
                     child: SizedBox(
                       height: 28,
                       child: LayoutBuilder(
-                        builder: (context, constraints) {
+                        builder: (final context, final constraints) {
                           const double barWidth = 6.0;
                           const double gap = 2.0;
 
@@ -178,7 +177,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer>
                               _waveform.length - showCount,
                             );
                           } else {
-                            display = List<int>.generate(showCount, (i) {
+                            display = List<int>.generate(showCount, (final i) {
                               final idx = (i * _waveform.length / showCount)
                                   .floor();
                               return _waveform[idx.clamp(
@@ -224,7 +223,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer>
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: List<Widget>.generate(
                               toShow.length * 2 - 1,
-                              (i) {
+                              (final i) {
                                 if (i.isEven) {
                                   final val = toShow[i ~/ 2];
                                   final a = isPlaying

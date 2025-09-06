@@ -2,10 +2,7 @@ import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 
 class ImageRequestResult {
-  final bool detected;
-  final String reason;
-  final String matchedPhrase;
-  final int score; // 0..100
+  // 0..100
 
   ImageRequestResult({
     required this.detected,
@@ -13,6 +10,10 @@ class ImageRequestResult {
     this.matchedPhrase = '',
     this.score = 0,
   });
+  final bool detected;
+  final String reason;
+  final String matchedPhrase;
+  final int score;
 
   @override
   String toString() =>
@@ -83,8 +84,8 @@ class ImageRequestService {
   // asistente en el historial reciente.
 
   static ImageRequestResult detectImageRequest({
-    required String text,
-    List<Message>? history,
+    required final String text,
+    final List<Message>? history,
   }) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) {
@@ -249,7 +250,7 @@ class ImageRequestService {
     return res;
   }
 
-  static bool _structureSuggestsRequest(String lowerText) {
+  static bool _structureSuggestsRequest(final String lowerText) {
     // Requiere presencia de palabra de imagen
     if (!_imageWordRegex.hasMatch(lowerText)) return false;
 
@@ -284,7 +285,7 @@ class ImageRequestService {
 
   // Devuelve el texto del último mensaje del asistente (reciente) que menciona
   // una palabra relacionada con imagen y que no sea ya un mensaje de imagen.
-  static String? _lastAssistantImageMention(List<Message>? history) {
+  static String? _lastAssistantImageMention(final List<Message>? history) {
     if (history == null || history.isEmpty) return null;
     final recent = history.length <= 8
         ? history
@@ -307,12 +308,12 @@ class ImageRequestService {
   static final RegExp _affirmativeRegexWide = _affirmativeRegex;
   static final RegExp _negativeRegexWide = _negativeRegex;
 
-  static bool _containsAffirmation(String lowerText) {
+  static bool _containsAffirmation(final String lowerText) {
     // Tokeniza y busca palabras de afirmación simples.
     final tokens = lowerText
         .replaceAll(RegExp(r'[^\wáéíóúñü]', caseSensitive: false), ' ')
         .split(RegExp(r'\s+'))
-        .where((t) => t.isNotEmpty)
+        .where((final t) => t.isNotEmpty)
         .toList();
     if (tokens.isEmpty) return false;
     // Si el mensaje es muy corto (<=3 tokens) y contiene cualquiera de las
@@ -330,7 +331,7 @@ class ImageRequestService {
     return false;
   }
 
-  static bool _containsNegation(String lowerText) {
+  static bool _containsNegation(final String lowerText) {
     final t = lowerText.trim();
     if (_negativeRegexWide.hasMatch(t)) return true;
     // exact match or start
@@ -343,12 +344,15 @@ class ImageRequestService {
     return false;
   }
 
-  static bool isImageRequested({required String text, List<Message>? history}) {
+  static bool isImageRequested({
+    required final String text,
+    final List<Message>? history,
+  }) {
     final res = detectImageRequest(text: text, history: history);
     return res.detected;
   }
 
-  static bool _isAmbiguousShort(String lowerText, String kw) {
+  static bool _isAmbiguousShort(final String lowerText, final String kw) {
     // Considerar ambiguo si el mensaje es solamente una palabra de imagen o muy corto
     if (_onlyImageWordRegex.hasMatch(lowerText)) return true;
     if (lowerText.trim().length <= 12 &&
@@ -359,7 +363,7 @@ class ImageRequestService {
     return false;
   }
 
-  static bool _historyContainsImageRequest(List<Message>? history) {
+  static bool _historyContainsImageRequest(final List<Message>? history) {
     if (history == null || history.isEmpty) return false;
     final recent = history.length <= 5
         ? history
@@ -387,7 +391,7 @@ class ImageRequestService {
     return false;
   }
 
-  static String? _lastHistoryMatch(List<Message>? history) {
+  static String? _lastHistoryMatch(final List<Message>? history) {
     if (history == null || history.isEmpty) return null;
     final recent = history.length <= 10
         ? history
@@ -406,7 +410,7 @@ class ImageRequestService {
     return null;
   }
 
-  static bool _assistantPromisedImage(List<Message>? history) {
+  static bool _assistantPromisedImage(final List<Message>? history) {
     if (history == null || history.isEmpty) return false;
     // Buscamos en los últimos 5 mensajes para promesas pendientes.
     final recent = history.length <= 5
@@ -438,7 +442,10 @@ class ImageRequestService {
     return false;
   }
 
-  static bool _isLikelyFollowup(String lowerText, List<Message>? history) {
+  static bool _isLikelyFollowup(
+    final String lowerText,
+    final List<Message>? history,
+  ) {
     // Heurística simple: frases cortas, contenidas en 1-3 palabras, o que sean
     // sólo ack/ok/vale/cuando puedas etc. También aceptamos mensajes que no
     // contengan solicitudes explícitas y que tengan poca puntuación.

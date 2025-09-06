@@ -28,11 +28,6 @@ Future<void> main() async {
 }
 
 class CoverageData {
-  final String filePath;
-  final int totalLines;
-  final int coveredLines;
-  final double coveragePercent;
-  final Priority priority;
 
   CoverageData({
     required this.filePath,
@@ -41,15 +36,16 @@ class CoverageData {
     required this.coveragePercent,
     required this.priority,
   });
+  final String filePath;
+  final int totalLines;
+  final int coveredLines;
+  final double coveragePercent;
+  final Priority priority;
 }
 
 enum Priority { critical, high, medium, low }
 
 class CoverageReport {
-  final List<CoverageData> files;
-  final double overallCoverage;
-  final int totalLines;
-  final int totalCoveredLines;
 
   CoverageReport({
     required this.files,
@@ -57,9 +53,13 @@ class CoverageReport {
     required this.totalLines,
     required this.totalCoveredLines,
   });
+  final List<CoverageData> files;
+  final double overallCoverage;
+  final int totalLines;
+  final int totalCoveredLines;
 }
 
-CoverageReport analyzeCoverage(String lcovContent) {
+CoverageReport analyzeCoverage(final String lcovContent) {
   final files = <CoverageData>[];
   final lines = lcovContent.split('\n');
 
@@ -96,8 +96,8 @@ CoverageReport analyzeCoverage(String lcovContent) {
     }
   }
 
-  final totalLines = files.fold(0, (sum, file) => sum + file.totalLines);
-  final totalCovered = files.fold(0, (sum, file) => sum + file.coveredLines);
+  final totalLines = files.fold(0, (final sum, final file) => sum + file.totalLines);
+  final totalCovered = files.fold(0, (final sum, final file) => sum + file.coveredLines);
   final overallCoverage = totalLines > 0 ? (totalCovered / totalLines) * 100 : 0.0;
 
   return CoverageReport(
@@ -108,7 +108,7 @@ CoverageReport analyzeCoverage(String lcovContent) {
   );
 }
 
-Priority calculatePriority(String filePath, double coverage, int lines) {
+Priority calculatePriority(final String filePath, final double coverage, final int lines) {
   // Factor 1: Tipo de archivo (criticidad del dominio)
   int criticalityScore = 0;
 
@@ -143,21 +143,21 @@ Priority calculatePriority(String filePath, double coverage, int lines) {
   return Priority.low;
 }
 
-void _appendCategoryStats(StringBuffer output, List<CoverageData> files, String category, String pathPattern) {
-  final categoryFiles = files.where((f) => f.filePath.contains(pathPattern)).toList();
+void _appendCategoryStats(final StringBuffer output, final List<CoverageData> files, final String category, final String pathPattern) {
+  final categoryFiles = files.where((final f) => f.filePath.contains(pathPattern)).toList();
   if (categoryFiles.isEmpty) return;
 
-  final totalLines = categoryFiles.fold(0, (sum, f) => sum + f.totalLines);
-  final coveredLines = categoryFiles.fold(0, (sum, f) => sum + f.coveredLines);
+  final totalLines = categoryFiles.fold(0, (final sum, final f) => sum + f.totalLines);
+  final coveredLines = categoryFiles.fold(0, (final sum, final f) => sum + f.coveredLines);
   final avgCoverage = totalLines > 0 ? (coveredLines / totalLines) * 100 : 0.0;
-  final zeroCoverage = categoryFiles.where((f) => f.coveragePercent == 0).length;
+  final zeroCoverage = categoryFiles.where((final f) => f.coveragePercent == 0).length;
 
   output.writeln(
     '$category: ${avgCoverage.toStringAsFixed(1)}% (${categoryFiles.length} archivos, $zeroCoverage sin cobertura)',
   );
 }
 
-String generateReport(CoverageReport report) {
+String generateReport(final CoverageReport report) {
   final output = StringBuffer();
 
   output.writeln('🔍 ANÁLISIS AUTOMÁTICO DE COBERTURA DE TESTS');
@@ -172,14 +172,14 @@ String generateReport(CoverageReport report) {
   output.writeln();
 
   // Agrupar por prioridad
-  final critical = report.files.where((f) => f.priority == Priority.critical).toList();
-  final high = report.files.where((f) => f.priority == Priority.high).toList();
-  final medium = report.files.where((f) => f.priority == Priority.medium).toList();
+  final critical = report.files.where((final f) => f.priority == Priority.critical).toList();
+  final high = report.files.where((final f) => f.priority == Priority.high).toList();
+  final medium = report.files.where((final f) => f.priority == Priority.medium).toList();
 
   // Ordenar por cobertura (menor primero)
-  critical.sort((a, b) => a.coveragePercent.compareTo(b.coveragePercent));
-  high.sort((a, b) => a.coveragePercent.compareTo(b.coveragePercent));
-  medium.sort((a, b) => a.coveragePercent.compareTo(b.coveragePercent));
+  critical.sort((final a, final b) => a.coveragePercent.compareTo(b.coveragePercent));
+  high.sort((final a, final b) => a.coveragePercent.compareTo(b.coveragePercent));
+  medium.sort((final a, final b) => a.coveragePercent.compareTo(b.coveragePercent));
 
   if (critical.isNotEmpty) {
     output.writeln('🚨 PRIORIDAD CRÍTICA (${critical.length} archivos)');
@@ -235,9 +235,9 @@ String generateReport(CoverageReport report) {
     output.writeln('\n🔥 ACCIÓN INMEDIATA REQUERIDA:');
     output.writeln('──────────────────────────────');
 
-    final useCases = critical.where((f) => f.filePath.contains('/use_cases/')).toList();
-    final services = critical.where((f) => f.filePath.contains('/services/')).toList();
-    final controllers = critical.where((f) => f.filePath.contains('/controllers/')).toList();
+    final useCases = critical.where((final f) => f.filePath.contains('/use_cases/')).toList();
+    final services = critical.where((final f) => f.filePath.contains('/services/')).toList();
+    final controllers = critical.where((final f) => f.filePath.contains('/controllers/')).toList();
 
     if (useCases.isNotEmpty) {
       output.writeln('\n1️⃣ USE CASES (lógica de negocio crítica):');
@@ -281,15 +281,15 @@ String generateReport(CoverageReport report) {
   return output.toString();
 }
 
-Future<void> generateRecommendations(CoverageReport report) async {
+Future<void> generateRecommendations(final CoverageReport report) async {
   // Esta función ya no es necesaria, todo se maneja en generateReport
 }
 
-String _getFileName(String path) {
+String _getFileName(final String path) {
   return path.split('/').last;
 }
 
-String _getTestFileName(String path) {
+String _getTestFileName(final String path) {
   final fileName = _getFileName(path);
   return fileName.replaceAll('.dart', '_test.dart');
 }

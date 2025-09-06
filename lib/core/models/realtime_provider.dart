@@ -15,7 +15,7 @@ extension RealtimeProviderExtension on RealtimeProvider {
 
 /// Helper functions for RealtimeProvider
 class RealtimeProviderHelper {
-  static RealtimeProvider fromString(String value) {
+  static RealtimeProvider fromString(final String value) {
     switch (value.toLowerCase()) {
       case 'openai':
         return RealtimeProvider.openai;

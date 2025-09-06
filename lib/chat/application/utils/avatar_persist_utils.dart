@@ -7,9 +7,9 @@ import 'package:ai_chan/core/models.dart';
 ///
 /// ✅ DDD MIGRATION: Updated to use ChatController instead of legacy ChatProvider
 Future<void> addAvatarAndPersist(
-  ChatController chatController,
-  AiImage avatar, {
-  bool replace = false,
+  final ChatController chatController,
+  final AiImage avatar, {
+  final bool replace = false,
 }) async {
   try {
     final currentProfile = chatController.profile;
@@ -39,8 +39,8 @@ Future<void> addAvatarAndPersist(
 ///
 /// ✅ DDD MIGRATION: Updated to use ChatController instead of legacy ChatProvider
 Future<void> removeImageFromProfileAndPersist(
-  ChatController chatController,
-  AiImage? deleted,
+  final ChatController chatController,
+  final AiImage? deleted,
 ) async {
   if (deleted == null) return;
   try {
@@ -48,7 +48,9 @@ Future<void> removeImageFromProfileAndPersist(
     if (currentProfile == null) return;
 
     final avatars = List<AiImage>.from(currentProfile.avatars ?? []);
-    avatars.removeWhere((a) => a.seed == deleted.seed || a.url == deleted.url);
+    avatars.removeWhere(
+      (final a) => a.seed == deleted.seed || a.url == deleted.url,
+    );
     final updated = currentProfile.copyWith(avatars: avatars);
 
     chatController.updateProfile(updated);

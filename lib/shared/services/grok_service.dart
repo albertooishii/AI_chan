@@ -60,12 +60,12 @@ class GrokService implements AIService {
 
   @override
   Future<AIResponse> sendMessageImpl(
-    List<Map<String, String>> history,
-    SystemPrompt systemPrompt, {
-    String? model,
-    String? imageBase64,
-    String? imageMimeType,
-    bool enableImageGeneration = false,
+    final List<Map<String, String>> history,
+    final SystemPrompt systemPrompt, {
+    final String? model,
+    final String? imageBase64,
+    final String? imageMimeType,
+    final bool enableImageGeneration = false,
   }) async {
     if (_apiKey.trim().isEmpty) {
       return AIResponse(
@@ -101,7 +101,7 @@ class GrokService implements AIService {
     // Si el usuario adjunta imagen, la incluimos en el último mensaje de usuario
     if (imageBase64 != null && imageBase64.isNotEmpty) {
       final lastUserMessage = messages.lastWhere(
-        (msg) => msg['role'] == 'user',
+        (final msg) => msg['role'] == 'user',
         orElse: () => {'role': 'user', 'content': ''},
       );
       if (lastUserMessage['content'] is String) {
@@ -202,18 +202,18 @@ class GrokService implements AIService {
   }
 
   int estimateTokens(
-    List<Map<String, String>> history,
-    SystemPrompt systemPrompt,
+    final List<Map<String, String>> history,
+    final SystemPrompt systemPrompt,
   ) {
     int charCount = jsonEncode(systemPrompt.toJson()).length;
-    for (var msg in history) {
+    for (final msg in history) {
       charCount += msg['content']?.length ?? 0;
     }
     return (charCount / 4).round();
   }
 
   /// Valida y mapea roles para asegurar compatibilidad con la API de Grok
-  String _validateAndMapRole(String role) {
+  String _validateAndMapRole(final String role) {
     // Roles válidos para la API de Grok (OpenAI-compatible)
     const validRoles = {'system', 'user', 'assistant', 'tool', 'function'};
 

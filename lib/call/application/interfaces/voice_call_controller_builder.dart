@@ -7,7 +7,7 @@ import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // �
 /// sin importar infraestructura directamente
 abstract class IVoiceCallControllerBuilder {
   VoiceCallScreenController create({
-    required ChatController chatController, // ✅ DDD: ETAPA 3 - DDD puro
-    required CallType callType,
+    required final ChatController chatController, // ✅ DDD: ETAPA 3 - DDD puro
+    required final CallType callType,
   });
 }

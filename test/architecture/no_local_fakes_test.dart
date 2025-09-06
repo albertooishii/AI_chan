@@ -31,7 +31,7 @@ void main() {
     if (bad.isNotEmpty) {
       final b = StringBuffer();
       b.writeln('Se encontraron clases Fake definidas fuera de `test/fakes/`:');
-      bad.forEach((file, lines) {
+      bad.forEach((final file, final lines) {
         b.writeln(' - $file : líneas ${lines.join(", ")}');
       });
       b.writeln('\nPor favor mueve esos fakes a `test/fakes/` o elimínalos.');

@@ -7,6 +7,13 @@ typedef ScheduleSendFn =
 /// Minimal controller that exposes actions and ValueListenables for the
 /// MessageInput widget so the widget doesn't depend on Provider directly.
 class ChatInputController {
+  ChatInputController({
+    required this.scheduleSend,
+    this.startRecording,
+    this.stopAndSendRecording,
+    this.cancelRecording,
+    this.onUserTyping,
+  });
   final ScheduleSendFn scheduleSend;
   final Future<void> Function()? startRecording;
   final Future<void> Function()? stopAndSendRecording;
@@ -19,24 +26,16 @@ class ChatInputController {
   final StreamController<Duration> _elapsed = StreamController.broadcast();
   final StreamController<String> _liveTranscript = StreamController.broadcast();
 
-  ChatInputController({
-    required this.scheduleSend,
-    this.startRecording,
-    this.stopAndSendRecording,
-    this.cancelRecording,
-    this.onUserTyping,
-  });
-
   Stream<bool> get isRecordingStream => _isRecording.stream;
   Stream<List<int>> get waveformStream => _waveform.stream;
   Stream<Duration> get elapsedStream => _elapsed.stream;
   Stream<String> get liveTranscriptStream => _liveTranscript.stream;
 
   // Helpers for providers to push state into the streams
-  void pushIsRecording(bool v) => _isRecording.add(v);
-  void pushWaveform(List<int> v) => _waveform.add(v);
-  void pushElapsed(Duration d) => _elapsed.add(d);
-  void pushLiveTranscript(String s) => _liveTranscript.add(s);
+  void pushIsRecording(final bool v) => _isRecording.add(v);
+  void pushWaveform(final List<int> v) => _waveform.add(v);
+  void pushElapsed(final Duration d) => _elapsed.add(d);
+  void pushLiveTranscript(final String s) => _liveTranscript.add(s);
 
   void dispose() {
     try {

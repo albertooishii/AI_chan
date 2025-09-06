@@ -5,14 +5,13 @@ import 'package:ai_chan/shared/utils/streaming_subtitle_utils.dart';
 
 /// Controlador global para subtítulos conversacionales en tiempo real
 class ConversationalSubtitleController {
+  ConversationalSubtitleController({final bool debug = false}) {
+    _streamingController = StreamingSubtitleController(debug: debug);
+  }
   _ConversationalSubtitlesState? _state;
   late StreamingSubtitleController _streamingController;
 
-  ConversationalSubtitleController({bool debug = false}) {
-    _streamingController = StreamingSubtitleController(debug: debug);
-  }
-
-  void _attach(_ConversationalSubtitlesState state) {
+  void _attach(final _ConversationalSubtitlesState state) {
     _state = state;
   }
 
@@ -21,15 +20,15 @@ class ConversationalSubtitleController {
   }
 
   /// Actualiza los nombres para mostrar en los subtítulos
-  void updateNames({String? userName, String? aiName}) {
+  void updateNames({final String? userName, final String? aiName}) {
     _state?.updateNames(userName: userName, aiName: aiName);
   }
 
   /// Maneja chunks de IA en tiempo real (nuevo sistema rápido)
   void handleAiChunk(
-    String chunk, {
-    required bool audioStarted,
-    required bool suppressFurther,
+    final String chunk, {
+    required final bool audioStarted,
+    required final bool suppressFurther,
   }) {
     _streamingController.handleAiChunk(
       chunk,
@@ -39,12 +38,12 @@ class ConversationalSubtitleController {
   }
 
   /// Maneja transcripciones del usuario
-  void handleUserTranscription(String text) {
+  void handleUserTranscription(final String text) {
     _streamingController.handleUserTranscription(text);
   }
 
   /// Muestra texto del usuario instantáneamente (compatibility)
-  void showUserText(String text) {
+  void showUserText(final String text) {
     handleUserTranscription(text);
   }
 
@@ -70,14 +69,13 @@ class ConversationalSubtitleController {
 /// Widget de subtítulos cyberpunk para el onboarding conversacional
 /// Usa el nuevo sistema de streaming en tiempo real
 class ConversationalSubtitles extends StatefulWidget {
-  final ConversationalSubtitleController controller;
-  final double maxHeight;
-
   const ConversationalSubtitles({
     super.key,
     required this.controller,
     this.maxHeight = 200,
   });
+  final ConversationalSubtitleController controller;
+  final double maxHeight;
 
   @override
   State<ConversationalSubtitles> createState() =>
@@ -120,7 +118,7 @@ class _ConversationalSubtitlesState extends State<ConversationalSubtitles> {
   }
 
   // Método para actualizar los nombres mostrados en los subtítulos
-  void updateNames({String? userName, String? aiName}) {
+  void updateNames({final String? userName, final String? aiName}) {
     setState(() {
       if (userName != null && userName.trim().isNotEmpty) {
         _userName = userName.toUpperCase();
@@ -145,15 +143,15 @@ class _ConversationalSubtitlesState extends State<ConversationalSubtitles> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     final streaming = widget.controller._streamingController;
 
     return ValueListenableBuilder<String>(
       valueListenable: streaming.ai,
-      builder: (context, aiText, _) {
+      builder: (final context, final aiText, _) {
         return ValueListenableBuilder<String>(
           valueListenable: streaming.user,
-          builder: (context, userText, _) {
+          builder: (final context, final userText, _) {
             // Solo mostrar el contenedor si hay contenido visible
             if (aiText.isEmpty && userText.isEmpty) {
               return const SizedBox.shrink();

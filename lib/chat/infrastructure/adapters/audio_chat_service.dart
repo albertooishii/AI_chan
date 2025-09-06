@@ -15,6 +15,7 @@ import '../../domain/interfaces/i_audio_chat_service.dart';
 
 /// Servicio que encapsula grabación, transcripción parcial, reproducción y TTS.
 class AudioChatService implements IAudioChatService {
+  AudioChatService({required this.onStateChanged, required this.onWaveform});
   final AudioRecorder _recorder = AudioRecorder();
   @override
   bool isRecording = false;
@@ -42,7 +43,7 @@ class AudioChatService implements IAudioChatService {
   final AudioPlayback _audioPlayer = di.getAudioPlayback();
   String? _currentPlayingId;
   @override
-  bool isPlayingMessage(Message m) => _currentPlayingId == m.audio?.url;
+  bool isPlayingMessage(final Message m) => _currentPlayingId == m.audio?.url;
   // Tracking posición/duración para subtítulos flotantes
   Duration _currentPosition = Duration.zero;
   Duration _currentDuration = Duration.zero;
@@ -55,8 +56,6 @@ class AudioChatService implements IAudioChatService {
 
   final OnStateChanged onStateChanged;
   final OnWaveformUpdate onWaveform;
-
-  AudioChatService({required this.onStateChanged, required this.onWaveform});
 
   @override
   Future<void> startRecording() async {
@@ -89,13 +88,13 @@ class AudioChatService implements IAudioChatService {
         try {
           _speech = stt.SpeechToText();
           final initialized = await _speech!.initialize(
-            onStatus: (s) {},
-            onError: (e) {},
+            onStatus: (final s) {},
+            onError: (final e) {},
           );
           if (initialized) {
             _isNativeListening = true;
             _speech!.listen(
-              onResult: (r) {
+              onResult: (final r) {
                 try {
                   final text = r.recognizedWords.trim();
                   if (text.isNotEmpty &&
@@ -132,7 +131,7 @@ class AudioChatService implements IAudioChatService {
       await _ampSub?.cancel();
       _ampSub = _recorder
           .onAmplitudeChanged(const Duration(milliseconds: 120))
-          .listen((amp) {
+          .listen((final amp) {
             final value = amp.current;
             double norm = (value + 45) / 45;
             norm = norm.clamp(0, 1);
@@ -146,7 +145,7 @@ class AudioChatService implements IAudioChatService {
   }
 
   @override
-  Future<String?> stopRecording({bool cancelled = false}) async {
+  Future<String?> stopRecording({final bool cancelled = false}) async {
     if (!isRecording) return null;
     try {
       final path = await _recorder.stop();
@@ -319,7 +318,10 @@ class AudioChatService implements IAudioChatService {
   }
 
   @override
-  Future<void> togglePlay(Message msg, OnStateChanged onState) async {
+  Future<void> togglePlay(
+    final Message msg,
+    final OnStateChanged onState,
+  ) async {
     if (!msg.isAudio || msg.audio?.url == null) return;
     debugPrint('[Audio] togglePlay called, audioPath=${msg.audio?.url}');
     try {
@@ -362,15 +364,15 @@ class AudioChatService implements IAudioChatService {
       await _posSub?.cancel();
       await _durSub?.cancel();
       await _audioPlayer.play(msg.audio!.url!);
-      _durSub = _audioPlayer.onDurationChanged.listen((d) {
+      _durSub = _audioPlayer.onDurationChanged.listen((final d) {
         _currentDuration = d;
         onState();
       });
-      _posSub = _audioPlayer.onPositionChanged.listen((p) {
+      _posSub = _audioPlayer.onPositionChanged.listen((final p) {
         _currentPosition = p;
         onState();
       });
-      _audioPlayer.onPlayerComplete.listen((event) async {
+      _audioPlayer.onPlayerComplete.listen((final event) async {
         _currentPlayingId = null;
         _currentPosition = _currentDuration;
         try {
@@ -399,10 +401,10 @@ class AudioChatService implements IAudioChatService {
   /// persisted to the configured `AUDIO_DIR_*` directory. For calls, caller
   /// should use temporary-only output.
   Future<String?> synthesizeTts(
-    String text, {
-    String voice = 'marin',
-    String? languageCode,
-    bool forDialogDemo = false,
+    final String text, {
+    final String voice = 'marin',
+    final String? languageCode,
+    final bool forDialogDemo = false,
   }) async {
     debugPrint(
       '[Audio][TTS] synthesizeTts called - voice: $voice, languageCode: $languageCode',

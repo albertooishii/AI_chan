@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('App builds smoke test', (WidgetTester tester) async {
+  testWidgets('App builds smoke test', (final WidgetTester tester) async {
     // Para evitar inicializaciones pesadas (permisos, plugins) en el test
     // aislado, creamos un MaterialApp mínimo en lugar de arrancar la app
     // completa. Esto verifica el entorno de widgets sin ejecutar init logic.

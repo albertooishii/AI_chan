@@ -10,8 +10,8 @@ import 'package:ai_chan/core/ai_runtime_guard.dart';
 class IAAppearanceGenerator {
   /// Genera una descripción física exhaustiva basada en la biografía
   Future<Map<String, dynamic>> generateAppearanceFromBiography(
-    AiChanProfile bio, {
-    AIService? aiService,
+    final AiChanProfile bio, {
+    final AIService? aiService,
   }) async {
     final usedModel = Config.getDefaultTextModel();
 
@@ -260,7 +260,6 @@ class IAAppearanceGenerator {
         userBirthdate: bio.userBirthdate,
         aiBirthdate: bio.aiBirthdate,
         appearance: <String, dynamic>{},
-        timeline: [],
       ),
       dateTime: DateTime.now(),
       instructions: {'raw': prompt},

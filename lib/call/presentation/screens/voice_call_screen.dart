@@ -6,14 +6,15 @@ import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro
 
 class VoiceCallScreen extends StatefulWidget {
-  final bool incoming;
-  final ChatController chatController; // ✅ DDD: ETAPA 3 - DDD puro
+  // ✅ DDD: ETAPA 3 - DDD puro
 
   const VoiceCallScreen({
     super.key,
     this.incoming = false,
     required this.chatController,
   });
+  final bool incoming;
+  final ChatController chatController;
 
   @override
   State<VoiceCallScreen> createState() => _VoiceCallScreenState();
@@ -76,7 +77,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     final state = _controller.state;
 
     return Scaffold(
@@ -140,7 +141,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
     );
   }
 
-  String _getCallTitle(VoiceCallState state) {
+  String _getCallTitle(final VoiceCallState state) {
     switch (state.phase) {
       case CallPhase.initializing:
         return 'Iniciando llamada...';
@@ -157,7 +158,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
     }
   }
 
-  String _formatDuration(int seconds) {
+  String _formatDuration(final int seconds) {
     final minutes = seconds ~/ 60;
     final remainingSeconds = seconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
@@ -176,7 +177,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
     );
   }
 
-  Widget _buildAvatarSection(VoiceCallState state) {
+  Widget _buildAvatarSection(final VoiceCallState state) {
     return SizedBox(
       width: 200,
       height: 200,
@@ -186,7 +187,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
           // Animación de ondas de sonido
           AnimatedBuilder(
             animation: _animationController,
-            builder: (context, child) {
+            builder: (final context, final child) {
               return CustomPaint(
                 painter: WavePainter(
                   animation: _animationController.value,
@@ -218,7 +219,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
               child: Image.asset(
                 'assets/icons/app_icon.png',
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
+                errorBuilder: (final context, final error, final stackTrace) {
                   return Container(
                     color: Colors.cyanAccent.withAlpha((0.3 * 255).round()),
                     child: const Icon(
@@ -236,7 +237,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
     );
   }
 
-  Widget _buildSubtitlesSection(VoiceCallState state) {
+  Widget _buildSubtitlesSection(final VoiceCallState state) {
     return Container(
       height: 200,
       margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -297,7 +298,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
     );
   }
 
-  Widget _buildCallControls(VoiceCallState state) {
+  Widget _buildCallControls(final VoiceCallState state) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
@@ -329,9 +330,9 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
   }
 
   Widget _buildControlButton({
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
+    required final IconData icon,
+    required final Color color,
+    required final VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,

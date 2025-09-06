@@ -3,7 +3,10 @@ import 'dart:math';
 /// Utilidades para manejo de fechas en la generación de biografías de IA
 class DateUtils {
   /// Calcula la edad actual basada en la fecha de nacimiento
-  static int calculateAge(DateTime birthDate, {DateTime? referenceDate}) {
+  static int calculateAge(
+    final DateTime birthDate, {
+    final DateTime? referenceDate,
+  }) {
     final now = referenceDate ?? DateTime.now();
     int age = now.year - birthDate.year;
     final hasHadBirthdateThisYear =
@@ -15,9 +18,9 @@ class DateUtils {
 
   /// Genera una fecha de nacimiento aleatoria para la IA basada en la edad del usuario
   static DateTime generateAIBirthdate(
-    DateTime? userBirthdate, {
-    int? seed,
-    DateTime? referenceDate,
+    final DateTime? userBirthdate, {
+    final int? seed,
+    final DateTime? referenceDate,
   }) {
     final rng = seed != null ? Random(seed) : Random();
     final now = referenceDate ?? DateTime.now();
@@ -35,18 +38,18 @@ class DateUtils {
   }
 
   /// Convierte una fecha DateTime a string en formato YYYY-MM-DD
-  static String dateToIsoString(DateTime date) {
+  static String dateToIsoString(final DateTime date) {
     return "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
   }
 
   /// Obtiene la fecha actual en formato YYYY-MM-DD
-  static String getCurrentDateString({DateTime? referenceDate}) {
+  static String getCurrentDateString({final DateTime? referenceDate}) {
     final now = referenceDate ?? DateTime.now();
     return dateToIsoString(now);
   }
 
   /// Calcula la fecha de hace un mes de forma segura
-  static DateTime getDateOneMonthAgo({DateTime? referenceDate}) {
+  static DateTime getDateOneMonthAgo({final DateTime? referenceDate}) {
     final now = referenceDate ?? DateTime.now();
     int prevMonth = now.month - 1;
     int prevYear = now.year;
@@ -63,7 +66,7 @@ class DateUtils {
   }
 
   /// Obtiene la fecha de hace un mes en formato YYYY-MM-DD
-  static String getDateOneMonthAgoString({DateTime? referenceDate}) {
+  static String getDateOneMonthAgoString({final DateTime? referenceDate}) {
     final oneMonthAgo = getDateOneMonthAgo(referenceDate: referenceDate);
     return dateToIsoString(oneMonthAgo);
   }

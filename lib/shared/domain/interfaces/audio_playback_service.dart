@@ -13,7 +13,7 @@ abstract interface class AudioPlaybackService {
   Stream<Duration> get onPositionChanged;
 
   /// Play audio from the given source (file path, URL, or bytes)
-  Future<void> play(dynamic source);
+  Future<void> play(final dynamic source);
 
   /// Stop current playback
   Future<void> stop();
@@ -22,5 +22,5 @@ abstract interface class AudioPlaybackService {
   Future<void> dispose();
 
   /// Set release mode for playback behavior
-  Future<void> setReleaseMode(dynamic mode);
+  Future<void> setReleaseMode(final dynamic mode);
 }

@@ -2,7 +2,7 @@ import 'dart:convert';
 
 /// Extrae el primer bloque JSON válido de un texto, limpiando caracteres extra.
 /// Si no encuentra un bloque válido, retorna {'raw': texto}.
-Map<String, dynamic> extractJsonBlock(String text) {
+Map<String, dynamic> extractJsonBlock(final String text) {
   final String cleaned = text.trim();
   final startIdx = cleaned.indexOf('{');
   final endIdx = cleaned.lastIndexOf('}');

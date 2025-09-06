@@ -23,14 +23,6 @@ typedef SynthesizeTtsFn =
     });
 
 class TtsConfigurationDialog extends StatefulWidget {
-  final List<String>? userLangCodes;
-  final List<String>? aiLangCodes;
-  final FileUIService fileService;
-  // Callback that performs TTS synthesis for dialog demos. If null, play demo is disabled.
-  final SynthesizeTtsFn? synthesizeTts;
-  // Callback to notify the caller that settings changed and it may want to refresh UI
-  final VoidCallback? onSettingsChanged;
-
   const TtsConfigurationDialog({
     super.key,
     required this.fileService,
@@ -39,22 +31,29 @@ class TtsConfigurationDialog extends StatefulWidget {
     this.synthesizeTts,
     this.onSettingsChanged,
   });
+  final List<String>? userLangCodes;
+  final List<String>? aiLangCodes;
+  final FileUIService fileService;
+  // Callback that performs TTS synthesis for dialog demos. If null, play demo is disabled.
+  final SynthesizeTtsFn? synthesizeTts;
+  // Callback to notify the caller that settings changed and it may want to refresh UI
+  final VoidCallback? onSettingsChanged;
 
   @override
   State<TtsConfigurationDialog> createState() => _TtsConfigurationDialogState();
 
   /// Helper para mostrar este widget dentro de un AppAlertDialog.
   static Future<bool?> showAsDialog(
-    BuildContext ctx, {
-    required FileUIService fileService,
-    List<String>? userLangCodes,
-    List<String>? aiLangCodes,
-    SynthesizeTtsFn? synthesizeTts,
-    VoidCallback? onSettingsChanged,
+    final BuildContext ctx, {
+    required final FileUIService fileService,
+    final List<String>? userLangCodes,
+    final List<String>? aiLangCodes,
+    final SynthesizeTtsFn? synthesizeTts,
+    final VoidCallback? onSettingsChanged,
   }) {
     final stateKey = GlobalKey<_TtsConfigurationDialogState>();
     return showAppDialog<bool>(
-      builder: (context) => AppAlertDialog(
+      builder: (final context) => AppAlertDialog(
         title: const Text('Configuración de TTS'),
         headerActions: [
           // Action that triggers the internal refresh logic via the state key
@@ -115,7 +114,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
+  void didChangeAppLifecycleState(final AppLifecycleState state) {
     // Al volver (resumed) intentamos refrescar las voces nativas automáticamente
     if (state == AppLifecycleState.resumed &&
         Platform.isAndroid &&
@@ -136,7 +135,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
         final sampleLocales = voices
             .take(10)
             .map(
-              (v) =>
+              (final v) =>
                   (v['locale'] as String?) ??
                   (v['name'] as String?) ??
                   '<no-locale>',
@@ -177,7 +176,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
 
   /// Método público que puede ser invocado desde la cabecera (header action)
   /// para forzar la recarga de voces.
-  Future<void> refreshVoices({bool forceRefresh = false}) async {
+  Future<void> refreshVoices({final bool forceRefresh = false}) async {
     setState(() => _isLoading = true);
     try {
       if (_selectedProvider == 'google') {
@@ -302,11 +301,11 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
   }
 
   /// Obtiene el nivel de calidad legible de una voz Neural/WaveNet
-  String _getVoiceQualityLevel(Map<String, dynamic> voice) {
+  String _getVoiceQualityLevel(final Map<String, dynamic> voice) {
     return TtsVoiceService.getVoiceQualityLevel(voice);
   }
 
-  Future<void> _loadVoices({bool forceRefresh = false}) async {
+  Future<void> _loadVoices({final bool forceRefresh = false}) async {
     Log.d(
       'DEBUG TTS: _loadVoices iniciado - forceRefresh: $forceRefresh',
       tag: 'TTS_DIALOG',
@@ -360,7 +359,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
     }
   }
 
-  Future<void> _loadOpenAiVoices({bool forceRefresh = false}) async {
+  Future<void> _loadOpenAiVoices({final bool forceRefresh = false}) async {
     setState(() => _isLoading = true);
     try {
       // Use the static voice list helper (presentation-level) to ensure consistent shape and display
@@ -368,7 +367,9 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
       _openaiVoices.addAll(OpenAiVoiceUtils.loadStaticOpenAiVoices());
     } catch (e) {
       _openaiVoices.clear();
-      _openaiVoices.addAll(kOpenAIVoices.map((v) => {'name': v}).toList());
+      _openaiVoices.addAll(
+        kOpenAIVoices.map((final v) => {'name': v}).toList(),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -396,7 +397,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
 
   Future<void> _clearCache() async {
     final confirmed = await showAppDialog<bool>(
-      builder: (context) => AlertDialog(
+      builder: (final context) => AlertDialog(
         title: const Text('Limpiar Caché'),
         content: Text(
           '¿Eliminar ${CacheService.formatCacheSize(_cacheSize)} de audio en caché?',
@@ -429,7 +430,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     // Detectar si este widget está siendo mostrado dentro de un diálogo
     final isInDialog =
         ModalRoute.of(context)?.settings.name == null &&
@@ -777,7 +778,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
       ),
       child: ListView.builder(
         itemCount: voices.length,
-        itemBuilder: (context, index) {
+        itemBuilder: (final context, final index) {
           final voice = voices[index];
           final voiceName = voice['name'] as String? ?? 'Sin nombre';
 

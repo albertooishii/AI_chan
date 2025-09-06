@@ -14,7 +14,6 @@ import 'dart:convert';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'core/di.dart' as di;
 import 'core/di_bootstrap.dart' as di_bootstrap;
-import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro completado
 import 'package:ai_chan/chat/application/utils/profile_persist_utils.dart'
     as profile_persist_utils;
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
@@ -47,6 +46,24 @@ Future<void> main() async {
 
   await PrefsUtils.ensureDefaults();
 
+  // Debug: log onboarding data present at app start (helps verify persistence on cold start)
+  try {
+    final onboardingJson = await PrefsUtils.getOnboardingData();
+    if (onboardingJson != null && onboardingJson.trim().isNotEmpty) {
+      Log.i(
+        'MAIN: onboarding_data present at startup: ${onboardingJson.substring(0, onboardingJson.length.clamp(0, 200))}...',
+        tag: 'STARTUP',
+      );
+    } else {
+      Log.i('MAIN: no onboarding_data found at startup', tag: 'STARTUP');
+    }
+  } catch (e) {
+    Log.e(
+      'MAIN: failed reading onboarding_data at startup: $e',
+      tag: 'STARTUP',
+    );
+  }
+
   runApp(const RootApp());
 }
 
@@ -75,7 +92,7 @@ class _RootAppState extends State<RootApp> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     return ChangeNotifierProvider.value(
       value: _onboardingLifecycle,
       child: MaterialApp(
@@ -104,8 +121,8 @@ class _RootAppState extends State<RootApp> {
 }
 
 class MyApp extends StatefulWidget {
-  final OnboardingLifecycleController onboardingLifecycle;
   const MyApp({super.key, required this.onboardingLifecycle});
+  final OnboardingLifecycleController onboardingLifecycle;
 
   @override
   State<MyApp> createState() => MyAppState();
@@ -140,7 +157,6 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
             aiBirthdate: DateTime.now(),
             biography: {},
             appearance: {},
-            timeline: [],
           ),
         ); // ✅ DDD: ETAPA 3 - Cerrar constructor AiChanProfile y updateProfile
 
@@ -202,7 +218,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     if (!_initialized) {
       return const Scaffold(
         backgroundColor: Colors.black,
@@ -215,7 +231,10 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       );
     }
 
-    final onboardingLifecycle = widget.onboardingLifecycle;
+    // Listen to the provider so UI rebuilds when lifecycle state changes
+    final onboardingLifecycle = Provider.of<OnboardingLifecycleController>(
+      context,
+    );
     if (onboardingLifecycle.loading) {
       return const Scaffold(
         backgroundColor: Colors.black,
@@ -232,24 +251,35 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       return OnboardingModeSelector(
         onFinish:
             ({
-              required String userName,
-              required String aiName,
-              required DateTime? userBirthdate,
-              required String meetStory,
-              String? userCountryCode,
-              String? aiCountryCode,
-              Map<String, dynamic>? appearance,
+              required final String userName,
+              required final String aiName,
+              required final DateTime? userBirthdate,
+              required final String meetStory,
+              final String? userCountryCode,
+              final String? aiCountryCode,
+              final Map<String, dynamic>? appearance,
             }) async {
-              final navigator = Navigator.of(context);
+              // Use the global navigatorKey to obtain a NavigatorState safely.
+              // Navigator.of(context) can be null or invalid if the captured
+              // context is not mounted at callback time; using the global
+              // navigator avoids Null check operator failures.
+              final nav = navigatorKey.currentState;
+              if (nav == null) {
+                Log.e(
+                  'Navigator state is not available when finishing onboarding',
+                );
+                return;
+              }
+
               // Lifecycle controller only owns lifecycle; form controllers will be
               // created by the onboarding screens. Use the lifecycle to generate
               // and persist the biography once the form finishes.
-              await navigator.push<AiChanProfile>(
+              final returned = await nav.push<AiChanProfile>(
                 MaterialPageRoute(
                   fullscreenDialog: true,
                   builder: (_) => InitializingScreen(
                     bioFutureFactory:
-                        ([void Function(String)? onProgress]) async {
+                        ([final void Function(String)? onProgress]) async {
                           await onboardingLifecycle.generateAndSaveBiography(
                             context: context,
                             userName: userName,
@@ -269,18 +299,85 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   ),
                 ),
               );
-              if (mounted) setState(() {});
+
+              // Log and ensure we navigate to Chat explicitly when the initializer
+              // returns a generated profile. This avoids race conditions where the
+              // UI rebuild path might still show onboarding.
+              Log.d(
+                'MAIN: InitializingScreen returned: profile=${returned?.aiName} biographySaved=${onboardingLifecycle.biographySaved}',
+              );
+
+              if (returned != null) {
+                // Ensure a ChatController exists and persist onboarding data as the
+                // normal build path would do. Then navigate to ChatScreen replacing
+                // the current onboarding route.
+                if (_chatController == null) {
+                  Log.i('MAIN: Creando ChatController tras InitializingScreen');
+                  _chatController = di.getChatController();
+                }
+
+                if (onboardingLifecycle.generatedBiography != null &&
+                    onboardingLifecycle.biographySaved) {
+                  Log.i(
+                    'MAIN: Persistiendo biografía tras InitializingScreen: ${onboardingLifecycle.generatedBiography!.aiName}',
+                  );
+                  // Esperar a que la persistencia complete antes de navegar al Chat
+                  await profile_persist_utils.setOnboardingDataAndPersist(
+                    _chatController!,
+                    onboardingLifecycle.generatedBiography!,
+                  );
+
+                  // Ensure the ChatController loads persisted data before showing Chat
+                  try {
+                    await _chatController!.initialize();
+                  } catch (e) {
+                    Log.w('MAIN: ChatController.initialize() failed: $e');
+                  }
+                }
+
+                // Replace the whole route stack with the ChatScreen so we never
+                // return to onboarding screens after initialization completes.
+                await nav.pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (_) => ChangeNotifierProvider.value(
+                      value: _chatController,
+                      child: ChatScreen(
+                        bio: onboardingLifecycle.generatedBiography!,
+                        aiName: onboardingLifecycle.generatedBiography!.aiName,
+                        chatController: _chatController!,
+                        onClearAllDebug: resetApp,
+                        onImportJson: (final importedChat) async {
+                          final ob = onboardingLifecycle;
+                          final jsonStr = jsonEncode(importedChat.toJson());
+                          final imported =
+                              await chat_json_utils
+                                  .ChatJsonUtils.importAllFromJson(
+                                jsonStr,
+                                onError: (final err) => ob.setImportError(err),
+                              );
+                          if (imported != null) {
+                            await ob.applyChatExport(imported);
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  (final route) => false,
+                );
+              } else if (mounted) {
+                setState(() {});
+              }
             },
         onClearAllDebug: resetApp,
-        onImportJson: (importedChat) async {
+        onImportJson: (final importedChat) async {
           final jsonStr = jsonEncode(importedChat.toJson());
           final imported =
               await chat_json_utils.ChatJsonUtils.importAllFromJson(
                 jsonStr,
-                onError: (err) => onboardingLifecycle.setImportError(err),
+                onError: (final err) => onboardingLifecycle.setImportError(err),
               );
           if (imported != null) {
-            await onboardingLifecycle.applyImportedChat(imported);
+            await onboardingLifecycle.applyChatExport(imported);
             if (mounted) setState(() {});
           }
         },
@@ -302,10 +399,20 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
         Log.i(
           'MAIN: Persistiendo biografía: ${onboardingLifecycle.generatedBiography!.aiName}',
         );
-        profile_persist_utils.setOnboardingDataAndPersist(
-          _chatController!, // ✅ DDD: ETAPA 3 - Direct ChatController
-          onboardingLifecycle.generatedBiography!,
-        );
+        // Schedule persistence and initialization asynchronously. We don't block
+        // build(), but ensure the controller is initialized as soon as possible.
+        Future(() async {
+          try {
+            await profile_persist_utils.setOnboardingDataAndPersist(
+              _chatController!, // ✅ DDD: ETAPA 3 - Direct ChatController
+              onboardingLifecycle.generatedBiography!,
+            );
+            await _chatController!.initialize();
+          } catch (e) {
+            Log.w('MAIN: Async persist+init failed: $e');
+          }
+          if (mounted) setState(() {});
+        });
       } else {
         Log.i(
           'MAIN: NO persistiendo biografía (generatedBiography=${onboardingLifecycle.generatedBiography?.aiName}, biographySaved=${onboardingLifecycle.biographySaved})',
@@ -328,16 +435,16 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
         aiName: onboardingLifecycle.generatedBiography!.aiName,
         chatController: _chatController!,
         onClearAllDebug: resetApp,
-        onImportJson: (importedChat) async {
+        onImportJson: (final importedChat) async {
           final ob = onboardingLifecycle;
           final jsonStr = jsonEncode(importedChat.toJson());
           final imported =
               await chat_json_utils.ChatJsonUtils.importAllFromJson(
                 jsonStr,
-                onError: (err) => ob.setImportError(err),
+                onError: (final err) => ob.setImportError(err),
               );
           if (imported != null) {
-            await ob.applyImportedChat(imported);
+            await ob.applyChatExport(imported);
           }
         },
       ),

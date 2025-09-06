@@ -10,7 +10,7 @@ import '../test_setup.dart' as test_setup;
 /// throw here and fail — enforcing that network-using code must be faked.
 class _NoNetworkHttpOverrides extends HttpOverrides {
   @override
-  HttpClient createHttpClient(SecurityContext? context) {
+  HttpClient createHttpClient(final SecurityContext? context) {
     throw Exception('Network disabled in tests. Use fakes or test factories.');
   }
 }

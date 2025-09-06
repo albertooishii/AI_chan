@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 
 /// Simple blinking dot used to indicate recording state.
 class BlinkingDot extends StatefulWidget {
-  final double size;
-  final Color color;
-  final Duration duration;
   const BlinkingDot({
     super.key,
     this.size = 12.0,
     this.color = Colors.redAccent,
     this.duration = const Duration(milliseconds: 900),
   });
+  final double size;
+  final Color color;
+  final Duration duration;
 
   @override
   State<BlinkingDot> createState() => _BlinkingDotState();
@@ -34,7 +34,7 @@ class _BlinkingDotState extends State<BlinkingDot>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     return FadeTransition(
       opacity: CurvedAnimation(parent: _c, curve: Curves.easeInOut),
       child: Container(
@@ -48,15 +48,15 @@ class _BlinkingDotState extends State<BlinkingDot>
 
 /// Three dots animated indicator (typing/recording). Color and size customizable.
 class ThreeDotsIndicator extends StatefulWidget {
-  final Color color;
-  final double dotSize;
-  final Duration duration;
   const ThreeDotsIndicator({
     super.key,
     required this.color,
     this.dotSize = 6.0,
     this.duration = const Duration(milliseconds: 900),
   });
+  final Color color;
+  final double dotSize;
+  final Duration duration;
 
   @override
   State<ThreeDotsIndicator> createState() => _ThreeDotsIndicatorState();
@@ -80,15 +80,15 @@ class _ThreeDotsIndicatorState extends State<ThreeDotsIndicator>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     return AnimatedBuilder(
       animation: _ctrl,
-      builder: (context, _) {
+      builder: (final context, _) {
         final phase = _ctrl.value;
         final int active = (phase * 3).floor().clamp(0, 2);
         return Row(
           mainAxisSize: MainAxisSize.min,
-          children: List.generate(3, (i) {
+          children: List.generate(3, (final i) {
             final on = i == active;
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2),

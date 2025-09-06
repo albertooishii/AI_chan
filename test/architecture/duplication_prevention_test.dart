@@ -26,7 +26,7 @@ void main() {
       }
 
       final duplicates = hashToFiles.values
-          .where((files) => files.length > 1)
+          .where((final files) => files.length > 1)
           .toList();
 
       if (duplicates.isNotEmpty) {
@@ -63,7 +63,7 @@ void main() {
           // Filtrar falsos positivos (funciones en tests, métodos de widgets, etc.)
           final realDuplicates = entry.value
               .where(
-                (func) =>
+                (final func) =>
                     !func.contains('test/') &&
                     !func.contains('build(') &&
                     !func.contains('_build') &&
@@ -134,7 +134,7 @@ void main() {
 
       for (final entry in servicesBySignature.entries) {
         if (entry.value.length > 1) {
-          final violations = entry.value.map((s) => '   - $s').join('\n');
+          final violations = entry.value.map((final s) => '   - $s').join('\n');
           serviceViolations.add('⚠️  Similar services detected:\n$violations');
         }
       }
@@ -172,11 +172,11 @@ void main() {
       for (final entry in modelsByFields.entries) {
         if (entry.value.length > 1) {
           final paths = entry.value.map(
-            (s) => s.split('(').last.replaceAll(')', ''),
+            (final s) => s.split('(').last.replaceAll(')', ''),
           );
           final hasTestAndProduction =
-              paths.any((p) => p.contains('test/')) &&
-              paths.any((p) => !p.contains('test/'));
+              paths.any((final p) => p.contains('test/')) &&
+              paths.any((final p) => !p.contains('test/'));
 
           // Filtrar clases que están en el mismo archivo (es normal tener múltiples clases relacionadas)
           final uniquePaths = paths.toSet();
@@ -186,7 +186,9 @@ void main() {
           if (!hasTestAndProduction &&
               !isSameFileClasses &&
               !_areRelatedClasses(entry.value)) {
-            final violations = entry.value.map((s) => '   - $s').join('\n');
+            final violations = entry.value
+                .map((final s) => '   - $s')
+                .join('\n');
             modelViolations.add('⚠️  Similar models detected:\n$violations');
           }
         }
@@ -225,13 +227,13 @@ void main() {
 
       if (emptyBarrels.isNotEmpty) {
         violations.add(
-          '🗑️ Empty barrel files found:\n${emptyBarrels.map((f) => '   - $f').join('\n')}',
+          '🗑️ Empty barrel files found:\n${emptyBarrels.map((final f) => '   - $f').join('\n')}',
         );
       }
 
       if (shimsAndDeprecated.isNotEmpty) {
         violations.add(
-          '🚫 Deprecated shims/migration files found:\n${shimsAndDeprecated.map((f) => '   - $f').join('\n')}',
+          '🚫 Deprecated shims/migration files found:\n${shimsAndDeprecated.map((final f) => '   - $f').join('\n')}',
         );
       }
 
@@ -239,7 +241,7 @@ void main() {
         final rmCommands = [
           ...emptyBarrels,
           ...shimsAndDeprecated,
-        ].map((f) => 'rm \'$f\'').join('\n');
+        ].map((final f) => 'rm \'$f\'').join('\n');
         fail(
           '${violations.join('\n\n')}\n\n'
           '💡 Clean up commands:\n$rmCommands',
@@ -268,7 +270,7 @@ void main() {
 
       if (obsoleteComments.isNotEmpty) {
         fail(
-          '📝 Obsolete comments and/or methods found:\n\n${obsoleteComments.map((c) => '   $c').join('\n')}\n\n'
+          '📝 Obsolete comments and/or methods found:\n\n${obsoleteComments.map((final c) => '   $c').join('\n')}\n\n'
           '💡 Clean these methods and/or comments that reference old/deprecated methods, TODO items from migration, or outdated architecture notes.',
         );
       }
@@ -355,7 +357,7 @@ void main() {
 
 // ===================== NUEVOS HELPER FUNCTIONS =====================
 
-bool _isEmptyBarrel(String content, String path) {
+bool _isEmptyBarrel(final String content, final String path) {
   // Detectar archivos que son principalmente barrel exports pero están completamente vacíos
   if (!path.endsWith('.dart') ||
       path.contains('test/') ||
@@ -415,11 +417,11 @@ bool _isEmptyBarrel(String content, String path) {
       content
           .trim()
           .split('\n')
-          .where((line) => line.trim().startsWith('export '))
+          .where((final line) => line.trim().startsWith('export '))
           .isEmpty;
 }
 
-bool _isDeprecatedShimOrMigration(String content, String path) {
+bool _isDeprecatedShimOrMigration(final String content, final String path) {
   final lowerPath = path.toLowerCase();
   final lowerContent = content.toLowerCase();
 
@@ -472,7 +474,7 @@ bool _isDeprecatedShimOrMigration(String content, String path) {
   return false;
 }
 
-bool _hasObsoleteComment(String line) {
+bool _hasObsoleteComment(final String line) {
   final trimmed = line.trim().toLowerCase();
 
   // Comentarios que referencian métodos/archivos antiguos
@@ -500,14 +502,14 @@ bool _hasObsoleteComment(String line) {
   return false;
 }
 
-String? _extractMovedToPath(String comment) {
+String? _extractMovedToPath(final String comment) {
   final match = RegExp(
     r'moved to (.+\.dart)',
   ).firstMatch(comment.toLowerCase());
   return match?.group(1);
 }
 
-String? _extractExportPath(String exportLine) {
+String? _extractExportPath(final String exportLine) {
   // Extraer path de export usando substring para evitar regex compleja
   if (exportLine.contains("'")) {
     final start = exportLine.indexOf("'") + 1;
@@ -525,7 +527,7 @@ String? _extractExportPath(String exportLine) {
   return null;
 }
 
-String _resolveRelativePath(String basePath, String relativePath) {
+String _resolveRelativePath(final String basePath, final String relativePath) {
   if (relativePath.startsWith('/')) return relativePath;
 
   final baseDir = Directory(basePath);
@@ -538,7 +540,7 @@ List<File> _collectDartFiles() {
   final libDir = Directory('lib');
   final testDir = Directory('test');
 
-  void collectFrom(Directory dir) {
+  void collectFrom(final Directory dir) {
     if (!dir.existsSync()) return;
 
     for (final entity in dir.listSync(recursive: true)) {
@@ -559,7 +561,7 @@ List<File> _collectDartFiles() {
   return files;
 }
 
-String _normalizeContent(String content) {
+String _normalizeContent(final String content) {
   final lines = <String>[];
 
   for (final rawLine in LineSplitter.split(content)) {
@@ -589,7 +591,10 @@ String _normalizeContent(String content) {
   return lines.join('\n');
 }
 
-List<Map<String, String>> _extractServiceClasses(String content, String path) {
+List<Map<String, String>> _extractServiceClasses(
+  final String content,
+  final String path,
+) {
   final services = <Map<String, String>>[];
   final lines = content.split('\n');
 
@@ -618,7 +623,10 @@ List<Map<String, String>> _extractServiceClasses(String content, String path) {
   return services;
 }
 
-List<Map<String, String>> _extractModelClasses(String content, String path) {
+List<Map<String, String>> _extractModelClasses(
+  final String content,
+  final String path,
+) {
   final models = <Map<String, String>>[];
   final lines = content.split('\n');
 
@@ -640,7 +648,7 @@ List<Map<String, String>> _extractModelClasses(String content, String path) {
   return models;
 }
 
-String _extractMethodSignatures(String content, String className) {
+String _extractMethodSignatures(final String content, final String className) {
   final lines = content.split('\n');
   final signatures = <String>[];
 
@@ -666,7 +674,7 @@ String _extractMethodSignatures(String content, String className) {
   return signatures.join('|');
 }
 
-String _extractFields(String content, String className) {
+String _extractFields(final String content, final String className) {
   final lines = content.split('\n');
   final fields = <String>[];
   bool inClass = false;
@@ -716,12 +724,12 @@ String _extractFields(String content, String className) {
   return fields.join('|');
 }
 
-String _getRelativePath(String fullPath) {
+String _getRelativePath(final String fullPath) {
   final currentDir = Directory.current.path.replaceAll(r'\', '/');
   return fullPath.replaceAll(r'\', '/').replaceAll('$currentDir/', '');
 }
 
-String _buildDuplicateFilesReport(List<List<String>> duplicates) {
+String _buildDuplicateFilesReport(final List<List<String>> duplicates) {
   final buffer = StringBuffer();
   buffer.writeln('🚫 Duplicate files detected:');
   buffer.writeln();
@@ -745,7 +753,7 @@ String _buildDuplicateFilesReport(List<List<String>> duplicates) {
   return buffer.toString();
 }
 
-bool _isArchitecturalBarrel(String path) {
+bool _isArchitecturalBarrel(final String path) {
   // Excluir archivos barrel que son parte normal de la arquitectura DDD
   final barrelPatterns = [
     // Módulos principales
@@ -773,7 +781,7 @@ bool _isArchitecturalBarrel(String path) {
   return false;
 }
 
-bool _isFlutterWidgetPair(String className) {
+bool _isFlutterWidgetPair(final String className) {
   // Filtrar pares comunes de Widget + State de Flutter
   return className.endsWith('State') ||
       className.endsWith('Widget') ||
@@ -786,16 +794,16 @@ bool _isFlutterWidgetPair(String className) {
       className.contains('Controller') && className.contains('_');
 }
 
-bool _areRelatedClasses(List<String> classNames) {
+bool _areRelatedClasses(final List<String> classNames) {
   // Verificar si las clases son claramente relacionadas (e.g., diferentes versiones del mismo concepto)
-  final names = classNames.map((s) => s.split('(')[0]).toList();
+  final names = classNames.map((final s) => s.split('(')[0]).toList();
 
   // Si las clases son de diferentes tipos (adapter, service, utils, etc.) - no son duplicados
-  final types = names.map((n) => n.toLowerCase());
-  final hasAdapter = types.any((t) => t.contains('adapter'));
-  final hasService = types.any((t) => t.contains('service'));
-  final hasUtils = types.any((t) => t.contains('utils'));
-  final hasUseCase = types.any((t) => t.contains('usecase'));
+  final types = names.map((final n) => n.toLowerCase());
+  final hasAdapter = types.any((final t) => t.contains('adapter'));
+  final hasService = types.any((final t) => t.contains('service'));
+  final hasUtils = types.any((final t) => t.contains('utils'));
+  final hasUseCase = types.any((final t) => t.contains('usecase'));
 
   if ((hasAdapter || hasService || hasUtils || hasUseCase) &&
       types.length > 1) {
@@ -825,8 +833,8 @@ bool _areRelatedClasses(List<String> classNames) {
 // ===================== UTILITY FUNCTION DETECTION =====================
 
 List<Map<String, String>> _extractUtilityFunctions(
-  String content,
-  String path,
+  final String content,
+  final String path,
 ) {
   final functions = <Map<String, String>>[];
   final lines = content.split('\n');
@@ -857,7 +865,7 @@ List<Map<String, String>> _extractUtilityFunctions(
   return functions;
 }
 
-bool _isUtilityFunction(String line) {
+bool _isUtilityFunction(final String line) {
   // Detectar funciones que parecen utilitarias por nombre y patrón
   final utilityPatterns = [
     // Funciones de formateo
@@ -891,7 +899,7 @@ bool _isUtilityFunction(String line) {
   return false;
 }
 
-String? _extractFunctionName(String line) {
+String? _extractFunctionName(final String line) {
   // Extraer nombre de función de declaraciones como "String formatBytes(int bytes)"
   final match = RegExp(r'\b(\w+)\s*\(').firstMatch(line);
   if (match != null) {
@@ -904,7 +912,7 @@ String? _extractFunctionName(String line) {
   return null;
 }
 
-String _extractFunctionBody(List<String> lines, int startIndex) {
+String _extractFunctionBody(final List<String> lines, final int startIndex) {
   final bodyLines = <String>[];
   int braceCount = 0;
   bool foundOpeningBrace = false;
@@ -933,7 +941,10 @@ String _extractFunctionBody(List<String> lines, int startIndex) {
   return bodyLines.join('\n');
 }
 
-String _generateFunctionSignature(String functionName, String functionBody) {
+String _generateFunctionSignature(
+  final String functionName,
+  final String functionBody,
+) {
   // Crear una firma basada en el nombre y los patrones clave del cuerpo
   final keyPatterns = <String>[];
 
@@ -964,7 +975,8 @@ String _generateFunctionSignature(String functionName, String functionBody) {
     final significantLines = functionBody
         .split('\n')
         .where(
-          (line) => line.trim().isNotEmpty && !line.trim().startsWith('//'),
+          (final line) =>
+              line.trim().isNotEmpty && !line.trim().startsWith('//'),
         )
         .length;
     keyPatterns.add('lines_$significantLines');
@@ -973,7 +985,7 @@ String _generateFunctionSignature(String functionName, String functionBody) {
   return '$functionName|${keyPatterns.join('_')}';
 }
 
-List<String> _findMisplacedUtilities(String content, String path) {
+List<String> _findMisplacedUtilities(final String content, final String path) {
   final violations = <String>[];
   final lines = content.split('\n');
 
@@ -1030,7 +1042,7 @@ List<String> _findMisplacedUtilities(String content, String path) {
   return violations;
 }
 
-bool _isByteFormattingFunction(String line) {
+bool _isByteFormattingFunction(final String line) {
   return RegExp(
         r'String\s+\w*([Hh]uman|[Ff]ormat|[Ss]ize)\w*.*\(.*int.*\)',
         caseSensitive: false,
@@ -1038,7 +1050,7 @@ bool _isByteFormattingFunction(String line) {
       (line.contains('bytes') || line.contains('size') || line.contains('B'));
 }
 
-bool _isStringNormalizationFunction(String line) {
+bool _isStringNormalizationFunction(final String line) {
   return RegExp(
         r'String\s+\w*[Nn]ormali[zs]e\w*\s*\(.*String',
         caseSensitive: false,
@@ -1048,7 +1060,7 @@ bool _isStringNormalizationFunction(String line) {
           line.contains('('));
 }
 
-bool _isMathConversionFunction(String line) {
+bool _isMathConversionFunction(final String line) {
   return RegExp(
     r'(int|double|num)\s+\w*([Cc]onvert|[Cc]alculate|[Pp]arse)\w*\s*\(',
   ).hasMatch(line);
@@ -1056,7 +1068,7 @@ bool _isMathConversionFunction(String line) {
 
 // ===================== DUPLICATE CODE BLOCK DETECTION =====================
 
-List<String> _findDuplicateCodeBlocks(String content, String path) {
+List<String> _findDuplicateCodeBlocks(final String content, final String path) {
   final violations = <String>[];
   final lines = content.split('\n');
 
@@ -1140,9 +1152,9 @@ List<String> _findDuplicateCodeBlocks(String content, String path) {
 /// Detecta si dos bloques de código similares representan un fallback apropiado
 /// que no debe considerarse duplicación problemática
 bool _isAppropriateFallback(
-  List<String> block1,
-  List<String> block2,
-  String path,
+  final List<String> block1,
+  final List<String> block2,
+  final String path,
 ) {
   final block1Text = block1.join(' ').toLowerCase();
   final block2Text = block2.join(' ').toLowerCase();
@@ -1224,7 +1236,11 @@ bool _isAppropriateFallback(
 
 /// Detecta configuraciones estructurales similares que son aceptables
 /// (ej: diferentes presets de audio, configuraciones de UI similares)
-bool _isStructuralConfiguration(String block1, String block2, String path) {
+bool _isStructuralConfiguration(
+  final String block1,
+  final String block2,
+  final String path,
+) {
   // Configuraciones de audio/tone service
   if (path.contains('tone_service')) {
     // Patrones de configuración de beeps con diferentes valores
@@ -1264,7 +1280,7 @@ bool _isStructuralConfiguration(String block1, String block2, String path) {
 
 /// Detecta patrones de inicialización parametrizada donde la estructura es la misma
 /// pero los valores son diferentes (aceptable)
-bool _isParameterizedInitialization(String block1, String block2) {
+bool _isParameterizedInitialization(final String block1, final String block2) {
   // Patrones comunes de inicialización con diferentes valores
   final initPatterns = [
     'const.*=.*',
@@ -1288,7 +1304,10 @@ bool _isParameterizedInitialization(String block1, String block2) {
 }
 
 /// Detecta builders o factory methods con diferentes valores por defecto
-bool _isBuildersWithDifferentDefaults(String block1, String block2) {
+bool _isBuildersWithDifferentDefaults(
+  final String block1,
+  final String block2,
+) {
   final builderPatterns = [
     'build.*wav',
     'create.*structure',
@@ -1308,7 +1327,7 @@ bool _isBuildersWithDifferentDefaults(String block1, String block2) {
   return false;
 }
 
-List<Map<String, dynamic>> _extractCodeBlocks(List<String> lines) {
+List<Map<String, dynamic>> _extractCodeBlocks(final List<String> lines) {
   final blocks = <Map<String, dynamic>>[];
   final meaningfulLines = <String>[];
   final lineNumbers = <int>[];
@@ -1371,7 +1390,10 @@ List<Map<String, dynamic>> _extractCodeBlocks(List<String> lines) {
   return blocks;
 }
 
-double _calculateBlockSimilarity(List<String> block1, List<String> block2) {
+double _calculateBlockSimilarity(
+  final List<String> block1,
+  final List<String> block2,
+) {
   // Normalizar ambos bloques para comparación
   final normalized1 = _normalizeCodeBlock(block1);
   final normalized2 = _normalizeCodeBlock(block2);
@@ -1405,8 +1427,8 @@ double _calculateBlockSimilarity(List<String> block1, List<String> block2) {
   return similarity > 1.0 ? 1.0 : similarity;
 }
 
-List<String> _normalizeCodeBlock(List<String> lines) {
-  return lines.map((line) {
+List<String> _normalizeCodeBlock(final List<String> lines) {
+  return lines.map((final line) {
     // Normalizar espacios en blanco
     var normalized = line.replaceAll(RegExp(r'\s+'), ' ').trim();
 
@@ -1434,7 +1456,7 @@ List<String> _normalizeCodeBlock(List<String> lines) {
   }).toList();
 }
 
-bool _areLinesStructurallySimilar(String line1, String line2) {
+bool _areLinesStructurallySimilar(final String line1, final String line2) {
   // Extraer la estructura sintáctica (keywords, operadores, paréntesis)
   final structure1 = _extractSyntacticStructure(line1);
   final structure2 = _extractSyntacticStructure(line2);
@@ -1442,7 +1464,7 @@ bool _areLinesStructurallySimilar(String line1, String line2) {
   return structure1 == structure2;
 }
 
-String _extractSyntacticStructure(String line) {
+String _extractSyntacticStructure(final String line) {
   // Reemplazar literales con placeholders para comparar solo estructura
   var structure = line;
 

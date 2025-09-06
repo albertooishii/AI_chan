@@ -29,12 +29,7 @@ typedef OnboardingFinishCallback =
 
 /// Pantalla de selección de modo de onboarding con conversacional por defecto
 class OnboardingModeSelector extends StatefulWidget {
-  final OnboardingFinishCallback onFinish;
-  final void Function()? onClearAllDebug;
-  final Future<void> Function(ImportedChat importedChat)? onImportJson;
-  final OnboardingLifecycleController? onboardingLifecycle;
-  final ChatApplicationService?
-  chatProvider; // ✅ DDD: ETAPA 3 - Migrado a ChatApplicationService
+  // ✅ DDD: ETAPA 3 - Migrado a ChatApplicationService
 
   const OnboardingModeSelector({
     super.key,
@@ -44,6 +39,11 @@ class OnboardingModeSelector extends StatefulWidget {
     this.onboardingLifecycle,
     this.chatProvider,
   });
+  final OnboardingFinishCallback onFinish;
+  final void Function()? onClearAllDebug;
+  final Future<void> Function(ChatExport chatExport)? onImportJson;
+  final OnboardingLifecycleController? onboardingLifecycle;
+  final ChatApplicationService? chatProvider;
 
   @override
   State<OnboardingModeSelector> createState() => _OnboardingModeSelectorState();
@@ -60,12 +60,12 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
 
   /// Construye un widget de texto con estilo consistente
   Widget _buildStyledText({
-    required String text,
-    required Color color,
-    required double fontSize,
-    FontWeight? fontWeight,
-    FontStyle? fontStyle,
-    double? height,
+    required final String text,
+    required final Color color,
+    required final double fontSize,
+    final FontWeight? fontWeight,
+    final FontStyle? fontStyle,
+    final double? height,
   }) {
     return Text(
       text,
@@ -114,11 +114,14 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
+        // No mostrar el botón 'atrás' automático: esta pantalla debe
+        // comportarse como pantalla inicial cuando corresponde.
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -138,7 +141,7 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: AppColors.secondary),
             color: Colors.black,
-            itemBuilder: (context) => [
+            itemBuilder: (final context) => [
               const PopupMenuItem<String>(
                 value: 'restore_local',
                 child: Row(
@@ -153,7 +156,7 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
                 ),
               ),
             ],
-            onSelected: (value) async {
+            onSelected: (final value) async {
               if (value == 'restore_local') {
                 await _handleRestoreFromLocal(context);
               }
@@ -382,7 +385,7 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
   }
 
   /// Maneja la restauración desde archivo local
-  Future<void> _handleRestoreFromLocal(BuildContext context) async {
+  Future<void> _handleRestoreFromLocal(final BuildContext context) async {
     setState(() {});
     try {
       // Usar FilePicker para seleccionar el archivo de backup
@@ -426,7 +429,7 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
         }
         if (mounted) {
           await showAppDialog(
-            builder: (ctx) => AlertDialog(
+            builder: (final ctx) => AlertDialog(
               backgroundColor: Colors.black,
               title: const Text(
                 'Restauración completada',
@@ -454,7 +457,7 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
       // Error en la importación
       if (mounted) {
         await showAppDialog(
-          builder: (ctx) => AlertDialog(
+          builder: (final ctx) => AlertDialog(
             backgroundColor: Colors.black,
             title: const Text(
               'Error al importar',
@@ -479,7 +482,7 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
     } catch (e) {
       if (mounted) {
         await showAppDialog(
-          builder: (ctx) => AlertDialog(
+          builder: (final ctx) => AlertDialog(
             backgroundColor: Colors.black,
             title: const Text('Error', style: TextStyle(color: Colors.red)),
             content: Text(
@@ -502,15 +505,15 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
   }
 
   /// Maneja el backup con Google Drive
-  Future<void> _handleGoogleDriveBackup(BuildContext context) async {
+  Future<void> _handleGoogleDriveBackup(final BuildContext context) async {
     final dynamic cp = widget.chatProvider;
     final OnboardingLifecycleController? op = widget.onboardingLifecycle;
 
     final res = await showAppDialog<dynamic>(
-      builder: (ctx) => AlertDialog(
+      builder: (final ctx) => AlertDialog(
         backgroundColor: Colors.black,
         content: Builder(
-          builder: (ctxInner) {
+          builder: (final ctxInner) {
             final screenWidth = MediaQuery.of(ctxInner).size.width;
             final margin = screenWidth > 800 ? 32.0 : 4.0;
             final maxWidth = screenWidth > 800 ? 900.0 : double.infinity;
@@ -525,26 +528,27 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
                           profile: captured.onboardingData,
                           messages: captured.messages,
                           events: captured.events,
+                          timeline: captured.timeline,
                         );
                       }
                     : null,
                 onImportedJson: cp != null
-                    ? (jsonStr) async {
+                    ? (final jsonStr) async {
                         final captured = cp;
                         final imported = await chat_json_utils
                             .ChatJsonUtils.importAllFromJson(jsonStr);
                         if (imported != null) {
-                          await captured.applyImportedChat(imported);
+                          await captured.applyChatExport(imported);
                         }
                       }
                     : null,
                 onAccountInfoUpdated: cp != null
                     ? ({
-                        String? email,
-                        String? avatarUrl,
-                        String? name,
-                        bool linked = false,
-                        bool triggerAutoBackup = false,
+                        final String? email,
+                        final String? avatarUrl,
+                        final String? name,
+                        final bool linked = false,
+                        final bool triggerAutoBackup = false,
                       }) async {
                         final captured = cp;
                         await captured.updateGoogleAccountInfo(
@@ -572,17 +576,17 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
       try {
         final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
           jsonStr,
-          onError: (err) => op?.setImportError(err),
+          onError: (final err) => op?.setImportError(err),
         );
         if (imported != null) {
-          await op?.applyImportedChat(imported);
+          await op?.applyChatExport(imported);
           if (widget.onImportJson != null) {
             await widget.onImportJson!(imported);
           }
           if (mounted) setState(() {});
         } else {
           await showAppDialog(
-            builder: (ctx) => AlertDialog(
+            builder: (final ctx) => AlertDialog(
               backgroundColor: Colors.black,
               title: const Text(
                 'Error al importar',
@@ -606,7 +610,7 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
         }
       } catch (e) {
         await showAppDialog(
-          builder: (ctx) => AlertDialog(
+          builder: (final ctx) => AlertDialog(
             backgroundColor: Colors.black,
             title: const Text('Error', style: TextStyle(color: Colors.red)),
             content: Text(

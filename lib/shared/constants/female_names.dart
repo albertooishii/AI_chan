@@ -2,8 +2,11 @@
 /// Incluye la lista japonesa ya usada y colecciones básicas por regiones.
 class FemaleNamesRepo {
   // Helpers para definir listas largas como CSV compacto
-  static List<String> _csv(String csv) =>
-      csv.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+  static List<String> _csv(final String csv) => csv
+      .split(',')
+      .map((final s) => s.trim())
+      .where((final s) => s.isNotEmpty)
+      .toList();
 
   // Listas ampliadas por idioma (CSV para evitar un nombre por línea)
   static final List<String> es = _csv(
@@ -303,7 +306,10 @@ class FemaleNamesRepo {
   );
 
   // Mezcla varias listas manteniendo el orden y sin duplicados, con límite opcional
-  static List<String> _mergeUnique(List<List<String>> sources, {int? max}) {
+  static List<String> _mergeUnique(
+    final List<List<String>> sources, {
+    final int? max,
+  }) {
     final seen = <String>{};
     final out = <String>[];
     for (final list in sources) {
@@ -318,7 +324,7 @@ class FemaleNamesRepo {
   }
 
   // Mapea ISO2 → lista base por idioma
-  static List<String> forCountry(String? iso2) {
+  static List<String> forCountry(final String? iso2) {
     if (iso2 == null) return es;
     switch (iso2.toUpperCase()) {
       // Específicos por idioma

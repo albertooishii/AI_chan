@@ -7,16 +7,14 @@ import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/core/ai_runtime_guard.dart';
 
 class IAAvatarGenerator {
-  /// Genera una imagen (avatar) a partir del JSON de apariencia y la guarda.
-  /// Devuelve un objeto AiImage con seed/prompt/url.
-  ///
-  /// Parámetros:
-  /// - [appendAvatar]: si es true, reutiliza la seed del primer avatar (si existe)
+  /// Genera avatar basado en la apariencia del perfil.
+  /// Si [appendAvatar] es true, usa el seed del primer avatar existente
   ///   para mantener identidad y añade el nuevo avatar al histórico.
   ///   Si es false, se genera un avatar completamente nuevo y reemplaza el histórico.
   Future<AiImage> generateAvatarFromAppearance(
-    AiChanProfile bio, {
-    bool appendAvatar = false,
+    final AiChanProfile bio, {
+    final bool appendAvatar = false,
+    final List<TimelineEntry> timeline = const [],
   }) async {
     final String forcedImageModel = Config.getDefaultImageModel();
     final String forcedTextModel = Config.getDefaultTextModel();
@@ -30,8 +28,9 @@ class IAAvatarGenerator {
       bio,
       seedToUse,
       forcedTextModel,
+      timeline,
     );
-    final profileForPrompt = _buildProfileForPrompt(bio, seedToUse);
+    final profileForPrompt = _buildProfileForPrompt(bio, seedToUse, timeline);
 
     // Generar imagen con reintentos
     final imageResponse = await _generateImageWithRetries(
@@ -45,7 +44,7 @@ class IAAvatarGenerator {
   }
 
   /// Determina qué seed usar según el parámetro appendAvatar
-  String? _determineSeed(AiChanProfile bio, bool appendAvatar) {
+  String? _determineSeed(final AiChanProfile bio, final bool appendAvatar) {
     if (!appendAvatar) return null;
     final firstAvatar = bio.firstAvatar;
     return (firstAvatar != null && (firstAvatar.seed ?? '').isNotEmpty)
@@ -55,9 +54,10 @@ class IAAvatarGenerator {
 
   /// Construye el prompt final para generación, incluyendo lógica para seeds existentes
   Future<dynamic> _buildPromptForGeneration(
-    AiChanProfile bio,
-    String? seedToUse,
-    String textModel,
+    final AiChanProfile bio,
+    final String? seedToUse,
+    final String textModel,
+    final List<TimelineEntry> timeline,
   ) async {
     final basePrompt = _createBasePrompt();
 
@@ -66,7 +66,6 @@ class IAAvatarGenerator {
     }
 
     // Para seeds existentes, generar prompt contextual usando modelo de texto
-    final recentTimeline = _getRecentTimelineEntries(bio);
     final contextProfile = AiChanProfile(
       biography: bio.biography,
       userName: bio.userName,
@@ -75,7 +74,6 @@ class IAAvatarGenerator {
       aiBirthdate: null,
       appearance: bio.appearance,
       avatars: bio.avatars,
-      timeline: recentTimeline,
     );
 
     final generatedPrompt = await _generateContextualPrompt(
@@ -165,25 +163,10 @@ class IAAvatarGenerator {
     };
   }
 
-  /// Obtiene las 5 entradas más recientes del timeline para contexto
-  List<TimelineEntry> _getRecentTimelineEntries(AiChanProfile bio) {
-    if (bio.timeline.isEmpty) return [];
-
-    final sorted = List<TimelineEntry>.from(bio.timeline);
-    sorted.sort((a, b) {
-      final aMs =
-          DateTime.tryParse(a.startDate ?? '')?.millisecondsSinceEpoch ?? 0;
-      final bMs =
-          DateTime.tryParse(b.startDate ?? '')?.millisecondsSinceEpoch ?? 0;
-      return bMs.compareTo(aMs);
-    });
-    return sorted.take(5).toList();
-  }
-
   /// Genera prompt contextual usando modelo de texto
   Future<String> _generateContextualPrompt(
-    AiChanProfile profile,
-    String textModel,
+    final AiChanProfile profile,
+    final String textModel,
   ) async {
     final basePrompt = _createBasePrompt();
     final instructions = {
@@ -229,7 +212,7 @@ class IAAvatarGenerator {
   }
 
   /// Crea prompt usando el texto generado por el modelo
-  Map<String, dynamic> _createPromptWithGenerated(String generatedText) {
+  Map<String, dynamic> _createPromptWithGenerated(final String generatedText) {
     final basePrompt = _createBasePrompt();
     return {
       'is_avatar': true,
@@ -243,7 +226,11 @@ class IAAvatarGenerator {
   }
 
   /// Construye el perfil que se enviará al generador
-  AiChanProfile _buildProfileForPrompt(AiChanProfile bio, String? seedToUse) {
+  AiChanProfile _buildProfileForPrompt(
+    final AiChanProfile bio,
+    final String? seedToUse,
+    final List<TimelineEntry> timeline,
+  ) {
     return AiChanProfile(
       biography: bio.biography,
       userName: bio.userName,
@@ -252,15 +239,14 @@ class IAAvatarGenerator {
       aiBirthdate: null,
       appearance: bio.appearance,
       avatars: seedToUse != null ? bio.avatars : [],
-      timeline: seedToUse != null ? _getRecentTimelineEntries(bio) : [],
     );
   }
 
   /// Genera la imagen con reintentos automáticos
   Future<AIResponse> _generateImageWithRetries(
-    dynamic promptToSend,
-    AiChanProfile profileForPrompt,
-    String imageModel,
+    final dynamic promptToSend,
+    final AiChanProfile profileForPrompt,
+    final String imageModel,
   ) async {
     const int maxAttempts = 3;
 
@@ -311,8 +297,8 @@ class IAAvatarGenerator {
 
   /// Guarda la imagen y crea el objeto AiImage final
   Future<AiImage> _saveAndCreateAvatar(
-    AIResponse imageResponse,
-    String? seedToUse,
+    final AIResponse imageResponse,
+    final String? seedToUse,
   ) async {
     // Guardar imagen
     String? imageUrl;

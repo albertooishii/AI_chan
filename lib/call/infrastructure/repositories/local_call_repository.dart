@@ -11,7 +11,7 @@ class LocalCallRepository implements ICallRepository {
   static const String _callsKey = PrefsUtils.kVoiceCalls;
 
   @override
-  Future<void> saveCall(Call call) async {
+  Future<void> saveCall(final Call call) async {
     // Persist call data using SharedPreferences under dedicated keys.
     // Obtener llamadas existentes
     final callsMap = await _getAllCallsMap();
@@ -28,7 +28,8 @@ class LocalCallRepository implements ICallRepository {
     // Guardar mensajes por separado
     if (call.messages.isNotEmpty) {
       final messagesMap = call.messages.asMap().map(
-        (index, message) => MapEntry(index.toString(), message.toMap()),
+        (final index, final message) =>
+            MapEntry(index.toString(), message.toMap()),
       );
       try {
         await PrefsUtils.setRawString(
@@ -40,7 +41,7 @@ class LocalCallRepository implements ICallRepository {
   }
 
   @override
-  Future<Call?> getCall(String id) async {
+  Future<Call?> getCall(final String id) async {
     final callsMap = await _getAllCallsMap();
     final callData = callsMap[id];
 
@@ -68,16 +69,19 @@ class LocalCallRepository implements ICallRepository {
     }
 
     // Ordenar por fecha de inicio (más reciente primero)
-    calls.sort((a, b) => b.startTime.compareTo(a.startTime));
+    calls.sort((final a, final b) => b.startTime.compareTo(a.startTime));
 
     return calls;
   }
 
   @override
-  Future<List<Call>> getCallsByDateRange(DateTime from, DateTime to) async {
+  Future<List<Call>> getCallsByDateRange(
+    final DateTime from,
+    final DateTime to,
+  ) async {
     final allCalls = await getAllCalls();
 
-    return allCalls.where((call) {
+    return allCalls.where((final call) {
       return call.startTime.isAfter(
             from.subtract(const Duration(seconds: 1)),
           ) &&
@@ -86,7 +90,7 @@ class LocalCallRepository implements ICallRepository {
   }
 
   @override
-  Future<void> deleteCall(String id) async {
+  Future<void> deleteCall(final String id) async {
     try {
       // Eliminar llamada
       final callsMap = await _getAllCallsMap();
@@ -113,13 +117,16 @@ class LocalCallRepository implements ICallRepository {
   }
 
   @override
-  Future<void> updateCall(Call call) async {
+  Future<void> updateCall(final Call call) async {
     // Mismo comportamiento que saveCall
     await saveCall(call);
   }
 
   @override
-  Future<void> addMessageToCall(String callId, CallMessage message) async {
+  Future<void> addMessageToCall(
+    final String callId,
+    final CallMessage message,
+  ) async {
     final call = await getCall(callId);
     if (call == null) return;
 
@@ -130,7 +137,7 @@ class LocalCallRepository implements ICallRepository {
   }
 
   @override
-  Future<List<CallMessage>> getCallMessages(String callId) async {
+  Future<List<CallMessage>> getCallMessages(final String callId) async {
     try {
       final messagesJson = await PrefsUtils.getRawString(
         PrefsUtils.voiceMessagesKey(callId),
@@ -143,7 +150,9 @@ class LocalCallRepository implements ICallRepository {
 
         // Ordenar por índice para mantener el orden
         final sortedEntries = messagesMap.entries.toList()
-          ..sort((a, b) => int.parse(a.key).compareTo(int.parse(b.key)));
+          ..sort(
+            (final a, final b) => int.parse(a.key).compareTo(int.parse(b.key)),
+          );
 
         for (final entry in sortedEntries) {
           final messageData = entry.value as Map<String, dynamic>;

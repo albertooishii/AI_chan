@@ -46,12 +46,12 @@ class CacheService {
 
   /// Genera un hash único para el texto y configuración TTS
   static String generateTtsHash({
-    required String text,
-    required String voice,
-    required String languageCode,
-    String provider = 'google',
-    double speakingRate = 1.0,
-    double pitch = 0.0,
+    required final String text,
+    required final String voice,
+    required final String languageCode,
+    final String provider = 'google',
+    final double speakingRate = 1.0,
+    final double pitch = 0.0,
   }) {
     final input = '$provider:$voice:$languageCode:$speakingRate:$pitch:$text';
     final bytes = utf8.encode(input);
@@ -61,13 +61,13 @@ class CacheService {
 
   /// Obtiene archivo de audio cacheado
   static Future<File?> getCachedAudioFile({
-    required String text,
-    required String voice,
-    required String languageCode,
-    String provider = 'google',
-    double speakingRate = 1.0,
-    double pitch = 0.0,
-    String? extension,
+    required final String text,
+    required final String voice,
+    required final String languageCode,
+    final String provider = 'google',
+    final double speakingRate = 1.0,
+    final double pitch = 0.0,
+    final String? extension,
   }) async {
     try {
       final hash = generateTtsHash(
@@ -141,14 +141,14 @@ class CacheService {
 
   /// Guarda archivo de audio en caché
   static Future<File?> saveAudioToCache({
-    required Uint8List audioData,
-    required String text,
-    required String voice,
-    required String languageCode,
-    String provider = 'google',
-    double speakingRate = 1.0,
-    double pitch = 0.0,
-    String? extension,
+    required final Uint8List audioData,
+    required final String text,
+    required final String voice,
+    required final String languageCode,
+    final String provider = 'google',
+    final double speakingRate = 1.0,
+    final double pitch = 0.0,
+    final String? extension,
   }) async {
     try {
       final hash = generateTtsHash(
@@ -195,8 +195,8 @@ class CacheService {
 
   /// Guarda lista de voces en caché
   static Future<void> saveVoicesToCache({
-    required List<Map<String, dynamic>> voices,
-    required String provider,
+    required final List<Map<String, dynamic>> voices,
+    required final String provider,
   }) async {
     try {
       final voicesDir = await getVoicesCacheDirectory();
@@ -219,8 +219,8 @@ class CacheService {
 
   /// Obtiene lista de voces desde caché
   static Future<List<Map<String, dynamic>>?> getCachedVoices({
-    required String provider,
-    bool forceRefresh = false,
+    required final String provider,
+    final bool forceRefresh = false,
   }) async {
     if (forceRefresh) return null;
 
@@ -251,7 +251,9 @@ class CacheService {
         '[Cache] Voces $provider cargadas desde caché: ${cachedVoices.length} voces',
       );
 
-      return cachedVoices.map((v) => Map<String, dynamic>.from(v)).toList();
+      return cachedVoices
+          .map((final v) => Map<String, dynamic>.from(v))
+          .toList();
     } catch (e) {
       debugPrint('[Cache] Error leyendo voces desde caché: $e');
       return null;
@@ -260,8 +262,8 @@ class CacheService {
 
   /// Guarda lista de modelos en caché
   static Future<void> saveModelsToCache({
-    required List<String> models,
-    required String provider,
+    required final List<String> models,
+    required final String provider,
   }) async {
     try {
       final cacheDir = await getCacheDirectory();
@@ -286,8 +288,8 @@ class CacheService {
 
   /// Obtiene lista de modelos desde caché por proveedor
   static Future<List<String>?> getCachedModels({
-    required String provider,
-    bool forceRefresh = false,
+    required final String provider,
+    final bool forceRefresh = false,
   }) async {
     if (forceRefresh) return null;
 
@@ -319,7 +321,7 @@ class CacheService {
         '[Cache] Modelos $provider cargados desde caché: ${cachedModels.length} modelos',
       );
 
-      return cachedModels.map((m) => m.toString()).toList();
+      return cachedModels.map((final m) => m.toString()).toList();
     } catch (e) {
       debugPrint('[Cache] Error leyendo modelos desde caché: $e');
       return null;
@@ -327,7 +329,7 @@ class CacheService {
   }
 
   /// Elimina caché de voces de un proveedor específico
-  static Future<void> clearVoicesCache({required String provider}) async {
+  static Future<void> clearVoicesCache({required final String provider}) async {
     try {
       final voicesDir = await getVoicesCacheDirectory();
       final cacheFile = File('${voicesDir.path}/${provider}_voices_cache.json');
@@ -394,7 +396,7 @@ class CacheService {
   }
 
   /// Formatea el tamaño en bytes a una cadena legible
-  static String formatCacheSize(int bytes) {
+  static String formatCacheSize(final int bytes) {
     return AppDataUtils.formatBytes(bytes);
   }
 }

@@ -12,7 +12,7 @@ class FakeRealtimeIClient implements IRealtimeClient {
   bool get isConnected => connected;
 
   @override
-  void appendAudio(List<int> bytes) {
+  void appendAudio(final List<int> bytes) {
     appended.add(List<int>.from(bytes));
   }
 
@@ -23,27 +23,27 @@ class FakeRealtimeIClient implements IRealtimeClient {
 
   @override
   Future<void> connect({
-    required String systemPrompt,
-    String voice = '',
-    String? inputAudioFormat,
-    String? outputAudioFormat,
-    String? turnDetectionType,
-    int? silenceDurationMs,
-    Map<String, dynamic>? options,
+    required final String systemPrompt,
+    final String voice = '',
+    final String? inputAudioFormat,
+    final String? outputAudioFormat,
+    final String? turnDetectionType,
+    final int? silenceDurationMs,
+    final Map<String, dynamic>? options,
   }) async {
     connected = true;
   }
 
   @override
-  void requestResponse({bool audio = true, bool text = true}) {}
+  void requestResponse({final bool audio = true, final bool text = true}) {}
 
   @override
-  void sendText(String text) {
+  void sendText(final String text) {
     sentTexts.add(text);
   }
 
   @override
-  void updateVoice(String voice) {}
+  void updateVoice(final String voice) {}
 
   @override
   Future<void> close() async {
@@ -53,28 +53,28 @@ class FakeRealtimeIClient implements IRealtimeClient {
   // Implementaciones por defecto de los nuevos métodos
   @override
   void sendImageWithText({
-    required String imageBase64,
-    String? text,
-    String imageFormat = 'png',
+    required final String imageBase64,
+    final String? text,
+    final String imageFormat = 'png',
   }) {
     // Fake implementation - could track calls if needed
   }
 
   @override
-  void configureTools(List<Map<String, dynamic>> tools) {
+  void configureTools(final List<Map<String, dynamic>> tools) {
     // Fake implementation - could track calls if needed
   }
 
   @override
   void sendFunctionCallOutput({
-    required String callId,
-    required String output,
+    required final String callId,
+    required final String output,
   }) {
     // Fake implementation - could track calls if needed
   }
 
   @override
-  void cancelResponse({String? itemId, int? sampleCount}) {
+  void cancelResponse({final String? itemId, final int? sampleCount}) {
     // Fake implementation - could track calls if needed
   }
 }

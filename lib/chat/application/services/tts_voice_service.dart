@@ -2,7 +2,7 @@
 /// Separa la lógica de validación de la capa de presentación
 class TtsVoiceService {
   /// Obtiene el nivel de calidad legible de una voz Neural/WaveNet
-  static String getVoiceQualityLevel(Map<String, dynamic> voice) {
+  static String getVoiceQualityLevel(final Map<String, dynamic> voice) {
     final name = (voice['name'] as String? ?? '').toLowerCase();
     if (name.contains('wavenet')) {
       return 'WaveNet'; // Máxima calidad
@@ -13,13 +13,13 @@ class TtsVoiceService {
   }
 
   /// Verifica si una voz es de alta calidad
-  static bool isHighQualityVoice(Map<String, dynamic> voice) {
+  static bool isHighQualityVoice(final Map<String, dynamic> voice) {
     final name = (voice['name'] as String? ?? '').toLowerCase();
     return name.contains('wavenet') || name.contains('neural');
   }
 
   /// Obtiene el tipo de voz basado en el nombre
-  static String getVoiceType(String voiceName) {
+  static String getVoiceType(final String voiceName) {
     final name = voiceName.toLowerCase();
     if (name.contains('wavenet')) return 'WaveNet';
     if (name.contains('neural')) return 'Neural';

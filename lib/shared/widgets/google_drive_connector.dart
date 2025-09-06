@@ -4,15 +4,14 @@ import 'package:ai_chan/shared/utils/log_utils.dart';
 
 /// Widget helper para testing y manejo fácil de la vinculación con Google Drive
 class GoogleDriveConnector extends StatefulWidget {
-  final Widget child;
-  final Function(bool isConnected, Map<String, dynamic>? userInfo)?
-  onConnectionChanged;
-
   const GoogleDriveConnector({
     super.key,
     required this.child,
     this.onConnectionChanged,
   });
+  final Widget child;
+  final Function(bool isConnected, Map<String, dynamic>? userInfo)?
+  onConnectionChanged;
 
   @override
   State<GoogleDriveConnector> createState() => _GoogleDriveConnectorState();
@@ -182,7 +181,7 @@ class _GoogleDriveConnectorState extends State<GoogleDriveConnector> {
     }
   }
 
-  String _getErrorMessage(String error) {
+  String _getErrorMessage(final String error) {
     if (error.contains('User cancelled')) {
       return 'Conexión cancelada por el usuario';
     } else if (error.contains('network')) {
@@ -198,7 +197,7 @@ class _GoogleDriveConnectorState extends State<GoogleDriveConnector> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     return Column(
       children: [
         if (_isLoading) const LinearProgressIndicator(),

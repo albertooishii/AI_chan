@@ -23,14 +23,13 @@ class InsertNewlineIntent extends Intent {
 }
 
 class MessageInput extends StatefulWidget {
-  final ChatInputController controller;
-  final FileUIService fileService;
-
   const MessageInput({
     super.key,
     required this.controller,
     required this.fileService,
   });
+  final ChatInputController controller;
+  final FileUIService fileService;
 
   @override
   State<MessageInput> createState() => _MessageInputState();
@@ -88,7 +87,7 @@ class _MessageInputState extends State<MessageInput> {
     super.dispose();
   }
 
-  bool _isMobile(BuildContext context) {
+  bool _isMobile(final BuildContext context) {
     final isNativeMobile =
         !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.android ||
@@ -108,7 +107,7 @@ class _MessageInputState extends State<MessageInput> {
       final context = this.context;
       showModalBottomSheet(
         context: context,
-        builder: (ctx) => SafeArea(
+        builder: (final ctx) => SafeArea(
           child: Wrap(
             children: [
               ListTile(
@@ -178,7 +177,7 @@ class _MessageInputState extends State<MessageInput> {
     } else {
       showModalBottomSheet(
         context: context,
-        builder: (ctx) => SafeArea(
+        builder: (final ctx) => SafeArea(
           child: Wrap(
             children: [
               ListTile(
@@ -217,7 +216,7 @@ class _MessageInputState extends State<MessageInput> {
     }
   }
 
-  String _mimeFromPath(String ext) {
+  String _mimeFromPath(final String ext) {
     switch (ext) {
       case 'jpg':
       case 'jpeg':
@@ -229,10 +228,10 @@ class _MessageInputState extends State<MessageInput> {
     }
   }
 
-  Widget _buildImagePreview(String imagePath) {
+  Widget _buildImagePreview(final String imagePath) {
     return FutureBuilder<List<int>?>(
       future: widget.fileService.readFileAsBytes(imagePath),
-      builder: (context, snapshot) {
+      builder: (final context, final snapshot) {
         if (snapshot.hasData && snapshot.data != null) {
           return Image.memory(
             Uint8List.fromList(snapshot.data!),
@@ -313,7 +312,7 @@ class _MessageInputState extends State<MessageInput> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     final bool isMobile = _isMobile(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -422,7 +421,7 @@ class _MessageInputState extends State<MessageInput> {
                 children: [
                   EmojiPicker(
                     key: _emojiPickerKey,
-                    onEmojiSelected: (category, emoji) async {
+                    onEmojiSelected: (final category, final emoji) async {
                       _controller.text += emoji.emoji;
                       _controller.selection = TextSelection.fromPosition(
                         TextPosition(offset: _controller.text.length),
@@ -486,19 +485,6 @@ class _MessageInputState extends State<MessageInput> {
 }
 
 class _RecordingOrTextBar extends StatelessWidget {
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final bool showEmojiPicker;
-  final String? attachedImagePath;
-  final bool hasImage;
-  final bool hasText;
-  final ChatInputController? inputController;
-  final VoidCallback onToggleEmojis;
-  final VoidCallback onPickImage;
-  final Future<void> Function() onSend;
-  final bool isMobile;
-  final Icon Function() buildSendIcon;
-  final String sendTooltip;
   const _RecordingOrTextBar({
     required this.controller,
     this.inputController,
@@ -514,9 +500,22 @@ class _RecordingOrTextBar extends StatelessWidget {
     required this.buildSendIcon,
     required this.sendTooltip,
   });
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final bool showEmojiPicker;
+  final String? attachedImagePath;
+  final bool hasImage;
+  final bool hasText;
+  final ChatInputController? inputController;
+  final VoidCallback onToggleEmojis;
+  final VoidCallback onPickImage;
+  final Future<void> Function() onSend;
+  final bool isMobile;
+  final Icon Function() buildSendIcon;
+  final String sendTooltip;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     // Use inputController streams/actions when available
     final ic = inputController;
     if (ic == null) {
@@ -527,7 +526,7 @@ class _RecordingOrTextBar extends StatelessWidget {
     return StreamBuilder<bool>(
       stream: ic.isRecordingStream,
       initialData: false,
-      builder: (ctx, snapRec) {
+      builder: (final ctx, final snapRec) {
         final isRec = snapRec.data ?? false;
         if (isRec) {
           return _buildRecordingUI(ic);
@@ -626,25 +625,25 @@ class _RecordingOrTextBar extends StatelessWidget {
     );
   }
 
-  Widget _buildRecordingUI(ChatInputController ic) {
+  Widget _buildRecordingUI(final ChatInputController ic) {
     return StreamBuilder<List<int>>(
       stream: ic.waveformStream,
       initialData: const <int>[],
-      builder: (ctx2, snapW) {
+      builder: (final ctx2, final snapW) {
         final waveform = snapW.data ?? const <int>[];
         final raw = waveform;
         debugPrint('[Recording] waveform.length=${raw.length}');
         return StreamBuilder<Duration>(
           stream: ic.elapsedStream,
           initialData: Duration.zero,
-          builder: (ctx3, snapE) {
+          builder: (final ctx3, final snapE) {
             final elapsed = snapE.data ?? Duration.zero;
-            String fmt(Duration d) =>
+            String fmt(final Duration d) =>
                 '${d.inMinutes.toString().padLeft(2, '0')}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
             return StreamBuilder<String>(
               stream: ic.liveTranscriptStream,
               initialData: '',
-              builder: (ctx4, snapL) {
+              builder: (final ctx4, final snapL) {
                 final live = snapL.data ?? '';
                 return Container(
                   constraints: const BoxConstraints(
@@ -739,11 +738,11 @@ class _RecordingOrTextBar extends StatelessWidget {
     );
   }
 
-  Widget _buildWaveform(List<int> raw) {
+  Widget _buildWaveform(final List<int> raw) {
     return SizedBox(
       height: 28,
       child: LayoutBuilder(
-        builder: (context, constraints) {
+        builder: (final context, final constraints) {
           const double barWidth = 6.0;
           const double gap = 2.0;
           final int maxFit = ((constraints.maxWidth + gap) / (barWidth + gap))
@@ -756,7 +755,7 @@ class _RecordingOrTextBar extends StatelessWidget {
           } else if (raw.length >= showCount) {
             display = raw.sublist(raw.length - showCount);
           } else {
-            display = List<int>.generate(showCount, (i) {
+            display = List<int>.generate(showCount, (final i) {
               final idx = (i * raw.length / showCount).floor();
               return raw[idx.clamp(0, raw.length - 1)];
             });
@@ -782,7 +781,7 @@ class _RecordingOrTextBar extends StatelessWidget {
           return Row(
             mainAxisAlignment: MainAxisAlignment.end,
             crossAxisAlignment: CrossAxisAlignment.end,
-            children: List<Widget>.generate(toShow.length * 2 - 1, (i) {
+            children: List<Widget>.generate(toShow.length * 2 - 1, (final i) {
               if (i.isEven) {
                 final val = toShow[i ~/ 2];
                 return SizedBox(
@@ -806,7 +805,7 @@ class _RecordingOrTextBar extends StatelessWidget {
   }
 
   /// Crea el wrapper Shortcuts/Actions común para TextField con envío y nueva línea
-  Widget _wrapWithKeyboardShortcuts(Widget textField) {
+  Widget _wrapWithKeyboardShortcuts(final Widget textField) {
     return Shortcuts(
       shortcuts: const <ShortcutActivator, Intent>{
         SingleActivator(LogicalKeyboardKey.enter): SendMessageIntent(),
@@ -816,14 +815,14 @@ class _RecordingOrTextBar extends StatelessWidget {
       child: Actions(
         actions: <Type, Action<Intent>>{
           SendMessageIntent: CallbackAction<SendMessageIntent>(
-            onInvoke: (intent) {
+            onInvoke: (final intent) {
               if (controller.text.trim().isEmpty && !hasImage) return null;
               onSend();
               return null;
             },
           ),
           InsertNewlineIntent: CallbackAction<InsertNewlineIntent>(
-            onInvoke: (intent) {
+            onInvoke: (final intent) {
               final sel = controller.selection;
               final start = sel.start >= 0 ? sel.start : controller.text.length;
               final end = sel.end >= 0 ? sel.end : controller.text.length;

@@ -4,12 +4,14 @@ import 'package:ai_chan/shared/utils/dialog_utils.dart';
 import 'package:ai_chan/shared/constants.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/shared/utils/log_utils.dart';
 
 class InitializingScreen extends StatefulWidget {
+  const InitializingScreen({super.key, required this.bioFutureFactory});
+
   /// bioFutureFactory can accept an optional progress callback: (String key) -> void
   final Future<AiChanProfile> Function([void Function(String)? onProgress])
   bioFutureFactory;
-  const InitializingScreen({super.key, required this.bioFutureFactory});
 
   @override
   State<InitializingScreen> createState() => _InitializingScreenState();
@@ -30,7 +32,6 @@ class _InitializingScreenState extends State<InitializingScreen>
     ['Configurando intereses', 'インタレスト'],
     ['Seleccionando aficiones favoritas', 'アクティビティ'],
     ['Preparando historia de vida', 'ヒストリー'],
-    ['Creando historia de encuentro', 'ストーリー'],
     ['Generando apariencia física', 'フィジカル'],
     ['Seleccionando estilo de ropa', 'スタイル'],
     ['Creando avatar digital', 'アバター'],
@@ -84,6 +85,11 @@ class _InitializingScreenState extends State<InitializingScreen>
     'finish': 15,
     'finalize': 16,
   };
+
+  // Getter inverso que construye el mapa index->tag a partir de _progressKeyToIndex
+  Map<int, String> get _indexToTag => Map.fromEntries(
+    _progressKeyToIndex.entries.map((final e) => MapEntry(e.value, e.key)),
+  );
 
   @override
   void initState() {
@@ -149,6 +155,9 @@ class _InitializingScreenState extends State<InitializingScreen>
       setState(() {
         currentStep = i;
       });
+      Log.d(
+        '[InitializingScreen] auto-advance -> index=$i tag=${_indexToTag[i] ?? 'unknown'}',
+      );
       await _playStepTransitionAnimation();
       // breve pausa entre pasos iniciales
       await Future.delayed(const Duration(milliseconds: 1000));
@@ -170,32 +179,59 @@ class _InitializingScreenState extends State<InitializingScreen>
 
       // Pasar un callback de progreso a la fábrica para recibir updates reales
       final bioFuture =
-          _runGenerationOnceWithProgress((key) {
+          _runGenerationOnceWithProgress((final key) {
+            // Log every progress key received and the mapped step index
+            Log.d('[InitializingScreen] progress key="$key"');
             if (!mounted || _cancel) return;
             final idx = _progressKeyToIndex[key];
+            Log.d(
+              '[InitializingScreen] mapped key="$key" -> index=${idx ?? -1}',
+            );
             if (idx != null) {
               setState(() {
                 currentStep = idx;
               });
+              Log.d(
+                '[InitializingScreen] progress callback -> index=$idx tag=${_indexToTag[idx] ?? 'unknown'}',
+              );
               _playStepTransitionAnimation();
             }
+            // Completers usados por las fases de animación
             if (key == 'appearance' &&
                 !appearanceStartedCompleter.isCompleted) {
+              Log.d(
+                '[InitializingScreen] appearance started -> completing appearanceStartedCompleter',
+              );
               appearanceStartedCompleter.complete();
             }
             if (key == 'avatar' && !avatarStartedCompleter.isCompleted) {
+              Log.d(
+                '[InitializingScreen] avatar started -> completing avatarStartedCompleter',
+              );
               avatarStartedCompleter.complete();
             }
             if (key == 'finalize' && !finalizeCompleter.isCompleted) {
+              Log.d(
+                '[InitializingScreen] finalize signaled -> completing finalizeCompleter',
+              );
               finalizeCompleter.complete();
             }
-          }).then((bio) {
+          }).then((final bio) {
+            Log.d(
+              '[InitializingScreen] bioFuture completed, bio.aiName=${bio.aiName}',
+            );
             _generatedBio = bio;
             bioReady = true;
             generationDone = true;
             if (stepsDone && mounted && _generatedBio != null) {
+              Log.d(
+                '[InitializingScreen] stepsDone && bioReady -> popping generated bio (rootNavigator)',
+              );
               Navigator.of(context, rootNavigator: true).pop(_generatedBio);
             } else if (stepsDone && mounted) {
+              Log.d(
+                '[InitializingScreen] stepsDone but bio not ready yet, updating UI',
+              );
               setState(() {});
             }
           });
@@ -209,6 +245,9 @@ class _InitializingScreenState extends State<InitializingScreen>
           setState(() {
             currentStep = i;
           });
+          Log.d(
+            '[InitializingScreen] bioAnim -> index=$i tag=${_indexToTag[i] ?? 'unknown'}',
+          );
           await _playStepTransitionAnimation();
           await Future.delayed(_stepDuration);
         }
@@ -225,6 +264,9 @@ class _InitializingScreenState extends State<InitializingScreen>
           setState(() {
             currentStep = i;
           });
+          Log.d(
+            '[InitializingScreen] appearancePhase -> index=$i tag=${_indexToTag[i] ?? 'unknown'}',
+          );
           await _playStepTransitionAnimation();
           await Future.delayed(_stepDuration);
         }
@@ -239,6 +281,9 @@ class _InitializingScreenState extends State<InitializingScreen>
           setState(() {
             currentStep = i;
           });
+          Log.d(
+            '[InitializingScreen] avatarPhase -> index=$i tag=${_indexToTag[i] ?? 'unknown'}',
+          );
           await _playStepTransitionAnimation();
           await Future.delayed(_stepDuration);
         }
@@ -264,6 +309,9 @@ class _InitializingScreenState extends State<InitializingScreen>
       ]);
       stepsDone = true;
       if (bioReady && _generatedBio != null && mounted) {
+        Log.d(
+          '[InitializingScreen] final stepsDone && bioReady -> popping generated bio (rootNavigator)',
+        );
         Navigator.of(context, rootNavigator: true).pop(_generatedBio);
       } else if (mounted) {
         setState(() {});
@@ -286,16 +334,16 @@ class _InitializingScreenState extends State<InitializingScreen>
   }
 
   Future<AiChanProfile> _runGenerationOnceWithProgress(
-    void Function(String) onProgress,
+    final void Function(String) onProgress,
   ) async {
     return await widget.bioFutureFactory(onProgress);
   }
 
-  Future<void> _handleErrorWithOptions(Object e) async {
+  Future<void> _handleErrorWithOptions(final Object e) async {
     if (!mounted) return;
     _cancel = true;
     final choice = await showAppDialog<String>(
-      builder: (ctx) => AlertDialog(
+      builder: (final ctx) => AlertDialog(
         backgroundColor: Colors.black,
         title: const Text(
           'No se pudo completar la configuración',
@@ -371,7 +419,7 @@ class _InitializingScreenState extends State<InitializingScreen>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Container(
@@ -473,7 +521,7 @@ class _InitializingScreenState extends State<InitializingScreen>
                               _glitchAnimation,
                               _typewriterAnimation,
                             ]),
-                            builder: (context, child) {
+                            builder: (final context, final child) {
                               final text = '>>> ${steps[currentStep][0]}';
                               final visibleChars =
                                   (_typewriterAnimation.value * text.length)
@@ -524,7 +572,7 @@ class _InitializingScreenState extends State<InitializingScreen>
                           // Texto japonés con fade in retardado
                           AnimatedBuilder(
                             animation: _fadeAnimation,
-                            builder: (context, child) {
+                            builder: (final context, final child) {
                               return Opacity(
                                 opacity: (_fadeAnimation.value - 0.3).clamp(
                                   0.0,

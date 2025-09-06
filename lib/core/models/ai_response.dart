@@ -1,9 +1,4 @@
 class AIResponse {
-  final String text;
-  final String base64;
-  final String seed;
-  final String prompt;
-
   AIResponse({
     required this.text,
     this.base64 = '',
@@ -11,7 +6,7 @@ class AIResponse {
     this.prompt = '',
   });
 
-  factory AIResponse.fromJson(Map<String, dynamic> json) {
+  factory AIResponse.fromJson(final Map<String, dynamic> json) {
     final image = json['image'] ?? {};
     return AIResponse(
       text: json['text'] ?? '',
@@ -20,6 +15,10 @@ class AIResponse {
       prompt: image['prompt'] ?? '',
     );
   }
+  final String text;
+  final String base64;
+  final String seed;
+  final String prompt;
 
   Map<String, dynamic> toJson() => {
     'text': text,

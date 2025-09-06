@@ -8,13 +8,19 @@ import 'package:ai_chan/onboarding/utils/onboarding_utils.dart';
 /// Controller para el onboarding por formulario
 /// Coordina la UI con los casos de uso, manteniendo la separación de responsabilidades
 class FormOnboardingController extends ChangeNotifier {
+  FormOnboardingController({
+    final FormOnboardingUseCase? formUseCase,
+    final ImportExportOnboardingUseCase? importExportUseCase,
+  }) : _formUseCase = formUseCase ?? FormOnboardingUseCase(),
+       _importExportUseCase =
+           importExportUseCase ?? ImportExportOnboardingUseCase();
   final FormOnboardingUseCase _formUseCase;
   final ImportExportOnboardingUseCase _importExportUseCase;
 
   // Estado del controller
   bool _isLoading = false;
   String? _errorMessage;
-  ImportedChat? _importedData;
+  ChatExport? _importedData;
 
   // Form fields owned by the controller (migrating responsibility from provider)
   // Keep a form key so presentation code can reference the same key as before
@@ -27,17 +33,10 @@ class FormOnboardingController extends ChangeNotifier {
   String? userCountryCode;
   String? aiCountryCode;
 
-  FormOnboardingController({
-    FormOnboardingUseCase? formUseCase,
-    ImportExportOnboardingUseCase? importExportUseCase,
-  }) : _formUseCase = formUseCase ?? FormOnboardingUseCase(),
-       _importExportUseCase =
-           importExportUseCase ?? ImportExportOnboardingUseCase();
-
   // Getters
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  ImportedChat? get importedData => _importedData;
+  ChatExport? get importedData => _importedData;
   bool get hasError => _errorMessage != null;
 
   // Convenience getter that mirrors old provider logic
@@ -50,10 +49,10 @@ class FormOnboardingController extends ChangeNotifier {
 
   /// Valida si el formulario está completo
   bool isFormComplete({
-    required String userName,
-    required String aiName,
-    required String birthDateText,
-    required String meetStory,
+    required final String userName,
+    required final String aiName,
+    required final String birthDateText,
+    required final String meetStory,
   }) {
     return _formUseCase.isFormComplete(
       userName: userName,
@@ -65,12 +64,12 @@ class FormOnboardingController extends ChangeNotifier {
 
   /// Procesa los datos del formulario
   Future<OnboardingFormResult> processForm({
-    required String userName,
-    required String aiName,
-    required String birthDateText,
-    required String meetStory,
-    String? userCountryCode,
-    String? aiCountryCode,
+    required final String userName,
+    required final String aiName,
+    required final String birthDateText,
+    required final String meetStory,
+    final String? userCountryCode,
+    final String? aiCountryCode,
   }) async {
     _setLoading(true);
     _clearError();
@@ -131,11 +130,11 @@ class FormOnboardingController extends ChangeNotifier {
 
   /// Maneja operaciones de importación/restauración de forma genérica
   Future<bool> _handleImportOperation(
-    Future<ImportExportResult> Function() operation,
-    String startMessage,
-    String successMessage,
-    String cancelMessage,
-    String errorPrefix,
+    final Future<ImportExportResult> Function() operation,
+    final String startMessage,
+    final String successMessage,
+    final String cancelMessage,
+    final String errorPrefix,
   ) async {
     _setLoading(true);
     _clearError();
@@ -173,17 +172,17 @@ class FormOnboardingController extends ChangeNotifier {
   }
 
   // --- Form state setters (migrated from provider) ---
-  void setUserName(String value) {
+  void setUserName(final String value) {
     userNameController.text = value;
     notifyListeners();
   }
 
-  void setAiName(String value) {
+  void setAiName(final String value) {
     aiNameController.text = value;
     notifyListeners();
   }
 
-  void setUserBirthdate(DateTime? value) {
+  void setUserBirthdate(final DateTime? value) {
     userBirthdate = value;
     if (value != null) {
       birthDateController.text = '${value.day}/${value.month}/${value.year}';
@@ -193,26 +192,26 @@ class FormOnboardingController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setMeetStory(String value) {
+  void setMeetStory(final String value) {
     if (meetStoryController.text != value) {
       meetStoryController.text = value;
       notifyListeners();
     }
   }
 
-  void setUserCountryCode(String value) {
+  void setUserCountryCode(final String value) {
     userCountryCode = value.trim().toUpperCase();
     notifyListeners();
   }
 
-  void setAiCountryCode(String value) {
+  void setAiCountryCode(final String value) {
     aiCountryCode = value.trim().toUpperCase();
     notifyListeners();
   }
 
   /// Forwarder for suggestStory that existed on the provider. It delegates to
   /// the same helper used previously via OnboardingUtils through the use case.
-  Future<void> suggestStory(BuildContext context) async {
+  Future<void> suggestStory(final BuildContext context) async {
     try {
       if (userNameController.text.isNotEmpty &&
           aiNameController.text.isNotEmpty) {
@@ -260,14 +259,14 @@ class FormOnboardingController extends ChangeNotifier {
 
   // --- Métodos privados ---
 
-  void _setLoading(bool loading) {
+  void _setLoading(final bool loading) {
     if (_isLoading != loading) {
       _isLoading = loading;
       notifyListeners();
     }
   }
 
-  void _setError(String error) {
+  void _setError(final String error) {
     _errorMessage = error;
     notifyListeners();
   }

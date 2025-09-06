@@ -21,7 +21,7 @@ bool _isFlutterTestRuntime() {
   }
 }
 
-void _maybeDebugPrint(String message) {
+void _maybeDebugPrint(final String message) {
   if (!_isFlutterTestRuntime()) debugPrint(message);
 }
 
@@ -30,15 +30,15 @@ class GoogleSpeechService {
 
   /// Convierte texto a voz usando Google Cloud Text-to-Speech con caché
   static Future<Uint8List?> textToSpeech({
-    required String text,
-    String languageCode = 'es-ES',
+    required final String text,
+    final String languageCode = 'es-ES',
     String voiceName = 'es-ES-Wavenet-F', // Voz femenina neural
-    String audioEncoding = 'MP3',
-    int sampleRateHertz = 24000,
-    bool noCache = false,
-    bool useCache = false,
-    double speakingRate = 1.0,
-    double pitch = 0.0,
+    final String audioEncoding = 'MP3',
+    final int sampleRateHertz = 24000,
+    final bool noCache = false,
+    final bool useCache = false,
+    final double speakingRate = 1.0,
+    final double pitch = 0.0,
   }) async {
     _maybeDebugPrint(
       '[GoogleTTS] textToSpeech called - text: "${text.length} chars", voice: $voiceName, lang: $languageCode',
@@ -217,16 +217,16 @@ class GoogleSpeechService {
 
   /// Convierte texto a voz y guarda como archivo
   static Future<File?> textToSpeechFile({
-    required String text,
-    String? customFileName,
-    String languageCode = 'es-ES',
+    required final String text,
+    final String? customFileName,
+    final String languageCode = 'es-ES',
     String voiceName = 'es-ES-Wavenet-F',
-    String audioEncoding = 'MP3',
-    int sampleRateHertz = 24000,
-    bool noCache = false,
-    bool useCache = false,
-    double speakingRate = 1.0,
-    double pitch = 0.0,
+    final String audioEncoding = 'MP3',
+    final int sampleRateHertz = 24000,
+    final bool noCache = false,
+    final bool useCache = false,
+    final double speakingRate = 1.0,
+    final double pitch = 0.0,
   }) async {
     // Normalize voiceName early so cache lookup uses the Google voice name
     // (avoids regenerating audio that was cached under the Google default).
@@ -317,11 +317,11 @@ class GoogleSpeechService {
 
   /// Convierte voz a texto usando Google Cloud Speech-to-Text
   static Future<String?> speechToText({
-    required Uint8List audioData,
-    String languageCode = 'es-ES',
-    String audioEncoding = 'WEBM_OPUS',
-    int sampleRateHertz = 48000,
-    bool enableAutomaticPunctuation = true,
+    required final Uint8List audioData,
+    final String languageCode = 'es-ES',
+    final String audioEncoding = 'WEBM_OPUS',
+    final int sampleRateHertz = 48000,
+    final bool enableAutomaticPunctuation = true,
   }) async {
     if (_apiKey.isEmpty) {
       _maybeDebugPrint(
@@ -396,10 +396,10 @@ class GoogleSpeechService {
 
   /// Transcribe un archivo de audio
   static Future<String?> speechToTextFromFile(
-    File audioFile, {
-    String languageCode = 'es-ES',
-    String audioEncoding = 'MP3',
-    int sampleRateHertz = 24000,
+    final File audioFile, {
+    final String languageCode = 'es-ES',
+    final String audioEncoding = 'MP3',
+    final int sampleRateHertz = 24000,
   }) async {
     try {
       _maybeDebugPrint(
@@ -421,7 +421,10 @@ class GoogleSpeechService {
       final Uint8List audioData = await audioFile.readAsBytes();
 
       // Helper: try direct transcription with guessed encoding
-      Future<String?> tryDirect(String guessedEncoding, int guessedSR) async {
+      Future<String?> tryDirect(
+        final String guessedEncoding,
+        final int guessedSR,
+      ) async {
         try {
           _maybeDebugPrint(
             '[GoogleSTT] Trying direct STT with encoding=$guessedEncoding sr=$guessedSR for ${audioFile.path}',
@@ -576,8 +579,8 @@ class GoogleSpeechService {
   /// Try to convert to a compact MP3 file using ffmpeg if available.
   /// MP3 is smaller than WAV and widely supported by Google STT.
   static Future<File?> _convertToCompressedIfPossible(
-    File src, [
-    String preferredFormat = 'mp3',
+    final File src, [
+    final String preferredFormat = 'mp3',
   ]) async {
     // Delegate to AudioConversion helper. If preferredFormat is 'm4a', try
     // converting to m4a using AAC encoder; otherwise default to mp3.
@@ -601,7 +604,7 @@ class GoogleSpeechService {
 
   /// Try to convert common compressed audio files to WAV PCM16 using ffmpeg
   /// if ffmpeg is available in PATH. Returns the converted File or null.
-  static Future<File?> _convertToWavIfPossible(File src) async {
+  static Future<File?> _convertToWavIfPossible(final File src) async {
     try {
       return await AudioConversion.convertToWavIfPossible(src);
     } catch (e) {
@@ -617,7 +620,7 @@ class GoogleSpeechService {
   /// Fetch the official list of Google TTS voices from the API and cache it locally.
   /// Returns a list of maps with keys: name, languageCodes, ssmlGender, naturalSampleRateHertz
   static Future<List<Map<String, dynamic>>> fetchGoogleVoices({
-    bool forceRefresh = false,
+    final bool forceRefresh = false,
   }) async {
     _maybeDebugPrint(
       '[GoogleTTS] fetchGoogleVoices INICIADO - forceRefresh=$forceRefresh',
@@ -680,7 +683,7 @@ class GoogleSpeechService {
 
       final processedVoices = voices
           .map(
-            (v) => {
+            (final v) => {
               'name': v['name'],
               'languageCodes': (v['languageCodes'] as List<dynamic>)
                   .cast<String>(),
@@ -727,9 +730,9 @@ class GoogleSpeechService {
   /// Each languageCode can be a 2-letter code ('ja') or a region code ('ja-JP').
   /// If both lists are empty, defaults to Spanish (Spain) voices.
   static Future<List<Map<String, dynamic>>> voicesForUserAndAi(
-    List<String> userLanguageCodes,
-    List<String> aiLanguageCodes, {
-    bool forceRefresh = false,
+    final List<String> userLanguageCodes,
+    final List<String> aiLanguageCodes, {
+    final bool forceRefresh = false,
   }) async {
     final all = await fetchGoogleVoices(forceRefresh: forceRefresh);
 
@@ -759,7 +762,7 @@ class GoogleSpeechService {
       // Do not filter by gender here; include voices of any gender
 
       // Check if any voice language code matches our target codes EXACTLY
-      final matches = languageCodes.any((lc) {
+      final matches = languageCodes.any((final lc) {
         final low = lc.toLowerCase();
         return targetCodes.contains(low);
       });
@@ -783,9 +786,9 @@ class GoogleSpeechService {
 
   /// Cachea los resultados y permite forzar refresh.
   static Future<List<Map<String, dynamic>>> getNeuralWaveNetVoices(
-    List<String> userLanguageCodes,
-    List<String> aiLanguageCodes, {
-    bool forceRefresh = false,
+    final List<String> userLanguageCodes,
+    final List<String> aiLanguageCodes, {
+    final bool forceRefresh = false,
   }) async {
     _maybeDebugPrint(
       '[GoogleTTS] getNeuralWaveNetVoices INICIADO - forceRefresh=$forceRefresh',
@@ -842,7 +845,7 @@ class GoogleSpeechService {
       );
 
       // Debug: buscar WaveNet específicamente Y TODAS las voces que contengan "Wavenet"
-      final waveNetVoices = allVoices.where((v) {
+      final waveNetVoices = allVoices.where((final v) {
         final name = (v['name'] as String? ?? '').toLowerCase();
         return name.contains('wavenet');
       }).toList();
@@ -851,13 +854,13 @@ class GoogleSpeechService {
       );
 
       // Debug: buscar específicamente voces españolas WaveNet
-      final spanishWaveNet = allVoices.where((v) {
+      final spanishWaveNet = allVoices.where((final v) {
         final name = (v['name'] as String? ?? '').toLowerCase();
         final langs = (v['languageCodes'] as List<dynamic>? ?? [])
             .cast<String>();
         final hasWaveNet = name.contains('wavenet');
         final isSpanish = langs.any(
-          (lang) => lang.toLowerCase().startsWith('es'),
+          (final lang) => lang.toLowerCase().startsWith('es'),
         );
         return hasWaveNet && isSpanish;
       }).toList();
@@ -869,7 +872,7 @@ class GoogleSpeechService {
       // 1. Cualquier género (no filtrar por ssmlGender)
       // 2. Solo Neural o WaveNet
       // 3. Solo idiomas especificados
-      final filteredVoices = allVoices.where((voice) {
+      final filteredVoices = allVoices.where((final voice) {
         final name = voice['name'] as String? ?? '';
         final languageCodes = (voice['languageCodes'] as List<dynamic>)
             .cast<String>();
@@ -884,7 +887,7 @@ class GoogleSpeechService {
         }
 
         // Filtro 3: Solo idiomas especificados
-        final matches = languageCodes.any((lc) {
+        final matches = languageCodes.any((final lc) {
           final normalized = lc.toLowerCase();
           return targetCodes.contains(normalized);
         });
@@ -960,7 +963,7 @@ class GoogleSpeechService {
 
   /// Resolve a sensible default language code for Google TTS.
   /// Priority: provided country ISO2 -> LocaleUtils mapping -> system locale -> fallback 'es-ES'.
-  static String resolveDefaultLanguageCode([String? countryIso2]) {
+  static String resolveDefaultLanguageCode([final String? countryIso2]) {
     try {
       if (countryIso2 != null && countryIso2.trim().isNotEmpty) {
         final codes = LocaleUtils.officialLanguageCodesForCountry(

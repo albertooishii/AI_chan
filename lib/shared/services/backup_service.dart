@@ -16,7 +16,7 @@ import 'package:archive/archive_io.dart';
 ///   de la app corre a cargo del llamador.
 class BackupService {
   /// Crea un archivo de backup con JSON y media files
-  static Future<Archive> _createBackupArchive(String jsonStr) async {
+  static Future<Archive> _createBackupArchive(final String jsonStr) async {
     final archive = Archive();
     // Add the main JSON as backup.json
     archive.addFile(ArchiveFile.string('backup.json', jsonStr));
@@ -61,8 +61,8 @@ class BackupService {
   /// Crea un backup local y devuelve el archivo guardado.
   /// Usado para backups automáticos y archivos temporales.
   static Future<File> createLocalBackup({
-    required String jsonStr,
-    String? destinationDirPath,
+    required final String jsonStr,
+    final String? destinationDirPath,
   }) async {
     final safeTs = DateTime.now().toIso8601String().replaceAll(
       RegExp(r'[:.]'),
@@ -93,8 +93,8 @@ class BackupService {
   /// Crea un backup local en la ruta específica proporcionada por el usuario.
   /// Usado cuando el usuario elige manualmente dónde guardar el archivo.
   static Future<File> createLocalBackupAt({
-    required String jsonStr,
-    required String outputPath,
+    required final String jsonStr,
+    required final String outputPath,
   }) async {
     final archive = await _createBackupArchive(jsonStr);
 
@@ -113,7 +113,7 @@ class BackupService {
 
   /// Restaura desde un archivo de backup (.zip/.gz/plain) y devuelve el JSON
   /// extraído; la importación al estado de la app corre a cargo del llamador.
-  static Future<String> restoreAndExtractJson(String backupPath) async {
+  static Future<String> restoreAndExtractJson(final String backupPath) async {
     final jsonStr = await extractJsonAndRestoreMedia(backupPath);
     return jsonStr;
   }
@@ -121,7 +121,9 @@ class BackupService {
   /// Extrae el JSON y restaura ficheros media (images/ y audio/) en los
   /// directorios habituales del sistema de archivos. Devuelve el contenido
   /// JSON extraído (throw en error).
-  static Future<String> extractJsonAndRestoreMedia(String backupPath) async {
+  static Future<String> extractJsonAndRestoreMedia(
+    final String backupPath,
+  ) async {
     final backupFile = File(backupPath);
     final bytes = await backupFile.readAsBytes();
     if (backupPath.toLowerCase().endsWith('.zip')) {

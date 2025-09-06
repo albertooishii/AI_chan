@@ -8,24 +8,26 @@ import 'package:ai_chan/chat/application/services/chat_application_service.dart'
 /// NO contiene lógica de negocio.
 /// Esta clase reemplaza gradualmente ChatProvider en la capa de presentación.
 class ChatController extends ChangeNotifier {
+  ChatController({required final ChatApplicationService chatService})
+    : _chatService = chatService;
   final ChatApplicationService _chatService;
 
   // Estado UI
   bool _isLoading = false;
   String? _errorMessage;
-  bool _isTyping = false;
   bool _isCalling = false;
 
   // Getters para UI
   List<Message> get messages => _chatService.messages;
   AiChanProfile? get profile => _chatService.profile;
   List<EventEntry> get events => _chatService.events;
+  List<TimelineEntry> get timeline => _chatService.timeline;
   String? get selectedModel => _chatService.selectedModel;
   bool get googleLinked => _chatService.googleLinked;
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  bool get isTyping => _isTyping;
+  bool get isTyping => _chatService.isTyping;
   bool get isCalling => _isCalling;
 
   // Audio UI state
@@ -38,9 +40,6 @@ class ChatController extends ChangeNotifier {
 
   // Direct access to audio service for UI components
   IAudioChatService get audioService => _chatService.audioService;
-
-  ChatController({required ChatApplicationService chatService})
-    : _chatService = chatService;
 
   /// Inicializa el chat cargando datos
   Future<void> initialize() async {
@@ -57,9 +56,9 @@ class ChatController extends ChangeNotifier {
 
   /// Envía un mensaje
   Future<void> sendMessage({
-    required String text,
-    String? model,
-    dynamic image,
+    required final String text,
+    final String? model,
+    final dynamic image,
   }) async {
     if (_chatService.profile == null) {
       _setError('Perfil no inicializado');
@@ -122,7 +121,7 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  Future<void> stopAndSendRecording({String? model}) async {
+  Future<void> stopAndSendRecording({final String? model}) async {
     try {
       final path = await _chatService.stopAndSendRecording(model: model);
       if (path != null) {
@@ -134,7 +133,7 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  Future<void> togglePlayAudio(Message msg) async {
+  Future<void> togglePlayAudio(final Message msg) async {
     try {
       await _chatService.togglePlayAudio(msg);
       notifyListeners();
@@ -144,8 +143,8 @@ class ChatController extends ChangeNotifier {
   }
 
   Future<void> generateTtsForMessage(
-    Message msg, {
-    String voice = 'nova',
+    final Message msg, {
+    final String voice = 'nova',
   }) async {
     try {
       await _chatService.generateTtsForMessage(msg, voice: voice);
@@ -156,23 +155,23 @@ class ChatController extends ChangeNotifier {
   }
 
   /// Model management
-  void setSelectedModel(String? model) {
+  void setSelectedModel(final String? model) {
     _chatService.setSelectedModel(model);
     notifyListeners();
   }
 
-  Future<List<String>> getAllModels({bool forceRefresh = false}) async {
+  Future<List<String>> getAllModels({final bool forceRefresh = false}) async {
     return await _chatService.getAllModels(forceRefresh: forceRefresh);
   }
 
   /// Event management
-  void schedulePromiseEvent(EventEntry event) {
+  void schedulePromiseEvent(final EventEntry event) {
     _chatService.schedulePromiseEvent(event);
     notifyListeners();
   }
 
   /// Google integration
-  void setGoogleLinked(bool linked) {
+  void setGoogleLinked(final bool linked) {
     _chatService.setGoogleLinked(linked);
     notifyListeners();
   }
@@ -182,10 +181,10 @@ class ChatController extends ChangeNotifier {
   }
 
   /// Import/Export
-  Future<void> applyImportedChat(Map<String, dynamic> imported) async {
+  Future<void> applyChatExport(final Map<String, dynamic> chatExport) async {
     _setLoading(true);
     try {
-      await _chatService.applyImportedChat(imported);
+      await _chatService.applyChatExport(chatExport);
       _clearError();
       notifyListeners();
     } catch (e) {
@@ -201,12 +200,12 @@ class ChatController extends ChangeNotifier {
   }
 
   /// Call state management (UI only)
-  void setCalling(bool calling) {
+  void setCalling(final bool calling) {
     _isCalling = calling;
     notifyListeners();
   }
 
-  void setPendingIncomingCall(bool pending) {
+  void setPendingIncomingCall(final bool pending) {
     // Delegado al service
     if (!pending) {
       _chatService.clearPendingIncomingCall();
@@ -220,22 +219,23 @@ class ChatController extends ChangeNotifier {
   }
 
   /// Typing indicator
-  void setTyping(bool typing) {
-    _isTyping = typing;
+  void setTyping(final bool typing) {
+    // Delegate to underlying service so a single source of truth exists.
+    _chatService.isTyping = typing;
     notifyListeners();
   }
 
   /// Profile management
-  void updateProfile(AiChanProfile profile) {
+  void updateProfile(final AiChanProfile profile) {
     _chatService.updateProfile(profile);
     notifyListeners();
   }
 
   /// Prompt building (delegated)
   String buildRealtimeSystemPromptJson({
-    required AiChanProfile profile,
-    required List<Message> messages,
-    int maxRecent = 32,
+    required final AiChanProfile profile,
+    required final List<Message> messages,
+    final int maxRecent = 32,
   }) => _chatService.buildRealtimeSystemPromptJson(
     profile: profile,
     messages: messages,
@@ -243,10 +243,10 @@ class ChatController extends ChangeNotifier {
   );
 
   String buildCallSystemPromptJson({
-    required AiChanProfile profile,
-    required List<Message> messages,
-    required bool aiInitiatedCall,
-    int maxRecent = 32,
+    required final AiChanProfile profile,
+    required final List<Message> messages,
+    required final bool aiInitiatedCall,
+    final int maxRecent = 32,
   }) => _chatService.buildCallSystemPromptJson(
     profile: profile,
     messages: messages,
@@ -255,12 +255,12 @@ class ChatController extends ChangeNotifier {
   );
 
   // Métodos privados para manejo de estado UI
-  void _setLoading(bool loading) {
+  void _setLoading(final bool loading) {
     _isLoading = loading;
     notifyListeners();
   }
 
-  void _setError(String error) {
+  void _setError(final String error) {
     _errorMessage = error;
     notifyListeners();
   }
@@ -273,17 +273,19 @@ class ChatController extends ChangeNotifier {
   // ✅ DDD: ETAPA 3 - Métodos adicionales para compatibilidad con ChatScreen
 
   /// User typing indicator
-  void onUserTyping(String text) {
+  void onUserTyping(final String text) {
+    // Only inform service about user typing (to cancel queue timers etc.).
+    // Do NOT mark the UI "isTyping" here: that flag is reserved for when
+    // the assistant/IA is actually sending a response.
     _chatService.onUserTyping(text);
-    setTyping(text.isNotEmpty);
   }
 
   /// Schedule sending a message (legacy compatibility)
   void scheduleSendMessage(
-    String text, {
-    String? model,
-    dynamic image,
-    String? imageMimeType,
+    final String text, {
+    final String? model,
+    final dynamic image,
+    final String? imageMimeType,
   }) {
     _chatService.scheduleSendMessage(
       text,
@@ -313,7 +315,7 @@ class ChatController extends ChangeNotifier {
   }
 
   /// Retry last failed message
-  Future<void> retryLastFailedMessage({String? model}) async {
+  Future<void> retryLastFailedMessage({final String? model}) async {
     try {
       _setLoading(true);
       _clearError();
@@ -329,7 +331,7 @@ class ChatController extends ChangeNotifier {
 
   /// Helper method to execute async operations with loading state management
   Future<void> _executeWithLoadingState(
-    Future<void> Function() operation,
+    final Future<void> Function() operation,
   ) async {
     try {
       _setLoading(true);
@@ -350,14 +352,16 @@ class ChatController extends ChangeNotifier {
   }
 
   /// Generate avatar from appearance
-  Future<void> generateAvatarFromAppearance({bool replace = false}) async {
+  Future<void> generateAvatarFromAppearance({
+    final bool replace = false,
+  }) async {
     await _executeWithLoadingState(
       () => _chatService.generateAvatarFromAppearance(replace: replace),
     );
   }
 
   // ✅ COMPATIBILITY: Audio playback methods
-  bool isPlaying(Message msg) {
+  bool isPlaying(final Message msg) {
     // ✅ MIGRACIÓN: Usar método correcto del ChatApplicationService
     return _chatService.isPlaying(msg);
   }
@@ -370,13 +374,16 @@ class ChatController extends ChangeNotifier {
   // ✅ MIGRACIÓN CRÍTICA: Métodos faltantes del ChatProvider original
 
   /// Añade un mensaje de imagen del usuario
-  void addUserImageMessage(Message msg) {
+  void addUserImageMessage(final Message msg) {
     _chatService.addUserImageMessage(msg);
     notifyListeners();
   }
 
   /// Añade un mensaje del asistente
-  Future<void> addAssistantMessage(String text, {bool isAudio = false}) async {
+  Future<void> addAssistantMessage(
+    final String text, {
+    final bool isAudio = false,
+  }) async {
     try {
       await _chatService.addAssistantMessage(text, isAudio: isAudio);
       notifyListeners();
@@ -386,7 +393,7 @@ class ChatController extends ChangeNotifier {
   }
 
   /// Añade mensaje de usuario
-  Future<void> addUserMessage(Message message) async {
+  Future<void> addUserMessage(final Message message) async {
     try {
       await _chatService.addUserMessage(message);
       notifyListeners();
@@ -397,11 +404,11 @@ class ChatController extends ChangeNotifier {
 
   /// Actualiza o añade mensaje de estado de llamada
   Future<void> updateOrAddCallStatusMessage({
-    required String status,
-    String? metadata,
-    CallStatus? callStatus,
-    bool incoming = false,
-    int? placeholderIndex,
+    required final String status,
+    final String? metadata,
+    final CallStatus? callStatus,
+    final bool incoming = false,
+    final int? placeholderIndex,
   }) async {
     try {
       await _chatService.updateOrAddCallStatusMessage(
@@ -419,9 +426,9 @@ class ChatController extends ChangeNotifier {
 
   /// Reemplaza placeholder de llamada entrante
   void replaceIncomingCallPlaceholder({
-    required int index,
-    required VoiceCallSummary summary,
-    required String summaryText,
+    required final int index,
+    required final VoiceCallSummary summary,
+    required final String summaryText,
   }) {
     _chatService.replaceIncomingCallPlaceholder(
       index: index,
@@ -433,8 +440,8 @@ class ChatController extends ChangeNotifier {
 
   /// Rechaza placeholder de llamada entrante
   void rejectIncomingCallPlaceholder({
-    required int index,
-    required String rejectionText,
+    required final int index,
+    required final String rejectionText,
   }) {
     _chatService.rejectIncomingCallPlaceholder(
       index: index,
@@ -459,11 +466,11 @@ class ChatController extends ChangeNotifier {
 
   /// Actualizar información de cuenta Google
   Future<void> updateGoogleAccountInfo({
-    String? email,
-    String? avatarUrl,
-    String? name,
-    bool linked = true,
-    bool triggerAutoBackup = false,
+    final String? email,
+    final String? avatarUrl,
+    final String? name,
+    final bool linked = true,
+    final bool triggerAutoBackup = false,
   }) async {
     try {
       await _chatService.updateGoogleAccountInfo(

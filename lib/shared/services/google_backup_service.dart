@@ -19,6 +19,28 @@ enum ConsentStatus {
 
 /// Servicio para manejo de backups en Google Drive con OAuth robusto
 class GoogleBackupService {
+  GoogleBackupService({
+    required this.accessToken,
+    final http.Client? httpClient,
+    final Uri? uploadEndpoint,
+    final Uri? listEndpoint,
+    final Uri? downloadEndpoint,
+    final Uri? deleteEndpoint,
+  }) : httpClient = httpClient ?? http.Client(),
+       driveUploadEndpoint =
+           uploadEndpoint ??
+           Uri.parse(
+             'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+           ),
+       driveListEndpoint =
+           listEndpoint ??
+           Uri.parse('https://www.googleapis.com/drive/v3/files'),
+       driveDownloadEndpoint =
+           downloadEndpoint ??
+           Uri.parse('https://www.googleapis.com/drive/v3/files'),
+       driveDeleteEndpoint =
+           deleteEndpoint ??
+           Uri.parse('https://www.googleapis.com/drive/v3/files');
   // Circuit breaker para evitar loops infinitos de OAuth refresh
   static Completer<Map<String, dynamic>>? _inflightLinkCompleter;
   static int _consecutiveRefreshFailures = 0;
@@ -27,7 +49,7 @@ class GoogleBackupService {
   static const Duration _circuitBreakerCooldown = Duration(minutes: 15);
 
   /// Registrar un fallo serio de refresh OAuth
-  static void _recordRefreshFailure([String? reason]) {
+  static void _recordRefreshFailure([final String? reason]) {
     _consecutiveRefreshFailures++;
     _lastRefreshFailure = DateTime.now();
     final status = getCircuitBreakerStatus();
@@ -39,7 +61,7 @@ class GoogleBackupService {
   }
 
   /// Registrar fallo leve que NO activa circuit breaker
-  static void _recordMinorRefreshIssue(String reason) {
+  static void _recordMinorRefreshIssue(final String reason) {
     Log.w('OAuth refresh issue (no emergency): $reason', tag: 'GoogleBackup');
   }
 
@@ -153,16 +175,16 @@ class GoogleBackupService {
   }
 
   @visibleForTesting
-  static void recordOAuthFailure(String reason) {
+  static void recordOAuthFailure(final String reason) {
     _recordRefreshFailure(reason);
   }
 
   /// Helper method for HTTP requests with exponential backoff
   static Future<http.Response> _retryHttpRequest(
-    Future<http.Response> Function() httpCall,
-    String operationName, {
-    int maxRetries = 3,
-    Duration initialDelay = const Duration(seconds: 1),
+    final Future<http.Response> Function() httpCall,
+    final String operationName, {
+    final int maxRetries = 3,
+    final Duration initialDelay = const Duration(seconds: 1),
   }) async {
     for (int attempt = 0; attempt <= maxRetries; attempt++) {
       try {
@@ -236,7 +258,7 @@ class GoogleBackupService {
 
   /// Extract backup metadata safely
   static Map<String, String> _extractBackupMetadata(
-    Map<String, dynamic> backup,
+    final Map<String, dynamic> backup,
   ) {
     return {
       'id': backup['id'] as String? ?? 'unknown',
@@ -249,8 +271,8 @@ class GoogleBackupService {
 
   /// Log backup details
   static void _logBackupDetails(
-    List<Map<String, dynamic>> backups,
-    String context,
+    final List<Map<String, dynamic>> backups,
+    final String context,
   ) {
     Log.d(
       'Found ${backups.length} backup(s) in Drive ($context):',
@@ -266,8 +288,10 @@ class GoogleBackupService {
   }
 
   /// Sort backups by modification time (newest first)
-  static void _sortBackupsByModifiedTime(List<Map<String, dynamic>> backups) {
-    backups.sort((a, b) {
+  static void _sortBackupsByModifiedTime(
+    final List<Map<String, dynamic>> backups,
+  ) {
+    backups.sort((final a, final b) {
       final ta = a[_sortByModifiedTime] as String? ?? '';
       final tb = b[_sortByModifiedTime] as String? ?? '';
       return tb.compareTo(ta);
@@ -283,29 +307,6 @@ class GoogleBackupService {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   static const Duration _silentRefreshIfOlderThan = Duration(hours: 23);
 
-  GoogleBackupService({
-    required this.accessToken,
-    http.Client? httpClient,
-    Uri? uploadEndpoint,
-    Uri? listEndpoint,
-    Uri? downloadEndpoint,
-    Uri? deleteEndpoint,
-  }) : httpClient = httpClient ?? http.Client(),
-       driveUploadEndpoint =
-           uploadEndpoint ??
-           Uri.parse(
-             'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
-           ),
-       driveListEndpoint =
-           listEndpoint ??
-           Uri.parse('https://www.googleapis.com/drive/v3/files'),
-       driveDownloadEndpoint =
-           downloadEndpoint ??
-           Uri.parse('https://www.googleapis.com/drive/v3/files'),
-       driveDeleteEndpoint =
-           deleteEndpoint ??
-           Uri.parse('https://www.googleapis.com/drive/v3/files');
-
   /// Placeholder para autenticación
   Future<void> authenticate() async {
     if (accessToken == null) {
@@ -317,8 +318,8 @@ class GoogleBackupService {
 
   /// Refresh access token usando refresh_token almacenado
   Future<Map<String, dynamic>> refreshAccessToken({
-    required String clientId,
-    String? clientSecret,
+    required final String clientId,
+    final String? clientSecret,
   }) async {
     // Circuit breaker check
     if (_consecutiveRefreshFailures >= _maxConsecutiveFailures) {
@@ -424,7 +425,7 @@ class GoogleBackupService {
   }
 
   /// Resolve client ID for platform
-  static Future<String> resolveClientId(String rawCid) async {
+  static Future<String> resolveClientId(final String rawCid) async {
     var cid = rawCid.trim();
     if (cid.isEmpty ||
         cid.startsWith('YOUR_') ||
@@ -467,7 +468,7 @@ class GoogleBackupService {
   }
 
   /// Resolve client ID for explicit platform
-  static Future<String> resolveClientIdFor(String target) async {
+  static Future<String> resolveClientIdFor(final String target) async {
     try {
       switch (target) {
         case 'web':
@@ -487,7 +488,7 @@ class GoogleBackupService {
   }
 
   /// Resolve client secret for explicit platform
-  static Future<String?> resolveClientSecretFor(String target) async {
+  static Future<String?> resolveClientSecretFor(final String target) async {
     try {
       String s = '';
       switch (target) {
@@ -587,9 +588,9 @@ class GoogleBackupService {
 
   /// AppAuth authentication for desktop platforms
   Future<Map<String, dynamic>> _authenticateWithAppAuth({
-    required String clientId,
-    String? redirectUri,
-    List<String> scopes = const [
+    required final String clientId,
+    final String? redirectUri,
+    final List<String> scopes = const [
       'openid',
       'email',
       'profile',
@@ -618,13 +619,13 @@ class GoogleBackupService {
 
   /// Native Google Sign-In for Android/iOS
   Future<Map<String, dynamic>> _signInUsingNativeGoogleSignIn({
-    List<String> scopes = const [
+    final List<String> scopes = const [
       'openid',
       'email',
       'profile',
       'https://www.googleapis.com/auth/drive.appdata',
     ],
-    dynamic signInAdapterOverride,
+    final dynamic signInAdapterOverride,
   }) async {
     try {
       if (signInAdapterOverride != null) {
@@ -660,10 +661,10 @@ class GoogleBackupService {
 
   /// Main linking method that handles all platforms
   Future<Map<String, dynamic>> linkAccount({
-    String? clientId,
-    List<String>? scopes,
-    dynamic signInAdapterOverride,
-    bool forceUseGoogleSignIn = false,
+    final String? clientId,
+    final List<String>? scopes,
+    final dynamic signInAdapterOverride,
+    final bool forceUseGoogleSignIn = false,
   }) async {
     if (_inflightLinkCompleter != null) {
       try {
@@ -822,8 +823,8 @@ class GoogleBackupService {
 
   /// Persist credentials securely
   Future<void> _persistCredentialsSecure(
-    Map<String, dynamic> data, {
-    String? originalClientId,
+    final Map<String, dynamic> data, {
+    final String? originalClientId,
   }) async {
     try {
       final merged = <String, dynamic>{}..addAll(data);
@@ -1089,10 +1090,10 @@ class GoogleBackupService {
 
   /// Robust upload with automatic token refresh (static helper)
   static Future<String> uploadBackupWithAutoRefresh(
-    File zipFile, {
-    String? filename,
-    String? accessToken,
-    bool attemptRefresh = true,
+    final File zipFile, {
+    final String? filename,
+    final String? accessToken,
+    final bool attemptRefresh = true,
   }) async {
     if (accessToken == null) throw StateError('No access token provided');
 
@@ -1148,7 +1149,10 @@ class GoogleBackupService {
   }
 
   /// Upload backup to Google Drive
-  Future<String> uploadBackup(File zipFile, {String? filename}) async {
+  Future<String> uploadBackup(
+    final File zipFile, {
+    final String? filename,
+  }) async {
     final token = accessToken;
     if (token == null) throw StateError('No access token set');
 
@@ -1173,7 +1177,8 @@ class GoogleBackupService {
         final id = existing.first['id'] as String;
 
         final List<int> updateBodyBytes = [];
-        void addUpdate(String s) => updateBodyBytes.addAll(utf8.encode(s));
+        void addUpdate(final String s) =>
+            updateBodyBytes.addAll(utf8.encode(s));
         addUpdate('--$boundary\r\n');
         addUpdate('Content-Type: application/json; charset=UTF-8\r\n\r\n');
         addUpdate(jsonEncode(updateMeta));
@@ -1225,7 +1230,7 @@ class GoogleBackupService {
 
     // Create new file
     final List<int> createBodyBytes = [];
-    void addCreate(String s) => createBodyBytes.addAll(utf8.encode(s));
+    void addCreate(final String s) => createBodyBytes.addAll(utf8.encode(s));
     addCreate('--$boundary\r\n');
     addCreate('Content-Type: application/json; charset=UTF-8\r\n\r\n');
     addCreate(jsonEncode(createMeta));
@@ -1269,7 +1274,10 @@ class GoogleBackupService {
   }
 
   /// Upload with resumable protocol
-  Future<String> uploadBackupResumable(File zipFile, {String? filename}) async {
+  Future<String> uploadBackupResumable(
+    final File zipFile, {
+    final String? filename,
+  }) async {
     final token = accessToken;
     if (token == null) throw StateError('No access token set');
 
@@ -1380,7 +1388,9 @@ class GoogleBackupService {
   }
 
   /// List backups in Google Drive
-  Future<List<Map<String, dynamic>>> listBackups({int pageSize = 50}) async {
+  Future<List<Map<String, dynamic>>> listBackups({
+    final int pageSize = 50,
+  }) async {
     final token = accessToken;
     if (token == null) throw StateError('No access token set');
 
@@ -1420,7 +1430,10 @@ class GoogleBackupService {
   }
 
   /// Download backup from Google Drive
-  Future<File> downloadBackup(String fileId, {String? destDir}) async {
+  Future<File> downloadBackup(
+    final String fileId, {
+    final String? destDir,
+  }) async {
     final token = accessToken;
     if (token == null) throw StateError('No access token set');
     final d = destDir ?? Directory.systemTemp.path;
@@ -1451,7 +1464,7 @@ class GoogleBackupService {
   }
 
   /// Delete backup from Google Drive
-  Future<void> deleteBackup(String fileId) async {
+  Future<void> deleteBackup(final String fileId) async {
     final token = accessToken;
     if (token == null) throw StateError('No access token set');
     final url = Uri.parse('${driveDeleteEndpoint.toString()}/$fileId');
@@ -1474,7 +1487,7 @@ class GoogleBackupService {
   }
 
   /// Clean up old backups, keeping only the most recent
-  Future<void> _cleanupOldBackups(String keepFileId) async {
+  Future<void> _cleanupOldBackups(final String keepFileId) async {
     try {
       Log.d(
         'Starting cleanup of old backups, keeping fileId: $keepFileId',
@@ -1483,7 +1496,7 @@ class GoogleBackupService {
 
       final allBackups = await listBackups();
       final oldBackups = allBackups
-          .where((backup) => backup['id'] != keepFileId)
+          .where((final backup) => backup['id'] != keepFileId)
           .toList();
 
       if (oldBackups.isEmpty) {

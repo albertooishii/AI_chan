@@ -10,8 +10,8 @@ import 'package:image/image.dart' as img;
 /// bajo la carpeta `images`. Comprime la imagen usando JPEG con 90% de calidad
 /// para reducir significativamente el tamaño del archivo.
 Future<String?> saveBase64ImageToFile(
-  String base64, {
-  String prefix = 'img',
+  final String base64, {
+  final String prefix = 'img',
 }) async {
   try {
     final bytes = base64Decode(base64);

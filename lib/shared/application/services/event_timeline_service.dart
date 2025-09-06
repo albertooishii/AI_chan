@@ -4,18 +4,18 @@ import '../../utils/event_parser_utils.dart';
 
 class EventTimelineService {
   // Añade un evento al timeline si se detecta fecha y palabras clave
-  static TimelineEntry? createEventFromText(String text) {
+  static TimelineEntry? createEventFromText(final String text) {
     final date = EventParserUtils.parseFullDate(text);
     if (date != null && EventParserUtils.containsEventKeywords(text)) {
       // Extraer la frase más larga y significativa del texto
       final frases = text
           .split(RegExp(r'[\.\n!?]'))
-          .map((f) => f.trim())
-          .where((f) => f.isNotEmpty)
+          .map((final f) => f.trim())
+          .where((final f) => f.isNotEmpty)
           .toList();
       // Elegir la frase más larga (probablemente el nombre del evento)
       String descripcionEvento = frases.isNotEmpty
-          ? frases.reduce((a, b) => a.length >= b.length ? a : b)
+          ? frases.reduce((final a, final b) => a.length >= b.length ? a : b)
           : 'Evento';
       // Limpiar markdown y caracteres especiales
       descripcionEvento = descripcionEvento
@@ -66,10 +66,10 @@ class EventTimelineService {
 
   /// Detecta y guarda automáticamente eventos/citas y horarios en el perfil
   static Future<dynamic> detectAndSaveEventAndSchedule({
-    required String text,
-    required String textResponse,
+    required final String text,
+    required final String textResponse,
     required dynamic onboardingData,
-    required Future<void> Function() saveAll,
+    required final Future<void> Function() saveAll,
   }) async {
     // --- EVENTOS/CITAS ---
     final eventEntry = createEventFromText(textResponse);
@@ -225,7 +225,7 @@ class EventTimelineService {
             onboardingData.biography,
           );
           final dias = horarioMap['days'] ?? '';
-          DateTime? computeNextForDays(String daysStr) {
+          DateTime? computeNextForDays(final String daysStr) {
             try {
               final Map<String, int> map = {
                 'lun': 1,

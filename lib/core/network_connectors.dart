@@ -12,7 +12,7 @@ abstract class WsChannel {
 }
 
 abstract class WsSink {
-  void add(dynamic data);
+  void add(final dynamic data);
   Future<void> close();
 }
 
@@ -22,10 +22,10 @@ abstract class SocketLike {
 }
 
 class _IoWsSinkAdapter implements WsSink {
-  final dynamic _inner;
   _IoWsSinkAdapter(this._inner);
+  final dynamic _inner;
   @override
-  void add(dynamic data) => _inner.add(data);
+  void add(final dynamic data) => _inner.add(data);
   @override
   Future<void> close() async {
     try {
@@ -35,8 +35,8 @@ class _IoWsSinkAdapter implements WsSink {
 }
 
 class _IoWsChannelAdapter implements WsChannel {
-  final wsio.IOWebSocketChannel _inner;
   _IoWsChannelAdapter(this._inner);
+  final wsio.IOWebSocketChannel _inner;
   @override
   Stream<dynamic> get stream => _inner.stream;
   @override
@@ -44,8 +44,8 @@ class _IoWsChannelAdapter implements WsChannel {
 }
 
 class _IoSocketAdapter implements SocketLike {
-  final Socket _inner;
   _IoSocketAdapter(this._inner);
+  final Socket _inner;
   @override
   void destroy() => _inner.destroy();
 }
@@ -57,31 +57,34 @@ typedef SocketConnectFn =
 
 class WebSocketConnector {
   // default implementation uses IOWebSocketChannel wrapped in adapter
-  static WsConnectFn connectImpl = (uri, {headers}) => _IoWsChannelAdapter(
-    wsio.IOWebSocketChannel.connect(uri, headers: headers),
-  );
+  static WsConnectFn connectImpl = (final uri, {final headers}) =>
+      _IoWsChannelAdapter(
+        wsio.IOWebSocketChannel.connect(uri, headers: headers),
+      );
 
-  static WsChannel connect(Uri uri, {Map<String, String>? headers}) =>
-      connectImpl(uri, headers: headers);
+  static WsChannel connect(
+    final Uri uri, {
+    final Map<String, String>? headers,
+  }) => connectImpl(uri, headers: headers);
 
   /// Tests can replace the implementation to return a fake channel-like object
-  static void setConnectImpl(WsConnectFn impl) {
+  static void setConnectImpl(final WsConnectFn impl) {
     connectImpl = impl;
   }
 }
 
 class SocketConnector {
   static SocketConnectFn connectImpl =
-      (host, port, {Duration? timeout}) async =>
+      (final host, final port, {final Duration? timeout}) async =>
           _IoSocketAdapter(await Socket.connect(host, port, timeout: timeout));
 
   static Future<SocketLike> connect(
-    String host,
-    int port, {
-    Duration? timeout,
+    final String host,
+    final int port, {
+    final Duration? timeout,
   }) => connectImpl(host, port, timeout: timeout);
 
-  static void setConnectImpl(SocketConnectFn impl) {
+  static void setConnectImpl(final SocketConnectFn impl) {
     connectImpl = impl;
   }
 }

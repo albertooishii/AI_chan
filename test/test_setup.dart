@@ -14,22 +14,22 @@ import 'package:ai_chan/core/http_connector.dart';
 
 class _FakeTestStt implements ISttService {
   @override
-  Future<String?> transcribeAudio(String filePath) async {
+  Future<String?> transcribeAudio(final String filePath) async {
     return 'fake transcription for testing';
   }
 
   @override
   Future<String?> transcribeFile({
-    required String filePath,
-    Map<String, dynamic>? options,
+    required final String filePath,
+    final Map<String, dynamic>? options,
   }) async {
     return await transcribeAudio(filePath);
   }
 }
 
 Future<void> initializeTestEnvironment({
-  Map<String, Object>? prefs,
-  String? dotenvContents,
+  final Map<String, Object>? prefs,
+  final String? dotenvContents,
 }) async {
   TestWidgetsFlutterBinding.ensureInitialized();
   // Ensure tests run with minimal noisy logging

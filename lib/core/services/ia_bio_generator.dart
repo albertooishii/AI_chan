@@ -153,14 +153,14 @@ String _biographyTemplateToString() =>
 /// Generador de biografías personalizado con personalidad otaku/friki integrada.
 /// Acepta un override opcional de AIService para facilitar tests e inyección de dependencias.
 Future<AiChanProfile> generateAIBiographyWithAI({
-  required String userName,
-  required String aiName,
-  required DateTime? userBirthdate,
-  required String meetStory,
-  String? userCountryCode,
-  String? aiCountryCode,
-  int? seed,
-  AIService? aiServiceOverride,
+  required final String userName,
+  required final String aiName,
+  required final DateTime? userBirthdate,
+  required final String meetStory,
+  final String? userCountryCode,
+  final String? aiCountryCode,
+  final int? seed,
+  final AIService? aiServiceOverride,
 }) async {
   // Generar fecha de nacimiento de la IA basada en la edad del usuario
   final aiBirthdateDate = DateUtils.generateAIBirthdate(
@@ -170,7 +170,6 @@ Future<AiChanProfile> generateAIBiographyWithAI({
   final aiBirthdate = DateUtils.dateToIsoString(aiBirthdateDate);
 
   // Generar fechas para el contexto de la biografía
-  final fechaActual = DateUtils.getCurrentDateString();
   final fechaConocieron = DateUtils.getDateOneMonthAgoString();
 
   final aiIdentityInstructions =
@@ -271,7 +270,7 @@ Identidad: $aiIdentityInstructions
   final systemPromptObj = SystemPrompt(
     profile: AiChanProfile(
       biography: {},
-      timeline: [],
+
       userName: userName,
       aiName: aiName,
       userBirthdate: userBirthdate,
@@ -336,14 +335,6 @@ Identidad: $aiIdentityInstructions
 
   final bioModel = AiChanProfile(
     biography: bioJson,
-    timeline: [
-      TimelineEntry(
-        resume: meetStory,
-        startDate: fechaConocieron,
-        endDate: fechaActual,
-        level: -1,
-      ),
-    ],
     userName: userName,
     aiName: aiName,
     userBirthdate: userBirthdate,

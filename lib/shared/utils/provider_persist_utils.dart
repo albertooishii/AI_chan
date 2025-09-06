@@ -4,15 +4,15 @@ import 'package:ai_chan/shared/utils/storage_utils.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 
 class ProviderPersistUtils {
-  /// Persist an ImportedChat using the provided repository if available,
+  /// Persist a ChatExport using the provided repository if available,
   /// falling back to SharedPreferences via StorageUtils.
-  static Future<void> saveImportedChat(
-    ImportedChat imported, {
-    IChatRepository? repository,
+  static Future<void> saveChatExport(
+    final ChatExport exported, {
+    final IChatRepository? repository,
   }) async {
     if (repository != null) {
       try {
-        await repository.saveAll(imported.toJson());
+        await repository.saveAll(exported.toJson());
         return;
       } catch (e) {
         Log.w(
@@ -23,9 +23,9 @@ class ProviderPersistUtils {
     }
 
     try {
-      await StorageUtils.saveImportedChatToPrefs(imported);
+      await StorageUtils.saveChatExportToPrefs(exported);
     } catch (e) {
-      Log.w('StorageUtils.saveImportedChatToPrefs failed: $e', tag: 'PERSIST');
+      Log.w('StorageUtils.saveChatExportToPrefs failed: $e', tag: 'PERSIST');
     }
   }
 }

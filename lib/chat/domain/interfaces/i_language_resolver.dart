@@ -3,5 +3,5 @@
 abstract class ILanguageResolver {
   /// Resolve the language code for a given voice name
   /// Returns the appropriate language code or a fallback if resolution fails
-  Future<String> resolveLanguageCode(String voiceName);
+  Future<String> resolveLanguageCode(final String voiceName);
 }

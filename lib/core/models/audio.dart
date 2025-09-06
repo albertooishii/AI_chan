@@ -1,20 +1,5 @@
 // Audio model for AI_chan - follows same pattern as AiImage
 class AiAudio {
-  /// Path or URL to the audio file
-  final String? url;
-
-  /// Transcript/text content of the audio
-  final String? transcript;
-
-  /// Duration of the audio file in milliseconds
-  final int? durationMs;
-
-  /// Unix timestamp in milliseconds when this audio was created
-  final int? createdAtMs;
-
-  /// Whether this audio was auto-generated via TTS
-  final bool? isAutoTts;
-
   AiAudio({
     this.url,
     this.transcript,
@@ -23,7 +8,7 @@ class AiAudio {
     this.isAutoTts,
   });
 
-  factory AiAudio.fromJson(Map<String, dynamic> json) {
+  factory AiAudio.fromJson(final Map<String, dynamic> json) {
     return AiAudio(
       url: json['url'] as String?,
       transcript: json['transcript'] as String?,
@@ -41,6 +26,21 @@ class AiAudio {
     );
   }
 
+  /// Path or URL to the audio file
+  final String? url;
+
+  /// Transcript/text content of the audio
+  final String? transcript;
+
+  /// Duration of the audio file in milliseconds
+  final int? durationMs;
+
+  /// Unix timestamp in milliseconds when this audio was created
+  final int? createdAtMs;
+
+  /// Whether this audio was auto-generated via TTS
+  final bool? isAutoTts;
+
   Map<String, dynamic> toJson() => {
     if (url != null) 'url': url,
     if (transcript != null) 'transcript': transcript,
@@ -50,11 +50,11 @@ class AiAudio {
   };
 
   AiAudio copyWith({
-    String? url,
-    String? transcript,
-    int? durationMs,
-    int? createdAtMs,
-    bool? isAutoTts,
+    final String? url,
+    final String? transcript,
+    final int? durationMs,
+    final int? createdAtMs,
+    final bool? isAutoTts,
   }) {
     return AiAudio(
       url: url ?? this.url,

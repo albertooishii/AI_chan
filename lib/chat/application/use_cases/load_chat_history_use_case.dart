@@ -4,10 +4,9 @@ import 'package:ai_chan/chat/domain/interfaces.dart';
 /// Load Chat History Use Case - Chat Application Layer
 /// Maneja la carga del historial de conversación desde el almacenamiento
 class LoadChatHistoryUseCase {
-  final IChatRepository _repository;
-
-  LoadChatHistoryUseCase({required IChatRepository repository})
+  LoadChatHistoryUseCase({required final IChatRepository repository})
     : _repository = repository;
+  final IChatRepository _repository;
 
   /// Ejecuta el caso de uso de carga de historial
   Future<ChatConversation> execute() async {

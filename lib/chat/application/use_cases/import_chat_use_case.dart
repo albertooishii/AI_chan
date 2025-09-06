@@ -4,13 +4,12 @@ import 'package:ai_chan/chat/domain/interfaces.dart';
 /// Import Chat Use Case - Chat Application Layer
 /// Maneja la importación de conversación desde JSON string
 class ImportChatUseCase {
+  ImportChatUseCase({required final IChatRepository repository})
+    : _repository = repository;
   final IChatRepository _repository;
 
-  ImportChatUseCase({required IChatRepository repository})
-    : _repository = repository;
-
   /// Ejecuta el caso de uso de importación
-  Future<ChatConversation> execute(String jsonString) async {
+  Future<ChatConversation> execute(final String jsonString) async {
     try {
       // 1. Usar el repositorio para parsear el JSON
       final data = await _repository.importAllFromJson(jsonString);

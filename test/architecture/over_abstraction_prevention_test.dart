@@ -61,7 +61,7 @@ void main() {
             final content = file.readAsStringSync();
             final interfaces = RegExp(
               r'abstract\s+(?:interface\s+)?class\s+(\w+)',
-            ).allMatches(content).map((m) => m.group(1)!).toList();
+            ).allMatches(content).map((final m) => m.group(1)!).toList();
             domainInterfaces.addAll(interfaces);
           }
         }
@@ -100,7 +100,7 @@ void main() {
         'IRealtimeCallClient',
       ]; // Add interfaces that are intentionally unused
       final realOrphans = orphanedInterfaces
-          .where((i) => !allowedOrphans.contains(i))
+          .where((final i) => !allowedOrphans.contains(i))
           .toList();
 
       expect(
@@ -123,7 +123,7 @@ void main() {
           final content = file.readAsStringSync();
           final exportLines = content
               .split('\n')
-              .where((line) => line.trim().startsWith('export '))
+              .where((final line) => line.trim().startsWith('export '))
               .toList();
 
           if (exportLines.isNotEmpty) {
@@ -131,7 +131,7 @@ void main() {
             final nonCommentLines = content
                 .split('\n')
                 .where(
-                  (line) =>
+                  (final line) =>
                       line.trim().isNotEmpty && !line.trim().startsWith('//'),
                 )
                 .length;
@@ -147,7 +147,7 @@ void main() {
 
       // Check for barrels that export the same things
       final exportGroups = <String, List<String>>{};
-      barrelFiles.forEach((path, exports) {
+      barrelFiles.forEach((final path, final exports) {
         final sortedExports = exports.join(
           '|',
         ); // Create a signature from exports
@@ -158,7 +158,7 @@ void main() {
         }
       });
 
-      exportGroups.forEach((signature, paths) {
+      exportGroups.forEach((final signature, final paths) {
         if (paths.length > 1) {
           redundantBarrels.addAll(
             paths.skip(1),
@@ -243,7 +243,7 @@ void main() {
 }
 
 /// Checks if adapter has substantial business logic (not just 1:1 mapping)
-bool _hasSubstantialLogic(String content) {
+bool _hasSubstantialLogic(final String content) {
   // Indicators of substantial logic
   final logicIndicators = [
     RegExp(r'if\s*\('), // Conditional logic
@@ -261,14 +261,14 @@ bool _hasSubstantialLogic(String content) {
     RegExp(r'[Tt]ransform'), // Data transformation
   ];
 
-  return logicIndicators.any((pattern) => pattern.hasMatch(content));
+  return logicIndicators.any((final pattern) => pattern.hasMatch(content));
 }
 
 /// Checks if adapter is just doing 1:1 method mapping
 bool _isSimpleMappingAdapter(
-  String content,
-  String adapterName,
-  String interfaceName,
+  final String content,
+  final String adapterName,
+  final String interfaceName,
 ) {
   // Look for constructor that takes a single dependency
   final constructorPattern = RegExp(r'$adapterName\s*\(\s*this\._\w+\s*\)');

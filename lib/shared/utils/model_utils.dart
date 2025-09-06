@@ -1,7 +1,7 @@
 /// Utilidades para agrupar y detectar proveedores de modelos.
 class ModelUtils {
   /// Detecta el proveedor a partir del id de modelo usando heurísticas.
-  static String detectProvider(String modelId) {
+  static String detectProvider(final String modelId) {
     final m = modelId.toLowerCase();
     if (m.contains('gemini') || m.contains('imagen-')) return 'Google';
     if (m.startsWith('grok-') || m.contains('grok')) return 'Grok';
@@ -11,8 +11,8 @@ class ModelUtils {
 
   /// Agrupa una lista de modelos por proveedor. Devuelve un mapa proveedor->[modelIds]
   static Map<String, List<String>> groupModels(
-    List<String> models, {
-    bool preserveOrder = true,
+    final List<String> models, {
+    final bool preserveOrder = true,
   }) {
     final Map<String, List<String>> out = {};
     for (final m in models) {

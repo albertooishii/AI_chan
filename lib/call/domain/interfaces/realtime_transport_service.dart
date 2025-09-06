@@ -7,16 +7,16 @@ abstract interface class RealtimeTransportService {
   bool get isConnected;
 
   /// Connect to the realtime service with provider-specific options
-  Future<void> connect({required Map<String, dynamic> options});
+  Future<void> connect({required final Map<String, dynamic> options});
 
   /// Disconnect and cleanup resources
   Future<void> disconnect();
 
   /// Send a structured event to the transport
-  void sendEvent(Map<String, dynamic> event);
+  void sendEvent(final Map<String, dynamic> event);
 
   /// Append raw audio bytes for streaming
-  void appendAudio(Uint8List bytes);
+  void appendAudio(final Uint8List bytes);
 
   /// Force commit (flush) of pending audio buffer
   Future<void> commitAudio();

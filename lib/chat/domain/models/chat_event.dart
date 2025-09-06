@@ -1,11 +1,6 @@
 /// Chat Event Entry - Domain Model
 /// Representa eventos específicos del contexto de chat
 class ChatEvent {
-  final String type; // Ej: 'programado', 'promesa', 'cita', etc.
-  final String description;
-  final DateTime? date;
-  final Map<String, dynamic>? extra;
-
   ChatEvent({
     required this.type,
     required this.description,
@@ -13,7 +8,7 @@ class ChatEvent {
     this.extra,
   });
 
-  factory ChatEvent.fromJson(Map<String, dynamic> json) {
+  factory ChatEvent.fromJson(final Map<String, dynamic> json) {
     return ChatEvent(
       type: json['type'] ?? '',
       description: json['description'] ?? '',
@@ -21,6 +16,10 @@ class ChatEvent {
       extra: json['extra'] as Map<String, dynamic>?,
     );
   }
+  final String type; // Ej: 'programado', 'promesa', 'cita', etc.
+  final String description;
+  final DateTime? date;
+  final Map<String, dynamic>? extra;
 
   Map<String, dynamic> toJson() => {
     'type': type,
@@ -30,10 +29,10 @@ class ChatEvent {
   };
 
   ChatEvent copyWith({
-    String? type,
-    String? description,
-    DateTime? date,
-    Map<String, dynamic>? extra,
+    final String? type,
+    final String? description,
+    final DateTime? date,
+    final Map<String, dynamic>? extra,
   }) {
     return ChatEvent(
       type: type ?? this.type,

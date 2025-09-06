@@ -5,14 +5,13 @@ import 'package:ai_chan/shared/utils/log_utils.dart';
 
 /// Implementación de IAudioManager usando CallController
 class AudioManagerAdapter implements IAudioManager {
+  AudioManagerAdapter(this._callController);
   final CallController _callController;
   final StreamController<double> _audioLevelController =
       StreamController<double>.broadcast();
 
-  AudioManagerAdapter(this._callController);
-
   @override
-  void setMuted(bool muted) {
+  void setMuted(final bool muted) {
     try {
       _callController.setMuted(muted);
       Log.d(
@@ -36,7 +35,7 @@ class AudioManagerAdapter implements IAudioManager {
   Stream<double> get audioLevelStream => _audioLevelController.stream;
 
   @override
-  void updateAudioLevel(double level) {
+  void updateAudioLevel(final double level) {
     _audioLevelController.add(level);
   }
 
@@ -67,11 +66,10 @@ class AudioManagerAdapter implements IAudioManager {
 
 /// Implementación de ICallManager usando CallController
 class CallManagerAdapter implements ICallManager {
+  CallManagerAdapter(this._callController);
   final CallController _callController;
   final StreamController<bool> _callStateController =
       StreamController<bool>.broadcast();
-
-  CallManagerAdapter(this._callController);
 
   @override
   Future<void> startCall() async {

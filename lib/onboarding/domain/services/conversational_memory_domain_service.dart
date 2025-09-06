@@ -10,8 +10,8 @@ class ConversationalMemoryDomainService {
   /// - 'processedValue': String? - valor procesado para guardar
   /// - 'reason': String? - razón del rechazo si no es válido
   static Map<String, dynamic> validateAndSaveData(
-    String stepName,
-    String extractedValue,
+    final String stepName,
+    final String extractedValue,
   ) {
     switch (stepName) {
       case 'userName':
@@ -36,7 +36,7 @@ class ConversationalMemoryDomainService {
   }
 
   /// Valida nombre de usuario
-  static Map<String, dynamic> _validateName(String value) {
+  static Map<String, dynamic> _validateName(final String value) {
     final cleanName = value.trim();
 
     if (cleanName.isEmpty) {
@@ -77,7 +77,7 @@ class ConversationalMemoryDomainService {
   }
 
   /// Valida país de usuario
-  static Map<String, dynamic> _validateCountry(String value) {
+  static Map<String, dynamic> _validateCountry(final String value) {
     final cleanCountry = value.trim();
 
     if (cleanCountry.isEmpty) {
@@ -123,7 +123,7 @@ class ConversationalMemoryDomainService {
   }
 
   /// Valida fecha de nacimiento
-  static Map<String, dynamic> _validateBirthdate(String value) {
+  static Map<String, dynamic> _validateBirthdate(final String value) {
     final cleanDate = value.trim();
 
     if (cleanDate.isEmpty) {
@@ -188,13 +188,13 @@ class ConversationalMemoryDomainService {
   }
 
   /// Valida si el texto tiene formato de fecha válido
-  static bool _isValidDateFormat(String text) {
+  static bool _isValidDateFormat(final String text) {
     final dateRegex = RegExp(r'^\d{1,2}/\d{1,2}/\d{4}$');
     return dateRegex.hasMatch(text);
   }
 
   /// Valida nombre de IA
-  static Map<String, dynamic> _validateAiName(String value) {
+  static Map<String, dynamic> _validateAiName(final String value) {
     final cleanName = value.trim();
 
     if (cleanName.isEmpty) {
@@ -235,7 +235,7 @@ class ConversationalMemoryDomainService {
   }
 
   /// Valida historia de encuentro
-  static Map<String, dynamic> _validateMeetStory(String value) {
+  static Map<String, dynamic> _validateMeetStory(final String value) {
     final cleanStory = value.trim();
 
     // Permitir comandos especiales
@@ -273,7 +273,7 @@ class ConversationalMemoryDomainService {
 
   /// Obtiene el nivel de recuperación de memoria basado en el porcentaje de completitud
   static Map<String, String> getMemoryRecoveryLevel(
-    double completionPercentage,
+    final double completionPercentage,
   ) {
     if (completionPercentage < 0.2) {
       return {
@@ -309,7 +309,10 @@ class ConversationalMemoryDomainService {
   }
 
   /// Configuración de voz dinámica: genera instrucciones para TTS según estado
-  static String getVoiceInstructions({String? userCountry, String? aiCountry}) {
+  static String getVoiceInstructions({
+    final String? userCountry,
+    final String? aiCountry,
+  }) {
     final userLang = userCountry != null
         ? LocaleUtils.languageNameEsForCountry(userCountry)
         : 'Español';

@@ -8,11 +8,11 @@ class FakeHttpClient implements http.Client {
   final Map<Pattern, http.Response> _routes = {};
 
   /// Register a canned response for a URL pattern.
-  void when(Pattern urlPattern, http.Response response) {
+  void when(final Pattern urlPattern, final http.Response response) {
     _routes[urlPattern] = response;
   }
 
-  http.Response _findResponse(Uri url) {
+  http.Response _findResponse(final Uri url) {
     for (final entry in _routes.entries) {
       if (RegExp(entry.key.toString()).hasMatch(url.toString())) {
         return entry.value;
@@ -23,63 +23,75 @@ class FakeHttpClient implements http.Client {
   }
 
   @override
-  Future<http.Response> get(Uri url, {Map<String, String>? headers}) async {
+  Future<http.Response> get(
+    final Uri url, {
+    final Map<String, String>? headers,
+  }) async {
     return _findResponse(url);
   }
 
   @override
   Future<http.Response> post(
-    Uri url, {
-    Map<String, String>? headers,
-    Object? body,
-    Encoding? encoding,
+    final Uri url, {
+    final Map<String, String>? headers,
+    final Object? body,
+    final Encoding? encoding,
   }) async {
     return _findResponse(url);
   }
 
   @override
   Future<http.Response> put(
-    Uri url, {
-    Object? body,
-    Encoding? encoding,
-    Map<String, String>? headers,
+    final Uri url, {
+    final Object? body,
+    final Encoding? encoding,
+    final Map<String, String>? headers,
   }) async {
     return _findResponse(url);
   }
 
   @override
   Future<http.Response> patch(
-    Uri url, {
-    Object? body,
-    Encoding? encoding,
-    Map<String, String>? headers,
+    final Uri url, {
+    final Object? body,
+    final Encoding? encoding,
+    final Map<String, String>? headers,
   }) async {
     return _findResponse(url);
   }
 
   @override
   Future<http.Response> delete(
-    Uri url, {
-    Object? body,
-    Encoding? encoding,
-    Map<String, String>? headers,
+    final Uri url, {
+    final Object? body,
+    final Encoding? encoding,
+    final Map<String, String>? headers,
   }) async {
     return _findResponse(url);
   }
 
   @override
-  Future<http.Response> head(Uri url, {Map<String, String>? headers}) async {
+  Future<http.Response> head(
+    final Uri url, {
+    final Map<String, String>? headers,
+  }) async {
     return _findResponse(url);
   }
 
   @override
-  Future<String> read(Uri url, {Map<String, String>? headers}) async {
+  Future<String> read(
+    final Uri url, {
+    final Map<String, String>? headers,
+  }) async {
     final r = _findResponse(url);
     return r.body;
   }
 
   @override
-  Future<Uint8List> readBytes(Uri url, {Map<String, String>? headers}) async {
+  Future<Uint8List> readBytes(
+    final Uri url, {
+    final Map<String, String>? headers,
+  }) async {
     final r = _findResponse(url);
     return Uint8List.fromList(r.bodyBytes);
   }
@@ -90,7 +102,7 @@ class FakeHttpClient implements http.Client {
   // The send method returns a StreamedResponse; for simplicity we provide a basic
   // conversion: use the request url to find a canned Response and convert it.
   @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+  Future<http.StreamedResponse> send(final http.BaseRequest request) async {
     final r = _findResponse(request.url);
     final stream = Stream.fromIterable([r.bodyBytes]);
     return http.StreamedResponse(

@@ -2,13 +2,12 @@ import 'package:ai_chan/call/domain/domain.dart';
 
 /// Caso de uso para finalizar una llamada de voz activa
 class EndCallUseCase {
+  const EndCallUseCase(this._repository, this._realtimeClient);
   final ICallRepository _repository;
   final IRealtimeCallClient _realtimeClient;
 
-  const EndCallUseCase(this._repository, this._realtimeClient);
-
   /// Finaliza una llamada de voz activa
-  Future<Call> execute(String callId) async {
+  Future<Call> execute(final String callId) async {
     // Obtener llamada actual
     final call = await _repository.getCall(callId);
     if (call == null) {
@@ -32,7 +31,10 @@ class EndCallUseCase {
   }
 
   /// Finaliza una llamada por razón de fallo
-  Future<Call> executeWithFailure(String callId, String reason) async {
+  Future<Call> executeWithFailure(
+    final String callId,
+    final String reason,
+  ) async {
     // Obtener llamada actual
     final call = await _repository.getCall(callId);
     if (call == null) {
@@ -58,7 +60,7 @@ class EndCallUseCase {
   }
 
   /// Cancela una llamada activa
-  Future<Call> executeCancel(String callId) async {
+  Future<Call> executeCancel(final String callId) async {
     // Obtener llamada actual
     final call = await _repository.getCall(callId);
     if (call == null) {

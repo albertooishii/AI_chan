@@ -36,7 +36,8 @@ class OpenAIService implements AIService {
       // Filtrar solo modelos gpt-*
       final gptModels = models
           .where(
-            (m) => m['id'] != null && m['id'].toString().startsWith('gpt-'),
+            (final m) =>
+                m['id'] != null && m['id'].toString().startsWith('gpt-'),
           )
           .toList();
       // Agrupar por versión y tipo base (ej. gpt-5, gpt-4.1-mini, gpt-4.1, gpt-4.1-mini, etc.)
@@ -62,7 +63,7 @@ class OpenAIService implements AIService {
       // Ordena los grupos por versión descendente y tipo base alfabéticamente
       final ordered = <String>[];
       final sortedKeys = groupMap.keys.toList()
-        ..sort((a, b) {
+        ..sort((final a, final b) {
           final vA =
               double.tryParse(
                 RegExp(r'gpt-(\d+(?:\.\d+)?)').firstMatch(a)?.group(1) ?? '0',
@@ -79,7 +80,7 @@ class OpenAIService implements AIService {
       for (final key in sortedKeys) {
         final models = groupMap[key]!;
         // El modelo base primero, luego variantes alfabéticamente
-        models.sort((a, b) {
+        models.sort((final a, final b) {
           if (a == key) return -1;
           if (b == key) return 1;
           return a.compareTo(b);
@@ -102,12 +103,12 @@ class OpenAIService implements AIService {
   /// Envía un mensaje a la API de OpenAI y retorna la respuesta AIResponse
   @override
   Future<AIResponse> sendMessageImpl(
-    List<Map<String, String>> history,
-    SystemPrompt systemPrompt, {
-    String? model,
-    String? imageBase64,
-    String? imageMimeType,
-    bool enableImageGeneration = false,
+    final List<Map<String, String>> history,
+    final SystemPrompt systemPrompt, {
+    final String? model,
+    final String? imageBase64,
+    final String? imageMimeType,
+    final bool enableImageGeneration = false,
   }) async {
     // Safety: refuse to call OpenAI endpoints with non-OpenAI model ids.
     final modelNorm = model?.trim().toLowerCase() ?? '';
@@ -295,7 +296,7 @@ class OpenAIService implements AIService {
       String revisedPrompt = '';
       final String metaPrompt = '';
       final output = data['output'] ?? data['data'];
-      String? extractImageBase64FromBlock(dynamic block) {
+      String? extractImageBase64FromBlock(final dynamic block) {
         try {
           if (block is Map) {
             // formatos potenciales
@@ -418,9 +419,9 @@ class OpenAIService implements AIService {
 
   /// Transcribe un archivo de audio usando OpenAI Whisper
   Future<String?> transcribeAudio(
-    String filePath, {
-    String? language,
-    Map<String, String>? extraFields,
+    final String filePath, {
+    final String? language,
+    final Map<String, String>? extraFields,
   }) async {
     if (apiKey.trim().isEmpty) {
       throw Exception(
@@ -438,7 +439,7 @@ class OpenAIService implements AIService {
 
     // Añadir cualquier campo extra permitido por la API (p.ej. prompt, response_format)
     if (extraFields != null) {
-      extraFields.forEach((k, v) {
+      extraFields.forEach((final k, final v) {
         try {
           request.fields[k] = v;
         } catch (_) {}
@@ -483,12 +484,12 @@ class OpenAIService implements AIService {
 
   /// Genera un archivo de voz usando OpenAI TTS con caché
   Future<File?> textToSpeech({
-    required String text,
-    String voice = 'marin',
-    String? model,
-    String? outputDir,
-    double speed = 1.0,
-    String? instructions,
+    required final String text,
+    final String voice = 'marin',
+    final String? model,
+    final String? outputDir,
+    final double speed = 1.0,
+    final String? instructions,
   }) async {
     Log.d(
       'textToSpeech called - text: "${text.length} chars", voice: $voice, model: $model, instructions: ${instructions?.isNotEmpty == true ? "YES" : "NO"}',
@@ -649,11 +650,11 @@ class OpenAIService implements AIService {
 
   // Estimación rápida de tokens (1 token ≈ 4 caracteres)
   int estimateTokens(
-    List<Map<String, String>> history,
-    SystemPrompt systemPrompt,
+    final List<Map<String, String>> history,
+    final SystemPrompt systemPrompt,
   ) {
     int charCount = jsonEncode(systemPrompt.toJson()).length;
-    for (var msg in history) {
+    for (final msg in history) {
       charCount += msg['content']?.length ?? 0;
     }
     return (charCount / 4).round();
@@ -710,7 +711,7 @@ class OpenAIService implements AIService {
   /// Obtiene voces femeninas de OpenAI
   static List<Map<String, dynamic>> getFemaleVoices() {
     return getAvailableVoices()
-        .where((voice) => voice['gender'] == 'feminine')
+        .where((final voice) => voice['gender'] == 'feminine')
         .toList();
   }
 

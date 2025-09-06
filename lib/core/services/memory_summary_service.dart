@@ -7,20 +7,22 @@ import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/json_utils.dart';
 
 class MemorySuperblockResult {
-  final List<TimelineEntry> timeline;
-  final TimelineEntry? superbloqueEntry;
   MemorySuperblockResult({
     required this.timeline,
     required this.superbloqueEntry,
   });
+  final List<TimelineEntry> timeline;
+  final TimelineEntry? superbloqueEntry;
 }
 
 class MemorySummaryService {
+  MemorySummaryService({required this.profile});
+
   /// Función compacta para pedir y extraer el resumen JSON
   Future<Map<String, dynamic>?> _getJsonSummary({
-    required String instrucciones,
-    required List<Map<String, dynamic>> recentMessages,
-    AiChanProfile? profileOverride,
+    required final String instrucciones,
+    required final List<Map<String, dynamic>> recentMessages,
+    final AiChanProfile? profileOverride,
   }) async {
     // Usar solo los datos mínimos en el perfil
     final minimalProfile = AiChanProfile(
@@ -29,7 +31,7 @@ class MemorySummaryService {
       userBirthdate: profileOverride?.userBirthdate ?? profile.userBirthdate,
       aiBirthdate: profileOverride?.aiBirthdate ?? profile.aiBirthdate,
       appearance: {},
-      timeline: [],
+
       biography: {},
     );
     final systemPrompt = SystemPrompt(
@@ -186,13 +188,13 @@ class MemorySummaryService {
   ];
 
   // Funcifn de deteccifn de emociones/temas
-  static List<String> _emocionesDetectadas(String texto) =>
-      _temasClave.where((t) => texto.toLowerCase().contains(t)).toList();
+  static List<String> _emocionesDetectadas(final String texto) =>
+      _temasClave.where((final t) => texto.toLowerCase().contains(t)).toList();
 
   // Funcifn para construir etiquetas
-  static String _buildEtiquetas(String textoBloque) {
+  static String _buildEtiquetas(final String textoBloque) {
     final eventosDetectados = _eventosClave
-        .where((e) => textoBloque.toLowerCase().contains(e))
+        .where((final e) => textoBloque.toLowerCase().contains(e))
         .toList();
     final emociones = _emocionesDetectadas(textoBloque);
     final List<String> etiquetas = [];
@@ -206,7 +208,7 @@ class MemorySummaryService {
   }
 
   // Funcifn para instrucciones de fechas exactas
-  String _instruccionesFechas(Set<String> fechasUnicas) {
+  String _instruccionesFechas(final Set<String> fechasUnicas) {
     String instrucciones = unifiedInstructions;
     if (fechasUnicas.length > 1) {
       instrucciones +=
@@ -232,14 +234,12 @@ class MemorySummaryService {
   /// Getter público para acceder a SUMMARY_BLOCK_SIZE desde fuera
   static int? get maxHistory => _maxHistory;
 
-  MemorySummaryService({required this.profile});
-
   /// Procesa resúmenes y superbloque en un solo paso: recibe mensajes, timeline y superbloque actual, y devuelve ambos actualizados
   Future<MemorySuperblockResult> processAllSummariesAndSuperblock({
-    required List<Message> messages,
-    required List<TimelineEntry> timeline,
-    TimelineEntry? superbloqueEntry,
-    void Function(String? blockDate)? onSummaryError,
+    required final List<Message> messages,
+    required final List<TimelineEntry> timeline,
+    final TimelineEntry? superbloqueEntry,
+    final void Function(String? blockDate)? onSummaryError,
   }) async {
     // 1. Generar resúmenes de bloques si corresponde
     final updatedTimeline = await updateConversationSummary(
@@ -261,17 +261,19 @@ class MemorySummaryService {
 
   /// Procesa el superbloque: si el timeline supera SUMMARY_BLOCK_SIZE entradas, condensa en un superbloque
   Future<MemorySuperblockResult> processSuperblock(
-    List<TimelineEntry> timeline,
-    TimelineEntry? superbloqueEntry,
+    final List<TimelineEntry> timeline,
+    final TimelineEntry? superbloqueEntry,
   ) async {
     final List<TimelineEntry> updatedTimeline = List.from(timeline);
     TimelineEntry? updatedSuperbloque = superbloqueEntry;
     final maxHistory = _maxHistory ?? 32;
-    final blocksLevel0 = updatedTimeline.where((b) => b.level == 0).toList();
+    final blocksLevel0 = updatedTimeline
+        .where((final b) => b.level == 0)
+        .toList();
     // Para superbloques de nivel superior
     for (int level = 1; level < 10; level++) {
       final blocksLevelN = updatedTimeline
-          .where((b) => b.level == level)
+          .where((final b) => b.level == level)
           .toList();
       if (blocksLevelN.length >= maxHistory * 2) {
         final blocksToSummarize = blocksLevelN.take(maxHistory).toList();
@@ -279,7 +281,7 @@ class MemorySummaryService {
           final superbloqueStart = blocksToSummarize.first.startDate ?? '';
           final superbloqueEnd = blocksToSummarize.last.endDate ?? '';
           final resumenTexto = blocksToSummarize
-              .map((b) {
+              .map((final b) {
                 final fechaIni = b.startDate ?? '';
                 final fechaFin = b.endDate ?? '';
                 String texto = b.resume is String
@@ -305,7 +307,7 @@ class MemorySummaryService {
               userBirthdate: profile.userBirthdate,
               aiBirthdate: profile.aiBirthdate,
               appearance: {},
-              timeline: [],
+
               biography: {},
             ),
           );
@@ -317,9 +319,11 @@ class MemorySummaryService {
               endDate: superbloqueEnd, // ISO8601 con hora
               level: newLevel,
             );
-            updatedTimeline.removeWhere((e) => blocksToSummarize.contains(e));
+            updatedTimeline.removeWhere(
+              (final e) => blocksToSummarize.contains(e),
+            );
             final int insertIndex = updatedTimeline.indexWhere(
-              (e) => e.level > level,
+              (final e) => e.level > level,
             );
             if (insertIndex == -1) {
               updatedTimeline.add(superbloque);
@@ -339,7 +343,7 @@ class MemorySummaryService {
         final superbloqueStart = blocksToSummarize.first.startDate ?? '';
         final superbloqueEnd = blocksToSummarize.last.endDate ?? '';
         final resumenTexto = blocksToSummarize
-            .map((b) {
+            .map((final b) {
               final fechaIni = b.startDate ?? '';
               final fechaFin = b.endDate ?? '';
               final String texto = b.resume is String
@@ -361,15 +365,15 @@ class MemorySummaryService {
             userBirthdate: profile.userBirthdate,
             aiBirthdate: profile.aiBirthdate,
             appearance: {},
-            timeline: [],
+
             biography: {},
           ),
         );
         if (resumenJson != null) {
           final int newLevel =
               (blocksToSummarize
-                  .map((b) => b.level)
-                  .fold<int>(0, (prev, l) => l > prev ? l : prev)) +
+                  .map((final b) => b.level)
+                  .fold<int>(0, (final prev, final l) => l > prev ? l : prev)) +
               1;
           final superbloque = TimelineEntry(
             resume: resumenJson,
@@ -377,9 +381,11 @@ class MemorySummaryService {
             endDate: superbloqueEnd, // ISO8601 con hora
             level: newLevel,
           );
-          updatedTimeline.removeWhere((e) => blocksToSummarize.contains(e));
+          updatedTimeline.removeWhere(
+            (final e) => blocksToSummarize.contains(e),
+          );
           final int insertIndex = updatedTimeline.indexWhere(
-            (e) => e.level > 0,
+            (final e) => e.level > 0,
           );
           if (insertIndex == -1) {
             updatedTimeline.add(superbloque);
@@ -392,7 +398,7 @@ class MemorySummaryService {
     }
     // Ordenar timeline por startDate antes de devolver
     updatedTimeline.sort(
-      (a, b) => (a.startDate ?? '').compareTo(b.startDate ?? ''),
+      (final a, final b) => (a.startDate ?? '').compareTo(b.startDate ?? ''),
     );
     return MemorySuperblockResult(
       timeline: updatedTimeline,
@@ -403,8 +409,8 @@ class MemorySummaryService {
   /// Genera resúmenes de bloques de mensajes y los añade al timeline si corresponde
   Future<List<TimelineEntry>?> updateConversationSummary(
     List<Message> messages,
-    List<TimelineEntry> timeline, {
-    void Function(String? blockDate)? onSummaryError,
+    final List<TimelineEntry> timeline, {
+    final void Function(String? blockDate)? onSummaryError,
   }) async {
     // Lock de concurrencia optimizado: solo una ejecución a la vez
     while (_lock != null) {
@@ -421,19 +427,20 @@ class MemorySummaryService {
     _lock = Completer<void>();
     try {
       // Filtrar mensajes sin texto válido
-      messages = messages.where((m) => m.text.trim().isNotEmpty).toList();
+      messages = messages.where((final m) => m.text.trim().isNotEmpty).toList();
       // Excluir mensajes ya cubiertos por el superbloque más reciente
-      final superbloques = timeline.where((t) => t.level > 0).toList();
+      final superbloques = timeline.where((final t) => t.level > 0).toList();
       if (superbloques.isNotEmpty) {
         // Tomar el superbloque más reciente por endDate
         superbloques.sort(
-          (a, b) => (b.endDate ?? '').compareTo(a.endDate ?? ''),
+          (final a, final b) => (b.endDate ?? '').compareTo(a.endDate ?? ''),
         );
         final lastSuperbloqueEnd = superbloques.first.endDate;
         if (lastSuperbloqueEnd != null && lastSuperbloqueEnd.isNotEmpty) {
           messages = messages
               .where(
-                (m) => (m.dateTime).isAfter(DateTime.parse(lastSuperbloqueEnd)),
+                (final m) =>
+                    (m.dateTime).isAfter(DateTime.parse(lastSuperbloqueEnd)),
               )
               .toList();
         }
@@ -461,7 +468,7 @@ class MemorySummaryService {
           final blockStartDate = block.first.dateTime.toIso8601String();
           final blockEndDate = block.last.dateTime.toIso8601String();
           final exists = timeline.any(
-            (t) =>
+            (final t) =>
                 t.startDate == blockStartDate &&
                 t.endDate == blockEndDate &&
                 t.level == 0,
@@ -485,14 +492,17 @@ class MemorySummaryService {
           await _summaryQueue;
         }
         timeline.sort(
-          (a, b) => (a.startDate ?? '').compareTo(b.startDate ?? ''),
+          (final a, final b) =>
+              (a.startDate ?? '').compareTo(b.startDate ?? ''),
         );
         debugPrint('[MemorySummaryService] Proceso de resumen finalizado.');
         return timeline;
       }
 
       // Ordenar timeline por startDate antes de devolver
-      timeline.sort((a, b) => (a.startDate ?? '').compareTo(b.startDate ?? ''));
+      timeline.sort(
+        (final a, final b) => (a.startDate ?? '').compareTo(b.startDate ?? ''),
+      );
       debugPrint('[MemorySummaryService] Proceso de resumen finalizado.');
       return timeline;
     } catch (e, stack) {
@@ -507,20 +517,20 @@ class MemorySummaryService {
   }
 
   Future<void> _summarizeBlock(
-    List<Message> block,
-    List<TimelineEntry> timeline,
-    void Function(String? blockDate)? onSummaryError,
+    final List<Message> block,
+    final List<TimelineEntry> timeline,
+    final void Function(String? blockDate)? onSummaryError,
   ) async {
     final blockStartDate = block.first.dateTime.toIso8601String();
     final blockEndDate = block.last.dateTime.toIso8601String();
     int retryCount = 0;
     // Unir todos los textos del bloque para análisis semántico
     final fechasUnicas = block
-        .map((m) => (m.dateTime).toIso8601String().substring(0, 10))
+        .map((final m) => (m.dateTime).toIso8601String().substring(0, 10))
         .toSet();
     final String instruccionesBloque =
         '${_instruccionesFechas(fechasUnicas)}\n\nDEVUELVE \u00daNICAMENTE EL BLOQUE JSON, SIN TEXTO EXTRA, EXPLICACIONES NI INTRODUCCI\u00d3N. El formato debe ser:\n$resumenJsonSchema';
-    final recentMessages = block.map((m) {
+    final recentMessages = block.map((final m) {
       String content = m.text.trim();
       final imgPrompt = (m.isImage && m.image != null)
           ? (m.image!.prompt?.trim() ?? '')
@@ -562,7 +572,7 @@ class MemorySummaryService {
     if (resumenJson != null) {
       // Evitar duplicados: no añadir si ya existe un bloque con mismo rango y nivel
       final exists = timeline.any(
-        (t) =>
+        (final t) =>
             t.startDate == blockStartDate &&
             t.endDate == blockEndDate &&
             t.level == 0,

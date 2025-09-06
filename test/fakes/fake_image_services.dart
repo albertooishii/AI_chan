@@ -1,19 +1,31 @@
 /// Fake Image Generator Service for testing image generation
 class FakeImageGeneratorService {
-  final String? base64Response;
-  final bool shouldFail;
-  final String errorMessage;
-
   FakeImageGeneratorService({
     this.base64Response,
     this.shouldFail = false,
     this.errorMessage = 'Image generation failed',
   });
 
+  /// Factory for successful image generation
+  factory FakeImageGeneratorService.success([final String? customBase64]) {
+    return FakeImageGeneratorService(base64Response: customBase64);
+  }
+
+  /// Factory for failed image generation
+  factory FakeImageGeneratorService.failure([final String? errorMsg]) {
+    return FakeImageGeneratorService(
+      shouldFail: true,
+      errorMessage: errorMsg ?? 'Image generation failed',
+    );
+  }
+  final String? base64Response;
+  final bool shouldFail;
+  final String errorMessage;
+
   Future<Map<String, dynamic>> generateImage({
-    required String prompt,
-    String? model,
-    Map<String, dynamic>? options,
+    required final String prompt,
+    final String? model,
+    final Map<String, dynamic>? options,
   }) async {
     if (shouldFail) {
       throw Exception(errorMessage);
@@ -31,34 +43,27 @@ class FakeImageGeneratorService {
       'text': '',
     };
   }
-
-  /// Factory for successful image generation
-  factory FakeImageGeneratorService.success([String? customBase64]) {
-    return FakeImageGeneratorService(base64Response: customBase64);
-  }
-
-  /// Factory for failed image generation
-  factory FakeImageGeneratorService.failure([String? errorMsg]) {
-    return FakeImageGeneratorService(
-      shouldFail: true,
-      errorMessage: errorMsg ?? 'Image generation failed',
-    );
-  }
 }
 
 /// Fake Image Processing Service for testing image operations
 class FakeImageProcessorService {
-  final bool shouldFail;
-  final String errorMessage;
-
   FakeImageProcessorService({
     this.shouldFail = false,
     this.errorMessage = 'Image processing failed',
   });
 
+  factory FakeImageProcessorService.failure([final String? errorMsg]) {
+    return FakeImageProcessorService(
+      shouldFail: true,
+      errorMessage: errorMsg ?? 'Image processing failed',
+    );
+  }
+  final bool shouldFail;
+  final String errorMessage;
+
   Future<String> processImage({
-    required String base64Image,
-    Map<String, dynamic>? options,
+    required final String base64Image,
+    final Map<String, dynamic>? options,
   }) async {
     if (shouldFail) {
       throw Exception(errorMessage);
@@ -69,7 +74,7 @@ class FakeImageProcessorService {
   }
 
   Future<Map<String, dynamic>> analyzeImage({
-    required String base64Image,
+    required final String base64Image,
   }) async {
     if (shouldFail) {
       throw Exception(errorMessage);
@@ -77,25 +82,24 @@ class FakeImageProcessorService {
 
     return {'width': 256, 'height': 256, 'format': 'PNG', 'size': 1024};
   }
-
-  factory FakeImageProcessorService.failure([String? errorMsg]) {
-    return FakeImageProcessorService(
-      shouldFail: true,
-      errorMessage: errorMsg ?? 'Image processing failed',
-    );
-  }
 }
 
 /// Fake Image Saver Service for testing image saving operations
 class FakeImageSaverService {
-  static final Map<String, String> _savedImages = <String, String>{};
-  final bool shouldFail;
-  final String errorMessage;
-
   FakeImageSaverService({
     this.shouldFail = false,
     this.errorMessage = 'Image save failed',
   });
+
+  factory FakeImageSaverService.failure([final String? errorMsg]) {
+    return FakeImageSaverService(
+      shouldFail: true,
+      errorMessage: errorMsg ?? 'Image save failed',
+    );
+  }
+  static final Map<String, String> _savedImages = <String, String>{};
+  final bool shouldFail;
+  final String errorMessage;
 
   static void clear() {
     _savedImages.clear();
@@ -104,9 +108,9 @@ class FakeImageSaverService {
   static Map<String, String> get savedImages => Map.from(_savedImages);
 
   Future<String> saveImage({
-    required String base64Image,
-    String? filename,
-    String? directory,
+    required final String base64Image,
+    final String? filename,
+    final String? directory,
   }) async {
     if (shouldFail) {
       throw Exception(errorMessage);
@@ -118,7 +122,7 @@ class FakeImageSaverService {
     return path;
   }
 
-  Future<bool> deleteImage(String path) async {
+  Future<bool> deleteImage(final String path) async {
     if (shouldFail) {
       throw Exception(errorMessage);
     }
@@ -126,22 +130,15 @@ class FakeImageSaverService {
     return _savedImages.remove(path) != null;
   }
 
-  Future<bool> imageExists(String path) async {
+  Future<bool> imageExists(final String path) async {
     return _savedImages.containsKey(path);
   }
 
-  Future<String?> loadImage(String path) async {
+  Future<String?> loadImage(final String path) async {
     if (shouldFail) {
       throw Exception(errorMessage);
     }
 
     return _savedImages[path];
-  }
-
-  factory FakeImageSaverService.failure([String? errorMsg]) {
-    return FakeImageSaverService(
-      shouldFail: true,
-      errorMessage: errorMsg ?? 'Image save failed',
-    );
   }
 }

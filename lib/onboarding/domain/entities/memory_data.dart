@@ -1,12 +1,5 @@
 /// Entidad de dominio que representa los datos que la IA necesita recuperar durante el onboarding conversacional
 class MemoryData {
-  final String? userName;
-  final String? userCountry;
-  final String? userBirthdate;
-  final String? aiCountry;
-  final String? aiName;
-  final String? meetStory;
-
   const MemoryData({
     this.userName,
     this.userCountry,
@@ -15,6 +8,24 @@ class MemoryData {
     this.aiName,
     this.meetStory,
   });
+
+  /// Crea desde Map
+  factory MemoryData.fromMap(final Map<String, dynamic> map) {
+    return MemoryData(
+      userName: map['userName'] as String?,
+      userCountry: map['userCountry'] as String?,
+      userBirthdate: map['userBirthdate'] as String?,
+      aiCountry: map['aiCountry'] as String?,
+      aiName: map['aiName'] as String?,
+      meetStory: map['meetStory'] as String?,
+    );
+  }
+  final String? userName;
+  final String? userCountry;
+  final String? userBirthdate;
+  final String? aiCountry;
+  final String? aiName;
+  final String? meetStory;
 
   /// Obtiene lista de datos que aún faltan por recuperar
   List<String> getMissingData() {
@@ -60,26 +71,14 @@ class MemoryData {
     };
   }
 
-  /// Crea desde Map
-  factory MemoryData.fromMap(Map<String, dynamic> map) {
-    return MemoryData(
-      userName: map['userName'] as String?,
-      userCountry: map['userCountry'] as String?,
-      userBirthdate: map['userBirthdate'] as String?,
-      aiCountry: map['aiCountry'] as String?,
-      aiName: map['aiName'] as String?,
-      meetStory: map['meetStory'] as String?,
-    );
-  }
-
   /// Crea una copia con algunos campos actualizados
   MemoryData copyWith({
-    String? userName,
-    String? userCountry,
-    String? userBirthdate,
-    String? aiCountry,
-    String? aiName,
-    String? meetStory,
+    final String? userName,
+    final String? userCountry,
+    final String? userBirthdate,
+    final String? aiCountry,
+    final String? aiName,
+    final String? meetStory,
   }) {
     return MemoryData(
       userName: userName ?? this.userName,
@@ -92,7 +91,7 @@ class MemoryData {
   }
 
   @override
-  bool operator ==(Object other) {
+  bool operator ==(final Object other) {
     if (identical(this, other)) return true;
     return other is MemoryData &&
         other.userName == userName &&

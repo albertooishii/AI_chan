@@ -7,12 +7,12 @@ class FormOnboardingUseCase {
 
   /// Valida y procesa los datos del formulario de onboarding
   Future<OnboardingFormResult> processFormData({
-    required String userName,
-    required String aiName,
-    required String birthDateText,
-    required String meetStory,
-    String? userCountryCode,
-    String? aiCountryCode,
+    required final String userName,
+    required final String aiName,
+    required final String birthDateText,
+    required final String meetStory,
+    final String? userCountryCode,
+    final String? aiCountryCode,
   }) async {
     Log.d(
       '📝 Procesando datos del formulario de onboarding',
@@ -72,10 +72,10 @@ class FormOnboardingUseCase {
 
   /// Valida si un formulario está completo
   bool isFormComplete({
-    required String userName,
-    required String aiName,
-    required String birthDateText,
-    required String meetStory,
+    required final String userName,
+    required final String aiName,
+    required final String birthDateText,
+    required final String meetStory,
   }) {
     return userName.trim().isNotEmpty &&
         aiName.trim().isNotEmpty &&
@@ -87,7 +87,7 @@ class FormOnboardingUseCase {
   // --- Métodos privados ---
 
   /// Parsea una fecha en formato DD/MM/YYYY
-  DateTime? _parseBirthDate(String dateText) {
+  DateTime? _parseBirthDate(final String dateText) {
     try {
       final parts = dateText.trim().split('/');
       if (parts.length != 3) return null;
@@ -113,15 +113,6 @@ class FormOnboardingUseCase {
 
 /// Resultado del procesamiento del formulario de onboarding
 class OnboardingFormResult {
-  final bool success;
-  final List<String> errors;
-  final String? userName;
-  final String? aiName;
-  final DateTime? userBirthdate;
-  final String? meetStory;
-  final String? userCountryCode;
-  final String? aiCountryCode;
-
   const OnboardingFormResult({
     required this.success,
     this.errors = const [],
@@ -132,6 +123,14 @@ class OnboardingFormResult {
     this.userCountryCode,
     this.aiCountryCode,
   });
+  final bool success;
+  final List<String> errors;
+  final String? userName;
+  final String? aiName;
+  final DateTime? userBirthdate;
+  final String? meetStory;
+  final String? userCountryCode;
+  final String? aiCountryCode;
 
   /// Indica si hay errores de validación
   bool get hasErrors => errors.isNotEmpty;

@@ -12,7 +12,7 @@ class OpenAISttAdapter implements ISttService {
   const OpenAISttAdapter();
 
   @override
-  Future<String?> transcribeAudio(String path) async {
+  Future<String?> transcribeAudio(final String path) async {
     try {
       final f = File(path);
       if (!await f.exists()) return null;
@@ -38,8 +38,8 @@ class OpenAISttAdapter implements ISttService {
 
   @override
   Future<String?> transcribeFile({
-    required String filePath,
-    Map<String, dynamic>? options,
+    required final String filePath,
+    final Map<String, dynamic>? options,
   }) async {
     return await transcribeAudio(filePath);
   }

@@ -7,13 +7,21 @@ class OpenAiVoiceUtils {
   /// Devuelve la lista estática de voces OpenAI en el formato que usa el UI
   static List<Map<String, dynamic>> loadStaticOpenAiVoices() {
     return kOpenAIVoices
-        .map((v) => {'name': v, 'description': v, 'languageCodes': <String>[]})
+        .map(
+          (final v) => {
+            'name': v,
+            'description': v,
+            'languageCodes': <String>[],
+          },
+        )
         .toList();
   }
 
   /// Formatea nombre y subtítulo legible para el UI.
   /// Subtítulo: 'Género · Multilingüe' (sin token)
-  static Map<String, String> formatVoiceDisplay(Map<String, dynamic> voice) {
+  static Map<String, String> formatVoiceDisplay(
+    final Map<String, dynamic> voice,
+  ) {
     final token = (voice['name'] as String? ?? '').trim();
     String displayName = token;
     if (token.isNotEmpty) {

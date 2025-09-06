@@ -5,8 +5,8 @@ import 'package:ai_chan/core/config.dart';
 
 /// Registra el prompt de llamada en debug_json_logs/ con timestamp.
 Future<void> debugLogCallPrompt(
-  String fileBaseName,
-  Map<String, dynamic> jsonObj,
+  final String fileBaseName,
+  final Map<String, dynamic> jsonObj,
 ) async {
   // No escribir en producción, ni durante tests automáticos.
   if (kReleaseMode) return; // solo en debug/profile

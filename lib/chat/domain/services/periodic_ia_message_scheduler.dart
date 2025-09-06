@@ -14,15 +14,15 @@ class PeriodicIaMessageScheduler {
   bool get isRunning => _timer != null;
 
   void start({
-    required AiChanProfile Function() profileGetter,
-    required List<Message> Function() messagesGetter,
-    required void Function(String callPrompt, String model) triggerSend,
-    Duration? initialDelay,
+    required final AiChanProfile Function() profileGetter,
+    required final List<Message> Function() messagesGetter,
+    required final void Function(String callPrompt, String model) triggerSend,
+    final Duration? initialDelay,
   }) {
     stop();
     Log.i('Iniciando scheduler de mensajes automáticos IA', tag: 'PERIODIC_IA');
 
-    void scheduleNext([int? prevIntervalMin]) {
+    void scheduleNext([final int? prevIntervalMin]) {
       final nowMs = DateTime.now().millisecondsSinceEpoch;
       final intervalMin = 25 + (nowMs % 16); // 25-40
       final interval = Duration(minutes: intervalMin);
@@ -94,11 +94,14 @@ class PeriodicIaMessageScheduler {
     'Un mensajito breve y cálido, con un guiño al día/hora. Si ya has escrito antes sin respuesta, baja el ritmo y transmite calma.',
   ];
 
-  String? _getCurrentScheduleType(DateTime now, AiChanProfile profile) {
+  String? _getCurrentScheduleType(
+    final DateTime now,
+    final AiChanProfile profile,
+  ) {
     final bio = profile.biography;
     final int currentMinutes = now.hour * 60 + now.minute;
 
-    bool inRange(Map m) {
+    bool inRange(final Map m) {
       final String from = (m['from']?.toString() ?? '');
       final String to = (m['to']?.toString() ?? '');
       final res = ScheduleUtils.isTimeInRange(
@@ -109,7 +112,7 @@ class PeriodicIaMessageScheduler {
       return res ?? false;
     }
 
-    bool dayMatches(dynamic dias) {
+    bool dayMatches(final dynamic dias) {
       final raw = dias?.toString() ?? '';
       final spec = ScheduleUtils.parseScheduleString(raw);
       return ScheduleUtils.matchesDateWithInterval(now, spec);
@@ -141,8 +144,8 @@ class PeriodicIaMessageScheduler {
 
   /// Determina si se debe enviar un mensaje automático (para compatibilidad)
   bool shouldSendAutomaticMessage(
-    List<Message> messages,
-    AiChanProfile profile,
+    final List<Message> messages,
+    final AiChanProfile profile,
   ) {
     final now = DateTime.now();
     final tipo = _getCurrentScheduleType(now, profile);
@@ -167,7 +170,7 @@ class PeriodicIaMessageScheduler {
   }
 
   /// Analiza el horario y determina si debe enviar un mensaje (para compatibilidad)
-  bool shouldSendScheduledMessage(AiChanProfile profile) {
+  bool shouldSendScheduledMessage(final AiChanProfile profile) {
     return false; // La lógica principal ahora está en start()
   }
 }

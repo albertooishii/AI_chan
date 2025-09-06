@@ -18,20 +18,20 @@ import 'package:ai_chan/onboarding/presentation/widgets/birth_date_field.dart';
 import 'package:ai_chan/shared/constants/countries_es.dart';
 import 'dart:async';
 import 'onboarding_screen.dart' show OnboardingFinishCallback, OnboardingScreen;
+import 'onboarding_mode_selector.dart' as mode_selector;
 
 /// Pantalla de onboarding completamente conversacional
 /// Implementa el flujo tipo "despertar" donde AI-chan habla con el usuario
 class ConversationalOnboardingScreen extends StatefulWidget {
-  final OnboardingFinishCallback onFinish;
-  final void Function()? onClearAllDebug;
-  final OnboardingLifecycleController? onboardingLifecycle;
-
   const ConversationalOnboardingScreen({
     super.key,
     required this.onFinish,
     this.onClearAllDebug,
     this.onboardingLifecycle,
   });
+  final OnboardingFinishCallback onFinish;
+  final void Function()? onClearAllDebug;
+  final OnboardingLifecycleController? onboardingLifecycle;
 
   @override
   State<ConversationalOnboardingScreen> createState() =>
@@ -130,7 +130,7 @@ class _ConversationalOnboardingScreenState
     _meetStory = _currentMemory.meetStory;
   }
 
-  void _initializeServices() async {
+  Future<void> _initializeServices() async {
     _openaiTtsService = OpenAITtsService();
     _hybridSttService = HybridSttService();
     _audioPlayer = AudioPlayer();
@@ -139,7 +139,7 @@ class _ConversationalOnboardingScreenState
 
     // Inicializar hybrid STT
     await _hybridSttService.initialize(
-      onStatus: (status) {
+      onStatus: (final status) {
         Log.d(
           '📢 STT Status: $status (${_hybridSttService.isUsingOpenAI ? "OpenAI" : "Native"})',
           tag: 'CONV_ONBOARDING',
@@ -148,7 +148,7 @@ class _ConversationalOnboardingScreenState
           _safeSetState(() => _isListening = false);
         }
       },
-      onError: (error) {
+      onError: (final error) {
         Log.e('STT Error: $error', tag: 'CONV_ONBOARDING');
         _safeSetState(() => _isListening = false);
         // Manejar error silenciosamente para no interrumpir el flujo
@@ -170,7 +170,7 @@ class _ConversationalOnboardingScreenState
   }
 
   /// Helper para setState seguro que verifica si el widget está montado
-  void _safeSetState(VoidCallback fn) {
+  void _safeSetState(final VoidCallback fn) {
     if (mounted) {
       setState(fn);
     }
@@ -206,9 +206,59 @@ class _ConversationalOnboardingScreenState
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
+      appBar: AppBar(
+        // Botón atrás explícito que siempre vuelve al selector de modo
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+          onPressed: () {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => mode_selector.OnboardingModeSelector(
+                  onFinish: widget.onFinish,
+                  onClearAllDebug: widget.onClearAllDebug,
+                  onboardingLifecycle: widget.onboardingLifecycle,
+                ),
+              ),
+            );
+          },
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text.rich(
+          TextSpan(
+            text: Config.getAppName(),
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+              fontFamily: 'monospace',
+            ),
+          ),
+        ),
+        actions: [
+          // Botón para cambiar al modo formulario (coherente con OnboardingScreen)
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => OnboardingScreen(
+                    onFinish: widget.onFinish,
+                    onClearAllDebug: widget.onClearAllDebug,
+                    onboardingLifecycle: widget.onboardingLifecycle,
+                  ),
+                ),
+              );
+            },
+            child: const Text(
+              'Modo formulario',
+              style: TextStyle(color: AppColors.secondary, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -220,46 +270,8 @@ class _ConversationalOnboardingScreenState
         child: SafeArea(
           child: Column(
             children: [
-              // Header minimalista
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    Text(
-                      Config.getAppName(),
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 18,
-                        fontFamily: 'monospace',
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Spacer(),
-                    // Botón de fallback a onboarding tradicional
-                    TextButton(
-                      onPressed: () {
-                        // Navegar al onboarding tradicional
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(
-                            builder: (_) => OnboardingScreen(
-                              onFinish: widget.onFinish,
-                              onClearAllDebug: widget.onClearAllDebug,
-                              onboardingLifecycle: widget.onboardingLifecycle,
-                            ),
-                          ),
-                        );
-                      },
-                      child: const Text(
-                        'Modo formulario',
-                        style: TextStyle(
-                          color: AppColors.secondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              // Espacio reservado; el título ahora se muestra en el AppBar
+              const SizedBox(height: 8),
 
               // Contenido principal
               Expanded(
@@ -270,7 +282,7 @@ class _ConversationalOnboardingScreenState
                       // Avatar/Icon con animación de pulso
                       AnimatedBuilder(
                         animation: _pulseAnimation,
-                        builder: (context, child) {
+                        builder: (final context, final child) {
                           return Transform.scale(
                             scale: _pulseAnimation.value,
                             child: Container(
@@ -518,7 +530,7 @@ class _ConversationalOnboardingScreenState
     );
   }
 
-  Future<void> _speakAndWaitForResponse(String text) async {
+  Future<void> _speakAndWaitForResponse(final String text) async {
     if (!mounted) return;
 
     // � CAPTURAR ID DE OPERACIÓN ACTUAL PARA VERIFICAR CANCELACIONES
@@ -629,7 +641,7 @@ class _ConversationalOnboardingScreenState
         _progressiveSub?.cancel();
         _progressiveTimer?.cancel();
         _progressiveSub = _progressiveSubtitleController.progressiveTextStream
-            .listen((progressiveText) {
+            .listen((final progressiveText) {
               if (progressiveText.isNotEmpty && mounted) {
                 _subtitleController.handleAiChunk(
                   progressiveText,
@@ -647,7 +659,7 @@ class _ConversationalOnboardingScreenState
         final adjustedDuration = audioInfo.duration - revealDelay;
 
         _progressiveTimer?.cancel();
-        _progressiveTimer = Timer.periodic(updateInterval, (timer) {
+        _progressiveTimer = Timer.periodic(updateInterval, (final timer) {
           // 🔒 VERIFICAR CANCELACIÓN DURANTE REPRODUCCIÓN
           if (!mounted ||
               !_isSpeaking ||
@@ -923,7 +935,7 @@ class _ConversationalOnboardingScreenState
     _speechTimeoutTimer?.cancel();
 
     await _hybridSttService.listen(
-      onResult: (text) {
+      onResult: (final text) {
         _safeSetState(() {
           Log.d('🗣️ Usuario dice: "$text"', tag: 'CONV_ONBOARDING');
         });
@@ -952,8 +964,8 @@ class _ConversationalOnboardingScreenState
   }
 
   Future<void> _processUserResponse(
-    String userResponse, {
-    bool fromTextInput = false,
+    final String userResponse, {
+    final bool fromTextInput = false,
   }) async {
     if (userResponse.isEmpty) {
       _retryCurrentStep();
@@ -1146,7 +1158,10 @@ class _ConversationalOnboardingScreenState
     return;
   }
 
-  bool _updateDataFromExtraction(String? dataType, String extractedValue) {
+  bool _updateDataFromExtraction(
+    final String? dataType,
+    final String extractedValue,
+  ) {
     // Si no se detectó tipo de dato, usar el paso actual como fallback
     final String effectiveDataType =
         dataType ?? _currentStep.toString().split('.').last;
@@ -1325,7 +1340,7 @@ class _ConversationalOnboardingScreenState
     }
   }
 
-  Future<void> _triggerStepQuestion({String? userLastResponse}) async {
+  Future<void> _triggerStepQuestion({final String? userLastResponse}) async {
     // Generar la pregunta del paso actual usando la IA
     String stepQuestion;
 
@@ -1361,7 +1376,7 @@ class _ConversationalOnboardingScreenState
   }
 
   /// Devuelve un mensaje de reintento específico por paso cuando no se entendió el dato
-  String _getRetryMessageForStep(OnboardingStep step) {
+  String _getRetryMessageForStep(final OnboardingStep step) {
     switch (step) {
       case OnboardingStep.askingName:
         return 'Disculpa, no escuché bien tu nombre. ¿Podrías decírmelo de nuevo, por favor?';
@@ -1409,7 +1424,7 @@ class _ConversationalOnboardingScreenState
     }
   }
 
-  Future<String?> _showTextInputDialog(OnboardingStep step) async {
+  Future<String?> _showTextInputDialog(final OnboardingStep step) async {
     // No mostrar diálogo si ya hay uno abierto
     if (_isDialogOpen) {
       Log.w(
@@ -1441,7 +1456,7 @@ class _ConversationalOnboardingScreenState
     final result = await showDialog<String>(
       context: context,
       barrierDismissible: false, // Prevenir cierre accidental
-      builder: (context) => _buildInputDialogForStep(step),
+      builder: (final context) => _buildInputDialogForStep(step),
     );
 
     // Marcar que el diálogo se ha cerrado
@@ -1454,7 +1469,7 @@ class _ConversationalOnboardingScreenState
     return result;
   }
 
-  Widget _buildInputDialogForStep(OnboardingStep step) {
+  Widget _buildInputDialogForStep(final OnboardingStep step) {
     switch (step) {
       case OnboardingStep.askingCountry:
         return _buildCountryInputDialog('¿De dónde eres?', false);
@@ -1472,11 +1487,11 @@ class _ConversationalOnboardingScreenState
     }
   }
 
-  Widget _buildCountryInputDialog(String title, bool isForAi) {
+  Widget _buildCountryInputDialog(final String title, final bool isForAi) {
     String? selectedCountryCode;
 
     return StatefulBuilder(
-      builder: (context, setState) => Dialog(
+      builder: (final context, final setState) => Dialog(
         backgroundColor: Colors.black87,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Container(
@@ -1531,7 +1546,7 @@ class _ConversationalOnboardingScreenState
                         'NO',
                       ]
                     : null,
-                onCountrySelected: (code) {
+                onCountrySelected: (final code) {
                   setState(() => selectedCountryCode = code);
                 },
               ),
@@ -1596,7 +1611,7 @@ class _ConversationalOnboardingScreenState
     final dateController = TextEditingController();
 
     return StatefulBuilder(
-      builder: (context, setState) => Dialog(
+      builder: (final context, final setState) => Dialog(
         backgroundColor: Colors.black87,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Container(
@@ -1627,7 +1642,7 @@ class _ConversationalOnboardingScreenState
               BirthDateField(
                 controller: dateController,
                 userBirthdate: selectedDate,
-                onBirthdateChanged: (date) {
+                onBirthdateChanged: (final date) {
                   setState(() => selectedDate = date);
                   dateController.text =
                       '${date.day}/${date.month}/${date.year}';
@@ -1689,7 +1704,7 @@ class _ConversationalOnboardingScreenState
     final nameController = TextEditingController();
 
     return StatefulBuilder(
-      builder: (context, setState) => Dialog(
+      builder: (final context, final setState) => Dialog(
         backgroundColor: Colors.black87,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Container(
@@ -1726,10 +1741,10 @@ class _ConversationalOnboardingScreenState
                 labelText: 'Nombre de la AI-Chan',
                 prefixIcon: Icons.smart_toy,
                 controller: nameController,
-                onNameSelected: (name) {
+                onNameSelected: (final name) {
                   setState(() => selectedName = name);
                 },
-                onChanged: (name) {
+                onChanged: (final name) {
                   setState(() => selectedName = name);
                 },
               ),
@@ -1784,7 +1799,7 @@ class _ConversationalOnboardingScreenState
     );
   }
 
-  Widget _buildTextInputDialog(OnboardingStep step) {
+  Widget _buildTextInputDialog(final OnboardingStep step) {
     // Mensaje contextual según el paso
     String hintText = 'Escribe tu respuesta aquí...';
     String titleText = 'Respuesta por texto';

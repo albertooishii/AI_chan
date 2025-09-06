@@ -3,9 +3,8 @@ import 'package:ai_chan/call/domain/interfaces/call_interfaces.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 
 class HandleIncomingCallUseCase {
-  final ICallManager _callManager;
-
   HandleIncomingCallUseCase(this._callManager);
+  final ICallManager _callManager;
 
   Future<void> startRinging() async {
     try {

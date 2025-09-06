@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
-String _lineInfo(String content, int index) {
+String _lineInfo(final String content, final int index) {
   final before = content.substring(0, index);
   final line = before.split('\n').length;
   return 'line $line';
@@ -13,9 +13,9 @@ void main() {
     final files = libDir
         .listSync(recursive: true)
         .whereType<File>()
-        .where((f) => f.path.endsWith('.dart'))
+        .where((final f) => f.path.endsWith('.dart'))
         .where(
-          (f) =>
+          (final f) =>
               !f.path.endsWith('lib/core/runtime_factory.dart') &&
               !f.path.endsWith('lib/shared/services/ai_runtime_provider.dart'),
         )

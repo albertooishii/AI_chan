@@ -9,6 +9,8 @@ import 'package:ai_chan/call/domain/interfaces/realtime_transport_service.dart';
 /// Skeleton OpenAI transport: handles WebSocket connection and forwards raw
 /// messages to the adapter via onMessage/onError/onDone callbacks.
 class OpenAITransport implements RealtimeTransportService {
+  OpenAITransport({final String? model})
+    : model = model ?? Config.requireOpenAIRealtimeModel();
   final String model;
   WsChannel? _channel;
   bool _connected = false;
@@ -17,11 +19,8 @@ class OpenAITransport implements RealtimeTransportService {
   @override
   bool get isConnected => _connected;
 
-  OpenAITransport({String? model})
-    : model = model ?? Config.requireOpenAIRealtimeModel();
-
   @override
-  Future<void> connect({required Map<String, dynamic> options}) async {
+  Future<void> connect({required final Map<String, dynamic> options}) async {
     final apiKey = Config.getOpenAIKey();
     if (apiKey.trim().isEmpty) throw Exception('Missing OpenAI API key');
     final uri = Uri.parse('wss://api.openai.com/v1/realtime?model=$model');
@@ -35,7 +34,7 @@ class OpenAITransport implements RealtimeTransportService {
     );
     _connected = true;
     _channel!.stream.listen(
-      (msg) {
+      (final msg) {
         try {
           // Try to decode JSON messages; binary frames will be List<int>
           if (msg is String) {
@@ -48,7 +47,7 @@ class OpenAITransport implements RealtimeTransportService {
           onError?.call(e);
         }
       },
-      onError: (e) {
+      onError: (final e) {
         onError?.call(e);
         _connected = false;
       },
@@ -70,7 +69,7 @@ class OpenAITransport implements RealtimeTransportService {
   }
 
   @override
-  void sendEvent(Map<String, dynamic> event) {
+  void sendEvent(final Map<String, dynamic> event) {
     if (!_connected) return;
     try {
       _channel?.sink.add(jsonEncode(event));
@@ -80,7 +79,7 @@ class OpenAITransport implements RealtimeTransportService {
   }
 
   @override
-  void appendAudio(Uint8List bytes) {
+  void appendAudio(final Uint8List bytes) {
     if (!_connected) return;
     try {
       // OpenAI accepts base64 in JSON events; adapters may choose to send

@@ -8,7 +8,7 @@ class Config {
   static Map<String, String>? _overrides;
 
   /// Inyecta valores para tests o entornos controlados.
-  static void setOverrides(Map<String, String>? overrides) {
+  static void setOverrides(final Map<String, String>? overrides) {
     _overrides = overrides;
   }
 
@@ -63,7 +63,7 @@ class Config {
   static String getGoogleRealtimeModel() => _get('GOOGLE_REALTIME_MODEL', '');
   static String getGrokKey() => _get('GROK_API_KEY', '');
 
-  static String _get(String key, String fallback) {
+  static String _get(final String key, final String fallback) {
     try {
       if (_overrides != null && _overrides!.containsKey(key)) {
         return _overrides![key]!;
@@ -79,7 +79,8 @@ class Config {
   static String getAppName() => _get('APP_NAME', 'AI-チャン');
 
   /// Acceso genérico para claves no previstas por getters específicos.
-  static String get(String key, String fallback) => _get(key, fallback);
+  static String get(final String key, final String fallback) =>
+      _get(key, fallback);
 
   /// Getter para el modo TTS (google/openai)
   static String getAudioTtsMode() => _get('AUDIO_TTS_MODE', 'google');
@@ -94,7 +95,7 @@ class Config {
   ///
   /// Si `dotenvContents` se proporciona, carga los valores desde la cadena
   /// (útil para tests). Devuelve cuando la carga ha terminado.
-  static Future<void> initialize({String? dotenvContents}) async {
+  static Future<void> initialize({final String? dotenvContents}) async {
     // Si nos pasan contenido por parámetro (útil en tests), lo escribimos a un
     // archivo temporal y llamamos a dotenv.load(fileName: ...). Evitamos
     // invocar APIs removidas como `testLoad` y mantenemos compatibilidad con
@@ -135,7 +136,7 @@ SUMMARY_BLOCK_SIZE=32
   }
 
   // Helper para escribir un archivo temporal con formato .env.
-  static Future<File> _writeTempEnv(String contents) async {
+  static Future<File> _writeTempEnv(final String contents) async {
     final tmp = File('${Directory.systemTemp.path}/.env_ai_chan_tmp');
     await tmp.writeAsString(contents, flush: true);
     return tmp;

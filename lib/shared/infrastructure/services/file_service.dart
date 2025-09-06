@@ -7,9 +7,9 @@ import 'package:ai_chan/shared/utils/audio_utils.dart' as audio_utils;
 class FileService implements IFileService {
   @override
   Future<String> saveFile(
-    List<int> bytes,
-    String filename, {
-    String? directory,
+    final List<int> bytes,
+    final String filename, {
+    final String? directory,
   }) async {
     final dir = directory ?? await getLocalAudioDirectory();
     final file = File('$dir/$filename');
@@ -24,7 +24,7 @@ class FileService implements IFileService {
   }
 
   @override
-  Future<List<int>?> loadFile(String filePath) async {
+  Future<List<int>?> loadFile(final String filePath) async {
     try {
       final file = File(filePath);
       if (await file.exists()) {
@@ -37,12 +37,12 @@ class FileService implements IFileService {
   }
 
   @override
-  Future<bool> fileExists(String filePath) async {
+  Future<bool> fileExists(final String filePath) async {
     return await File(filePath).exists();
   }
 
   @override
-  Future<void> deleteFile(String filePath) async {
+  Future<void> deleteFile(final String filePath) async {
     final file = File(filePath);
     if (await file.exists()) {
       await file.delete();

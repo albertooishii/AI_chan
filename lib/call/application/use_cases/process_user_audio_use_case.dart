@@ -2,15 +2,14 @@ import 'package:ai_chan/call/domain/domain.dart';
 
 /// Caso de uso para procesar audio enviado por el usuario
 class ProcessUserAudioUseCase {
+  const ProcessUserAudioUseCase(this._repository, this._realtimeClient);
   final ICallRepository _repository;
   final IRealtimeCallClient _realtimeClient;
 
-  const ProcessUserAudioUseCase(this._repository, this._realtimeClient);
-
   /// Procesa audio del usuario y lo envía al servicio
   Future<void> execute({
-    required String callId,
-    required List<int> audioData,
+    required final String callId,
+    required final List<int> audioData,
   }) async {
     // Verificar que la llamada existe y está activa
     final call = await _repository.getCall(callId);
@@ -32,8 +31,8 @@ class ProcessUserAudioUseCase {
 
   /// Procesa texto del usuario y lo envía al servicio
   Future<void> executeText({
-    required String callId,
-    required String text,
+    required final String callId,
+    required final String text,
   }) async {
     // Verificar que la llamada existe y está activa
     final call = await _repository.getCall(callId);
@@ -70,9 +69,9 @@ class ProcessUserAudioUseCase {
 
   /// Solicita una respuesta del asistente
   Future<void> executeRequestResponse({
-    required String callId,
-    bool audio = true,
-    bool text = true,
+    required final String callId,
+    final bool audio = true,
+    final bool text = true,
   }) async {
     // Verificar que la llamada existe y está activa
     final call = await _repository.getCall(callId);

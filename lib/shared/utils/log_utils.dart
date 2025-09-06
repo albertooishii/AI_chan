@@ -32,9 +32,9 @@ class Log {
     }
   }
 
-  static int _levelIndex(LogLevel l) => l.index; // ordinal
+  static int _levelIndex(final LogLevel l) => l.index; // ordinal
 
-  static bool _enabledFor(LogLevel level) {
+  static bool _enabledFor(final LogLevel level) {
     // Siempre permitir errores (aunque se esté en producción)
     final configured = _configuredLevel;
     return _levelIndex(level) <= _levelIndex(configured);
@@ -55,7 +55,11 @@ class Log {
     return mode != 'off';
   }
 
-  static void _out(LogLevel level, String tag, String message) {
+  static void _out(
+    final LogLevel level,
+    final String tag,
+    final String message,
+  ) {
     if (!_enabledFor(level)) return;
 
     // Colores ANSI para diferentes niveles
@@ -104,19 +108,19 @@ class Log {
 
   // Helpers principales
   static void e(
-    String message, {
-    String tag = 'APP',
-    Object? error,
-    StackTrace? stack,
+    final String message, {
+    final String tag = 'APP',
+    final Object? error,
+    final StackTrace? stack,
   }) {
     final msg = error != null ? '$message | error=$error' : message;
     _out(LogLevel.error, tag, msg + (stack != null ? '\n$stack' : ''));
   }
 
-  static void w(String message, {String tag = 'APP'}) =>
+  static void w(final String message, {final String tag = 'APP'}) =>
       _out(LogLevel.warn, tag, message);
-  static void i(String message, {String tag = 'APP'}) =>
+  static void i(final String message, {final String tag = 'APP'}) =>
       _out(LogLevel.info, tag, message);
-  static void d(String message, {String tag = 'APP'}) =>
+  static void d(final String message, {final String tag = 'APP'}) =>
       _out(LogLevel.debug, tag, message);
 }

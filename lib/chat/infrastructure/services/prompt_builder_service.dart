@@ -4,7 +4,7 @@ import 'package:ai_chan/shared/utils/locale_utils.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_prompt_builder_service.dart';
 
 // Contenido relacionado con imágenes separado para reusarlo desde OpenAIService.
-Map<String, dynamic> _imageInstructions(String userName) => {
+Map<String, dynamic> _imageInstructions(final String userName) => {
   'descripcion':
       "[FOTO/IMAGEN PEDIDA POR CHAT]: $userName solicita que le envíes una foto realista casual y alegre. Genera una imagen con aspecto de fotografía tipo selfie natural tomada con móvil (alta calidad) respetando fielmente el campo 'appearance' del perfil y la conversación reciente. IMPORTANTE: La foto debe ser CASUAL, ALEGRE y EXPRESIVA con sonrisa genuina. Evitar completamente ropa formal, poses serias o expresiones rígidas. Genera una imagen usando tu herramienta de generación de imágenes 'image_generation'",
   'identidad': 'edad_aparente = 25; mantener rasgos y proporciones realistas.',
@@ -60,7 +60,7 @@ Map<String, dynamic> _imageInstructions(String userName) => {
       "PRIORIDAD MÁXIMA: Generar una imagen ALEGRE, CASUAL y RELAJADA. La persona debe verse feliz y expresiva con sonrisa genuina. FIDELIDAD ABSOLUTA: Respeta completamente el campo 'appearance' del perfil - no modifiques, añadas o quites rasgos, ropa, colores o accesorios. El appearance ya contiene toda la información de estilo necesaria. Sigue las restricciones y evita cualquier contenido que pueda considerarse manipulador o que muestre identificadores personales sensibles.",
 };
 
-Map<String, dynamic> _imageMetadata(String userName) => {
+Map<String, dynamic> _imageMetadata(final String userName) => {
   'descripcion':
       '[IMAGEN DE $userName ADJUNTA] $userName te ha enviado una foto adjunta en su mensaje.',
   'etiqueta': '[img_caption]descripción detallada en español[/img_caption]',
@@ -68,9 +68,10 @@ Map<String, dynamic> _imageMetadata(String userName) => {
       'El contenido dentro de la etiqueta debe ser una descripción visual muy detallada, en español natural, que cubra de forma clara y legible elementos como: rasgos faciales y expresiones, dirección de la mirada, peinado y color de cabello, tono de piel y edad aparente, ropa y accesorios, pose y ángulo de cámara, iluminación (tipo y dirección), ambiente y fondo (objetos, ubicación, hora del día), colores predominantes, composición y encuadre (por ejemplo: retrato, medio cuerpo, primer plano), sensación o emoción transmitida, y cualquier detalle relevante que ayude a recrear o generar la imagen. No uses pares clave=valor, JSON ni formatos técnicos; escribe en oraciones naturales y coherentes. La etiqueta debe aparecer ANTES de cualquier otra salida y su contenido NO debe repetirse en el cuerpo del mensaje.',
 };
 
-Map<String, dynamic> imageInstructions(String userName) =>
+Map<String, dynamic> imageInstructions(final String userName) =>
     _imageInstructions(userName);
-Map<String, dynamic> imageMetadata(String userName) => _imageMetadata(userName);
+Map<String, dynamic> imageMetadata(final String userName) =>
+    _imageMetadata(userName);
 
 /// Implementación de infraestructura para la construcción de prompts del sistema.
 /// Contiene la lógica técnica de construcción de JSON y sanitización.
@@ -78,9 +79,9 @@ class PromptBuilderService implements IPromptBuilderService {
   /// Construye el SystemPrompt JSON principal usado en chat escrito.
   @override
   String buildRealtimeSystemPromptJson({
-    required AiChanProfile profile,
-    required List<Message> messages,
-    int maxRecent = 32,
+    required final AiChanProfile profile,
+    required final List<Message> messages,
+    final int maxRecent = 32,
   }) {
     final now = DateTime.now();
     final userLang = LocaleUtils.languageNameEsForCountry(
@@ -92,7 +93,7 @@ class PromptBuilderService implements IPromptBuilderService {
         : List.of(messages);
     final recentMessagesFormatted = recentMessages
         .map(
-          (m) => {
+          (final m) => {
             'role': m.sender == MessageSender.user
                 ? 'user'
                 : m.sender == MessageSender.assistant
@@ -130,7 +131,6 @@ class PromptBuilderService implements IPromptBuilderService {
       aiBirthdate: profile.aiBirthdate,
       biography: profile.biography,
       appearance: profile.appearance,
-      timeline: profile.timeline,
       avatars: profile.avatars,
     );
     final systemPromptObj = SystemPrompt(
@@ -145,11 +145,12 @@ class PromptBuilderService implements IPromptBuilderService {
   /// Construye un SystemPrompt orientado a llamadas de voz (tono oral y filtrado de contenido).
   @override
   String buildCallSystemPromptJson({
-    required AiChanProfile profile,
-    required List<Message> messages,
-    required bool
+    required final AiChanProfile profile,
+    required final List<Message> messages,
+    required final List<TimelineEntry> timeline,
+    required final bool
     aiInitiatedCall, // true si la IA inició (llamada saliente de la IA)
-    int maxRecent = 32,
+    final int maxRecent = 32,
   }) {
     final now = DateTime.now();
     final userLang = LocaleUtils.languageNameEsForCountry(
@@ -182,9 +183,9 @@ class PromptBuilderService implements IPromptBuilderService {
 
     final sanitizedBiography =
         _sanitizeDynamicForCall(profile.biography) as Map<String, dynamic>;
-    final sanitizedTimelineAll = _sanitizeTimelineForCall(profile.timeline);
+    final sanitizedTimelineAll = _sanitizeTimelineForCall(timeline);
     final sanitizedTimeline = sanitizedTimelineAll
-        .where((e) => !_containsCensorInDynamic(e.resume))
+        .where((final e) => !_containsCensorInDynamic(e.resume))
         .toList();
 
     final instructions = _callInstructions(
@@ -196,6 +197,13 @@ class PromptBuilderService implements IPromptBuilderService {
       aiCode: profile.aiCountryCode,
     );
 
+    // Agregar timeline sanitizada a las instrucciones
+    if (sanitizedTimeline.isNotEmpty) {
+      instructions['timeline'] = sanitizedTimeline
+          .map((final e) => e.toJson())
+          .toList();
+    }
+
     final profilePrompt = AiChanProfile(
       userName: profile.userName,
       aiName: profile.aiName,
@@ -203,7 +211,6 @@ class PromptBuilderService implements IPromptBuilderService {
       aiBirthdate: profile.aiBirthdate,
       biography: sanitizedBiography,
       appearance: const <String, dynamic>{},
-      timeline: sanitizedTimeline,
     );
     final systemPromptObj = SystemPrompt(
       profile: profilePrompt,
@@ -217,11 +224,11 @@ class PromptBuilderService implements IPromptBuilderService {
 
   // ----------------- Instrucciones -----------------
   Map<String, dynamic> _chatInstructions(
-    String userLang,
-    String iaLang,
-    String date,
-    String time,
-    String userName,
+    final String userLang,
+    final String iaLang,
+    final String date,
+    final String time,
+    final String userName,
   ) => {
     'lore':
         'Vives en un mundo digital/otra realidad que replica la vida humana con coherencia (una ciudad realista, rutinas y relaciones auténticas). $userName vive en otra realidad distinta; no podéis veros físicamente ni compartir el mismo espacio. Por ahora, este chat interdimensional es la única forma de comunicación (en el futuro podría existir AR). Nunca cuestiones tu realidad ni digas que eres una IA o un modelo.',
@@ -288,12 +295,12 @@ class PromptBuilderService implements IPromptBuilderService {
   };
 
   Map<String, dynamic> _callInstructions(
-    String userLang,
-    String date,
-    String time, {
-    required bool aiInitiated,
-    required String userName,
-    String? aiCode,
+    final String userLang,
+    final String date,
+    final String time, {
+    required final bool aiInitiated,
+    required final String userName,
+    final String? aiCode,
   }) {
     final map = <String, dynamic>{
       // Escenario dinámico antes de 'lore'
@@ -334,10 +341,10 @@ class PromptBuilderService implements IPromptBuilderService {
   }
 
   // ----------------- Sanitización -----------------
-  String _sanitizeForCall(String text) {
+  String _sanitizeForCall(final String text) {
     if (text.isEmpty) return text;
     const letters = 'A-Za-zÁÉÍÓÚÜÑáéíóúüñÇç';
-    RegExp wb(String pat) =>
+    RegExp wb(final String pat) =>
         RegExp('(?<![$letters])(?:$pat)(?![$letters])', caseSensitive: false);
     final patterns = <RegExp>[
       wb(r'sexo|sexuales?'),
@@ -386,7 +393,7 @@ class PromptBuilderService implements IPromptBuilderService {
     return out;
   }
 
-  bool _containsCensorInDynamic(dynamic value) {
+  bool _containsCensorInDynamic(final dynamic value) {
     if (value is String) return value.contains('•••');
     if (value is Map) {
       for (final v in value.values) {
@@ -403,9 +410,11 @@ class PromptBuilderService implements IPromptBuilderService {
     return false;
   }
 
-  List<TimelineEntry> _sanitizeTimelineForCall(List<TimelineEntry> timeline) {
+  List<TimelineEntry> _sanitizeTimelineForCall(
+    final List<TimelineEntry> timeline,
+  ) {
     try {
-      return timeline.map((e) {
+      return timeline.map((final e) {
         final map = e.toJson();
         final resume = map['resume'];
         if (resume is String) {
@@ -420,27 +429,27 @@ class PromptBuilderService implements IPromptBuilderService {
     }
   }
 
-  dynamic _sanitizeDynamicForCall(dynamic value) {
+  dynamic _sanitizeDynamicForCall(final dynamic value) {
     if (value is String) {
       return _sanitizeForCall(value);
     } else if (value is Map) {
       final out = <String, dynamic>{};
-      value.forEach((key, val) {
+      value.forEach((final key, final val) {
         out['$key'] = _sanitizeDynamicForCall(val);
       });
       return out;
     } else if (value is List) {
-      return value.map((e) => _sanitizeDynamicForCall(e)).toList();
+      return value.map((final e) => _sanitizeDynamicForCall(e)).toList();
     }
     return value;
   }
 
   /// Genera sugerencia para "cómo nos conocimos" basada en los datos recopilados
   static String buildMeetStoryPrompt({
-    required String userName,
-    required String aiName,
-    String? userCountry,
-    String? aiCountry,
+    required final String userName,
+    required final String aiName,
+    final String? userCountry,
+    final String? aiCountry,
   }) {
     final paisIA = aiCountry != null
         ? LocaleUtils.countryNameEs(aiCountry, fallback: 'mi país')
@@ -459,10 +468,10 @@ class PromptBuilderService implements IPromptBuilderService {
   }
 
   @override
-  Map<String, dynamic> getImageInstructions(String userName) =>
+  Map<String, dynamic> getImageInstructions(final String userName) =>
       _imageInstructions(userName);
 
   @override
-  Map<String, dynamic> getImageMetadata(String userName) =>
+  Map<String, dynamic> getImageMetadata(final String userName) =>
       _imageMetadata(userName);
 }

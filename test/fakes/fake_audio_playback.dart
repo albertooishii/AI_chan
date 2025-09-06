@@ -25,7 +25,7 @@ class FakeAudioPlayback implements AudioPlayback {
   }
 
   @override
-  Future<void> play(dynamic source) async {
+  Future<void> play(final dynamic source) async {
     // Simulate immediate duration/position and completion for local file sources
     try {
       if (source is String) {
@@ -49,7 +49,7 @@ class FakeAudioPlayback implements AudioPlayback {
   }
 
   @override
-  Future<void> setReleaseMode(mode) async {}
+  Future<void> setReleaseMode(final mode) async {}
 
   @override
   Future<void> stop() async {

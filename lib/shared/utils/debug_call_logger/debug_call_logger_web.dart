@@ -3,8 +3,8 @@ import 'package:ai_chan/shared/utils/log_utils.dart';
 
 /// No-op en web para evitar errores de IO.
 Future<void> debugLogCallPrompt(
-  String fileBaseName,
-  Map<String, dynamic> jsonObj,
+  final String fileBaseName,
+  final Map<String, dynamic> jsonObj,
 ) async {
   if (kReleaseMode) return;
   // Mostrar en consola del navegador

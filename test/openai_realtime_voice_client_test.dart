@@ -8,6 +8,17 @@ import 'package:ai_chan/call/infrastructure/clients/openai_realtime_call_client.
 /// A small controllable fake that calls the provided callbacks so the
 /// OpenAIRealtimeCallClient can be tested without networking.
 class TestControlledRealtimeClient implements IRealtimeClient {
+  TestControlledRealtimeClient({
+    final void Function(String)? onText,
+    final void Function(Uint8List)? onAudio,
+    final void Function()? onCompleted,
+    final void Function(Object)? onError,
+    final void Function(String)? onUserTranscription,
+  }) : _onText = onText,
+       _onAudio = onAudio,
+       _onCompleted = onCompleted,
+       _onError = onError,
+       _onUserTranscription = onUserTranscription;
   final void Function(String)? _onText;
   final void Function(Uint8List)? _onAudio;
   final void Function()? _onCompleted;
@@ -20,23 +31,11 @@ class TestControlledRealtimeClient implements IRealtimeClient {
   bool commitCalled = false;
   bool requestCalled = false;
 
-  TestControlledRealtimeClient({
-    void Function(String)? onText,
-    void Function(Uint8List)? onAudio,
-    void Function()? onCompleted,
-    void Function(Object)? onError,
-    void Function(String)? onUserTranscription,
-  }) : _onText = onText,
-       _onAudio = onAudio,
-       _onCompleted = onCompleted,
-       _onError = onError,
-       _onUserTranscription = onUserTranscription;
-
   @override
   bool get isConnected => connected;
 
   @override
-  void appendAudio(List<int> bytes) {
+  void appendAudio(final List<int> bytes) {
     appended.add(List<int>.from(bytes));
   }
 
@@ -47,30 +46,30 @@ class TestControlledRealtimeClient implements IRealtimeClient {
 
   @override
   Future<void> connect({
-    required String systemPrompt,
-    String voice = '',
-    String? inputAudioFormat,
-    String? outputAudioFormat,
-    String? turnDetectionType,
-    int? silenceDurationMs,
-    Map<String, dynamic>? options,
+    required final String systemPrompt,
+    final String voice = '',
+    final String? inputAudioFormat,
+    final String? outputAudioFormat,
+    final String? turnDetectionType,
+    final int? silenceDurationMs,
+    final Map<String, dynamic>? options,
   }) async {
     connected = true;
     // Optionally notify that session created would have occurred
   }
 
   @override
-  void requestResponse({bool audio = true, bool text = true}) {
+  void requestResponse({final bool audio = true, final bool text = true}) {
     requestCalled = true;
   }
 
   @override
-  void sendText(String text) {
+  void sendText(final String text) {
     sentTexts.add(text);
   }
 
   @override
-  void updateVoice(String voice) {}
+  void updateVoice(final String voice) {}
 
   @override
   Future<void> close() async {
@@ -80,37 +79,38 @@ class TestControlledRealtimeClient implements IRealtimeClient {
   // Implementaciones de los nuevos métodos para tests
   @override
   void sendImageWithText({
-    required String imageBase64,
-    String? text,
-    String imageFormat = 'png',
+    required final String imageBase64,
+    final String? text,
+    final String imageFormat = 'png',
   }) {
     // Test implementation - could track calls if needed
   }
 
   @override
-  void configureTools(List<Map<String, dynamic>> tools) {
+  void configureTools(final List<Map<String, dynamic>> tools) {
     // Test implementation - could track calls if needed
   }
 
   @override
   void sendFunctionCallOutput({
-    required String callId,
-    required String output,
+    required final String callId,
+    required final String output,
   }) {
     // Test implementation - could track calls if needed
   }
 
   @override
-  void cancelResponse({String? itemId, int? sampleCount}) {
+  void cancelResponse({final String? itemId, final int? sampleCount}) {
     // Test implementation - could track calls if needed
   }
 
   // Helpers to trigger callbacks
-  void triggerText(String t) => _onText?.call(t);
-  void triggerAudio(List<int> b) => _onAudio?.call(Uint8List.fromList(b));
+  void triggerText(final String t) => _onText?.call(t);
+  void triggerAudio(final List<int> b) => _onAudio?.call(Uint8List.fromList(b));
   void triggerCompleted() => _onCompleted?.call();
-  void triggerError(Object e) => _onError?.call(e);
-  void triggerUserTranscription(String s) => _onUserTranscription?.call(s);
+  void triggerError(final Object e) => _onError?.call(e);
+  void triggerUserTranscription(final String s) =>
+      _onUserTranscription?.call(s);
 }
 
 void main() {
@@ -127,13 +127,13 @@ void main() {
 
       // Install test factory to return our controllable client
       di.setTestRealtimeClientFactory((
-        provider, {
-        model,
-        onText,
-        onAudio,
-        onCompleted,
-        onError,
-        onUserTranscription,
+        final provider, {
+        final model,
+        final onText,
+        final onAudio,
+        final onCompleted,
+        final onError,
+        final onUserTranscription,
       }) {
         created = TestControlledRealtimeClient(
           onText: onText,
@@ -157,15 +157,17 @@ void main() {
       final completionEvents = <void>[];
       final errors = <Object>[];
 
-      final subText = client.textStream.listen((t) => textEvents.add(t));
-      final subAudio = client.audioStream.listen((a) => audioEvents.add(a));
+      final subText = client.textStream.listen((final t) => textEvents.add(t));
+      final subAudio = client.audioStream.listen(
+        (final a) => audioEvents.add(a),
+      );
       final subUser = client.userTranscriptionStream.listen(
-        (s) => userTrans.add(s),
+        (final s) => userTrans.add(s),
       );
       final subComp = client.completionStream.listen(
         (_) => completionEvents.add(null),
       );
-      final subErr = client.errorStream.listen((e) => errors.add(e));
+      final subErr = client.errorStream.listen((final e) => errors.add(e));
 
       // Trigger callbacks from the fake
       created!.triggerText('partial');

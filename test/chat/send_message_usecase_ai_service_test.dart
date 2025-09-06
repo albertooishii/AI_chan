@@ -29,7 +29,6 @@ void main() {
         aiBirthdate: DateTime(2000),
         biography: {},
         appearance: {},
-        timeline: [],
       );
       final systemPrompt = SystemPrompt(
         profile: profile,
@@ -74,7 +73,6 @@ void main() {
         aiBirthdate: DateTime(2000),
         biography: {},
         appearance: {},
-        timeline: [],
       );
       final systemPrompt = SystemPrompt(
         profile: profile,
@@ -120,7 +118,6 @@ void main() {
         aiBirthdate: DateTime(2000),
         biography: {},
         appearance: {},
-        timeline: [],
       );
       final systemPrompt2 = SystemPrompt(
         profile: profile2,

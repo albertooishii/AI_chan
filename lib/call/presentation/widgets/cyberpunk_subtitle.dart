@@ -8,15 +8,7 @@ import 'package:ai_chan/call/application/services/cyberpunk_text_processor_servi
 /// una fase de "glitch/scramble" antes de fijarse en su valor final.
 /// Además, caracteres eliminados se desvanecen con un pequeño colapso.
 class CyberpunkRealtimeSubtitle extends StatefulWidget {
-  final String text;
-  final TextStyle style;
-  final Duration scramblePerChar; // duración de scramble por caracter
-  final Duration
-  removalDuration; // duración para desvanecer caracteres eliminados
-  final bool enabled;
-  final double
-  glitchProbability; // probabilidad de aplicar leve tint/flicker a un char activo
-  final bool useKatakana; // usar set katakana para fase de glitch
+  // usar set katakana para fase de glitch
 
   const CyberpunkRealtimeSubtitle({
     super.key,
@@ -30,6 +22,15 @@ class CyberpunkRealtimeSubtitle extends StatefulWidget {
     this.glitchProbability = 0.22,
     this.useKatakana = true,
   });
+  final String text;
+  final TextStyle style;
+  final Duration scramblePerChar; // duración de scramble por caracter
+  final Duration
+  removalDuration; // duración para desvanecer caracteres eliminados
+  final bool enabled;
+  final double
+  glitchProbability; // probabilidad de aplicar leve tint/flicker a un char activo
+  final bool useKatakana;
 
   @override
   State<CyberpunkRealtimeSubtitle> createState() =>
@@ -37,12 +38,7 @@ class CyberpunkRealtimeSubtitle extends StatefulWidget {
 }
 
 class _CharAnim {
-  String target; // carácter final
-  String current; // carácter mostrado actual
-  DateTime start; // inicio de animación (scramble) o de removido
-  bool locked; // ya fijado en target
-  bool removing; // en proceso de desaparecer
-  double removalProgress; // 0..1
+  // 0..1
   _CharAnim({
     required this.target,
     required this.current,
@@ -50,6 +46,12 @@ class _CharAnim {
     this.locked = false,
   }) : removing = false,
        removalProgress = 0.0;
+  String target; // carácter final
+  String current; // carácter mostrado actual
+  DateTime start; // inicio de animación (scramble) o de removido
+  bool locked; // ya fijado en target
+  bool removing; // en proceso de desaparecer
+  double removalProgress;
 }
 
 class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
@@ -150,7 +152,7 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
   };
   // Lista ordenada de patrones (longest-first) para segmentación silábica.
   static final List<String> _orderedPatterns = _syllableToKana.keys.toList()
-    ..sort((a, b) => b.length.compareTo(a.length));
+    ..sort((final a, final b) => b.length.compareTo(a.length));
   // Separadores / signos que preservamos como unidades independientes.
 
   late final Ticker _ticker;
@@ -166,14 +168,14 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
   }
 
   @override
-  void didUpdateWidget(CyberpunkRealtimeSubtitle oldWidget) {
+  void didUpdateWidget(final CyberpunkRealtimeSubtitle oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.text != widget.text) {
       _applyDiff(oldWidget.text, widget.text);
     }
   }
 
-  void _initChars(String text) {
+  void _initChars(final String text) {
     final units = _splitIntoUnits(text);
     _chars.clear();
     final now = DateTime.now();
@@ -183,7 +185,7 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
     _lastUnits = units;
   }
 
-  void _applyDiff(String oldText, String newText) {
+  void _applyDiff(final String oldText, final String newText) {
     final oldUnits = _lastUnits;
     final newUnits = _splitIntoUnits(newText);
     final now = DateTime.now();
@@ -261,7 +263,7 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
   }
 
   // Segmentación silábica aproximada (greedy longest-first usando patrones conocidos).
-  List<String> _splitIntoUnits(String text) {
+  List<String> _splitIntoUnits(final String text) {
     final lower = text.toLowerCase();
     final units = <String>[];
     int i = 0;
@@ -301,8 +303,8 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
   }
 
   static String _randomScrambleChar({
-    String? replaceWith,
-    required bool useKatakana,
+    final String? replaceWith,
+    required final bool useKatakana,
   }) {
     if (replaceWith != null &&
         CyberpunkTextProcessorService.containsPunctuationOrSpace(replaceWith)) {
@@ -393,7 +395,7 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     if (!widget.enabled) {
       return Text(
         widget.text,
@@ -412,7 +414,7 @@ class _CyberpunkRealtimeSubtitleState extends State<CyberpunkRealtimeSubtitle>
           CyberpunkTextProcessorService.randomProbability() <
               widget.glitchProbability;
       final baseColor = widget.style.color!;
-      Color computeAlpha(Color c, double alpha) =>
+      Color computeAlpha(final Color c, final double alpha) =>
           c.withValues(alpha: (c.a * alpha));
       final color = ch.removing
           ? computeAlpha(baseColor, 1.0 - ch.removalProgress)

@@ -6,19 +6,18 @@ import 'package:ai_chan/shared/constants/app_colors.dart';
 /// [onBirthdateChanged] callback which will be called when the user picks a
 /// date. This keeps the widget free of Provider dependencies.
 class BirthDateField extends StatelessWidget {
-  final TextEditingController controller;
-  final DateTime? userBirthdate;
-  final ValueChanged<DateTime> onBirthdateChanged;
-
   const BirthDateField({
     super.key,
     required this.controller,
     required this.userBirthdate,
     required this.onBirthdateChanged,
   });
+  final TextEditingController controller;
+  final DateTime? userBirthdate;
+  final ValueChanged<DateTime> onBirthdateChanged;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     return TextFormField(
       readOnly: true,
       controller: controller,
@@ -38,7 +37,7 @@ class BirthDateField extends StatelessWidget {
         hintText: 'Selecciona tu fecha',
         hintStyle: TextStyle(color: AppColors.primary),
       ),
-      validator: (v) => userBirthdate == null ? 'Obligatorio' : null,
+      validator: (final v) => userBirthdate == null ? 'Obligatorio' : null,
       onTap: () async {
         final now = DateTime.now();
         final minAgeDate = DateTime(now.year - 18, now.month, now.day);
@@ -48,7 +47,7 @@ class BirthDateField extends StatelessWidget {
           firstDate: DateTime(1950),
           lastDate: minAgeDate,
           locale: const Locale('es'),
-          builder: (context, child) => Theme(
+          builder: (final context, final child) => Theme(
             data: ThemeData.dark().copyWith(
               colorScheme: const ColorScheme.dark(
                 primary: AppColors.secondary,

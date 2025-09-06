@@ -12,10 +12,10 @@ import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // �
 
 /// Widget de diagnóstico para verificar el estado de backups automáticos y autenticación Google
 class BackupDiagnosticsDialog extends StatefulWidget {
-  final ChatController?
-  chatProvider; // ✅ DDD: ETAPA 3 - Migrado a ChatController
+  // ✅ DDD: ETAPA 3 - Migrado a ChatController
 
   const BackupDiagnosticsDialog({super.key, this.chatProvider});
+  final ChatController? chatProvider;
 
   @override
   State<BackupDiagnosticsDialog> createState() =>
@@ -45,7 +45,7 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
   void _startCountdownTimer() {
     _countdownTimer?.cancel(); // Cancelar timer anterior si existe
 
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (final timer) {
       if (!mounted ||
           _isLoading ||
           _lastAdvancedDiagnosis == null ||
@@ -246,7 +246,7 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
   }
 
   /// Corrige el tiempo de expiración del token basado en la fecha real de creación
-  Future<int?> _correctTokenExpirationTime(int reportedSeconds) async {
+  Future<int?> _correctTokenExpirationTime(final int reportedSeconds) async {
     try {
       const storage = FlutterSecureStorage();
       final credsStr = await storage.read(key: 'google_credentials');
@@ -485,7 +485,7 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     return AlertDialog(
       backgroundColor: Colors.black,
       title: const Text(

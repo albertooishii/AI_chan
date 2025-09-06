@@ -5,17 +5,7 @@ import 'package:ai_chan/shared/controllers/audio_subtitle_controller.dart';
 
 /// Widget de subtítulo flotante con efecto cyberpunk para reproducción de audio
 class FloatingAudioSubtitle extends StatefulWidget {
-  final AudioSubtitleController controller;
-  final TextStyle style;
-  final EdgeInsets padding;
-  final double maxWidth;
-  final bool glassBackground;
-  final Duration scramblePerChar;
-  final Duration removalDuration;
-  final Alignment alignment;
-  final BoxDecoration? decorationOverride;
-  final bool
-  useKatakana; // permitir desactivar katakana si la fuente no soporta
+  // permitir desactivar katakana si la fuente no soporta
 
   const FloatingAudioSubtitle({
     super.key,
@@ -35,6 +25,16 @@ class FloatingAudioSubtitle extends StatefulWidget {
     this.decorationOverride,
     this.useKatakana = false,
   });
+  final AudioSubtitleController controller;
+  final TextStyle style;
+  final EdgeInsets padding;
+  final double maxWidth;
+  final bool glassBackground;
+  final Duration scramblePerChar;
+  final Duration removalDuration;
+  final Alignment alignment;
+  final BoxDecoration? decorationOverride;
+  final bool useKatakana;
 
   @override
   State<FloatingAudioSubtitle> createState() => _FloatingAudioSubtitleState();
@@ -47,7 +47,7 @@ class _FloatingAudioSubtitleState extends State<FloatingAudioSubtitle> {
   @override
   void initState() {
     super.initState();
-    _sub = widget.controller.progressiveTextStream.listen((txt) {
+    _sub = widget.controller.progressiveTextStream.listen((final txt) {
       if (!mounted) return;
       setState(() => _current = txt);
     });
@@ -62,7 +62,7 @@ class _FloatingAudioSubtitleState extends State<FloatingAudioSubtitle> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     if (_current.isEmpty) return const SizedBox.shrink();
     final subtitle = CyberpunkRealtimeSubtitle(
       text: _current,

@@ -5,7 +5,7 @@ import 'package:ai_chan/shared/constants/openai_voices.dart';
 import 'package:ai_chan/core/config.dart';
 
 class OpenAISpeechService {
-  static void _maybeDebugPrint(String msg) {
+  static void _maybeDebugPrint(final String msg) {
     if (!kDebugMode) return;
     debugPrint('[OpenAI TTS] $msg');
   }
@@ -21,8 +21,8 @@ class OpenAISpeechService {
   /// Conserva `forceRefresh` para compatibilidad. Si `femaleOnly` es true,
   /// devuelve sólo las voces listadas en `kOpenAIFemaleVoices`.
   static Future<List<Map<String, dynamic>>> fetchOpenAIVoices({
-    bool forceRefresh = false,
-    bool femaleOnly = false,
+    final bool forceRefresh = false,
+    final bool femaleOnly = false,
   }) async {
     _maybeDebugPrint(
       'fetchOpenAIVoices - start (forceRefresh=$forceRefresh, femaleOnly=$femaleOnly)',
@@ -49,7 +49,7 @@ class OpenAISpeechService {
           final body = json.decode(resp.body);
           if (body is Map && body['data'] is List) {
             final remote = (body['data'] as List).map<Map<String, dynamic>>((
-              item,
+              final item,
             ) {
               if (item is Map) {
                 return {
@@ -58,7 +58,7 @@ class OpenAISpeechService {
                   'gender': (item['gender'] ?? 'unknown').toString(),
                   'languageCodes': (item['language_codes'] is List)
                       ? List<String>.from(
-                          item['language_codes'].map((e) => e.toString()),
+                          item['language_codes'].map((final e) => e.toString()),
                         )
                       : <String>[],
                 };
@@ -75,7 +75,7 @@ class OpenAISpeechService {
             final filtered = femaleOnly
                 ? remote
                       .where(
-                        (v) =>
+                        (final v) =>
                             (v['gender'] as String).toLowerCase() == 'female',
                       )
                       .toList()
@@ -111,7 +111,7 @@ class OpenAISpeechService {
     }
 
     // Fallback local static list derived from the voice gender map
-    final all = kOpenAIVoices.map((name) {
+    final all = kOpenAIVoices.map((final name) {
       final genderLabel = kOpenAIVoiceGender[name];
       final isFemale =
           (genderLabel != null && genderLabel.toLowerCase().contains('femen'));
@@ -126,7 +126,9 @@ class OpenAISpeechService {
     if (femaleOnly) {
       return Future.value(
         all
-            .where((v) => (v['gender'] as String).toLowerCase() == 'female')
+            .where(
+              (final v) => (v['gender'] as String).toLowerCase() == 'female',
+            )
             .toList(),
       );
     }

@@ -1,7 +1,7 @@
 class CountryItem {
+  const CountryItem(this.nameEs, this.iso2);
   final String nameEs;
   final String iso2;
-  const CountryItem(this.nameEs, this.iso2);
 }
 
 /// Lista ordenada de países (nombre en español → código ISO2) según la selección del usuario.

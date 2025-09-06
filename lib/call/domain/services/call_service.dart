@@ -6,7 +6,7 @@ import 'package:ai_chan/core/models.dart';
 /// Servicio de dominio para validaciones de llamadas de voz
 class CallValidationService {
   /// Valida si una configuración de llamada es válida
-  static bool isCallConfigValid(CallConfig config) {
+  static bool isCallConfigValid(final CallConfig config) {
     // System prompt no puede estar vacío
     if (config.systemPrompt.trim().isEmpty) {
       return false;
@@ -31,7 +31,7 @@ class CallValidationService {
   }
 
   /// Valida si un mensaje de voz es válido
-  static bool isMessageValid(CallMessage message) {
+  static bool isMessageValid(final CallMessage message) {
     // ID no puede estar vacío
     if (message.id.trim().isEmpty) {
       return false;
@@ -57,9 +57,9 @@ class CallValidationService {
 
   /// Valida si un proveedor es compatible con las opciones dadas
   static bool isProviderCompatible(
-    CallProvider provider, {
-    bool requiresRealtime = false,
-    bool requiresSTTTTS = false,
+    final CallProvider provider, {
+    final bool requiresRealtime = false,
+    final bool requiresSTTTTS = false,
   }) {
     if (requiresRealtime && !provider.supportsRealtime) {
       return false;
@@ -77,13 +77,13 @@ class CallValidationService {
 class CallOrchestrationService {
   /// Crea una nueva llamada con configuración por defecto
   static Call createCall({
-    required String id,
-    required CallProvider provider,
-    required String model,
-    required String voice,
-    String languageCode = 'es-ES',
-    CallConfig? config,
-    Map<String, dynamic>? metadata,
+    required final String id,
+    required final CallProvider provider,
+    required final String model,
+    required final String voice,
+    final String languageCode = 'es-ES',
+    final CallConfig? config,
+    final Map<String, dynamic>? metadata,
   }) {
     final effectiveConfig = config ?? CallConfig.defaultConfig();
 
@@ -99,7 +99,7 @@ class CallOrchestrationService {
   }
 
   /// Finaliza una llamada activa
-  static Call finishCall(Call call) {
+  static Call finishCall(final Call call) {
     if (!call.isActive) {
       throw StateError('Cannot finish a call that is not active');
     }
@@ -108,7 +108,7 @@ class CallOrchestrationService {
   }
 
   /// Pausa una llamada activa
-  static Call pauseCall(Call call) {
+  static Call pauseCall(final Call call) {
     if (!call.isActive) {
       throw StateError('Cannot pause a call that is not active');
     }
@@ -117,7 +117,7 @@ class CallOrchestrationService {
   }
 
   /// Reanuda una llamada pausada
-  static Call resumeCall(Call call) {
+  static Call resumeCall(final Call call) {
     if (call.status != CallStatus.paused) {
       throw StateError('Cannot resume a call that is not paused');
     }
@@ -126,7 +126,7 @@ class CallOrchestrationService {
   }
 
   /// Cancela una llamada
-  static Call cancelCall(Call call) {
+  static Call cancelCall(final Call call) {
     if (call.isCompleted) {
       throw StateError('Cannot cancel a call that is already completed');
     }
@@ -135,7 +135,7 @@ class CallOrchestrationService {
   }
 
   /// Marca una llamada como fallida
-  static Call markCallAsFailed(Call call, String reason) {
+  static Call markCallAsFailed(final Call call, final String reason) {
     return call.copyWith(
       status: CallStatus.failed,
       endTime: DateTime.now(),
@@ -148,7 +148,7 @@ class CallOrchestrationService {
   }
 
   /// Agrega un mensaje a una llamada
-  static Call addMessageToCall(Call call, CallMessage message) {
+  static Call addMessageToCall(final Call call, final CallMessage message) {
     if (!CallValidationService.isMessageValid(message)) {
       throw ArgumentError('Invalid message');
     }
@@ -158,17 +158,20 @@ class CallOrchestrationService {
   }
 
   /// Calcula estadísticas de una llamada
-  static Map<String, dynamic> calculateCallStats(Call call) {
-    final userMessages = call.messages.where((m) => m.isFromUser).length;
+  static Map<String, dynamic> calculateCallStats(final Call call) {
+    final userMessages = call.messages.where((final m) => m.isFromUser).length;
     final assistantMessages = call.messages
-        .where((m) => m.isFromAssistant)
+        .where((final m) => m.isFromAssistant)
         .length;
-    final audioMessages = call.messages.where((m) => m.hasAudio).length;
-    final textMessages = call.messages.where((m) => m.hasText).length;
+    final audioMessages = call.messages.where((final m) => m.hasAudio).length;
+    final textMessages = call.messages.where((final m) => m.hasText).length;
 
     final totalAudioDuration = call.messages
-        .where((m) => m.audioDuration != null)
-        .fold<Duration>(Duration.zero, (total, m) => total + m.audioDuration!);
+        .where((final m) => m.audioDuration != null)
+        .fold<Duration>(
+          Duration.zero,
+          (final total, final m) => total + m.audioDuration!,
+        );
 
     return {
       'duration': call.duration,
@@ -183,7 +186,7 @@ class CallOrchestrationService {
   }
 
   /// Calcula tiempo promedio de respuesta del asistente
-  static Duration _calculateAverageResponseTime(Call call) {
+  static Duration _calculateAverageResponseTime(final Call call) {
     final messages = call.messages;
     if (messages.length < 2) return Duration.zero;
 
@@ -202,7 +205,7 @@ class CallOrchestrationService {
 
     final totalMs = responseTimes.fold<int>(
       0,
-      (sum, duration) => sum + duration.inMilliseconds,
+      (final sum, final duration) => sum + duration.inMilliseconds,
     );
 
     return Duration(milliseconds: totalMs ~/ responseTimes.length);

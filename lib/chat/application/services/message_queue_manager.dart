@@ -1,13 +1,6 @@
 import 'dart:async';
 
 class QueuedSendOptions {
-  final String? model;
-  final String? callPrompt;
-  final dynamic image;
-  final String? imageMimeType;
-  final String? preTranscribedText;
-  final String? userAudioPath;
-
   QueuedSendOptions({
     this.model,
     this.callPrompt,
@@ -16,6 +9,12 @@ class QueuedSendOptions {
     this.preTranscribedText,
     this.userAudioPath,
   });
+  final String? model;
+  final String? callPrompt;
+  final dynamic image;
+  final String? imageMimeType;
+  final String? preTranscribedText;
+  final String? userAudioPath;
 }
 
 /// Manages a queue of localIds representing messages pending automatic send.
@@ -23,6 +22,10 @@ class QueuedSendOptions {
 /// to the provided callback `onFlush` which receives the last enqueued localId
 /// and the last provided options.
 class MessageQueueManager {
+  MessageQueueManager({
+    required this.onFlush,
+    this.queuedSendDelay = const Duration(seconds: 5),
+  });
   final Duration queuedSendDelay;
   // onFlush receives the full list of queued ids (in order), the last id and the options
   // that were associated with the last enqueued message.
@@ -37,14 +40,9 @@ class MessageQueueManager {
   QueuedSendOptions? _options;
   Timer? _timer;
 
-  MessageQueueManager({
-    required this.onFlush,
-    this.queuedSendDelay = const Duration(seconds: 5),
-  });
-
   int get queuedCount => _queued.length;
 
-  void enqueue(String localId, {QueuedSendOptions? options}) {
+  void enqueue(final String localId, {final QueuedSendOptions? options}) {
     if (!_queued.contains(localId)) _queued.add(localId);
     if (options != null) _options = options;
     _startOrResetTimer();

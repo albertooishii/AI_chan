@@ -9,7 +9,7 @@ import 'package:ai_chan/core/config.dart';
 /// Mantiene singletons por modelo.
 final Map<String, runtime_ai.AIService> _runtimeAiSingletons = {};
 
-runtime_ai.AIService getRuntimeAIServiceForModel(String modelId) {
+runtime_ai.AIService getRuntimeAIServiceForModel(final String modelId) {
   final normalized = modelId.trim().toLowerCase();
   final defaultModel = Config.getDefaultTextModel().trim().toLowerCase();
   final key = normalized.isEmpty

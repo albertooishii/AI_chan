@@ -27,7 +27,7 @@ List<String> get kOpenAIVoices => kOpenAIVoiceGender.keys.toList();
 /// Devuelve la voz por defecto efectiva dado el valor opcional de entorno
 /// (OPENAI_VOICE_NAME). Si el valor no está o es inválido, retorna 'marin' si
 /// existe en el mapa, o la primera clave disponible.
-String resolveDefaultVoice(String? envVoice) {
+String resolveDefaultVoice(final String? envVoice) {
   final keys = kOpenAIVoices;
   if (envVoice != null && keys.contains(envVoice)) return envVoice;
   if (keys.contains('marin')) return 'marin';

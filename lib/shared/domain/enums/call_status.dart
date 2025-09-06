@@ -33,7 +33,7 @@ extension CallStatusExtension on CallStatus {
     }
   }
 
-  static CallStatus fromString(String value) {
+  static CallStatus fromString(final String value) {
     switch (value.toLowerCase()) {
       case 'placeholder':
         return CallStatus.placeholder;

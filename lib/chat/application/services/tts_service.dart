@@ -8,17 +8,16 @@ import 'package:ai_chan/shared/utils/log_utils.dart';
 /// directorio local de audio configurado. Devuelve la ruta final del archivo
 /// sintetizado o null si falló.
 class TtsService {
+  TtsService(this.audioService, this.languageResolver, this.fileService);
   final IAudioChatService audioService;
   final ILanguageResolver languageResolver;
   final IFileService fileService;
 
-  TtsService(this.audioService, this.languageResolver, this.fileService);
-
   /// Sintetiza `text` usando el audioService y persiste el fichero en la
   /// carpeta local de audio configurada. Devuelve la ruta final o null.
   Future<String?> synthesizeAndPersist(
-    String text, {
-    String voice = 'nova',
+    final String text, {
+    final String voice = 'nova',
   }) async {
     try {
       // Resolve language code using the injected language resolver

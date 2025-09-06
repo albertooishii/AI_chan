@@ -3,5 +3,5 @@
 abstract interface class AudioSchedulingService {
   /// Schedule audio playback with provider-specific timing and retry logic
   /// [playbackFunction] is the function to execute for audio playback
-  void schedulePlayback(Function playbackFunction);
+  void schedulePlayback(final Function playbackFunction);
 }

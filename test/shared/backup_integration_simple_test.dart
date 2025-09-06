@@ -66,7 +66,7 @@ void main() {
           var uploadCalled = false;
           var uploadedFileId = '';
 
-          final mockHttpClient = MockClient((request) async {
+          final mockHttpClient = MockClient((final request) async {
             final url = request.url.toString();
 
             // Mock resumable upload initiation
@@ -170,7 +170,7 @@ void main() {
         await backupFile.writeAsString('backup data');
 
         var attemptCount = 0;
-        final retryClient = MockClient((request) async {
+        final retryClient = MockClient((final request) async {
           attemptCount++;
 
           // First attempt fails
@@ -274,12 +274,13 @@ void main() {
         final cutoffDate = DateTime.now().subtract(const Duration(days: 30));
         final backupsToKeep = backups
             .where(
-              (backup) => (backup['created'] as DateTime).isAfter(cutoffDate),
+              (final backup) =>
+                  (backup['created'] as DateTime).isAfter(cutoffDate),
             )
             .toList();
 
         expect(backupsToKeep.length, equals(3)); // Should delete 1 old backup
-        expect(backupsToKeep.any((b) => b['id'] == 'backup4'), isFalse);
+        expect(backupsToKeep.any((final b) => b['id'] == 'backup4'), isFalse);
       });
 
       test('should calculate storage usage', () {
@@ -288,7 +289,7 @@ void main() {
           2048000,
           512000,
         ]; // Different backup sizes in bytes
-        final totalUsage = backupSizes.reduce((a, b) => a + b);
+        final totalUsage = backupSizes.reduce((final a, final b) => a + b);
 
         expect(totalUsage, equals(3584000)); // ~3.5MB total
 

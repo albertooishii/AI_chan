@@ -5,6 +5,12 @@ import 'dart:typed_data';
 /// - Feed PCM16LE mono chunks via [feed].
 /// - Emits onSpeechStart/onSpeechEnd callbacks.
 class VadService {
+  VadService({
+    this.onSpeechStart,
+    this.onSpeechEnd,
+    this.thresholdRms = 0.02,
+    this.silenceMs = 220,
+  });
   final void Function()? onSpeechStart;
   final void Function()? onSpeechEnd;
   final double thresholdRms; // e.g. 0.02
@@ -13,15 +19,8 @@ class VadService {
   bool _inSpeech = false;
   Timer? _endTimer;
 
-  VadService({
-    this.onSpeechStart,
-    this.onSpeechEnd,
-    this.thresholdRms = 0.02,
-    this.silenceMs = 220,
-  });
-
   /// Feed raw PCM16LE bytes (mono). Computes RMS over the chunk and updates state.
-  void feed(Uint8List pcm16Bytes) {
+  void feed(final Uint8List pcm16Bytes) {
     if (pcm16Bytes.isEmpty) return;
     final len = pcm16Bytes.length & ~1;
     if (len == 0) return;

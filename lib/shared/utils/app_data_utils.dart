@@ -173,7 +173,7 @@ class AppDataUtils {
   }
 
   /// Formatea bytes a una representación legible (KB, MB, GB, TB)
-  static String formatBytes(int bytes) {
+  static String formatBytes(final int bytes) {
     if (bytes <= 0) return '0 B';
 
     const suffixes = ['B', 'KB', 'MB', 'GB', 'TB'];

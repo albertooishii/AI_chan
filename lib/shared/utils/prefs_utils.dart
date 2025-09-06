@@ -13,11 +13,12 @@ class PrefsUtils {
   static const kVoiceCalls = 'calls'; // Renombrado de voice_calls a calls
 
   // --- Dynamic key factories ---
-  static String callMessagesKey(String callId) =>
+  static String callMessagesKey(final String callId) =>
       'call_messages_$callId'; // Renombrado
 
   // Mantener compatibilidad hacia atrás temporalmente
-  static String voiceMessagesKey(String callId) => callMessagesKey(callId);
+  static String voiceMessagesKey(final String callId) =>
+      callMessagesKey(callId);
 
   /// Ensure default values for audio provider and model keys exist.
   static Future<void> ensureDefaults() async {
@@ -84,7 +85,9 @@ class PrefsUtils {
     }
   }
 
-  static Future<String?> getSelectedVoiceForProvider(String provider) async {
+  static Future<String?> getSelectedVoiceForProvider(
+    final String provider,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final providerKey = 'selected_voice_${provider.toLowerCase()}';
@@ -98,7 +101,9 @@ class PrefsUtils {
   /// Si no hay voz configurada para el provider, devuelve [fallback].
   /// Centraliza la lógica repetida usada en varios sitios (ej. mapeos y
   /// comprobaciones de cadena vacía).
-  static Future<String> getPreferredVoice({String fallback = 'nova'}) async {
+  static Future<String> getPreferredVoice({
+    final String fallback = 'nova',
+  }) async {
     try {
       final provider = await getSelectedAudioProvider();
       final providerVoice = await getSelectedVoiceForProvider(provider);
@@ -111,7 +116,7 @@ class PrefsUtils {
     }
   }
 
-  static Future<void> setSelectedAudioProvider(String provider) async {
+  static Future<void> setSelectedAudioProvider(final String provider) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('selected_audio_provider', provider);
@@ -119,8 +124,8 @@ class PrefsUtils {
   }
 
   static Future<void> setSelectedVoiceForProvider(
-    String provider,
-    String voice,
+    final String provider,
+    final String voice,
   ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -153,7 +158,7 @@ class PrefsUtils {
     }
   }
 
-  static Future<void> setSelectedModel(String model) async {
+  static Future<void> setSelectedModel(final String model) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('selected_model', model);
@@ -162,10 +167,10 @@ class PrefsUtils {
 
   // --- Google account convenience helpers ---
   static Future<void> setGoogleAccountInfo({
-    String? email,
-    String? avatar,
-    String? name,
-    required bool linked,
+    final String? email,
+    final String? avatar,
+    final String? name,
+    required final bool linked,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -222,7 +227,7 @@ class PrefsUtils {
     }
   }
 
-  static Future<void> setOnboardingData(String json) async {
+  static Future<void> setOnboardingData(final String json) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('onboarding_data', json);
@@ -245,7 +250,7 @@ class PrefsUtils {
     }
   }
 
-  static Future<void> setChatHistory(String json) async {
+  static Future<void> setChatHistory(final String json) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('chat_history', json);
@@ -268,14 +273,14 @@ class PrefsUtils {
     }
   }
 
-  static Future<void> setEvents(String json) async {
+  static Future<void> setEvents(final String json) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('events', json);
     } catch (_) {}
   }
 
-  static Future<void> setFullExport(String json) async {
+  static Future<void> setFullExport(final String json) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(kChatFullExport, json);
@@ -284,7 +289,7 @@ class PrefsUtils {
 
   // --- Generic raw access helpers ---
   /// Get a raw string by key. Useful for callers that manage their own key naming.
-  static Future<String?> getRawString(String key) async {
+  static Future<String?> getRawString(final String key) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString(key);
@@ -294,7 +299,7 @@ class PrefsUtils {
   }
 
   /// Set a raw string by key.
-  static Future<void> setRawString(String key, String value) async {
+  static Future<void> setRawString(final String key, final String value) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(key, value);
@@ -302,7 +307,7 @@ class PrefsUtils {
   }
 
   /// Remove an arbitrary key from prefs.
-  static Future<void> removeKey(String key) async {
+  static Future<void> removeKey(final String key) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(key);
@@ -331,7 +336,7 @@ class PrefsUtils {
   }
 
   /// Persist the timestamp (ms since epoch) of the last successful automatic backup.
-  static Future<void> setLastAutoBackupMs(int ms) async {
+  static Future<void> setLastAutoBackupMs(final int ms) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(kLastAutoBackupMs, ms);

@@ -22,7 +22,6 @@ void main() {
         userBirthdate: null,
         aiBirthdate: null,
         appearance: <String, dynamic>{},
-        timeline: [],
       );
       final builder = pb.PromptBuilderService();
       final jsonStr = builder.buildRealtimeSystemPromptJson(
@@ -55,7 +54,6 @@ void main() {
         userBirthdate: null,
         aiBirthdate: null,
         appearance: <String, dynamic>{},
-        timeline: [],
       );
       final builder = pb.PromptBuilderService();
       final jsonStr = builder.buildRealtimeSystemPromptJson(

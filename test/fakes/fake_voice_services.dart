@@ -3,24 +3,23 @@ import 'package:ai_chan/core/interfaces/ai_service.dart';
 
 /// Fake STT service for testing voice-related functionality
 class FakeSttService implements ISttService {
-  final String transcriptionResult;
-  final bool shouldFail;
-
   FakeSttService({
     this.transcriptionResult = 'transcripcion de prueba',
     this.shouldFail = false,
   });
+  final String transcriptionResult;
+  final bool shouldFail;
 
   @override
-  Future<String?> transcribeAudio(String path) async {
+  Future<String?> transcribeAudio(final String path) async {
     if (shouldFail) throw Exception('STT failed');
     return transcriptionResult;
   }
 
   @override
   Future<String?> transcribeFile({
-    required String filePath,
-    Map<String, dynamic>? options,
+    required final String filePath,
+    final Map<String, dynamic>? options,
   }) async {
     return await transcribeAudio(filePath);
   }
@@ -28,18 +27,17 @@ class FakeSttService implements ISttService {
 
 /// Fake AI service for calls/voice testing
 class FakeCallsAiService implements IAIService {
-  final String response;
-  final List<String> models;
-
   FakeCallsAiService({
     this.response = 'respuesta generada por ai',
     this.models = const ['gemi-test'],
   });
+  final String response;
+  final List<String> models;
 
   @override
   Future<Map<String, dynamic>> sendMessage({
-    required List<Map<String, dynamic>> messages,
-    Map<String, dynamic>? options,
+    required final List<Map<String, dynamic>> messages,
+    final Map<String, dynamic>? options,
   }) async {
     return {'text': response};
   }
@@ -49,8 +47,8 @@ class FakeCallsAiService implements IAIService {
 
   @override
   Future<String?> textToSpeech(
-    String text, {
-    String voice = '',
-    Map<String, dynamic>? options,
+    final String text, {
+    final String voice = '',
+    final Map<String, dynamic>? options,
   }) async => null;
 }

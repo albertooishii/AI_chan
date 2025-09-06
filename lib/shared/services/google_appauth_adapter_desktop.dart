@@ -12,20 +12,19 @@ import 'package:crypto/crypto.dart';
 
 /// AppAuth adapter for desktop platforms using PKCE authorization-code flow
 class GoogleAppAuthAdapter {
+  GoogleAppAuthAdapter({
+    required this.scopes,
+    required this.clientId,
+    this.redirectUri,
+  });
   final List<String> scopes;
   final String clientId;
   final String? redirectUri;
 
   static String? lastAuthUrl;
 
-  GoogleAppAuthAdapter({
-    required this.scopes,
-    required this.clientId,
-    this.redirectUri,
-  });
-
   /// Open URL in system browser
-  static Future<void> openBrowser(String url) async {
+  static Future<void> openBrowser(final String url) async {
     try {
       if (Platform.isWindows) {
         await Process.start('cmd', ['/c', 'start', url]);
@@ -44,7 +43,7 @@ class GoogleAppAuthAdapter {
     }
   }
 
-  Future<Map<String, dynamic>> signIn({List<String>? scopes}) async {
+  Future<Map<String, dynamic>> signIn({final List<String>? scopes}) async {
     final usedScopes = (scopes ?? this.scopes).join(' ');
 
     String? redirect = redirectUri;
@@ -227,7 +226,7 @@ class GoogleAppAuthAdapter {
     }
   }
 
-  Future<void> _closeServer(HttpServer? server) async {
+  Future<void> _closeServer(final HttpServer? server) async {
     try {
       if (server != null) {
         await server.close(force: true);
@@ -235,18 +234,18 @@ class GoogleAppAuthAdapter {
     } catch (_) {}
   }
 
-  static String _createCodeVerifier([int length = 64]) {
+  static String _createCodeVerifier([final int length = 64]) {
     final rand = Random.secure();
     final bytes = List<int>.generate(length, (_) => rand.nextInt(256));
     return base64Url.encode(bytes).replaceAll('=', '');
   }
 
-  static String _codeChallenge(String verifier) {
+  static String _codeChallenge(final String verifier) {
     final digest = sha256.convert(utf8.encode(verifier));
     return base64Url.encode(digest.bytes).replaceAll('=', '');
   }
 
-  static String _randomString(int len) {
+  static String _randomString(final int len) {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     final r = Random.secure();
     return List.generate(len, (_) => chars[r.nextInt(chars.length)]).join();

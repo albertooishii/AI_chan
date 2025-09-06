@@ -6,39 +6,39 @@ class FakeSharedPreferences {
     _storage.clear();
   }
 
-  static void setInitialValues(Map<String, dynamic> values) {
+  static void setInitialValues(final Map<String, dynamic> values) {
     _storage.clear();
     _storage.addAll(values);
   }
 
-  static Future<bool> setString(String key, String value) async {
+  static Future<bool> setString(final String key, final String value) async {
     _storage[key] = value;
     return true;
   }
 
-  static String? getString(String key) {
+  static String? getString(final String key) {
     return _storage[key] as String?;
   }
 
-  static Future<bool> setBool(String key, bool value) async {
+  static Future<bool> setBool(final String key, final bool value) async {
     _storage[key] = value;
     return true;
   }
 
-  static bool? getBool(String key) {
+  static bool? getBool(final String key) {
     return _storage[key] as bool?;
   }
 
-  static Future<bool> setInt(String key, int value) async {
+  static Future<bool> setInt(final String key, final int value) async {
     _storage[key] = value;
     return true;
   }
 
-  static int? getInt(String key) {
+  static int? getInt(final String key) {
     return _storage[key] as int?;
   }
 
-  static Future<bool> remove(String key) async {
+  static Future<bool> remove(final String key) async {
     _storage.remove(key);
     return true;
   }
@@ -58,14 +58,18 @@ class FakeCacheService {
     _expiry.clear();
   }
 
-  static Future<void> set(String key, dynamic value, {Duration? ttl}) async {
+  static Future<void> set(
+    final String key,
+    final dynamic value, {
+    final Duration? ttl,
+  }) async {
     _cache[key] = value;
     if (ttl != null) {
       _expiry[key] = DateTime.now().add(ttl);
     }
   }
 
-  static T? get<T>(String key) {
+  static T? get<T>(final String key) {
     // Check if expired
     if (_expiry.containsKey(key)) {
       if (DateTime.now().isAfter(_expiry[key]!)) {
@@ -77,12 +81,12 @@ class FakeCacheService {
     return _cache[key] as T?;
   }
 
-  static Future<void> remove(String key) async {
+  static Future<void> remove(final String key) async {
     _cache.remove(key);
     _expiry.remove(key);
   }
 
-  static bool has(String key) {
+  static bool has(final String key) {
     if (_expiry.containsKey(key)) {
       if (DateTime.now().isAfter(_expiry[key]!)) {
         _cache.remove(key);
@@ -104,27 +108,33 @@ class FakeFileStorage {
     _binaryFiles.clear();
   }
 
-  static Future<void> writeString(String path, String content) async {
+  static Future<void> writeString(
+    final String path,
+    final String content,
+  ) async {
     _files[path] = content;
   }
 
-  static Future<String?> readString(String path) async {
+  static Future<String?> readString(final String path) async {
     return _files[path];
   }
 
-  static Future<void> writeBytes(String path, List<int> bytes) async {
+  static Future<void> writeBytes(
+    final String path,
+    final List<int> bytes,
+  ) async {
     _binaryFiles[path] = bytes;
   }
 
-  static Future<List<int>?> readBytes(String path) async {
+  static Future<List<int>?> readBytes(final String path) async {
     return _binaryFiles[path];
   }
 
-  static Future<bool> exists(String path) async {
+  static Future<bool> exists(final String path) async {
     return _files.containsKey(path) || _binaryFiles.containsKey(path);
   }
 
-  static Future<void> delete(String path) async {
+  static Future<void> delete(final String path) async {
     _files.remove(path);
     _binaryFiles.remove(path);
   }

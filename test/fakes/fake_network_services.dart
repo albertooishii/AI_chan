@@ -1,20 +1,32 @@
 /// Fake Network Service for testing connectivity
 class FakeNetworkService {
+  FakeNetworkService({
+    final bool initiallyConnected = true,
+    this.shouldFailOnCheck = false,
+    this.errorMessage = 'Network check failed',
+  }) : _isConnected = initiallyConnected;
+
+  /// Factory for offline service
+  factory FakeNetworkService.offline() {
+    return FakeNetworkService(initiallyConnected: false);
+  }
+
+  /// Factory for failing service
+  factory FakeNetworkService.failure([final String? errorMsg]) {
+    return FakeNetworkService(
+      shouldFailOnCheck: true,
+      errorMessage: errorMsg ?? 'Network service unavailable',
+    );
+  }
   bool _isConnected = true;
   final bool shouldFailOnCheck;
   final String errorMessage;
   final List<String> _requestLog = <String>[];
 
-  FakeNetworkService({
-    bool initiallyConnected = true,
-    this.shouldFailOnCheck = false,
-    this.errorMessage = 'Network check failed',
-  }) : _isConnected = initiallyConnected;
-
   bool get isConnected => _isConnected;
   List<String> get requestLog => List.from(_requestLog);
 
-  void setConnected(bool connected) {
+  void setConnected(final bool connected) {
     _isConnected = connected;
   }
 
@@ -25,7 +37,7 @@ class FakeNetworkService {
     return _isConnected;
   }
 
-  Future<bool> pingServer(String url) async {
+  Future<bool> pingServer(final String url) async {
     _requestLog.add('PING: $url');
 
     if (shouldFailOnCheck) {
@@ -38,30 +50,10 @@ class FakeNetworkService {
   void clearRequestLog() {
     _requestLog.clear();
   }
-
-  /// Factory for offline service
-  factory FakeNetworkService.offline() {
-    return FakeNetworkService(initiallyConnected: false);
-  }
-
-  /// Factory for failing service
-  factory FakeNetworkService.failure([String? errorMsg]) {
-    return FakeNetworkService(
-      shouldFailOnCheck: true,
-      errorMessage: errorMsg ?? 'Network service unavailable',
-    );
-  }
 }
 
 /// Fake HTTP Client for testing API calls
 class FakeHttpClient {
-  final Map<String, dynamic> _responses = <String, dynamic>{};
-  final List<String> _requestLog = <String>[];
-  final bool shouldFail;
-  final int statusCode;
-  final String errorMessage;
-  int requestDelay = 0;
-
   FakeHttpClient({
     this.shouldFail = false,
     this.statusCode = 200,
@@ -69,9 +61,42 @@ class FakeHttpClient {
     this.requestDelay = 0,
   });
 
+  /// Factory for slow responses
+  factory FakeHttpClient.slow(final int delayMs) {
+    return FakeHttpClient(requestDelay: delayMs);
+  }
+
+  /// Factory for failed requests
+  factory FakeHttpClient.failure({
+    final int statusCode = 500,
+    final String? errorMsg,
+  }) {
+    return FakeHttpClient(
+      shouldFail: true,
+      statusCode: statusCode,
+      errorMessage: errorMsg ?? 'HTTP request failed',
+    );
+  }
+
+  /// Factory for not found responses
+  factory FakeHttpClient.notFound() {
+    return FakeHttpClient(statusCode: 404);
+  }
+
+  /// Factory for unauthorized responses
+  factory FakeHttpClient.unauthorized() {
+    return FakeHttpClient(statusCode: 401);
+  }
+  final Map<String, dynamic> _responses = <String, dynamic>{};
+  final List<String> _requestLog = <String>[];
+  final bool shouldFail;
+  final int statusCode;
+  final String errorMessage;
+  int requestDelay = 0;
+
   List<String> get requestLog => List.from(_requestLog);
 
-  void setResponse(String endpoint, dynamic response) {
+  void setResponse(final String endpoint, final dynamic response) {
     _responses[endpoint] = response;
   }
 
@@ -84,8 +109,8 @@ class FakeHttpClient {
   }
 
   Future<Map<String, dynamic>> get(
-    String url, {
-    Map<String, String>? headers,
+    final String url, {
+    final Map<String, String>? headers,
   }) async {
     _requestLog.add('GET: $url');
 
@@ -107,9 +132,9 @@ class FakeHttpClient {
   }
 
   Future<Map<String, dynamic>> post(
-    String url, {
-    Map<String, dynamic>? body,
-    Map<String, String>? headers,
+    final String url, {
+    final Map<String, dynamic>? body,
+    final Map<String, String>? headers,
   }) async {
     _requestLog.add('POST: $url');
 
@@ -133,9 +158,9 @@ class FakeHttpClient {
   }
 
   Future<Map<String, dynamic>> put(
-    String url, {
-    Map<String, dynamic>? body,
-    Map<String, String>? headers,
+    final String url, {
+    final Map<String, dynamic>? body,
+    final Map<String, String>? headers,
   }) async {
     _requestLog.add('PUT: $url');
 
@@ -159,8 +184,8 @@ class FakeHttpClient {
   }
 
   Future<Map<String, dynamic>> delete(
-    String url, {
-    Map<String, String>? headers,
+    final String url, {
+    final Map<String, String>? headers,
   }) async {
     _requestLog.add('DELETE: $url');
 
@@ -178,50 +203,32 @@ class FakeHttpClient {
       'headers': headers ?? <String, String>{},
     };
   }
-
-  /// Factory for slow responses
-  factory FakeHttpClient.slow(int delayMs) {
-    return FakeHttpClient(requestDelay: delayMs);
-  }
-
-  /// Factory for failed requests
-  factory FakeHttpClient.failure({int statusCode = 500, String? errorMsg}) {
-    return FakeHttpClient(
-      shouldFail: true,
-      statusCode: statusCode,
-      errorMessage: errorMsg ?? 'HTTP request failed',
-    );
-  }
-
-  /// Factory for not found responses
-  factory FakeHttpClient.notFound() {
-    return FakeHttpClient(statusCode: 404);
-  }
-
-  /// Factory for unauthorized responses
-  factory FakeHttpClient.unauthorized() {
-    return FakeHttpClient(statusCode: 401);
-  }
 }
 
 /// Fake WebSocket Client for testing real-time communication
 class FakeWebSocketClient {
+  FakeWebSocketClient({
+    this.shouldFailConnection = false,
+    this.errorMessage = 'WebSocket connection failed',
+  });
+
+  factory FakeWebSocketClient.failure([final String? errorMsg]) {
+    return FakeWebSocketClient(
+      shouldFailConnection: true,
+      errorMessage: errorMsg ?? 'WebSocket connection unavailable',
+    );
+  }
   bool _isConnected = false;
   final List<String> _messageLog = <String>[];
   final List<String> _sentMessages = <String>[];
   final bool shouldFailConnection;
   final String errorMessage;
 
-  FakeWebSocketClient({
-    this.shouldFailConnection = false,
-    this.errorMessage = 'WebSocket connection failed',
-  });
-
   bool get isConnected => _isConnected;
   List<String> get messageLog => List.from(_messageLog);
   List<String> get sentMessages => List.from(_sentMessages);
 
-  Future<void> connect(String url) async {
+  Future<void> connect(final String url) async {
     if (shouldFailConnection) {
       throw Exception(errorMessage);
     }
@@ -232,14 +239,14 @@ class FakeWebSocketClient {
     _isConnected = false;
   }
 
-  void sendMessage(String message) {
+  void sendMessage(final String message) {
     if (!_isConnected) {
       throw StateError('WebSocket not connected');
     }
     _sentMessages.add(message);
   }
 
-  void simulateIncomingMessage(String message) {
+  void simulateIncomingMessage(final String message) {
     if (_isConnected) {
       _messageLog.add(message);
     }
@@ -248,12 +255,5 @@ class FakeWebSocketClient {
   void clearLogs() {
     _messageLog.clear();
     _sentMessages.clear();
-  }
-
-  factory FakeWebSocketClient.failure([String? errorMsg]) {
-    return FakeWebSocketClient(
-      shouldFailConnection: true,
-      errorMessage: errorMsg ?? 'WebSocket connection unavailable',
-    );
   }
 }

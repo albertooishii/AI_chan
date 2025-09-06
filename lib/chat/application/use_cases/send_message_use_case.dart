@@ -12,31 +12,30 @@ import '../services/message_sanitization_service.dart';
 /// Send Message Use Case - Chat Application Layer
 /// Orquesta el proceso completo de envío de mensaje usando servicios especializados
 class SendMessageUseCase {
-  final MessageRetryService _retryService;
-  final MessageImageProcessingService _imageService;
-  final MessageAudioProcessingService _audioService;
-  final MessageSanitizationService _sanitizationService;
-
   SendMessageUseCase({
-    MessageRetryService? retryService,
-    MessageImageProcessingService? imageService,
-    MessageAudioProcessingService? audioService,
-    MessageSanitizationService? sanitizationService,
+    final MessageRetryService? retryService,
+    final MessageImageProcessingService? imageService,
+    final MessageAudioProcessingService? audioService,
+    final MessageSanitizationService? sanitizationService,
   }) : _retryService = retryService ?? MessageRetryService(),
        _imageService = imageService ?? MessageImageProcessingService(),
        _audioService = audioService ?? MessageAudioProcessingService(),
        _sanitizationService =
            sanitizationService ?? MessageSanitizationService();
+  final MessageRetryService _retryService;
+  final MessageImageProcessingService _imageService;
+  final MessageAudioProcessingService _audioService;
+  final MessageSanitizationService _sanitizationService;
 
   Future<SendMessageOutcome> sendChat({
-    required List<Message> recentMessages,
-    required SystemPrompt systemPromptObj,
-    required String model,
-    String? imageBase64,
-    String? imageMimeType,
-    bool enableImageGeneration = false,
-    AiChanProfile? onboardingData,
-    Future<void> Function()? saveAll,
+    required final List<Message> recentMessages,
+    required final SystemPrompt systemPromptObj,
+    required final String model,
+    final String? imageBase64,
+    final String? imageMimeType,
+    final bool enableImageGeneration = false,
+    final AiChanProfile? onboardingData,
+    final Future<void> Function()? saveAll,
   }) async {
     // Convert messages to history format
     final history = _buildMessageHistory(recentMessages);
@@ -105,10 +104,10 @@ class SendMessageUseCase {
     );
   }
 
-  List<Map<String, String>> _buildMessageHistory(List<Message> messages) {
+  List<Map<String, String>> _buildMessageHistory(final List<Message> messages) {
     return messages
         .map(
-          (m) => {
+          (final m) => {
             'role': m.sender == MessageSender.user
                 ? 'user'
                 : (m.sender == MessageSender.assistant
@@ -122,8 +121,8 @@ class SendMessageUseCase {
   }
 
   Future<String> _selectOptimalModel(
-    String model,
-    bool enableImageGeneration,
+    final String model,
+    final bool enableImageGeneration,
   ) async {
     String selected = model;
 
@@ -140,7 +139,10 @@ class SendMessageUseCase {
     return selected;
   }
 
-  SendMessageOutcome _handleFailedResponse(AIResponse response, String model) {
+  SendMessageOutcome _handleFailedResponse(
+    final AIResponse response,
+    final String model,
+  ) {
     // Check for API errors that should throw exceptions
     if (_sanitizationService.isApiError(response.text)) {
       throw Exception('API Error: ${response.text}');
@@ -165,7 +167,7 @@ class SendMessageUseCase {
     );
   }
 
-  Message _buildAssistantMessage(ChatResult chatResult) {
+  Message _buildAssistantMessage(final ChatResult chatResult) {
     return Message(
       text: chatResult.text,
       sender: MessageSender.assistant,
@@ -183,10 +185,10 @@ class SendMessageUseCase {
   }
 
   Future<AiChanProfile?> _processEvents(
-    List<Message> recentMessages,
-    ChatResult chatResult,
-    AiChanProfile onboardingData,
-    Future<void> Function()? saveAll,
+    final List<Message> recentMessages,
+    final ChatResult chatResult,
+    final AiChanProfile onboardingData,
+    final Future<void> Function()? saveAll,
   ) async {
     try {
       return await EventTimelineService.detectAndSaveEventAndSchedule(
@@ -206,15 +208,14 @@ class SendMessageUseCase {
 /// caller. `ttsRequested` indicates whether the assistant message should trigger
 /// TTS generation (i.e., contains paired [audio]...[/audio] tags).
 class SendMessageOutcome {
-  final ChatResult result;
-  final Message assistantMessage;
-  final bool ttsRequested;
-  final AiChanProfile? updatedProfile;
-
   SendMessageOutcome({
     required this.result,
     required this.assistantMessage,
     required this.ttsRequested,
     this.updatedProfile,
   });
+  final ChatResult result;
+  final Message assistantMessage;
+  final bool ttsRequested;
+  final AiChanProfile? updatedProfile;
 }

@@ -1,6 +1,6 @@
 class EventParserUtils {
   // Detecta fechas completas en texto tipo "sábado 9 de agosto de 2025"
-  static DateTime? parseFullDate(String text) {
+  static DateTime? parseFullDate(final String text) {
     final dateRegex = RegExp(
       r'(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)?\s*(\d{1,2})\s*de\s*(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s*de\s*(\d{4})',
       caseSensitive: false,
@@ -31,7 +31,7 @@ class EventParserUtils {
   }
 
   // Detecta palabras clave de evento/cita
-  static bool containsEventKeywords(String text) {
+  static bool containsEventKeywords(final String text) {
     final keywords = [
       'cita',
       'evento',
@@ -64,6 +64,6 @@ class EventParserUtils {
       'fireworks',
       'fuegos artificiales',
     ];
-    return keywords.any((kw) => text.toLowerCase().contains(kw));
+    return keywords.any((final kw) => text.toLowerCase().contains(kw));
   }
 }

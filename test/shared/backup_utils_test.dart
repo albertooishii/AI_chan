@@ -10,7 +10,6 @@ void main() {
       aiName: 'TestAI',
       userBirthdate: DateTime(1990),
       aiBirthdate: DateTime(2020),
-      timeline: [],
       biography: {},
       appearance: {},
     );
@@ -22,10 +21,11 @@ void main() {
       status: MessageStatus.read,
     );
 
-    final imported = ImportedChat(
+    final imported = ChatExport(
       profile: profile,
       messages: [msg],
       events: [],
+      timeline: [],
     );
 
     final jsonStr = await BackupUtils.exportImportedChatToJson(imported);

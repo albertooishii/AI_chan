@@ -37,7 +37,6 @@ void main() {
         userBirthdate: null,
         aiBirthdate: null,
         appearance: <String, dynamic>{},
-        timeline: [],
       );
 
       final img = await gen.generateAvatarFromAppearance(profile);
@@ -73,7 +72,6 @@ void main() {
       userBirthdate: null,
       aiBirthdate: null,
       appearance: <String, dynamic>{},
-      timeline: [],
     );
 
     try {

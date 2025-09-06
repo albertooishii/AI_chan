@@ -17,26 +17,30 @@ class FakeChannel implements WsChannel {
   final _fakeSink = _FakeSink();
   @override
   WsSink get sink => _fakeSink;
-  void addIncoming(dynamic m) => _controller.add(m);
+  void addIncoming(final dynamic m) => _controller.add(m);
   Future<void> close() async => await _controller.close();
 }
 
 class _FakeSink implements WsSink {
   final List<dynamic> sent = [];
   @override
-  void add(dynamic m) => sent.add(m);
+  void add(final dynamic m) => sent.add(m);
   @override
   Future<void> close() async {}
 }
 
 void registerFakeSocketConnector() {
-  SocketConnector.setConnectImpl((host, port, {Duration? timeout}) async {
+  SocketConnector.setConnectImpl((
+    final host,
+    final port, {
+    final Duration? timeout,
+  }) async {
     return Future.value(FakeSocket());
   });
 }
 
 void registerFakeWebSocketConnector() {
-  WebSocketConnector.setConnectImpl((uri, {headers}) {
+  WebSocketConnector.setConnectImpl((final uri, {final headers}) {
     return FakeChannel();
   });
 }

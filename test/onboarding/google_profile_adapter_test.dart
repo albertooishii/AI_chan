@@ -10,12 +10,12 @@ import '../test_setup.dart';
 class BaseFakeAIService implements AIService {
   @override
   Future<AIResponse> sendMessageImpl(
-    List<Map<String, String>> history,
-    SystemPrompt systemPrompt, {
-    String? model,
-    String? imageBase64,
-    String? imageMimeType,
-    bool enableImageGeneration = false,
+    final List<Map<String, String>> history,
+    final SystemPrompt systemPrompt, {
+    final String? model,
+    final String? imageBase64,
+    final String? imageMimeType,
+    final bool enableImageGeneration = false,
   }) async {
     if (enableImageGeneration) {
       const onePixelPngBase64 =
@@ -42,12 +42,12 @@ class BaseFakeAIService implements AIService {
 class LocalImageFake extends BaseFakeAIService {
   @override
   Future<AIResponse> sendMessageImpl(
-    List<Map<String, String>> history,
-    SystemPrompt systemPrompt, {
-    String? model,
-    String? imageBase64,
-    String? imageMimeType,
-    bool enableImageGeneration = false,
+    final List<Map<String, String>> history,
+    final SystemPrompt systemPrompt, {
+    final String? model,
+    final String? imageBase64,
+    final String? imageMimeType,
+    final bool enableImageGeneration = false,
   }) async {
     if (enableImageGeneration) {
       const onePixelPngBase64 =

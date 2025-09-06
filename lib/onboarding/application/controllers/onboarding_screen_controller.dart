@@ -8,6 +8,13 @@ import 'package:ai_chan/core/models.dart';
 /// Orchestrates business logic for the onboarding interface
 /// Following Clean Architecture principles
 class OnboardingScreenController extends ChangeNotifier {
+  OnboardingScreenController({
+    required final OnboardingLifecycleController onboardingLifecycle,
+    final FormOnboardingController? formController,
+    final BiographyGenerationUseCase? biographyUseCase,
+  }) : _lifecycleController = onboardingLifecycle,
+       _formController = formController,
+       _biographyUseCase = biographyUseCase ?? BiographyGenerationUseCase();
   final OnboardingLifecycleController _lifecycleController;
   final FormOnboardingController? _formController;
   final BiographyGenerationUseCase _biographyUseCase;
@@ -17,14 +24,6 @@ class OnboardingScreenController extends ChangeNotifier {
   String? _errorMessage;
   OnboardingStep _currentStep = OnboardingStep.biography;
 
-  OnboardingScreenController({
-    required OnboardingLifecycleController onboardingLifecycle,
-    FormOnboardingController? formController,
-    BiographyGenerationUseCase? biographyUseCase,
-  }) : _lifecycleController = onboardingLifecycle,
-       _formController = formController,
-       _biographyUseCase = biographyUseCase ?? BiographyGenerationUseCase();
-
   // Getters
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -33,14 +32,14 @@ class OnboardingScreenController extends ChangeNotifier {
   FormOnboardingController? get formController => _formController;
 
   // UI State Management
-  void setLoading(bool loading) {
+  void setLoading(final bool loading) {
     if (_isLoading != loading) {
       _isLoading = loading;
       notifyListeners();
     }
   }
 
-  void setError(String? error) {
+  void setError(final String? error) {
     if (_errorMessage != error) {
       _errorMessage = error;
       notifyListeners();
@@ -51,8 +50,8 @@ class OnboardingScreenController extends ChangeNotifier {
 
   /// Common helper for operations that need loading state and error handling
   Future<T> _executeWithLoadingState<T>(
-    Future<T> Function() operation, {
-    String? errorPrefix,
+    final Future<T> Function() operation, {
+    final String? errorPrefix,
   }) async {
     try {
       setLoading(true);
@@ -67,7 +66,7 @@ class OnboardingScreenController extends ChangeNotifier {
     }
   }
 
-  void setCurrentStep(OnboardingStep step) {
+  void setCurrentStep(final OnboardingStep step) {
     if (_currentStep != step) {
       _currentStep = step;
       notifyListeners();
@@ -127,14 +126,14 @@ class OnboardingScreenController extends ChangeNotifier {
 
   // Profile Generation
   Future<void> generateBiography({
-    required BuildContext context,
-    required String userName,
-    required String aiName,
-    required DateTime? userBirthdate,
-    required String meetStory,
-    String? userCountryCode,
-    String? aiCountryCode,
-    void Function(BiographyGenerationStep)? onProgress,
+    required final BuildContext context,
+    required final String userName,
+    required final String aiName,
+    required final DateTime? userBirthdate,
+    required final String meetStory,
+    final String? userCountryCode,
+    final String? aiCountryCode,
+    final void Function(BiographyGenerationStep)? onProgress,
   }) async {
     await _executeWithLoadingState(() async {
       // Use the BiographyGenerationUseCase for clean separation
@@ -150,7 +149,7 @@ class OnboardingScreenController extends ChangeNotifier {
     }, errorPrefix: 'Error generating biography');
   }
 
-  Future<void> suggestMeetStory(BuildContext context) async {
+  Future<void> suggestMeetStory(final BuildContext context) async {
     await _executeWithLoadingState(() async {
       if (_formController != null) {
         await _formController.suggestStory(context);
@@ -158,7 +157,7 @@ class OnboardingScreenController extends ChangeNotifier {
     }, errorPrefix: 'Error generating story');
   }
 
-  Future<void> pickBirthDate(BuildContext context) async {
+  Future<void> pickBirthDate(final BuildContext context) async {
     try {
       clearError();
       // Show date picker here and delegate resulting date into the form controller
@@ -169,7 +168,7 @@ class OnboardingScreenController extends ChangeNotifier {
         firstDate: DateTime(1950),
         lastDate: now,
         locale: const Locale('es'),
-        builder: (context, child) => Theme(
+        builder: (final context, final child) => Theme(
           data: ThemeData.dark().copyWith(
             colorScheme: const ColorScheme.dark(
               primary: Colors.pinkAccent,
@@ -193,12 +192,12 @@ class OnboardingScreenController extends ChangeNotifier {
   bool get hasFormController => _formController != null;
 
   Future<bool> processFormData({
-    required String userName,
-    required String aiName,
-    required String birthDateText,
-    required String meetStory,
-    String? userCountryCode,
-    String? aiCountryCode,
+    required final String userName,
+    required final String aiName,
+    required final String birthDateText,
+    required final String meetStory,
+    final String? userCountryCode,
+    final String? aiCountryCode,
   }) async {
     if (_formController == null) return false;
 

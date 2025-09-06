@@ -5,14 +5,13 @@ import 'package:ai_chan/call/domain/interfaces/call_interfaces.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 
 class StartCallUseCase {
+  StartCallUseCase(this._callManager);
   final ICallManager _callManager;
 
-  StartCallUseCase(this._callManager);
-
   Future<void> execute({
-    required bool isIncoming,
-    required VoidCallback onCallStarted,
-    required Function(CallEndReason) onCallEnded,
+    required final bool isIncoming,
+    required final VoidCallback onCallStarted,
+    required final Function(CallEndReason) onCallEnded,
   }) async {
     try {
       Log.d(
@@ -21,7 +20,7 @@ class StartCallUseCase {
       );
 
       // Escuchar cambios de estado
-      _callManager.callStateStream.listen((isActive) {
+      _callManager.callStateStream.listen((final isActive) {
         if (isActive) {
           onCallStarted();
         } else {

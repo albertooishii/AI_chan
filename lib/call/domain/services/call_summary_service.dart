@@ -3,12 +3,13 @@ import 'package:ai_chan/shared/services/ai_service.dart';
 
 /// Servicio para generar resúmenes de llamadas de voz
 class CallSummaryService {
+  CallSummaryService({required this.profile});
   final AiChanProfile profile;
 
-  CallSummaryService({required this.profile});
-
   /// Genera un resumen de texto simple para llamadas de voz
-  Future<String> summarizeCall(List<Map<String, dynamic>> voiceMessages) async {
+  Future<String> summarizeCall(
+    final List<Map<String, dynamic>> voiceMessages,
+  ) async {
     if (voiceMessages.isEmpty) return '';
 
     try {
@@ -95,7 +96,9 @@ FORMATO DE SALIDA:
         'funciona',
       ];
       final hasOnlyBasicContent =
-          basicPhrases.any((phrase) => combinedContent.contains(phrase)) &&
+          basicPhrases.any(
+            (final phrase) => combinedContent.contains(phrase),
+          ) &&
           combinedContent.length < 50;
 
       if (hasOnlyBasicContent) {
@@ -116,12 +119,12 @@ FORMATO DE SALIDA:
   }
 
   /// Genera un resumen de texto natural usando el método dedicado
-  Future<String> generateSummaryText(VoiceCallSummary callSummary) async {
+  Future<String> generateSummaryText(final VoiceCallSummary callSummary) async {
     if (callSummary.messages.isEmpty) return '';
 
     try {
       // Convertir CallMessage a formato compatible
-      final voiceMessages = callSummary.messages.map((voiceMsg) {
+      final voiceMessages = callSummary.messages.map((final voiceMsg) {
         final role = voiceMsg.isUser ? 'user' : 'assistant';
         return {
           'role': role,
@@ -142,16 +145,20 @@ FORMATO DE SALIDA:
       return '[call]$summary[/call]';
     } catch (e) {
       // Fallback más inteligente - también puede devolver cadena vacía
-      final userMessages = callSummary.messages.where((m) => m.isUser).toList();
-      final aiMessages = callSummary.messages.where((m) => !m.isUser).toList();
+      final userMessages = callSummary.messages
+          .where((final m) => m.isUser)
+          .toList();
+      final aiMessages = callSummary.messages
+          .where((final m) => !m.isUser)
+          .toList();
 
       final userTexts = userMessages
-          .map((m) => m.text.trim())
-          .where((t) => t.isNotEmpty)
+          .map((final m) => m.text.trim())
+          .where((final t) => t.isNotEmpty)
           .join(' ');
       final aiTexts = aiMessages
-          .map((m) => m.text.trim())
-          .where((t) => t.isNotEmpty)
+          .map((final m) => m.text.trim())
+          .where((final t) => t.isNotEmpty)
           .join(' ');
 
       // Si no hay suficiente contenido, no guardar

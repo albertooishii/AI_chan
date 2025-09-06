@@ -5,13 +5,12 @@ import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro
 
 class EndCallUseCase {
+  EndCallUseCase(this._callManager);
   final ICallManager _callManager;
 
-  EndCallUseCase(this._callManager);
-
   Future<void> execute({
-    required ChatController chatController, // ✅ DDD: ETAPA 3 - DDD puro
-    required VoiceCallState callState,
+    required final ChatController chatController, // ✅ DDD: ETAPA 3 - DDD puro
+    required final VoiceCallState callState,
   }) async {
     try {
       Log.d('🔚 EndCallUseCase: Finalizando llamada', tag: 'END_CALL_USE_CASE');
@@ -36,8 +35,8 @@ class EndCallUseCase {
   }
 
   Future<void> _updateChatController({
-    required ChatController chatController, // ✅ DDD: ETAPA 3
-    required VoiceCallState callState,
+    required final ChatController chatController, // ✅ DDD: ETAPA 3
+    required final VoiceCallState callState,
   }) async {
     // ✅ DDD: ETAPA 3 - usar ChatController directo
     try {
@@ -73,8 +72,8 @@ class EndCallUseCase {
   }
 
   Future<void> _handleRejectedCall({
-    required ChatController chatController, // ✅ DDD: ETAPA 3
-    required VoiceCallState callState,
+    required final ChatController chatController, // ✅ DDD: ETAPA 3
+    required final VoiceCallState callState,
   }) async {
     // ✅ DDD: ETAPA 3 - usar ChatController directo
     final rejectionText = _getRejectionText(callState.endReason);
@@ -82,8 +81,8 @@ class EndCallUseCase {
   }
 
   Future<void> _handleMissedCall({
-    required ChatController chatController,
-    required VoiceCallState callState,
+    required final ChatController chatController,
+    required final VoiceCallState callState,
   }) async {
     // ✅ DDD: ETAPA 3
     // ✅ DDD: ETAPA 3 - usar ChatController directo
@@ -93,8 +92,8 @@ class EndCallUseCase {
   }
 
   Future<void> _handleCompletedCall({
-    required ChatController chatController, // ✅ DDD: ETAPA 3
-    required VoiceCallState callState,
+    required final ChatController chatController, // ✅ DDD: ETAPA 3
+    required final VoiceCallState callState,
   }) async {
     // ✅ DDD: Type safety en ETAPA 2
     // Para llamadas completadas, generar resumen si hay contenido
@@ -107,7 +106,7 @@ class EndCallUseCase {
     }
   }
 
-  String _getRejectionText(CallEndReason? reason) {
+  String _getRejectionText(final CallEndReason? reason) {
     switch (reason) {
       case CallEndReason.timeout:
         return 'Llamada no contestada (timeout)';

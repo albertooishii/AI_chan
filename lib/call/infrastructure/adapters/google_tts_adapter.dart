@@ -17,8 +17,8 @@ class GoogleTtsAdapter implements ITtsService {
 
   @override
   Future<String?> synthesizeToFile({
-    required String text,
-    Map<String, dynamic>? options,
+    required final String text,
+    final Map<String, dynamic>? options,
   }) async {
     try {
       final languageCode = options?['languageCode'] as String? ?? 'es-ES';

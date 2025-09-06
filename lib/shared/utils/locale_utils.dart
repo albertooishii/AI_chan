@@ -2,15 +2,18 @@ import 'package:ai_chan/shared/constants/countries_es.dart';
 
 class LocaleUtils {
   // Nombre del país en español (simplificado)
-  static String countryNameEs(String? iso2, {String fallback = 'tu país'}) {
+  static String countryNameEs(
+    final String? iso2, {
+    final String fallback = 'tu país',
+  }) {
     if (iso2 == null || iso2.trim().isEmpty) return fallback;
     return CountriesEs.codeToName[iso2.toUpperCase()] ?? fallback;
   }
 
   // Idioma principal del país (en español)
   static String languageNameEsForCountry(
-    String? iso2, {
-    String fallback = 'Español',
+    final String? iso2, {
+    final String fallback = 'Español',
   }) {
     if (iso2 == null || iso2.trim().isEmpty) return fallback;
     switch (iso2.toUpperCase()) {
@@ -230,8 +233,8 @@ class LocaleUtils {
 
   // Construye una lista de idiomas razonable para la IA según su país y el del usuario
   static String languagesListForPair({
-    String? aiCountryCode,
-    String? userCountryCode,
+    final String? aiCountryCode,
+    final String? userCountryCode,
   }) {
     final Set<String> langs = {};
     final aiLang = languageNameEsForCountry(aiCountryCode);
@@ -244,7 +247,7 @@ class LocaleUtils {
   }
 
   // Convierte un código ISO2 en emoji de bandera (usa indicadores regionales Unicode)
-  static String flagEmojiForCountry(String? iso2) {
+  static String flagEmojiForCountry(final String? iso2) {
     if (iso2 == null || iso2.length != 2) return '';
     final code = iso2.toUpperCase();
     final int base = 0x1F1E6; // Regional Indicator Symbol Letter A
@@ -274,7 +277,7 @@ class LocaleUtils {
   // Los códigos intentan usar la forma 'll-CC' (por ejemplo 'es-ES', 'ja-JP') cuando es posible.
   // Si no se conoce una correspondencia específica, devuelve una lista vacía.
   // Esta función está pensada para pasar a servicios TTS que aceptan tanto 'ja' como 'ja-JP'.
-  static List<String> officialLanguageCodesForCountry(String? iso2) {
+  static List<String> officialLanguageCodesForCountry(final String? iso2) {
     if (iso2 == null || iso2.trim().isEmpty) return <String>[];
     switch (iso2.toUpperCase()) {
       // Europa occidental y central

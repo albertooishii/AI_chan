@@ -16,6 +16,15 @@ import 'package:ai_chan/shared/utils/dialog_utils.dart';
 
 /// Dialog minimalista: flujo único "Vincular → Detectar backup → Restaurar".
 class GoogleDriveBackupDialog extends StatefulWidget {
+  const GoogleDriveBackupDialog({
+    super.key,
+    this.clientId = 'YOUR_GOOGLE_CLIENT_ID',
+    this.requestBackupJson,
+    this.onImportedJson,
+    this.onAccountInfoUpdated,
+    this.onClearAccountInfo,
+    this.disableAutoRestore = false,
+  });
   final String clientId;
   final Future<String?> Function()? requestBackupJson;
   final Future<void> Function(String json)? onImportedJson;
@@ -29,16 +38,6 @@ class GoogleDriveBackupDialog extends StatefulWidget {
   onAccountInfoUpdated;
   final VoidCallback? onClearAccountInfo;
   final bool disableAutoRestore;
-
-  const GoogleDriveBackupDialog({
-    super.key,
-    this.clientId = 'YOUR_GOOGLE_CLIENT_ID',
-    this.requestBackupJson,
-    this.onImportedJson,
-    this.onAccountInfoUpdated,
-    this.onClearAccountInfo,
-    this.disableAutoRestore = false,
-  });
 
   @override
   State<GoogleDriveBackupDialog> createState() =>
@@ -65,7 +64,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
   bool _showBackupInfo = false;
 
   // Helper functions for consistent backup metadata handling
-  String _formatBackupTimestamp(String? isoDateString) {
+  String _formatBackupTimestamp(final String? isoDateString) {
     if (isoDateString == null ||
         isoDateString.isEmpty ||
         isoDateString == 'unknown') {
@@ -87,7 +86,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
     }
   }
 
-  String _formatBackupSummary(Map<String, dynamic> backup) {
+  String _formatBackupSummary(final Map<String, dynamic> backup) {
     String human = '';
     try {
       final sizeStr = backup['size']?.toString();
@@ -273,12 +272,12 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
     }
   }
 
-  void _safeSetState(VoidCallback fn) {
+  void _safeSetState(final VoidCallback fn) {
     if (!mounted) return;
     setState(fn);
   }
 
-  void _updateStatus(String msg) {
+  void _updateStatus(final String msg) {
     // Always log for diagnostics
     Log.d('GoogleDriveBackupDialog: status=$msg', tag: 'GoogleBackup');
     // Only update visible dialog state when the account is linked.
@@ -288,7 +287,10 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
     });
   }
 
-  void _setWorkingState(String message, {bool showProgress = false}) {
+  void _setWorkingState(
+    final String message, {
+    final bool showProgress = false,
+  }) {
     _safeSetState(() {
       _working = true;
       _workingMessage = message;
@@ -313,14 +315,14 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
 
   /// Construye un AnimatedSwitcher con transiciones suaves reutilizable
   Widget _buildAnimatedTransition({
-    required Widget? child,
-    required Duration duration,
-    Offset slideBegin = const Offset(0.0, -0.3),
-    Curve curve = Curves.easeOutCubic,
+    required final Widget? child,
+    required final Duration duration,
+    final Offset slideBegin = const Offset(0.0, -0.3),
+    final Curve curve = Curves.easeOutCubic,
   }) {
     return AnimatedSwitcher(
       duration: duration,
-      transitionBuilder: (child, animation) {
+      transitionBuilder: (final child, final animation) {
         return FadeTransition(
           opacity: animation,
           child: SlideTransition(
@@ -336,7 +338,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
     );
   }
 
-  Future<String> _resolveClientId(String rawCid) async =>
+  Future<String> _resolveClientId(final String rawCid) async =>
       await GoogleBackupService.resolveClientId(rawCid);
   Future<String?> _resolveClientSecret() async =>
       await GoogleBackupService.resolveClientSecret();
@@ -397,7 +399,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         return;
       }
 
-      files.sort((a, b) {
+      files.sort((final a, final b) {
         final ta = a['modifiedTime'] as String? ?? '';
         final tb = b['modifiedTime'] as String? ?? '';
         return tb.compareTo(ta);
@@ -494,8 +496,8 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
   }
 
   Future<void> _fetchAccountInfo(
-    String? accessToken, {
-    bool attemptRefresh = false,
+    final String? accessToken, {
+    final bool attemptRefresh = false,
   }) async {
     if (accessToken == null) return;
     try {
@@ -740,7 +742,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     final linked = _service != null;
     final isAndroid = !kIsWeb && Platform.isAndroid;
     final isDesktop =
@@ -761,7 +763,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
     // based on the current screen width and a small horizontal margin so
     // the dialog doesn't appear excessively narrow on mobile devices.
     return Builder(
-      builder: (ctx) {
+      builder: (final ctx) {
         final screenSize = MediaQuery.of(ctx).size;
         final screenW = screenSize.width;
         final screenH = screenSize.height;
@@ -1148,13 +1150,13 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                   // Use a Wrap so buttons try to stay in one line and wrap to the
                   // next line automatically when they don't fit.
                   LayoutBuilder(
-                    builder: (ctx, constraints) {
+                    builder: (final ctx, final constraints) {
                       final unlinkButton = OutlinedButton.icon(
                         onPressed: _working
                             ? null
                             : () async {
                                 final confirm = await showAppDialog<bool>(
-                                  builder: (ctx) => AlertDialog(
+                                  builder: (final ctx) => AlertDialog(
                                     backgroundColor: Colors.black,
                                     title: const Text(
                                       'DISCONNECT_INTERFACE',
@@ -1293,7 +1295,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                             ? null
                             : () async {
                                 final confirm = await showAppDialog<bool>(
-                                  builder: (ctx) => AlertDialog(
+                                  builder: (final ctx) => AlertDialog(
                                     backgroundColor: Colors.black,
                                     title: const Text(
                                       'DELETE_ARCHIVE',
@@ -1365,7 +1367,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
 
                       // Layout inteligente y responsivo de botones
                       return LayoutBuilder(
-                        builder: (context, constraints) {
+                        builder: (final context, final constraints) {
                           final availableWidth = constraints.maxWidth;
 
                           // Crear lista de botones principales (sin desvincular)

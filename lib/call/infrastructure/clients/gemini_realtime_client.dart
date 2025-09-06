@@ -11,30 +11,30 @@ class GeminiRealtimeClient implements IRealtimeClient {
 
   @override
   Future<void> connect({
-    required String systemPrompt,
-    String voice = 'default',
-    String? inputAudioFormat,
-    String? outputAudioFormat,
-    String? turnDetectionType,
-    int? silenceDurationMs,
-    Map<String, dynamic>? options,
+    required final String systemPrompt,
+    final String voice = 'default',
+    final String? inputAudioFormat,
+    final String? outputAudioFormat,
+    final String? turnDetectionType,
+    final int? silenceDurationMs,
+    final Map<String, dynamic>? options,
   }) async {
     // Simulate connect logic (replace with real transport wiring later)
     _connected = true;
   }
 
   @override
-  void updateVoice(String voice) {
+  void updateVoice(final String voice) {
     // No-op for skeleton
   }
 
   @override
-  void appendAudio(List<int> bytes) {
+  void appendAudio(final List<int> bytes) {
     // No-op for skeleton
   }
 
   @override
-  void requestResponse({bool audio = true, bool text = true}) {
+  void requestResponse({final bool audio = true, final bool text = true}) {
     // No-op for skeleton
   }
 
@@ -44,7 +44,7 @@ class GeminiRealtimeClient implements IRealtimeClient {
   }
 
   @override
-  void sendText(String text) {
+  void sendText(final String text) {
     // No-op
   }
 
@@ -56,28 +56,28 @@ class GeminiRealtimeClient implements IRealtimeClient {
   // Implementaciones por defecto de los nuevos métodos (no soportados en Gemini)
   @override
   void sendImageWithText({
-    required String imageBase64,
-    String? text,
-    String imageFormat = 'png',
+    required final String imageBase64,
+    final String? text,
+    final String imageFormat = 'png',
   }) {
     // No-op - funcionalidad específica de OpenAI gpt-realtime
   }
 
   @override
-  void configureTools(List<Map<String, dynamic>> tools) {
+  void configureTools(final List<Map<String, dynamic>> tools) {
     // No-op - funcionalidad específica de OpenAI gpt-realtime
   }
 
   @override
   void sendFunctionCallOutput({
-    required String callId,
-    required String output,
+    required final String callId,
+    required final String output,
   }) {
     // No-op - funcionalidad específica de OpenAI gpt-realtime
   }
 
   @override
-  void cancelResponse({String? itemId, int? sampleCount}) {
+  void cancelResponse({final String? itemId, final int? sampleCount}) {
     // No-op - funcionalidad específica de OpenAI gpt-realtime
   }
 }

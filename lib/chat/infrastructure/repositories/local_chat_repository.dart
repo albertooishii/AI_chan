@@ -4,6 +4,7 @@ import 'package:ai_chan/chat/domain/interfaces/i_chat_repository.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/storage_utils.dart';
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
+import 'package:ai_chan/shared/utils/log_utils.dart';
 // shared_preferences usage centralized via PrefsUtils
 
 /// Implementación única y consolidada de IChatRepository.
@@ -33,7 +34,7 @@ class LocalChatRepository implements IChatRepository {
         final List<dynamic> messages = jsonString != null
             ? jsonDecode(jsonString) as List<dynamic>
             : <dynamic>[];
-        // Normalizar la salida para que sea compatible con ImportedChat.fromJson:
+        // Normalizar la salida para que sea compatible con ChatExport.fromJson:
         // devolver un mapa con los campos del perfil en el nivel superior y las claves 'messages' y 'events'.
         final Map<String, dynamic> out = Map<String, dynamic>.from(profileMap);
         out['messages'] = messages;
@@ -50,13 +51,29 @@ class LocalChatRepository implements IChatRepository {
   }
 
   @override
-  Future<void> saveAll(Map<String, dynamic> exportedJson) async {
-    // Prefer to save using StorageUtils if we can map to ImportedChat
+  Future<void> saveAll(final Map<String, dynamic> exportedJson) async {
+    // Prefer to save using StorageUtils if we can map to ChatExport
     try {
-      final imported = ImportedChat.fromJson(exportedJson);
-      await StorageUtils.saveImportedChatToPrefs(imported);
+      final exported = ChatExport.fromJson(exportedJson);
+      await StorageUtils.saveChatExportToPrefs(exported);
+      // DEBUG: Add logging to track what was actually saved
+      if (exported.profile.aiName.isNotEmpty) {
+        Log.d(
+          'LocalChatRepository: Successfully saved profile with aiName=${exported.profile.aiName}',
+          tag: 'PERSIST',
+        );
+      } else {
+        Log.w(
+          'LocalChatRepository: Warning - saved profile has empty aiName',
+          tag: 'PERSIST',
+        );
+      }
       return;
-    } catch (_) {
+    } catch (e) {
+      Log.w(
+        'LocalChatRepository: Failed to convert to ChatExport: $e, falling back to raw save',
+        tag: 'PERSIST',
+      );
       // ignore and fallthrough to raw save
     }
 
@@ -86,7 +103,9 @@ class LocalChatRepository implements IChatRepository {
   }
 
   @override
-  Future<String> exportAllToJson(Map<String, dynamic> exportedJson) async {
+  Future<String> exportAllToJson(
+    final Map<String, dynamic> exportedJson,
+  ) async {
     // Format the JSON with indentation for better readability
     const encoder = JsonEncoder.withIndent('  ');
     final encoded = encoder.convert(exportedJson);
@@ -96,7 +115,7 @@ class LocalChatRepository implements IChatRepository {
   }
 
   @override
-  Future<Map<String, dynamic>?> importAllFromJson(String jsonStr) async {
+  Future<Map<String, dynamic>?> importAllFromJson(final String jsonStr) async {
     try {
       final parsed = json.decode(jsonStr) as Map<String, dynamic>;
       await saveAll(parsed);

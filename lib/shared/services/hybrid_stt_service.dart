@@ -11,6 +11,7 @@ import 'package:http/http.dart' as http;
 /// - OpenAI STT en desktop (mejor calidad, más consistente)
 /// - STT nativo en Android/iOS (mejor integración, sin latencia de red)
 class HybridSttService {
+  HybridSttService();
   // STT nativo (Android/iOS)
   late final stt.SpeechToText _nativeStt;
 
@@ -28,8 +29,6 @@ class HybridSttService {
   void Function(String status)? _onStatus;
   void Function(String error)? _onError;
 
-  HybridSttService();
-
   /// Detecta si debe usar OpenAI STT o STT nativo
   bool get _shouldUseOpenAI {
     if (kIsWeb) return false; // Web usa nativo
@@ -39,8 +38,8 @@ class HybridSttService {
 
   /// Inicializa el servicio STT apropiado para la plataforma
   Future<bool> initialize({
-    void Function(String status)? onStatus,
-    void Function(String error)? onError,
+    final void Function(String status)? onStatus,
+    final void Function(String error)? onError,
   }) async {
     _onStatus = onStatus;
     _onError = onError;
@@ -68,7 +67,7 @@ class HybridSttService {
         _isInitialized = await _nativeStt.initialize(
           onStatus: onStatus,
           onError: onError != null
-              ? (errorNotification) {
+              ? (final errorNotification) {
                   onError(errorNotification.errorMsg);
                 }
               : null,
@@ -90,12 +89,12 @@ class HybridSttService {
 
   /// Inicia la escucha usando el método apropiado
   Future<void> listen({
-    required void Function(String text) onResult,
-    String localeId = 'es-ES',
-    Duration timeout = const Duration(
+    required final void Function(String text) onResult,
+    final String localeId = 'es-ES',
+    final Duration timeout = const Duration(
       seconds: 60, // 🎯 Timeout más generoso para historias largas
     ),
-    String?
+    final String?
     contextPrompt, // Contexto opcional para mejorar precisión en OpenAI STT
   }) async {
     if (!_isInitialized || _isListening) return;
@@ -135,9 +134,9 @@ class HybridSttService {
 
   /// Implementación de STT usando OpenAI para desktop
   Future<void> _startOpenAIListening({
-    required String localeId,
-    required Duration timeout,
-    String? contextPrompt,
+    required final String localeId,
+    required final Duration timeout,
+    final String? contextPrompt,
   }) async {
     // Contexto temporalmente deshabilitado para evitar prompt leakage
     try {
@@ -226,7 +225,7 @@ class HybridSttService {
   }
 
   /// Transcribe audio usando OpenAI Whisper API
-  Future<String> _transcribeWithOpenAI(String audioPath) async {
+  Future<String> _transcribeWithOpenAI(final String audioPath) async {
     try {
       final file = File(audioPath);
       final audioBytes = await file.readAsBytes();
@@ -285,11 +284,11 @@ class HybridSttService {
 
   /// Implementación usando STT nativo para móvil
   Future<void> _startNativeListening({
-    required String localeId,
-    required Duration timeout,
+    required final String localeId,
+    required final Duration timeout,
   }) async {
     await _nativeStt.listen(
-      onResult: (result) {
+      onResult: (final result) {
         if (result.finalResult && result.recognizedWords.isNotEmpty) {
           Log.d('✅ STT nativo: "${result.recognizedWords}"', tag: 'HYBRID_STT');
           _onResult?.call(result.recognizedWords);

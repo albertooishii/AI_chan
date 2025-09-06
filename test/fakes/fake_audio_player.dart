@@ -13,7 +13,7 @@ class FakeAudioPlayer implements AudioPlayback {
   Stream<Duration> get onPositionChanged => _positionController.stream;
 
   @override
-  Future<void> play(dynamic source) async {
+  Future<void> play(final dynamic source) async {
     // simulate short playback then complete
     // Optionally emit a duration and a position progression for consumers
     Future.delayed(const Duration(milliseconds: 5), () {
@@ -42,5 +42,5 @@ class FakeAudioPlayer implements AudioPlayback {
   }
 
   @override
-  Future<void> setReleaseMode(dynamic mode) async {}
+  Future<void> setReleaseMode(final dynamic mode) async {}
 }

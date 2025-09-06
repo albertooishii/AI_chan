@@ -4,23 +4,11 @@ import 'dart:async';
 /// Recibe timeline opcional de palabras (startMs/endMs). Si no hay timeline
 /// se puede usar revelado proporcional o texto completo instantáneo.
 class AudioSubtitleController {
-  final _positionStreamCtrl = StreamController<Duration>.broadcast();
-  final _manualTextCtrl = StreamController<String>.broadcast();
-  List<WordSubtitleUnit> _timeline = [];
-  Duration _audioTotal = Duration.zero;
-  bool _disposed = false;
-  bool _manualMode = false; // si se empuja texto manual/proporcional
-
-  StreamSink<Duration> get _positionIn => _positionStreamCtrl.sink;
-  Stream<Duration> get _positionStream => _positionStreamCtrl.stream;
-
-  late final Stream<String> progressiveTextStream;
-
   AudioSubtitleController() {
-    progressiveTextStream = Stream.multi((emitter) async {
+    progressiveTextStream = Stream.multi((final emitter) async {
       String last = '';
       final subs = <StreamSubscription>[];
-      void emitIfChanged(String v) {
+      void emitIfChanged(final String v) {
         if (v != last) {
           last = v;
           emitter.add(v);
@@ -28,7 +16,7 @@ class AudioSubtitleController {
       }
 
       subs.add(
-        _positionStream.listen((pos) {
+        _positionStream.listen((final pos) {
           if (_manualMode) return;
           if (_timeline.isEmpty || _audioTotal.inMilliseconds <= 0) return;
           final ms = pos.inMilliseconds;
@@ -45,7 +33,7 @@ class AudioSubtitleController {
         }),
       );
       subs.add(
-        _manualTextCtrl.stream.listen((txt) {
+        _manualTextCtrl.stream.listen((final txt) {
           _manualMode = true;
           emitIfChanged(txt);
         }),
@@ -59,28 +47,44 @@ class AudioSubtitleController {
       };
     });
   }
+  final _positionStreamCtrl = StreamController<Duration>.broadcast();
+  final _manualTextCtrl = StreamController<String>.broadcast();
+  List<WordSubtitleUnit> _timeline = [];
+  Duration _audioTotal = Duration.zero;
+  bool _disposed = false;
+  bool _manualMode = false; // si se empuja texto manual/proporcional
+
+  StreamSink<Duration> get _positionIn => _positionStreamCtrl.sink;
+  Stream<Duration> get _positionStream => _positionStreamCtrl.stream;
+
+  late final Stream<String> progressiveTextStream;
 
   void setTimeline(
-    List<WordSubtitleUnit> units, {
-    required Duration audioTotal,
+    final List<WordSubtitleUnit> units, {
+    required final Duration audioTotal,
   }) {
     _manualMode = false;
-    _timeline = List.of(units)..sort((a, b) => a.startMs.compareTo(b.startMs));
+    _timeline = List.of(units)
+      ..sort((final a, final b) => a.startMs.compareTo(b.startMs));
     _audioTotal = audioTotal;
   }
 
-  void updatePosition(Duration position) {
+  void updatePosition(final Duration position) {
     if (_disposed) return;
     _positionIn.add(position);
   }
 
-  void showFullTextInstant(String text) {
+  void showFullTextInstant(final String text) {
     if (_disposed) return;
     _manualMode = true;
     _manualTextCtrl.add(text);
   }
 
-  void updateProportional(Duration position, String fullText, Duration total) {
+  void updateProportional(
+    final Duration position,
+    final String fullText,
+    final Duration total,
+  ) {
     if (_disposed) return;
     if (fullText.isEmpty || total.inMilliseconds == 0) {
       showFullTextInstant(fullText);
@@ -122,21 +126,21 @@ class AudioSubtitleController {
 }
 
 class WordSubtitleUnit {
-  final String text;
-  final int startMs;
-  final int endMs;
-  final bool appendSpace;
   const WordSubtitleUnit({
     required this.text,
     required this.startMs,
     required this.endMs,
     this.appendSpace = true,
   });
+  final String text;
+  final int startMs;
+  final int endMs;
+  final bool appendSpace;
 }
 
 List<WordSubtitleUnit> buildWordTimeline({
-  required String text,
-  required Duration total,
+  required final String text,
+  required final Duration total,
 }) {
   if (text.trim().isEmpty || total.inMilliseconds <= 0) return const [];
   final words = text.trim().split(RegExp(r'\s+'));

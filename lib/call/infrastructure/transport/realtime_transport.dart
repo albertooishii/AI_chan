@@ -8,16 +8,16 @@ abstract class RealtimeTransport {
   bool get isConnected;
 
   /// Connect to provider; options are provider-specific.
-  Future<void> connect({required Map<String, dynamic> options});
+  Future<void> connect({required final Map<String, dynamic> options});
 
   /// Disconnect and cleanup.
   Future<void> disconnect();
 
   /// Send a JSON-like event to the transport (will be encoded as needed).
-  void sendEvent(Map<String, dynamic> event);
+  void sendEvent(final Map<String, dynamic> event);
 
   /// Append raw audio bytes (binary) to the transport.
-  void appendAudio(Uint8List bytes);
+  void appendAudio(final Uint8List bytes);
 
   /// Force commit (flush) of pending audio buffer.
   Future<void> commitAudio();

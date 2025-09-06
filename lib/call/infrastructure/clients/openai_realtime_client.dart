@@ -8,6 +8,19 @@ import '../../../core/interfaces/i_realtime_client.dart';
 import '../transport/openai_transport.dart';
 
 class OpenAIRealtimeClient implements IRealtimeClient {
+  OpenAIRealtimeClient({
+    final String? model,
+    this.onText,
+    this.onAudio,
+    this.onCompleted,
+    this.onError,
+    this.onUserTranscription,
+  }) : model = model ?? Config.requireOpenAIRealtimeModel() {
+    _transport = OpenAITransport(model: model);
+    _transport.onMessage = _onTransportMessage;
+    _transport.onError = (final e) => onError?.call(e);
+    _transport.onDone = () => onCompleted?.call();
+  }
   final String model;
   final void Function(String textDelta)? onText;
   final void Function(Uint8List audioChunk)? onAudio;
@@ -17,20 +30,6 @@ class OpenAIRealtimeClient implements IRealtimeClient {
 
   late final OpenAITransport _transport;
   Completer<void>? _sessionReadyCompleter;
-
-  OpenAIRealtimeClient({
-    String? model,
-    this.onText,
-    this.onAudio,
-    this.onCompleted,
-    this.onError,
-    this.onUserTranscription,
-  }) : model = model ?? Config.requireOpenAIRealtimeModel() {
-    _transport = OpenAITransport(model: model);
-    _transport.onMessage = _onTransportMessage;
-    _transport.onError = (e) => onError?.call(e);
-    _transport.onDone = () => onCompleted?.call();
-  }
   // Nota: OpenAI realtime debe usar el OPENAI_REALTIME_MODEL configurado; fallar si no está presente.
 
   String get _apiKey => Config.getOpenAIKey();
@@ -48,13 +47,13 @@ class OpenAIRealtimeClient implements IRealtimeClient {
 
   @override
   Future<void> connect({
-    required String systemPrompt,
+    required final String systemPrompt,
     String? inputAudioFormat,
     String? outputAudioFormat,
-    String voice = 'marin', // el controlador ya normaliza antes de llamar
+    final String voice = 'marin', // el controlador ya normaliza antes de llamar
     String? turnDetectionType,
     int? silenceDurationMs,
-    Map<String, dynamic>? options,
+    final Map<String, dynamic>? options,
   }) async {
     // Provide defaults for compatibility
     inputAudioFormat ??= 'pcm16';
@@ -89,7 +88,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
     // No esperar session.updated en versión simple
   }
 
-  void _onTransportMessage(Object message) {
+  void _onTransportMessage(final Object message) {
     try {
       if (message is Map) {
         _processEvent(message);
@@ -104,7 +103,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
     }
   }
 
-  void _processEvent(Map evt) {
+  void _processEvent(final Map evt) {
     final type = (evt['type'] ?? '').toString();
     bool handledAudio = false;
     bool handledText = false;
@@ -435,7 +434,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
 
   // Actualiza la voz de la sesión en caliente
   @override
-  void updateVoice(String voice) {
+  void updateVoice(final String voice) {
     if (!isConnected) return;
     _send({
       'type': 'session.update',
@@ -444,7 +443,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
   }
 
   @override
-  void sendText(String text) {
+  void sendText(final String text) {
     if (!isConnected) return;
     _send({
       'type': 'conversation.item.create',
@@ -461,9 +460,9 @@ class OpenAIRealtimeClient implements IRealtimeClient {
   /// Envía una imagen junto con texto opcional (nueva funcionalidad gpt-realtime)
   @override
   void sendImageWithText({
-    required String imageBase64,
-    String? text,
-    String imageFormat = 'png',
+    required final String imageBase64,
+    final String? text,
+    final String imageFormat = 'png',
   }) {
     if (!isConnected) return;
 
@@ -494,7 +493,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
 
   /// Configura herramientas/funciones para el modelo (nueva funcionalidad mejorada)
   @override
-  void configureTools(List<Map<String, dynamic>> tools) {
+  void configureTools(final List<Map<String, dynamic>> tools) {
     if (!isConnected) return;
 
     _send({
@@ -510,8 +509,8 @@ class OpenAIRealtimeClient implements IRealtimeClient {
   /// Responde a una llamada de función (function calling mejorado en gpt-realtime)
   @override
   void sendFunctionCallOutput({
-    required String callId,
-    required String output,
+    required final String callId,
+    required final String output,
   }) {
     if (!isConnected) return;
 
@@ -530,7 +529,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
   }
 
   @override
-  void appendAudio(List<int> bytes) {
+  void appendAudio(final List<int> bytes) {
     if (!isConnected) return;
     _send({'type': 'input_audio_buffer.append', 'audio': base64Encode(bytes)});
     _bytesSinceCommit += bytes.length;
@@ -607,12 +606,12 @@ class OpenAIRealtimeClient implements IRealtimeClient {
   }
 
   // Exponer si hay audio suficiente pendiente para commit
-  bool hasPendingAudio({int minBytes = 3200}) {
+  bool hasPendingAudio({final int minBytes = 3200}) {
     return _bytesSinceCommit >= minBytes;
   }
 
   @override
-  void requestResponse({bool audio = true, bool text = true}) {
+  void requestResponse({final bool audio = true, final bool text = true}) {
     if (!isConnected) return;
     if (_hasActiveResponse) {
       if (kDebugMode) {
@@ -664,7 +663,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
 
   /// Cancela la respuesta actual con mejor control para gpt-realtime
   @override
-  void cancelResponse({String? itemId, int? sampleCount}) {
+  void cancelResponse({final String? itemId, final int? sampleCount}) {
     if (!isConnected) return;
 
     final cancelEvent = <String, dynamic>{'type': 'response.cancel'};
@@ -702,7 +701,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
     }
   }
 
-  void _send(Map<String, dynamic> event) {
+  void _send(final Map<String, dynamic> event) {
     if (!isConnected) return;
     if (kDebugMode) {
       final t = event['type'];
@@ -716,11 +715,11 @@ class OpenAIRealtimeClient implements IRealtimeClient {
 
 // Utilidades de parseo profundo
 extension _RespExtract on OpenAIRealtimeClient {
-  void _extractAndEmitFromResponse(Map resp) {
+  void _extractAndEmitFromResponse(final Map resp) {
     final texts = <String>[];
     final audioChunks = <Uint8List>[];
 
-    void scan(dynamic node) {
+    void scan(final dynamic node) {
       if (node is Map) {
         // Texto
         final t = node['text'];

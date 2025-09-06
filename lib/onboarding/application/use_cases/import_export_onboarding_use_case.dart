@@ -8,10 +8,9 @@ import 'package:file_picker/file_picker.dart';
 /// Use Case que maneja la lógica de import/export de datos de onboarding
 /// Extrae toda la lógica de archivos y backup de la UI
 class ImportExportOnboardingUseCase {
-  final IFileService fileService;
-
-  ImportExportOnboardingUseCase({IFileService? fileService})
+  ImportExportOnboardingUseCase({final IFileService? fileService})
     : fileService = fileService ?? di.getFileService();
+  final IFileService fileService;
 
   /// Importa datos desde un archivo JSON
   Future<ImportExportResult> importFromJson() async {
@@ -35,7 +34,7 @@ class ImportExportOnboardingUseCase {
       String? importError;
       final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
         jsonStr,
-        onError: (err) => importError = err,
+        onError: (final err) => importError = err,
       );
 
       if (importError != null || imported == null) {
@@ -97,7 +96,7 @@ class ImportExportOnboardingUseCase {
       String? importError;
       final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
         jsonStr,
-        onError: (err) => importError = err,
+        onError: (final err) => importError = err,
       );
 
       if (importError != null || imported == null) {
@@ -120,7 +119,7 @@ class ImportExportOnboardingUseCase {
   }
 
   /// Valida si un archivo de backup es válido por su path
-  Future<bool> isValidBackupFile(String filePath) async {
+  Future<bool> isValidBackupFile(final String filePath) async {
     try {
       if (!await fileService.fileExists(filePath)) return false;
 
@@ -140,11 +139,6 @@ class ImportExportOnboardingUseCase {
 
 /// Resultado de operaciones de import/export
 class ImportExportResult {
-  final bool success;
-  final bool cancelled;
-  final String? error;
-  final ImportedChat? data;
-
   const ImportExportResult._({
     required this.success,
     required this.cancelled,
@@ -153,12 +147,12 @@ class ImportExportResult {
   });
 
   /// Resultado exitoso con datos importados
-  factory ImportExportResult.success({required ImportedChat data}) {
+  factory ImportExportResult.success({required final ChatExport data}) {
     return ImportExportResult._(success: true, cancelled: false, data: data);
   }
 
   /// Resultado con error
-  factory ImportExportResult.error(String message) {
+  factory ImportExportResult.error(final String message) {
     return ImportExportResult._(
       success: false,
       cancelled: false,
@@ -170,6 +164,10 @@ class ImportExportResult {
   factory ImportExportResult.cancelled() {
     return const ImportExportResult._(success: false, cancelled: true);
   }
+  final bool success;
+  final bool cancelled;
+  final String? error;
+  final ChatExport? data;
 
   /// Indica si la operación fue exitosa
   bool get isSuccess => success;

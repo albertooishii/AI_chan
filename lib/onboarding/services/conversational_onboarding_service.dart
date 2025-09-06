@@ -31,8 +31,8 @@ class ConversationalOnboardingService {
   /// Procesa la respuesta del usuario identificando automáticamente qué dato se obtuvo
   /// Retorna el dato actualizado y la siguiente respuesta de la IA
   static Future<Map<String, dynamic>> processUserResponse({
-    required MemoryData currentMemory,
-    required String userResponse,
+    required final MemoryData currentMemory,
+    required final String userResponse,
   }) async {
     Log.d(
       '🔍 [ONB_SERVICE] Iniciando procesamiento de respuesta del usuario',
@@ -66,8 +66,8 @@ class ConversationalOnboardingService {
 
   /// Genera la siguiente pregunta basada en el estado actual de la memoria
   static Future<String> generateNextQuestion({
-    required MemoryData currentMemory,
-    String? lastUserResponse,
+    required final MemoryData currentMemory,
+    final String? lastUserResponse,
   }) async {
     Log.d('🔍 [ONB_SERVICE] Generando siguiente pregunta', tag: 'ONB_SERVICE');
 
@@ -94,9 +94,9 @@ class ConversationalOnboardingService {
 
   /// Valida y actualiza un dato específico en la memoria
   static Future<MemoryData> validateAndUpdateMemory({
-    required MemoryData currentMemory,
-    required String dataType,
-    required String value,
+    required final MemoryData currentMemory,
+    required final String dataType,
+    required final String value,
   }) async {
     Log.d(
       '🔍 [ONB_SERVICE] Validando y actualizando memoria: $dataType=$value',
@@ -145,7 +145,10 @@ class ConversationalOnboardingService {
   }
 
   /// Obtiene las instrucciones de voz para el TTS según el estado del onboarding
-  static String getVoiceInstructions({String? userCountry, String? aiCountry}) {
+  static String getVoiceInstructions({
+    final String? userCountry,
+    final String? aiCountry,
+  }) {
     // Usar el servicio de dominio para obtener instrucciones de voz
     return ConversationalMemoryDomainService.getVoiceInstructions(
       userCountry: userCountry,
@@ -154,17 +157,17 @@ class ConversationalOnboardingService {
   }
 
   /// Verifica si la memoria está completa
-  static bool isMemoryComplete(MemoryData memory) {
+  static bool isMemoryComplete(final MemoryData memory) {
     return memory.isComplete();
   }
 
   /// Obtiene el porcentaje de completitud de la memoria
-  static double getMemoryCompletionPercentage(MemoryData memory) {
+  static double getMemoryCompletionPercentage(final MemoryData memory) {
     return memory.getCompletionPercentage();
   }
 
   /// Obtiene lista de datos faltantes en la memoria
-  static List<String> getMissingData(MemoryData memory) {
+  static List<String> getMissingData(final MemoryData memory) {
     return memory.getMissingData();
   }
 
@@ -187,9 +190,9 @@ class ConversationalOnboardingService {
   /// Método de compatibilidad para generateNextResponse
   /// Mapea a generateNextQuestion
   static Future<String> generateNextResponse({
-    required MemoryData currentMemory,
-    required String userLastResponse,
-    bool isFirstMessage = false,
+    required final MemoryData currentMemory,
+    required final String userLastResponse,
+    final bool isFirstMessage = false,
   }) async {
     if (isFirstMessage) {
       return initialMessage;
@@ -204,8 +207,8 @@ class ConversationalOnboardingService {
   /// Método de compatibilidad para validateAndSaveData
   /// Mapea al servicio de dominio
   static Map<String, dynamic> validateAndSaveData(
-    String stepName,
-    String extractedValue,
+    final String stepName,
+    final String extractedValue,
   ) {
     return ConversationalMemoryDomainService.validateAndSaveData(
       stepName,
@@ -216,11 +219,11 @@ class ConversationalOnboardingService {
   /// Método de compatibilidad para generateMeetStoryFromContext
   /// Mapea al caso de uso de generación de historias
   static Future<String> generateMeetStoryFromContext({
-    required String userName,
-    required String aiName,
-    String? userCountry,
-    String? aiCountry,
-    DateTime? userBirthdate,
+    required final String userName,
+    required final String aiName,
+    final String? userCountry,
+    final String? aiCountry,
+    final DateTime? userBirthdate,
   }) async {
     return await GenerateMeetStoryUseCase.execute(
       userName: userName,
@@ -233,9 +236,9 @@ class ConversationalOnboardingService {
 
   /// Crea una respuesta de error consistente
   static Map<String, dynamic> _createErrorResponse(
-    String? exception,
-    MemoryData currentMemory,
-    String userResponse,
+    final String? exception,
+    final MemoryData currentMemory,
+    final String userResponse,
   ) {
     return {
       'updatedMemory': currentMemory,
@@ -247,7 +250,7 @@ class ConversationalOnboardingService {
   }
 
   /// Proporciona una pregunta de respaldo en caso de error
-  static String _getFallbackQuestion(MemoryData memory) {
+  static String _getFallbackQuestion(final MemoryData memory) {
     final missingData = memory.getMissingData();
 
     if (missingData.isEmpty) {

@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/constants/app_colors.dart';
 
 class CyberpunkButton extends StatelessWidget {
-  final String text;
-  final VoidCallback? onPressed;
-  final Widget? icon; // Nuevo parámetro opcional
+  // Nuevo parámetro opcional
 
   const CyberpunkButton({
     required this.text,
@@ -12,9 +10,12 @@ class CyberpunkButton extends StatelessWidget {
     this.icon,
     super.key,
   });
+  final String text;
+  final VoidCallback? onPressed;
+  final Widget? icon;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.black,

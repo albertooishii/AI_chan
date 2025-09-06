@@ -8,6 +8,7 @@ import 'package:ai_chan/shared/utils/audio_duration_utils.dart';
 /// Servicio de TTS directo de OpenAI sin streaming
 /// Sintetiza el texto completo de una vez y luego lo reproduce con subtítulos progresivos
 class OpenAITtsService {
+  OpenAITtsService();
   bool _isPlaying = false;
   String? _currentAudioPath;
   Duration? _currentAudioDuration;
@@ -16,13 +17,11 @@ class OpenAITtsService {
   // 🎵 Usar instancia persistente como en el chat
   final AudioPlayback _audioPlayer = di.getAudioPlayback();
 
-  OpenAITtsService();
-
   /// Sintetiza y reproduce texto usando OpenAI TTS directo (sin streaming)
   /// Retorna información del audio generado para subtítulos progresivos
   Future<AudioPlaybackInfo?> synthesizeAndPlay(
-    String text, {
-    Map<String, dynamic>? options,
+    final String text, {
+    final Map<String, dynamic>? options,
   }) async {
     try {
       _isPlaying = true;
@@ -208,13 +207,12 @@ class OpenAITtsService {
 
 /// Información de reproducción de audio para subtítulos progresivos
 class AudioPlaybackInfo {
-  final String audioPath;
-  final Duration duration;
-  final String text;
-
   const AudioPlaybackInfo({
     required this.audioPath,
     required this.duration,
     required this.text,
   });
+  final String audioPath;
+  final Duration duration;
+  final String text;
 }
