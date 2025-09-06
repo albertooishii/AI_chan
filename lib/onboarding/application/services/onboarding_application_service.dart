@@ -27,8 +27,8 @@ class OnboardingApplicationService {
   /// 🗣️ **Flujo Conversacional Completo**
   /// Coordina el proceso completo de onboarding conversacional
   Future<OnboardingConversationResult> processConversationalFlow({
-    required MemoryData currentMemory,
-    required String userResponse,
+    required final MemoryData currentMemory,
+    required final String userResponse,
   }) async {
     try {
       // 1. Procesar respuesta del usuario
@@ -70,7 +70,7 @@ class OnboardingApplicationService {
 
   /// � **Generar Siguiente Pregunta**
   /// Coordina la generación de la siguiente pregunta del onboarding
-  Future<String> generateNextQuestion({required MemoryData currentMemory, String? lastUserResponse}) async {
+  Future<String> generateNextQuestion({required final MemoryData currentMemory, final String? lastUserResponse}) async {
     try {
       return await GenerateNextQuestionUseCase.execute(
         currentMemory: currentMemory,
@@ -103,13 +103,13 @@ class OnboardingApplicationService {
 
   /// ✅ **Verificar Completitud del Onboarding**
   /// Coordina la verificación de si el onboarding está completo
-  bool isOnboardingComplete(MemoryData memory) {
+  bool isOnboardingComplete(final MemoryData memory) {
     return memory.getMissingData().isEmpty;
   }
 
   /// � **Obtener Progreso del Onboarding**
   /// Coordina el cálculo del progreso del onboarding
-  OnboardingProgress getProgress(MemoryData memory) {
+  OnboardingProgress getProgress(final MemoryData memory) {
     final missingData = memory.getMissingData();
     final totalFields = 6; // userName, userCountry, userBirthdate, aiCountry, aiName, meetStory
     final completedFields = totalFields - missingData.length;
@@ -125,19 +125,15 @@ class OnboardingApplicationService {
 
 /// 📊 **Resultado del Flujo Conversacional**
 class OnboardingConversationResult {
+
+  const OnboardingConversationResult({required this.memory, this.aiResponse, required this.isComplete});
   final MemoryData memory;
   final String? aiResponse;
   final bool isComplete;
-
-  const OnboardingConversationResult({required this.memory, this.aiResponse, required this.isComplete});
 }
 
 /// 📈 **Progreso del Onboarding**
 class OnboardingProgress {
-  final int completedFields;
-  final int totalFields;
-  final double progressPercentage;
-  final String? nextRequiredField;
 
   const OnboardingProgress({
     required this.completedFields,
@@ -145,12 +141,16 @@ class OnboardingProgress {
     required this.progressPercentage,
     this.nextRequiredField,
   });
+  final int completedFields;
+  final int totalFields;
+  final double progressPercentage;
+  final String? nextRequiredField;
 }
 
 /// ❌ **Excepción de Application Service**
 class OnboardingApplicationException implements Exception {
-  final String message;
   const OnboardingApplicationException(this.message);
+  final String message;
 
   @override
   String toString() => 'OnboardingApplicationException: $message';
