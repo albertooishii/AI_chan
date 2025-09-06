@@ -92,7 +92,7 @@ class OpenAITtsService {
         Log.e('❌ No se pudo sintetizar el audio', tag: 'OPENAI_TTS');
         throw Exception('No se pudo sintetizar el audio con OpenAI TTS');
       }
-    } catch (e) {
+    } on Exception catch (e) {
       _isPlaying = false;
       _currentAudioPath = null;
       _currentAudioDuration = null;
@@ -113,7 +113,7 @@ class OpenAITtsService {
 
     try {
       await _completionCompleter!.future;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('Reproducción cancelada o error: $e', tag: 'OPENAI_TTS');
     }
 
@@ -137,7 +137,7 @@ class OpenAITtsService {
             '💾 Archivo de caché persistente conservado: $_currentAudioPath',
             tag: 'OPENAI_TTS',
           );
-        } else if (await audioFile.exists()) {
+        } else if (audioFile.existsSync()) {
           // Solo eliminar archivos temporales
           await audioFile.delete();
           Log.d(
@@ -145,7 +145,7 @@ class OpenAITtsService {
             tag: 'OPENAI_TTS',
           );
         }
-      } catch (e) {
+      } on Exception catch (e) {
         Log.w('Error procesando archivo temporal: $e', tag: 'OPENAI_TTS');
       }
       _currentAudioPath = null;
@@ -174,7 +174,7 @@ class OpenAITtsService {
       _isPlaying = false;
       _completionCompleter = null;
       Log.d('⏹️ Reproducción detenida', tag: 'OPENAI_TTS');
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('❌ Error deteniendo TTS: $e', tag: 'OPENAI_TTS');
     }
   }
@@ -198,7 +198,7 @@ class OpenAITtsService {
     try {
       _audioPlayer.dispose();
       Log.d('🧹 Limpiando recursos OpenAI TTS', tag: 'OPENAI_TTS');
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('❌ Error liberando recursos OpenAI TTS: $e', tag: 'OPENAI_TTS');
     }
     Log.d('🧹 Limpiando recursos OpenAI TTS', tag: 'OPENAI_TTS');

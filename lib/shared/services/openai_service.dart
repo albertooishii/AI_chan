@@ -146,7 +146,7 @@ class OpenAIService implements AIService {
           looksLikeAvatar = true;
         }
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
 
     // Garantizar que las instrucciones de AVATAR y las de FOTO/Metadatos no se mezclen.
     // Regla simple y explícita: si es una petición de avatar, eliminar cualquier clave
@@ -171,7 +171,7 @@ class OpenAIService implements AIService {
           }
         }
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
     final systemPromptStr = jsonEncode(systemPromptMap);
     // El contenido del sistema proviene de PromptBuilder; las instrucciones específicas
     // sobre metadatos de imagen ([img_caption]) están definidas allí.
@@ -257,7 +257,7 @@ class OpenAIService implements AIService {
           if (tools.isNotEmpty) {
             tools[0]['size'] = '1024x1024';
           }
-        } catch (_) {}
+        } on Exception catch (_) {}
       }
 
       // Añadir image_generation_call solo si fue inicializado con 'type' (evitar añadir objeto vacío)
@@ -320,7 +320,7 @@ class OpenAIService implements AIService {
               }
             }
           }
-        } catch (_) {}
+        } on Exception catch (_) {}
         return null;
       }
 
@@ -391,7 +391,7 @@ class OpenAIService implements AIService {
             tag: 'OPENAI_SERVICE',
           );
         }
-      } catch (_) {}
+      } on Exception catch (_) {}
 
       final effectivePrompt = (revisedPrompt.trim().isNotEmpty)
           ? revisedPrompt.trim()
@@ -442,7 +442,7 @@ class OpenAIService implements AIService {
       extraFields.forEach((final k, final v) {
         try {
           request.fields[k] = v;
-        } catch (_) {}
+        } on Exception catch (_) {}
       });
     }
 
@@ -466,7 +466,7 @@ class OpenAIService implements AIService {
           'Error STT OpenAI (${response.statusCode}): ${response.body}',
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       if (e is TimeoutException) {
         throw Exception(
           'Timeout al transcribir audio: la conexión tardó demasiado',
@@ -531,7 +531,7 @@ class OpenAIService implements AIService {
         Log.d('Usando audio desde caché', tag: 'OPENAI_TTS');
         return cachedFile;
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('Error leyendo caché, continuando con API: $e', tag: 'OPENAI_TTS');
     }
 
@@ -599,7 +599,7 @@ class OpenAIService implements AIService {
             if (converted != null && converted.isNotEmpty) {
               dataToSave = converted;
             }
-          } catch (e) {
+          } on Exception catch (e) {
             Log.w(
               'Warning: Could not convert OpenAI TTS to preferred format: $e',
               tag: 'OPENAI_TTS',
@@ -619,10 +619,10 @@ class OpenAIService implements AIService {
             Log.d('Audio guardado en caché y devuelto', tag: 'OPENAI_TTS');
             return cachedFile;
           }
-        } catch (e) {
+        } on Exception catch (e) {
           Log.w('Warning: Error guardando en caché: $e', tag: 'OPENAI_TTS');
         }
-      } catch (e) {
+      } on Exception catch (e) {
         Log.w('Warning: Error guardando en caché: $e', tag: 'OPENAI_TTS');
       }
 
@@ -637,8 +637,8 @@ class OpenAIService implements AIService {
       final file = File(
         '$dirPath/ai_tts_${DateTime.now().millisecondsSinceEpoch}.mp3',
       );
-      if (!await File(dirPath).exists()) {
-        await Directory(dirPath).create(recursive: true);
+      if (!File(dirPath).existsSync()) {
+        Directory(dirPath).createSync(recursive: true);
       }
       await file.writeAsBytes(response.bodyBytes);
       Log.i('Audio generado sin caché: ${file.path}', tag: 'OPENAI_TTS');
@@ -720,7 +720,7 @@ class OpenAIService implements AIService {
     try {
       await CacheService.clearAudioCache();
       Log.i('Caché de audio limpiado', tag: 'OPENAI_TTS');
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('Error limpiando caché de audio: $e', tag: 'OPENAI_TTS');
     }
   }

@@ -30,7 +30,7 @@ class FakeAudioPlayback implements AudioPlayback {
     try {
       if (source is String) {
         final f = File(source);
-        if (await f.exists()) {
+        if (f.existsSync()) {
           _durationController.add(const Duration(milliseconds: 500));
           _positionController.add(Duration.zero);
           // Simulate a short delay then complete
@@ -41,7 +41,7 @@ class FakeAudioPlayback implements AudioPlayback {
           return;
         }
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
     // For non-file sources just emit complete
     Future.microtask(() {
       _completeController.add(null);

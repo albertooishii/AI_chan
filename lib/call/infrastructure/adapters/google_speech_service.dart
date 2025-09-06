@@ -16,7 +16,7 @@ bool _isFlutterTestRuntime() {
     // Flutter's test runner sets FLUTTER_TEST in the environment for test runs.
     return Platform.environment.containsKey('FLUTTER_TEST') ||
         Platform.environment['FLUTTER_TEST'] == 'true';
-  } catch (_) {
+  } on Exception catch (_) {
     return false;
   }
 }
@@ -69,7 +69,7 @@ class GoogleSpeechService {
           voiceName = googleDefault;
         }
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
 
     // Determine likely extension from requested encoding (used for cache keys)
     // Respect configured preferred audio format for storage/cache naming
@@ -96,7 +96,7 @@ class GoogleSpeechService {
           _maybeDebugPrint('[GoogleTTS] Usando audio desde caché');
           return await cachedFile.readAsBytes();
         }
-      } catch (e) {
+      } on Exception catch (e) {
         _maybeDebugPrint(
           '[GoogleTTS] Error leyendo caché, continuando con API: $e',
         );
@@ -163,7 +163,7 @@ class GoogleSpeechService {
                       pitch: pitch,
                       extension: 'm4a',
                     );
-                  } catch (e) {
+                  } on Exception catch (e) {
                     _maybeDebugPrint(
                       '[GoogleTTS] Warning: Error guardando en caché (m4a): $e',
                     );
@@ -171,7 +171,7 @@ class GoogleSpeechService {
                 }
                 return audioDataConverted;
               }
-            } catch (e) {
+            } on Exception catch (e) {
               _maybeDebugPrint(
                 '[GoogleTTS] Warning: failed converting TTS bytes to m4a: $e',
               );
@@ -190,7 +190,7 @@ class GoogleSpeechService {
                 pitch: pitch,
                 extension: ext,
               );
-            } catch (e) {
+            } on Exception catch (e) {
               _maybeDebugPrint(
                 '[GoogleTTS] Warning: Error guardando en caché: $e',
               );
@@ -208,7 +208,7 @@ class GoogleSpeechService {
           '[GoogleTTS] Error ${response.statusCode}: ${response.body}',
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       _maybeDebugPrint('[GoogleTTS] Exception: $e');
     }
 
@@ -240,7 +240,7 @@ class GoogleSpeechService {
           voiceName = googleDefault;
         }
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
 
     // First, check if there's a cached file for this exact request and return it
     // directly to avoid creating a temporary copy and to ensure callers use
@@ -263,7 +263,7 @@ class GoogleSpeechService {
           );
           return cachedFile;
         }
-      } catch (e) {
+      } on Exception catch (e) {
         _maybeDebugPrint(
           '[GoogleTTS] Error checking cache before file creation: $e',
         );
@@ -309,7 +309,7 @@ class GoogleSpeechService {
       await file.writeAsBytes(audioData);
       _maybeDebugPrint('[GoogleTTS] Archivo guardado: ${file.path}');
       return file;
-    } catch (e) {
+    } on Exception catch (e) {
       _maybeDebugPrint('[GoogleTTS] Error guardando archivo: $e');
       return null;
     }
@@ -387,7 +387,7 @@ class GoogleSpeechService {
           '[GoogleSTT] Error ${response.statusCode}: ${response.body}',
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       _maybeDebugPrint('[GoogleSTT] Exception: $e');
     }
 
@@ -436,7 +436,7 @@ class GoogleSpeechService {
             sampleRateHertz: guessedSR,
           );
           return res;
-        } catch (e) {
+        } on Exception catch (e) {
           _maybeDebugPrint('[GoogleSTT] direct STT attempt error: $e');
           return null;
         }
@@ -478,7 +478,7 @@ class GoogleSpeechService {
               );
               if (res != null && res.trim().isNotEmpty) return res;
             }
-          } catch (e) {
+          } on Exception catch (e) {
             _maybeDebugPrint(
               '[GoogleSTT] preferred WAV conversion attempt failed: $e',
             );
@@ -502,7 +502,7 @@ class GoogleSpeechService {
           );
           if (res != null && res.trim().isNotEmpty) return res;
         }
-      } catch (e) {
+      } on Exception catch (e) {
         _maybeDebugPrint(
           '[GoogleSTT] compressed MP3 conversion attempt failed: $e',
         );
@@ -521,7 +521,7 @@ class GoogleSpeechService {
           _maybeDebugPrint(
             '[GoogleSTT] Using file for WAV/STT: ${fileToUse.path} (size=$len bytes)',
           );
-        } catch (_) {}
+        } on Exception catch (_) {}
 
         final wavData = await fileToUse.readAsBytes();
 
@@ -536,7 +536,7 @@ class GoogleSpeechService {
                   (wavData[25] << 8) |
                   (wavData[26] << 16) |
                   (wavData[27] << 24);
-            } catch (_) {}
+            } on Exception catch (_) {}
             int dataStart = -1;
             for (int i = 0; i < wavData.length - 4; i++) {
               if (wavData[i] == 0x64 &&
@@ -566,11 +566,11 @@ class GoogleSpeechService {
           audioEncoding: 'LINEAR16',
           sampleRateHertz: 16000,
         );
-      } catch (e) {
+      } on Exception catch (e) {
         _maybeDebugPrint('[GoogleSTT] Error procesando WAV fallback: $e');
         return null;
       }
-    } catch (e) {
+    } on Exception catch (e) {
       _maybeDebugPrint('[GoogleSTT] Error leyendo archivo: $e');
       return null;
     }
@@ -594,7 +594,7 @@ class GoogleSpeechService {
         );
       }
       return await AudioConversion.convertToMp3IfPossible(src);
-    } catch (e) {
+    } on Exception catch (e) {
       _maybeDebugPrint(
         '[GoogleSTT] compressed conversion delegation failed: $e',
       );
@@ -607,7 +607,7 @@ class GoogleSpeechService {
   static Future<File?> _convertToWavIfPossible(final File src) async {
     try {
       return await AudioConversion.convertToWavIfPossible(src);
-    } catch (e) {
+    } on Exception catch (e) {
       _maybeDebugPrint('[GoogleSTT] wav conversion delegation failed: $e');
       return null;
     }
@@ -699,7 +699,7 @@ class GoogleSpeechService {
           voices: processedVoices,
           provider: 'google',
         );
-      } catch (e) {
+      } on Exception catch (e) {
         _maybeDebugPrint(
           '[GoogleTTS] Warning: Error guardando voces en caché: $e',
         );
@@ -709,7 +709,7 @@ class GoogleSpeechService {
         '[GoogleTTS] Obtenidas ${processedVoices.length} voces desde API',
       );
       return processedVoices;
-    } catch (e) {
+    } on Exception catch (e) {
       _maybeDebugPrint('[GoogleTTS] Exception fetching voices: $e');
 
       // Intentar caché como último recurso
@@ -929,7 +929,7 @@ class GoogleSpeechService {
         _maybeDebugPrint(
           '[GoogleTTS] Guardadas ${unique.length} voces en caché ($cacheKey)',
         );
-      } catch (e) {
+      } on Exception catch (e) {
         debugPrint('[GoogleTTS] Warning: Error guardando en caché: $e');
       }
 
@@ -937,7 +937,7 @@ class GoogleSpeechService {
         '🚨🚨🚨 [GoogleTTS] RETORNANDO ${unique.length} voces Neural/WaveNet 🚨🚨🚨',
       );
       return unique;
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('🚨🚨🚨 [GoogleTTS] ERROR: $e 🚨🚨🚨');
       debugPrint('[GoogleTTS] Error obteniendo voces Neural/WaveNet: $e');
       return [];
@@ -971,7 +971,7 @@ class GoogleSpeechService {
         );
         if (codes.isNotEmpty) return codes.first;
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
     try {
       // Platform.localeName often looks like 'es_ES' or 'en_US'. Convert to 'es-ES'.
       final locale = Platform.localeName.replaceAll('_', '-');
@@ -981,7 +981,7 @@ class GoogleSpeechService {
         final region = parts.length > 1 ? parts[1].toUpperCase() : '';
         return region.isNotEmpty ? '\${lang}-\$region' : lang;
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
     return 'es-ES';
   }
 
@@ -993,7 +993,7 @@ class GoogleSpeechService {
     try {
       await CacheService.clearVoicesCache(provider: 'google');
       debugPrint('[GoogleTTS] Caché de voces Google limpiado');
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('[GoogleTTS] Error limpiando caché de voces: $e');
     }
   }

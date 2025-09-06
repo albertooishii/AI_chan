@@ -208,7 +208,7 @@ void main() {
           );
           await retryClient.send(request);
           fail('Should have thrown SocketException');
-        } catch (e) {
+        } on Exception catch (e) {
           expect(e, isA<SocketException>());
         }
 

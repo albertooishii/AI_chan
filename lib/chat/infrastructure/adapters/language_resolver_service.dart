@@ -40,7 +40,7 @@ class LanguageResolverService implements ILanguageResolver {
       final fallbackLang =
           await PrefsUtils.getRawString('user_language') ?? 'es-ES';
       return fallbackLang;
-    } catch (e) {
+    } on Exception {
       return await PrefsUtils.getRawString('user_language') ?? 'es-ES';
     }
   }

@@ -57,7 +57,7 @@ class _FloatingAudioSubtitleState extends State<FloatingAudioSubtitle> {
   void dispose() {
     try {
       _sub.cancel();
-    } catch (_) {}
+    } on Exception catch (_) {}
     super.dispose();
   }
 

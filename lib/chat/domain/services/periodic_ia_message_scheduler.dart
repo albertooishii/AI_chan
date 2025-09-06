@@ -138,7 +138,7 @@ class PeriodicIaMessageScheduler {
           if (a is Map && dayMatches(a['dias']) && inRange(a)) return 'busy';
         }
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
     return null;
   }
 

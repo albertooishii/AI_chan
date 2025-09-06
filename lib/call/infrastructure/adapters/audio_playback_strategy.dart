@@ -17,7 +17,7 @@ class OpenAIAudioPlaybackStrategy implements AudioPlaybackStrategy {
     Timer(const Duration(milliseconds: 40), () {
       try {
         playbackFunction();
-      } catch (e) {
+      } on Exception catch (e) {
         Log.e('Error in OpenAI playback: $e');
       }
     });
@@ -32,13 +32,13 @@ class GeminiAudioPlaybackStrategy implements AudioPlaybackStrategy {
     Timer(const Duration(milliseconds: 200), () {
       try {
         playbackFunction();
-      } catch (e) {
+      } on Exception catch (e) {
         Log.e('Error in Gemini playback, retrying in 100ms: $e');
         // Retry logic for Gemini
         Timer(const Duration(milliseconds: 100), () {
           try {
             playbackFunction();
-          } catch (retryError) {
+          } on Exception catch (retryError) {
             Log.e('Gemini retry failed: $retryError');
           }
         });

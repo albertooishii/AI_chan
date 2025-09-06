@@ -222,7 +222,7 @@ class Message {
       final name = json['callStatus'];
       try {
         return CallStatus.values.firstWhere((final e) => e.name == name);
-      } catch (_) {}
+      } on Exception catch (_) {}
     }
     // Heurísticas retro-compatibilidad
     final text = (json['text'] ?? '').toString().trim();

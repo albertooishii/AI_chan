@@ -12,9 +12,9 @@ class GoogleSttAdapter implements ISttService {
   Future<String?> transcribeAudio(final String path) async {
     try {
       final f = File(path);
-      if (!await f.exists()) return null;
+      if (!f.existsSync()) return null;
       return await GoogleSpeechService.speechToTextFromFile(f);
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('[GoogleSttAdapter] transcribeAudio error: $e');
       return null;
     }

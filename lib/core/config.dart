@@ -69,7 +69,7 @@ class Config {
         return _overrides![key]!;
       }
       return dotenv.env[key] ?? fallback;
-    } catch (_) {
+    } on Exception catch (_) {
       return fallback;
     }
   }
@@ -107,14 +107,14 @@ class Config {
       } finally {
         try {
           await tmp.delete();
-        } catch (_) {}
+        } on Exception catch (_) {}
       }
       return;
     }
 
     try {
       await dotenv.load();
-    } catch (e) {
+    } on Exception {
       // Si no hay .env en disco, cargamos valores por defecto usando el mismo
       // mecanismo temporal.
       const defaultContents = '''
@@ -130,7 +130,7 @@ SUMMARY_BLOCK_SIZE=32
       } finally {
         try {
           await tmp.delete();
-        } catch (_) {}
+        } on Exception catch (_) {}
       }
     }
   }

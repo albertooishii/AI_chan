@@ -43,7 +43,7 @@ class VadService {
         _inSpeech = true;
         try {
           onSpeechStart?.call();
-        } catch (_) {}
+        } on Exception catch (_) {}
       }
       // reset end timer
       _endTimer?.cancel();
@@ -52,7 +52,7 @@ class VadService {
         _inSpeech = false;
         try {
           onSpeechEnd?.call();
-        } catch (_) {}
+        } on Exception catch (_) {}
       });
     } else {
       // low energy: if in speech, ensure we schedule end sooner
@@ -62,7 +62,7 @@ class VadService {
           _inSpeech = false;
           try {
             onSpeechEnd?.call();
-          } catch (_) {}
+          } on Exception catch (_) {}
         });
       }
     }

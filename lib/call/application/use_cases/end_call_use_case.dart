@@ -28,7 +28,7 @@ class EndCallUseCase {
         '✅ EndCallUseCase: Llamada finalizada exitosamente',
         tag: 'END_CALL_USE_CASE',
       );
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('❌ Error en EndCallUseCase', tag: 'END_CALL_USE_CASE', error: e);
       rethrow;
     }
@@ -62,7 +62,7 @@ class EndCallUseCase {
           callState: callState,
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         '❌ Error actualizando ChatController',
         tag: 'END_CALL_USE_CASE',

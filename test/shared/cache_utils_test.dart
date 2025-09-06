@@ -18,6 +18,6 @@ void main() {
 
     final dir = await getLocalCacheDir();
     expect(dir.path, equals(expected));
-    expect(await dir.exists(), isTrue);
+    expect(dir.existsSync(), isTrue);
   });
 }

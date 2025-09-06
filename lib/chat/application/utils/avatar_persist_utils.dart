@@ -28,7 +28,7 @@ Future<void> addAvatarAndPersist(
 
     chatController.updateProfile(updatedProfile);
     // ChatController automatically handles persistence and notifications
-  } catch (_) {
+  } on Exception catch (_) {
     // Handle errors silently as in original implementation
   }
 }
@@ -55,7 +55,7 @@ Future<void> removeImageFromProfileAndPersist(
 
     chatController.updateProfile(updated);
     // ChatController automatically handles persistence and notifications
-  } catch (_) {
+  } on Exception catch (_) {
     // Handle errors silently as in original implementation
   }
 }

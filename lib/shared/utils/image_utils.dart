@@ -25,7 +25,7 @@ Future<String?> saveBase64ImageToFile(
     img.Image? originalImage;
     try {
       originalImage = img.decodeImage(bytes);
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w(
         '[Image] Error decodificando imagen, intentando guardar como está: $e',
         tag: 'IMAGE_UTILS',
@@ -35,7 +35,7 @@ Future<String?> saveBase64ImageToFile(
       final absDir = await getLocalImageDir();
       final absFilePath = '${absDir.path}/$fileName';
       final file = await File(absFilePath).writeAsBytes(bytes);
-      if (await file.exists()) {
+      if (file.existsSync()) {
         Log.i(
           '[Image] Imagen guardada sin compresión en: $absFilePath',
           tag: 'IMAGE_UTILS',
@@ -69,7 +69,7 @@ Future<String?> saveBase64ImageToFile(
     );
 
     final file = await File(absFilePath).writeAsBytes(jpegBytes);
-    final exists = await file.exists();
+    final exists = file.existsSync();
     if (exists) {
       final reduction = ((bytes.length - jpegBytes.length) / bytes.length * 100)
           .toStringAsFixed(1);
@@ -85,7 +85,7 @@ Future<String?> saveBase64ImageToFile(
       );
       return null;
     }
-  } catch (e) {
+  } on Exception catch (e) {
     final isExpected = e is StateError || e is FormatException;
     if (isExpected) {
       Log.w(
@@ -105,7 +105,7 @@ Future<Directory> getLocalImageDir() async {
   final testOverride = Config.get('TEST_IMAGE_DIR', '').trim();
   if (testOverride.isNotEmpty) {
     final dir = Directory(testOverride);
-    if (!await dir.exists()) await dir.create(recursive: true);
+    if (!dir.existsSync()) dir.createSync(recursive: true);
     return dir;
   }
 
@@ -124,7 +124,7 @@ Future<Directory> getLocalImageDir() async {
       : await getApplicationDocumentsDirectory();
 
   final imagesDir = Directory('${appDoc.path}/AI_chan/images');
-  if (!await imagesDir.exists()) await imagesDir.create(recursive: true);
+  if (!imagesDir.existsSync()) imagesDir.createSync(recursive: true);
   return imagesDir;
 }
 

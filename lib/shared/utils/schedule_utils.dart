@@ -152,7 +152,7 @@ class ScheduleUtils {
     if (m2 != null) {
       try {
         startDate = DateTime.parse(m2.group(1)!);
-      } catch (_) {}
+      } on Exception catch (_) {}
     } else {
       // formato dd/mm/yyyy
       final re2 = RegExp(
@@ -166,7 +166,7 @@ class ScheduleUtils {
           final mm = int.parse(m3.group(2)!);
           final y = int.parse(m3.group(3)!);
           startDate = DateTime(y, mm, d);
-        } catch (_) {}
+        } on Exception catch (_) {}
       }
     }
 

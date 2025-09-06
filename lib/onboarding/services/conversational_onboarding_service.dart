@@ -51,7 +51,7 @@ class ConversationalOnboardingService {
         tag: 'ONB_SERVICE',
       );
       return result;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         '❌ [ONB_SERVICE] Error en processUserResponse: $e',
         tag: 'ONB_SERVICE',
@@ -83,7 +83,7 @@ class ConversationalOnboardingService {
         tag: 'ONB_SERVICE',
       );
       return result;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         '❌ [ONB_SERVICE] Error en generateNextQuestion: $e',
         tag: 'ONB_SERVICE',
@@ -138,7 +138,7 @@ class ConversationalOnboardingService {
         );
         return currentMemory; // Retornar memoria sin cambios si la validación falla
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('❌ [ONB_SERVICE] Error validando memoria: $e', tag: 'ONB_SERVICE');
       return currentMemory; // Retornar memoria sin cambios en caso de error
     }

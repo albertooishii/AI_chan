@@ -205,7 +205,7 @@ class IAAvatarGenerator {
         '[IAAvatarGenerator] Prompt generado por modelo de texto: $generated',
       );
       return generated;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('[IAAvatarGenerator] Prompt generator failed: $e');
       return '';
     }
@@ -276,7 +276,7 @@ class IAAvatarGenerator {
           return response;
         }
         Log.w('[IAAvatarGenerator] Avatar: intento ${attempt + 1} sin imagen');
-      } catch (err) {
+      } on Exception catch (err) {
         if (handleRuntimeError(err, 'IAAvatarGenerator')) {
           // logged
         } else {
@@ -307,7 +307,7 @@ class IAAvatarGenerator {
         imageResponse.base64,
         prefix: 'ai_avatar',
       );
-    } catch (e) {
+    } on Exception {
       imageUrl = null;
     }
 

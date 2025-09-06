@@ -316,7 +316,7 @@ class _InitializingScreenState extends State<InitializingScreen>
       } else if (mounted) {
         setState(() {});
       }
-    } catch (e) {
+    } on Exception catch (e) {
       // Si el error proviene de IAAvatarGenerator por agotar intentos, mostrar opciones en UI
       final msg = e.toString();
       if (msg.contains('No se pudo generar el avatar') ||
@@ -389,7 +389,7 @@ class _InitializingScreenState extends State<InitializingScreen>
         // Reiniciar: arrancar automáticamente el avance inicial y la generación.
         setState(() {});
         _autoAdvanceInitialSteps();
-      } catch (err) {
+      } on Exception catch (err) {
         // Si vuelve a fallar, ofrecer de nuevo
         await _handleErrorWithOptions(err);
       }

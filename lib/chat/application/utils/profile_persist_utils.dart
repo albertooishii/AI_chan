@@ -21,7 +21,7 @@ Future<void> setOnboardingDataAndPersist(
       Log.d(
         'profile_persist_utils: persisted onboarding data for aiName=${updated.aiName}',
       );
-    } catch (e, st) {
+    } on Exception catch (e, st) {
       Log.e(
         'profile_persist_utils: failed to persist onboarding data for aiName=${updated.aiName} error=$e',
         tag: 'PERSIST',
@@ -30,7 +30,7 @@ Future<void> setOnboardingDataAndPersist(
       Log.e(st.toString(), tag: 'PERSIST');
       rethrow;
     }
-  } catch (e, st) {
+  } on Exception catch (e, st) {
     Log.e(
       'profile_persist_utils: unexpected error setting onboarding data: $e',
       tag: 'PERSIST',
@@ -54,7 +54,7 @@ Future<void> setEventsAndPersist(
       final updated = currentProfile.copyWith();
       await setOnboardingDataAndPersist(chatController, updated);
     }
-  } catch (_) {
+  } on Exception catch (_) {
     // Handle errors silently as in original implementation
   }
 }

@@ -43,7 +43,7 @@ class OpenAITransport implements RealtimeTransportService {
           } else {
             onMessage?.call(msg);
           }
-        } catch (e) {
+        } on Exception catch (e) {
           onError?.call(e);
         }
       },
@@ -63,7 +63,7 @@ class OpenAITransport implements RealtimeTransportService {
     if (_connected) {
       try {
         await _channel?.sink.close();
-      } catch (_) {}
+      } on Exception catch (_) {}
     }
     _connected = false;
   }
@@ -73,7 +73,7 @@ class OpenAITransport implements RealtimeTransportService {
     if (!_connected) return;
     try {
       _channel?.sink.add(jsonEncode(event));
-    } catch (e) {
+    } on Exception catch (e) {
       onError?.call(e);
     }
   }
@@ -88,7 +88,7 @@ class OpenAITransport implements RealtimeTransportService {
         'type': 'input_audio_buffer.append',
         'audio': base64Encode(bytes),
       });
-    } catch (e) {
+    } on Exception catch (e) {
       onError?.call(e);
     }
   }

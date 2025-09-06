@@ -10,7 +10,7 @@ class AudioDurationUtils {
 
     try {
       final file = File(filePath);
-      if (!await file.exists()) {
+      if (!file.existsSync()) {
         debugPrint('🔍 [DEBUG][AudioDuration] File does not exist: $filePath');
         return null;
       }
@@ -38,14 +38,14 @@ class AudioDurationUtils {
           );
           return null;
         }
-      } catch (e) {
+      } on Exception catch (e) {
         debugPrint(
           '🔍 [DEBUG][AudioDuration] Error getting duration for $filePath: $e',
         );
         await player.dispose();
         return null;
       }
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint(
         '🔍 [DEBUG][AudioDuration] Exception getting audio duration: $e',
       );

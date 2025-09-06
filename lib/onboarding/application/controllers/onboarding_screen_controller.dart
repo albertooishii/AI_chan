@@ -57,7 +57,7 @@ class OnboardingScreenController extends ChangeNotifier {
       setLoading(true);
       clearError();
       return await operation();
-    } catch (e) {
+    } on Exception catch (e) {
       final message = errorPrefix != null ? '$errorPrefix: $e' : e.toString();
       setError(message);
       rethrow;
@@ -119,7 +119,7 @@ class OnboardingScreenController extends ChangeNotifier {
           setCurrentStep(OnboardingStep.avatar);
           break;
       }
-    } catch (e) {
+    } on Exception catch (e) {
       setError('Error going to previous step: $e');
     }
   }
@@ -183,7 +183,7 @@ class OnboardingScreenController extends ChangeNotifier {
       if (picked != null && _formController != null) {
         _formController.setUserBirthdate(picked);
       }
-    } catch (e) {
+    } on Exception catch (e) {
       setError('Error picking birth date: $e');
     }
   }
@@ -220,7 +220,7 @@ class OnboardingScreenController extends ChangeNotifier {
           return false;
         }
       }, errorPrefix: 'Error processing form');
-    } catch (e) {
+    } on Exception {
       return false;
     }
   }
@@ -234,7 +234,7 @@ class OnboardingScreenController extends ChangeNotifier {
         () async => await _formController.importFromJson(),
         errorPrefix: 'Error importing JSON',
       );
-    } catch (e) {
+    } on Exception {
       return false;
     }
   }
@@ -247,7 +247,7 @@ class OnboardingScreenController extends ChangeNotifier {
         () async => await _formController.restoreFromLocalBackup(),
         errorPrefix: 'Error restoring backup',
       );
-    } catch (e) {
+    } on Exception {
       return false;
     }
   }
@@ -287,7 +287,7 @@ class OnboardingScreenController extends ChangeNotifier {
   Future<bool> hasCompleteBiography() async {
     try {
       return await _biographyUseCase.hasCompleteBiography();
-    } catch (e) {
+    } on Exception catch (e) {
       setError('Error checking biography: $e');
       return false;
     }
@@ -296,7 +296,7 @@ class OnboardingScreenController extends ChangeNotifier {
   Future<AiChanProfile?> loadExistingBiography() async {
     try {
       return await _biographyUseCase.loadExistingBiography();
-    } catch (e) {
+    } on Exception catch (e) {
       setError('Error loading biography: $e');
       return null;
     }
@@ -307,7 +307,7 @@ class OnboardingScreenController extends ChangeNotifier {
       await _biographyUseCase.clearSavedBiography();
       // Also reset provider state
       _lifecycleController.reset();
-    } catch (e) {
+    } on Exception catch (e) {
       setError('Error clearing biography: $e');
     }
   }

@@ -18,7 +18,7 @@ class AudioManagerAdapter implements IAudioManager {
         '🎤 Audio ${muted ? "silenciado" : "activado"}',
         tag: 'AUDIO_MANAGER',
       );
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('❌ Error configurando mute', tag: 'AUDIO_MANAGER', error: e);
       rethrow;
     }
@@ -47,7 +47,7 @@ class AudioManagerAdapter implements IAudioManager {
         tag: 'AUDIO_MANAGER',
       );
       // Aquí podríamos configurar listeners del CallController si fuera necesario
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         '❌ Error inicializando gestión de audio',
         tag: 'AUDIO_MANAGER',
@@ -78,7 +78,7 @@ class CallManagerAdapter implements ICallManager {
       // El CallController usa startContinuousCall, necesitamos crear un wrapper simplificado
       // Por ahora, solo marcamos como activa la llamada
       _callStateController.add(true);
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('❌ Error iniciando llamada', tag: 'CALL_MANAGER', error: e);
       rethrow;
     }
@@ -90,7 +90,7 @@ class CallManagerAdapter implements ICallManager {
       Log.d('📞 Finalizando llamada', tag: 'CALL_MANAGER');
       await _callController.stop();
       _callStateController.add(false);
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('❌ Error finalizando llamada', tag: 'CALL_MANAGER', error: e);
       rethrow;
     }
@@ -103,7 +103,7 @@ class CallManagerAdapter implements ICallManager {
       // Detener ring y marcar como activa
       await _callController.stopIncomingRing();
       _callStateController.add(true);
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         '❌ Error respondiendo llamada entrante',
         tag: 'CALL_MANAGER',
@@ -120,7 +120,7 @@ class CallManagerAdapter implements ICallManager {
       await _callController.stopIncomingRing();
       await _callController.stop();
       _callStateController.add(false);
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         '❌ Error rechazando llamada entrante',
         tag: 'CALL_MANAGER',

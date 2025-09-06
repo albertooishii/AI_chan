@@ -47,7 +47,7 @@ class _GoogleDriveConnectorState extends State<GoogleDriveConnector> {
 
         widget.onConnectionChanged?.call(_isConnected, _userInfo);
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w(
         'GoogleDriveConnector: failed to check connection status: $e',
         tag: 'GoogleDrive',
@@ -114,7 +114,7 @@ class _GoogleDriveConnectorState extends State<GoogleDriveConnector> {
           ),
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('GoogleDriveConnector: connection failed: $e', tag: 'GoogleDrive');
       if (mounted) {
         setState(() {
@@ -172,7 +172,7 @@ class _GoogleDriveConnectorState extends State<GoogleDriveConnector> {
           ),
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('GoogleDriveConnector: disconnect failed: $e', tag: 'GoogleDrive');
     } finally {
       if (mounted) {

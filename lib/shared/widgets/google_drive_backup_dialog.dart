@@ -81,7 +81,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
       final time =
           '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
       return '$date $time';
-    } catch (_) {
+    } on Exception catch (_) {
       return '';
     }
   }
@@ -102,7 +102,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
       if (timestamp.isNotEmpty) {
         human = human.isNotEmpty ? '$human • $timestamp' : timestamp;
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
 
     // Mensaje dinámico basado en si se pueden crear backups
     final prefix = _canCreateBackups()
@@ -153,7 +153,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
           await _checkStatusOnly();
           return;
         }
-      } catch (e) {
+      } on Exception catch (e) {
         Log.d(
           'GoogleDriveBackupDialog: Failed to check existing credentials: $e',
           tag: 'GoogleBackup',
@@ -180,7 +180,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
           tag: 'GoogleBackup',
         );
         await _checkStatusOnly(); // Just check status, don't do additional auth
-      } catch (e) {
+      } on Exception catch (e) {
         Log.d(
           'GoogleDriveBackupDialog: Auto-link failed: $e',
           tag: 'GoogleBackup',
@@ -221,7 +221,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
             'GoogleDriveBackupDialog: _fetchAccountInfo completed successfully',
             tag: 'GoogleBackup',
           );
-        } catch (e) {
+        } on Exception catch (e) {
           Log.w(
             'GoogleDriveBackupDialog: _fetchAccountInfo failed: $e',
             tag: 'GoogleBackup',
@@ -233,14 +233,14 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         // Check for backups and maybe restore
         try {
           await _checkForBackupAndMaybeRestore();
-        } catch (e) {
+        } on Exception catch (e) {
           // If we detect an unauthorized state, clear stored credentials
-          if (e is StateError && e.message == 'Unauthorized') {
+          if (e is StateError && e.toString().contains('Unauthorized')) {
             try {
               await GoogleBackupService(
                 accessToken: null,
               ).clearStoredCredentials();
-            } catch (_) {}
+            } on Exception catch (_) {}
             _safeSetState(() {
               _service = null;
               _working = false;
@@ -260,7 +260,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
           _working = false;
         });
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.d(
         'GoogleDriveBackupDialog: _checkStatusOnly failed: $e',
         tag: 'GoogleBackup',
@@ -352,16 +352,16 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
           if (last != null && last.isNotEmpty && last != _lastSeenAuthUrl) {
             _safeSetState(() => _lastSeenAuthUrl = last);
           }
-        } catch (_) {}
+        } on Exception catch (_) {}
       });
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   void _stopAuthUrlWatcher() {
     try {
       _authUrlWatcher?.cancel();
       _authUrlWatcher = null;
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   // PKCE/AppAuth flow moved to GoogleBackupService.linkAccount(); dialog is UI-only now.
@@ -429,7 +429,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
 
       _updateStatus(statusText);
       return;
-    } catch (e) {
+    } on Exception catch (e) {
       final msg = e.toString();
       debugPrint('checkForBackup error: $msg');
       // Detect unauthorized responses from Drive/API and clear stored creds.
@@ -437,14 +437,14 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
           msg.contains('Expected OAuth 2 access token')) {
         try {
           await GoogleBackupService(accessToken: null).clearStoredCredentials();
-        } catch (_) {}
+        } on Exception catch (_) {}
         // Bubble up a StateError so callers (ensureLinkedAndCheck) can react.
         throw StateError('Unauthorized');
       }
       if (msg.contains('invalid_scope')) {
         try {
           await GoogleBackupService(accessToken: null).clearStoredCredentials();
-        } catch (_) {}
+        } on Exception catch (_) {}
         _insufficientScope = true;
         _clearWorkingState();
         _updateStatus(
@@ -484,11 +484,11 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                 unawaited(_fetchAccountInfo(newToken));
                 return;
               }
-            } catch (e) {
+            } on Exception catch (e) {
               debugPrint('userinfo refresh failed: $e');
             }
           }
-        } catch (e) {
+        } on Exception catch (e) {
           debugPrint('checkForBackup error: $e');
         }
       }
@@ -534,7 +534,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                   false, // No disparar backup automático desde verificaciones de diálogo
             );
           }
-        } catch (e) {
+        } on Exception catch (e) {
           if (kDebugMode) {
             debugPrint('onAccountInfoUpdated propagation failed: $e');
           }
@@ -556,7 +556,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
             unawaited(_fetchAccountInfo(newToken));
             return;
           }
-        } catch (e) {
+        } on Exception catch (e) {
           debugPrint('userinfo refresh failed: $e');
         }
         // If we reach here, refresh failed or was not possible. Treat as unauthorized.
@@ -567,7 +567,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         throw StateError('Unauthorized');
       }
       debugPrint('userinfo request failed: ${resp.statusCode} ${resp.body}');
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('userinfo request error: $e');
       rethrow;
     }
@@ -619,7 +619,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
 
         // Diagnose backup state after the refresh
         await _diagnoseBackupState();
-      } catch (e) {
+      } on Exception catch (e) {
         debugPrint(
           'Error actualizando información de backup después de crear: $e',
         );
@@ -627,7 +627,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         // Solo actualizar el estado para mostrar que se completó
         _clearWorkingState();
       }
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('createBackupNow error: $e');
       _clearWorkingState();
       _updateStatus('[UPLOAD_ERROR] Archive creation/transmission failed');
@@ -635,14 +635,14 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
       // Limpiar archivo temporal después del upload (exitoso o fallido)
       if (tempBackupFile != null) {
         try {
-          if (await tempBackupFile.exists()) {
+          if (tempBackupFile.existsSync()) {
             await tempBackupFile.delete();
             Log.d(
               'GoogleDriveBackupDialog: deleted temporary backup file ${tempBackupFile.path}',
               tag: 'GoogleBackup',
             );
           }
-        } catch (e) {
+        } on Exception catch (e) {
           Log.w(
             'GoogleDriveBackupDialog: failed to delete temporary backup file: $e',
             tag: 'GoogleBackup',
@@ -689,7 +689,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         }
       }
       debugPrint('=== FIN DIAGNÓSTICO ===');
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('Error in diagnose: $e');
     }
   }
@@ -718,9 +718,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
             if (!mounted) return;
             final navState = navigatorKey.currentState;
             if (navState != null && navState.canPop()) navState.pop(true);
-          } catch (_) {}
+          } on Exception catch (_) {}
           return;
-        } catch (e) {
+        } on Exception catch (e) {
           debugPrint('onImportedJson failed: $e');
           _clearWorkingState();
           _updateStatus('[RESTORE_ERROR] Data integration failed');
@@ -732,9 +732,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         if (navState != null && navState.canPop()) {
           navState.pop({'restoredJson': extractedJson});
         }
-      } catch (_) {}
+      } on Exception catch (_) {}
       return;
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('restoreLatest failed: $e');
       _clearWorkingState();
       _updateStatus('[DOWNLOAD_ERROR] Archive retrieval failed');
@@ -970,7 +970,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                 ClipboardData(text: copyUrl),
                               );
                               showAppSnackBar('Enlace copiado al portapapeles');
-                            } catch (e) {
+                            } on Exception catch (e) {
                               debugPrint('copy url failed: $e');
                             }
                           },
@@ -989,7 +989,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                       await GoogleBackupService(
                                         accessToken: null,
                                       ).clearStoredCredentials();
-                                    } catch (_) {}
+                                    } on Exception catch (_) {}
                                     setState(() => _insufficientScope = false);
                                     await _checkStatusOnly(); // Just check status, don't do additional auth
                                   },
@@ -1020,7 +1020,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                 if (last != null && last.isNotEmpty) {
                                   _safeSetState(() => _lastSeenAuthUrl = last);
                                 }
-                              } catch (_) {}
+                              } on Exception catch (_) {}
                               final candidateCid = await _resolveClientId(
                                 widget.clientId,
                               );
@@ -1039,7 +1039,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                 tag: 'GoogleBackup',
                               );
                               await _checkStatusOnly(); // Just check status, don't do additional auth
-                            } catch (e, st) {
+                            } on Exception catch (e, st) {
                               // Log and treat user cancellations specially so the UI
                               // does not present an error for an intentional cancel.
                               Log.d(
@@ -1081,7 +1081,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                 if (last != null && last.isNotEmpty) {
                                   _safeSetState(() => _lastSeenAuthUrl = last);
                                 }
-                              } catch (_) {}
+                              } on Exception catch (_) {}
                               // If we already have an auth URL available, try to open it
                               // explicitly as a fallback so the user sees the browser.
                               try {
@@ -1105,7 +1105,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                       'GoogleDriveBackupDialog: openBrowser invoked for desktop auth',
                                       tag: 'GoogleBackup',
                                     );
-                                  } catch (e) {
+                                  } on Exception catch (e) {
                                     Log.w(
                                       'GoogleDriveBackupDialog: openBrowser fallback failed: $e',
                                       tag: 'GoogleBackup',
@@ -1115,7 +1115,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                     );
                                   }
                                 }
-                              } catch (_) {}
+                              } on Exception catch (_) {}
 
                               final candidateCid = await _resolveClientId(
                                 widget.clientId,
@@ -1128,7 +1128,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                 tag: 'GoogleBackup',
                               );
                               await _checkStatusOnly(); // Just check status, don't do additional auth
-                            } catch (e, st) {
+                            } on Exception catch (e, st) {
                               Log.d(
                                 'GoogleDriveBackupDialog: Desktop linkAccount threw: $e',
                                 tag: 'GoogleBackup',
@@ -1200,7 +1200,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                     await GoogleBackupService(
                                       accessToken: null,
                                     ).clearStoredCredentials();
-                                  } catch (_) {}
+                                  } on Exception catch (_) {}
                                   _safeSetState(() {
                                     _service = null;
                                     _email = null;
@@ -1217,13 +1217,13 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                     if (widget.onClearAccountInfo != null) {
                                       widget.onClearAccountInfo!();
                                     }
-                                  } catch (_) {}
+                                  } on Exception catch (_) {}
                                   try {
                                     final navState = navigatorKey.currentState;
                                     if (navState != null && navState.canPop()) {
                                       navState.pop(true);
                                     }
-                                  } catch (_) {}
+                                  } on Exception catch (_) {}
                                 }
                               },
                         style: OutlinedButton.styleFrom(
@@ -1350,7 +1350,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                   _updateStatus(
                                     '[DELETE_COMPLETE] Backup archive purged from cloud storage',
                                   );
-                                } catch (e) {
+                                } on Exception catch (e) {
                                   debugPrint('deleteBackup failed: $e');
                                   _updateStatus(
                                     '[DELETE_ERROR] Failed to purge backup archive',
@@ -1478,7 +1478,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
     if (_latestBackup == null) return null;
     try {
       return _formatBackupSummary(_latestBackup!);
-    } catch (_) {
+    } on Exception catch (_) {
       return null;
     }
   }

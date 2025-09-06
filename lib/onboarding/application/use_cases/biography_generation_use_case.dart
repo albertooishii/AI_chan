@@ -95,21 +95,21 @@ class BiographyGenerationUseCase {
 
         // Save the complete chat export (includes biography and timeline)
         await StorageUtils.saveChatExportToPrefs(chatExport);
-      } catch (e) {
+      } on Exception catch (e) {
         // Log persistence failures to help debugging on devices
         try {
           Log.w(
             'BiographyGenerationUseCase: failed to save biography: $e',
             tag: 'BIO_GEN',
           );
-        } catch (_) {}
+        } on Exception catch (_) {}
         rethrow;
       }
 
       onProgress?.call(BiographyGenerationStep.completed);
 
       return finalBiography;
-    } catch (e) {
+    } on Exception catch (e) {
       onProgress?.call(BiographyGenerationStep.error);
       throw Exception('Biography generation failed: $e');
     }
@@ -124,7 +124,7 @@ class BiographyGenerationUseCase {
         return await AiChanProfile.tryFromJson(json);
       }
       return null;
-    } catch (e) {
+    } on Exception catch (e) {
       throw Exception('Failed to load existing biography: $e');
     }
   }
@@ -148,7 +148,7 @@ class BiographyGenerationUseCase {
     try {
       final biography = await loadExistingBiography();
       return biography != null && biography.avatars?.isNotEmpty == true;
-    } catch (e) {
+    } on Exception {
       return false;
     }
   }

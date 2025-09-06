@@ -47,7 +47,7 @@ void main() {
       try {
         Config.setOverrides(null);
         tmp.deleteSync(recursive: true);
-      } catch (_) {}
+      } on Exception catch (_) {}
     },
   );
 
@@ -77,7 +77,7 @@ void main() {
     try {
       await gen.generateAvatarFromAppearance(profile);
       fail('Expected exception');
-    } catch (e) {
+    } on Exception catch (e) {
       expect(e, isA<Exception>());
     }
 
@@ -85,6 +85,6 @@ void main() {
     try {
       Config.setOverrides(null);
       tmp.deleteSync(recursive: true);
-    } catch (_) {}
+    } on Exception catch (_) {}
   });
 }

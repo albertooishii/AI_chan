@@ -55,7 +55,7 @@ void main() {
       await WebSocket.connect('ws://example.invalid');
       // If connection succeeded unexpectedly, fail the test
       fail('WebSocket.connect unexpectedly succeeded — network not blocked');
-    } catch (_) {
+    } on Exception catch (_) {
       // Expected: network blocked or DNS fails — treat as pass
       expect(true, isTrue);
     }

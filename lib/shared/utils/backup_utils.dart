@@ -15,7 +15,7 @@ class BackupUtils {
     if (repository != null) {
       try {
         return await repository.exportAllToJson(map);
-      } catch (_) {}
+      } on Exception catch (_) {}
     }
     final encoder = const JsonEncoder.withIndent('  ');
     return encoder.convert(map);

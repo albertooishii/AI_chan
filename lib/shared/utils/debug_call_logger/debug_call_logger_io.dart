@@ -15,22 +15,22 @@ Future<void> debugLogCallPrompt(
     final debugMode = Config.get('DEBUG_MODE', '').toLowerCase().trim();
     // Solo crear JSON logs en modo 'full'
     if (debugMode != 'full') return;
-  } catch (_) {
+  } on Exception catch (_) {
     // Si no se puede leer la config, no crear logs por seguridad
     return;
   }
   if (Platform.environment['FLUTTER_TEST'] == 'true') return;
   try {
     final dir = Directory('debug_json_logs');
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
+    if (!dir.existsSync()) {
+      dir.createSync(recursive: true);
     }
     final ts = DateTime.now().toIso8601String().replaceAll(':', '-');
     final file = File('${dir.path}/call_prompt_${fileBaseName}_$ts.json');
     await file.writeAsString(
       const JsonEncoder.withIndent('  ').convert(jsonObj),
     );
-  } catch (_) {
+  } on Exception catch (_) {
     // Silencioso en caso de error
   }
 }

@@ -24,11 +24,11 @@ class DefaultTtsService implements ITtsService {
     try {
       final native = await AndroidNativeTtsService.getAvailableVoices();
       voices.addAll(native);
-    } catch (_) {}
+    } on Exception catch (_) {}
     try {
       final google = await GoogleSpeechService.fetchGoogleVoices();
       voices.addAll(google.cast<Map<String, dynamic>>());
-    } catch (_) {}
+    } on Exception catch (_) {}
     return voices;
   }
 
@@ -62,7 +62,7 @@ class DefaultTtsService implements ITtsService {
         debugPrint(
           '[DefaultTTS] Using configured provider: $provider for voice: $voice',
         );
-      } catch (_) {
+      } on Exception catch (_) {
         // Fallback to env config
         final env = Config.getAudioProvider().toLowerCase();
         provider = (env == 'openai')
@@ -113,12 +113,12 @@ class DefaultTtsService implements ITtsService {
                 debugPrint('[DefaultTTS] Android native TTS success: $res');
                 return res;
               }
-            } catch (e) {
+            } on Exception catch (e) {
               debugPrint('[DefaultTTS] Android native TTS error: $e');
             }
           }
         }
-      } catch (e) {
+      } on Exception catch (e) {
         debugPrint('[DefaultTTS] Android native TTS exception: $e');
       }
     } else if (provider == 'openai') {
@@ -145,31 +145,6 @@ class DefaultTtsService implements ITtsService {
           debugPrint(
             '[DefaultTTS] Mapping voice "$voice" -> Google default voice: $googleDefault',
           );
-          // overwrite voice with a Google-compatible name
-          // ignore mapping if googleDefault is empty
-          // (we'll try as-is and possibly return null)
-          // Note: we intentionally mutate the local `voice` var used downstream
-          // so subsequent logs and calls use the mapped value.
-          // ignore: avoid_redundant_string_escapes
-          // (keeping style consistent)
-
-          // update voice variable
-          // (this is safe because voice is a local mutable var)
-          // ...
-          // actual assignment:
-          // (placed here to keep minimal diff context)
-
-          // assign
-
-          // end comment
-
-          // perform assignment
-          // (note: we purposely avoid extracting to helper to keep patch small)
-
-          // assign below
-
-          // assign now
-
           voice = googleDefault;
         } else {
           debugPrint(
@@ -198,7 +173,7 @@ class DefaultTtsService implements ITtsService {
         } else {
           debugPrint('[DefaultTTS] Google TTS not configured');
         }
-      } catch (e) {
+      } on Exception catch (e) {
         debugPrint('[DefaultTTS] Google TTS error: $e');
         // If the error indicates an invalid voice and provider was explicitly
         // chosen, abort fallback to avoid using a different provider's voice.
@@ -228,7 +203,7 @@ class DefaultTtsService implements ITtsService {
         } else {
           debugPrint('[DefaultTTS] Direct OpenAI returned null');
         }
-      } catch (e) {
+      } on Exception catch (e) {
         debugPrint('[DefaultTTS] Direct OpenAI error: $e');
       }
     }
@@ -283,7 +258,7 @@ class DefaultTtsService implements ITtsService {
           debugPrint('[DefaultTTS] GeminiAdapter returned null');
         }
       }
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('[DefaultTTS] Runtime adapter error: $e');
     }
 

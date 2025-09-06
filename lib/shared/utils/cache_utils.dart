@@ -10,7 +10,7 @@ Future<Directory> getLocalCacheDir() async {
   final testOverride = Config.get('TEST_CACHE_DIR', '');
   if (testOverride.isNotEmpty) {
     final d = Directory(testOverride);
-    if (!await d.exists()) await d.create(recursive: true);
+    if (!d.existsSync()) d.createSync(recursive: true);
     return d;
   }
 
@@ -25,9 +25,9 @@ Future<Directory> getLocalCacheDir() async {
     final cacheDir = Directory(
       '${tmp.path}${Platform.pathSeparator}AI_chan_cache',
     );
-    if (!await cacheDir.exists()) await cacheDir.create(recursive: true);
+    if (!cacheDir.existsSync()) cacheDir.createSync(recursive: true);
     return cacheDir;
-  } catch (e) {
+  } on Exception {
     // In tests, path_provider plugin may not be available.
     // Create a fallback directory in system temp.
     if (kDebugMode) {
@@ -36,9 +36,9 @@ Future<Directory> getLocalCacheDir() async {
         final cacheDir = Directory(
           '${systemTmp.path}${Platform.pathSeparator}AI_chan_cache_fallback',
         );
-        if (!await cacheDir.exists()) await cacheDir.create(recursive: true);
+        if (!cacheDir.existsSync()) cacheDir.createSync(recursive: true);
         return cacheDir;
-      } catch (_) {
+      } on Exception catch (_) {
         // Last resort fallback
       }
     }
@@ -48,7 +48,7 @@ Future<Directory> getLocalCacheDir() async {
     final cacheDir = Directory(
       '${support.path}${Platform.pathSeparator}AI_chan_cache',
     );
-    if (!await cacheDir.exists()) await cacheDir.create(recursive: true);
+    if (!cacheDir.existsSync()) cacheDir.createSync(recursive: true);
     return cacheDir;
   }
 }

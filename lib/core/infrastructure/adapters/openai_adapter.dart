@@ -29,7 +29,7 @@ class OpenAIAdapter implements IAIService {
   Future<List<String>> getAvailableModels() async {
     try {
       return await _impl.getAvailableModels();
-    } catch (_) {
+    } on Exception catch (_) {
       return <String>[];
     }
   }
@@ -55,7 +55,7 @@ class OpenAIAdapter implements IAIService {
         enableImageGeneration: enableImageGeneration,
       );
       return (resp?.toJson() ?? <String, dynamic>{}) as Map<String, dynamic>;
-    } catch (e) {
+    } on Exception {
       return {'text': ''};
     }
   }
@@ -81,7 +81,7 @@ class OpenAIAdapter implements IAIService {
         instructions: instructions,
       );
       return file?.path;
-    } catch (_) {
+    } on Exception catch (_) {
       return null;
     }
   }

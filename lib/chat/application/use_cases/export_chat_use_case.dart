@@ -21,7 +21,7 @@ class ExportChatUseCase {
 
       // 2. Usar el repositorio para exportar a JSON string
       return await _repository.exportAllToJson(conversationMap);
-    } catch (error) {
+    } on Exception catch (error) {
       throw Exception('Failed to export chat: $error');
     }
   }

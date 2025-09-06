@@ -41,7 +41,6 @@ class RealAudioPlayback implements AudioPlayback {
   final ap.AudioPlayer _player;
 
   @override
-  // ignore: avoid_returning_null_for_void
   Stream<void> get onPlayerComplete => _player.onPlayerComplete.map((_) {});
   @override
   Stream<Duration> get onDurationChanged => _player.onDurationChanged;
@@ -70,19 +69,19 @@ class RealAudioPlayback implements AudioPlayback {
             // If path points to an existing file, attempt DeviceFileSource first.
             try {
               final f = File(path);
-              if (await f.exists()) {
+              if (f.existsSync()) {
                 try {
                   src = ap.DeviceFileSource(path);
                   await _player.play(src);
                   if (!completer.isCompleted) completer.complete();
                   return;
-                } catch (e) {
+                } on Exception catch (e) {
                   // DeviceFileSource failed for this device; fall through to bytes option.
                   try {
                     debugPrint(
                       '[AudioPlayback] DeviceFileSource failed, will try BytesSource for $path: $e',
                     );
-                  } catch (_) {}
+                  } on Exception catch (_) {}
                 }
 
                 // Try bytes fallback
@@ -92,12 +91,12 @@ class RealAudioPlayback implements AudioPlayback {
                   await _player.play(bytesSrc);
                   if (!completer.isCompleted) completer.complete();
                   return;
-                } catch (e) {
+                } on Exception catch (e) {
                   try {
                     debugPrint(
                       '[AudioPlayback] BytesSource fallback failed for $path: $e',
                     );
-                  } catch (_) {}
+                  } on Exception catch (_) {}
                   // final fallback: try DeviceFileSource again (best-effort)
                   src = ap.DeviceFileSource(path);
                   // If both DeviceFileSource and BytesSource failed, attempt to obtain a
@@ -116,34 +115,34 @@ class RealAudioPlayback implements AudioPlayback {
                         await _player.play(urlSrc);
                         if (!completer.isCompleted) completer.complete();
                         return;
-                      } catch (e) {
+                      } on Exception catch (e) {
                         try {
                           debugPrint(
                             '[AudioPlayback] UrlSource(FileProvider) failed for $contentUri: $e',
                           );
-                        } catch (_) {}
+                        } on Exception catch (_) {}
                       }
                     }
-                  } catch (e) {
+                  } on Exception catch (e) {
                     try {
                       debugPrint(
                         '[AudioPlayback] FileProvider content URI step failed for $path: $e',
                       );
-                    } catch (_) {}
+                    } on Exception catch (_) {}
                   }
                 }
               } else {
                 // Path doesn't exist - treat as generic string and let plugin decide
                 src = ap.DeviceFileSource(path);
               }
-            } catch (e) {
+            } on Exception catch (e) {
               // If any unexpected error happens, fallback to converting to string
               // and trying DeviceFileSource.
               try {
                 debugPrint(
                   '[AudioPlayback] Error preparing local file source: $e',
                 );
-              } catch (_) {}
+              } on Exception catch (_) {}
               src = ap.DeviceFileSource(source.toString());
             }
           } else if (source is ap.Source) {
@@ -155,13 +154,13 @@ class RealAudioPlayback implements AudioPlayback {
 
           try {
             await _player.play(src);
-          } catch (e) {
+          } on Exception catch (e) {
             // Avoid crashing the app when the audio resource doesn't exist or the
             // platform player fails to set the source. Log a friendly message and
             // let the caller continue (UI should reflect playback failure).
             try {
               debugPrint('[AudioPlayback] play failed for source=$source: $e');
-            } catch (_) {}
+            } on Exception catch (_) {}
           }
 
           if (!completer.isCompleted) completer.complete();
@@ -172,13 +171,12 @@ class RealAudioPlayback implements AudioPlayback {
           debugPrint(
             '[AudioPlayback] uncaught async error in playback zone: $error',
           );
-        } catch (_) {}
+        } on Exception catch (_) {}
         // Ensure the future completes even if an async uncaught error occurred
         // so callers awaiting the play() future don't block forever.
         try {
-          // ignore: unnecessary_null_comparison
           if (!completer.isCompleted) completer.complete();
-        } catch (_) {}
+        } on Exception catch (_) {}
       },
     );
 

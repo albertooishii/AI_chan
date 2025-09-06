@@ -479,7 +479,7 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
           ),
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       if (mounted) {
         await showAppDialog(
           builder: (final ctx) => AlertDialog(
@@ -608,7 +608,7 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
             ),
           );
         }
-      } catch (e) {
+      } on Exception catch (e) {
         await showAppDialog(
           builder: (final ctx) => AlertDialog(
             backgroundColor: Colors.black,

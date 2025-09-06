@@ -25,7 +25,7 @@ class ImportChatUseCase {
       } else {
         throw Exception('Invalid JSON format or empty data');
       }
-    } catch (error) {
+    } on Exception catch (error) {
       throw Exception('Failed to import chat: $error');
     }
   }

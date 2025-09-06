@@ -13,7 +13,7 @@ class DebouncedSave {
     _timer = Timer(duration, () {
       try {
         save();
-      } catch (_) {}
+      } on Exception catch (_) {}
     });
   }
 

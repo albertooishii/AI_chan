@@ -8,8 +8,8 @@ class FileOperationsService implements IFileOperationsService {
   Future<bool> fileExists(final String path) async {
     try {
       final file = File(path);
-      return await file.exists();
-    } catch (e) {
+      return file.existsSync();
+    } on Exception {
       return false;
     }
   }
@@ -18,11 +18,11 @@ class FileOperationsService implements IFileOperationsService {
   Future<List<int>?> readFileAsBytes(final String path) async {
     try {
       final file = File(path);
-      if (await file.exists()) {
+      if (file.existsSync()) {
         return await file.readAsBytes();
       }
       return null;
-    } catch (e) {
+    } on Exception {
       return null;
     }
   }
@@ -31,11 +31,11 @@ class FileOperationsService implements IFileOperationsService {
   Future<String?> readFileAsString(final String path) async {
     try {
       final file = File(path);
-      if (await file.exists()) {
+      if (file.existsSync()) {
         return await file.readAsString();
       }
       return null;
-    } catch (e) {
+    } on Exception {
       return null;
     }
   }
@@ -46,7 +46,7 @@ class FileOperationsService implements IFileOperationsService {
     final List<int> bytes,
   ) async {
     final file = File(path);
-    await file.parent.create(recursive: true);
+    file.parent.createSync(recursive: true);
     await file.writeAsBytes(bytes);
   }
 
@@ -56,14 +56,14 @@ class FileOperationsService implements IFileOperationsService {
     final String content,
   ) async {
     final file = File(path);
-    await file.parent.create(recursive: true);
+    file.parent.createSync(recursive: true);
     await file.writeAsString(content);
   }
 
   @override
   Future<void> deleteFile(final String path) async {
     final file = File(path);
-    if (await file.exists()) {
+    if (file.existsSync()) {
       await file.delete();
     }
   }
@@ -72,11 +72,11 @@ class FileOperationsService implements IFileOperationsService {
   Future<int> getFileSize(final String path) async {
     try {
       final file = File(path);
-      if (await file.exists()) {
+      if (file.existsSync()) {
         return await file.length();
       }
       return 0;
-    } catch (e) {
+    } on Exception {
       return 0;
     }
   }
@@ -84,6 +84,6 @@ class FileOperationsService implements IFileOperationsService {
   @override
   Future<void> createDirectories(final String path) async {
     final directory = Directory(path);
-    await directory.create(recursive: true);
+    directory.createSync(recursive: true);
   }
 }

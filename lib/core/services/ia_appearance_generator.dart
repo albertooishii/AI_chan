@@ -307,7 +307,7 @@ class IAAppearanceGenerator {
         Log.w(
           '[IAAppearanceGenerator] Apariencia: intento ${attempt + 1} sin JSON válido, reintentando...',
         );
-      } catch (err) {
+      } on Exception catch (err) {
         if (handleRuntimeError(err, 'IAAppearanceGenerator')) {
           // logged by helper
         } else {
@@ -330,7 +330,7 @@ class IAAppearanceGenerator {
     // Forzar edad_aparente=25 por consistencia (si el modelo no la puso o puso otro valor)
     try {
       appearanceMap['edad_aparente'] = 25;
-    } catch (_) {}
+    } on Exception catch (_) {}
     // Sin campo de versión: no se requiere completar timestamp
     return appearanceMap;
   }

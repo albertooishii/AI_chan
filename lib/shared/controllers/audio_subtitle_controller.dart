@@ -42,7 +42,7 @@ class AudioSubtitleController {
         for (final s in subs) {
           try {
             await s.cancel();
-          } catch (_) {}
+          } on Exception catch (_) {}
         }
       };
     });

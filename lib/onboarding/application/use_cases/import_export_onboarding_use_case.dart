@@ -45,7 +45,7 @@ class ImportExportOnboardingUseCase {
 
       Log.d('✅ Importación JSON exitosa', tag: 'IMPORT_EXPORT_UC');
       return ImportExportResult.success(data: imported);
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('Error durante importación JSON: $e', tag: 'IMPORT_EXPORT_UC');
       return ImportExportResult.error(
         'Error inesperado durante la importación: $e',
@@ -107,7 +107,7 @@ class ImportExportOnboardingUseCase {
 
       Log.d('✅ Restauración de backup exitosa', tag: 'IMPORT_EXPORT_UC');
       return ImportExportResult.success(data: imported);
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         'Error durante restauración de backup: $e',
         tag: 'IMPORT_EXPORT_UC',
@@ -130,7 +130,7 @@ class ImportExportOnboardingUseCase {
       // Por ahora solo validamos que el archivo existe y tiene contenido
       // TODO: Implementar validación más robusta cuando BackupService use IFileService
       return true;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('Error validando archivo de backup: $e');
       return false;
     }

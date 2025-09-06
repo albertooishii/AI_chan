@@ -47,7 +47,7 @@ class AiChanProfile {
             final list = (json['avatars'] as List).cast<Map<String, dynamic>>();
             return list.map((final m) => AiImage.fromJson(m)).toList();
           }
-        } catch (_) {}
+        } on Exception catch (_) {}
         return null;
       })(),
     );
@@ -105,7 +105,7 @@ class AiChanProfile {
       try {
         await PrefsUtils.removeOnboardingData();
         await PrefsUtils.removeChatHistory();
-      } catch (_) {}
+      } on Exception catch (_) {}
       return null;
     }
     return AiChanProfile.fromJson(json);

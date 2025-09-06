@@ -45,7 +45,7 @@ Future<(bool success, String? error)> downloadImage(
 
       final savedFile = File(result);
       // Si ya existe, éxito
-      if (await savedFile.exists()) {
+      if (savedFile.existsSync()) {
         Log.d('[downloadImage] Archivo existe en: $result');
         return (true, null);
       }
@@ -53,7 +53,7 @@ Future<(bool success, String? error)> downloadImage(
       // Intentar escribir los bytes manualmente (fallback si FilePicker no creó el archivo)
       try {
         await savedFile.writeAsBytes(bytes);
-        if (await savedFile.exists()) {
+        if (savedFile.existsSync()) {
           Log.d('[downloadImage] Archivo creado manualmente en: $result');
           return (true, null);
         } else {
@@ -63,7 +63,7 @@ Future<(bool success, String? error)> downloadImage(
             'No se pudo crear el archivo en la ubicación especificada',
           );
         }
-      } catch (e, st) {
+      } on Exception catch (e, st) {
         Log.e('[downloadImage] Error al escribir manualmente: $e\n$st');
         return (false, 'Error al guardar imagen: $e');
       }
@@ -71,7 +71,7 @@ Future<(bool success, String? error)> downloadImage(
       // El usuario canceló el diálogo de guardado - no es un error
       return (false, null); // null error significa cancelación, no error
     }
-  } catch (e, st) {
+  } on Exception catch (e, st) {
     Log.e('[downloadImage] Exception: $e\n$st');
     return (false, 'Error al guardar imagen: $e');
   }

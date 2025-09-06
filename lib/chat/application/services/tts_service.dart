@@ -62,15 +62,13 @@ class TtsService {
         // Try to delete original if it's in a temp location
         try {
           await fileService.deleteFile(synthesizedPath);
-        } catch (_) {
-          // Ignore errors when deleting temp files
-        }
+        } on Exception catch (_) {}
 
         return finalPath;
       }
 
       return synthesizedPath; // Fallback to original path
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('[Audio][TTS] Error in synthesizeAndPersist: $e');
       return null;
     }

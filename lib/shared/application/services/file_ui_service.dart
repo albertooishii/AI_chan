@@ -12,7 +12,7 @@ class FileUIService {
   Future<bool> fileExists(final String path) async {
     try {
       return await _fileOperations.fileExists(path);
-    } catch (e) {
+    } on Exception {
       return false;
     }
   }
@@ -98,7 +98,7 @@ class FileUIService {
       await _fileOperations.writeFileAsBytes(imagePath, bytes);
 
       return fileName;
-    } catch (e) {
+    } on Exception {
       return null;
     }
   }

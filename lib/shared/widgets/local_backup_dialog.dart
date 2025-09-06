@@ -73,12 +73,12 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
         if (navCtx != null && mounted) {
           showAppSnackBar(msg, preferRootMessenger: true);
         }
-      } catch (_) {}
+      } on Exception catch (_) {}
       _safeSetState(() {
         _status = msg;
         _working = false;
       });
-    } catch (e) {
+    } on Exception catch (e) {
       _safeSetState(() {
         _status = 'Error creando backup: $e';
         _working = false;
@@ -110,7 +110,7 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
         try {
           if (!mounted) return;
           if (Navigator.of(context).canPop()) Navigator.of(context).pop(true);
-        } catch (_) {}
+        } on Exception catch (_) {}
         return;
       }
       // Notify caller of parse error if provided
@@ -121,7 +121,7 @@ class _LocalBackupDialogState extends State<LocalBackupDialog> {
         _status = 'Error importando backup';
         _working = false;
       });
-    } catch (e) {
+    } on Exception catch (e) {
       _safeSetState(() {
         _status = 'Error restaurando backup: $e';
         _working = false;

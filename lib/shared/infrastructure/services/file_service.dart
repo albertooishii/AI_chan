@@ -15,7 +15,7 @@ class FileService implements IFileService {
     final file = File('$dir/$filename');
 
     // Crear directorio si no existe
-    await file.parent.create(recursive: true);
+    file.parent.createSync(recursive: true);
 
     // Escribir archivo
     await file.writeAsBytes(bytes);
@@ -27,24 +27,24 @@ class FileService implements IFileService {
   Future<List<int>?> loadFile(final String filePath) async {
     try {
       final file = File(filePath);
-      if (await file.exists()) {
+      if (file.existsSync()) {
         return await file.readAsBytes();
       }
       return null;
-    } catch (e) {
+    } on Exception {
       return null;
     }
   }
 
   @override
   Future<bool> fileExists(final String filePath) async {
-    return await File(filePath).exists();
+    return File(filePath).existsSync();
   }
 
   @override
   Future<void> deleteFile(final String filePath) async {
     final file = File(filePath);
-    if (await file.exists()) {
+    if (file.existsSync()) {
       await file.delete();
     }
   }

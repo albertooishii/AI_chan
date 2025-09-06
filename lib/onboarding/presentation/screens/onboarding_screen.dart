@@ -67,7 +67,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     try {
       // Only dispose if we created it here.
       _createdLifecycle?.dispose();
-    } catch (_) {}
+    } on Exception catch (_) {}
     super.dispose();
   }
 

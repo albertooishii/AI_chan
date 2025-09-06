@@ -317,7 +317,7 @@ Identidad: $aiIdentityInstructions
       Log.w(
         '[IABioGenerator] Biografía: intento ${attempt + 1} sin JSON válido, reintentando...',
       );
-    } catch (err) {
+    } on Exception catch (err) {
       if (handleRuntimeError(err, 'IABioGenerator')) {
         // already logged inside helper
       } else {

@@ -499,7 +499,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             }
           }
         }
-      } catch (_) {}
+      } on Exception catch (_) {}
       return list;
     }
 

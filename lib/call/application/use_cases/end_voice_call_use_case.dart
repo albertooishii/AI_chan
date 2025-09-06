@@ -46,7 +46,7 @@ class EndCallUseCase {
       if (_realtimeClient.isConnected) {
         await _realtimeClient.disconnect();
       }
-    } catch (e) {
+    } on Exception {
       // Ignorar errores de desconexión en caso de fallo
     }
 

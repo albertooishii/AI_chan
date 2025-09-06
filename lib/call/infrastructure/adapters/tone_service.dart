@@ -28,10 +28,10 @@ class ToneService {
       );
       try {
         await _player.stop();
-      } catch (_) {}
+      } on Exception catch (_) {}
       await _player.play(wav);
       // No esperamos a que termine: el llamador decide si bloquear o no
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   /// Genera el WAV PCM16 mono del tono de colgado/errores según preset

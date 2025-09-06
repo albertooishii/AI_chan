@@ -426,7 +426,7 @@ class _ConversationalOnboardingScreenState
                                         '🛑 EMERGENCIA - AudioPlayer también detenido',
                                         tag: 'CONV_ONBOARDING',
                                       );
-                                    } catch (e) {
+                                    } on Exception catch (e) {
                                       Log.d(
                                         '⚠️ AudioPlayer ya estaba detenido: $e',
                                         tag: 'CONV_ONBOARDING',
@@ -441,7 +441,7 @@ class _ConversationalOnboardingScreenState
                                         '🛑 EMERGENCIA - Audio global también detenido',
                                         tag: 'CONV_ONBOARDING',
                                       );
-                                    } catch (e) {
+                                    } on Exception catch (e) {
                                       Log.d(
                                         '⚠️ Audio global ya estaba detenido: $e',
                                         tag: 'CONV_ONBOARDING',
@@ -749,7 +749,7 @@ class _ConversationalOnboardingScreenState
           suppressFurther: false,
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('❌ Error en OpenAI TTS: $e', tag: 'CONV_ONBOARDING');
 
       // 🔒 VERIFICAR CANCELACIÓN EN CASO DE ERROR
@@ -861,7 +861,7 @@ class _ConversationalOnboardingScreenState
         currentMemory: _currentMemory,
         userLastResponse: 'No entendí',
       );
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('Error generando mensaje de reintento: $e');
       // Mensaje de fallback si falla la IA
       retryMessage =
@@ -1221,7 +1221,7 @@ class _ConversationalOnboardingScreenState
                 int.parse(parts[0]),
               );
             }
-          } catch (e) {
+          } on Exception catch (e) {
             Log.w(
               'Error parseando fecha en fallback: $e',
               tag: 'CONV_ONBOARDING',
@@ -1358,7 +1358,7 @@ class _ConversationalOnboardingScreenState
         currentMemory: _currentMemory,
         userLastResponse: userLastResponse ?? _lastUserResponse,
       );
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('Error generando pregunta con IA: $e');
       await _retryCurrentStep();
       return;

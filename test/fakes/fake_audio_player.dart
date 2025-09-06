@@ -19,13 +19,13 @@ class FakeAudioPlayer implements AudioPlayback {
     Future.delayed(const Duration(milliseconds: 5), () {
       try {
         _durationController.add(const Duration(milliseconds: 40));
-      } catch (_) {}
+      } on Exception catch (_) {}
     });
     Future.delayed(const Duration(milliseconds: 20), () {
       try {
         _positionController.add(const Duration(milliseconds: 40));
         _completeController.add(null);
-      } catch (_) {}
+      } on Exception catch (_) {}
     });
   }
 
@@ -38,7 +38,7 @@ class FakeAudioPlayer implements AudioPlayback {
       _completeController.close();
       _durationController.close();
       _positionController.close();
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   @override

@@ -68,7 +68,7 @@ class ChatJsonUtils {
                 }
               }
             }
-          } catch (_) {
+          } on Exception catch (_) {
             final storageReq = await Permission.storage.request();
             if (!storageReq.isGranted) {
               return (
@@ -81,11 +81,11 @@ class ChatJsonUtils {
 
         final file = File(path);
         await file.writeAsString(exportStr);
-        final exists = await file.exists();
+        final exists = file.existsSync();
         if (!exists) return (false, 'No se pudo crear el archivo en: $path');
         final length = await file.length();
         if (length == 0) return (false, 'Archivo creado vacío en: $path');
-      } catch (e) {
+      } on Exception catch (e) {
         // Proveer mensaje más útil en Android
         if (!kIsWeb && Platform.isAndroid) {
           return (
@@ -96,7 +96,7 @@ class ChatJsonUtils {
         return (false, 'Error escribiendo archivo en disco:\n$e');
       }
       return (true, null);
-    } catch (e) {
+    } on Exception catch (e) {
       return (false, 'Error al guardar archivo:\n${e.toString()}');
     }
   }
@@ -137,7 +137,7 @@ class ChatJsonUtils {
         return null;
       }
       return result;
-    } catch (e) {
+    } on Exception catch (e) {
       onError?.call(e.toString());
       return null;
     }
@@ -153,7 +153,7 @@ class ChatJsonUtils {
     try {
       final decoded = jsonDecode(json);
       preview = const JsonEncoder.withIndent('  ').convert(decoded);
-    } catch (_) {
+    } on Exception catch (_) {
       // Si no se puede parsear, usar el JSON tal como viene
       preview = json;
     }
@@ -227,7 +227,7 @@ class ChatJsonUtils {
                     try {
                       final file = File(path);
                       await file.writeAsString(preview);
-                      final exists = await file.exists();
+                      final exists = file.existsSync();
                       if (!exists) {
                         showErrorDialog(
                           'No se pudo crear el archivo en: $path',
@@ -238,12 +238,12 @@ class ChatJsonUtils {
                           preferRootMessenger: true,
                         );
                       }
-                    } catch (e) {
+                    } on Exception catch (e) {
                       showErrorDialog(
                         'Error guardando archivo:\n${e.toString()}',
                       );
                     }
-                  } catch (e) {
+                  } on Exception catch (e) {
                     showErrorDialog(
                       'Error guardando archivo:\n${e.toString()}',
                     );
@@ -335,7 +335,7 @@ class ChatJsonUtils {
         final file = File(result.files.single.path!);
         return (await file.readAsString(), null);
       }
-    } catch (e) {
+    } on Exception catch (e) {
       return (null, 'Error al leer archivo:\n${e.toString()}');
     }
     return (null, null);

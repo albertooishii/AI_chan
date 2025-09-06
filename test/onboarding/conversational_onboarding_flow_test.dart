@@ -237,7 +237,7 @@ void main() async {
         // El servicio debe manejar gracefully las respuestas vacías
         expect(errorResponse, isA<Map<String, dynamic>>());
         Log.d('   ✅ Respuesta vacía manejada correctamente', tag: 'TEST');
-      } catch (e) {
+      } on Exception catch (e) {
         Log.d('   ℹ️ Error esperado para respuesta vacía: $e', tag: 'TEST');
       }
 
@@ -252,7 +252,7 @@ void main() async {
 
         expect(longErrorResponse, isA<Map<String, dynamic>>());
         Log.d('   ✅ Respuesta larga manejada correctamente', tag: 'TEST');
-      } catch (e) {
+      } on Exception catch (e) {
         Log.d('   ℹ️ Error esperado para respuesta larga: $e', tag: 'TEST');
       }
     });

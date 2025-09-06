@@ -27,7 +27,7 @@ class GenerateNextQuestionUseCase {
           tag: 'ONB_SERVICE',
         );
         return result;
-      } catch (e) {
+      } on Exception catch (e) {
         Log.e(
           '❌ [ONB_SERVICE] Error en intento $attempt: $e',
           tag: 'ONB_SERVICE',

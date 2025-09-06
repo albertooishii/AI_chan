@@ -179,7 +179,7 @@ class ChatBubble extends StatelessWidget {
         final fullWidth =
             mediaWidth - 20; // tomar en cuenta margen horizontal del container
         return SizedBox(width: fullWidth, child: bubble);
-      } catch (_) {
+      } on Exception catch (_) {
         return bubble;
       }
     }
@@ -206,7 +206,7 @@ class ChatBubble extends StatelessWidget {
         constraints: BoxConstraints(minWidth: minWidth, maxWidth: maxWidth),
         child: bubble,
       );
-    } catch (_) {
+    } on Exception catch (_) {
       // Si por alguna razón MediaQuery no está disponible, caer al comportamiento por defecto
       return bubble;
     }

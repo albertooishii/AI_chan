@@ -74,7 +74,7 @@ class ChatApplicationService {
             // Procesar el mensaje usando las opciones de la cola
             _processQueuedMessage(lastMsg, options);
           }
-        } catch (_) {}
+        } on Exception catch (_) {}
       },
     );
 
@@ -197,7 +197,7 @@ class ChatApplicationService {
           tag: 'CHAT_SERVICE',
         );
       }
-    } catch (e, st) {
+    } on Exception catch (e, st) {
       Log.e(
         'ChatApplicationService: error loading persisted data: $e',
         tag: 'CHAT_SERVICE',
@@ -229,7 +229,7 @@ class ChatApplicationService {
           (final m) => m.localId == message.localId,
         ),
       );
-    } catch (e) {
+    } on Exception {
       // Marcar como fallido en caso de error
       final idx = _messages.indexWhere(
         (final m) => m.localId == message.localId,
@@ -397,7 +397,7 @@ class ChatApplicationService {
 
         // Persist assistant response as well
         await _persistStateImmediate();
-      } catch (e, st) {
+      } on Exception catch (e, st) {
         Log.e(
           'ChatApplicationService: error processing AI response for localId=${message.localId} | error=$e',
           tag: 'CHAT_SERVICE',
@@ -425,7 +425,7 @@ class ChatApplicationService {
           tag: 'CHAT_SERVICE',
         );
       }
-    } catch (e) {
+    } on Exception {
       // ✅ MIGRACIÓN: Marcar mensaje como fallido en caso de error
       final failedIndex = _messages.indexWhere(
         (final m) => m.localId == message.localId,
@@ -464,7 +464,7 @@ class ChatApplicationService {
     String provider = '';
     try {
       provider = await PrefsUtils.getSelectedAudioProvider();
-    } catch (_) {}
+    } on Exception catch (_) {}
 
     if (provider == 'native' || provider == 'android_native') {
       // Use live transcript as the final transcription
@@ -483,7 +483,7 @@ class ChatApplicationService {
             transcript = result.trim();
             break;
           }
-        } catch (e) {
+        } on Exception {
           attempt++;
           if (attempt > maxRetries) {
             // Fallback: intentar con el transcript en vivo si existe
@@ -532,7 +532,7 @@ class ChatApplicationService {
           if (await _fileOperations.fileExists(path)) {
             audioDuration = await AudioDurationUtils.getAudioDuration(path);
           }
-        } catch (_) {}
+        } on Exception catch (_) {}
 
         // Crear objeto AiAudio con los datos del TTS
         final audioObj = AiAudio(
@@ -586,7 +586,7 @@ class ChatApplicationService {
           tag: 'AUDIO',
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('Error calculando duración de audio: $e', tag: 'AUDIO');
     }
   }
@@ -613,7 +613,7 @@ class ChatApplicationService {
         // store empty to indicate unset
         await PrefsUtils.setSelectedModel('');
       }
-    } catch (e) {
+    } on Exception {
       // Log error but don't throw - this is non-critical
     }
   }
@@ -622,7 +622,7 @@ class ChatApplicationService {
   Future<void> _loadSelectedModel() async {
     try {
       _selectedModel = await PrefsUtils.getSelectedModel();
-    } catch (e) {
+    } on Exception {
       _selectedModel = null;
     }
   }
@@ -656,7 +656,7 @@ class ChatApplicationService {
         name: name,
         linked: linked,
       );
-    } catch (_) {}
+    } on Exception catch (_) {}
 
     // ✅ MIGRACIÓN COMPLETA: Auto backup logic completo del ChatProvider original
     if (linked && triggerAutoBackup) {
@@ -709,7 +709,7 @@ class ChatApplicationService {
             tag: 'BACKUP_AUTO',
           );
         }
-      } catch (e) {
+      } on Exception catch (e) {
         Log.w(
           'Auto-backup: updateGoogleAccountInfo branch failed: $e',
           tag: 'BACKUP_AUTO',
@@ -731,7 +731,7 @@ class ChatApplicationService {
     _googleLinked = false;
     try {
       await PrefsUtils.clearGoogleAccountInfo();
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   /// ✅ MIGRACIÓN: Auto backup logic completo del ChatProvider original
@@ -756,7 +756,7 @@ class ChatApplicationService {
       if (googleLinked) {
         await _executeAutoBackupLogic('chat_application_service');
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('Auto-backup: Failed: $e', tag: 'BACKUP_AUTO');
     }
   }
@@ -807,7 +807,7 @@ class ChatApplicationService {
             );
             return;
           }
-        } catch (e) {
+        } on Exception catch (e) {
           Log.w(
             'Auto-backup: error parsing last backup timestamp: $e',
             tag: 'BACKUP_AUTO',
@@ -821,7 +821,7 @@ class ChatApplicationService {
       try {
         await _listBackupsWithAutoRefresh();
         Log.d('Auto-backup: connectivity verified', tag: 'BACKUP_AUTO');
-      } catch (e) {
+      } on Exception catch (e) {
         Log.w('Auto-backup: connectivity check failed: $e', tag: 'BACKUP_AUTO');
         return;
       }
@@ -839,7 +839,7 @@ class ChatApplicationService {
         'Auto-backup: [$branchName] completed successfully',
         tag: 'BACKUP_AUTO',
       );
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('Auto-backup: [$branchName] failed: $e', tag: 'BACKUP_AUTO');
     }
   }
@@ -857,7 +857,7 @@ class ChatApplicationService {
 
       final service = GoogleBackupService(accessToken: currentToken);
       return await service.listBackups();
-    } catch (e) {
+    } on Exception catch (e) {
       // Si es error OAuth, intentar refresh automático
       if (e.toString().contains('401') ||
           e.toString().contains('Unauthorized') ||
@@ -883,7 +883,7 @@ class ChatApplicationService {
             final retryService = GoogleBackupService(accessToken: newToken);
             return await retryService.listBackups();
           }
-        } catch (refreshError) {
+        } on Exception catch (refreshError) {
           Log.w(
             'Auto-backup: token refresh failed during listBackups: $refreshError',
             tag: 'BACKUP_AUTO',
@@ -910,7 +910,7 @@ class ChatApplicationService {
         googleLinked: googleLinked,
         repository: _repository,
       );
-    } catch (e) {
+    } on Exception {
       // Swallow errors: uploader logs internally (comportamiento del original)
     }
   }
@@ -995,7 +995,7 @@ class ChatApplicationService {
         'ChatApplicationService: persisted stateImmediate (messages=${_messages.length})',
         tag: 'PERSIST',
       );
-    } catch (e, st) {
+    } on Exception catch (e, st) {
       Log.e(
         'ChatApplicationService: failed to persist stateImmediate: $e',
         tag: 'PERSIST',
@@ -1028,7 +1028,7 @@ class ChatApplicationService {
 
       try {
         _profile = AiChanProfile.fromJson(profileData);
-      } catch (e) {
+      } on Exception catch (e) {
         Log.w(
           'ChatApplicationService: Failed to parse flattened profile: $e',
           tag: 'CHAT_SERVICE',
@@ -1124,7 +1124,7 @@ class ChatApplicationService {
           tag: 'BACKUP_AUTO',
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w(
         '[AI-chan][WARN] Falló actualización de memoria post-$debugContext: $e',
       );
@@ -1142,7 +1142,7 @@ class ChatApplicationService {
         if (!oldKeys.contains(key)) return true;
       }
       return false;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('[AI-chan][WARN] Error verificando nuevas entradas level-0: $e');
       return false;
     }
@@ -1173,7 +1173,7 @@ class ChatApplicationService {
         model: model ?? _selectedModel,
       );
       return true;
-    } catch (e) {
+    } on Exception catch (e) {
       // Ejecutar callback de error si se proporcionó
       onError?.call(e.toString());
       return false;
@@ -1197,7 +1197,7 @@ class ChatApplicationService {
 
       // Persistir cambios
       await _persistState();
-    } catch (e) {
+    } on Exception catch (e) {
       throw Exception('Error regenerando apariencia: $e');
     }
   }
@@ -1256,7 +1256,7 @@ class ChatApplicationService {
 
       // Persistir cambios
       await _persistState();
-    } catch (e) {
+    } on Exception catch (e) {
       throw Exception('Error generando avatar: $e');
     }
   }
@@ -1316,7 +1316,7 @@ class ChatApplicationService {
     // ✅ INTEGRACIÓN: Análisis de promesas después de mensaje IA
     try {
       _promiseService.analyzeAfterIaMessage(_messages);
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   /// Call placeholders management - funcionalidad completa del original
@@ -1358,7 +1358,7 @@ class ChatApplicationService {
           debugContext: 'replaceIncomingCallPlaceholder',
         );
         _triggerAutoBackup();
-      } catch (e) {
+      } on Exception {
         // Log error but don't throw - memory update is non-critical
       }
     });
@@ -1406,7 +1406,7 @@ class ChatApplicationService {
           );
           _triggerAutoBackup();
         }
-      } catch (e) {
+      } on Exception catch (e) {
         Log.w('[AI-chan][WARN] Falló actualización de memoria post-reject: $e');
       }
     });
@@ -1439,7 +1439,7 @@ class ChatApplicationService {
     );
     try {
       await PrefsUtils.setEvents(eventsJson);
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   /// Message management helpers
@@ -1494,7 +1494,7 @@ class ChatApplicationService {
           tag: 'BACKUP_AUTO',
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('[AI-chan][WARN] Falló actualización de memoria post-voz: $e');
     }
 
@@ -1520,7 +1520,7 @@ class ChatApplicationService {
       );
       _timeline = memResult.timeline;
       superbloqueEntry = memResult.superbloqueEntry;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('[AI-chan][WARN] Falló actualización de memoria post-message: $e');
     }
 
@@ -1574,7 +1574,7 @@ class ChatApplicationService {
       await _updateMemoryAndTimeline(
         debugContext: 'updateOrAddCallStatusMessage',
       );
-    } catch (e) {
+    } on Exception {
       // Log error but don't throw - memory update is non-critical
     }
 
@@ -1600,7 +1600,7 @@ class ChatApplicationService {
       final service = di.getAIServiceForModel(modelId);
       _services[modelId] = service;
       return _services[modelId];
-    } catch (e) {
+    } on Exception {
       // En caso de error, retornar null como lo hacía ChatProvider
       return null;
     }

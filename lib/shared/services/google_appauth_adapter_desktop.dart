@@ -34,7 +34,7 @@ class GoogleAppAuthAdapter {
         await Process.start('xdg-open', [url]);
       }
       Log.d('GoogleAppAuthAdapter: opened browser', tag: 'GoogleAppAuth');
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w(
         'GoogleAppAuthAdapter: failed to open browser: $e',
         tag: 'GoogleAppAuth',
@@ -50,7 +50,7 @@ class GoogleAppAuthAdapter {
     if (redirect == null || redirect.isEmpty) {
       try {
         redirect = Config.get('GOOGLE_REDIRECT_URI', '').trim();
-      } catch (_) {}
+      } on Exception catch (_) {}
     }
 
     HttpServer? server;
@@ -90,7 +90,7 @@ class GoogleAppAuthAdapter {
 
     try {
       await GoogleAppAuthAdapter.openBrowser(authorizationEndpoint.toString());
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w(
         'GoogleAppAuthAdapter: failed to open browser: $e',
         tag: 'GoogleAppAuth',
@@ -119,7 +119,7 @@ class GoogleAppAuthAdapter {
           req.response.headers.set('Content-Type', 'text/html; charset=utf-8');
           req.response.write(replaced);
           await req.response.close();
-        } catch (e) {
+        } on Exception {
           req.response.statusCode = 200;
           req.response.headers.set('Content-Type', 'text/html; charset=utf-8');
           req.response.write(
@@ -130,7 +130,7 @@ class GoogleAppAuthAdapter {
       } else {
         throw StateError('No loopback server available');
       }
-    } catch (e, st) {
+    } on Exception catch (e, st) {
       Log.e(
         'GoogleAppAuthAdapter: AppAuth failed: $e',
         tag: 'GoogleAppAuth',
@@ -159,7 +159,7 @@ class GoogleAppAuthAdapter {
           clientSecret = Config.get('GOOGLE_CLIENT_SECRET_WEB', '').trim();
         }
         if (clientSecret.isEmpty) clientSecret = null;
-      } catch (_) {
+      } on Exception catch (_) {
         clientSecret = null;
       }
 
@@ -211,10 +211,10 @@ class GoogleAppAuthAdapter {
             map['refresh_token'] = refreshToken;
           }
         }
-      } catch (_) {}
+      } on Exception catch (_) {}
 
       return map;
-    } catch (e, st) {
+    } on Exception catch (e, st) {
       Log.e(
         'GoogleAppAuthAdapter: token exchange error: $e',
         tag: 'GoogleAppAuth',
@@ -231,7 +231,7 @@ class GoogleAppAuthAdapter {
       if (server != null) {
         await server.close(force: true);
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   static String _createCodeVerifier([final int length = 64]) {

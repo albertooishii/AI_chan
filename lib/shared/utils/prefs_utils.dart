@@ -62,7 +62,7 @@ class PrefsUtils {
           await prefs.setString(providerKey, defaultVoice);
         }
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   static Future<String> getSelectedAudioProvider() async {
@@ -80,7 +80,7 @@ class PrefsUtils {
       final resolved = (saved ?? defaultValue).toLowerCase();
       if (resolved == 'gemini') return 'google';
       return resolved;
-    } catch (_) {
+    } on Exception catch (_) {
       return 'google';
     }
   }
@@ -92,7 +92,7 @@ class PrefsUtils {
       final prefs = await SharedPreferences.getInstance();
       final providerKey = 'selected_voice_${provider.toLowerCase()}';
       return prefs.getString(providerKey);
-    } catch (_) {
+    } on Exception catch (_) {
       return null;
     }
   }
@@ -111,7 +111,7 @@ class PrefsUtils {
         return providerVoice;
       }
       return fallback;
-    } catch (_) {
+    } on Exception catch (_) {
       return fallback;
     }
   }
@@ -120,7 +120,7 @@ class PrefsUtils {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('selected_audio_provider', provider);
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   static Future<void> setSelectedVoiceForProvider(
@@ -131,14 +131,14 @@ class PrefsUtils {
       final prefs = await SharedPreferences.getInstance();
       final providerKey = 'selected_voice_${provider.toLowerCase()}';
       await prefs.setString(providerKey, voice);
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   static Future<String?> getSelectedModel() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString('selected_model');
-    } catch (_) {
+    } on Exception catch (_) {
       return null;
     }
   }
@@ -153,7 +153,7 @@ class PrefsUtils {
       if (saved != null && saved.trim().isNotEmpty) return saved;
       final def = Config.getDefaultTextModel();
       return def;
-    } catch (_) {
+    } on Exception catch (_) {
       return Config.getDefaultTextModel();
     }
   }
@@ -162,7 +162,7 @@ class PrefsUtils {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('selected_model', model);
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   // --- Google account convenience helpers ---
@@ -190,7 +190,7 @@ class PrefsUtils {
         await prefs.remove('google_account_name');
       }
       await prefs.setBool('google_account_linked', linked);
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   static Future<void> clearGoogleAccountInfo() async {
@@ -200,7 +200,7 @@ class PrefsUtils {
       await prefs.remove('google_account_avatar');
       await prefs.remove('google_account_name');
       await prefs.remove('google_account_linked');
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   static Future<Map<String, dynamic>> getGoogleAccountInfo() async {
@@ -212,7 +212,7 @@ class PrefsUtils {
         'name': prefs.getString('google_account_name'),
         'linked': prefs.getBool('google_account_linked') ?? false,
       };
-    } catch (_) {
+    } on Exception catch (_) {
       return {'email': null, 'avatar': null, 'name': null, 'linked': false};
     }
   }
@@ -222,7 +222,7 @@ class PrefsUtils {
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString('onboarding_data');
-    } catch (_) {
+    } on Exception catch (_) {
       return null;
     }
   }
@@ -231,21 +231,21 @@ class PrefsUtils {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('onboarding_data', json);
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   static Future<void> removeOnboardingData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('onboarding_data');
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   static Future<String?> getChatHistory() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString('chat_history');
-    } catch (_) {
+    } on Exception catch (_) {
       return null;
     }
   }
@@ -254,21 +254,21 @@ class PrefsUtils {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('chat_history', json);
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   static Future<void> removeChatHistory() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('chat_history');
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   static Future<String?> getEvents() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString('events');
-    } catch (_) {
+    } on Exception catch (_) {
       return null;
     }
   }
@@ -277,14 +277,14 @@ class PrefsUtils {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('events', json);
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   static Future<void> setFullExport(final String json) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(kChatFullExport, json);
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   // --- Generic raw access helpers ---
@@ -293,7 +293,7 @@ class PrefsUtils {
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString(key);
-    } catch (_) {
+    } on Exception catch (_) {
       return null;
     }
   }
@@ -303,7 +303,7 @@ class PrefsUtils {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(key, value);
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   /// Remove an arbitrary key from prefs.
@@ -311,14 +311,14 @@ class PrefsUtils {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(key);
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   static Future<void> clearAll() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   // --- Auto-backup timestamp helpers ---
@@ -330,7 +330,7 @@ class PrefsUtils {
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getInt(kLastAutoBackupMs);
-    } catch (_) {
+    } on Exception catch (_) {
       return null;
     }
   }
@@ -340,6 +340,6 @@ class PrefsUtils {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(kLastAutoBackupMs, ms);
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 }

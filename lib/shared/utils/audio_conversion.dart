@@ -8,7 +8,7 @@ class AudioConversion {
     try {
       final ver = await Process.run('ffmpeg', ['-version']);
       return ver.exitCode == 0;
-    } catch (_) {
+    } on Exception catch (_) {
       return false;
     }
   }
@@ -32,9 +32,9 @@ class AudioConversion {
       final proc = await Process.run('ffmpeg', args);
       if (proc.exitCode == 0) {
         final outFile = File(outPath);
-        if (await outFile.exists()) return outFile;
+        if (outFile.existsSync()) return outFile;
       }
-    } catch (e) {
+    } on Exception catch (e) {
       if (kDebugMode) {
         debugPrint('[AudioConversion] convertFileToFormat exception: $e');
       }
@@ -62,16 +62,16 @@ class AudioConversion {
       final proc = await Process.run('ffmpeg', args);
       if (proc.exitCode == 0) {
         final outFile = File(outPath);
-        if (await outFile.exists()) {
+        if (outFile.existsSync()) {
           final res = await outFile.readAsBytes();
           try {
             await inFile.delete();
             await outFile.delete();
-          } catch (_) {}
+          } on Exception catch (_) {}
           return res;
         }
       }
-    } catch (e) {
+    } on Exception catch (e) {
       if (kDebugMode) {
         debugPrint('[AudioConversion] convertBytesToFormat exception: $e');
       }

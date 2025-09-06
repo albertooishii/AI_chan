@@ -81,7 +81,7 @@ class HybridSttService {
 
         return _isInitialized;
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('Error inicializando STT híbrido: $e', tag: 'HYBRID_STT');
       return false;
     }
@@ -174,7 +174,7 @@ class HybridSttService {
           await _stopOpenAIListening();
         }
       });
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('Error iniciando grabación OpenAI STT: $e', tag: 'HYBRID_STT');
       _onError?.call('Error iniciando grabación: $e');
       _isListening = false;
@@ -212,10 +212,10 @@ class HybridSttService {
 
       // Limpiar archivo temporal
       final file = File(path);
-      if (await file.exists()) {
+      if (file.existsSync()) {
         await file.delete();
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('Error en transcripción OpenAI: $e', tag: 'HYBRID_STT');
       _onError?.call('Error transcribiendo: $e');
     } finally {
@@ -276,7 +276,7 @@ class HybridSttService {
         );
         return '';
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('Error transcribiendo con OpenAI: $e', tag: 'HYBRID_STT');
       return '';
     }
@@ -299,7 +299,7 @@ class HybridSttService {
       pauseFor: const Duration(seconds: 3),
       // ignore: deprecated_member_use
       partialResults:
-          false, // TODO: Migrar a SpeechListenOptions cuando sea estable
+          false, // TODO: Migrar a SpeechListenOptions cuando esté disponible
     );
   }
 

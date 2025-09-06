@@ -13,7 +13,7 @@ class Log {
     try {
       raw = Config.get('DEBUG_MODE', '').toLowerCase().trim();
       if (raw.isEmpty) raw = null;
-    } catch (_) {
+    } on Exception catch (_) {
       raw = null;
     }
     switch (raw) {
@@ -44,7 +44,7 @@ class Log {
   static String get debugMode {
     try {
       return Config.get('DEBUG_MODE', '').toLowerCase().trim();
-    } catch (_) {
+    } on Exception catch (_) {
       return kDebugMode ? 'full' : 'basic';
     }
   }

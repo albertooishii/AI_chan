@@ -14,7 +14,7 @@ class HandleIncomingCallUseCase {
       );
       // En el futuro, el CallManager podría tener métodos específicos para ringtones
       // Por ahora, simplemente manejamos el estado
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         '❌ Error iniciando ring entrante',
         tag: 'INCOMING_CALL_USE_CASE',
@@ -32,7 +32,7 @@ class HandleIncomingCallUseCase {
       );
       // En el futuro, el CallManager podría tener métodos específicos para ringtones
       // Por ahora, simplemente manejamos el estado
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         '❌ Error deteniendo ring entrante',
         tag: 'INCOMING_CALL_USE_CASE',
@@ -49,7 +49,7 @@ class HandleIncomingCallUseCase {
         tag: 'INCOMING_CALL_USE_CASE',
       );
       await _callManager.answerIncomingCall();
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         '❌ Error aceptando llamada entrante',
         tag: 'INCOMING_CALL_USE_CASE',
@@ -66,7 +66,7 @@ class HandleIncomingCallUseCase {
         tag: 'INCOMING_CALL_USE_CASE',
       );
       await _callManager.rejectIncomingCall();
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         '❌ Error rechazando llamada entrante',
         tag: 'INCOMING_CALL_USE_CASE',

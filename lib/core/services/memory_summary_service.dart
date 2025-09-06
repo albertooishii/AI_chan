@@ -597,7 +597,7 @@ class MemorySummaryService {
       if (onSummaryError != null) {
         try {
           onSummaryError(blockStartDate);
-        } catch (e, stack) {
+        } on Exception catch (e, stack) {
           debugPrint(
             '[MemorySummaryService] Error en onSummaryError callback: $e\n$stack',
           );

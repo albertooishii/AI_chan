@@ -17,7 +17,7 @@ class CacheService {
   static Future<Directory> getCacheDirectory() async {
     try {
       return await cache_utils.getLocalCacheDir();
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('Error getting local cache directory: $e');
       // Fallback to application support directory
       return await getApplicationSupportDirectory();
@@ -28,8 +28,8 @@ class CacheService {
   static Future<Directory> getAudioCacheDirectory() async {
     final cacheDir = await getCacheDirectory();
     final audioDir = Directory('${cacheDir.path}/$_audioSubDir');
-    if (!await audioDir.exists()) {
-      await audioDir.create(recursive: true);
+    if (!audioDir.existsSync()) {
+      audioDir.createSync(recursive: true);
     }
     return audioDir;
   }
@@ -38,8 +38,8 @@ class CacheService {
   static Future<Directory> getVoicesCacheDirectory() async {
     final cacheDir = await getCacheDirectory();
     final voicesDir = Directory('${cacheDir.path}/$_voicesSubDir');
-    if (!await voicesDir.exists()) {
-      await voicesDir.create(recursive: true);
+    if (!voicesDir.existsSync()) {
+      voicesDir.createSync(recursive: true);
     }
     return voicesDir;
   }
@@ -85,7 +85,7 @@ class CacheService {
           : 'mp3';
       final cachedFile = File('${audioDir.path}/$hash.$ext');
 
-      if (await cachedFile.exists()) {
+      if (cachedFile.existsSync()) {
         try {
           final len = await cachedFile.length();
           if (len > 0) {
@@ -100,9 +100,9 @@ class CacheService {
             );
             try {
               await cachedFile.delete();
-            } catch (_) {}
+            } on Exception catch (_) {}
           }
-        } catch (e) {
+        } on Exception catch (e) {
           Log.e('[Cache] Error checking cached file length: $e');
           return null;
         }
@@ -124,16 +124,16 @@ class CacheService {
               pitch: pitch,
             );
             final altFile = File('${audioDir.path}/$altHash.$ext');
-            if (await altFile.exists()) {
+            if (altFile.existsSync()) {
               Log.d(
                 '[Cache] Audio encontrado en caché (alias Google default): ${altFile.path}',
               );
               return altFile;
             }
           }
-        } catch (_) {}
+        } on Exception catch (_) {}
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('[Cache] Error obteniendo audio cacheado: $e');
     }
     return null;
@@ -180,14 +180,14 @@ class CacheService {
           );
           try {
             await cachedFile.delete();
-          } catch (_) {}
+          } on Exception catch (_) {}
           return null;
         }
-      } catch (e) {
+      } on Exception catch (e) {
         Log.e('[Cache] Error verifying cached file: $e');
         return null;
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('[Cache] Error guardando audio en caché: $e');
       return null;
     }
@@ -212,7 +212,7 @@ class CacheService {
       Log.d(
         '[Cache] Voces $provider guardadas en caché: ${voices.length} voces',
       );
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('[Cache] Error guardando voces en caché: $e');
     }
   }
@@ -228,7 +228,7 @@ class CacheService {
       final voicesDir = await getVoicesCacheDirectory();
       final cacheFile = File('${voicesDir.path}/${provider}_voices_cache.json');
 
-      if (!await cacheFile.exists()) return null;
+      if (!cacheFile.existsSync()) return null;
 
       final raw = await cacheFile.readAsString();
       final cached = jsonDecode(raw) as Map<String, dynamic>;
@@ -254,7 +254,7 @@ class CacheService {
       return cachedVoices
           .map((final v) => Map<String, dynamic>.from(v))
           .toList();
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('[Cache] Error leyendo voces desde caché: $e');
       return null;
     }
@@ -268,7 +268,7 @@ class CacheService {
     try {
       final cacheDir = await getCacheDirectory();
       final modelsDir = Directory('${cacheDir.path}/$_modelsSubDir');
-      if (!await modelsDir.exists()) await modelsDir.create(recursive: true);
+      if (!modelsDir.existsSync()) modelsDir.createSync(recursive: true);
       final cacheFile = File('${modelsDir.path}/${provider}_models_cache.json');
 
       final cacheData = {
@@ -281,7 +281,7 @@ class CacheService {
       Log.d(
         '[Cache] Modelos $provider guardados en caché: ${models.length} modelos',
       );
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('[Cache] Error guardando modelos en caché: $e');
     }
   }
@@ -298,7 +298,7 @@ class CacheService {
       final modelsDir = Directory('${cacheDir.path}/$_modelsSubDir');
       final cacheFile = File('${modelsDir.path}/${provider}_models_cache.json');
 
-      if (!await cacheFile.exists()) return null;
+      if (!cacheFile.existsSync()) return null;
 
       final raw = await cacheFile.readAsString();
       final cached = jsonDecode(raw) as Map<String, dynamic>;
@@ -322,7 +322,7 @@ class CacheService {
       );
 
       return cachedModels.map((final m) => m.toString()).toList();
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('[Cache] Error leyendo modelos desde caché: $e');
       return null;
     }
@@ -334,11 +334,11 @@ class CacheService {
       final voicesDir = await getVoicesCacheDirectory();
       final cacheFile = File('${voicesDir.path}/${provider}_voices_cache.json');
 
-      if (await cacheFile.exists()) {
+      if (cacheFile.existsSync()) {
         await cacheFile.delete();
         debugPrint('[Cache] Caché de voces $provider eliminado');
       }
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('[Cache] Error eliminando caché de voces $provider: $e');
     }
   }
@@ -347,19 +347,19 @@ class CacheService {
   static Future<void> clearAllVoicesCache() async {
     try {
       final voicesDir = await getVoicesCacheDirectory();
-      if (await voicesDir.exists()) {
+      if (voicesDir.existsSync()) {
         final entities = voicesDir.listSync();
         for (final e in entities) {
           try {
             if (e is File) await e.delete();
             if (e is Directory) await e.delete(recursive: true);
-          } catch (e) {
+          } on Exception catch (e) {
             debugPrint('[Cache] Warning clearing voice cache entry: $e');
           }
         }
         debugPrint('[Cache] All voices cache cleared');
       }
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('[Cache] Error clearing all voices cache: $e');
     }
   }
@@ -368,11 +368,11 @@ class CacheService {
   static Future<void> clearAudioCache() async {
     try {
       final audioDir = await getAudioCacheDirectory();
-      if (await audioDir.exists()) {
+      if (audioDir.existsSync()) {
         await audioDir.delete(recursive: true);
         debugPrint('[Cache] Caché de audio eliminado');
       }
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('[Cache] Error eliminando caché de audio: $e');
     }
   }
@@ -382,14 +382,14 @@ class CacheService {
     int totalSize = 0;
     try {
       final cacheDir = await getCacheDirectory();
-      if (await cacheDir.exists()) {
+      if (cacheDir.existsSync()) {
         await for (final entity in cacheDir.list(recursive: true)) {
           if (entity is File) {
             totalSize += await entity.length();
           }
         }
       }
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('[Cache] Error calculando tamaño de caché: $e');
     }
     return totalSize;

@@ -40,15 +40,15 @@ class ChatInputController {
   void dispose() {
     try {
       _isRecording.close();
-    } catch (_) {}
+    } on Exception catch (_) {}
     try {
       _waveform.close();
-    } catch (_) {}
+    } on Exception catch (_) {}
     try {
       _elapsed.close();
-    } catch (_) {}
+    } on Exception catch (_) {}
     try {
       _liveTranscript.close();
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 }

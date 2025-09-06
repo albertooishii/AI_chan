@@ -43,7 +43,7 @@ class LocalChatRepository implements IChatRepository {
           out['events'] = <dynamic>[];
         }
         return out;
-      } catch (_) {}
+      } on Exception catch (_) {}
     }
 
     // No legacy single-key fallback: return null if structured keys are not present
@@ -69,12 +69,11 @@ class LocalChatRepository implements IChatRepository {
         );
       }
       return;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w(
         'LocalChatRepository: Failed to convert to ChatExport: $e, falling back to raw save',
         tag: 'PERSIST',
       );
-      // ignore and fallthrough to raw save
     }
 
     // Save structured parts if possible to make future reads deterministic
@@ -99,7 +98,7 @@ class LocalChatRepository implements IChatRepository {
         PrefsUtils.kChatFullExport,
         json.encode(exportedJson),
       );
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   @override
@@ -120,7 +119,7 @@ class LocalChatRepository implements IChatRepository {
       final parsed = json.decode(jsonStr) as Map<String, dynamic>;
       await saveAll(parsed);
       return parsed;
-    } catch (_) {
+    } on Exception catch (_) {
       return null;
     }
   }

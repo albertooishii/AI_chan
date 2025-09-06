@@ -145,7 +145,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
           'DEBUG TTS: effectiveUserCodes=$effectiveUserCodes effectiveAiCodes=$effectiveAiCodes sampleLocales=[$sampleLocales]',
           tag: 'TTS_DIALOG',
         );
-      } catch (_) {}
+      } on Exception catch (_) {}
       final filtered = await AndroidNativeTtsService.filterVoicesByTargetCodes(
         voices,
         effectiveUserCodes,
@@ -165,7 +165,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
           'Voces nativas detectadas: ${voices.length}. Filtradas: ${filtered.length}',
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.d(
         'DEBUG TTS: Error refrescando voces nativas: $e',
         tag: 'TTS_DIALOG',
@@ -187,7 +187,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
         await _refreshNativeVoices();
       }
       showAppSnackBar('Voces actualizadas');
-    } catch (e) {
+    } on Exception catch (e) {
       showAppSnackBar('Error al actualizar voces: $e', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -205,7 +205,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
         _selectedVoice = providerVoice.isEmpty ? null : providerVoice;
         _selectedModel = selModel ?? Config.getDefaultTextModel();
       });
-    } catch (_) {
+    } on Exception catch (_) {
       setState(() {
         _selectedProvider = Config.getAudioProvider().toLowerCase();
         _selectedVoice = null;
@@ -268,7 +268,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
         );
         await intent.launch();
         return;
-      } catch (e) {
+      } on Exception catch (e) {
         Log.d('DEBUG TTS: Intent ${a['action']} falló: $e', tag: 'TTS_DIALOG');
         // seguir con el siguiente intento
       }
@@ -292,7 +292,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
         action: 'android.speech.tts.engine.INSTALL_TTS_DATA',
       );
       await intent.launch();
-    } catch (e) {
+    } on Exception catch (e) {
       Log.d('DEBUG TTS: INSTALL_TTS_DATA intent falló: $e', tag: 'TTS_DIALOG');
       showAppSnackBar(
         'No se pudo iniciar la instalación de datos TTS. Abre Ajustes → Salida de texto a voz',
@@ -323,7 +323,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
             'DEBUG TTS: ClearAllVoicesCache invoked due to forceRefresh',
             tag: 'TTS_DIALOG',
           );
-        } catch (e) {
+        } on Exception catch (e) {
           Log.d('DEBUG TTS: clearAllVoicesCache failed: $e', tag: 'TTS_DIALOG');
         }
       }
@@ -348,7 +348,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
           tag: 'TTS_DIALOG',
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.d('DEBUG TTS: Error loading voices: $e', tag: 'TTS_DIALOG');
       if (mounted) {
         setState(() {
@@ -365,7 +365,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
       // Use the static voice list helper (presentation-level) to ensure consistent shape and display
       _openaiVoices.clear();
       _openaiVoices.addAll(OpenAiVoiceUtils.loadStaticOpenAiVoices());
-    } catch (e) {
+    } on Exception {
       _openaiVoices.clear();
       _openaiVoices.addAll(
         kOpenAIVoices.map((final v) => {'name': v}).toList(),
@@ -392,7 +392,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
       if (_selectedModel != null) {
         await PrefsUtils.setSelectedModel(_selectedModel!);
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   Future<void> _clearCache() async {
@@ -606,14 +606,14 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                             c,
                             exactOnly: true,
                           );
-                        } catch (e) {
+                        } on Exception catch (e) {
                           Log.d(
                             'DEBUG TTS: dumpVoicesJsonForLanguage failed for $c: $e',
                             tag: 'TTS_DIALOG',
                           );
                         }
                       }
-                    } catch (e) {
+                    } on Exception catch (e) {
                       Log.d(
                         'DEBUG TTS: Error dumping native voices JSON: $e',
                         tag: 'TTS_DIALOG',
@@ -621,7 +621,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                     }
                   }
                   showAppSnackBar('Voces actualizadas');
-                } catch (e) {
+                } on Exception catch (e) {
                   showAppSnackBar(
                     'Error al actualizar voces: $e',
                     isError: true,
@@ -737,7 +737,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                       try {
                         await _refreshNativeVoices();
                         showAppSnackBar('Actualización completada');
-                      } catch (e) {
+                      } on Exception catch (e) {
                         showAppSnackBar(
                           'Error al actualizar: $e',
                           isError: true,
@@ -900,7 +900,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                             debugPrint(
                               '[TTS_DIALOG] Playing cached audio: path=$cachedFilePath exists=$exists length=$length',
                             );
-                          } catch (e) {
+                          } on Exception catch (e) {
                             debugPrint(
                               '[TTS_DIALOG] Failed to stat cached file: $e',
                             );
@@ -913,7 +913,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                           // Esperar a la finalización antes de liberar el player para que se oiga el audio
                           try {
                             await _audioPlayer.onPlayerComplete.first;
-                          } catch (_) {}
+                          } on Exception catch (_) {}
                           // No dispose en instancia persistente
                           await _audioPlayer.stop();
                           showAppSnackBar('Audio reproducido desde caché');
@@ -939,7 +939,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                             debugPrint(
                               '[TTS_DIALOG] Playing generated audio: path=$file exists=$exists length=$length',
                             );
-                          } catch (e) {
+                          } on Exception catch (e) {
                             debugPrint(
                               '[TTS_DIALOG] Failed to stat generated file: $e',
                             );
@@ -949,7 +949,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                           // Esperar a que termine la reproducción antes de liberar recursos
                           try {
                             await _audioPlayer.onPlayerComplete.first;
-                          } catch (_) {}
+                          } on Exception catch (_) {}
                           // No dispose en instancia persistente
                           await _audioPlayer.stop();
                           showAppSnackBar('¡Audio reproducido!');
@@ -959,7 +959,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                             isError: true,
                           );
                         }
-                      } catch (e) {
+                      } on Exception catch (e) {
                         showAppSnackBar(
                           'Error al reproducir voz: $e',
                           isError: true,
@@ -989,7 +989,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                           widget.onSettingsChanged!.call();
                         }
                         showAppSnackBar('Voz seleccionada: $voiceName');
-                      } catch (e) {
+                      } on Exception catch (e) {
                         showAppSnackBar(
                           'Error guardando la voz seleccionada: $e',
                           isError: true,
@@ -1011,7 +1011,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                   widget.onSettingsChanged!.call();
                 }
                 showAppSnackBar('Voz seleccionada: $voiceName');
-              } catch (e) {
+              } on Exception catch (e) {
                 showAppSnackBar(
                   'Error guardando la voz seleccionada: $e',
                   isError: true,

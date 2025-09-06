@@ -264,7 +264,7 @@ class EventTimelineService {
                 now.month,
                 now.day,
               ).add(Duration(days: delta));
-            } catch (_) {
+            } on Exception catch (_) {
               return null;
             }
           }
@@ -310,7 +310,7 @@ class EventTimelineService {
           onboardingData = onboardingData.copyWith(biography: bio);
           await saveAll();
           debugPrint('[HORARIO IA] Guardado en biography: $tipoHorario=$entry');
-        } catch (e) {
+        } on Exception catch (e) {
           debugPrint('[HORARIO IA] Error guardando en biography: $e');
         }
       }

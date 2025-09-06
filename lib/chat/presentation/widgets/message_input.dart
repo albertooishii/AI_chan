@@ -53,9 +53,7 @@ class _MessageInputState extends State<MessageInput> {
       setState(() {
         _hasRecentEmojis = recents.isNotEmpty;
       });
-    } catch (_) {
-      // ignore errors from the plugin
-    }
+    } on Exception catch (_) {}
   }
 
   @override
@@ -75,7 +73,7 @@ class _MessageInputState extends State<MessageInput> {
         // Informar al controlador/parent que el usuario está escribiendo
         try {
           widget.controller.onUserTyping?.call(_controller.text);
-        } catch (_) {}
+        } on Exception catch (_) {}
         setState(() {});
       }
     });
@@ -433,7 +431,7 @@ class _MessageInputState extends State<MessageInput> {
                           key: _emojiPickerKey,
                           emoji: emoji,
                         );
-                      } catch (_) {}
+                      } on Exception catch (_) {}
                       if (!mounted) return;
                       setState(() {
                         _hasRecentEmojis = true;

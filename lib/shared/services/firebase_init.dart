@@ -34,7 +34,7 @@ Future<bool> ensureFirebaseInitialized() async {
       await Firebase.initializeApp();
       debugPrint('firebase_init: Firebase initialized successfully');
       return true;
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('Firebase.initializeApp() failed: $e');
       if (attempt == maxAttempts) {
         debugPrint('firebase_init: All attempts failed, trying fallback');
@@ -90,7 +90,7 @@ Future<bool> ensureFirebaseInitialized() async {
     await Firebase.initializeApp(options: options);
     debugPrint('firebase_init: Firebase initialized via fallback');
     return true;
-  } catch (e) {
+  } on Exception catch (e) {
     debugPrint('firebase_init fallback failed: $e');
     debugPrint('firebase_init: Firebase initialization completely failed');
     return false;

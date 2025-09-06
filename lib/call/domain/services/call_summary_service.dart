@@ -60,7 +60,7 @@ FORMATO DE SALIDA:
         return '';
       }
       return summaryText;
-    } catch (e) {
+    } on Exception {
       // Fallback más inteligente - analizar si hay contenido útil
       final userTexts = <String>[];
       final aiTexts = <String>[];
@@ -143,7 +143,7 @@ FORMATO DE SALIDA:
 
       // Envolver el resumen en etiquetas [call] para ocultarlo en el bubble
       return '[call]$summary[/call]';
-    } catch (e) {
+    } on Exception {
       // Fallback más inteligente - también puede devolver cadena vacía
       final userMessages = callSummary.messages
           .where((final m) => m.isUser)

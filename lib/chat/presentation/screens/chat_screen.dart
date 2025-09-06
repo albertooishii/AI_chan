@@ -88,7 +88,7 @@ class _ChatScreenState extends State<ChatScreen> {
         if (shouldShow != _showScrollToBottomButton) {
           setState(() => _showScrollToBottomButton = shouldShow);
         }
-      } catch (_) {}
+      } on Exception catch (_) {}
     });
     // El estado de la cuenta de Google se obtiene desde ChatProvider
     // No cargar voces automáticamente - solo cuando se abra el diálogo
@@ -126,13 +126,13 @@ class _ChatScreenState extends State<ChatScreen> {
             // (for example the overflow menu showing Google Drive linked status)
             // update immediately when the provider state changes.
             if (mounted) setState(() {});
-          } catch (_) {}
+          } on Exception catch (_) {}
         };
         provider.addListener(_chatProviderListener!);
         // Ensure UI reflects current provider state immediately in case the
         // provider was already updated before this listener was attached.
         if (mounted) setState(() {});
-      } catch (_) {}
+      } on Exception catch (_) {}
     });
   }
 
@@ -175,7 +175,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _scrollController.position.maxScrollExtent,
       );
       _scrollController.jumpTo(clamped);
-    } catch (_) {}
+    } on Exception catch (_) {}
 
     if (!mounted) return;
     setState(() => _isLoadingMore = false);
@@ -207,7 +207,7 @@ class _ChatScreenState extends State<ChatScreen> {
             showErrorDialog('Error al importar: JSON inválido');
           }
         }
-      } catch (e) {
+      } on Exception catch (e) {
         showErrorDialog('Error al importar:\n$e');
       }
     }
@@ -236,7 +236,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 forceRefresh: true,
               );
               setStateDialog(() => localModels = fetched);
-            } catch (e) {
+            } on Exception catch (e) {
               // show error inside dialog
               showAppSnackBar(
                 'Error al actualizar modelos: $e',
@@ -421,7 +421,7 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       final chatController = widget.chatController;
       await removeImageFromProfileAndPersist(chatController, deleted);
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   // Snackbar helper removed: provider handles message insertion; UI will react to provider notifications.
@@ -860,7 +860,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   final navCtx = navigatorKey.currentContext;
                   if (navCtx == null) return;
                   _showExportDialog(jsonStr, widget.chatController);
-                } catch (e) {
+                } on Exception catch (e) {
                   Log.e(
                     'Error al exportar biografía',
                     tag: 'CHAT_SCREEN',
@@ -905,7 +905,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   // después de actualizar la appearance. Propagamos errores para que la UI
                   // muestre un único diálogo.
                   await widget.chatController.regenerateAppearance();
-                } catch (e) {
+                } on Exception catch (e) {
                   if (!mounted) return;
                   showErrorDialog('Error al regenerar apariencia:\n$e');
                 } finally {
@@ -917,7 +917,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 setState(() => _isRegeneratingAppearance = true);
                 try {
                   await widget.chatController.generateAvatarFromAppearance();
-                } catch (e) {
+                } on Exception catch (e) {
                   if (!mounted) return;
                   showErrorDialog('Error al generar avatar:\n$e');
                 } finally {
@@ -964,7 +964,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       await widget.onClearAllDebug?.call();
                       if (!mounted) return;
                     }
-                  } catch (e) {
+                  } on Exception catch (e) {
                     if (!mounted) return;
                     _showErrorDialog(e.toString());
                   }
@@ -983,7 +983,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 List<String> models = [];
                 try {
                   models = await widget.chatController.getAllModels();
-                } catch (e) {
+                } on Exception catch (e) {
                   if (!mounted) return;
                   _showErrorDialog('Error al obtener modelos:\n$e');
                   setState(() => _loadingModels = false);
@@ -1046,7 +1046,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 forDialogDemo: forDialogDemo,
                               );
                           return file; // Ya es String?, no necesita conversión
-                        } catch (e) {
+                        } on Exception {
                           return null;
                         }
                       },
@@ -1162,7 +1162,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           try {
                             chatController
                                 .retryLastFailedMessage(); // ✅ DDD: Método compatible con ChatProviderAdapter
-                          } catch (_) {}
+                          } on Exception catch (_) {}
                         },
                         onImageTap: () async {
                           try {
@@ -1187,7 +1187,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 onImageDeleted: _handleImageDeleted,
                               );
                             }
-                          } catch (_) {}
+                          } on Exception catch (_) {}
                         },
                         isAudioPlaying: (final msg) =>
                             chatController.isPlaying(msg),
@@ -1387,10 +1387,10 @@ class _ChatScreenState extends State<ChatScreen> {
                       duration: const Duration(milliseconds: 300),
                       curve: Curves.easeOut,
                     );
-                  } catch (_) {
+                  } on Exception catch (_) {
                     try {
                       _scrollController.jumpTo(0.0);
-                    } catch (_) {}
+                    } on Exception catch (_) {}
                   }
                   setState(() => _showScrollToBottomButton = false);
                 },
@@ -1411,7 +1411,7 @@ class _ChatScreenState extends State<ChatScreen> {
       final voice = await PrefsUtils.getPreferredVoice(fallback: '');
       if (voice.trim().isEmpty) return null;
       return voice;
-    } catch (_) {
+    } on Exception catch (_) {
       return null;
     }
   }
@@ -1420,7 +1420,7 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       // getSelectedAudioProvider() ya normaliza y aplica mapeos como 'gemini'->'google'
       return await PrefsUtils.getSelectedAudioProvider();
-    } catch (_) {
+    } on Exception catch (_) {
       return 'google';
     }
   }
@@ -1490,16 +1490,16 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     try {
       _scrollController.dispose();
-    } catch (_) {}
+    } on Exception catch (_) {}
     try {
       if (_chatProviderListener != null) {
         final provider = widget.chatController;
         provider.removeListener(_chatProviderListener!);
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
     try {
       _chatInputController?.dispose();
-    } catch (_) {}
+    } on Exception catch (_) {}
     super.dispose();
   }
 }

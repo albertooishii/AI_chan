@@ -77,7 +77,7 @@ class ChatScreenController extends ChangeNotifier {
       await _chatController.sendMessage(
         text: message,
       ); // ✅ DDD: ETAPA 3 - usar ChatController directo
-    } catch (e) {
+    } on Exception catch (e) {
       setError('Error sending message: $e');
     } finally {
       setLoading(false);
@@ -91,7 +91,7 @@ class ChatScreenController extends ChangeNotifier {
       _chatController.setSelectedModel(
         model,
       ); // ✅ DDD: ETAPA 3 - usar ChatController directo
-    } catch (e) {
+    } on Exception catch (e) {
       setError('Error changing model: $e');
     }
   }

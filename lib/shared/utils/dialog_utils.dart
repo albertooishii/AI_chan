@@ -83,7 +83,7 @@ void showAppSnackBar(
     // Remove overlay snack if any
     try {
       _currentOverlaySnackBarEntry?.remove();
-    } catch (_) {}
+    } on Exception catch (_) {}
     _currentOverlaySnackBarEntry = null;
     final messenger = ScaffoldMessenger.of(ctx);
 
@@ -133,7 +133,7 @@ void _showOverlaySnackBar(
   // Remove any existing overlay snack before inserting a new one (single instance)
   try {
     _currentOverlaySnackBarEntry?.remove();
-  } catch (_) {}
+  } on Exception catch (_) {}
   _currentOverlaySnackBarEntry = null;
 
   late final OverlayEntry entry;
@@ -177,10 +177,10 @@ void _showOverlaySnackBar(
                       onPressed: () {
                         try {
                           action.onPressed();
-                        } catch (_) {}
+                        } on Exception catch (_) {}
                         try {
                           entry.remove();
-                        } catch (_) {}
+                        } on Exception catch (_) {}
                         if (_currentOverlaySnackBarEntry == entry) {
                           _currentOverlaySnackBarEntry = null;
                         }
@@ -206,7 +206,7 @@ void _showOverlaySnackBar(
   Future.delayed(duration, () {
     try {
       entry.remove();
-    } catch (_) {}
+    } on Exception catch (_) {}
     if (_currentOverlaySnackBarEntry == entry) {
       _currentOverlaySnackBarEntry = null;
     }

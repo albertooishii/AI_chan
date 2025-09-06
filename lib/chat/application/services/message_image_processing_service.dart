@@ -50,7 +50,7 @@ class MessageImageProcessingService {
         imagePath: imagePath,
         processedText: response.text,
       );
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('Fallo guardando imagen', tag: 'AI_CHAT_RESPONSE', error: e);
       return MessageImageResult(
         isImage: false,

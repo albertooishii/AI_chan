@@ -15,12 +15,12 @@ Map<String, dynamic> extractJsonBlock(final String text) {
       if (decoded is String) {
         try {
           return jsonDecode(decoded);
-        } catch (_) {
+        } on Exception catch (_) {
           return {'raw': decoded};
         }
       }
       return decoded;
-    } catch (_) {
+    } on Exception catch (_) {
       return {'raw': jsonClean};
     }
   } else {

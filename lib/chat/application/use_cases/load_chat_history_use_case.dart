@@ -21,7 +21,7 @@ class LoadChatHistoryUseCase {
         // 3. Si no hay datos, devolver conversación vacía
         return ChatConversation.empty();
       }
-    } catch (error) {
+    } on Exception catch (_) {
       // 4. En caso de error, devolver conversación vacía como fallback
       // Log del error podría agregarse aquí
       return ChatConversation.empty();

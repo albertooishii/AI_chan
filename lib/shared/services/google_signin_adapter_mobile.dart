@@ -65,7 +65,7 @@ class GoogleSignInMobileAdapter {
         'GoogleSignInMobileAdapter: initialized successfully',
         tag: 'GoogleSignIn',
       );
-    } catch (e, st) {
+    } on Exception catch (e, st) {
       Log.e(
         'GoogleSignInMobileAdapter: initialization failed: $e',
         tag: 'GoogleSignIn',
@@ -131,7 +131,7 @@ class GoogleSignInMobileAdapter {
         );
         return webClientId;
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w(
         'GoogleSignInMobileAdapter: error resolving clientId: $e',
         tag: 'GoogleSignIn',
@@ -156,7 +156,7 @@ class GoogleSignInMobileAdapter {
         );
         return webClientId;
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w(
         'GoogleSignInMobileAdapter: error resolving server clientId: $e',
         tag: 'GoogleSignIn',
@@ -204,7 +204,7 @@ class GoogleSignInMobileAdapter {
               authorization,
               usedScopes,
             );
-          } catch (e) {
+          } on Exception catch (e) {
             Log.d(
               'GoogleSignInMobileAdapter: existing account failed, clearing: $e',
               tag: 'GoogleSignIn',
@@ -224,7 +224,7 @@ class GoogleSignInMobileAdapter {
       final authorization = await tempAccount.authorizationClient
           .authorizeScopes(usedScopes);
       return await _buildTokenMap(tempAccount, authorization, usedScopes);
-    } catch (e, st) {
+    } on Exception catch (e, st) {
       Log.e(
         'GoogleSignInMobileAdapter: sign-in failed: $e',
         tag: 'GoogleSignIn',
@@ -251,7 +251,7 @@ class GoogleSignInMobileAdapter {
       try {
         final auth = account.authentication;
         idToken = auth.idToken;
-      } catch (e) {
+      } on Exception catch (e) {
         Log.d(
           'GoogleSignInMobileAdapter: could not get ID token: $e',
           tag: 'GoogleSignIn',
@@ -290,7 +290,7 @@ class GoogleSignInMobileAdapter {
             );
           }
         }
-      } catch (e) {
+      } on Exception catch (e) {
         Log.w(
           'GoogleSignInMobileAdapter: server auth code exchange failed: $e',
           tag: 'GoogleSignIn',
@@ -298,7 +298,7 @@ class GoogleSignInMobileAdapter {
       }
 
       return tokenMap;
-    } catch (e, st) {
+    } on Exception catch (e, st) {
       Log.e(
         'GoogleSignInMobileAdapter: failed to build token map: $e',
         tag: 'GoogleSignIn',
@@ -351,7 +351,7 @@ class GoogleSignInMobileAdapter {
       }
 
       return await _buildTokenMap(account, authorization, usedScopes);
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w(
         'GoogleSignInMobileAdapter: silent sign-in failed: $e',
         tag: 'GoogleSignIn',
@@ -416,7 +416,7 @@ class GoogleSignInMobileAdapter {
         'GoogleSignInMobileAdapter: signed out successfully',
         tag: 'GoogleSignIn',
       );
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w(
         'GoogleSignInMobileAdapter: sign-out failed: $e',
         tag: 'GoogleSignIn',
@@ -430,7 +430,7 @@ class GoogleSignInMobileAdapter {
     try {
       await initialize();
       return _currentUser != null;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w(
         'GoogleSignInMobileAdapter: isSignedIn check failed: $e',
         tag: 'GoogleSignIn',
@@ -444,7 +444,7 @@ class GoogleSignInMobileAdapter {
     try {
       await initialize();
       return _currentUser;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w(
         'GoogleSignInMobileAdapter: getCurrentAccount failed: $e',
         tag: 'GoogleSignIn',

@@ -155,7 +155,7 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
 
       // Agregar el resto del diagnóstico original aquí (si existe)
       // Por simplicidad, se puede agregar más contenido según sea necesario
-    } catch (e) {
+    } on Exception catch (e) {
       buffer.writeln('Error generando diagnóstico actualizado: $e');
     }
 
@@ -274,7 +274,7 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
           return realRemainingSeconds;
         }
       }
-    } catch (e) {
+    } on Exception {
       // Error en corrección de tiempo, usar valor original
     }
     return null; // Si no se puede corregir, usar el tiempo original
@@ -381,7 +381,7 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
             );
           }
           buffer.writeln();
-        } catch (e) {
+        } on Exception catch (e) {
           buffer.writeln('2. ERROR EN DIAGNÓSTICO AVANZADO: $e\n');
         }
       }
@@ -433,7 +433,7 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
               '   - Último: ${latest['name']} (${latest['createdTime']})',
             );
           }
-        } catch (e) {
+        } on Exception catch (e) {
           buffer.writeln('   - Error: $e');
         }
       } else {
@@ -467,7 +467,7 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
         buffer.writeln('✅ Backup reciente encontrado.');
         buffer.writeln('   No se necesita backup automático ahora.');
       }
-    } catch (e) {
+    } on Exception catch (e) {
       buffer.writeln('❌ Error durante diagnóstico: $e');
     }
 
@@ -591,7 +591,7 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
                       '\n💡 Consulta los logs de consola para más detalles\n';
                 }
               });
-            } catch (e) {
+            } on Exception catch (e) {
               setState(() {
                 _diagnosticResult += '❌ Test failed with error: $e\n';
                 _diagnosticResult +=

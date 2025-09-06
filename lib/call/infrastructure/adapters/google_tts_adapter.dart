@@ -9,7 +9,7 @@ class GoogleTtsAdapter implements ITtsService {
   Future<List<Map<String, dynamic>>> getAvailableVoices() async {
     try {
       return await GoogleSpeechService.fetchGoogleVoices();
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('[GoogleTtsAdapter] getAvailableVoices error: $e');
       return [];
     }
@@ -44,7 +44,7 @@ class GoogleTtsAdapter implements ITtsService {
         noCache: noCache,
       );
       return file?.path;
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('[GoogleTtsAdapter] synthesizeToFile error: $e');
       return null;
     }

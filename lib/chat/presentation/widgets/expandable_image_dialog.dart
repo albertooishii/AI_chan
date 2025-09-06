@@ -135,7 +135,7 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
       final exists = await widget.fileUIService!.fileExists(filePath);
       if (!exists) return null;
       return await widget.fileUIService!.readFileAsBytes(filePath);
-    } catch (e) {
+    } on Exception {
       return null;
     }
   }
@@ -203,7 +203,7 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
         if (exists) {
           await widget.fileUIService!.deleteFile(absPath);
         }
-      } catch (e) {
+      } on Exception catch (e) {
         // Mostrar aviso, pero continuar con la eliminación de la lista
         showAppSnackBar(
           'Advertencia: no se pudo borrar el archivo de imagen: $e',
@@ -234,7 +234,7 @@ class _GalleryImageViewerDialogState extends State<_GalleryImageViewerDialog> {
     // Notificar al llamador para que actualice su estado (p.ej., remover avatar guardado)
     try {
       widget.onImageDeleted?.call(deletedImg);
-    } catch (_) {}
+    } on Exception catch (_) {}
 
     showAppSnackBar('Imagen eliminada');
   }

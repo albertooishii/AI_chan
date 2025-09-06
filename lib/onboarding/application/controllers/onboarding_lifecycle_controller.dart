@@ -40,12 +40,12 @@ class OnboardingLifecycleController extends ChangeNotifier {
             'OnboardingLifecycle: loaded existing biography from prefs: aiName=${profile.aiName}',
             tag: 'ONBOARDING',
           );
-        } catch (_) {}
+        } on Exception catch (_) {}
       } else {
         _generatedBiography = null;
         _biographySaved = false;
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         'OnboardingLifecycle: failed to load existing biography: $e',
         tag: 'ONBOARDING',
@@ -118,7 +118,7 @@ class OnboardingLifecycleController extends ChangeNotifier {
         'OnboardingLifecycle: biography generated for aiName=${finalBiography.aiName}',
       );
       notifyListeners();
-    } catch (e) {
+    } on Exception catch (e) {
       _biographySaved = false;
       importError = e.toString();
       Log.e(
@@ -148,7 +148,7 @@ class OnboardingLifecycleController extends ChangeNotifier {
     _biographySaved = false;
     try {
       await _biographyUseCase.clearSavedBiography();
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('Error clearing saved biography in lifecycle reset: $e');
     }
     notifyListeners();

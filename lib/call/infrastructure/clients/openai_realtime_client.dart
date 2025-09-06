@@ -78,7 +78,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
     // Esperar a que la sesión esté creada
     try {
       await sessionReady.future.timeout(const Duration(seconds: 5));
-    } catch (_) {
+    } on Exception catch (_) {
       if (kDebugMode) {
         debugPrint('Realtime: timeout esperando session.created');
       }
@@ -98,7 +98,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
       } else if (message is List<int>) {
         onAudio?.call(Uint8List.fromList(message));
       }
-    } catch (e) {
+    } on Exception catch (e) {
       onError?.call(e);
     }
   }
@@ -139,7 +139,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
       });
       try {
         _sessionReadyCompleter?.complete();
-      } catch (_) {}
+      } on Exception catch (_) {}
       return;
     }
 
@@ -189,7 +189,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
           final bytes = base64Decode(delta['audio']);
           onAudio?.call(bytes);
           handledAudio = true;
-        } catch (e) {
+        } on Exception catch (e) {
           onError?.call(e);
         }
       }
@@ -203,7 +203,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
           final bytes = base64Decode(delta);
           onAudio?.call(bytes);
           handledAudio = true;
-        } catch (e) {
+        } on Exception catch (e) {
           onError?.call(e);
         }
       }
@@ -228,7 +228,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
                 onAudio?.call(bytes);
                 handledAudio = true;
               }
-            } catch (e) {
+            } on Exception catch (e) {
               onError?.call(e);
             }
           }
@@ -267,7 +267,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
                         onAudio?.call(bytes);
                         handledAudio = true;
                       }
-                    } catch (e) {
+                    } on Exception catch (e) {
                       onError?.call(e);
                     }
                   }
@@ -282,7 +282,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
                   onAudio?.call(bytes);
                   handledAudio = true;
                 }
-              } catch (e) {
+              } on Exception catch (e) {
                 onError?.call(e);
               }
             }
@@ -303,7 +303,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
               try {
                 final bytes = base64Decode(c['audio']);
                 onAudio?.call(bytes);
-              } catch (e) {
+              } on Exception catch (e) {
                 onError?.call(e);
               }
             }
@@ -329,7 +329,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
           final bytes = base64Decode(b64);
           onAudio?.call(bytes);
           handledAudio = true;
-        } catch (e) {
+        } on Exception catch (e) {
           onError?.call(e);
         }
       }
@@ -600,7 +600,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
     // commitInput is synchronous; wrap for interface compatibility
     try {
       commitInput();
-    } catch (e) {
+    } on Exception {
       rethrow;
     }
   }
@@ -697,7 +697,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
         _responseCreateTimer?.cancel();
         _responseCreateTimer = null;
         await _transport.disconnect();
-      } catch (_) {}
+      } on Exception catch (_) {}
     }
   }
 
@@ -735,14 +735,14 @@ extension _RespExtract on OpenAIRealtimeClient {
         if (a is String && a.isNotEmpty) {
           try {
             audioChunks.add(base64Decode(a));
-          } catch (_) {}
+          } on Exception catch (_) {}
         }
         // Audio en 'data' cuando type incluye 'audio'
         final d = node['data'];
         if (nType.contains('audio') && d is String && d.isNotEmpty) {
           try {
             audioChunks.add(base64Decode(d));
-          } catch (_) {}
+          } on Exception catch (_) {}
         }
         // Recorrer hijos
         for (final v in node.values) {

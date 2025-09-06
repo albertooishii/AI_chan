@@ -424,7 +424,7 @@ class PromptBuilderService implements IPromptBuilderService {
         }
         return TimelineEntry.fromJson(map);
       }).toList();
-    } catch (_) {
+    } on Exception catch (_) {
       return timeline;
     }
   }

@@ -43,7 +43,7 @@ abstract class AIService {
     } else {
       try {
         aiService = runtime_factory.getRuntimeAIServiceForModel(model);
-      } catch (e) {
+      } on Exception {
         // Fall back silently: return an empty response on resolution failure.
         return AIResponse(text: '');
       }
@@ -54,7 +54,7 @@ abstract class AIService {
       debugPrint(
         '[AIService] sendMessage -> model="$model", runtime="${aiService.runtimeType}"',
       );
-    } catch (_) {}
+    } on Exception catch (_) {}
 
     // Sanity: asegurar que el runtime seleccionado coincide con el prefijo del modelo
     try {
@@ -78,7 +78,7 @@ abstract class AIService {
       } else {
         // keep test override silently
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
 
     // Guardar logs usando debugLogCallPrompt (solo en debug/profile y escritorio).
     // Registramos una versión truncada/segura de lo que enviamos: previews del history
@@ -100,7 +100,7 @@ abstract class AIService {
         if (imageMimeType != null) 'image_mime_type': imageMimeType,
         'timestamp': DateTime.now().toIso8601String(),
       });
-    } catch (_) {}
+    } on Exception catch (_) {}
     // Revertir sanitización del history
     final bool requestHadImage = imageBase64 != null && imageBase64.isNotEmpty;
 
@@ -154,7 +154,7 @@ abstract class AIService {
                 if (finalPrompt.isNotEmpty) break;
               }
             }
-          } catch (_) {}
+          } on Exception catch (_) {}
         }
         // Determinar si la respuesta incluye una imagen (generada por la IA)
         final bool responseHasImage =
@@ -183,7 +183,7 @@ abstract class AIService {
           seed: response.seed,
           prompt: finalPrompt,
         );
-      } catch (_) {}
+      } on Exception catch (_) {}
     }
     // Guardar la respuesta usando debugLogCallPrompt con un preview seguro.
     try {
@@ -203,7 +203,7 @@ abstract class AIService {
             : response.base64,
         'timestamp': DateTime.now().toIso8601String(),
       });
-    } catch (_) {}
+    } on Exception catch (_) {}
 
     // Nota: no se reintenta con modelos de fallback automáticamente: la resolución de runtimes
     // debe ser explícita vía DI/fábrica. Si hay un error por cuota, devolvemos la respuesta tal cual
@@ -286,7 +286,7 @@ Future<List<String>> getAllAIModels({final bool forceRefresh = false}) async {
               continue;
             }
           }
-        } catch (_) {}
+        } on Exception catch (_) {}
       }
 
       // Fetch live and append exactly as returned (si no usamos caché o está incompleta)
@@ -300,13 +300,11 @@ Future<List<String>> getAllAIModels({final bool forceRefresh = false}) async {
                 models: models,
                 provider: providerName,
               );
-            } catch (_) {}
+            } on Exception catch (_) {}
           }
-        } catch (_) {}
+        } on Exception catch (_) {}
       }
-    } catch (_) {
-      // ignore provider resolution errors
-    }
+    } on Exception catch (_) {}
   }
 
   // Probe defaults for any runtimes not covered above
@@ -340,7 +338,7 @@ Future<List<String>> getAllAIModels({final bool forceRefresh = false}) async {
               continue;
             }
           }
-        } catch (_) {}
+        } on Exception catch (_) {}
       }
       if (!shouldUseCache) {
         final models = await s.getAvailableModels();
@@ -351,10 +349,10 @@ Future<List<String>> getAllAIModels({final bool forceRefresh = false}) async {
               models: models,
               provider: providerName,
             );
-          } catch (_) {}
+          } on Exception catch (_) {}
         }
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   return allModels;

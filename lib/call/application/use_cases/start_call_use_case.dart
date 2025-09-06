@@ -38,7 +38,7 @@ class StartCallUseCase {
         '✅ StartCallUseCase: Llamada iniciada exitosamente',
         tag: 'START_CALL_USE_CASE',
       );
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         '❌ Error en StartCallUseCase',
         tag: 'START_CALL_USE_CASE',

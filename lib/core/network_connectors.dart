@@ -30,7 +30,7 @@ class _IoWsSinkAdapter implements WsSink {
   Future<void> close() async {
     try {
       await _inner.close();
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 }
 

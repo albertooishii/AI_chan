@@ -178,7 +178,7 @@ class ConversationalMemoryDomainService {
       }
 
       return {'isValid': true, 'processedValue': cleanDate, 'reason': null};
-    } catch (e) {
+    } on Exception {
       return {
         'isValid': false,
         'processedValue': null,

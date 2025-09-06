@@ -14,9 +14,9 @@ Future<bool> hasInternetConnection({
     );
     try {
       socket.destroy();
-    } catch (_) {}
+    } on Exception catch (_) {}
     return true;
-  } catch (_) {
+  } on Exception catch (_) {
     return false;
   }
 }

@@ -47,7 +47,7 @@ class ChatController extends ChangeNotifier {
     try {
       await _chatService.initialize();
       _clearError();
-    } catch (e) {
+    } on Exception catch (e) {
       _setError('Error al cargar chat: $e');
     } finally {
       _setLoading(false);
@@ -70,7 +70,7 @@ class ChatController extends ChangeNotifier {
       await _chatService.sendMessage(text: text, model: model, image: image);
       _clearError();
       notifyListeners(); // Notificar cambios en mensajes
-    } catch (e) {
+    } on Exception catch (e) {
       _setError('Error al enviar mensaje: $e');
     } finally {
       _setLoading(false);
@@ -84,7 +84,7 @@ class ChatController extends ChangeNotifier {
       await _chatService.clearAll();
       _clearError();
       notifyListeners();
-    } catch (e) {
+    } on Exception catch (e) {
       _setError('Error al limpiar mensajes: $e');
     } finally {
       _setLoading(false);
@@ -97,7 +97,7 @@ class ChatController extends ChangeNotifier {
       final data = _chatService.exportToData();
       await _chatService.saveAll(data);
       _clearError();
-    } catch (e) {
+    } on Exception catch (e) {
       _setError('Error al guardar: $e');
     }
   }
@@ -107,7 +107,7 @@ class ChatController extends ChangeNotifier {
     try {
       await _chatService.startRecording();
       notifyListeners();
-    } catch (e) {
+    } on Exception catch (e) {
       _setError('Error al iniciar grabación: $e');
     }
   }
@@ -116,7 +116,7 @@ class ChatController extends ChangeNotifier {
     try {
       await _chatService.cancelRecording();
       notifyListeners();
-    } catch (e) {
+    } on Exception catch (e) {
       _setError('Error al cancelar grabación: $e');
     }
   }
@@ -128,7 +128,7 @@ class ChatController extends ChangeNotifier {
         // Procesar audio grabado
       }
       notifyListeners();
-    } catch (e) {
+    } on Exception catch (e) {
       _setError('Error al procesar grabación: $e');
     }
   }
@@ -137,7 +137,7 @@ class ChatController extends ChangeNotifier {
     try {
       await _chatService.togglePlayAudio(msg);
       notifyListeners();
-    } catch (e) {
+    } on Exception catch (e) {
       _setError('Error al reproducir audio: $e');
     }
   }
@@ -149,7 +149,7 @@ class ChatController extends ChangeNotifier {
     try {
       await _chatService.generateTtsForMessage(msg, voice: voice);
       notifyListeners();
-    } catch (e) {
+    } on Exception catch (e) {
       _setError('Error al generar TTS: $e');
     }
   }
@@ -187,7 +187,7 @@ class ChatController extends ChangeNotifier {
       await _chatService.applyChatExport(chatExport);
       _clearError();
       notifyListeners();
-    } catch (e) {
+    } on Exception catch (e) {
       _setError('Error al importar chat: $e');
     } finally {
       _setLoading(false);
@@ -309,7 +309,7 @@ class ChatController extends ChangeNotifier {
   Future<void> saveAllEvents() async {
     try {
       await _chatService.saveAllEvents();
-    } catch (e) {
+    } on Exception catch (e) {
       _setError('Error al guardar eventos: $e');
     }
   }
@@ -321,7 +321,7 @@ class ChatController extends ChangeNotifier {
       _clearError();
       await _chatService.retryLastFailedMessage(model: model);
       notifyListeners();
-    } catch (e) {
+    } on Exception catch (e) {
       _errorMessage = e.toString();
     } finally {
       _setLoading(false);
@@ -338,7 +338,7 @@ class ChatController extends ChangeNotifier {
       _clearError();
       await operation();
       notifyListeners();
-    } catch (e) {
+    } on Exception catch (e) {
       _errorMessage = e.toString();
     } finally {
       _setLoading(false);
@@ -387,7 +387,7 @@ class ChatController extends ChangeNotifier {
     try {
       await _chatService.addAssistantMessage(text, isAudio: isAudio);
       notifyListeners();
-    } catch (e) {
+    } on Exception catch (e) {
       _setError('Error al añadir mensaje del asistente: $e');
     }
   }
@@ -397,7 +397,7 @@ class ChatController extends ChangeNotifier {
     try {
       await _chatService.addUserMessage(message);
       notifyListeners();
-    } catch (e) {
+    } on Exception catch (e) {
       _setError('Error al añadir mensaje de usuario: $e');
     }
   }
@@ -419,7 +419,7 @@ class ChatController extends ChangeNotifier {
         placeholderIndex: placeholderIndex,
       );
       notifyListeners();
-    } catch (e) {
+    } on Exception catch (e) {
       _setError('Error al actualizar estado de llamada: $e');
     }
   }
@@ -455,7 +455,7 @@ class ChatController extends ChangeNotifier {
     try {
       await _chatService.flushQueuedMessages();
       notifyListeners();
-    } catch (e) {
+    } on Exception catch (e) {
       _setError('Error al enviar mensajes en cola: $e');
     }
   }
@@ -481,7 +481,7 @@ class ChatController extends ChangeNotifier {
         triggerAutoBackup: triggerAutoBackup,
       );
       notifyListeners();
-    } catch (e) {
+    } on Exception catch (e) {
       _setError('Error al actualizar cuenta Google: $e');
     }
   }
@@ -491,7 +491,7 @@ class ChatController extends ChangeNotifier {
     try {
       await _chatService.clearGoogleAccountInfo();
       notifyListeners();
-    } catch (e) {
+    } on Exception catch (e) {
       _setError('Error al limpiar cuenta Google: $e');
     }
   }

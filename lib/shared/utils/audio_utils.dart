@@ -10,7 +10,7 @@ Future<Directory> getLocalAudioDir() async {
   final testOverride = Config.get('TEST_AUDIO_DIR', '');
   if (testOverride.isNotEmpty) {
     final d = Directory(testOverride);
-    if (!await d.exists()) await d.create(recursive: true);
+    if (!d.existsSync()) d.createSync(recursive: true);
     return d;
   }
 
@@ -24,6 +24,6 @@ Future<Directory> getLocalAudioDir() async {
       : await getApplicationDocumentsDirectory();
 
   final audioDir = Directory('${appDoc.path}/AI_chan/audio');
-  if (!await audioDir.exists()) await audioDir.create(recursive: true);
+  if (!audioDir.existsSync()) audioDir.createSync(recursive: true);
   return audioDir;
 }

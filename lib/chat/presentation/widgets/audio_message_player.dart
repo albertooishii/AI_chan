@@ -78,7 +78,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer>
         _durationSeconds = (bytes / 12000).round().clamp(1, 60 * 60);
         if (mounted) setState(() {});
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   List<int> _generateWaveform(final int n, {final int? seed}) {
@@ -133,7 +133,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer>
             onTap: () async {
               try {
                 if (widget.onTap != null) await widget.onTap!();
-              } catch (_) {}
+              } on Exception catch (_) {}
             },
             child: Container(
               width: finalWidth,

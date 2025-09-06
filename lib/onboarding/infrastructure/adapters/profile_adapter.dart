@@ -42,7 +42,7 @@ class ProfileAdapter implements IProfileService {
         userCountryCode: userCountryCode,
         aiCountryCode: aiCountryCode,
       );
-    } catch (e) {
+    } on Exception catch (e) {
       // Fallback determinista para entornos sin claves
       return AiChanProfile(
         userName: userName,
@@ -72,7 +72,7 @@ class ProfileAdapter implements IProfileService {
         updatedProfile,
       );
       return avatar;
-    } catch (e) {
+    } on Exception {
       return AiImage(
         url: 'https://example.com/avatar_placeholder.png',
         seed: 'fallback-seed',

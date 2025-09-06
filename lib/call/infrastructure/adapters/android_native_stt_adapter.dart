@@ -25,7 +25,7 @@ class AndroidNativeSttAdapter implements ISttService {
       }
 
       final file = File(path);
-      if (!await file.exists()) {
+      if (!file.existsSync()) {
         Log.d('[AndroidSTT] Audio file does not exist: $path');
         return null;
       }
@@ -39,7 +39,7 @@ class AndroidNativeSttAdapter implements ISttService {
         '[AndroidSTT] Received request to transcribe file with native STT, returning null to fallback (file transcription not supported)',
       );
       return null;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('[AndroidSTT] transcribeAudio error: $e');
       return null;
     }

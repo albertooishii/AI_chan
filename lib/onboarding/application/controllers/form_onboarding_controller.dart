@@ -94,7 +94,7 @@ class FormOnboardingController extends ChangeNotifier {
       }
 
       return result;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('Error procesando formulario: $e', tag: 'FORM_ONBOARDING_CTRL');
       _setError('Error inesperado procesando el formulario: $e');
       return OnboardingFormResult(
@@ -155,7 +155,7 @@ class FormOnboardingController extends ChangeNotifier {
         _setError(result.error ?? 'Error desconocido');
         return false;
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('$errorPrefix: $e', tag: 'FORM_ONBOARDING_CTRL');
       _setError('Error inesperado: $e');
       return false;
@@ -232,7 +232,7 @@ class FormOnboardingController extends ChangeNotifier {
           meetStoryController.text = storyText.trim();
         }
       }
-    } catch (e) {
+    } on Exception catch (e) {
       _setError(e.toString());
     } finally {
       _setLoading(false);
@@ -248,7 +248,7 @@ class FormOnboardingController extends ChangeNotifier {
       aiNameController.dispose();
       meetStoryController.dispose();
       birthDateController.dispose();
-    } catch (_) {}
+    } on Exception catch (_) {}
     super.dispose();
   }
 

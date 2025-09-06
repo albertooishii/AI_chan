@@ -104,7 +104,7 @@ class FormOnboardingUseCase {
       }
 
       return date;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('Error parsing birth date "$dateText": $e');
       return null;
     }

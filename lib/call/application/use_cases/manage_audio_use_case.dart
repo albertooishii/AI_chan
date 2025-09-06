@@ -15,7 +15,7 @@ class ManageAudioUseCase {
         tag: 'AUDIO_USE_CASE',
       );
       await _audioManager.initialize();
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         '❌ Error inicializando gestión de audio',
         tag: 'AUDIO_USE_CASE',
@@ -32,7 +32,7 @@ class ManageAudioUseCase {
         '🎤 Audio ${muted ? "silenciado" : "activado"}',
         tag: 'AUDIO_USE_CASE',
       );
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('❌ Error configurando mute', tag: 'AUDIO_USE_CASE', error: e);
     }
   }

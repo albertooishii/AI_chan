@@ -1,12 +1,9 @@
-// ignore_for_file: curly_braces_in_flow_control_structures
-
 import 'dart:convert';
 import 'package:ai_chan/core/http_connector.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/services/ai_service.dart';
-// ...existing code...
 
 /// Servicio mínimo para Grok (Grok-3). Implementación esqueleto basada en
 /// el patrón de OpenAI/Gemini en este repo. Completar según la API real.
@@ -43,7 +40,7 @@ class GrokService implements AIService {
             } else if (m is Map && m['id'] != null) {
               names.add(m['id'].toString());
             }
-          } catch (_) {}
+          } on Exception catch (_) {}
         }
         if (names.isEmpty) {
           return ['grok-3'];
@@ -52,7 +49,7 @@ class GrokService implements AIService {
       }
       Log.w('[GrokService] getAvailableModels failed: ${resp.statusCode}');
       return ['grok-3'];
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('[GrokService] getAvailableModels error: $e');
       return ['grok-3'];
     }
@@ -154,40 +151,46 @@ class GrokService implements AIService {
                       text = c['text'] ?? c['content'] ?? text;
                       if (text.isNotEmpty) break;
                     }
-                  } catch (_) {}
+                  } on Exception catch (_) {}
                 }
               }
             }
             // Some implementations include image data inside choice/result blocks
             try {
-              if (first['image'] != null && first['image']['base64'] != null)
+              if (first['image'] != null && first['image']['base64'] != null) {
                 outBase64 = first['image']['base64'];
-              if (first['image_base64'] != null)
+              }
+              if (first['image_base64'] != null) {
                 outBase64 = first['image_base64'];
-            } catch (_) {}
+              }
+            } on Exception catch (_) {}
           }
 
           // Fallback: older style top-level output or image fields
           if (text.isEmpty) {
             if (data['output'] != null) {
-              if (data['output'] is String)
+              if (data['output'] is String) {
                 text = data['output'];
-              else if (data['output'] is Map && data['output']['text'] != null)
+              } else if (data['output'] is Map &&
+                  data['output']['text'] != null) {
                 text = data['output']['text'];
+              }
             }
           }
           if (outBase64.isEmpty) {
             if (data['image_base64'] != null) outBase64 = data['image_base64'];
-            if (data['image'] is Map && data['image']['base64'] != null)
+            if (data['image'] is Map && data['image']['base64'] != null) {
               outBase64 = data['image']['base64'];
+            }
           }
           if (seed.isEmpty) {
-            if (data['id'] != null)
+            if (data['id'] != null) {
               seed = data['id'].toString();
-            else if (data['response_id'] != null)
+            } else if (data['response_id'] != null) {
               seed = data['response_id'].toString();
+            }
           }
-        } catch (_) {}
+        } on Exception catch (_) {}
         return AIResponse(text: text, base64: outBase64, seed: seed);
       } else {
         Log.e('[GrokService] Error ${resp.statusCode}: ${resp.body}');
@@ -195,7 +198,7 @@ class GrokService implements AIService {
           text: 'Error al conectar con Grok: ${resp.statusCode} ${resp.body}',
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('[GrokService] Exception: $e');
       return AIResponse(text: 'Error al conectar con Grok: $e');
     }

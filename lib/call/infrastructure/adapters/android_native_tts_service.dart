@@ -26,7 +26,7 @@ class AndroidNativeTtsService {
     try {
       // The Dart plugin is always available when running on Android.
       return true;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('[AndroidTTS] Error verificando disponibilidad (flutter_tts): $e');
       return false;
     }
@@ -41,7 +41,7 @@ class AndroidNativeTtsService {
       return (voices as List<dynamic>)
           .map((final v) => Map<String, dynamic>.from(v as Map))
           .toList();
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('[AndroidTTS] Error obteniendo voces (flutter_tts): $e');
       return [];
     }
@@ -113,7 +113,7 @@ class AndroidNativeTtsService {
             voiceLangCodes.add(lc.replaceAll('_', '-').toLowerCase());
           }
         }
-      } catch (_) {}
+      } on Exception catch (_) {}
 
       var locale = (voice['locale'] as String?) ?? '';
       locale = locale.replaceAll('_', '-').toLowerCase();
@@ -206,14 +206,14 @@ class AndroidNativeTtsService {
         final normalized = await _normalizeSpeechRate(speechRate);
         await _flutterTts.setSpeechRate(normalized);
         Log.d('[AndroidTTS] using speechRate=$normalized for synthesizeToFile');
-      } catch (e) {
+      } on Exception {
         await _flutterTts.setSpeechRate(speechRate);
       }
 
       // Ask plugin to await completion so we can verify file
       try {
         await _flutterTts.awaitSynthCompletion(true);
-      } catch (_) {}
+      } on Exception catch (_) {}
 
       final isFullPath = outputPath.startsWith('/');
       final fileName = outputPath;
@@ -227,7 +227,7 @@ class AndroidNativeTtsService {
       // If plugin wrote to the given path, verify size
       try {
         final f = File(outputPath);
-        if (await f.exists()) {
+        if (f.existsSync()) {
           final len = await f.length();
           if (len > 0) {
             Log.d(
@@ -240,24 +240,24 @@ class AndroidNativeTtsService {
             );
             try {
               await f.delete();
-            } catch (_) {}
+            } on Exception catch (_) {}
             return null;
           }
         }
-      } catch (e) {
-        // ignore file check errors
+      } on Exception catch (_) {
+        // TTS synthesis failed, continue to alternatives
       }
 
       // Plugin may return an alternative path
       if (res is String && res.isNotEmpty) {
         try {
           final alt = File(res);
-          if (await alt.exists() && await alt.length() > 0) return res;
-        } catch (_) {}
+          if (alt.existsSync() && await alt.length() > 0) return res;
+        } on Exception catch (_) {}
       }
 
       return null;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('[AndroidTTS] Error synthesizeToFile (flutter_tts): $e');
       return null;
     }
@@ -270,7 +270,7 @@ class AndroidNativeTtsService {
     try {
       final result = await _channel.invokeMethod<bool>('stop');
       return result ?? false;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('[AndroidTTS] Error deteniendo síntesis: $e');
       return false;
     }
@@ -289,7 +289,7 @@ class AndroidNativeTtsService {
       return result
           .map((final lang) => Map<String, dynamic>.from(lang))
           .toList();
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('[AndroidTTS] Error obteniendo idiomas descargables: $e');
       return [];
     }
@@ -307,7 +307,7 @@ class AndroidNativeTtsService {
       });
 
       return result ?? 'unknown';
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('[AndroidTTS] Error obteniendo estado de descarga: $e');
       return 'error';
     }
@@ -335,7 +335,7 @@ class AndroidNativeTtsService {
       } else if (nr is int) {
         isNetworkRequired = nr != 0;
       }
-    } catch (_) {
+    } on Exception catch (_) {
       isNetworkRequired = false;
     }
 
@@ -352,7 +352,7 @@ class AndroidNativeTtsService {
     try {
       final languageLabel = VoiceDisplayUtils.getLanguageLabelFromVoice(voice);
       if (languageLabel.isNotEmpty) return '$languageLabel · $qualityText';
-    } catch (_) {}
+    } on Exception catch (_) {}
 
     // Fallback to older format if we can't produce a nice language/region label
     final fallbackLocale = locale.isNotEmpty ? locale : 'Sin idioma';
@@ -372,7 +372,7 @@ class AndroidNativeTtsService {
       if (requested < min) return min;
       if (requested > max) return max;
       return requested;
-    } catch (e) {
+    } on Exception {
       // Fallback conservative value
       return requested.clamp(0.3, 0.7);
     }

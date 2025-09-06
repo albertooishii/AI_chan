@@ -43,7 +43,7 @@ class ProcessUserResponseUseCase {
           tag: 'ONB_SERVICE',
         );
         return result;
-      } catch (e) {
+      } on Exception catch (e) {
         Log.e(
           '❌ [ONB_SERVICE] Error en intento $attempt: $e',
           tag: 'ONB_SERVICE',
@@ -102,7 +102,7 @@ class ProcessUserResponseUseCase {
     dynamic responseData;
     try {
       responseData = jsonDecode(response.text);
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('❌ Error parseando JSON: $e', tag: 'ONB_SERVICE');
       return _createErrorResponse(
         'Error de parsing JSON',
@@ -180,7 +180,7 @@ class ProcessUserResponseUseCase {
         );
 
         return currentMemory.copyWith(meetStory: 'GENERATED:$generatedStory');
-      } catch (e) {
+      } on Exception catch (e) {
         Log.e('❌ Error generando historia: $e', tag: 'ONB_SERVICE');
         return currentMemory.copyWith(
           meetStory:

@@ -29,7 +29,7 @@ class AppDataUtils {
     // Borrar todos los archivos de imágenes
     try {
       final imgDir = await image_utils.getLocalImageDir();
-      if (await imgDir.exists()) {
+      if (imgDir.existsSync()) {
         await for (final entity in imgDir.list()) {
           if (entity is File) {
             try {
@@ -38,7 +38,7 @@ class AppDataUtils {
                 'AppDataUtils: imagen borrada: ${entity.path}',
                 tag: 'APP_DATA',
               );
-            } catch (e) {
+            } on Exception catch (e) {
               Log.w(
                 'AppDataUtils: no se pudo borrar imagen ${entity.path}: $e',
                 tag: 'APP_DATA',
@@ -47,7 +47,7 @@ class AppDataUtils {
           }
         }
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         'AppDataUtils: error limpiando directorio de imágenes',
         tag: 'APP_DATA',
@@ -58,7 +58,7 @@ class AppDataUtils {
     // Borrar todos los archivos de audio
     try {
       final audioDir = await audio_utils.getLocalAudioDir();
-      if (await audioDir.exists()) {
+      if (audioDir.existsSync()) {
         await for (final entity in audioDir.list()) {
           if (entity is File) {
             try {
@@ -67,7 +67,7 @@ class AppDataUtils {
                 'AppDataUtils: audio borrado: ${entity.path}',
                 tag: 'APP_DATA',
               );
-            } catch (e) {
+            } on Exception catch (e) {
               Log.w(
                 'AppDataUtils: no se pudo borrar audio ${entity.path}: $e',
                 tag: 'APP_DATA',
@@ -76,7 +76,7 @@ class AppDataUtils {
           }
         }
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         'AppDataUtils: error limpiando directorio de audio',
         tag: 'APP_DATA',
@@ -97,7 +97,7 @@ class AppDataUtils {
               'AppDataUtils: backup borrado: ${entity.path}',
               tag: 'APP_DATA',
             );
-          } catch (e) {
+          } on Exception catch (e) {
             Log.w(
               'AppDataUtils: no se pudo borrar backup ${entity.path}: $e',
               tag: 'APP_DATA',
@@ -105,7 +105,7 @@ class AppDataUtils {
           }
         }
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         'AppDataUtils: error limpiando archivos de backup',
         tag: 'APP_DATA',
@@ -127,32 +127,32 @@ class AppDataUtils {
     try {
       // Calcular tamaño de imágenes
       final imgDir = await image_utils.getLocalImageDir();
-      if (await imgDir.exists()) {
+      if (imgDir.existsSync()) {
         await for (final entity in imgDir.list()) {
           if (entity is File) {
             try {
               final size = await entity.length();
               stats['images'] = stats['images']! + size;
-            } catch (_) {}
+            } on Exception catch (_) {}
           }
         }
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
 
     try {
       // Calcular tamaño de audio
       final audioDir = await audio_utils.getLocalAudioDir();
-      if (await audioDir.exists()) {
+      if (audioDir.existsSync()) {
         await for (final entity in audioDir.list()) {
           if (entity is File) {
             try {
               final size = await entity.length();
               stats['audio'] = stats['audio']! + size;
-            } catch (_) {}
+            } on Exception catch (_) {}
           }
         }
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
 
     try {
       // Calcular tamaño de backups
@@ -164,10 +164,10 @@ class AppDataUtils {
           try {
             final size = await entity.length();
             stats['backups'] = stats['backups']! + size;
-          } catch (_) {}
+          } on Exception catch (_) {}
         }
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
 
     return stats;
   }

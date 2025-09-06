@@ -23,7 +23,7 @@ class GeminiAdapter implements IAIService {
   Future<List<String>> getAvailableModels() async {
     try {
       return await _impl.getAvailableModels();
-    } catch (_) {
+    } on Exception catch (_) {
       return <String>[];
     }
   }
@@ -49,7 +49,7 @@ class GeminiAdapter implements IAIService {
         enableImageGeneration: enableImageGeneration,
       );
       return (resp?.toJson() ?? <String, dynamic>{}) as Map<String, dynamic>;
-    } catch (e) {
+    } on Exception {
       return {'text': ''};
     }
   }
@@ -63,7 +63,7 @@ class GeminiAdapter implements IAIService {
     try {
       final file = await _impl.textToSpeech(text: text, voice: voice);
       return file?.path;
-    } catch (_) {
+    } on Exception catch (_) {
       return null;
     }
   }

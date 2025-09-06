@@ -57,7 +57,7 @@ Future<void> main() async {
     } else {
       Log.i('MAIN: no onboarding_data found at startup', tag: 'STARTUP');
     }
-  } catch (e) {
+  } on Exception catch (e) {
     Log.e(
       'MAIN: failed reading onboarding_data at startup: $e',
       tag: 'STARTUP',
@@ -87,7 +87,7 @@ class _RootAppState extends State<RootApp> {
   void dispose() {
     try {
       _onboardingLifecycle.dispose();
-    } catch (_) {}
+    } on Exception catch (_) {}
     super.dispose();
   }
 
@@ -174,7 +174,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       );
 
       Log.i('resetApp completado exitosamente');
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('Error en resetApp: $e');
     }
 
@@ -195,7 +195,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
           await Future.delayed(const Duration(milliseconds: 500));
           await Permission.storage.request();
         }
-      } catch (e) {
+      } on Exception catch (e) {
         Log.e(
           'Error solicitando permisos de almacenamiento',
           tag: 'PERM',
@@ -213,7 +213,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     try {
       _chatController?.dispose(); // ✅ DDD: ETAPA 3
-    } catch (_) {}
+    } on Exception catch (_) {}
     super.dispose();
   }
 
@@ -330,7 +330,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   // Ensure the ChatController loads persisted data before showing Chat
                   try {
                     await _chatController!.initialize();
-                  } catch (e) {
+                  } on Exception catch (e) {
                     Log.w('MAIN: ChatController.initialize() failed: $e');
                   }
                 }
@@ -408,7 +408,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
               onboardingLifecycle.generatedBiography!,
             );
             await _chatController!.initialize();
-          } catch (e) {
+          } on Exception catch (e) {
             Log.w('MAIN: Async persist+init failed: $e');
           }
           if (mounted) setState(() {});

@@ -85,7 +85,7 @@ class BackupAutoUploader {
           // Clean up the temp dir we created and exit early.
           try {
             if (tmpDir.existsSync()) tmpDir.deleteSync(recursive: true);
-          } catch (e) {
+          } on Exception catch (e) {
             Log.w(
               'Automatic backup: failed deleting temp dir during early abort: $e',
               tag: 'BACKUP_AUTO',
@@ -109,7 +109,7 @@ class BackupAutoUploader {
       // Notify any test harness that an upload attempt is about to happen.
       try {
         testUploadCompleter?.complete();
-      } catch (_) {}
+      } on Exception catch (_) {}
 
       // Use robust upload with automatic retry
       if (!skipTokenCheck && storedToken != null) {
@@ -145,7 +145,7 @@ class BackupAutoUploader {
               tag: 'BACKUP_AUTO',
             );
           }
-        } catch (e) {
+        } on Exception catch (e) {
           Log.w(
             'Automatic backup: failed deleting temp dir ${tmpDir.path}: $e',
             tag: 'BACKUP_AUTO',
@@ -159,19 +159,19 @@ class BackupAutoUploader {
             'Automatic backup: recorded last-success ts=$nowMs',
             tag: 'BACKUP_AUTO',
           );
-        } catch (e) {
+        } on Exception catch (e) {
           Log.w(
             'Automatic backup: failed persisting last-success ts: $e',
             tag: 'BACKUP_AUTO',
           );
         }
-      } catch (e) {
+      } on Exception catch (e) {
         Log.w(
           'Automatic backup: failed deleting temp files: $e',
           tag: 'BACKUP_AUTO',
         );
       }
-    } catch (e, st) {
+    } on Exception catch (e, st) {
       // Don't throw: only log. Apps may query logs to detect failures.
       try {
         Log.e(
@@ -180,7 +180,7 @@ class BackupAutoUploader {
           error: e,
           stack: st,
         );
-      } catch (_) {}
+      } on Exception catch (_) {}
     }
   }
 

@@ -99,7 +99,7 @@ class OpenAISpeechService {
             );
           }
         }
-      } catch (e, st) {
+      } on Exception catch (e, st) {
         _maybeDebugPrint('Remote fetch error: $e\n$st');
       }
     } else if (apiKey.isNotEmpty && _remoteVoicesUnavailable) {

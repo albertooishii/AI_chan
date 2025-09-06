@@ -67,7 +67,7 @@ class VoiceCallScreenController extends ChangeNotifier {
       } else {
         await _startOutgoingCall();
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         '❌ Error inicializando controller',
         tag: 'VOICE_CALL_CONTROLLER',
@@ -97,7 +97,7 @@ class VoiceCallScreenController extends ChangeNotifier {
           _endCall(reason: CallEndReason.timeout);
         }
       });
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         '❌ Error manejando llamada entrante',
         tag: 'VOICE_CALL_CONTROLLER',
@@ -127,7 +127,7 @@ class VoiceCallScreenController extends ChangeNotifier {
       );
 
       await _startCallInternal();
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         '❌ Error aceptando llamada',
         tag: 'VOICE_CALL_CONTROLLER',
@@ -148,7 +148,7 @@ class VoiceCallScreenController extends ChangeNotifier {
       Log.d('📞 Iniciando llamada saliente', tag: 'VOICE_CALL_CONTROLLER');
       _updateState(_state.copyWith(phase: CallPhase.connecting));
       await _startCallInternal();
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         '❌ Error iniciando llamada saliente',
         tag: 'VOICE_CALL_CONTROLLER',
@@ -175,7 +175,7 @@ class VoiceCallScreenController extends ChangeNotifier {
             _updateState(_state.copyWith(phase: CallPhase.active)),
         onCallEnded: (final reason) => _endCall(reason: reason),
       );
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         '❌ Error en _startCallInternal',
         tag: 'VOICE_CALL_CONTROLLER',
@@ -230,7 +230,7 @@ class VoiceCallScreenController extends ChangeNotifier {
       ); // ✅ DDD: ETAPA 3
 
       _updateState(_state.copyWith(phase: CallPhase.ended));
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         '❌ Error finalizando llamada',
         tag: 'VOICE_CALL_CONTROLLER',

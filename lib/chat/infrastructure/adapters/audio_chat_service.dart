@@ -107,14 +107,14 @@ class AudioChatService implements IAudioChatService {
                   // continuous updates; ChatProvider will consume
                   // audioService.liveTranscript as final when native
                   // provider is selected).
-                } catch (_) {}
+                } on Exception catch (_) {}
               },
             );
           } else {
             _speech = null;
             _startPartialLoop();
           }
-        } catch (e) {
+        } on Exception catch (e) {
           debugPrint(
             '[Audio] native STT init error: $e; falling back to file partials',
           );
@@ -124,7 +124,7 @@ class AudioChatService implements IAudioChatService {
       } else {
         _startPartialLoop();
       }
-    } catch (_) {
+    } on Exception catch (_) {
       _startPartialLoop();
     }
     try {
@@ -140,7 +140,7 @@ class AudioChatService implements IAudioChatService {
             onWaveform(List.unmodifiable(_currentWaveform));
             onStateChanged();
           });
-    } catch (_) {}
+    } on Exception catch (_) {}
     onStateChanged();
   }
 
@@ -155,7 +155,7 @@ class AudioChatService implements IAudioChatService {
       if (_isNativeListening) {
         try {
           await _speech?.stop();
-        } catch (_) {}
+        } on Exception catch (_) {}
         _isNativeListening = false;
         _speech = null;
       }
@@ -164,7 +164,7 @@ class AudioChatService implements IAudioChatService {
       if (cancelled || _recordCancelled) {
         try {
           File(path).deleteSync();
-        } catch (_) {}
+        } on Exception catch (_) {}
         _liveTranscript = '';
         _currentRecordingPath = null;
         onStateChanged();
@@ -190,7 +190,7 @@ class AudioChatService implements IAudioChatService {
               DateTime.now().millisecondsSinceEpoch;
           final dest = '${dir.path}/voice_$ts.m4a';
           final f = File(path);
-          if (await f.exists()) {
+          if (f.existsSync()) {
             try {
               await f.rename(dest);
               final newLen = await File(dest).length();
@@ -198,7 +198,7 @@ class AudioChatService implements IAudioChatService {
                 '[Audio] stopRecording moved file to $dest (size=$newLen bytes)',
               );
               result = dest;
-            } catch (e) {
+            } on Exception catch (e) {
               debugPrint(
                 '[Audio] stopRecording rename failed: $e; falling back to copy',
               );
@@ -217,17 +217,17 @@ class AudioChatService implements IAudioChatService {
                       debugPrint(
                         '[Audio] stopRecording deleted original file $path after verify',
                       );
-                    } catch (_) {}
+                    } on Exception catch (_) {}
                   } else {
                     debugPrint(
                       '[Audio] stopRecording copy size mismatch src=$srcLen dst=$dstLen; keeping original',
                     );
                   }
-                } catch (e2) {
+                } on Exception catch (e2) {
                   debugPrint('[Audio] stopRecording verify error: $e2');
                 }
                 result = dest;
-              } catch (e2) {
+              } on Exception catch (e2) {
                 debugPrint('[Audio] stopRecording copy error: $e2');
               }
             }
@@ -237,13 +237,13 @@ class AudioChatService implements IAudioChatService {
             );
           }
         }
-      } catch (e) {
+      } on Exception catch (e) {
         debugPrint('[Audio] stopRecording copy error: $e');
       }
       _currentRecordingPath = null;
       onStateChanged();
       return result;
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('[Audio] Error al detener: $e');
       isRecording = false;
       await _ampSub?.cancel();
@@ -260,7 +260,7 @@ class AudioChatService implements IAudioChatService {
     if (_isNativeListening) {
       try {
         await _speech?.stop();
-      } catch (_) {}
+      } on Exception catch (_) {}
       _isNativeListening = false;
       _speech = null;
     }
@@ -288,11 +288,11 @@ class AudioChatService implements IAudioChatService {
     if (path == null) return;
     try {
       final file = File(path);
-      if (!await file.exists()) return;
+      if (!file.existsSync()) return;
       int len;
       try {
         len = await file.length();
-      } catch (e) {
+      } on Exception catch (e) {
         debugPrint('[Audio] Parcial length error: $e');
         return;
       }
@@ -310,7 +310,7 @@ class AudioChatService implements IAudioChatService {
           onStateChanged();
         }
       }
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('[Audio] Parcial error: $e');
     } finally {
       _isPartialTranscribing = false;
@@ -329,7 +329,7 @@ class AudioChatService implements IAudioChatService {
       debugPrint(
         '[Audio] togglePlay file exists=${fcheck.existsSync()}, size=${fcheck.existsSync() ? fcheck.lengthSync() : 0}',
       );
-    } catch (_) {}
+    } on Exception catch (_) {}
     // If the audio file does not actually exist, fail fast and let the caller
     // (ChatProvider) handle the error and show a SnackBar. This avoids
     // invoking platform audio APIs with non-existent paths which can emit
@@ -338,11 +338,11 @@ class AudioChatService implements IAudioChatService {
       final path = msg.audio?.url;
       if (path == null) return;
       final f = File(path);
-      if (!await f.exists()) {
+      if (!f.existsSync()) {
         debugPrint('[Audio] togglePlay aborting - file not found: $path');
         throw Exception('Audio file not found: $path');
       }
-    } catch (e) {
+    } on Exception {
       // Rethrow so the provider can catch and show a user-friendly message.
       rethrow;
     }
@@ -377,14 +377,14 @@ class AudioChatService implements IAudioChatService {
         _currentPosition = _currentDuration;
         try {
           await _posSub?.cancel();
-        } catch (_) {}
+        } on Exception catch (_) {}
         try {
           await _durSub?.cancel();
-        } catch (_) {}
+        } on Exception catch (_) {}
         onState();
       });
       onState();
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('[Audio] Play error: $e');
       _currentPlayingId = null;
       _currentPosition = Duration.zero;
@@ -456,9 +456,9 @@ class AudioChatService implements IAudioChatService {
             );
             return null;
           }
-        } catch (_) {}
+        } on Exception catch (_) {}
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
 
     try {
       // Delegate provider and voice resolution to PrefsUtils
@@ -509,7 +509,7 @@ class AudioChatService implements IAudioChatService {
 
             if (result != null) {
               final file = File(result);
-              if (await file.exists()) {
+              if (file.existsSync()) {
                 debugPrint(
                   '[Audio][TTS] Audio generado con TTS nativo Android',
                 );
@@ -525,7 +525,7 @@ class AudioChatService implements IAudioChatService {
                     provider: 'android_native',
                     extension: 'mp3',
                   );
-                } catch (e) {
+                } on Exception catch (e) {
                   debugPrint(
                     '[Audio][TTS] Warning: Error guardando TTS nativo en caché: $e',
                   );
@@ -534,7 +534,7 @@ class AudioChatService implements IAudioChatService {
                 return file.path;
               }
             }
-          } catch (e) {
+          } on Exception catch (e) {
             debugPrint(
               '[Audio][TTS] Error con TTS nativo Android, continuando con $provider: $e',
             );
@@ -582,7 +582,7 @@ class AudioChatService implements IAudioChatService {
                       '[Audio][TTS] Moved Google TTS file to $destPath',
                     );
                     return destPath;
-                  } catch (e) {
+                  } on Exception catch (e) {
                     debugPrint('[Audio][TTS] rename failed: $e; trying copy');
                     try {
                       await oldFile.copy(destPath);
@@ -593,24 +593,24 @@ class AudioChatService implements IAudioChatService {
                         if (srcLen == dstLen) {
                           try {
                             await oldFile.delete();
-                          } catch (_) {}
+                          } on Exception catch (_) {}
                         } else {
                           debugPrint(
                             '[Audio][TTS] copy size mismatch src=$srcLen dst=$dstLen; keeping original',
                           );
                         }
-                      } catch (e2) {
+                      } on Exception catch (e2) {
                         debugPrint('[Audio][TTS] verify error after copy: $e2');
                       }
                       return destPath;
-                    } catch (e2) {
+                    } on Exception catch (e2) {
                       debugPrint(
                         '[Audio][TTS] copy failed: $e2; returning original file',
                       );
                       return oldFile.path;
                     }
                   }
-                } catch (e) {
+                } on Exception catch (e) {
                   debugPrint(
                     '[Audio][TTS] Error moving Google TTS file to audio dir: $e; returning original file',
                   );
@@ -623,7 +623,7 @@ class AudioChatService implements IAudioChatService {
             debugPrint(
               '[Audio][TTS] Google TTS returned null file, falling back to DI service',
             );
-          } catch (e) {
+          } on Exception catch (e) {
             debugPrint(
               '[Audio][TTS] Google TTS error: $e — falling back to DI service',
             );
@@ -647,7 +647,7 @@ class AudioChatService implements IAudioChatService {
           );
           if (filePath != null) {
             final file = File(filePath);
-            if (await file.exists()) {
+            if (file.existsSync()) {
               debugPrint('[Audio][TTS] OpenAI TTS success: $filePath');
               return file.path;
             }
@@ -655,7 +655,7 @@ class AudioChatService implements IAudioChatService {
           debugPrint(
             '[Audio][TTS] OpenAI adapter returned null, falling back to DI service',
           );
-        } catch (e) {
+        } on Exception catch (e) {
           debugPrint(
             '[Audio][TTS] OpenAI adapter error: $e — falling back to DI service',
           );
@@ -679,7 +679,7 @@ class AudioChatService implements IAudioChatService {
           );
           if (path == null) return null;
           final f = File(path);
-          if (await f.exists()) return f.path;
+          if (f.existsSync()) return f.path;
           return null;
         } else {
           final tts = di.getTtsService();
@@ -689,14 +689,14 @@ class AudioChatService implements IAudioChatService {
           );
           if (path == null) return null;
           final f = File(path);
-          if (await f.exists()) return f.path;
+          if (f.existsSync()) return f.path;
           return null;
         }
-      } catch (e) {
+      } on Exception catch (e) {
         debugPrint('[Audio][TTS] DI fallback error: $e');
         return null;
       }
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('[Audio][TTS] Error: $e');
       return null;
     }
@@ -709,16 +709,16 @@ class AudioChatService implements IAudioChatService {
     if (_isNativeListening) {
       try {
         _speech?.stop();
-      } catch (_) {}
+      } on Exception catch (_) {}
       _isNativeListening = false;
       _speech = null;
     }
     try {
       _posSub?.cancel();
-    } catch (_) {}
+    } on Exception catch (_) {}
     try {
       _durSub?.cancel();
-    } catch (_) {}
+    } on Exception catch (_) {}
     _audioPlayer.dispose();
   }
 }

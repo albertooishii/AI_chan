@@ -23,7 +23,7 @@ class LocalCallRepository implements ICallRepository {
     // Persistir llamadas
     try {
       await PrefsUtils.setRawString(_callsKey, jsonEncode(callsMap));
-    } catch (_) {}
+    } on Exception catch (_) {}
 
     // Guardar mensajes por separado
     if (call.messages.isNotEmpty) {
@@ -36,7 +36,7 @@ class LocalCallRepository implements ICallRepository {
           PrefsUtils.voiceMessagesKey(call.id),
           jsonEncode(messagesMap),
         );
-      } catch (_) {}
+      } on Exception catch (_) {}
     }
   }
 
@@ -99,7 +99,7 @@ class LocalCallRepository implements ICallRepository {
 
       // Eliminar mensajes asociados
       await PrefsUtils.removeKey(PrefsUtils.voiceMessagesKey(id));
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   @override
@@ -113,7 +113,7 @@ class LocalCallRepository implements ICallRepository {
 
       // Limpiar llamadas
       await PrefsUtils.removeKey(_callsKey);
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 
   @override
@@ -160,11 +160,11 @@ class LocalCallRepository implements ICallRepository {
         }
 
         return messages;
-      } catch (e) {
+      } on Exception {
         // Si hay error parseando, retornar lista vacía
         return [];
       }
-    } catch (_) {
+    } on Exception catch (_) {
       return [];
     }
   }
@@ -176,11 +176,11 @@ class LocalCallRepository implements ICallRepository {
       if (callsJson == null) return {};
       try {
         return jsonDecode(callsJson) as Map<String, dynamic>;
-      } catch (e) {
+      } on Exception {
         // Si hay error parseando, retornar mapa vacío
         return {};
       }
-    } catch (_) {
+    } on Exception catch (_) {
       return {};
     }
   }

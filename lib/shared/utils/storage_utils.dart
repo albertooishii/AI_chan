@@ -17,6 +17,6 @@ class StorageUtils {
       await PrefsUtils.setEvents(
         jsonEncode(exported.events.map((final e) => e.toJson()).toList()),
       );
-    } catch (_) {}
+    } on Exception catch (_) {}
   }
 }

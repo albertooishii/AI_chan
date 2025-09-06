@@ -36,7 +36,7 @@ class CalendarProcessingService {
         processedData['interval'] = interval;
         processedData['unit'] = rUnit;
         processedData['startDate'] = startDate;
-      } catch (e) {
+      } on Exception catch (e) {
         // Si hay error en el parsing, devolver datos básicos
         processedData['error'] = e.toString();
       }

@@ -24,7 +24,7 @@ class BackupService {
     // Add images
     try {
       final imgDir = await image_utils.getLocalImageDir();
-      if (await imgDir.exists()) {
+      if (imgDir.existsSync()) {
         final files = imgDir.listSync().whereType<File>();
         for (final f in files) {
           try {
@@ -33,15 +33,15 @@ class BackupService {
                 ? f.uri.pathSegments.last
                 : f.path;
             archive.addFile(ArchiveFile('images/$name', bytes.length, bytes));
-          } catch (_) {}
+          } on Exception catch (_) {}
         }
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
 
     // Add audio
     try {
       final aDir = await audio_utils.getLocalAudioDir();
-      if (await aDir.exists()) {
+      if (aDir.existsSync()) {
         final files = aDir.listSync().whereType<File>();
         for (final f in files) {
           try {
@@ -50,10 +50,10 @@ class BackupService {
                 ? f.uri.pathSegments.last
                 : f.path;
             archive.addFile(ArchiveFile('audio/$name', bytes.length, bytes));
-          } catch (_) {}
+          } on Exception catch (_) {}
         }
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
 
     return archive;
   }
@@ -76,7 +76,7 @@ class BackupService {
     String outPath;
     if (destinationDirPath != null && destinationDirPath.trim().isNotEmpty) {
       final destDir = Directory(destinationDirPath);
-      if (!await destDir.exists()) await destDir.create(recursive: true);
+      if (!destDir.existsSync()) destDir.createSync(recursive: true);
       outPath = '${destDir.path}/$filename';
     } else {
       final dir = await getApplicationDocumentsDirectory();
@@ -132,8 +132,8 @@ class BackupService {
       // Prepare target dirs
       final imgDir = await image_utils.getLocalImageDir();
       final aDir = await audio_utils.getLocalAudioDir();
-      if (!await imgDir.exists()) await imgDir.create(recursive: true);
-      if (!await aDir.exists()) await aDir.create(recursive: true);
+      if (!imgDir.existsSync()) imgDir.createSync(recursive: true);
+      if (!aDir.existsSync()) aDir.createSync(recursive: true);
 
       for (final file in archive) {
         if (file.isFile) {
@@ -146,13 +146,13 @@ class BackupService {
             try {
               final outFile = File('${imgDir.path}/$rel');
               await outFile.writeAsBytes(file.content as List<int>);
-            } catch (_) {}
+            } on Exception catch (_) {}
           } else if (name.startsWith('audio/')) {
             final rel = name.substring('audio/'.length);
             try {
               final outFile = File('${aDir.path}/$rel');
               await outFile.writeAsBytes(file.content as List<int>);
-            } catch (_) {}
+            } on Exception catch (_) {}
           }
         }
       }

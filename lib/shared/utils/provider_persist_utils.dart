@@ -14,7 +14,7 @@ class ProviderPersistUtils {
       try {
         await repository.saveAll(exported.toJson());
         return;
-      } catch (e) {
+      } on Exception catch (e) {
         Log.w(
           'IChatRepository.saveAll failed, falling back to SharedPreferences: $e',
           tag: 'PERSIST',
@@ -24,7 +24,7 @@ class ProviderPersistUtils {
 
     try {
       await StorageUtils.saveChatExportToPrefs(exported);
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('StorageUtils.saveChatExportToPrefs failed: $e', tag: 'PERSIST');
     }
   }

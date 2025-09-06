@@ -178,7 +178,7 @@ class GeminiService implements AIService {
             );
           }
         }
-      } catch (_) {}
+      } on Exception catch (_) {}
       final sysJson = jsonEncode(systemPromptMap);
       contents.add({
         // Gemini API expects roles named 'user' or 'model' — use 'model' for system-level instructions
@@ -187,7 +187,7 @@ class GeminiService implements AIService {
           {'text': sysJson},
         ],
       });
-    } catch (_) {
+    } on Exception catch (_) {
       // silenciar error de serialización; fallback: no system part
       systemPromptMap = {};
     }
@@ -383,7 +383,7 @@ class GeminiService implements AIService {
                 'Error al conectar con Gemini: \n$bodyPreview\n\nModel error: $errMsg\nAvailable (probe): ${available.join(', ')}',
           );
         }
-      } catch (e) {
+      } on Exception catch (e) {
         Log.e(
           '[Gemini] Error al parsear cuerpo de error o intentar fallback: $e',
         );

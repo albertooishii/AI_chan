@@ -130,7 +130,7 @@ class GoogleBackupService {
             diagnosis['tokenExpiresInSeconds'] = expiresIn;
           }
         }
-      } catch (e) {
+      } on Exception catch (e) {
         diagnosis['credentialCheckError'] = e.toString();
       }
 
@@ -151,14 +151,14 @@ class GoogleBackupService {
             final account = await nativeAdapter.getCurrentAccount();
             diagnosis['signedInEmail'] = account?.email ?? 'unknown';
           }
-        } catch (e) {
+        } on Exception catch (e) {
           diagnosis['nativeSignInError'] = e.toString();
         }
       }
 
       Log.i('Android session diagnosis: $diagnosis', tag: 'GoogleBackup');
       return diagnosis;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e(
         'Failed to diagnose Android session issues: $e',
         tag: 'GoogleBackup',
@@ -205,7 +205,7 @@ class GoogleBackupService {
           await Future.delayed(delay);
         }
         return response;
-      } catch (e) {
+      } on Exception catch (e) {
         if (attempt < maxRetries) {
           final delay = Duration(
             milliseconds: (initialDelay.inMilliseconds * math.pow(2, attempt))
@@ -245,7 +245,7 @@ class GoogleBackupService {
         'GOOGLE DRIVE UNLINKED - ALL CREDENTIALS DELETED',
         tag: 'GoogleBackup',
       );
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('Error al forzar desvinculación: $e', tag: 'GoogleBackup');
     }
   }
@@ -410,7 +410,7 @@ class GoogleBackupService {
             );
           }
         }
-      } catch (e) {
+      } on Exception catch (e) {
         Log.w('OAuth refresh network error: $e', tag: 'GoogleBackup');
         _recordMinorRefreshIssue('network error: $e');
       }
@@ -418,7 +418,7 @@ class GoogleBackupService {
       throw StateError(
         'OAuth token refresh failed: no valid refresh method available',
       );
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('refreshAccessToken failed: $e', tag: 'GoogleBackup');
       rethrow;
     }
@@ -440,7 +440,7 @@ class GoogleBackupService {
         } else {
           cid = Config.get('GOOGLE_CLIENT_ID_DESKTOP', '');
         }
-      } catch (_) {
+      } on Exception catch (_) {
         cid = '';
       }
     }
@@ -460,7 +460,7 @@ class GoogleBackupService {
       } else {
         s = Config.get('GOOGLE_CLIENT_SECRET_DESKTOP', '');
       }
-    } catch (_) {
+    } on Exception catch (_) {
       s = '';
     }
     s = s.trim();
@@ -482,7 +482,7 @@ class GoogleBackupService {
         default:
           return '';
       }
-    } catch (_) {
+    } on Exception catch (_) {
       return '';
     }
   }
@@ -509,7 +509,7 @@ class GoogleBackupService {
       }
       s = s.trim();
       return s.isEmpty ? null : s;
-    } catch (_) {
+    } on Exception catch (_) {
       return null;
     }
   }
@@ -580,7 +580,7 @@ class GoogleBackupService {
         clientId: clientId,
         clientSecret: clientSecret,
       );
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('_attemptRefreshUsingConfig failed: $e', tag: 'GoogleBackup');
       rethrow;
     }
@@ -606,7 +606,7 @@ class GoogleBackupService {
       final tokenMap = await adapter.signIn(scopes: scopes);
       await _persistCredentialsSecure(tokenMap, originalClientId: clientId);
       return tokenMap;
-    } catch (e, st) {
+    } on Exception catch (e, st) {
       Log.e(
         'authenticateWithAppAuth failed: $e',
         tag: 'GoogleBackup',
@@ -648,7 +648,7 @@ class GoogleBackupService {
       );
 
       return tokenMap;
-    } catch (e, st) {
+    } on Exception catch (e, st) {
       Log.e(
         '_signInUsingNativeGoogleSignIn failed: $e',
         tag: 'GoogleBackup',
@@ -677,7 +677,7 @@ class GoogleBackupService {
           Log.d('Awaiting existing in-flight link', tag: 'GoogleBackup');
           return _inflightLinkCompleter!.future;
         }
-      } catch (_) {
+      } on Exception catch (_) {
         return _inflightLinkCompleter!.future;
       }
     }
@@ -704,7 +704,7 @@ class GoogleBackupService {
         } else {
           cid = await GoogleBackupService.resolveClientIdFor('desktop');
         }
-      } catch (_) {
+      } on Exception catch (_) {
         cid = '';
       }
     }
@@ -724,13 +724,13 @@ class GoogleBackupService {
             );
             try {
               _inflightLinkCompleter?.complete(stored);
-            } catch (_) {}
+            } on Exception catch (_) {}
             _inflightLinkCompleter = null;
             return stored;
           }
         }
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
 
     // Mobile and web: use native google_sign_in
     try {
@@ -747,7 +747,7 @@ class GoogleBackupService {
             originalClientId = await GoogleBackupService.resolveClientIdFor(
               'web',
             );
-          } catch (_) {}
+          } on Exception catch (_) {}
 
           await _persistCredentialsSecure(
             tokenMap,
@@ -755,18 +755,18 @@ class GoogleBackupService {
           );
           try {
             _inflightLinkCompleter?.complete(tokenMap);
-          } catch (_) {}
+          } on Exception catch (_) {}
           _inflightLinkCompleter = null;
           return tokenMap;
         }
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('google_sign_in flow failed: $e', tag: 'GoogleBackup');
       try {
         if (kIsWeb || (!kIsWeb && (Platform.isAndroid || Platform.isIOS))) {
           rethrow;
         }
-      } catch (_) {
+      } on Exception catch (_) {
         rethrow;
       }
     }
@@ -778,7 +778,7 @@ class GoogleBackupService {
       if (desktopCid.isEmpty) {
         try {
           desktopCid = await GoogleBackupService.resolveClientIdFor('desktop');
-        } catch (_) {
+        } on Exception catch (_) {
           desktopCid = '';
         }
       }
@@ -796,11 +796,11 @@ class GoogleBackupService {
             );
             try {
               _inflightLinkCompleter?.complete(tokenMap);
-            } catch (_) {}
+            } on Exception catch (_) {}
             _inflightLinkCompleter = null;
             return tokenMap;
           }
-        } catch (e, st) {
+        } on Exception catch (e, st) {
           Log.e(
             'AppAuth desktop flow failed: $e',
             tag: 'GoogleBackup',
@@ -838,7 +838,7 @@ class GoogleBackupService {
           if (existing != null && existing.containsKey('_original_client_id')) {
             merged['_original_client_id'] = existing['_original_client_id'];
           }
-        } catch (_) {}
+        } on Exception catch (_) {}
       }
 
       await _secureStorage.write(
@@ -854,7 +854,7 @@ class GoogleBackupService {
         'Persisted credentials: access_token? $hasAccess refresh_token? $hasRefresh scopes="$scope"',
         tag: 'GoogleBackup',
       );
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('Failed to persist credentials: $e', tag: 'GoogleBackup');
     }
   }
@@ -864,7 +864,7 @@ class GoogleBackupService {
       final v = await _secureStorage.read(key: 'google_credentials');
       if (v == null) return null;
       return jsonDecode(v) as Map<String, dynamic>;
-    } catch (_) {
+    } on Exception catch (_) {
       return null;
     }
   }
@@ -936,7 +936,7 @@ class GoogleBackupService {
             if (refreshed['access_token'] != null) {
               token = refreshed['access_token'] as String?;
             }
-          } catch (e) {
+          } on Exception catch (e) {
             Log.w('Non-interactive refresh failed: $e', tag: 'GoogleBackup');
           }
         } else {
@@ -957,7 +957,7 @@ class GoogleBackupService {
                 try {
                   originalClientId =
                       await GoogleBackupService.resolveClientIdFor('web');
-                } catch (_) {}
+                } on Exception catch (_) {}
                 await _persistCredentialsSecure(
                   silentTokens,
                   originalClientId: originalClientId,
@@ -965,11 +965,11 @@ class GoogleBackupService {
                 token = silentTokens['access_token'] as String?;
               }
             }
-          } catch (e) {
+          } on Exception catch (e) {
             Log.d('Silent sign-in attempt failed: $e', tag: 'GoogleBackup');
           }
         }
-      } catch (e) {
+      } on Exception catch (e) {
         Log.w(
           'Startup token refresh guard encountered error: $e',
           tag: 'GoogleBackup',
@@ -988,7 +988,7 @@ class GoogleBackupService {
         final creds = jsonDecode(credsStr);
         return creds['access_token'] as String?;
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
     return null;
   }
 
@@ -1005,7 +1005,7 @@ class GoogleBackupService {
         if (creds == null) {
           return ConsentStatus.notAuthenticated;
         }
-      } catch (e) {
+      } on Exception catch (e) {
         Log.w(
           'checkConsentStatus credential check error: $e',
           tag: 'GoogleBackup',
@@ -1013,7 +1013,7 @@ class GoogleBackupService {
       }
 
       return ConsentStatus.notAuthenticated;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('checkConsentStatus error: $e', tag: 'GoogleBackup');
       return ConsentStatus.notAuthenticated;
     }
@@ -1048,9 +1048,9 @@ class GoogleBackupService {
               return jsonDecode(retryResp.body) as Map<String, dynamic>;
             }
           }
-        } catch (_) {}
+        } on Exception catch (_) {}
       }
-    } catch (_) {}
+    } on Exception catch (_) {}
     return null;
   }
 
@@ -1070,7 +1070,7 @@ class GoogleBackupService {
           );
           await nativeAdapter.signOut();
         }
-      } catch (e) {
+      } on Exception catch (e) {
         Log.w(
           'Failed to sign out from native adapter: $e',
           tag: 'GoogleBackup',
@@ -1078,7 +1078,7 @@ class GoogleBackupService {
       }
 
       Log.d('Cleared stored credentials', tag: 'GoogleBackup');
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('Failed to clear credentials: $e', tag: 'GoogleBackup');
     }
   }
@@ -1105,7 +1105,7 @@ class GoogleBackupService {
         tag: 'BACKUP_AUTO',
       );
       return fileId;
-    } catch (e) {
+    } on Exception catch (e) {
       if (attemptRefresh &&
           (e.toString().contains('401') ||
               e.toString().contains('Unauthorized') ||
@@ -1135,7 +1135,7 @@ class GoogleBackupService {
               attemptRefresh: false,
             );
           }
-        } catch (refreshError) {
+        } on Exception catch (refreshError) {
           Log.w(
             'Auto-backup: token refresh failed during upload: $refreshError',
             tag: 'BACKUP_AUTO',
@@ -1208,7 +1208,7 @@ class GoogleBackupService {
               );
               return await retrySvc.uploadBackup(zipFile, filename: filename);
             }
-          } catch (_) {}
+          } on Exception catch (_) {}
         }
         if (resUp.statusCode >= 200 && resUp.statusCode < 300) {
           final resp = jsonDecode(resUp.body) as Map<String, dynamic>;
@@ -1224,7 +1224,7 @@ class GoogleBackupService {
           'Upload (update) failed: ${resUp.statusCode} ${resUp.body}',
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('List existing failed: $e', tag: 'GoogleBackup');
     }
 
@@ -1257,7 +1257,7 @@ class GoogleBackupService {
           );
           return await retrySvc.uploadBackup(zipFile, filename: filename);
         }
-      } catch (_) {}
+      } on Exception catch (_) {}
     }
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final resp = jsonDecode(res.body) as Map<String, dynamic>;
@@ -1300,7 +1300,7 @@ class GoogleBackupService {
           '${driveUploadEndpoint.toString().split('?').first}?uploadType=resumable',
         );
       }
-    } catch (_) {
+    } on Exception catch (_) {
       resumableEndpoint = Uri.parse(
         '${driveUploadEndpoint.toString().split('?').first}?uploadType=resumable',
       );
@@ -1331,7 +1331,7 @@ class GoogleBackupService {
               filename: filename,
             );
           }
-        } catch (_) {}
+        } on Exception catch (_) {}
       }
       throw HttpException(
         'Resumable init failed: ${initRes.statusCode} ${initRes.body}',
@@ -1370,7 +1370,7 @@ class GoogleBackupService {
             filename: filename,
           );
         }
-      } catch (_) {}
+      } on Exception catch (_) {}
     }
     if (putRes.statusCode >= 200 && putRes.statusCode < 300) {
       final resp = jsonDecode(putRes.body) as Map<String, dynamic>;
@@ -1415,7 +1415,7 @@ class GoogleBackupService {
           );
           return await retrySvc.listBackups(pageSize: pageSize);
         }
-      } catch (_) {}
+      } on Exception catch (_) {}
     }
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final body = jsonDecode(res.body) as Map<String, dynamic>;
@@ -1453,7 +1453,7 @@ class GoogleBackupService {
           );
           return await retrySvc.downloadBackup(fileId, destDir: destDir);
         }
-      } catch (_) {}
+      } on Exception catch (_) {}
     }
     if (res.statusCode >= 200 && res.statusCode < 300) {
       await outFile.writeAsBytes(res.bodyBytes, flush: true);
@@ -1480,7 +1480,7 @@ class GoogleBackupService {
           );
           return await retrySvc.deleteBackup(fileId);
         }
-      } catch (_) {}
+      } on Exception catch (_) {}
     }
     if (res.statusCode >= 200 && res.statusCode < 300) return;
     throw HttpException('Delete failed: ${res.statusCode} ${res.body}');
@@ -1511,7 +1511,7 @@ class GoogleBackupService {
           final fileId = meta['id']!;
           await deleteBackup(fileId);
           deletedCount++;
-        } catch (e) {
+        } on Exception catch (e) {
           Log.w(
             'Failed to delete backup ${backup['id']}: $e',
             tag: 'GoogleBackup',
@@ -1523,7 +1523,7 @@ class GoogleBackupService {
         'Cleanup completed - deleted $deletedCount old backup(s)',
         tag: 'GoogleBackup',
       );
-    } catch (e) {
+    } on Exception catch (e) {
       Log.w('Cleanup failed: $e', tag: 'GoogleBackup');
     }
   }
@@ -1562,7 +1562,7 @@ class GoogleBackupService {
           final refreshed = await _attemptRefreshUsingConfig();
           steps.add('Token refresh successful');
           return {'steps': steps, 'result': 'Success', 'tokens': refreshed};
-        } catch (e) {
+        } on Exception catch (e) {
           steps.add('Token refresh failed: $e');
           return {
             'steps': steps,
@@ -1574,7 +1574,7 @@ class GoogleBackupService {
         steps.add('No refresh token available');
         return {'steps': steps, 'result': 'No refresh token'};
       }
-    } catch (e) {
+    } on Exception catch (e) {
       steps.add('Diagnostics error: $e');
       return {'steps': steps, 'result': 'Error', 'error': e.toString()};
     }

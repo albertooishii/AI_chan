@@ -197,7 +197,7 @@ class SendMessageUseCase {
         onboardingData: onboardingData,
         saveAll: saveAll ?? () async {},
       );
-    } catch (_) {
+    } on Exception catch (_) {
       return null;
     }
   }

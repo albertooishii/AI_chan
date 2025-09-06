@@ -21,9 +21,6 @@ class OpenAIRealtimeCallClient implements IRealtimeCallClient {
   IRealtimeClient? _client;
 
   bool _connected = false;
-  // Kept for parity with previous implementation and forwarded to provider.
-  // ignore: unused_field
-  String _voice = 'marin';
   bool _hasActiveResponse = false;
   Timer? _responseCreateTimer;
   int _bytesSinceCommit = 0;
@@ -75,7 +72,7 @@ class OpenAIRealtimeCallClient implements IRealtimeCallClient {
       onAudio: (final b) {
         try {
           _audioController.add(Uint8List.fromList(b));
-        } catch (e) {
+        } on Exception catch (e) {
           if (kDebugMode) debugPrint('Error handling audio bytes: $e');
         }
       },
@@ -86,7 +83,6 @@ class OpenAIRealtimeCallClient implements IRealtimeCallClient {
       },
     );
 
-    _voice = voice;
     _bytesSinceCommit = 0;
 
     await _client!.connect(
@@ -110,7 +106,7 @@ class OpenAIRealtimeCallClient implements IRealtimeCallClient {
 
     try {
       await _client?.close();
-    } catch (e) {
+    } on Exception catch (e) {
       if (kDebugMode) debugPrint('Error cerrando cliente realtime: $e');
     }
 
@@ -140,7 +136,6 @@ class OpenAIRealtimeCallClient implements IRealtimeCallClient {
   @override
   void updateVoice(final String voice) {
     if (!_connected) return;
-    _voice = voice;
     _client?.updateVoice(voice);
   }
 

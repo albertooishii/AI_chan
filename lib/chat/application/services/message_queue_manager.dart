@@ -74,7 +74,7 @@ class MessageQueueManager {
     if (last != null) {
       try {
         onFlush(ids, last, opts);
-      } catch (_) {}
+      } on Exception catch (_) {}
     }
   }
 

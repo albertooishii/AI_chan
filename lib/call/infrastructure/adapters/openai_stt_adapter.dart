@@ -15,7 +15,7 @@ class OpenAISttAdapter implements ISttService {
   Future<String?> transcribeAudio(final String path) async {
     try {
       final f = File(path);
-      if (!await f.exists()) return null;
+      if (!f.existsSync()) return null;
       // Use the centralized runtime factory so singletons and config are respected.
       final modelForStt = Config.getOpenAISttModel();
       final svc = runtime_factory.getRuntimeAIServiceForModel(modelForStt);
@@ -28,9 +28,9 @@ class OpenAISttAdapter implements ISttService {
         if (dyn != null && dyn.transcribeAudio != null) {
           return await dyn.transcribeAudio(path);
         }
-      } catch (_) {}
+      } on Exception catch (_) {}
       return null;
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('[OpenAISttAdapter] transcribeAudio error: $e');
       return null;
     }
