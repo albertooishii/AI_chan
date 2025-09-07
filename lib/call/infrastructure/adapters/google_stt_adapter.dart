@@ -13,7 +13,7 @@ class GoogleSttAdapter implements ICallSttService {
     try {
       final f = File(path);
       if (!f.existsSync()) return null;
-      return await GoogleSpeechService.speechToTextFromFileStatic(f);
+      return await GoogleSpeechService.speechToTextFromFileStatic(f.path);
     } on Exception catch (e) {
       debugPrint('[GoogleSttAdapter] transcribeAudio error: $e');
       return null;
@@ -28,7 +28,7 @@ class GoogleSttAdapter implements ICallSttService {
       final tempFile = File('${Directory.systemTemp.path}/temp_audio.wav');
       await tempFile.writeAsBytes(audioData);
       final result = await GoogleSpeechService.speechToTextFromFileStatic(
-        tempFile,
+        tempFile.path,
       );
       await tempFile.delete();
       return result ?? '';

@@ -225,7 +225,7 @@ class GoogleSpeechService implements IGoogleSpeechService {
 
   /// Convierte texto a voz y guarda como archivo
   @override
-  Future<File?> textToSpeechFile({
+  Future<String?> textToSpeechFile({
     required final String text,
     final String? customFileName,
     final String languageCode = 'es-ES',
@@ -270,7 +270,7 @@ class GoogleSpeechService implements IGoogleSpeechService {
           _maybeDebugPrint(
             '[GoogleTTS] Returning cached file path directly: ${cachedFile.path}',
           );
-          return cachedFile;
+          return cachedFile.path;
         }
       } on Exception catch (e) {
         _maybeDebugPrint(
@@ -316,7 +316,7 @@ class GoogleSpeechService implements IGoogleSpeechService {
       if (audioData != null) {
         await file.writeAsBytes(audioData);
         _maybeDebugPrint('[GoogleTTS] Archivo guardado: ${file.path}');
-        return file;
+        return file.path;
       } else {
         _maybeDebugPrint('[GoogleTTS] Error: audioData es null');
         return null;
@@ -407,18 +407,20 @@ class GoogleSpeechService implements IGoogleSpeechService {
     return null;
   }
 
-  /// Transcribe un archivo de audio
+  /// Transcribe un archivo de audio desde path
   @override
   Future<String?> speechToTextFromFile(
-    final File audioFile, {
+    final String audioFilePath, {
     final String languageCode = 'es-ES',
     final String audioEncoding = 'MP3',
     final int sampleRateHertz = 24000,
   }) async {
     try {
       _maybeDebugPrint(
-        '[GoogleSTT] speechToTextFromFile called with: ${audioFile.path}',
+        '[GoogleSTT] speechToTextFromFile called with: $audioFilePath',
       );
+
+      final audioFile = File(audioFilePath);
 
       // Read user preferred audio format from config. This lets the
       // pipeline adapt ordering of conversion attempts based on the
@@ -441,7 +443,7 @@ class GoogleSpeechService implements IGoogleSpeechService {
       ) async {
         try {
           _maybeDebugPrint(
-            '[GoogleSTT] Trying direct STT with encoding=$guessedEncoding sr=$guessedSR for ${audioFile.path}',
+            '[GoogleSTT] Trying direct STT with encoding=$guessedEncoding sr=$guessedSR for $audioFilePath',
           );
           final res = await speechToText(
             audioData: audioData,
@@ -1064,7 +1066,7 @@ class GoogleSpeechService implements IGoogleSpeechService {
   }
 
   /// Versión estática de textToSpeechFile
-  static Future<File?> textToSpeechFileStatic({
+  static Future<String?> textToSpeechFileStatic({
     required final String text,
     final String? customFileName,
     final String languageCode = 'es-ES',
@@ -1119,14 +1121,14 @@ class GoogleSpeechService implements IGoogleSpeechService {
 
   /// Versión estática de speechToTextFromFile
   static Future<String?> speechToTextFromFileStatic(
-    final File audioFile, {
+    final String audioFilePath, {
     final String languageCode = 'es-ES',
     final String audioEncoding = 'MP3',
     final int sampleRateHertz = 24000,
   }) async {
     final service = GoogleSpeechService();
     return service.speechToTextFromFile(
-      audioFile,
+      audioFilePath,
       languageCode: languageCode,
       audioEncoding: audioEncoding,
       sampleRateHertz: sampleRateHertz,

@@ -161,8 +161,8 @@ class DefaultTtsService implements ICallTtsService {
             languageCode: languageCode,
           );
           if (file != null) {
-            debugPrint('[DefaultTTS] Google TTS success: ${file.path}');
-            return file.path;
+            debugPrint('[DefaultTTS] Google TTS success: $file');
+            return file;
           }
 
           debugPrint('[DefaultTTS] Google TTS returned null');

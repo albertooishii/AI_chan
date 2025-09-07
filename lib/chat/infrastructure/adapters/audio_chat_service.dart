@@ -572,7 +572,7 @@ class AudioChatService implements IAudioChatService {
               if (!forDialogDemo) {
                 try {
                   final localDir = await audio_utils.getLocalAudioDir();
-                  final oldFile = file;
+                  final oldFile = File(file);
                   final fileName = oldFile.path.split('/').last;
                   final destPath = '${localDir.path}/$fileName';
 
@@ -614,11 +614,11 @@ class AudioChatService implements IAudioChatService {
                   debugPrint(
                     '[Audio][TTS] Error moving Google TTS file to audio dir: $e; returning original file',
                   );
-                  return file.path;
+                  return file;
                 }
               }
 
-              return file.path;
+              return file;
             }
             debugPrint(
               '[Audio][TTS] Google TTS returned null file, falling back to DI service',

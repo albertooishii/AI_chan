@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/chat/application/services/chat_application_service.dart';
-import 'package:ai_chan/chat/application/mixins/ui_state_management_mixin.dart';
 
 /// 📞 **Chat Call Controller** - DDD Specialized Controller
 ///
@@ -14,8 +13,7 @@ import 'package:ai_chan/chat/application/mixins/ui_state_management_mixin.dart';
 /// **DDD Principles:**
 /// - Single Responsibility: Only call operations
 /// - Delegation: All logic delegated to ChatApplicationService
-/// - UI State Management: Via mixin pattern
-class ChatCallController extends ChangeNotifier with UIStateManagementMixin {
+class ChatCallController extends ChangeNotifier {
   ChatCallController({required final ChatApplicationService chatService})
     : _chatService = chatService;
 
@@ -31,14 +29,20 @@ class ChatCallController extends ChangeNotifier with UIStateManagementMixin {
 
   /// Set calling state (UI only)
   void setCalling(final bool calling) {
-    executeSyncWithNotification(operation: () => _isCalling = calling);
+    try {
+      _isCalling = calling;
+    } on Exception catch (e) {
+      debugPrint('Error in setCalling: $e');
+    }
   }
 
   /// Clear pending incoming call
   void clearPendingIncomingCall() {
-    executeSyncWithNotification(
-      operation: () => _chatService.clearPendingIncomingCall(),
-    );
+    try {
+      _chatService.clearPendingIncomingCall();
+    } on Exception catch (e) {
+      debugPrint('Error in clearPendingIncomingCall: $e');
+    }
   }
 
   /// Replace incoming call placeholder with actual call summary
@@ -47,13 +51,15 @@ class ChatCallController extends ChangeNotifier with UIStateManagementMixin {
     required final VoiceCallSummary summary,
     required final String summaryText,
   }) {
-    executeSyncWithNotification(
-      operation: () => _chatService.replaceIncomingCallPlaceholder(
+    try {
+      _chatService.replaceIncomingCallPlaceholder(
         index: index,
         summary: summary,
         summaryText: summaryText,
-      ),
-    );
+      );
+    } on Exception catch (e) {
+      debugPrint('Error in replaceIncomingCallPlaceholder: $e');
+    }
   }
 
   /// Reject incoming call placeholder
@@ -61,12 +67,14 @@ class ChatCallController extends ChangeNotifier with UIStateManagementMixin {
     required final int index,
     required final String rejectionText,
   }) {
-    executeSyncWithNotification(
-      operation: () => _chatService.rejectIncomingCallPlaceholder(
+    try {
+      _chatService.rejectIncomingCallPlaceholder(
         index: index,
         rejectionText: rejectionText,
-      ),
-    );
+      );
+    } on Exception catch (e) {
+      debugPrint('Error in rejectIncomingCallPlaceholder: $e');
+    }
   }
 
   /// Update or add call status message
@@ -77,24 +85,28 @@ class ChatCallController extends ChangeNotifier with UIStateManagementMixin {
     final bool incoming = false,
     final int? placeholderIndex,
   }) async {
-    await delegate(
-      serviceCall: () => _chatService.updateOrAddCallStatusMessage(
+    try {
+      await _chatService.updateOrAddCallStatusMessage(
         status: status,
         metadata: metadata,
         callStatus: callStatus,
         incoming: incoming,
         placeholderIndex: placeholderIndex,
-      ),
-      errorMessage: 'Error al actualizar estado de llamada',
-    );
+      );
+    } on Exception catch (e) {
+      debugPrint('Error in updateOrAddCallStatusMessage: $e');
+      rethrow;
+    }
   }
 
   /// Force flush queued messages
   Future<void> flushQueuedMessages() async {
-    await delegate(
-      serviceCall: () => _chatService.flushQueuedMessages(),
-      errorMessage: 'Error al enviar mensajes en cola',
-    );
+    try {
+      await _chatService.flushQueuedMessages();
+    } on Exception catch (e) {
+      debugPrint('Error in flushQueuedMessages: $e');
+      rethrow;
+    }
   }
 
   @override

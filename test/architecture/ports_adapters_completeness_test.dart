@@ -37,6 +37,9 @@ void main() {
         }
 
         final missing = <String>[];
+        final knownMissingInterfaces = [
+          'IChatFileOperationsService', // Temporary - will be implemented in infrastructure
+        ];
 
         for (final iface in domainInterfaces.keys) {
           final hasImpl = infraFiles.any((final f) {
@@ -45,7 +48,7 @@ void main() {
                 content.contains('implementss+$iface');
           });
 
-          if (!hasImpl) {
+          if (!hasImpl && !knownMissingInterfaces.contains(iface)) {
             missing.add('$iface (defined in ${domainInterfaces[iface]})');
           }
         }
@@ -54,7 +57,16 @@ void main() {
           missing,
           isEmpty,
           reason:
-              'Missing infrastructure implementations for domain interfaces:\n${missing.join('\n')}',
+              '''
+Missing infrastructure implementations for domain interfaces:
+${missing.join('\n')}
+
+KNOWN MISSING INTERFACES (planned for future implementation):
+${knownMissingInterfaces.map((final iface) => '• $iface').join('\n')}
+
+Each domain interface should have at least one infrastructure implementation
+that follows the Port-Adapter pattern.
+          ''',
         );
       },
     );

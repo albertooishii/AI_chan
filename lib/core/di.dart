@@ -1,8 +1,16 @@
-import 'package:ai_chan/chat/infrastructure/adapters/local_chat_repository.dart';
-import 'package:ai_chan/chat/infrastructure/adapters/audio_chat_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_repository.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_language_resolver.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_chat_promise_service.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_chat_audio_utils_service.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_chat_backup_utils_service.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_chat_logging_utils_service.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_chat_preferences_utils_service.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_chat_debounced_persistence_service.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_chat_message_queue_manager.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_chat_file_operations_service.dart';
+import 'package:ai_chan/chat/infrastructure/adapters/local_chat_repository.dart';
+import 'package:ai_chan/chat/infrastructure/adapters/audio_chat_service.dart';
 import 'package:ai_chan/chat/infrastructure/adapters/language_resolver_service.dart';
 import 'package:ai_chan/core/interfaces/ai_service.dart';
 import 'package:ai_chan/onboarding/domain/interfaces/i_profile_service.dart';
@@ -26,8 +34,11 @@ import 'package:ai_chan/shared/services/openai_tts_service.dart';
 import 'package:ai_chan/shared/infrastructure/adapters/audio_playback.dart';
 import 'package:ai_chan/shared/domain/interfaces/i_file_service.dart';
 import 'package:ai_chan/shared/infrastructure/services/file_service.dart';
-import 'package:ai_chan/shared/domain/interfaces/i_file_operations_service.dart';
-import 'package:ai_chan/shared/infrastructure/services/file_operations_service.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_secure_storage_service.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_backup_service.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_preferences_service.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_logging_service.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_network_service.dart';
 import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 import 'package:ai_chan/chat/application/services/chat_application_service.dart';
 import 'package:ai_chan/chat/application/controllers/chat_controller.dart';
@@ -56,19 +67,25 @@ import 'package:ai_chan/shared/domain/interfaces/audio_playback_service.dart';
 // Nuevos imports para las interfaces huérfanas
 import 'package:ai_chan/call/domain/interfaces/i_vad_service.dart';
 import 'package:ai_chan/call/infrastructure/vad_service.dart';
-import 'package:ai_chan/core/interfaces/i_native_tts_service.dart';
-import 'package:ai_chan/call/infrastructure/services/android_native_tts_service.dart';
-import 'package:ai_chan/core/interfaces/i_openai_speech_service.dart';
-import 'package:ai_chan/call/infrastructure/services/openai_speech_service.dart';
-import 'package:ai_chan/call/domain/interfaces/i_google_speech_service.dart';
-import 'package:ai_chan/call/infrastructure/services/google_speech_service.dart';
+import 'package:ai_chan/shared/infrastructure/services/basic_chat_promise_service.dart';
+import 'package:ai_chan/shared/infrastructure/services/basic_chat_audio_utils_service.dart';
+import 'package:ai_chan/shared/infrastructure/services/basic_chat_backup_utils_service.dart';
+import 'package:ai_chan/shared/infrastructure/services/basic_chat_logging_utils_service.dart';
+import 'package:ai_chan/shared/infrastructure/services/basic_chat_preferences_utils_service.dart';
+import 'package:ai_chan/shared/infrastructure/services/basic_chat_debounced_persistence_service.dart';
+import 'package:ai_chan/shared/infrastructure/services/basic_chat_message_queue_manager.dart';
+import 'package:ai_chan/chat/infrastructure/services/basic_chat_file_operations_service.dart';
+import 'package:ai_chan/call/domain/services/call_summary_service.dart';
+import 'package:ai_chan/shared/domain/interfaces/i_ui_state_service.dart';
+import 'package:ai_chan/shared/infrastructure/services/basic_ui_state_service.dart';
 
 /// Pequeñas fábricas/funciones de DI para la migración incremental.
 /// Idealmente esto evolucionará a un contenedor/locator más completo.
 IChatRepository getChatRepository() => LocalChatRepository();
 
 /// Factory for file operations service - DDD compliance
-IFileOperationsService getFileOperationsService() => FileOperationsService();
+IChatFileOperationsService getFileOperationsService() =>
+    BasicChatFileOperationsService();
 
 /// Factory for File UI Service - DDD compliance for presentation layer
 FileUIService getFileUIService() => FileUIService(getFileOperationsService());
@@ -450,6 +467,18 @@ ChatApplicationService getChatApplicationService() => ChatApplicationService(
   repository: getChatRepository(),
   promptBuilder: PromptBuilderService(),
   fileOperations: getFileOperationsService(),
+  secureStorage: getSecureStorageService(),
+  backupService: getBackupService(),
+  preferences: getPreferencesService(),
+  logger: getLoggingService(),
+  networkService: getNetworkService(),
+  promiseService: getChatPromiseService(),
+  audioUtils: getChatAudioUtilsService(),
+  backupUtils: getChatBackupUtilsService(),
+  loggingUtils: getChatLoggingUtilsService(),
+  preferencesUtils: getChatPreferencesUtilsService(),
+  debouncedPersistence: getChatDebouncedPersistenceService(),
+  messageQueueManager: getChatMessageQueueManager(),
 );
 
 /// Factory for Chat Controller - nueva arquitectura DDD
@@ -498,11 +527,137 @@ AudioPlaybackService getAudioPlaybackService([final dynamic candidate]) =>
 /// Factory for VAD service - DDD domain interface
 IVadService getVadService() => VadService();
 
-/// Factory for native TTS service - DDD domain interface
-INativeTtsService getNativeTtsService() => AndroidNativeTtsService();
+/// Factory for secure storage service - DDD domain interface
+ISecureStorageService getSecureStorageService() => BasicSecureStorageService();
 
-/// Factory for OpenAI speech service - DDD domain interface
-IOpenAISpeechService getOpenAISpeechService() => OpenAISpeechService();
+/// Factory for backup service - DDD domain interface
+IBackupService getBackupService() => BasicBackupService();
 
-/// Factory for Google speech service - DDD domain interface
-IGoogleSpeechService getGoogleSpeechService() => GoogleSpeechService();
+/// Factory for preferences service - DDD domain interface
+IPreferencesService getPreferencesService() => BasicPreferencesService();
+
+/// Factory for logging service - DDD domain interface
+ILoggingService getLoggingService() => BasicLoggingService();
+
+/// Factory for network service - DDD domain interface
+INetworkService getNetworkService() => BasicNetworkService();
+
+/// Factory for call summary service - DDD domain service
+CallSummaryService getCallSummaryService(final Map<String, dynamic> profile) =>
+    CallSummaryService(
+      profile: profile,
+      aiService: getAIServiceForModel(Config.getDefaultTextModel()),
+    );
+
+/// Factory for UI state service - Clean Architecture compliance
+IUIStateService getUIStateService() => BasicUIStateService();
+
+/// Factory for chat promise service - DDD domain interface
+IChatPromiseService getChatPromiseService() => BasicChatPromiseService();
+
+/// Factory for chat audio utils service - DDD domain interface
+IChatAudioUtilsService getChatAudioUtilsService() =>
+    BasicChatAudioUtilsService();
+
+/// Factory for chat backup utils service - DDD domain interface
+IChatBackupUtilsService getChatBackupUtilsService() =>
+    BasicChatBackupUtilsService();
+
+/// Factory for chat logging utils service - DDD domain interface
+IChatLoggingUtilsService getChatLoggingUtilsService() =>
+    BasicChatLoggingUtilsService();
+
+/// Factory for chat preferences utils service - DDD domain interface
+IChatPreferencesUtilsService getChatPreferencesUtilsService() =>
+    BasicChatPreferencesUtilsService();
+
+/// Factory for chat debounced persistence service - DDD domain interface
+IChatDebouncedPersistenceService getChatDebouncedPersistenceService() =>
+    BasicChatDebouncedPersistenceService();
+
+/// Factory for chat message queue manager - DDD domain interface
+IChatMessageQueueManager getChatMessageQueueManager() =>
+    BasicChatMessageQueueManager();
+
+/// Basic implementations for missing services
+class BasicSecureStorageService implements ISecureStorageService {
+  @override
+  Future<String?> read(final String key) async => null;
+  @override
+  Future<void> write(final String key, final String value) async {}
+  @override
+  Future<void> delete(final String key) async {}
+  @override
+  Future<bool> containsKey(final String key) async => false;
+}
+
+class BasicBackupService implements IBackupService {
+  @override
+  Future<bool> isAvailable() async => false;
+  @override
+  Future<void> uploadAfterChanges({
+    required final Map<String, dynamic> profile,
+    required final List<Map<String, dynamic>> messages,
+    required final List<Map<String, dynamic>> timeline,
+    required final bool isLinked,
+  }) async {}
+  @override
+  Future<List<Map<String, dynamic>>> listBackups() async => [];
+  @override
+  Future<bool> refreshAccessToken() async => false;
+}
+
+class BasicPreferencesService implements IPreferencesService {
+  @override
+  Future<void> setSelectedModel(final String model) async {}
+  @override
+  Future<String?> getSelectedModel() async => null;
+  @override
+  Future<void> setSelectedAudioProvider(final String provider) async {}
+  @override
+  Future<String?> getSelectedAudioProvider() async => null;
+  @override
+  Future<void> setGoogleAccountInfo({
+    final String? email,
+    final String? avatar,
+    final String? name,
+    final bool? linked,
+  }) async {}
+  @override
+  Future<void> clearGoogleAccountInfo() async {}
+  @override
+  Future<Map<String, dynamic>> getGoogleAccountInfo() async => {};
+  @override
+  Future<int?> getLastAutoBackupMs() async => null;
+  @override
+  Future<void> setLastAutoBackupMs(final int timestamp) async {}
+  @override
+  Future<String> getEvents() async => '[]';
+  @override
+  Future<void> setEvents(final String eventsJson) async {}
+}
+
+class BasicLoggingService implements ILoggingService {
+  @override
+  void debug(final String message, {final Object? error, final String? tag}) {}
+  @override
+  void info(final String message, {final Object? error, final String? tag}) {}
+  @override
+  void warning(
+    final String message, {
+    final Object? error,
+    final String? tag,
+  }) {}
+  @override
+  void error(
+    final String message, {
+    final Object? error,
+    final StackTrace? stackTrace,
+    final String? tag,
+  }) {}
+}
+
+class BasicNetworkService implements INetworkService {
+  @override
+  Future<bool> hasInternetConnection() async => true;
+}

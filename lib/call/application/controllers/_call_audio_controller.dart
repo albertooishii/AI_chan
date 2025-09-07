@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
 import 'dart:math' as math;
-import 'package:ai_chan/chat/application/mixins/ui_state_management_mixin.dart';
 
 /// Call Audio Controller - Manages audio processing for calls
-class CallAudioController extends ChangeNotifier with UIStateManagementMixin {
+class CallAudioController extends ChangeNotifier {
   CallAudioController();
 
   // AGC settings
@@ -50,44 +49,63 @@ class CallAudioController extends ChangeNotifier with UIStateManagementMixin {
     final double? targetRms,
     final double? maxGain,
   }) {
-    executeSyncWithNotification(
-      operation: () {
-        if (enabled != null) _enableMicAutoGain = enabled;
-        if (targetRms != null) _agcTargetRms = targetRms.clamp(0.0, 1.0);
-        if (maxGain != null) _agcMaxGain = maxGain.clamp(1.0, 10.0);
-      },
-    );
+    try {
+      if (enabled != null) _enableMicAutoGain = enabled;
+      if (targetRms != null) _agcTargetRms = targetRms.clamp(0.0, 1.0);
+      if (maxGain != null) _agcMaxGain = maxGain.clamp(1.0, 10.0);
+      notifyListeners();
+      debugPrint(
+        '🎛️ [AGC] Configured: enabled=$enabled, target=$targetRms, max=$maxGain',
+      );
+    } on Exception catch (e) {
+      debugPrint('Error in configureAGC: $e');
+    }
   }
 
   /// Set mute state
   void setMuted(final bool muted) {
-    executeSyncWithNotification(operation: () => _isMuted = muted);
+    try {
+      _isMuted = muted;
+      notifyListeners();
+      debugPrint('🔇 [AUDIO] Muted: $muted');
+    } on Exception catch (e) {
+      debugPrint('Error in setMuted: $e');
+    }
   }
 
   /// Set microphone gain
   void setMicGain(final double gain) {
-    executeSyncWithNotification(
-      operation: () => _micGain = gain.clamp(0.0, 5.0),
-    );
+    try {
+      _micGain = gain.clamp(0.0, 5.0);
+      notifyListeners();
+      debugPrint('🎚️ [AUDIO] Gain: $gain');
+    } on Exception catch (e) {
+      debugPrint('Error in setMicGain: $e');
+    }
   }
 
   /// Update volume level for UI
   void updateVolumeLevel(final double level) {
-    executeSyncWithNotification(
-      operation: () => _currentVolumeLevel = level.clamp(0.0, 1.0),
-    );
+    try {
+      _currentVolumeLevel = level.clamp(0.0, 1.0);
+      notifyListeners();
+    } on Exception catch (e) {
+      debugPrint('Error in updateVolumeLevel: $e');
+    }
   }
 
   /// Reset audio state
   void reset() {
-    executeSyncWithNotification(
-      operation: () {
-        _hpPrevIn = 0.0;
-        _hpPrevOut = 0.0;
-        _currentVolumeLevel = 0.0;
-        _agcNoiseFloorRms = 0.0;
-      },
-    );
+    try {
+      _hpPrevIn = 0.0;
+      _hpPrevOut = 0.0;
+      _currentVolumeLevel = 0.0;
+      _agcNoiseFloorRms = 0.0;
+      notifyListeners();
+      debugPrint('🔄 [AUDIO] State reset');
+    } on Exception catch (e) {
+      debugPrint('Error in reset: $e');
+    }
   }
 
   // Private helpers

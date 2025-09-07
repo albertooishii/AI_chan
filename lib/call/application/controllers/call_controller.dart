@@ -1,10 +1,9 @@
 import 'package:flutter/foundation.dart';
-import '../../../chat/application/mixins/ui_state_management_mixin.dart';
 import '../../domain/entities/voice_call_state.dart';
 import '../../../chat/domain/models/message.dart';
 
 /// CallController - Main coordinator for call operations
-class CallController extends ChangeNotifier with UIStateManagementMixin {
+class CallController extends ChangeNotifier {
   CallController();
 
   // Core state
@@ -30,116 +29,124 @@ class CallController extends ChangeNotifier with UIStateManagementMixin {
 
   /// Initialize call system
   Future<void> initialize() async {
-    await executeWithState(
-      operation: () async {
-        _currentPhase = CallPhase.initializing;
-        _resetCallState();
-      },
-      errorMessage: 'Failed to initialize call system',
-    );
+    try {
+      _currentPhase = CallPhase.initializing;
+      _resetCallState();
+      debugPrint('📞 [CALL] Call system initialized');
+    } on Exception catch (e) {
+      debugPrint('Error in initialize: $e');
+      rethrow;
+    }
   }
 
   /// Start outgoing call
   Future<void> startCall() async {
-    await executeWithState(
-      operation: () async {
-        _currentPhase = CallPhase.connecting;
-        notifyListeners();
-        await Future.delayed(const Duration(milliseconds: 500));
-        _currentPhase = CallPhase.active;
-        _isCallActive = true;
-        _isUserTurn = true;
-        notifyListeners();
-      },
-      errorMessage: 'Failed to start call',
-    );
+    try {
+      _currentPhase = CallPhase.connecting;
+      notifyListeners();
+      await Future.delayed(const Duration(milliseconds: 500));
+      _currentPhase = CallPhase.active;
+      _isCallActive = true;
+      _isUserTurn = true;
+      notifyListeners();
+      debugPrint('📞 [CALL] Call started');
+    } on Exception catch (e) {
+      debugPrint('Error in startCall: $e');
+      rethrow;
+    }
   }
 
   /// Accept incoming call
   Future<void> acceptCall() async {
-    await executeWithState(
-      operation: () async {
-        _currentPhase = CallPhase.active;
-        _isCallActive = true;
-        _isUserTurn = true;
-        notifyListeners();
-      },
-      errorMessage: 'Failed to accept call',
-    );
+    try {
+      _currentPhase = CallPhase.active;
+      _isCallActive = true;
+      _isUserTurn = true;
+      notifyListeners();
+      debugPrint('📞 [CALL] Call accepted');
+    } on Exception catch (e) {
+      debugPrint('Error in acceptCall: $e');
+      rethrow;
+    }
   }
 
   /// Hang up call
   Future<void> hangUp() async {
-    await executeWithState(
-      operation: () async {
-        _currentPhase = CallPhase.ending;
-        notifyListeners();
-        await Future.delayed(const Duration(milliseconds: 300));
-        _currentPhase = CallPhase.ended;
-        _isCallActive = false;
-        _resetCallState();
-        notifyListeners();
-      },
-      errorMessage: 'Failed to hang up call',
-    );
+    try {
+      _currentPhase = CallPhase.ending;
+      notifyListeners();
+      await Future.delayed(const Duration(milliseconds: 300));
+      _currentPhase = CallPhase.ended;
+      _isCallActive = false;
+      _resetCallState();
+      notifyListeners();
+      debugPrint('📞 [CALL] Call ended');
+    } on Exception catch (e) {
+      debugPrint('Error in hangUp: $e');
+      rethrow;
+    }
   }
 
   /// Toggle microphone mute
   Future<void> toggleMute() async {
-    await executeWithState(
-      operation: () async {
-        _isMuted = !_isMuted;
-        notifyListeners();
-      },
-      errorMessage: 'Failed to toggle mute',
-    );
+    try {
+      _isMuted = !_isMuted;
+      notifyListeners();
+      debugPrint('📞 [CALL] Mute toggled: $_isMuted');
+    } on Exception catch (e) {
+      debugPrint('Error in toggleMute: $e');
+      rethrow;
+    }
   }
 
   /// Send text message during call
   Future<void> sendMessage(final String text) async {
-    await executeWithState(
-      operation: () async {
-        final message = VoiceCallMessage(
-          text: text,
-          isUser: true,
-          timestamp: DateTime.now(),
-        );
-        _messageHistory.add(message);
-        _isUserTurn = false;
-        notifyListeners();
-      },
-      errorMessage: 'Failed to send message',
-    );
+    try {
+      final message = VoiceCallMessage(
+        text: text,
+        isUser: true,
+        timestamp: DateTime.now(),
+      );
+      _messageHistory.add(message);
+      _isUserTurn = false;
+      notifyListeners();
+      debugPrint('📞 [CALL] Message sent: $text');
+    } on Exception catch (e) {
+      debugPrint('Error in sendMessage: $e');
+      rethrow;
+    }
   }
 
   /// Handle incoming AI message
   void handleIncomingMessage(final String text) {
-    executeSyncWithNotification(
-      operation: () {
-        final message = VoiceCallMessage(
-          text: text,
-          isUser: false,
-          timestamp: DateTime.now(),
-        );
-        _messageHistory.add(message);
-        _isAiSpeaking = true;
-        _isUserTurn = true;
-        if (_messageHistory.length > 100) _messageHistory.removeAt(0);
-      },
-      errorMessage: 'Failed to handle incoming message',
-    );
+    try {
+      final message = VoiceCallMessage(
+        text: text,
+        isUser: false,
+        timestamp: DateTime.now(),
+      );
+      _messageHistory.add(message);
+      _isAiSpeaking = true;
+      _isUserTurn = true;
+      if (_messageHistory.length > 100) _messageHistory.removeAt(0);
+      notifyListeners();
+      debugPrint('📞 [CALL] Incoming message: $text');
+    } on Exception catch (e) {
+      debugPrint('Error in handleIncomingMessage: $e');
+    }
   }
 
   /// Process incoming audio data
   Future<void> processAudioData(final Uint8List audioData) async {
-    await executeWithState(
-      operation: () async {
-        _isAiSpeaking = true;
-        notifyListeners();
-        await Future.delayed(const Duration(milliseconds: 100));
-      },
-      errorMessage: 'Failed to process audio data',
-    );
+    try {
+      _isAiSpeaking = true;
+      notifyListeners();
+      await Future.delayed(const Duration(milliseconds: 100));
+      debugPrint('📞 [CALL] Audio data processed');
+    } on Exception catch (e) {
+      debugPrint('Error in processAudioData: $e');
+      rethrow;
+    }
   }
 
   /// Set AI speaking state

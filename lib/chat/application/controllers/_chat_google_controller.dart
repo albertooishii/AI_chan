@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:ai_chan/chat/application/services/chat_application_service.dart';
-import 'package:ai_chan/chat/application/mixins/ui_state_management_mixin.dart';
 
 /// 🔗 **Chat Google Controller** - DDD Specialized Controller
 ///
@@ -12,8 +11,7 @@ import 'package:ai_chan/chat/application/mixins/ui_state_management_mixin.dart';
 /// **DDD Principles:**
 /// - Single Responsibility: Only Google operations
 /// - Delegation: All logic delegated to ChatApplicationService
-/// - UI State Management: Via mixin pattern
-class ChatGoogleController extends ChangeNotifier with UIStateManagementMixin {
+class ChatGoogleController extends ChangeNotifier {
   ChatGoogleController({required final ChatApplicationService chatService})
     : _chatService = chatService;
 
@@ -33,36 +31,47 @@ class ChatGoogleController extends ChangeNotifier with UIStateManagementMixin {
     final bool linked = true,
     final bool triggerAutoBackup = false,
   }) async {
-    await delegate(
-      serviceCall: () => _chatService.updateGoogleAccountInfo(
+    try {
+      await _chatService.updateGoogleAccountInfo(
         email: email,
         avatarUrl: avatarUrl,
         name: name,
         linked: linked,
         triggerAutoBackup: triggerAutoBackup,
-      ),
-      errorMessage: 'Error al actualizar cuenta Google',
-    );
+      );
+    } on Exception catch (e) {
+      debugPrint('Error in updateGoogleAccountInfo: $e');
+      rethrow;
+    }
   }
 
   /// Unlink Google account and clear credentials
   Future<void> clearGoogleAccountInfo() async {
-    await delegate(
-      serviceCall: () => _chatService.clearGoogleAccountInfo(),
-      errorMessage: 'Error al limpiar cuenta Google',
-    );
+    try {
+      await _chatService.clearGoogleAccountInfo();
+    } on Exception catch (e) {
+      debugPrint('Error in clearGoogleAccountInfo: $e');
+      rethrow;
+    }
   }
 
   /// Set Google linked status (UI state)
   void setGoogleLinked(final bool linked) {
-    executeSyncWithNotification(
-      operation: () => _chatService.setGoogleLinked(linked),
-    );
+    try {
+      _chatService.setGoogleLinked(linked);
+    } on Exception catch (e) {
+      debugPrint('Error in setGoogleLinked: $e');
+    }
   }
 
   /// Diagnose Google account state for debugging
   Future<Map<String, dynamic>> diagnoseGoogleState() async {
-    return await _chatService.diagnoseGoogleState();
+    try {
+      return await _chatService.diagnoseGoogleState();
+    } on Exception catch (e) {
+      debugPrint('Error in diagnoseGoogleState: $e');
+      rethrow;
+    }
   }
 
   @override

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/chat/application/services/chat_application_service.dart';
-import 'package:ai_chan/chat/application/mixins/ui_state_management_mixin.dart';
 
 /// 💾 **Chat Data Controller** - DDD Specialized Controller
 ///
@@ -15,8 +14,7 @@ import 'package:ai_chan/chat/application/mixins/ui_state_management_mixin.dart';
 /// **DDD Principles:**
 /// - Single Responsibility: Only data/config operations
 /// - Delegation: All logic delegated to ChatApplicationService
-/// - UI State Management: Via mixin pattern
-class ChatDataController extends ChangeNotifier with UIStateManagementMixin {
+class ChatDataController extends ChangeNotifier {
   ChatDataController({required final ChatApplicationService chatService})
     : _chatService = chatService;
 
@@ -30,54 +28,70 @@ class ChatDataController extends ChangeNotifier with UIStateManagementMixin {
 
   /// Profile management
   void updateProfile(final AiChanProfile profile) {
-    executeSyncWithNotification(
-      operation: () => _chatService.updateProfile(profile),
-    );
+    try {
+      _chatService.updateProfile(profile);
+    } on Exception catch (e) {
+      debugPrint('Error in updateProfile: $e');
+    }
   }
 
   /// Model management
   void setModel(final String model) {
-    executeSyncWithNotification(
-      operation: () => _chatService.selectedModel = model,
-    );
+    try {
+      _chatService.selectedModel = model;
+    } on Exception catch (e) {
+      debugPrint('Error in setModel: $e');
+    }
   }
 
   void clearModel() {
-    executeSyncWithNotification(
-      operation: () => _chatService.selectedModel = null,
-    );
+    try {
+      _chatService.selectedModel = null;
+    } on Exception catch (e) {
+      debugPrint('Error in clearModel: $e');
+    }
   }
 
   /// Data export operations
   Future<String> exportAllToJson(final Map<String, dynamic> data) async {
-    return await _chatService.exportAllToJson(data);
+    try {
+      return await _chatService.exportAllToJson(data);
+    } on Exception catch (e) {
+      debugPrint('Error in exportAllToJson: $e');
+      rethrow;
+    }
   }
 
   /// Save all events
   Future<void> saveAllEvents() async {
-    await executeWithNotification(
-      operation: () => _chatService.saveAllEvents(),
-      errorMessage: 'Error al guardar eventos',
-    );
+    try {
+      await _chatService.saveAllEvents();
+    } on Exception catch (e) {
+      debugPrint('Error in saveAllEvents: $e');
+      rethrow;
+    }
   }
 
   /// Regenerate appearance
   Future<void> regenerateAppearance() async {
-    await executeWithState(
-      operation: () => _chatService.regenerateAppearance(),
-      errorMessage: 'Error al regenerar apariencia',
-    );
+    try {
+      await _chatService.regenerateAppearance();
+    } on Exception catch (e) {
+      debugPrint('Error in regenerateAppearance: $e');
+      rethrow;
+    }
   }
 
   /// Generate avatar from appearance
   Future<void> generateAvatarFromAppearance({
     final bool replace = false,
   }) async {
-    await executeWithState(
-      operation: () =>
-          _chatService.generateAvatarFromAppearance(replace: replace),
-      errorMessage: 'Error al generar avatar',
-    );
+    try {
+      await _chatService.generateAvatarFromAppearance(replace: replace);
+    } on Exception catch (e) {
+      debugPrint('Error in generateAvatarFromAppearance: $e');
+      rethrow;
+    }
   }
 
   /// Prompt building operations

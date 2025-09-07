@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:ai_chan/shared/domain/interfaces/audio_playback_service.dart';
-import 'package:ai_chan/chat/application/mixins/ui_state_management_mixin.dart';
 import 'package:ai_chan/call/application/services/call_playback_application_service.dart';
 
 /// Call Playback Controller - Compact audio management with Application Service
-class CallPlaybackController extends ChangeNotifier
-    with UIStateManagementMixin {
+class CallPlaybackController extends ChangeNotifier {
   CallPlaybackController({
     required final AudioPlaybackService audioPlayer,
     required final AudioPlaybackService ringPlayer,
@@ -49,140 +47,171 @@ class CallPlaybackController extends ChangeNotifier
     final String audioPath, {
     final String? audioId,
   }) async {
-    await executeWithState(
-      operation: () async {
-        final result = await _applicationService.playAIAudio(
-          audioPath,
-          audioId: audioId,
-        );
-        if (result.success) {
-          _currentlyPlayingAudioId = result.audioId;
-          _updateAudioState(true, result.status ?? 'playing');
-        } else {
-          throw Exception(result.error);
-        }
-      },
-      errorMessage: 'Failed to play AI audio',
-    );
+    try {
+      final result = await _applicationService.playAIAudio(
+        audioPath,
+        audioId: audioId,
+      );
+      if (result.success) {
+        _currentlyPlayingAudioId = result.audioId;
+        _updateAudioState(true, result.status ?? 'playing');
+        notifyListeners();
+        debugPrint('🎵 [AUDIO] Playing AI audio: $audioId');
+      } else {
+        throw Exception(result.error);
+      }
+    } on Exception catch (e) {
+      debugPrint('Error in playAIAudio: $e');
+      rethrow;
+    }
   }
 
   /// Stop AI audio using Application Service
   Future<void> stopAIAudio() async {
-    await executeWithState(
-      operation: () async {
-        final result = await _applicationService.stopAIAudio();
-        if (result.success) {
-          _updateAudioState(false, result.status ?? 'stopped');
-        } else {
-          throw Exception(result.error);
-        }
-      },
-      errorMessage: 'Failed to stop AI audio',
-    );
+    try {
+      final result = await _applicationService.stopAIAudio();
+      if (result.success) {
+        _updateAudioState(false, result.status ?? 'stopped');
+        notifyListeners();
+        debugPrint('⏹️ [AUDIO] AI audio stopped');
+      } else {
+        throw Exception(result.error);
+      }
+    } on Exception catch (e) {
+      debugPrint('Error in stopAIAudio: $e');
+      rethrow;
+    }
   }
 
   /// Start ring using Application Service
   Future<void> startRing() async {
     if (_isPlayingRing) return;
 
-    await executeWithState(
-      operation: () async {
-        final result = await _applicationService.manageRingTone(
-          shouldRing: true,
-        );
-        if (result.success) {
-          _isPlayingRing = true;
-        } else {
-          throw Exception(result.error);
-        }
-      },
-      errorMessage: 'Failed to start ring',
-    );
+    try {
+      final result = await _applicationService.manageRingTone(shouldRing: true);
+      if (result.success) {
+        _isPlayingRing = true;
+        notifyListeners();
+        debugPrint('🔔 [RING] Ring started');
+      } else {
+        throw Exception(result.error);
+      }
+    } on Exception catch (e) {
+      debugPrint('Error in startRing: $e');
+      rethrow;
+    }
   }
 
   /// Stop ring using Application Service
   Future<void> stopRing() async {
     if (!_isPlayingRing) return;
 
-    await executeWithState(
-      operation: () async {
-        final result = await _applicationService.manageRingTone(
-          shouldRing: false,
-        );
-        if (result.success) {
-          _isPlayingRing = false;
-        } else {
-          throw Exception(result.error);
-        }
-      },
-      errorMessage: 'Failed to stop ring',
-    );
+    try {
+      final result = await _applicationService.manageRingTone(
+        shouldRing: false,
+      );
+      if (result.success) {
+        _isPlayingRing = false;
+        notifyListeners();
+        debugPrint('🔕 [RING] Ring stopped');
+      } else {
+        throw Exception(result.error);
+      }
+    } on Exception catch (e) {
+      debugPrint('Error in stopRing: $e');
+      rethrow;
+    }
   }
 
   /// Set volume levels (UI only)
-  void setPlaybackVolume(final double volume) => executeSyncWithNotification(
-    operation: () => _aiAudioVolume = volume.clamp(0.0, 1.0),
-  );
+  void setPlaybackVolume(final double volume) {
+    try {
+      _aiAudioVolume = volume.clamp(0.0, 1.0);
+      notifyListeners();
+    } on Exception catch (e) {
+      debugPrint('Error in setPlaybackVolume: $e');
+    }
+  }
 
-  void setRingVolume(final double volume) => executeSyncWithNotification(
-    operation: () => _ringVolume = volume.clamp(0.0, 1.0),
-  );
+  void setRingVolume(final double volume) {
+    try {
+      _ringVolume = volume.clamp(0.0, 1.0);
+      notifyListeners();
+    } on Exception catch (e) {
+      debugPrint('Error in setRingVolume: $e');
+    }
+  }
 
   /// Update voice selection using Application Service
-  void updateVoice(final String voice) => executeSyncWithNotification(
-    operation: () {
+  void updateVoice(final String voice) {
+    try {
       _currentVoice = _applicationService.resolveVoiceConfiguration(voice);
+      notifyListeners();
       debugPrint('🎤 [VOICE] Selected: $_currentVoice');
-    },
-  );
+    } on Exception catch (e) {
+      debugPrint('Error in updateVoice: $e');
+    }
+  }
 
   /// Check if microphone should be unmuted using Application Service
   bool shouldUnmuteMic() {
-    final recommendation = _applicationService.calculateUnmuteTiming(
-      position: _playbackPosition,
-      duration: _playbackDuration,
-      isPlaying: _isPlayingAIAudio,
-    );
-    return recommendation.shouldUnmute;
+    try {
+      final recommendation = _applicationService.calculateUnmuteTiming(
+        position: _playbackPosition,
+        duration: _playbackDuration,
+        isPlaying: _isPlayingAIAudio,
+      );
+      return recommendation.shouldUnmute;
+    } on Exception catch (e) {
+      debugPrint('Error in shouldUnmuteMic: $e');
+      return false;
+    }
   }
 
   /// Get comprehensive playback info using Application Service
   Map<String, dynamic> getPlaybackInfo() {
-    final coordinationState = _applicationService.getCoordinationState(
-      isPlayingAI: _isPlayingAIAudio,
-      isPlayingRing: _isPlayingRing,
-      currentVoice: _currentVoice,
-      currentAudioId: _currentlyPlayingAudioId,
-      position: _playbackPosition,
-      duration: _playbackDuration,
-    );
+    try {
+      final coordinationState = _applicationService.getCoordinationState(
+        isPlayingAI: _isPlayingAIAudio,
+        isPlayingRing: _isPlayingRing,
+        currentVoice: _currentVoice,
+        currentAudioId: _currentlyPlayingAudioId,
+        position: _playbackPosition,
+        duration: _playbackDuration,
+      );
 
-    return {
-      'isPlayingAIAudio': _isPlayingAIAudio,
-      'isPlayingRing': _isPlayingRing,
-      'playbackProgress': coordinationState.playbackProgress,
-      'currentVoice': coordinationState.voiceConfiguration,
-      'currentAudioId': coordinationState.activeAudioId,
-      'playbackStatus': _playbackStatus,
-      'duration': coordinationState.durationMs,
-      'position': coordinationState.positionMs,
-      'isAnyAudioActive': coordinationState.isAnyAudioActive,
-    };
+      return {
+        'isPlayingAIAudio': _isPlayingAIAudio,
+        'isPlayingRing': _isPlayingRing,
+        'playbackProgress': coordinationState.playbackProgress,
+        'currentVoice': coordinationState.voiceConfiguration,
+        'currentAudioId': coordinationState.activeAudioId,
+        'playbackStatus': _playbackStatus,
+        'duration': coordinationState.durationMs,
+        'position': coordinationState.positionMs,
+        'isAnyAudioActive': coordinationState.isAnyAudioActive,
+      };
+    } on Exception catch (e) {
+      debugPrint('Error in getPlaybackInfo: $e');
+      return {};
+    }
   }
 
   /// Reset all playback state using Application Service
   Future<void> resetPlayback() async {
-    await executeWithState(
-      operation: () async {
-        final result = await _applicationService.resetAllPlayback();
-        if (result.success) {
-          _resetPlaybackState();
-        } else {
-          throw Exception(result.error);
-        }
-      },
-      errorMessage: 'Failed to reset playback',
-    );
+    try {
+      final result = await _applicationService.resetAllPlayback();
+      if (result.success) {
+        _resetPlaybackState();
+        notifyListeners();
+        debugPrint('🔄 [AUDIO] Playback reset');
+      } else {
+        throw Exception(result.error);
+      }
+    } on Exception catch (e) {
+      debugPrint('Error in resetPlayback: $e');
+      rethrow;
+    }
   }
 
   // Private helper methods
@@ -206,6 +235,7 @@ class CallPlaybackController extends ChangeNotifier
     _completionSubscription = _audioPlayer.onPlayerComplete.listen((_) {
       _updateAudioState(false, 'completed');
       _currentlyPlayingAudioId = null;
+      notifyListeners();
       debugPrint('✅ [AUDIO] Playback completed');
     });
   }

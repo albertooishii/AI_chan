@@ -43,7 +43,7 @@ class GoogleTtsAdapter implements ICallTtsService {
         sampleRateHertz: sampleRateHertz,
         noCache: noCache,
       );
-      return file?.path;
+      return file;
     } on Exception catch (e) {
       debugPrint('[GoogleTtsAdapter] synthesizeToFile error: $e');
       return null;

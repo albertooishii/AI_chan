@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-import 'dart:io';
 
 /// Interfaz para servicios de Google Speech del dominio call
 /// Maneja conversión de texto a voz y voz a texto usando Google Cloud APIs
@@ -18,7 +17,7 @@ abstract interface class IGoogleSpeechService {
   });
 
   /// Convierte texto a voz y guarda como archivo
-  Future<File?> textToSpeechFile({
+  Future<String?> textToSpeechFile({
     required final String text,
     final String? customFileName,
     final String languageCode,
@@ -40,9 +39,9 @@ abstract interface class IGoogleSpeechService {
     final bool enableAutomaticPunctuation,
   });
 
-  /// Transcribe un archivo de audio
+  /// Transcribe un archivo de audio desde path
   Future<String?> speechToTextFromFile(
-    final File audioFile, {
+    final String audioFilePath, {
     final String languageCode,
     final String audioEncoding,
     final int sampleRateHertz,

@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-import 'dart:io';
 import 'package:ai_chan/call/domain/interfaces/i_speech_service.dart';
 import 'package:ai_chan/call/infrastructure/services/google_speech_service.dart';
 
@@ -23,7 +22,7 @@ class GoogleTtsAdapter implements ICallTtsService {
         useCache: true,
       );
 
-      return file?.path;
+      return file;
     } on Exception {
       return null;
     }
@@ -81,8 +80,7 @@ class GoogleSttAdapter implements ICallSttService {
   @override
   Future<String?> transcribeAudio(final String filePath) async {
     try {
-      final file = File(filePath);
-      return await GoogleSpeechService.speechToTextFromFileStatic(file);
+      return await GoogleSpeechService.speechToTextFromFileStatic(filePath);
     } on Exception {
       return null;
     }
@@ -94,11 +92,10 @@ class GoogleSttAdapter implements ICallSttService {
     final Map<String, dynamic>? options,
   }) async {
     try {
-      final file = File(filePath);
       final languageCode = options?['languageCode'] as String? ?? 'es-ES';
 
       return await GoogleSpeechService.speechToTextFromFileStatic(
-        file,
+        filePath,
         languageCode: languageCode,
       );
     } on Exception {

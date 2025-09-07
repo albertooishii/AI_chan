@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/chat/application/services/chat_application_service.dart';
-import 'package:ai_chan/chat/application/mixins/ui_state_management_mixin.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
 
 /// 🔊 **Chat Audio Controller** - DDD Specialized Controller
@@ -15,8 +14,7 @@ import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
 /// **DDD Principles:**
 /// - Single Responsibility: Only audio operations
 /// - Delegation: All logic delegated to ChatApplicationService
-/// - UI State Management: Via mixin pattern
-class ChatAudioController extends ChangeNotifier with UIStateManagementMixin {
+class ChatAudioController extends ChangeNotifier {
   ChatAudioController({required final ChatApplicationService chatService})
     : _chatService = chatService;
 
@@ -37,39 +35,45 @@ class ChatAudioController extends ChangeNotifier with UIStateManagementMixin {
 
   /// Start recording audio message
   Future<void> startRecording() async {
-    await delegate(
-      serviceCall: () => _chatService.startRecording(),
-      errorMessage: 'Error al iniciar grabación',
-    );
+    try {
+      await _chatService.startRecording();
+    } on Exception catch (e) {
+      debugPrint('Error in startRecording: $e');
+      rethrow;
+    }
   }
 
   /// Cancel current recording
   Future<void> cancelRecording() async {
-    await delegate(
-      serviceCall: () => _chatService.cancelRecording(),
-      errorMessage: 'Error al cancelar grabación',
-    );
+    try {
+      await _chatService.cancelRecording();
+    } on Exception catch (e) {
+      debugPrint('Error in cancelRecording: $e');
+      rethrow;
+    }
   }
 
   /// Stop recording and send as message
   Future<void> stopAndSendRecording({final String? model}) async {
-    await executeWithNotification(
-      operation: () async {
-        final path = await _chatService.stopAndSendRecording(model: model);
-        if (path != null) {
-          // Audio processed and message sent
-        }
-      },
-      errorMessage: 'Error al procesar grabación',
-    );
+    try {
+      final path = await _chatService.stopAndSendRecording(model: model);
+      if (path != null) {
+        // Audio processed and message sent
+      }
+    } on Exception catch (e) {
+      debugPrint('Error in stopAndSendRecording: $e');
+      rethrow;
+    }
   }
 
   /// Toggle audio playback for a message
   Future<void> togglePlayAudio(final Message msg) async {
-    await delegate(
-      serviceCall: () => _chatService.togglePlayAudio(msg),
-      errorMessage: 'Error al reproducir audio',
-    );
+    try {
+      await _chatService.togglePlayAudio(msg);
+    } on Exception catch (e) {
+      debugPrint('Error in togglePlayAudio: $e');
+      rethrow;
+    }
   }
 
   /// Generate TTS audio for a message
@@ -77,10 +81,12 @@ class ChatAudioController extends ChangeNotifier with UIStateManagementMixin {
     final Message msg, {
     final String voice = 'nova',
   }) async {
-    await delegate(
-      serviceCall: () => _chatService.generateTtsForMessage(msg, voice: voice),
-      errorMessage: 'Error al generar TTS',
-    );
+    try {
+      await _chatService.generateTtsForMessage(msg, voice: voice);
+    } on Exception catch (e) {
+      debugPrint('Error in generateTtsForMessage: $e');
+      rethrow;
+    }
   }
 
   /// Check if a message is currently playing

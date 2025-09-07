@@ -1,6 +1,7 @@
 // Shared Utils Barrel Export
 
 export 'utils/audio_utils.dart';
+export 'utils/backup_auto_uploader.dart';
 export 'utils/cache_utils.dart';
 export 'utils/chat_json_utils.dart';
 export 'utils/dialog_utils.dart';

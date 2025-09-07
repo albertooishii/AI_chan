@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/chat/application/services/chat_application_service.dart';
-import 'package:ai_chan/chat/application/mixins/ui_state_management_mixin.dart';
 
 /// 💬 **Chat Message Controller** - DDD Specialized Controller
 ///
@@ -15,8 +14,7 @@ import 'package:ai_chan/chat/application/mixins/ui_state_management_mixin.dart';
 /// **DDD Principles:**
 /// - Single Responsibility: Only message operations
 /// - Delegation: All logic delegated to ChatApplicationService
-/// - UI State Management: Via mixin pattern
-class ChatMessageController extends ChangeNotifier with UIStateManagementMixin {
+class ChatMessageController extends ChangeNotifier {
   ChatMessageController({required final ChatApplicationService chatService})
     : _chatService = chatService;
 
@@ -28,20 +26,21 @@ class ChatMessageController extends ChangeNotifier with UIStateManagementMixin {
 
   /// User typing indicator
   void onUserTyping(final String text) {
-    // Only inform service about user typing (to cancel queue timers etc.).
-    // Do NOT mark the UI "isTyping" here: that flag is reserved for when
-    // the assistant/IA is actually sending a response.
-    executeSyncWithNotification(
-      operation: () => _chatService.onUserTyping(text),
-    );
+    try {
+      _chatService.onUserTyping(text);
+    } on Exception catch (e) {
+      // Error handling can be added here if needed
+      debugPrint('Error in onUserTyping: $e');
+    }
   }
 
   /// Typing indicator
   void setTyping(final bool typing) {
-    // Delegate to underlying service so a single source of truth exists.
-    executeSyncWithNotification(
-      operation: () => _chatService.isTyping = typing,
-    );
+    try {
+      _chatService.isTyping = typing;
+    } on Exception catch (e) {
+      debugPrint('Error in setTyping: $e');
+    }
   }
 
   /// Schedule sending a message (legacy compatibility)
@@ -51,21 +50,25 @@ class ChatMessageController extends ChangeNotifier with UIStateManagementMixin {
     final dynamic image,
     final String? imageMimeType,
   }) {
-    executeSyncWithNotification(
-      operation: () => _chatService.scheduleSendMessage(
+    try {
+      _chatService.scheduleSendMessage(
         text,
         model: model,
         image: image,
         imageMimeType: imageMimeType,
-      ),
-    );
+      );
+    } on Exception catch (e) {
+      debugPrint('Error in scheduleSendMessage: $e');
+    }
   }
 
   /// Add user image message
   void addUserImageMessage(final Message msg) {
-    executeSyncWithNotification(
-      operation: () => _chatService.addUserImageMessage(msg),
-    );
+    try {
+      _chatService.addUserImageMessage(msg);
+    } on Exception catch (e) {
+      debugPrint('Error in addUserImageMessage: $e');
+    }
   }
 
   /// Add assistant message
@@ -73,40 +76,49 @@ class ChatMessageController extends ChangeNotifier with UIStateManagementMixin {
     final String text, {
     final bool isAudio = false,
   }) async {
-    await delegate(
-      serviceCall: () =>
-          _chatService.addAssistantMessage(text, isAudio: isAudio),
-      errorMessage: 'Error al añadir mensaje del asistente',
-    );
+    try {
+      await _chatService.addAssistantMessage(text, isAudio: isAudio);
+    } on Exception catch (e) {
+      debugPrint('Error in addAssistantMessage: $e');
+      rethrow; // Re-throw for UI handling
+    }
   }
 
   /// Add user message
   Future<void> addUserMessage(final Message message) async {
-    await delegate(
-      serviceCall: () => _chatService.addUserMessage(message),
-      errorMessage: 'Error al añadir mensaje de usuario',
-    );
+    try {
+      await _chatService.addUserMessage(message);
+    } on Exception catch (e) {
+      debugPrint('Error in addUserMessage: $e');
+      rethrow; // Re-throw for UI handling
+    }
   }
 
   /// Retry last failed message
   Future<void> retryLastFailedMessage({final String? model}) async {
-    await executeWithState(
-      operation: () => _chatService.retryLastFailedMessage(model: model),
-      errorMessage: 'Error al reintentar mensaje',
-    );
+    try {
+      await _chatService.retryLastFailedMessage(model: model);
+    } on Exception catch (e) {
+      debugPrint('Error in retryLastFailedMessage: $e');
+      rethrow; // Re-throw for UI handling
+    }
   }
 
   /// Control de mensajes periódicos de IA
   void startPeriodicIaMessages() {
-    executeSyncWithNotification(
-      operation: () => _chatService.startPeriodicIaMessages(),
-    );
+    try {
+      _chatService.startPeriodicIaMessages();
+    } on Exception catch (e) {
+      debugPrint('Error in startPeriodicIaMessages: $e');
+    }
   }
 
   void stopPeriodicIaMessages() {
-    executeSyncWithNotification(
-      operation: () => _chatService.stopPeriodicIaMessages(),
-    );
+    try {
+      _chatService.stopPeriodicIaMessages();
+    } on Exception catch (e) {
+      debugPrint('Error in stopPeriodicIaMessages: $e');
+    }
   }
 
   @override

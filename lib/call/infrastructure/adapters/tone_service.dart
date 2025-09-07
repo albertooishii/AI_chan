@@ -656,7 +656,7 @@ class ToneService implements IToneService {
       dry[i] = acc * 0.5 * envGlobal(t);
     }
 
-    // High‑pass suave para evitar acumulación de bajas frecuencias
+    // High-pass suave para evitar acumulación de bajas frecuencias
     _applyHighLowPassFilters(dry, sampleRate, lowPassHz: 0);
 
     // Reflexión temprana muy discreta (una sola)
@@ -820,7 +820,7 @@ class ToneService implements IToneService {
       if (i - de >= 0) buf[i] += 0.090 * buf[i - de];
     }
 
-    // High‑pass suave (120 Hz) y Low‑pass (6.5 kHz) para limpieza
+    // High-pass suave (120 Hz) y Low-pass (6.5 kHz) para limpieza
     _applyHighLowPassFilters(buf, sampleRate);
 
     // Fade-out suave en los últimos 30ms para un loop limpio y evitar clicks

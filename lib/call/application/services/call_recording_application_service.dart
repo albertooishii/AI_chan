@@ -5,7 +5,7 @@
 // file. Suppress the lint at file scope with a clear rationale.
 import 'dart:async';
 import 'dart:typed_data';
-import 'package:record/record.dart';
+import 'package:ai_chan/shared/domain/interfaces/i_recording_service.dart';
 
 /// Result objects for DDD pattern compliance
 class RecordingSessionResult {
@@ -47,12 +47,11 @@ class AudioStreamCoordinationResult {
   });
 
   factory AudioStreamCoordinationResult.success(
-    final bool micStarted, {
-    final AudioRecorder? recorder,
+    final IRecordingService? recorder,
     final StreamSubscription<Uint8List>? subscription,
-  }) => AudioStreamCoordinationResult(
+  ) => AudioStreamCoordinationResult(
     success: true,
-    micStarted: micStarted,
+    micStarted: true,
     recorder: recorder,
     subscription: subscription,
   );
@@ -65,7 +64,7 @@ class AudioStreamCoordinationResult {
       );
   final bool success;
   final bool micStarted;
-  final AudioRecorder? recorder;
+  final IRecordingService? recorder;
   final StreamSubscription<Uint8List>? subscription;
   final String? error;
 }
@@ -124,6 +123,12 @@ class RecordingStateCoordinationResult {
 
 /// DDD Application Service for Call Recording coordination and business logic
 class CallRecordingApplicationService {
+  /// Constructor with dependency injection
+  CallRecordingApplicationService(this._recordingService);
+
+  /// Recording service - injected through domain interface
+  final IRecordingService _recordingService;
+
   /// Coordinate recording session lifecycle
   RecordingSessionResult coordinateRecordingSession({
     required final bool isStarting,
@@ -193,28 +198,23 @@ class CallRecordingApplicationService {
   /// Coordinate microphone stream initialization
   Future<AudioStreamCoordinationResult> coordinateMicrophoneStream({
     required final bool isStarting,
-    final AudioRecorder? currentRecorder,
   }) async {
     try {
       if (isStarting) {
-        // Business rule: Initialize recorder if not exists
-        final recorder = currentRecorder ?? AudioRecorder();
-
         // Business rule: Check permissions first
-        if (!await recorder.hasPermission()) {
+        if (!await _recordingService.hasPermission()) {
           return AudioStreamCoordinationResult.failure(
             'Microphone permission not granted',
           );
         }
 
         // Business rule: Configure recording parameters
-        const config = RecordConfig(
-          encoder: AudioEncoder.pcm16bits,
+        final config = const RecordingConfig(
+          encoder: AudioEncoder.wav,
           sampleRate: 24000,
-          numChannels: 1,
         );
 
-        final stream = await recorder.startStream(config);
+        final stream = await _recordingService.startStream(config);
         // ignore: cancel_subscriptions
         late StreamSubscription<Uint8List> subscription;
         // Intentionally return a live StreamSubscription to the caller. Ownership
@@ -226,13 +226,13 @@ class CallRecordingApplicationService {
         subscription = stream.listen((_) {});
 
         return AudioStreamCoordinationResult.success(
-          true,
-          recorder: recorder,
-          subscription: subscription,
+          _recordingService,
+          subscription,
         );
       } else {
         // Stopping stream
-        return AudioStreamCoordinationResult.success(false);
+        await _recordingService.stopStream();
+        return AudioStreamCoordinationResult.failure('Stream stopped');
       }
     } on Exception catch (e) {
       return AudioStreamCoordinationResult.failure(
@@ -281,8 +281,7 @@ class CallRecordingApplicationService {
   /// Check recording permissions with business rules
   Future<RecordingPermissionResult> coordinatePermissionCheck() async {
     try {
-      final recorder = AudioRecorder();
-      final hasPermission = await recorder.hasPermission();
+      final hasPermission = await _recordingService.hasPermission();
 
       // Business rule: Must have permission to record
       if (!hasPermission) {
@@ -344,14 +343,9 @@ class CallRecordingApplicationService {
   }
 
   /// Coordinate cleanup operations
-  Future<RecordingSessionResult> coordinateCleanup(
-    final AudioRecorder? recorder,
-  ) async {
+  Future<RecordingSessionResult> coordinateCleanup() async {
     try {
-      if (recorder != null) {
-        await recorder.stop();
-        await recorder.dispose();
-      }
+      await _recordingService.dispose();
       return RecordingSessionResult.success('cleaned');
     } on Exception catch (e) {
       return RecordingSessionResult.failure('Cleanup failed: $e');
@@ -387,13 +381,10 @@ class CallRecordingApplicationService {
       }
 
       // Step 2: Initialize recorder
-      final recorder = AudioRecorder();
+      await _recordingService.initialize();
 
       // Step 3: Start microphone stream
-      final streamResult = await coordinateMicrophoneStream(
-        isStarting: true,
-        currentRecorder: recorder,
-      );
+      final streamResult = await coordinateMicrophoneStream(isStarting: true);
 
       if (!streamResult.success) {
         return CompleteRecordingFlowResult.failure(
@@ -419,7 +410,7 @@ class CallRecordingApplicationService {
       onStatusUpdate('recording');
 
       return CompleteRecordingFlowResult.success(
-        recorder: streamResult.recorder!,
+        recorder: streamResult.recorder,
         subscription: streamResult.subscription!,
         startTime: startTime,
       );
@@ -430,7 +421,6 @@ class CallRecordingApplicationService {
 
   /// Coordinate complete recording stop with all cleanup
   Future<CompleteRecordingFlowResult> coordinateCompleteRecordingStop({
-    required final AudioRecorder? recorder,
     required final StreamSubscription<Uint8List>? subscription,
     required final DateTime? startTime,
     required final Function(String) onStatusUpdate,
@@ -457,9 +447,7 @@ class CallRecordingApplicationService {
       );
 
       // Step 4: Cleanup recorder
-      if (recorder != null) {
-        await coordinateCleanup(recorder);
-      }
+      await coordinateCleanup();
 
       onStatusUpdate('stopped');
 
@@ -498,7 +486,7 @@ class CompleteRecordingFlowResult {
   });
 
   factory CompleteRecordingFlowResult.success({
-    final AudioRecorder? recorder,
+    final IRecordingService? recorder,
     final StreamSubscription<Uint8List>? subscription,
     final DateTime? startTime,
     final Duration? finalDuration,
@@ -514,7 +502,7 @@ class CompleteRecordingFlowResult {
       CompleteRecordingFlowResult(success: false, error: error);
 
   final bool success;
-  final AudioRecorder? recorder;
+  final IRecordingService? recorder;
   final StreamSubscription<Uint8List>? subscription;
   final DateTime? startTime;
   final Duration? finalDuration;

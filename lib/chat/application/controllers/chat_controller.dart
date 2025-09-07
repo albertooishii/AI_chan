@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
 import 'package:ai_chan/chat/application/services/chat_application_service.dart';
-import 'package:ai_chan/chat/application/mixins/ui_state_management_mixin.dart';
 import 'package:ai_chan/chat/application/controllers/_chat_audio_controller.dart';
 import 'package:ai_chan/chat/application/controllers/_chat_google_controller.dart';
 import 'package:ai_chan/chat/application/controllers/_chat_call_controller.dart';
@@ -17,7 +16,7 @@ export '_chat_message_controller.dart';
 export '_chat_data_controller.dart';
 
 /// DDD Chat Controller - Core chat operations with specialized sub-controllers
-class ChatController extends ChangeNotifier with UIStateManagementMixin {
+class ChatController extends ChangeNotifier {
   ChatController({required final ChatApplicationService chatService})
     : _chatService = chatService,
       audioController = ChatAudioController(chatService: chatService),
@@ -63,69 +62,97 @@ class ChatController extends ChangeNotifier with UIStateManagementMixin {
   String? get googleAvatarUrl => googleController.googleAvatarUrl;
   String? get googleName => googleController.googleName;
 
-  Future<void> initialize() async => await executeWithState(
-    operation: () => _chatService.initialize(),
-    errorMessage: 'Error al cargar chat',
-  );
+  Future<void> initialize() async {
+    try {
+      await _chatService.initialize();
+    } on Exception catch (e) {
+      debugPrint('Error in initialize: $e');
+      rethrow;
+    }
+  }
+
   Future<void> sendMessage({
     required final String text,
     final String? model,
     final dynamic image,
   }) async {
     if (_chatService.profile == null) {
-      executeSyncWithNotification(
-        operation: () => throw Exception('Perfil no inicializado'),
-        errorMessage: 'Perfil no inicializado',
-      );
-      return;
+      throw Exception('Perfil no inicializado');
     }
-    await executeWithState(
-      operation: () =>
-          _chatService.sendMessage(text: text, model: model, image: image),
-      errorMessage: 'Error al enviar mensaje',
-    );
+    try {
+      await _chatService.sendMessage(text: text, model: model, image: image);
+    } on Exception catch (e) {
+      debugPrint('Error in sendMessage: $e');
+      rethrow;
+    }
   }
 
-  Future<void> clearMessages() async => await executeWithState(
-    operation: () => _chatService.clearAll(),
-    errorMessage: 'Error al limpiar mensajes',
-  );
+  Future<void> clearMessages() async {
+    try {
+      await _chatService.clearAll();
+    } on Exception catch (e) {
+      debugPrint('Error in clearMessages: $e');
+      rethrow;
+    }
+  }
+
   Future<void> saveState() async {
-    await executeWithNotification(
-      operation: () async {
-        final data = _chatService.exportToData();
-        await _chatService.saveAll(data);
-      },
-      errorMessage: 'Error al guardar',
-    );
+    try {
+      final data = _chatService.exportToData();
+      await _chatService.saveAll(data);
+    } on Exception catch (e) {
+      debugPrint('Error in saveState: $e');
+      rethrow;
+    }
   }
 
   // Service-level operations that don't require coordination
-  void setSelectedModel(final String? model) => executeSyncWithNotification(
-    operation: () => _chatService.setSelectedModel(model),
-  );
+  void setSelectedModel(final String? model) {
+    try {
+      _chatService.setSelectedModel(model);
+    } on Exception catch (e) {
+      debugPrint('Error in setSelectedModel: $e');
+    }
+  }
 
-  Future<List<String>> getAllModels({final bool forceRefresh = false}) async =>
-      await _chatService.getAllModels(forceRefresh: forceRefresh);
+  Future<List<String>> getAllModels({final bool forceRefresh = false}) async {
+    try {
+      return await _chatService.getAllModels(forceRefresh: forceRefresh);
+    } on Exception catch (e) {
+      debugPrint('Error in getAllModels: $e');
+      rethrow;
+    }
+  }
 
-  void schedulePromiseEvent(final EventEntry event) =>
-      executeSyncWithNotification(
-        operation: () => _chatService.schedulePromiseEvent(event),
-      );
+  void schedulePromiseEvent(final EventEntry event) {
+    try {
+      _chatService.schedulePromiseEvent(event);
+    } on Exception catch (e) {
+      debugPrint('Error in schedulePromiseEvent: $e');
+    }
+  }
 
   bool isPlaying(final Message msg) => _chatService.isPlaying(msg);
 
   // Core coordination operations
   Future<String> exportChat() async {
-    final data = _chatService.exportToData();
-    return await dataController.exportAllToJson(data);
+    try {
+      final data = _chatService.exportToData();
+      return await dataController.exportAllToJson(data);
+    } on Exception catch (e) {
+      debugPrint('Error in exportChat: $e');
+      rethrow;
+    }
   }
 
-  Future<void> applyChatExport(final Map<String, dynamic> chatExport) async =>
-      await executeWithState(
-        operation: () => _chatService.applyChatExport(chatExport),
-        errorMessage: 'Error al importar chat',
-      );
+  Future<void> applyChatExport(final Map<String, dynamic> chatExport) async {
+    try {
+      await _chatService.applyChatExport(chatExport);
+    } on Exception catch (e) {
+      debugPrint('Error in applyChatExport: $e');
+      rethrow;
+    }
+  }
 
   @override
   void dispose() {

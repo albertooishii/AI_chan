@@ -1,9 +1,4 @@
 import 'dart:async';
-import 'package:ai_chan/shared/utils/log_utils.dart';
-import '../models/message.dart';
-import 'package:ai_chan/core/models/ai_chan_profile.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:ai_chan/shared/utils/schedule_utils.dart';
 
 /// Servicio que gestiona el envío periódico de mensajes IA automáticos
 /// aplicando las mismas reglas que estaban embebidas en ChatProvider.
@@ -14,13 +9,12 @@ class PeriodicIaMessageScheduler {
   bool get isRunning => _timer != null;
 
   void start({
-    required final AiChanProfile Function() profileGetter,
-    required final List<Message> Function() messagesGetter,
+    required final Map<String, dynamic> Function() profileGetter,
+    required final List<Map<String, dynamic>> Function() messagesGetter,
     required final void Function(String callPrompt, String model) triggerSend,
     final Duration? initialDelay,
   }) {
     stop();
-    Log.i('Iniciando scheduler de mensajes automáticos IA', tag: 'PERIODIC_IA');
 
     void scheduleNext([final int? prevIntervalMin]) {
       final nowMs = DateTime.now().millisecondsSinceEpoch;
@@ -31,13 +25,9 @@ class PeriodicIaMessageScheduler {
         final messages = messagesGetter();
         final now = DateTime.now();
         final tipo = _getCurrentScheduleType(now, profile);
-        Log.d(
-          'Timer @ ${now.toIso8601String()} tipo=$tipo',
-          tag: 'PERIODIC_IA',
-        );
         if (tipo != 'sleep' && tipo != 'work' && tipo != 'busy') {
           final lastMsg = messages.isNotEmpty ? messages.last : null;
-          final lastMsgTime = lastMsg?.dateTime;
+          final lastMsgTime = lastMsg?['dateTime'] as DateTime?;
           final diffMinutes = lastMsgTime != null
               ? now.difference(lastMsgTime).inMinutes
               : 9999;
@@ -54,18 +44,11 @@ class PeriodicIaMessageScheduler {
             final prompts = _autoPrompts();
             final idx = nowMs % prompts.length;
             final callPrompt = prompts[idx];
-            final textModel = dotenv.env['DEFAULT_TEXT_MODEL'] ?? '';
+            final textModel = 'gemini-1.5-flash-latest'; // Default model
             triggerSend(callPrompt, textModel);
             _lastAutoIa = now;
             _autoStreak = (_autoStreak + 1).clamp(0, 20);
-          } else {
-            Log.d(
-              'Skip auto diff=$diffMinutes minWait=$minWait cooldown=$cooldownOk',
-              tag: 'PERIODIC_IA',
-            );
           }
-        } else {
-          Log.d('Skip por horario: $tipo', tag: 'PERIODIC_IA');
         }
         scheduleNext(intervalMin);
       });
@@ -96,56 +79,133 @@ class PeriodicIaMessageScheduler {
 
   String? _getCurrentScheduleType(
     final DateTime now,
-    final AiChanProfile profile,
+    final Map<String, dynamic> profile,
   ) {
-    final bio = profile.biography;
+    final bio = profile['biography'] as Map<String, dynamic>? ?? {};
     final int currentMinutes = now.hour * 60 + now.minute;
 
-    bool inRange(final Map m) {
+    bool inRange(final Map<String, dynamic> m) {
       final String from = (m['from']?.toString() ?? '');
       final String to = (m['to']?.toString() ?? '');
-      final res = ScheduleUtils.isTimeInRange(
-        currentMinutes: currentMinutes,
-        from: from,
-        to: to,
-      );
-      return res ?? false;
+      return _isTimeInRange(currentMinutes: currentMinutes, from: from, to: to);
     }
 
     bool dayMatches(final dynamic dias) {
       final raw = dias?.toString() ?? '';
-      final spec = ScheduleUtils.parseScheduleString(raw);
-      return ScheduleUtils.matchesDateWithInterval(now, spec);
+      final spec = _parseScheduleString(raw);
+      return _matchesDateWithInterval(now, spec);
     }
 
     try {
       final dormir = bio['horario_dormir'];
-      if (dormir is Map && inRange(dormir)) return 'sleep';
+      if (dormir is Map<String, dynamic> && inRange(dormir)) return 'sleep';
 
       final trabajo = bio['horario_trabajo'];
-      if (trabajo is Map && dayMatches(trabajo['dias']) && inRange(trabajo)) {
+      if (trabajo is Map<String, dynamic> &&
+          dayMatches(trabajo['dias']) &&
+          inRange(trabajo)) {
         return 'work';
       }
 
       final estudio = bio['horario_estudio'];
-      if (estudio is Map && dayMatches(estudio['dias']) && inRange(estudio)) {
+      if (estudio is Map<String, dynamic> &&
+          dayMatches(estudio['dias']) &&
+          inRange(estudio)) {
         return 'work';
       }
 
       final actividades = bio['horarios_actividades'];
       if (actividades is List) {
         for (final a in actividades) {
-          if (a is Map && dayMatches(a['dias']) && inRange(a)) return 'busy';
+          if (a is Map<String, dynamic> &&
+              dayMatches(a['dias']) &&
+              inRange(a)) {
+            return 'busy';
+          }
         }
       }
     } on Exception catch (_) {}
     return null;
   }
 
+  bool _isTimeInRange({
+    required final int currentMinutes,
+    required final String from,
+    required final String to,
+  }) {
+    try {
+      final fromParts = from.split(':');
+      final toParts = to.split(':');
+      if (fromParts.length != 2 || toParts.length != 2) return false;
+
+      final fromMin = int.parse(fromParts[0]) * 60 + int.parse(fromParts[1]);
+      final toMin = int.parse(toParts[0]) * 60 + int.parse(toParts[1]);
+
+      if (fromMin <= toMin) {
+        return currentMinutes >= fromMin && currentMinutes <= toMin;
+      } else {
+        // Cross midnight
+        return currentMinutes >= fromMin || currentMinutes <= toMin;
+      }
+    } on Exception catch (_) {
+      return false;
+    }
+  }
+
+  Map<String, dynamic> _parseScheduleString(final String raw) {
+    if (raw.trim().isEmpty) {
+      return {'type': 'all', 'days': <int>[]};
+    }
+
+    final lower = raw.toLowerCase().trim();
+    final days = <int>[];
+
+    // Parse individual days
+    if (lower.contains('lun')) days.add(DateTime.monday);
+    if (lower.contains('mar')) days.add(DateTime.tuesday);
+    if (lower.contains('mié') || lower.contains('mie')) {
+      days.add(DateTime.wednesday);
+    }
+    if (lower.contains('jue')) days.add(DateTime.thursday);
+    if (lower.contains('vie')) days.add(DateTime.friday);
+    if (lower.contains('sáb') || lower.contains('sab')) {
+      days.add(DateTime.saturday);
+    }
+    if (lower.contains('dom')) days.add(DateTime.sunday);
+
+    // Parse ranges
+    if (lower.contains('lun-vie') || lower.contains('lunes-viernes')) {
+      days.addAll([1, 2, 3, 4, 5]);
+    }
+    if (lower.contains('lun-sáb') || lower.contains('lunes-sábado')) {
+      days.addAll([1, 2, 3, 4, 5, 6]);
+    }
+    if (lower.contains('lun-dom') || lower.contains('lunes-domingo')) {
+      days.addAll([1, 2, 3, 4, 5, 6, 7]);
+    }
+
+    return {
+      'type': days.isEmpty ? 'none' : 'specific',
+      'days': days.toSet().toList(),
+    };
+  }
+
+  bool _matchesDateWithInterval(
+    final DateTime now,
+    final Map<String, dynamic> spec,
+  ) {
+    final type = spec['type'] as String? ?? 'all';
+    if (type == 'all') return true;
+    if (type == 'none') return false;
+
+    final days = (spec['days'] as List<dynamic>? ?? []).cast<int>();
+    return days.contains(now.weekday);
+  }
+
   /// Determina si se debe enviar un mensaje automático (para compatibilidad)
   bool shouldSendAutomaticMessage(
-    final List<Message> messages,
-    final AiChanProfile profile,
+    final List<Map<String, dynamic>> messages,
+    final Map<String, dynamic> profile,
   ) {
     final now = DateTime.now();
     final tipo = _getCurrentScheduleType(now, profile);
@@ -154,7 +214,7 @@ class PeriodicIaMessageScheduler {
     }
 
     final lastMsg = messages.isNotEmpty ? messages.last : null;
-    final lastMsgTime = lastMsg?.dateTime;
+    final lastMsgTime = lastMsg?['dateTime'] as DateTime?;
     final diffMinutes = lastMsgTime != null
         ? now.difference(lastMsgTime).inMinutes
         : 9999;
@@ -170,7 +230,7 @@ class PeriodicIaMessageScheduler {
   }
 
   /// Analiza el horario y determina si debe enviar un mensaje (para compatibilidad)
-  bool shouldSendScheduledMessage(final AiChanProfile profile) {
+  bool shouldSendScheduledMessage(final Map<String, dynamic> profile) {
     return false; // La lógica principal ahora está en start()
   }
 }
