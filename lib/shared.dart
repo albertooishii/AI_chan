@@ -3,6 +3,19 @@
 // This module contains the shared kernel - components that are used
 // across multiple bounded contexts (Chat, Onboarding, Voice, etc.)
 
+// Domain Layer
+export 'shared/domain.dart';
+
+// Infrastructure Layer
+export 'shared/infrastructure.dart';
+
+// Application Layer
+export 'shared/application.dart';
+
+// Widgets
+export 'shared/widgets/app_dialog.dart';
+
+// Constants
 export 'shared/constants.dart';
 export 'shared/screens.dart';
 export 'shared/utils.dart';

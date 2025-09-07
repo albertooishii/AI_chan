@@ -3,12 +3,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:ai_chan/core/di.dart' as di;
-import 'package:ai_chan/shared/infrastructure/audio/audio_playback.dart';
+import 'package:ai_chan/shared/infrastructure/adapters/audio_playback.dart';
 import 'package:ai_chan/shared/utils/audio_utils.dart' as audio_utils;
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import '../../../call/infrastructure/adapters/google_speech_service.dart';
-import '../../../call/infrastructure/adapters/android_native_tts_service.dart';
+import '../../../call/infrastructure/services/google_speech_service.dart';
+import '../../../call/infrastructure/services/android_native_tts_service.dart';
 import 'package:ai_chan/core/cache/cache_service.dart';
 import 'package:ai_chan/core/models.dart';
 import '../../domain/interfaces/i_audio_chat_service.dart';
@@ -478,7 +478,7 @@ class AudioChatService implements IAudioChatService {
           '[Audio][TTS] Trying Android native TTS for non-OpenAI/non-Google voice: $voice',
         );
         final isNativeAvailable =
-            await AndroidNativeTtsService.isNativeTtsAvailable();
+            await AndroidNativeTtsService.checkNativeTtsAvailable();
         if (isNativeAvailable) {
           // Buscar caché primero
           final cachedFile = await CacheService.getCachedAudioFile(
@@ -500,7 +500,7 @@ class AudioChatService implements IAudioChatService {
             final outputPath =
                 '${cacheDir.path}/android_native_${DateTime.now().millisecondsSinceEpoch}.mp3';
 
-            final result = await AndroidNativeTtsService.synthesizeToFile(
+            final result = await AndroidNativeTtsService.synthesizeToFileStatic(
               text: synthText,
               outputPath: outputPath,
               voiceName: voice,
@@ -554,10 +554,10 @@ class AudioChatService implements IAudioChatService {
         // voice is resolved via PrefsUtils.getPreferredVoice to prefer a configured voice for the provider
         final voiceToUse = preferredVoice;
 
-        if (GoogleSpeechService.isConfigured) {
+        if (GoogleSpeechService.isConfiguredStatic) {
           try {
             final lang = languageCode ?? 'es-ES';
-            final file = await GoogleSpeechService.textToSpeechFile(
+            final file = await GoogleSpeechService.textToSpeechFileStatic(
               text: synthText,
               voiceName: voiceToUse,
               languageCode: lang,

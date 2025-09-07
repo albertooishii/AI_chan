@@ -1,6 +1,6 @@
 import 'package:ai_chan/core/di.dart' as di;
-import 'package:ai_chan/call/infrastructure/clients/openai_realtime_client.dart';
-import 'package:ai_chan/call/infrastructure/clients/gemini_realtime_client.dart';
+import 'package:ai_chan/call/infrastructure/services/openai_realtime_client.dart';
+import 'package:ai_chan/call/infrastructure/services/gemini_realtime_client.dart';
 import 'package:ai_chan/core/config.dart';
 
 /// Centraliza las registraciones de factories para reproducir el bootstrap

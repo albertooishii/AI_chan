@@ -10,12 +10,15 @@ void main() {
       ]);
     });
 
-    test('🔀 onboarding domain should not import from other bounded contexts', () {
-      _verifyBoundedContextIsolation('lib/onboarding/domain', [
-        'chat',
-        'call', // Updated: voice -> call
-      ]);
-    });
+    test(
+      '🔀 onboarding domain should not import from other bounded contexts',
+      () {
+        _verifyBoundedContextIsolation('lib/onboarding/domain', [
+          'chat',
+          'call', // Updated: voice -> call
+        ]);
+      },
+    );
 
     test('🔀 call domain should not import from other bounded contexts', () {
       _verifyBoundedContextIsolation('lib/call/domain', ['chat', 'onboarding']);
@@ -27,7 +30,9 @@ void main() {
 
       // Verify each context doesn't import from others
       for (final context in boundedContexts) {
-        final otherContexts = boundedContexts.where((final c) => c != context).toList();
+        final otherContexts = boundedContexts
+            .where((final c) => c != context)
+            .toList();
         try {
           _verifyBoundedContextIsolation('lib/$context/domain', otherContexts);
         } on Exception catch (e) {
@@ -37,9 +42,14 @@ void main() {
 
       // Verify application layer isolation
       for (final context in boundedContexts) {
-        final otherContexts = boundedContexts.where((final c) => c != context).toList();
+        final otherContexts = boundedContexts
+            .where((final c) => c != context)
+            .toList();
         try {
-          _verifyBoundedContextIsolation('lib/$context/application', otherContexts);
+          _verifyBoundedContextIsolation(
+            'lib/$context/application',
+            otherContexts,
+          );
         } on Exception catch (e) {
           violations.add('❌ $context application violates isolation: $e');
         }
@@ -83,7 +93,10 @@ List<String> _findAllBoundedContexts() {
       .toList();
 }
 
-void _verifyBoundedContextIsolation(final String contextPath, final List<String> forbiddenContexts) {
+void _verifyBoundedContextIsolation(
+  final String contextPath,
+  final List<String> forbiddenContexts,
+) {
   final dir = Directory(contextPath);
   if (!dir.existsSync()) return;
 
@@ -97,14 +110,22 @@ void _verifyBoundedContextIsolation(final String contextPath, final List<String>
         // Check for relative imports
         final pattern = RegExp('import\\s+["\'].*/$forbidden/');
         // Check for package imports
-        final packagePattern = RegExp('import\\s+["\']package:ai_chan/$forbidden/');
+        final packagePattern = RegExp(
+          'import\\s+["\']package:ai_chan/$forbidden/',
+        );
 
         if (pattern.hasMatch(content) || packagePattern.hasMatch(content)) {
-          violations.add('${file.path}: Imports from forbidden context: $forbidden');
+          violations.add(
+            '${file.path}: Imports from forbidden context: $forbidden',
+          );
         }
       }
     }
   }
 
-  expect(violations, isEmpty, reason: 'Bounded context isolation violations:\n${violations.join('\n')}');
+  expect(
+    violations,
+    isEmpty,
+    reason: 'Bounded context isolation violations:\n${violations.join('\n')}',
+  );
 }

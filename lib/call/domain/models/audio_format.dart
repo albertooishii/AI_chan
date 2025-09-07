@@ -1,21 +1,21 @@
 /// Formato de audio usado en las llamadas
 class AudioFormat {
-
   const AudioFormat({
     this.sampleRate = 16000, // 16kHz por defecto (común para STT)
-    this.channels = 1,       // Mono por defecto
+    this.channels = 1, // Mono por defecto
     this.bitsPerSample = 16, // 16 bits por defecto
     this.encoding = AudioEncoding.pcm,
   });
+
   /// Frecuencia de muestreo en Hz
   final int sampleRate;
-  
+
   /// Número de canales (1 = mono, 2 = estéreo)
   final int channels;
-  
+
   /// Bits por muestra (8, 16, 24, 32)
   final int bitsPerSample;
-  
+
   /// Tipo de codificación
   final AudioEncoding encoding;
 
@@ -52,10 +52,13 @@ class AudioFormat {
 enum AudioEncoding {
   /// Modulación por código de pulsos (sin compresión)
   pcm,
+
   /// MP3 comprimido
   mp3,
+
   /// Opus comprimido (recomendado para tiempo real)
   opus,
+
   /// WebM comprimido
   webm,
 }

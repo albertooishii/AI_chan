@@ -52,91 +52,109 @@ EACH LAYER MUST HAVE CLEAR RESPONSIBILITY AND PROPER ISOLATION
         );
       });
 
-      test('Bounded contexts must have consistent quality and completeness', () async {
-        final violations = <String>[];
-        final boundedContexts = _findBoundedContexts();
-        final qualityScores = <String, int>{};
+      test(
+        'Bounded contexts must have consistent quality and completeness',
+        () async {
+          final violations = <String>[];
+          final boundedContexts = _findBoundedContexts();
+          final qualityScores = <String, int>{};
 
-        for (final context in boundedContexts) {
-          final score = await _calculateContextQualityScore(context);
-          qualityScores[context] = score;
-        }
-
-        final average = qualityScores.values.isNotEmpty
-            ? (qualityScores.values.reduce((final a, final b) => a + b) / qualityScores.values.length).round()
-            : 0;
-
-        // Flag contexts that are significantly below average
-        for (final entry in qualityScores.entries) {
-          if (entry.value < average - 25 || entry.value < 60) {
-            violations.add('❌ ${entry.key} context quality too low: ${entry.value}/100 (avg: $average)');
+          for (final context in boundedContexts) {
+            final score = await _calculateContextQualityScore(context);
+            qualityScores[context] = score;
           }
-        }
 
-        if (violations.isNotEmpty) {
-          debugPrint('\n📊 BOUNDED CONTEXT QUALITY SCORES:');
+          final average = qualityScores.values.isNotEmpty
+              ? (qualityScores.values.reduce((final a, final b) => a + b) /
+                        qualityScores.values.length)
+                    .round()
+              : 0;
+
+          // Flag contexts that are significantly below average
           for (final entry in qualityScores.entries) {
-            final status = entry.value >= average ? '✅' : '❌';
-            debugPrint('$status ${entry.key}: ${entry.value}/100');
+            if (entry.value < average - 25 || entry.value < 60) {
+              violations.add(
+                '❌ ${entry.key} context quality too low: ${entry.value}/100 (avg: $average)',
+              );
+            }
           }
-        }
 
-        expect(
-          violations,
-          isEmpty,
-          reason:
-              '''
+          if (violations.isNotEmpty) {
+            debugPrint('\n📊 BOUNDED CONTEXT QUALITY SCORES:');
+            for (final entry in qualityScores.entries) {
+              final status = entry.value >= average ? '✅' : '❌';
+              debugPrint('$status ${entry.key}: ${entry.value}/100');
+            }
+          }
+
+          expect(
+            violations,
+            isEmpty,
+            reason:
+                '''
 🚨 BOUNDED CONTEXT QUALITY INCONSISTENCIES:
 ${violations.join('\n')}
 
 All bounded contexts should maintain similar quality standards.
 Low-quality contexts indicate incomplete DDD implementation.
           ''',
-        );
-      });
+          );
+        },
+      );
     });
 
     // ===================================================================
     // 2. HEXAGONAL ARCHITECTURE VALIDATION
     // ===================================================================
     group('🔯 Hexagonal Architecture Implementation', () {
-      test('Domain interfaces must have corresponding infrastructure implementations', () async {
-        final violations = <String>[];
-        final boundedContexts = _findBoundedContexts();
+      test(
+        'Domain interfaces must have corresponding infrastructure implementations',
+        () async {
+          final violations = <String>[];
+          final boundedContexts = _findBoundedContexts();
 
-        for (final context in boundedContexts) {
-          final domainInterfaces = await _findDomainInterfaces(context);
-          final infrastructureImpls = await _findInfrastructureImplementations(context);
+          for (final context in boundedContexts) {
+            final domainInterfaces = await _findDomainInterfaces(context);
+            final infrastructureImpls =
+                await _findInfrastructureImplementations(context);
 
-          // Check interface-implementation pairing
-          for (final interface in domainInterfaces) {
-            final hasImplementation = infrastructureImpls.any((final impl) => _implementsInterface(impl, interface));
-
-            if (!hasImplementation) {
-              violations.add('❌ Missing implementation for ${interface.name} in $context context');
-            }
-          }
-
-          // Check for orphaned implementations (implementations without interfaces)
-          for (final impl in infrastructureImpls) {
-            final implementedInterfaces = _getImplementedInterfaces(impl.content);
-            final hasMatchingInterface = implementedInterfaces.any(
-              (final interfaceName) => domainInterfaces.any((final di) => di.name == interfaceName),
-            );
-
-            if (!hasMatchingInterface && _shouldHaveInterface(impl)) {
-              violations.add(
-                '⚠️ Orphaned implementation ${impl.className} in $context - consider creating domain interface',
+            // Check interface-implementation pairing
+            for (final interface in domainInterfaces) {
+              final hasImplementation = infrastructureImpls.any(
+                (final impl) => _implementsInterface(impl, interface),
               );
+
+              if (!hasImplementation) {
+                violations.add(
+                  '❌ Missing implementation for ${interface.name} in $context context',
+                );
+              }
+            }
+
+            // Check for orphaned implementations (implementations without interfaces)
+            for (final impl in infrastructureImpls) {
+              final implementedInterfaces = _getImplementedInterfaces(
+                impl.content,
+              );
+              final hasMatchingInterface = implementedInterfaces.any(
+                (final interfaceName) => domainInterfaces.any(
+                  (final di) => di.name == interfaceName,
+                ),
+              );
+
+              if (!hasMatchingInterface && _shouldHaveInterface(impl)) {
+                violations.add(
+                  '⚠️ Orphaned implementation ${impl.className} in $context - consider creating domain interface',
+                );
+              }
             }
           }
-        }
 
-        expect(
-          violations,
-          isEmpty,
-          reason:
-              '''
+          expect(
+            violations,
+            isEmpty,
+            reason:
+                '''
 🚨 HEXAGONAL ARCHITECTURE VIOLATIONS:
 ${violations.join('\n')}
 
@@ -147,31 +165,39 @@ HEXAGONAL ARCHITECTURE REQUIRES:
 
 This ensures proper dependency inversion and testability.
           ''',
-        );
-      });
+          );
+        },
+      );
 
-      test('Domain layer must only depend on abstractions, never implementations', () async {
-        final violations = <String>[];
-        final boundedContexts = _findBoundedContexts();
+      test(
+        'Domain layer must only depend on abstractions, never implementations',
+        () async {
+          final violations = <String>[];
+          final boundedContexts = _findBoundedContexts();
 
-        for (final context in boundedContexts) {
-          final domainFiles = await _findDomainFiles(context);
+          for (final context in boundedContexts) {
+            final domainFiles = await _findDomainFiles(context);
 
-          for (final file in domainFiles) {
-            final content = await file.readAsString();
-            final invalidDependencies = _findInvalidDomainDependencies(content, context);
+            for (final file in domainFiles) {
+              final content = await file.readAsString();
+              final invalidDependencies = _findInvalidDomainDependencies(
+                content,
+                context,
+              );
 
-            for (final dependency in invalidDependencies) {
-              violations.add('❌ ${_getRelativePath(file.path)}: Invalid dependency on $dependency');
+              for (final dependency in invalidDependencies) {
+                violations.add(
+                  '❌ ${_getRelativePath(file.path)}: Invalid dependency on $dependency',
+                );
+              }
             }
           }
-        }
 
-        expect(
-          violations,
-          isEmpty,
-          reason:
-              '''
+          expect(
+            violations,
+            isEmpty,
+            reason:
+                '''
 🚨 DOMAIN LAYER DEPENDENCY VIOLATIONS:
 ${violations.join('\n')}
 
@@ -184,8 +210,9 @@ DOMAIN LAYER RULES:
 
 Domain must remain pure and dependency-free.
           ''',
-        );
-      });
+          );
+        },
+      );
     });
 
     // ===================================================================
@@ -197,7 +224,10 @@ Domain must remain pure and dependency-free.
         final boundedContexts = _findBoundedContexts();
 
         for (final context in boundedContexts) {
-          final isolationViolations = await _checkBoundedContextIsolation(context, boundedContexts);
+          final isolationViolations = await _checkBoundedContextIsolation(
+            context,
+            boundedContexts,
+          );
           violations.addAll(isolationViolations);
         }
 
@@ -296,7 +326,9 @@ Services with multiple responsibilities should be split into focused services.
             final analysis = await _analyzeUseCaseDesign(useCase);
 
             if (analysis.isTooBroad) {
-              violations.add('❌ ${_getRelativePath(useCase.path)}: Use case is too broad - should be more focused');
+              violations.add(
+                '❌ ${_getRelativePath(useCase.path)}: Use case is too broad - should be more focused',
+              );
             }
 
             if (analysis.hasInfrastructureDependencies) {
@@ -331,25 +363,29 @@ Broad use cases should be split into smaller, focused operations.
     // 5. INTELLIGENT FILE PLACEMENT & NAMING
     // ===================================================================
     group('📁 File Placement & Naming Conventions', () {
-      test('Files must be placed in correct layers according to their purpose', () async {
-        final violations = <String>[];
-        final allFiles = await _findAllProjectFiles();
+      test(
+        'Files must be placed in correct layers according to their purpose',
+        () async {
+          final violations = <String>[];
+          final allFiles = await _findAllProjectFiles();
 
-        for (final filePath in allFiles) {
-          final content = await File(filePath).readAsString();
-          final expectedLayer = _determineExpectedLayer(filePath, content);
-          final actualLayer = _determineActualLayer(filePath);
+          for (final filePath in allFiles) {
+            final content = await File(filePath).readAsString();
+            final expectedLayer = _determineExpectedLayer(filePath, content);
+            final actualLayer = _determineActualLayer(filePath);
 
-          if (expectedLayer != actualLayer && expectedLayer != 'unknown') {
-            violations.add('❌ ${_getRelativePath(filePath)}: Should be in $expectedLayer layer, found in $actualLayer');
+            if (expectedLayer != actualLayer && expectedLayer != 'unknown') {
+              violations.add(
+                '❌ ${_getRelativePath(filePath)}: Should be in $expectedLayer layer, found in $actualLayer',
+              );
+            }
           }
-        }
 
-        expect(
-          violations,
-          isEmpty,
-          reason:
-              '''
+          expect(
+            violations,
+            isEmpty,
+            reason:
+                '''
 🚨 FILE PLACEMENT VIOLATIONS:
 ${violations.join('\n')}
 
@@ -365,8 +401,9 @@ FILE PLACEMENT RULES:
 
 Each file must be in the layer that matches its actual responsibility.
           ''',
-        );
-      });
+          );
+        },
+      );
 
       test('Naming conventions must be consistent and meaningful', () async {
         final violations = <String>[];
@@ -411,7 +448,9 @@ Consistent naming improves code readability and understanding.
         final duplicationAnalysis = await _analyzeDuplication(allFiles);
 
         for (final duplication in duplicationAnalysis.significantDuplications) {
-          violations.add('❌ Significant duplication detected: ${duplication.description}');
+          violations.add(
+            '❌ Significant duplication detected: ${duplication.description}',
+          );
         }
 
         // Show minor duplications as warnings
@@ -509,26 +548,31 @@ Check shared/utils/ before implementing common functionality.
     // 7. CROSS-CUTTING CONCERNS VALIDATION
     // ===================================================================
     group('🌐 Cross-Cutting Concerns', () {
-      test('Shared context must only contain truly cross-cutting concerns', () async {
-        final violations = <String>[];
-        final sharedFiles = await _findSharedFiles();
+      test(
+        'Shared context must only contain truly cross-cutting concerns',
+        () async {
+          final violations = <String>[];
+          final sharedFiles = await _findSharedFiles();
 
-        for (final file in sharedFiles) {
-          final content = await file.readAsString();
-          final isTrulyCrossCutting = _isAuenticlyCrossCuttingConcern(content, file.path);
-
-          if (!isTrulyCrossCutting) {
-            violations.add(
-              '❌ ${_getRelativePath(file.path)}: Not a cross-cutting concern - move to appropriate bounded context',
+          for (final file in sharedFiles) {
+            final content = await file.readAsString();
+            final isTrulyCrossCutting = _isAuenticlyCrossCuttingConcern(
+              content,
+              file.path,
             );
-          }
-        }
 
-        expect(
-          violations,
-          isEmpty,
-          reason:
-              '''
+            if (!isTrulyCrossCutting) {
+              violations.add(
+                '❌ ${_getRelativePath(file.path)}: Not a cross-cutting concern - move to appropriate bounded context',
+              );
+            }
+          }
+
+          expect(
+            violations,
+            isEmpty,
+            reason:
+                '''
 🚨 SHARED CONTEXT VIOLATIONS:
 ${violations.join('\n')}
 
@@ -541,8 +585,9 @@ SHARED/CORE SHOULD ONLY CONTAIN:
 
 Context-specific logic should be in the appropriate bounded context.
           ''',
-        );
-      });
+          );
+        },
+      );
     });
   });
 }
@@ -559,17 +604,26 @@ List<String> _findBoundedContexts() {
       .listSync()
       .whereType<Directory>()
       .map((final d) => d.path.split('/').last)
-      .where((final name) => !name.startsWith('.') && name != 'core' && name != 'main.dart' && _isBoundedContext(name))
+      .where(
+        (final name) =>
+            !name.startsWith('.') &&
+            name != 'core' &&
+            name != 'main.dart' &&
+            _isBoundedContext(name),
+      )
       .toList();
 }
 
 bool _isBoundedContext(final String name) {
   final contextDir = Directory('lib/$name');
   return contextDir.existsSync() &&
-      (Directory('lib/$name/domain').existsSync() || Directory('lib/$name/application').existsSync());
+      (Directory('lib/$name/domain').existsSync() ||
+          Directory('lib/$name/application').existsSync());
 }
 
-Future<BoundedContextAnalysis> _analyzeBoundedContextStructure(final String context) async {
+Future<BoundedContextAnalysis> _analyzeBoundedContextStructure(
+  final String context,
+) async {
   final violations = <String>[];
 
   // Required directories for proper DDD structure
@@ -592,7 +646,9 @@ Future<BoundedContextAnalysis> _analyzeBoundedContextStructure(final String cont
     for (final file in domainFiles) {
       final content = await file.readAsString();
       if (_hasInfrastructureDependencies(content)) {
-        violations.add('❌ Domain file has infrastructure dependencies: ${_getRelativePath(file.path)}');
+        violations.add(
+          '❌ Domain file has infrastructure dependencies: ${_getRelativePath(file.path)}',
+        );
       }
     }
   }
@@ -606,7 +662,8 @@ Future<int> _calculateContextQualityScore(final String context) async {
 
   // Domain structure (25 points)
   if (Directory('lib/$context/domain/interfaces').existsSync()) score += 10;
-  if (Directory('lib/$context/domain/models').existsSync() || Directory('lib/$context/domain/entities').existsSync()) {
+  if (Directory('lib/$context/domain/models').existsSync() ||
+      Directory('lib/$context/domain/entities').existsSync()) {
     score += 10;
   }
   if (await _hasProperDomainInterfaces(context)) score += 5;
@@ -617,7 +674,9 @@ Future<int> _calculateContextQualityScore(final String context) async {
   if (await _hasWellDesignedApplicationServices(context)) score += 5;
 
   // Infrastructure structure (25 points)
-  if (Directory('lib/$context/infrastructure/adapters').existsSync()) score += 15;
+  if (Directory('lib/$context/infrastructure/adapters').existsSync()) {
+    score += 15;
+  }
   if (await _hasProperInterfaceImplementations(context)) score += 10;
 
   // Architecture adherence (25 points)
@@ -627,7 +686,9 @@ Future<int> _calculateContextQualityScore(final String context) async {
   return ((score / maxScore) * 100).round();
 }
 
-Future<List<DomainInterface>> _findDomainInterfaces(final String context) async {
+Future<List<DomainInterface>> _findDomainInterfaces(
+  final String context,
+) async {
   final interfaces = <DomainInterface>[];
   final interfacesDir = Directory('lib/$context/domain/interfaces');
 
@@ -638,7 +699,13 @@ Future<List<DomainInterface>> _findDomainInterfaces(final String context) async 
       final content = await entity.readAsString();
       final interfaceNames = _extractAllInterfaceNames(content, entity.path);
       for (final interfaceName in interfaceNames) {
-        interfaces.add(DomainInterface(name: interfaceName, filePath: entity.path, content: content));
+        interfaces.add(
+          DomainInterface(
+            name: interfaceName,
+            filePath: entity.path,
+            content: content,
+          ),
+        );
       }
     }
   }
@@ -646,7 +713,59 @@ Future<List<DomainInterface>> _findDomainInterfaces(final String context) async 
   return interfaces;
 }
 
-Future<List<InfrastructureImplementation>> _findInfrastructureImplementations(final String context) async {
+Future<List<DomainInterface>> _findCoreInterfaces() async {
+  final interfaces = <DomainInterface>[];
+  final coreInterfacesDir = Directory('lib/core/interfaces');
+
+  if (!coreInterfacesDir.existsSync()) return interfaces;
+
+  await for (final entity in coreInterfacesDir.list(recursive: true)) {
+    if (entity is File && entity.path.endsWith('.dart')) {
+      final content = await entity.readAsString();
+      final interfaceNames = _extractAllInterfaceNames(content, entity.path);
+      for (final interfaceName in interfaceNames) {
+        interfaces.add(
+          DomainInterface(
+            name: interfaceName,
+            filePath: entity.path,
+            content: content,
+          ),
+        );
+      }
+    }
+  }
+
+  return interfaces;
+}
+
+Future<List<DomainInterface>> _findSharedInterfaces() async {
+  final interfaces = <DomainInterface>[];
+  final sharedInterfacesDir = Directory('lib/shared/interfaces');
+
+  if (!sharedInterfacesDir.existsSync()) return interfaces;
+
+  await for (final entity in sharedInterfacesDir.list(recursive: true)) {
+    if (entity is File && entity.path.endsWith('.dart')) {
+      final content = await entity.readAsString();
+      final interfaceNames = _extractAllInterfaceNames(content, entity.path);
+      for (final interfaceName in interfaceNames) {
+        interfaces.add(
+          DomainInterface(
+            name: interfaceName,
+            filePath: entity.path,
+            content: content,
+          ),
+        );
+      }
+    }
+  }
+
+  return interfaces;
+}
+
+Future<List<InfrastructureImplementation>> _findInfrastructureImplementations(
+  final String context,
+) async {
   final implementations = <InfrastructureImplementation>[];
   final adaptersDir = Directory('lib/$context/infrastructure/adapters');
 
@@ -656,7 +775,13 @@ Future<List<InfrastructureImplementation>> _findInfrastructureImplementations(fi
     if (entity is File && entity.path.endsWith('.dart')) {
       final content = await entity.readAsString();
       final className = _extractClassName(content);
-      implementations.add(InfrastructureImplementation(className: className, filePath: entity.path, content: content));
+      implementations.add(
+        InfrastructureImplementation(
+          className: className,
+          filePath: entity.path,
+          content: content,
+        ),
+      );
     }
   }
 
@@ -678,7 +803,10 @@ Future<List<File>> _findDomainFiles(final String context) async {
   return files;
 }
 
-List<String> _findInvalidDomainDependencies(final String content, final String context) {
+List<String> _findInvalidDomainDependencies(
+  final String content,
+  final String context,
+) {
   final violations = <String>[];
 
   // Check for imports that violate domain layer rules
@@ -692,7 +820,8 @@ List<String> _findInvalidDomainDependencies(final String content, final String c
     if (importPath.contains('/infrastructure/') ||
         importPath.contains('/presentation/') ||
         importPath.contains('/application/controllers/') ||
-        (_isOtherBoundedContext(importPath, context) && !importPath.contains('/domain/'))) {
+        (_isOtherBoundedContext(importPath, context) &&
+            !importPath.contains('/domain/'))) {
       violations.add(importPath);
     }
   }
@@ -700,12 +829,21 @@ List<String> _findInvalidDomainDependencies(final String content, final String c
   return violations;
 }
 
-bool _isOtherBoundedContext(final String importPath, final String currentContext) {
+bool _isOtherBoundedContext(
+  final String importPath,
+  final String currentContext,
+) {
   final boundedContexts = _findBoundedContexts();
-  return boundedContexts.any((final context) => context != currentContext && importPath.contains('/$context/'));
+  return boundedContexts.any(
+    (final context) =>
+        context != currentContext && importPath.contains('/$context/'),
+  );
 }
 
-Future<List<String>> _checkBoundedContextIsolation(final String context, final List<String> allContexts) async {
+Future<List<String>> _checkBoundedContextIsolation(
+  final String context,
+  final List<String> allContexts,
+) async {
   final violations = <String>[];
   final otherContexts = allContexts.where((final c) => c != context).toList();
 
@@ -713,17 +851,25 @@ Future<List<String>> _checkBoundedContextIsolation(final String context, final L
   final domainFiles = await _findDomainFiles(context);
   for (final file in domainFiles) {
     final content = await file.readAsString();
-    final crossContextImports = _findCrossContextImports(content, otherContexts);
+    final crossContextImports = _findCrossContextImports(
+      content,
+      otherContexts,
+    );
 
     for (final import in crossContextImports) {
-      violations.add('❌ ${_getRelativePath(file.path)}: Domain imports from other context: $import');
+      violations.add(
+        '❌ ${_getRelativePath(file.path)}: Domain imports from other context: $import',
+      );
     }
   }
 
   return violations;
 }
 
-List<String> _findCrossContextImports(final String content, final List<String> forbiddenContexts) {
+List<String> _findCrossContextImports(
+  final String content,
+  final List<String> forbiddenContexts,
+) {
   final violations = <String>[];
   final importPattern = RegExp(r'''import\s+['"]([^'"]+)['"]''');
   final imports = importPattern.allMatches(content);
@@ -757,7 +903,9 @@ Future<List<File>> _findApplicationServices(final String context) async {
   return services;
 }
 
-Future<ServiceResponsibilityAnalysis> _analyzeServiceResponsibility(final File serviceFile) async {
+Future<ServiceResponsibilityAnalysis> _analyzeServiceResponsibility(
+  final File serviceFile,
+) async {
   final content = await serviceFile.readAsString();
   final lines = content.split('\n');
   final methodCount = _countPublicMethods(content);
@@ -783,31 +931,45 @@ List<String> _detectResponsibilities(final String content) {
   final responsibilities = <String>[];
 
   // Domain-specific responsibility detection
-  if (content.contains('message') && (content.contains('send') || content.contains('receive'))) {
+  if (content.contains('message') &&
+      (content.contains('send') || content.contains('receive'))) {
     responsibilities.add('message-handling');
   }
-  if (content.contains('audio') || content.contains('tts') || content.contains('stt')) {
+  if (content.contains('audio') ||
+      content.contains('tts') ||
+      content.contains('stt')) {
     responsibilities.add('audio-processing');
   }
-  if (content.contains('backup') || content.contains('save') || content.contains('persistence')) {
+  if (content.contains('backup') ||
+      content.contains('save') ||
+      content.contains('persistence')) {
     responsibilities.add('data-persistence');
   }
-  if (content.contains('image') || content.contains('avatar') || content.contains('photo')) {
+  if (content.contains('image') ||
+      content.contains('avatar') ||
+      content.contains('photo')) {
     responsibilities.add('image-processing');
   }
-  if (content.contains('memory') || content.contains('timeline') || content.contains('history')) {
+  if (content.contains('memory') ||
+      content.contains('timeline') ||
+      content.contains('history')) {
     responsibilities.add('memory-management');
   }
   if (content.contains('validation') || content.contains('validate')) {
     responsibilities.add('validation');
   }
-  if (content.contains('queue') || content.contains('schedule') || content.contains('timer')) {
+  if (content.contains('queue') ||
+      content.contains('schedule') ||
+      content.contains('timer')) {
     responsibilities.add('scheduling');
   }
-  if (content.contains('call') && (content.contains('start') || content.contains('end'))) {
+  if (content.contains('call') &&
+      (content.contains('start') || content.contains('end'))) {
     responsibilities.add('call-management');
   }
-  if (content.contains('export') || content.contains('import') || content.contains('file')) {
+  if (content.contains('export') ||
+      content.contains('import') ||
+      content.contains('file')) {
     responsibilities.add('data-transfer');
   }
 
@@ -842,7 +1004,8 @@ Future<UseCaseAnalysis> _analyzeUseCaseDesign(final File useCaseFile) async {
 
 bool _hasInfrastructureDependencies(final String content) {
   return content.contains('/infrastructure/') ||
-      content.contains('import \'package:') && content.contains('infrastructure');
+      content.contains('import \'package:') &&
+          content.contains('infrastructure');
 }
 
 Future<List<String>> _findAllProjectFiles() async {
@@ -862,7 +1025,8 @@ Future<List<String>> _findAllProjectFiles() async {
 
 String _determineExpectedLayer(final String filePath, final String content) {
   // Intelligent layer detection based on content analysis
-  if (content.contains('abstract class') || content.contains('abstract interface')) {
+  if (content.contains('abstract class') ||
+      content.contains('abstract interface')) {
     return 'domain/interfaces';
   }
   if (content.contains('class') && content.contains('UseCase')) {
@@ -877,7 +1041,9 @@ String _determineExpectedLayer(final String filePath, final String content) {
   if (content.contains('implements') && filePath.contains('infrastructure')) {
     return 'infrastructure/adapters';
   }
-  if (content.contains('Widget') || content.contains('StatelessWidget') || content.contains('StatefulWidget')) {
+  if (content.contains('Widget') ||
+      content.contains('StatelessWidget') ||
+      content.contains('StatefulWidget')) {
     return 'presentation';
   }
 
@@ -886,11 +1052,22 @@ String _determineExpectedLayer(final String filePath, final String content) {
 
 String _determineActualLayer(final String filePath) {
   if (filePath.contains('/domain/interfaces/')) return 'domain/interfaces';
-  if (filePath.contains('/domain/models/') || filePath.contains('/domain/entities/')) return 'domain/models';
-  if (filePath.contains('/application/use_cases/')) return 'application/use_cases';
-  if (filePath.contains('/application/services/')) return 'application/services';
-  if (filePath.contains('/application/controllers/')) return 'application/controllers';
-  if (filePath.contains('/infrastructure/adapters/')) return 'infrastructure/adapters';
+  if (filePath.contains('/domain/models/') ||
+      filePath.contains('/domain/entities/')) {
+    return 'domain/models';
+  }
+  if (filePath.contains('/application/use_cases/')) {
+    return 'application/use_cases';
+  }
+  if (filePath.contains('/application/services/')) {
+    return 'application/services';
+  }
+  if (filePath.contains('/application/controllers/')) {
+    return 'application/controllers';
+  }
+  if (filePath.contains('/infrastructure/adapters/')) {
+    return 'infrastructure/adapters';
+  }
   if (filePath.contains('/presentation/')) return 'presentation';
 
   return 'unknown';
@@ -903,7 +1080,9 @@ Future<List<String>> _checkNamingConventions(final String context) async {
   final interfaces = await _findDomainInterfaces(context);
   for (final interface in interfaces) {
     if (!interface.name.startsWith('I') && !interface.name.endsWith('Port')) {
-      violations.add('❌ Interface naming: ${interface.name} should start with "I" or end with "Port"');
+      violations.add(
+        '❌ Interface naming: ${interface.name} should start with "I" or end with "Port"',
+      );
     }
   }
 
@@ -911,8 +1090,11 @@ Future<List<String>> _checkNamingConventions(final String context) async {
   final appServices = await _findApplicationServices(context);
   for (final service in appServices) {
     final className = _extractClassName(await service.readAsString());
-    if (!className.endsWith('ApplicationService') && !className.endsWith('Service')) {
-      violations.add('❌ Service naming: $className should end with "ApplicationService"');
+    if (!className.endsWith('ApplicationService') &&
+        !className.endsWith('Service')) {
+      violations.add(
+        '❌ Service naming: $className should end with "ApplicationService"',
+      );
     }
   }
 
@@ -934,7 +1116,10 @@ Future<List<File>> _findSharedFiles() async {
   return files;
 }
 
-bool _isAuenticlyCrossCuttingConcern(final String content, final String filePath) {
+bool _isAuenticlyCrossCuttingConcern(
+  final String content,
+  final String filePath,
+) {
   // Check if it's truly a cross-cutting concern
   final crossCuttingKeywords = [
     'logging',
@@ -962,22 +1147,37 @@ bool _isAuenticlyCrossCuttingConcern(final String content, final String filePath
   final lowerContent = content.toLowerCase();
   final lowerPath = filePath.toLowerCase();
 
-  return crossCuttingKeywords.any((final keyword) => lowerContent.contains(keyword) || lowerPath.contains(keyword));
+  return crossCuttingKeywords.any(
+    (final keyword) =>
+        lowerContent.contains(keyword) || lowerPath.contains(keyword),
+  );
 }
 
 // Additional helper functions
-bool _implementsInterface(final InfrastructureImplementation impl, final DomainInterface interface) {
+bool _implementsInterface(
+  final InfrastructureImplementation impl,
+  final DomainInterface interface,
+) {
   // Check for explicit implements/extends
-  final implementsPattern = RegExp(r'implements\s+[^{]*\b' + RegExp.escape(interface.name) + r'\b');
-  final extendsPattern = RegExp(r'extends\s+[^{]*\b' + RegExp.escape(interface.name) + r'\b');
+  final implementsPattern = RegExp(
+    r'implements\s+[^{]*\b' + RegExp.escape(interface.name) + r'\b',
+  );
+  final extendsPattern = RegExp(
+    r'extends\s+[^{]*\b' + RegExp.escape(interface.name) + r'\b',
+  );
 
-  if (implementsPattern.hasMatch(impl.content) || extendsPattern.hasMatch(impl.content)) {
+  if (implementsPattern.hasMatch(impl.content) ||
+      extendsPattern.hasMatch(impl.content)) {
     return true;
   }
 
   // Fallback: class name similarity (less strict)
-  final interfaceNameWithoutI = interface.name.startsWith('I') ? interface.name.substring(1) : interface.name;
-  return impl.className.toLowerCase().contains(interfaceNameWithoutI.toLowerCase());
+  final interfaceNameWithoutI = interface.name.startsWith('I')
+      ? interface.name.substring(1)
+      : interface.name;
+  return impl.className.toLowerCase().contains(
+    interfaceNameWithoutI.toLowerCase(),
+  );
 }
 
 List<String> _getImplementedInterfaces(final String content) {
@@ -987,12 +1187,24 @@ List<String> _getImplementedInterfaces(final String content) {
 
   final implementsMatch = implementsPattern.firstMatch(content);
   if (implementsMatch != null) {
-    interfaces.addAll(implementsMatch.group(1)!.split(',').map((final s) => s.trim()).where((final s) => s.isNotEmpty));
+    interfaces.addAll(
+      implementsMatch
+          .group(1)!
+          .split(',')
+          .map((final s) => s.trim())
+          .where((final s) => s.isNotEmpty),
+    );
   }
 
   final extendsMatch = extendsPattern.firstMatch(content);
   if (extendsMatch != null) {
-    interfaces.addAll(extendsMatch.group(1)!.split(',').map((final s) => s.trim()).where((final s) => s.isNotEmpty));
+    interfaces.addAll(
+      extendsMatch
+          .group(1)!
+          .split(',')
+          .map((final s) => s.trim())
+          .where((final s) => s.isNotEmpty),
+    );
   }
 
   return interfaces;
@@ -1008,10 +1220,16 @@ bool _shouldHaveInterface(final InfrastructureImplementation impl) {
       !className.contains('config');
 }
 
-List<String> _extractAllInterfaceNames(final String content, final String filePath) {
+List<String> _extractAllInterfaceNames(
+  final String content,
+  final String filePath,
+) {
   final interfaces = <String>[];
   // Handle modern Dart syntax: abstract interface class IName
-  final interfacePattern = RegExp(r'(?:abstract\s+)?(?:interface\s+)?class\s+(\w+)', multiLine: true);
+  final interfacePattern = RegExp(
+    r'(?:abstract\s+)?(?:interface\s+)?class\s+(\w+)',
+    multiLine: true,
+  );
   final matches = interfacePattern.allMatches(content);
 
   for (final match in matches) {
@@ -1054,12 +1272,17 @@ Future<bool> _hasWellDesignedApplicationServices(final String context) async {
 
 Future<bool> _hasProperInterfaceImplementations(final String context) async {
   final interfaces = await _findDomainInterfaces(context);
+  final coreInterfaces = await _findCoreInterfaces();
+  final sharedInterfaces = await _findSharedInterfaces();
+  final allInterfaces = [...interfaces, ...coreInterfaces, ...sharedInterfaces];
   final implementations = await _findInfrastructureImplementations(context);
 
-  if (interfaces.isEmpty) return true; // No interfaces required
+  if (allInterfaces.isEmpty) return true; // No interfaces required
 
-  return interfaces.every(
-    (final interface) => implementations.any((final impl) => _implementsInterface(impl, interface)),
+  return allInterfaces.every(
+    (final interface) => implementations.any(
+      (final impl) => _implementsInterface(impl, interface),
+    ),
   );
 }
 
@@ -1088,7 +1311,11 @@ class BoundedContextAnalysis {
 }
 
 class DomainInterface {
-  const DomainInterface({required this.name, required this.filePath, required this.content});
+  const DomainInterface({
+    required this.name,
+    required this.filePath,
+    required this.content,
+  });
 
   final String name;
   final String filePath;
@@ -1096,7 +1323,11 @@ class DomainInterface {
 }
 
 class InfrastructureImplementation {
-  const InfrastructureImplementation({required this.className, required this.filePath, required this.content});
+  const InfrastructureImplementation({
+    required this.className,
+    required this.filePath,
+    required this.content,
+  });
 
   final String className;
   final String filePath;
@@ -1118,21 +1349,31 @@ class ServiceResponsibilityAnalysis {
 }
 
 class UseCaseAnalysis {
-  const UseCaseAnalysis({required this.isTooBroad, required this.hasInfrastructureDependencies});
+  const UseCaseAnalysis({
+    required this.isTooBroad,
+    required this.hasInfrastructureDependencies,
+  });
 
   final bool isTooBroad;
   final bool hasInfrastructureDependencies;
 }
 
 class DuplicationAnalysis {
-  const DuplicationAnalysis({required this.significantDuplications, required this.minorDuplications});
+  const DuplicationAnalysis({
+    required this.significantDuplications,
+    required this.minorDuplications,
+  });
 
   final List<DuplicationViolation> significantDuplications;
   final List<DuplicationViolation> minorDuplications;
 }
 
 class DuplicationViolation {
-  const DuplicationViolation({required this.description, required this.severity, required this.filePaths});
+  const DuplicationViolation({
+    required this.description,
+    required this.severity,
+    required this.filePaths,
+  });
 
   final String description;
   final String severity;
@@ -1140,14 +1381,21 @@ class DuplicationViolation {
 }
 
 class CommonPatternAnalysis {
-  const CommonPatternAnalysis({required this.unabstractedPatterns, required this.wellAbstractedPatterns});
+  const CommonPatternAnalysis({
+    required this.unabstractedPatterns,
+    required this.wellAbstractedPatterns,
+  });
 
   final List<UnabstractedPattern> unabstractedPatterns;
   final List<String> wellAbstractedPatterns;
 }
 
 class UnabstractedPattern {
-  const UnabstractedPattern({required this.name, required this.occurrences, required this.locations});
+  const UnabstractedPattern({
+    required this.name,
+    required this.occurrences,
+    required this.locations,
+  });
 
   final String name;
   final int occurrences;
@@ -1155,14 +1403,21 @@ class UnabstractedPattern {
 }
 
 class UtilityUsageAnalysis {
-  const UtilityUsageAnalysis({required this.missedUtilizations, required this.wellUtilizedShared});
+  const UtilityUsageAnalysis({
+    required this.missedUtilizations,
+    required this.wellUtilizedShared,
+  });
 
   final List<MissedUtilization> missedUtilizations;
   final List<String> wellUtilizedShared;
 }
 
 class MissedUtilization {
-  const MissedUtilization({required this.filePath, required this.utilityName, required this.sharedUtilityPath});
+  const MissedUtilization({
+    required this.filePath,
+    required this.utilityName,
+    required this.sharedUtilityPath,
+  });
 
   final String filePath;
   final String utilityName;
@@ -1173,7 +1428,9 @@ class MissedUtilization {
 // DRY ANALYSIS HELPER FUNCTIONS
 // ===================================================================
 
-Future<DuplicationAnalysis> _analyzeDuplication(final List<String> files) async {
+Future<DuplicationAnalysis> _analyzeDuplication(
+  final List<String> files,
+) async {
   final significantDuplications = <DuplicationViolation>[];
   final minorDuplications = <DuplicationViolation>[];
 
@@ -1217,10 +1474,15 @@ Future<DuplicationAnalysis> _analyzeDuplication(final List<String> files) async 
   final constantDuplications = await _analyzeConstantDuplication(files);
   significantDuplications.addAll(constantDuplications);
 
-  return DuplicationAnalysis(significantDuplications: significantDuplications, minorDuplications: minorDuplications);
+  return DuplicationAnalysis(
+    significantDuplications: significantDuplications,
+    minorDuplications: minorDuplications,
+  );
 }
 
-Future<CommonPatternAnalysis> _analyzeCommonPatterns(final String context) async {
+Future<CommonPatternAnalysis> _analyzeCommonPatterns(
+  final String context,
+) async {
   final unabstractedPatterns = <UnabstractedPattern>[];
   final wellAbstractedPatterns = <String>[];
 
@@ -1239,7 +1501,13 @@ Future<CommonPatternAnalysis> _analyzeCommonPatterns(final String context) async
   final services = <ApplicationService>[];
   for (final file in serviceFiles) {
     final content = await file.readAsString();
-    services.add(ApplicationService(name: path.basenameWithoutExtension(file.path), path: file.path, content: content));
+    services.add(
+      ApplicationService(
+        name: path.basenameWithoutExtension(file.path),
+        path: file.path,
+        content: content,
+      ),
+    );
   }
   final errorPatterns = _analyzeErrorHandlingPatterns(services);
   unabstractedPatterns.addAll(errorPatterns);
@@ -1267,14 +1535,21 @@ Future<UtilityUsageAnalysis> _analyzeUtilityUsage() async {
       for (final util in sharedUtils) {
         if (_hasReimplementedUtility(content, util)) {
           missedUtilizations.add(
-            MissedUtilization(filePath: filePath, utilityName: util.name, sharedUtilityPath: util.path),
+            MissedUtilization(
+              filePath: filePath,
+              utilityName: util.name,
+              sharedUtilityPath: util.path,
+            ),
           );
         }
       }
     }
   }
 
-  return UtilityUsageAnalysis(missedUtilizations: missedUtilizations, wellUtilizedShared: wellUtilizedShared);
+  return UtilityUsageAnalysis(
+    missedUtilizations: missedUtilizations,
+    wellUtilizedShared: wellUtilizedShared,
+  );
 }
 
 List<String> _extractCodeBlocks(final String content, final String filePath) {
@@ -1323,7 +1598,9 @@ String _normalizeCodeBlock(final String code) {
       .toLowerCase();
 }
 
-Future<List<DuplicationViolation>> _analyzeConstantDuplication(final List<String> files) async {
+Future<List<DuplicationViolation>> _analyzeConstantDuplication(
+  final List<String> files,
+) async {
   final violations = <DuplicationViolation>[];
   final constants = <String, List<String>>{};
 
@@ -1343,7 +1620,8 @@ Future<List<DuplicationViolation>> _analyzeConstantDuplication(final List<String
       // More than 2 files have the same constant
       violations.add(
         DuplicationViolation(
-          description: 'Constant "${entry.key}" duplicated across ${entry.value.length} files - should be centralized',
+          description:
+              'Constant "${entry.key}" duplicated across ${entry.value.length} files - should be centralized',
           severity: 'significant',
           filePaths: entry.value,
         ),
@@ -1356,7 +1634,9 @@ Future<List<DuplicationViolation>> _analyzeConstantDuplication(final List<String
 
 List<String> _extractConstants(final String content) {
   final constants = <String>[];
-  final constPattern = RegExp(r'static\s+const\s+\w+\s*=\s*["\x27]([^"\x27]+)["\x27]');
+  final constPattern = RegExp(
+    r'static\s+const\s+\w+\s*=\s*["\x27]([^"\x27]+)["\x27]',
+  );
   final matches = constPattern.allMatches(content);
 
   for (final match in matches) {
@@ -1370,7 +1650,9 @@ List<String> _extractConstants(final String content) {
   return constants;
 }
 
-Future<List<RepositoryInfo>> _findRepositoryImplementations(final String context) async {
+Future<List<RepositoryInfo>> _findRepositoryImplementations(
+  final String context,
+) async {
   final repositories = <RepositoryInfo>[];
   final contextPath = path.join(Directory.current.path, 'lib', context);
 
@@ -1380,7 +1662,11 @@ Future<List<RepositoryInfo>> _findRepositoryImplementations(final String context
         final content = await entity.readAsString();
         if (content.contains('Repository') && content.contains('class')) {
           repositories.add(
-            RepositoryInfo(name: path.basenameWithoutExtension(entity.path), path: entity.path, content: content),
+            RepositoryInfo(
+              name: path.basenameWithoutExtension(entity.path),
+              path: entity.path,
+              content: content,
+            ),
           );
         }
       }
@@ -1390,7 +1676,9 @@ Future<List<RepositoryInfo>> _findRepositoryImplementations(final String context
   return repositories;
 }
 
-List<UnabstractedPattern> _analyzeRepositoryPatterns(final List<RepositoryInfo> repositories) {
+List<UnabstractedPattern> _analyzeRepositoryPatterns(
+  final List<RepositoryInfo> repositories,
+) {
   final patterns = <UnabstractedPattern>[];
   final crudMethods = <String, List<String>>{};
 
@@ -1446,7 +1734,11 @@ Future<List<ValidatorInfo>> _findValidators(final String context) async {
         final content = await entity.readAsString();
         if (content.contains('Validator') || content.contains('validate')) {
           validators.add(
-            ValidatorInfo(name: path.basenameWithoutExtension(entity.path), path: entity.path, content: content),
+            ValidatorInfo(
+              name: path.basenameWithoutExtension(entity.path),
+              path: entity.path,
+              content: content,
+            ),
           );
         }
       }
@@ -1456,7 +1748,9 @@ Future<List<ValidatorInfo>> _findValidators(final String context) async {
   return validators;
 }
 
-List<UnabstractedPattern> _analyzeValidationPatterns(final List<ValidatorInfo> validators) {
+List<UnabstractedPattern> _analyzeValidationPatterns(
+  final List<ValidatorInfo> validators,
+) {
   final patterns = <UnabstractedPattern>[];
   final validationLogic = <String, List<String>>{};
 
@@ -1470,7 +1764,11 @@ List<UnabstractedPattern> _analyzeValidationPatterns(final List<ValidatorInfo> v
   for (final entry in validationLogic.entries) {
     if (entry.value.length > 2) {
       patterns.add(
-        UnabstractedPattern(name: 'Validation logic pattern', occurrences: entry.value.length, locations: entry.value),
+        UnabstractedPattern(
+          name: 'Validation logic pattern',
+          occurrences: entry.value.length,
+          locations: entry.value,
+        ),
       );
     }
   }
@@ -1497,7 +1795,9 @@ List<String> _extractValidationLogic(final String content) {
   return logic.toSet().toList(); // Remove duplicates within same file
 }
 
-List<UnabstractedPattern> _analyzeErrorHandlingPatterns(final List<ApplicationService> services) {
+List<UnabstractedPattern> _analyzeErrorHandlingPatterns(
+  final List<ApplicationService> services,
+) {
   final patterns = <UnabstractedPattern>[];
   final errorHandling = <String, List<String>>{};
 
@@ -1511,7 +1811,11 @@ List<UnabstractedPattern> _analyzeErrorHandlingPatterns(final List<ApplicationSe
   for (final entry in errorHandling.entries) {
     if (entry.value.length > 2) {
       patterns.add(
-        UnabstractedPattern(name: 'Error handling pattern', occurrences: entry.value.length, locations: entry.value),
+        UnabstractedPattern(
+          name: 'Error handling pattern',
+          occurrences: entry.value.length,
+          locations: entry.value,
+        ),
       );
     }
   }
@@ -1549,7 +1853,9 @@ Future<List<SharedUtility>> _findSharedUtilities() async {
         final utilityFunctions = _extractUtilityFunctions(content);
 
         for (final funcName in utilityFunctions) {
-          utilities.add(SharedUtility(name: funcName, path: entity.path, content: content));
+          utilities.add(
+            SharedUtility(name: funcName, path: entity.path, content: content),
+          );
         }
       }
     }
@@ -1560,7 +1866,9 @@ Future<List<SharedUtility>> _findSharedUtilities() async {
 
 List<String> _extractUtilityFunctions(final String content) {
   final functions = <String>[];
-  final functionPattern = RegExp(r'(?:static\s+)?(?:\w+\s+)?(\w+)\s*\([^)]*\)\s*\{');
+  final functionPattern = RegExp(
+    r'(?:static\s+)?(?:\w+\s+)?(\w+)\s*\([^)]*\)\s*\{',
+  );
   final matches = functionPattern.allMatches(content);
 
   for (final match in matches) {
@@ -1581,7 +1889,10 @@ List<String> _extractUtilityFunctions(final String content) {
   return functions;
 }
 
-bool _hasReimplementedUtility(final String content, final SharedUtility utility) {
+bool _hasReimplementedUtility(
+  final String content,
+  final SharedUtility utility,
+) {
   // Ignore basic Dart keywords and common patterns
   final ignoredKeywords = {
     'if',
@@ -1615,7 +1926,8 @@ bool _hasReimplementedUtility(final String content, final SharedUtility utility)
   }
 
   // Only check for utilities that are actual function names (camelCase, not single words)
-  if (utility.name.length < 3 || !RegExp(r'^[a-z][a-zA-Z0-9]*[A-Z]').hasMatch(utility.name)) {
+  if (utility.name.length < 3 ||
+      !RegExp(r'^[a-z][a-zA-Z0-9]*[A-Z]').hasMatch(utility.name)) {
     return false;
   }
 
@@ -1625,35 +1937,52 @@ bool _hasReimplementedUtility(final String content, final SharedUtility utility)
   final importPattern = RegExp("import\\s+['\"].*shared.*['\"]");
 
   // Only flag if there's a function definition (not just usage) and no import
-  final hasDefinition = functionPattern.hasMatch(content) && content.contains('${utility.name}(');
+  final hasDefinition =
+      functionPattern.hasMatch(content) && content.contains('${utility.name}(');
   final hasImport = importPattern.hasMatch(content);
 
   return hasDefinition && !hasImport;
 } // Additional data classes for DRY analysis
 
 class RepositoryInfo {
-  const RepositoryInfo({required this.name, required this.path, required this.content});
+  const RepositoryInfo({
+    required this.name,
+    required this.path,
+    required this.content,
+  });
   final String name;
   final String path;
   final String content;
 }
 
 class ValidatorInfo {
-  const ValidatorInfo({required this.name, required this.path, required this.content});
+  const ValidatorInfo({
+    required this.name,
+    required this.path,
+    required this.content,
+  });
   final String name;
   final String path;
   final String content;
 }
 
 class SharedUtility {
-  const SharedUtility({required this.name, required this.path, required this.content});
+  const SharedUtility({
+    required this.name,
+    required this.path,
+    required this.content,
+  });
   final String name;
   final String path;
   final String content;
 }
 
 class ApplicationService {
-  const ApplicationService({required this.name, required this.path, required this.content});
+  const ApplicationService({
+    required this.name,
+    required this.path,
+    required this.content,
+  });
   final String name;
   final String path;
   final String content;

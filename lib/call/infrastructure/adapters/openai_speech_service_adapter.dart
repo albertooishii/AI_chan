@@ -1,5 +1,5 @@
 import 'package:ai_chan/call/domain/interfaces/i_speech_service.dart';
-import 'package:ai_chan/call/infrastructure/adapters/openai_speech_service.dart';
+import 'package:ai_chan/call/infrastructure/services/openai_speech_service.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:flutter/foundation.dart';
 
@@ -14,7 +14,9 @@ class OpenAISpeechServiceAdapter implements ISpeechService {
     try {
       // OpenAISpeechService parece ser principalmente para metadatos de voces
       // No tiene síntesis directa, retornamos vacío
-      debugPrint('[OpenAISpeechServiceAdapter] textToSpeech not implemented - use OpenAI TTS via other services');
+      debugPrint(
+        '[OpenAISpeechServiceAdapter] textToSpeech not implemented - use OpenAI TTS via other services',
+      );
       return Uint8List(0);
     } on Exception catch (e) {
       debugPrint('[OpenAISpeechServiceAdapter] textToSpeech error: $e');
@@ -25,8 +27,10 @@ class OpenAISpeechServiceAdapter implements ISpeechService {
   @override
   Future<List<String>> getAvailableVoices() async {
     try {
-      final voices = await OpenAISpeechService.fetchOpenAIVoices();
-      return voices.map((final voice) => voice['name'] as String? ?? 'unknown').toList();
+      final voices = await OpenAISpeechService.fetchOpenAIVoicesStatic();
+      return voices
+          .map((final voice) => voice['name'] as String? ?? 'unknown')
+          .toList();
     } on Exception catch (e) {
       debugPrint('[OpenAISpeechServiceAdapter] getAvailableVoices error: $e');
       return [];

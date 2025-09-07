@@ -33,11 +33,14 @@ void main() {
 
     expect(loaded, isNotNull);
     // profile may be nested under 'profile' or flattened at root
-    final profileMap = loaded!.containsKey('profile') && loaded['profile'] is Map
+    final profileMap =
+        loaded!.containsKey('profile') && loaded['profile'] is Map
         ? Map<String, dynamic>.from(loaded['profile'] as Map)
         : Map<String, dynamic>.from(loaded as Map);
     expect(profileMap['userName'], anyOf('Test', ''));
-    final messages = loaded.containsKey('messages') ? loaded['messages'] as List : <dynamic>[];
+    final messages = loaded.containsKey('messages')
+        ? loaded['messages'] as List
+        : <dynamic>[];
     expect(messages.length, 1);
   });
 
@@ -56,7 +59,8 @@ void main() {
     });
     final parsed = await repo.importAllFromJson(valid);
     expect(parsed, isNotNull);
-    final profileParsed = parsed!.containsKey('profile') && parsed['profile'] is Map
+    final profileParsed =
+        parsed!.containsKey('profile') && parsed['profile'] is Map
         ? Map<String, dynamic>.from(parsed['profile'] as Map)
         : Map<String, dynamic>.from(parsed as Map);
     expect(profileParsed['userName'], anyOf('X', ''));

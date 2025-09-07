@@ -3,8 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:ai_chan/shared/constants/openai_voices.dart';
 import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/core/interfaces/i_openai_speech_service.dart';
 
-class OpenAISpeechService {
+class OpenAISpeechService implements IOpenAISpeechService {
   static void _maybeDebugPrint(final String msg) {
     if (!kDebugMode) return;
     debugPrint('[OpenAI TTS] $msg');
@@ -20,7 +21,8 @@ class OpenAISpeechService {
   /// `https://api.openai.com/v1/audio/voices` y mapearla al formato esperado.
   /// Conserva `forceRefresh` para compatibilidad. Si `femaleOnly` es true,
   /// devuelve sólo las voces listadas en `kOpenAIFemaleVoices`.
-  static Future<List<Map<String, dynamic>>> fetchOpenAIVoices({
+  @override
+  Future<List<Map<String, dynamic>>> fetchOpenAIVoices({
     final bool forceRefresh = false,
     final bool femaleOnly = false,
   }) async {
@@ -134,5 +136,23 @@ class OpenAISpeechService {
     }
 
     return Future.value(all);
+  }
+
+  @override
+  Future<bool> isAvailable() async {
+    final apiKey = Config.getOpenAIKey();
+    return apiKey.isNotEmpty;
+  }
+
+  /// Versión estática de fetchOpenAIVoices
+  static Future<List<Map<String, dynamic>>> fetchOpenAIVoicesStatic({
+    final bool forceRefresh = false,
+    final bool femaleOnly = false,
+  }) async {
+    final service = OpenAISpeechService();
+    return service.fetchOpenAIVoices(
+      forceRefresh: forceRefresh,
+      femaleOnly: femaleOnly,
+    );
   }
 }

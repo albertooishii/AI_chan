@@ -32,7 +32,9 @@ class WebSocketRealtimeTransportService implements RealtimeTransportService {
       // Ejemplo: WebSocket.connect(options['url'])
 
       _isConnected = true;
-      debugPrint('[WebSocketRealtimeTransportService] Connected with options: $options');
+      debugPrint(
+        '[WebSocketRealtimeTransportService] Connected with options: $options',
+      );
 
       // Simular conexión exitosa después de un breve delay
       await Future.delayed(const Duration(milliseconds: 500));
@@ -65,13 +67,17 @@ class WebSocketRealtimeTransportService implements RealtimeTransportService {
   @override
   void sendEvent(final Map<String, dynamic> event) {
     if (!_isConnected) {
-      debugPrint('[WebSocketRealtimeTransportService] Cannot send event: not connected');
+      debugPrint(
+        '[WebSocketRealtimeTransportService] Cannot send event: not connected',
+      );
       return;
     }
 
     try {
       // TODO: Enviar evento via WebSocket
-      debugPrint('[WebSocketRealtimeTransportService] Sending event: ${event['type']}');
+      debugPrint(
+        '[WebSocketRealtimeTransportService] Sending event: ${event['type']}',
+      );
 
       // Simular respuesta del servidor después de enviar evento
       _simulateServerResponse(event);
@@ -84,7 +90,9 @@ class WebSocketRealtimeTransportService implements RealtimeTransportService {
   @override
   void appendAudio(final Uint8List bytes) {
     if (!_isConnected) {
-      debugPrint('[WebSocketRealtimeTransportService] Cannot append audio: not connected');
+      debugPrint(
+        '[WebSocketRealtimeTransportService] Cannot append audio: not connected',
+      );
       return;
     }
 
@@ -102,8 +110,13 @@ class WebSocketRealtimeTransportService implements RealtimeTransportService {
 
     try {
       // TODO: Enviar buffer de audio concatenado via WebSocket
-      final totalBytes = _audioBuffer.fold<int>(0, (final sum, final chunk) => sum + chunk.length);
-      debugPrint('[WebSocketRealtimeTransportService] Committing audio: $totalBytes bytes total');
+      final totalBytes = _audioBuffer.fold<int>(
+        0,
+        (final sum, final chunk) => sum + chunk.length,
+      );
+      debugPrint(
+        '[WebSocketRealtimeTransportService] Committing audio: $totalBytes bytes total',
+      );
 
       _audioBuffer.clear();
     } on Exception catch (e) {
@@ -118,16 +131,24 @@ class WebSocketRealtimeTransportService implements RealtimeTransportService {
     Timer(const Duration(milliseconds: 100), () {
       switch (event['type']) {
         case 'response.create':
-          onMessage?.call({'type': 'response.audio.delta', 'delta': 'simulated_audio_data'});
+          onMessage?.call({
+            'type': 'response.audio.delta',
+            'delta': 'simulated_audio_data',
+          });
           break;
         case 'input_audio_buffer.append':
           onMessage?.call({'type': 'input_audio_buffer.speech_started'});
           break;
         case 'conversation.item.create':
-          onMessage?.call({'type': 'conversation.item.created', 'item': event['item']});
+          onMessage?.call({
+            'type': 'conversation.item.created',
+            'item': event['item'],
+          });
           break;
         default:
-          debugPrint('[WebSocketRealtimeTransportService] Unknown event type: ${event['type']}');
+          debugPrint(
+            '[WebSocketRealtimeTransportService] Unknown event type: ${event['type']}',
+          );
       }
     });
   }

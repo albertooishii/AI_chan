@@ -2,7 +2,8 @@ import 'dart:io';
 
 import 'package:ai_chan/call/domain/interfaces/i_speech_service.dart';
 import 'package:ai_chan/shared/services/openai_service.dart';
-import 'package:ai_chan/shared/services/ai_runtime_provider.dart' as runtime_factory;
+import 'package:ai_chan/shared/services/ai_runtime_provider.dart'
+    as runtime_factory;
 import 'package:ai_chan/core/config.dart';
 import 'package:flutter/foundation.dart';
 
@@ -36,7 +37,10 @@ class OpenAISttAdapter implements ICallSttService {
   }
 
   @override
-  Future<String?> transcribeFile({required final String filePath, final Map<String, dynamic>? options}) async {
+  Future<String?> transcribeFile({
+    required final String filePath,
+    final Map<String, dynamic>? options,
+  }) async {
     return await transcribeAudio(filePath);
   }
 
@@ -45,7 +49,9 @@ class OpenAISttAdapter implements ICallSttService {
   Future<String> processAudio(final Uint8List audioData) async {
     try {
       // Crear archivo temporal para procesar audio
-      final tempFile = File('${Directory.systemTemp.path}/temp_openai_audio.wav');
+      final tempFile = File(
+        '${Directory.systemTemp.path}/temp_openai_audio.wav',
+      );
       await tempFile.writeAsBytes(audioData);
       final result = await transcribeAudio(tempFile.path);
       await tempFile.delete();

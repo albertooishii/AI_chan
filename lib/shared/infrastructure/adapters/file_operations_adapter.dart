@@ -41,7 +41,10 @@ class FileOperationsAdapter implements IFileOperationsService {
   }
 
   @override
-  Future<void> writeFileAsBytes(final String filePath, final List<int> bytes) async {
+  Future<void> writeFileAsBytes(
+    final String filePath,
+    final List<int> bytes,
+  ) async {
     try {
       final file = File(filePath);
       await createDirectories(path.dirname(filePath));
@@ -52,7 +55,10 @@ class FileOperationsAdapter implements IFileOperationsService {
   }
 
   @override
-  Future<void> writeFileAsString(final String filePath, final String content) async {
+  Future<void> writeFileAsString(
+    final String filePath,
+    final String content,
+  ) async {
     try {
       final file = File(filePath);
       await createDirectories(path.dirname(filePath));

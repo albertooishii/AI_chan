@@ -3,6 +3,9 @@
 // Models - use canonical version from core
 export 'package:ai_chan/core/models/ai_chan_profile.dart';
 
-// Interfaces - moved to core/interfaces/
+// Interfaces (Ports)
+export 'domain/interfaces/i_profile_service.dart';
+export 'domain/interfaces/i_profile_repository.dart';
 
-// Services (to be added later)
+// Services
+export 'domain/services/conversational_memory_domain_service.dart';

@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:ai_chan/shared/infrastructure/audio/audio_playback.dart';
+import 'package:ai_chan/shared/infrastructure/adapters/audio_playback.dart';
 
 class FakeAudioPlayer implements AudioPlayback {
   final _completeController = StreamController<void>.broadcast();

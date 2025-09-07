@@ -1,14 +1,9 @@
-// Domain Layer - Shared Bounded Context
-// Contains domain entities, value objects, and business rules used across multiple contexts
+// Shared Domain Layer Barrel Export
+
+// Interfaces (Ports)
+export 'domain/interfaces/i_file_service.dart';
+export 'domain/interfaces/i_file_operations_service.dart';
+export 'domain/interfaces/audio_playback_service.dart';
 
 // Enums
 export 'domain/shared_enums.dart';
-
-// Services (Domain Services)
-// Note: Domain services would be exported here once implemented
-
-// Value Objects
-// Note: Value objects would be exported here once implemented
-
-// Domain Events
-// Note: Domain events would be exported here once implemented

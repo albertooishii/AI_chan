@@ -13,5 +13,8 @@ abstract interface class IAudioPlaybackStrategyFactory {
   IAudioPlaybackStrategy getDefaultStrategy();
 
   /// Registra una nueva estrategia
-  void registerStrategy(final String provider, final IAudioPlaybackStrategy strategy);
+  void registerStrategy(
+    final String provider,
+    final IAudioPlaybackStrategy strategy,
+  );
 }

@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:ai_chan/call/domain/interfaces/i_speech_service.dart';
-import 'package:ai_chan/call/infrastructure/adapters/google_speech_service.dart';
+import 'package:ai_chan/call/infrastructure/services/google_speech_service.dart';
 import 'package:flutter/foundation.dart';
 
 /// Adapter that exposes GoogleSpeechService as ICallSttService
@@ -13,7 +13,7 @@ class GoogleSttAdapter implements ICallSttService {
     try {
       final f = File(path);
       if (!f.existsSync()) return null;
-      return await GoogleSpeechService.speechToTextFromFile(f);
+      return await GoogleSpeechService.speechToTextFromFileStatic(f);
     } on Exception catch (e) {
       debugPrint('[GoogleSttAdapter] transcribeAudio error: $e');
       return null;
@@ -27,7 +27,9 @@ class GoogleSttAdapter implements ICallSttService {
     try {
       final tempFile = File('${Directory.systemTemp.path}/temp_audio.wav');
       await tempFile.writeAsBytes(audioData);
-      final result = await GoogleSpeechService.speechToTextFromFile(tempFile);
+      final result = await GoogleSpeechService.speechToTextFromFileStatic(
+        tempFile,
+      );
       await tempFile.delete();
       return result ?? '';
     } on Exception catch (e) {
@@ -48,7 +50,10 @@ class GoogleSttAdapter implements ICallSttService {
   }
 
   @override
-  Future<String?> transcribeFile({required final String filePath, final Map<String, dynamic>? options}) async {
+  Future<String?> transcribeFile({
+    required final String filePath,
+    final Map<String, dynamic>? options,
+  }) async {
     return await transcribeAudio(filePath);
   }
 }

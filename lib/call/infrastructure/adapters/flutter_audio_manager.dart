@@ -6,7 +6,8 @@ import 'package:flutter/foundation.dart';
 /// Maneja el estado de audio en llamadas
 class FlutterAudioManager implements IAudioManager {
   bool _isMuted = false;
-  final StreamController<double> _audioLevelController = StreamController<double>.broadcast();
+  final StreamController<double> _audioLevelController =
+      StreamController<double>.broadcast();
 
   @override
   bool get isMuted => _isMuted;

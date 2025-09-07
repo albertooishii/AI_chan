@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'package:ai_chan/call/infrastructure/adapters/android_native_tts_service.dart';
-import 'package:ai_chan/call/infrastructure/adapters/google_speech_service.dart';
+import 'package:ai_chan/call/infrastructure/services/android_native_tts_service.dart';
+import 'package:ai_chan/call/infrastructure/services/google_speech_service.dart';
 import 'package:ai_chan/call/domain/interfaces/i_speech_service.dart';
 import 'package:flutter/foundation.dart';
 
@@ -9,7 +9,8 @@ import 'package:ai_chan/core/infrastructure/adapters/gemini_adapter.dart';
 // dotenv usage removed — use Config getters instead
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
-import 'package:ai_chan/shared/services/ai_runtime_provider.dart' as runtime_factory;
+import 'package:ai_chan/shared/services/ai_runtime_provider.dart'
+    as runtime_factory;
 import 'package:ai_chan/shared/constants/openai_voices.dart';
 
 /// Default TTS service that tries native -> Google -> OpenAI in that order.
@@ -21,18 +22,21 @@ class DefaultTtsService implements ICallTtsService {
     // Merge available voices from Android native (if any) and Google TTS.
     final List<Map<String, dynamic>> voices = [];
     try {
-      final native = await AndroidNativeTtsService.getAvailableVoices();
+      final native = await AndroidNativeTtsService.getAvailableVoicesStatic();
       voices.addAll(native);
     } on Exception catch (_) {}
     try {
-      final google = await GoogleSpeechService.fetchGoogleVoices();
+      final google = await GoogleSpeechService.fetchGoogleVoicesStatic();
       voices.addAll(google.cast<Map<String, dynamic>>());
     } on Exception catch (_) {}
     return voices;
   }
 
   @override
-  Future<String?> synthesizeToFile({required final String text, final Map<String, dynamic>? options}) async {
+  Future<String?> synthesizeToFile({
+    required final String text,
+    final Map<String, dynamic>? options,
+  }) async {
     var voice = options?['voice'] as String? ?? 'marin';
     final languageCode = options?['languageCode'] as String? ?? 'es-ES';
     final explicitProvider = options?['provider'] as String?;
@@ -49,11 +53,15 @@ class DefaultTtsService implements ICallTtsService {
 
     if (explicitProvider != null && explicitProvider.isNotEmpty) {
       provider = explicitProvider.toLowerCase();
-      debugPrint('[DefaultTTS] Using explicit provider from options: $provider for voice: $voice');
+      debugPrint(
+        '[DefaultTTS] Using explicit provider from options: $provider for voice: $voice',
+      );
     } else {
       try {
         provider = await PrefsUtils.getSelectedAudioProvider();
-        debugPrint('[DefaultTTS] Using configured provider: $provider for voice: $voice');
+        debugPrint(
+          '[DefaultTTS] Using configured provider: $provider for voice: $voice',
+        );
       } on Exception catch (_) {
         // Fallback to env config
         final env = Config.getAudioProvider().toLowerCase();
@@ -64,30 +72,38 @@ class DefaultTtsService implements ICallTtsService {
             : env.isNotEmpty
             ? env
             : 'google';
-        debugPrint('[DefaultTTS] Using env config provider: $provider for voice: $voice');
+        debugPrint(
+          '[DefaultTTS] Using env config provider: $provider for voice: $voice',
+        );
       }
     }
 
     // Handle auto-detection only if explicitly set to auto
     if (provider == 'auto' || provider.isEmpty) {
       provider = 'google'; // Default fallback
-      debugPrint('[DefaultTTS] Auto-detection defaulting to: $provider for voice: $voice');
+      debugPrint(
+        '[DefaultTTS] Auto-detection defaulting to: $provider for voice: $voice',
+      );
     }
 
     debugPrint('[DefaultTTS] Using provider: $provider for voice: $voice');
 
     // 1) Try Android native TTS when available (mobile-first behaviour kept) - ONLY for non-OpenAI and non-Google Cloud voices
     if (provider != 'openai' && provider != 'google') {
-      debugPrint('[DefaultTTS] Trying Android native TTS for non-OpenAI/non-Google voice: $voice');
+      debugPrint(
+        '[DefaultTTS] Trying Android native TTS for non-OpenAI/non-Google voice: $voice',
+      );
       try {
         if (AndroidNativeTtsService.isAndroid) {
-          final isNativeAvailable = await AndroidNativeTtsService.isNativeTtsAvailable();
+          final isNativeAvailable =
+              await AndroidNativeTtsService.checkNativeTtsAvailable();
           if (isNativeAvailable) {
             try {
               final baseTmp = Directory('${Directory.systemTemp.path}/ai_chan');
               if (!baseTmp.existsSync()) baseTmp.createSync(recursive: true);
-              final outputPath = '${baseTmp.path}/ai_chan_tts_${DateTime.now().millisecondsSinceEpoch}.mp3';
-              final res = await AndroidNativeTtsService.synthesizeToFile(
+              final outputPath =
+                  '${baseTmp.path}/ai_chan_tts_${DateTime.now().millisecondsSinceEpoch}.mp3';
+              final res = await AndroidNativeTtsService.synthesizeToFileStatic(
                 text: text,
                 outputPath: outputPath,
                 voiceName: voice,
@@ -106,9 +122,13 @@ class DefaultTtsService implements ICallTtsService {
         debugPrint('[DefaultTTS] Android native TTS exception: $e');
       }
     } else if (provider == 'openai') {
-      debugPrint('[DefaultTTS] Skipping Android native TTS for OpenAI voice: $voice');
+      debugPrint(
+        '[DefaultTTS] Skipping Android native TTS for OpenAI voice: $voice',
+      );
     } else if (provider == 'google') {
-      debugPrint('[DefaultTTS] Skipping Android native TTS for Google Cloud voice: $voice');
+      debugPrint(
+        '[DefaultTTS] Skipping Android native TTS for Google Cloud voice: $voice',
+      );
     }
 
     // 2) Try Google TTS when configured or selected.
@@ -122,16 +142,20 @@ class DefaultTtsService implements ICallTtsService {
       if (voice.trim().isEmpty || kOpenAIVoices.contains(voice)) {
         final googleDefault = Config.getGoogleVoice();
         if (googleDefault.isNotEmpty) {
-          debugPrint('[DefaultTTS] Mapping voice "$voice" -> Google default voice: $googleDefault');
+          debugPrint(
+            '[DefaultTTS] Mapping voice "$voice" -> Google default voice: $googleDefault',
+          );
           voice = googleDefault;
         } else {
-          debugPrint('[DefaultTTS] No GOOGLE_VOICE_NAME defined in env to map voice "$voice" for provider google');
+          debugPrint(
+            '[DefaultTTS] No GOOGLE_VOICE_NAME defined in env to map voice "$voice" for provider google',
+          );
         }
       }
 
       try {
-        if (GoogleSpeechService.isConfigured) {
-          final file = await GoogleSpeechService.textToSpeechFile(
+        if (GoogleSpeechService.isConfiguredStatic) {
+          final file = await GoogleSpeechService.textToSpeechFileStatic(
             text: text,
             voiceName: voice,
             languageCode: languageCode,
@@ -159,12 +183,20 @@ class DefaultTtsService implements ICallTtsService {
 
     // 2.5) Direct OpenAI handling for OpenAI voices
     if (provider == 'openai') {
-      debugPrint('[DefaultTTS] Trying direct OpenAI handling for voice: $voice');
+      debugPrint(
+        '[DefaultTTS] Trying direct OpenAI handling for voice: $voice',
+      );
       try {
         // Use OpenAI adapter directly with gpt model
-        final runtime = runtime_factory.getRuntimeAIServiceForModel('gpt-4o-mini');
+        final runtime = runtime_factory.getRuntimeAIServiceForModel(
+          'gpt-4o-mini',
+        );
         final adapter = OpenAIAdapter(modelId: 'gpt-4o-mini', runtime: runtime);
-        final path = await adapter.textToSpeech(text, voice: voice, options: options);
+        final path = await adapter.textToSpeech(
+          text,
+          voice: voice,
+          options: options,
+        );
         if (path != null) {
           debugPrint('[DefaultTTS] Direct OpenAI success: $path');
           return path;
@@ -184,8 +216,12 @@ class DefaultTtsService implements ICallTtsService {
       final String modelToUse = defaultModel.isNotEmpty
           ? defaultModel
           : (provider == 'openai'
-                ? (Config.getDefaultTextModel().isNotEmpty ? Config.getDefaultTextModel() : 'gpt-4.1-mini')
-                : (Config.getDefaultTextModel().isNotEmpty ? Config.getDefaultTextModel() : 'gemini-2.5-flash'));
+                ? (Config.getDefaultTextModel().isNotEmpty
+                      ? Config.getDefaultTextModel()
+                      : 'gpt-4.1-mini')
+                : (Config.getDefaultTextModel().isNotEmpty
+                      ? Config.getDefaultTextModel()
+                      : 'gemini-2.5-flash'));
 
       debugPrint(
         '[DefaultTTS] Fallback to runtime adapter - provider: $provider, voice: $voice, modelToUse: $modelToUse',
@@ -196,7 +232,11 @@ class DefaultTtsService implements ICallTtsService {
       if (modelToUse.startsWith('gpt-')) {
         debugPrint('[DefaultTTS] Using OpenAIAdapter for model: $modelToUse');
         final adapter = OpenAIAdapter(modelId: modelToUse, runtime: runtime);
-        final path = await adapter.textToSpeech(text, voice: voice, options: options);
+        final path = await adapter.textToSpeech(
+          text,
+          voice: voice,
+          options: options,
+        );
         if (path != null) {
           debugPrint('[DefaultTTS] OpenAIAdapter success: $path');
           return path;
@@ -206,7 +246,11 @@ class DefaultTtsService implements ICallTtsService {
       } else {
         debugPrint('[DefaultTTS] Using GeminiAdapter for model: $modelToUse');
         final adapter = GeminiAdapter(modelId: modelToUse, runtime: runtime);
-        final path = await adapter.textToSpeech(text, voice: voice, options: options);
+        final path = await adapter.textToSpeech(
+          text,
+          voice: voice,
+          options: options,
+        );
         if (path != null) {
           debugPrint('[DefaultTTS] GeminiAdapter success: $path');
           return path;

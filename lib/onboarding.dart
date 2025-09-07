@@ -1,3 +1,13 @@
 // Onboarding Bounded Context Barrel Export
 
-export 'onboarding/onboarding.dart';
+// Domain Layer
+export 'onboarding/domain.dart';
+
+// Infrastructure Layer
+export 'onboarding/infrastructure.dart';
+
+// Application Layer
+export 'onboarding/application.dart';
+
+// Presentation Layer
+export 'onboarding/presentation.dart';

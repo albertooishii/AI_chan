@@ -47,7 +47,10 @@ class AndroidNativeSttAdapter implements ICallSttService {
   }
 
   @override
-  Future<String?> transcribeFile({required final String filePath, final Map<String, dynamic>? options}) async {
+  Future<String?> transcribeFile({
+    required final String filePath,
+    final Map<String, dynamic>? options,
+  }) async {
     return await transcribeAudio(filePath);
   }
 
@@ -56,7 +59,9 @@ class AndroidNativeSttAdapter implements ICallSttService {
   Future<String> processAudio(final Uint8List audioData) async {
     try {
       // Para reconocimiento nativo, crear archivo temporal
-      final tempFile = File('${Directory.systemTemp.path}/temp_native_audio.wav');
+      final tempFile = File(
+        '${Directory.systemTemp.path}/temp_native_audio.wav',
+      );
       await tempFile.writeAsBytes(audioData);
       final result = await transcribeAudio(tempFile.path);
       await tempFile.delete();

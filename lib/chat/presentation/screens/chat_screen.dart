@@ -1,7 +1,6 @@
 import 'package:ai_chan/chat/application/utils/avatar_persist_utils.dart';
 import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro completado
 import 'package:ai_chan/core/config.dart';
-import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'package:flutter/material.dart';
 import 'dart:io';
@@ -15,7 +14,6 @@ import 'package:ai_chan/core/models.dart';
 import 'gallery_screen.dart';
 import 'package:ai_chan/shared.dart'; // Using centralized shared exports
 import 'package:ai_chan/shared/utils/model_utils.dart';
-import 'package:ai_chan/shared/widgets/app_dialog.dart';
 import 'package:ai_chan/shared/widgets/animated_indicators.dart';
 import '../widgets/tts_configuration_dialog.dart';
 import 'package:ai_chan/main.dart';
@@ -25,7 +23,6 @@ import 'package:ai_chan/shared/widgets/local_backup_dialog.dart';
 import 'package:ai_chan/shared/widgets/backup_diagnostics_dialog.dart';
 import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
 import 'package:ai_chan/core/di.dart' as di;
-import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 import 'dart:typed_data';
 
 class ChatScreen extends StatefulWidget {

@@ -1,25 +1,28 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'package:ai_chan/call/domain/interfaces/i_vad_service.dart';
 
 /// Simple energy-based VAD (Voice Activity Detector).
 /// - Feed PCM16LE mono chunks via [feed].
 /// - Emits onSpeechStart/onSpeechEnd callbacks.
-class VadService {
+class VadService implements IVadService {
   VadService({
     this.onSpeechStart,
     this.onSpeechEnd,
     this.thresholdRms = 0.02,
     this.silenceMs = 220,
   });
-  final void Function()? onSpeechStart;
-  final void Function()? onSpeechEnd;
-  final double thresholdRms; // e.g. 0.02
-  final int silenceMs; // ms to consider end of speech
+
+  void Function()? onSpeechStart;
+  void Function()? onSpeechEnd;
+  double thresholdRms; // e.g. 0.02
+  int silenceMs; // ms to consider end of speech
 
   bool _inSpeech = false;
   Timer? _endTimer;
 
   /// Feed raw PCM16LE bytes (mono). Computes RMS over the chunk and updates state.
+  @override
   void feed(final Uint8List pcm16Bytes) {
     if (pcm16Bytes.isEmpty) return;
     final len = pcm16Bytes.length & ~1;
@@ -68,8 +71,29 @@ class VadService {
     }
   }
 
+  @override
+  void setCallbacks({
+    final void Function()? onSpeechStart,
+    final void Function()? onSpeechEnd,
+  }) {
+    this.onSpeechStart = onSpeechStart;
+    this.onSpeechEnd = onSpeechEnd;
+  }
+
+  @override
+  void configure({final double? thresholdRms, final int? silenceMs}) {
+    if (thresholdRms != null) this.thresholdRms = thresholdRms;
+    if (silenceMs != null) this.silenceMs = silenceMs;
+  }
+
+  @override
   void dispose() {
     _endTimer?.cancel();
     _endTimer = null;
+  }
+
+  @override
+  Future<bool> isAvailable() async {
+    return true; // VAD is always available as it's a simple algorithm
   }
 }

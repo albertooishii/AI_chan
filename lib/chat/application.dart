@@ -5,6 +5,7 @@ export 'application/use_cases.dart';
 
 // Application Services
 export 'application/services/tts_service.dart';
+export 'application/services/tts_voice_service.dart';
 export 'application/services/message_queue_manager.dart';
 // Application layer barrel file
 export 'application/controllers/chat_controller.dart';

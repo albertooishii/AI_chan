@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:ai_chan/core/di.dart' as di;
-import 'package:ai_chan/shared/infrastructure/audio/audio_playback.dart';
+import 'package:ai_chan/shared/infrastructure/adapters/audio_playback.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/audio_duration_utils.dart';
 

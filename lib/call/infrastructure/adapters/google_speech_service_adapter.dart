@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import 'package:ai_chan/call/domain/interfaces/i_speech_service.dart';
-import 'package:ai_chan/call/infrastructure/adapters/google_speech_service.dart';
+import 'package:ai_chan/call/infrastructure/services/google_speech_service.dart';
 
 /// Adaptador que implementa ISpeechService usando GoogleSpeechService
 class GoogleSpeechServiceAdapter implements ISpeechService {
@@ -10,7 +10,7 @@ class GoogleSpeechServiceAdapter implements ISpeechService {
     final String voice = 'default',
     final double speed = 1.0,
   }) async {
-    final result = await GoogleSpeechService.textToSpeech(
+    final result = await GoogleSpeechService.textToSpeechStatic(
       text: text,
       voiceName: voice == 'default' ? 'es-ES-Wavenet-F' : voice,
       speakingRate: speed,
@@ -35,6 +35,6 @@ class GoogleSpeechServiceAdapter implements ISpeechService {
 
   @override
   Future<bool> isAvailable() async {
-    return GoogleSpeechService.apiKey.isNotEmpty;
+    return GoogleSpeechService.isConfiguredStatic;
   }
 }

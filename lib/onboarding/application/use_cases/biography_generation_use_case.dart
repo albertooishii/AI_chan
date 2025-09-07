@@ -1,6 +1,6 @@
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/core/interfaces/i_profile_service.dart';
-import 'package:ai_chan/core/di.dart' as di;
+import 'package:ai_chan/onboarding/domain/interfaces/i_profile_service.dart';
+import 'package:ai_chan/core/di.dart' as core_di;
 import 'package:ai_chan/core/services/ia_appearance_generator.dart';
 import 'package:ai_chan/core/services/ia_avatar_generator.dart';
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
@@ -16,7 +16,8 @@ class BiographyGenerationUseCase {
     final IProfileService? profileService,
     final IAAppearanceGenerator? appearanceGenerator,
     final IAAvatarGenerator? avatarGenerator,
-  }) : _profileService = profileService ?? di.getProfileServiceForProvider(),
+  }) : _profileService =
+           profileService ?? core_di.getProfileServiceForProvider(),
        _appearanceGenerator = appearanceGenerator ?? IAAppearanceGenerator(),
        _avatarGenerator = avatarGenerator ?? IAAvatarGenerator();
   final IProfileService _profileService;

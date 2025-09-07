@@ -1,5 +1,5 @@
 import 'package:ai_chan/call/domain/interfaces/i_speech_service.dart';
-import 'package:ai_chan/call/infrastructure/adapters/google_speech_service.dart';
+import 'package:ai_chan/call/infrastructure/services/google_speech_service.dart';
 import 'package:flutter/foundation.dart';
 
 class GoogleTtsAdapter implements ICallTtsService {
@@ -8,7 +8,7 @@ class GoogleTtsAdapter implements ICallTtsService {
   @override
   Future<List<Map<String, dynamic>>> getAvailableVoices() async {
     try {
-      return await GoogleSpeechService.fetchGoogleVoices();
+      return await GoogleSpeechService.fetchGoogleVoicesStatic();
     } on Exception catch (e) {
       debugPrint('[GoogleTtsAdapter] getAvailableVoices error: $e');
       return [];
@@ -16,20 +16,26 @@ class GoogleTtsAdapter implements ICallTtsService {
   }
 
   @override
-  Future<String?> synthesizeToFile({required final String text, final Map<String, dynamic>? options}) async {
+  Future<String?> synthesizeToFile({
+    required final String text,
+    final Map<String, dynamic>? options,
+  }) async {
     try {
       final languageCode = options?['languageCode'] as String? ?? 'es-ES';
-      final voice = options?['voice'] as String? ?? GoogleSpeechService.getVoiceConfig()['voiceName'];
+      final voice =
+          options?['voice'] as String? ??
+          GoogleSpeechService.getVoiceConfigStatic()['voiceName'];
       final audioEncoding = options?['audioEncoding'] as String? ?? 'MP3';
       final sampleRateHertz = options?['sampleRateHertz'] as int? ?? 24000;
       var noCache = options?['noCache'] as bool? ?? false;
       // If the caller requests LINEAR16 / wav, avoid caching by default for realtime
       final fmt = (options?['format'] as String?) ?? audioEncoding;
-      if (audioEncoding.toLowerCase().contains('linear16') || fmt.toString().toLowerCase().contains('wav')) {
+      if (audioEncoding.toLowerCase().contains('linear16') ||
+          fmt.toString().toLowerCase().contains('wav')) {
         noCache = true;
       }
 
-      final file = await GoogleSpeechService.textToSpeechFile(
+      final file = await GoogleSpeechService.textToSpeechFileStatic(
         text: text,
         voiceName: voice,
         languageCode: languageCode,
@@ -52,7 +58,7 @@ class GoogleTtsAdapter implements ICallTtsService {
     final double speed = 1.0,
   }) async {
     try {
-      final result = await GoogleSpeechService.textToSpeech(
+      final result = await GoogleSpeechService.textToSpeechStatic(
         text: text,
         voiceName: voice == 'default' ? 'es-ES-Wavenet-F' : voice,
         speakingRate: speed,
@@ -71,6 +77,6 @@ class GoogleTtsAdapter implements ICallTtsService {
 
   @override
   Future<bool> isAvailable() async {
-    return GoogleSpeechService.apiKey.isNotEmpty;
+    return GoogleSpeechService.isConfiguredStatic;
   }
 }

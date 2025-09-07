@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
-import 'package:ai_chan/call/infrastructure/clients/openai_realtime_call_client.dart';
+import 'package:ai_chan/call/infrastructure/adapters/openai_realtime_call_client.dart';
 
 /// A small controllable fake that calls the provided callbacks so the
 /// OpenAIRealtimeCallClient can be tested without networking.

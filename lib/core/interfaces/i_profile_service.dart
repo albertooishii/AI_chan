@@ -1,6 +1,7 @@
 import 'package:ai_chan/core/models.dart';
 
-abstract class IProfileService {
+/// Interfaz para servicios de perfil específica del dominio core
+abstract interface class IProfileService {
   Future<AiChanProfile> generateBiography({
     required final String userName,
     required final String aiName,

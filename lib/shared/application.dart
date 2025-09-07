@@ -5,7 +5,10 @@
 // Note: Shared controllers would be exported here once implemented
 
 // Services
-// Note: Application services would be exported here once implemented
+export 'application/services/file_ui_service.dart';
+export 'application/services/event_timeline_service.dart';
+export 'application/services/promise_service.dart';
+export 'application/services/audio_subtitle_application_service.dart';
 
 // Utilities
 export 'utils.dart';

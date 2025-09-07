@@ -9,12 +9,14 @@ import 'package:ai_chan/shared/utils.dart';
 import 'package:ai_chan/shared/utils/audio_conversion.dart';
 import 'package:ai_chan/shared/constants/openai_voices.dart';
 import 'dart:async';
+import 'package:ai_chan/call/domain/interfaces/i_google_speech_service.dart';
 
 // During tests we want to avoid noisy debug printing that looks like errors in CI logs.
 bool _isFlutterTestRuntime() {
   try {
     // Flutter's test runner sets FLUTTER_TEST in the environment for test runs.
-    return Platform.environment.containsKey('FLUTTER_TEST') || Platform.environment['FLUTTER_TEST'] == 'true';
+    return Platform.environment.containsKey('FLUTTER_TEST') ||
+        Platform.environment['FLUTTER_TEST'] == 'true';
   } on Exception catch (_) {
     return false;
   }
@@ -24,14 +26,18 @@ void _maybeDebugPrint(final String message) {
   if (!_isFlutterTestRuntime()) debugPrint(message);
 }
 
-class GoogleSpeechService {
+class GoogleSpeechService implements IGoogleSpeechService {
   static String get _apiKey => Config.get('GOOGLE_CLOUD_API_KEY', '').trim();
 
   // Getter público para verificar disponibilidad
   static String get apiKey => _apiKey;
 
+  /// Verifica si el servicio está configurado correctamente (versión estática)
+  static bool get isConfiguredStatic => _apiKey.isNotEmpty;
+
   /// Convierte texto a voz usando Google Cloud Text-to-Speech con caché
-  static Future<Uint8List?> textToSpeech({
+  @override
+  Future<Uint8List?> textToSpeech({
     required final String text,
     final String languageCode = 'es-ES',
     String voiceName = 'es-ES-Wavenet-F', // Voz femenina neural
@@ -47,7 +53,9 @@ class GoogleSpeechService {
     );
 
     if (_apiKey.isEmpty) {
-      _maybeDebugPrint('[GoogleTTS] Error: GOOGLE_CLOUD_API_KEY no configurada');
+      _maybeDebugPrint(
+        '[GoogleTTS] Error: GOOGLE_CLOUD_API_KEY no configurada',
+      );
       return null;
     }
 
@@ -63,7 +71,9 @@ class GoogleSpeechService {
       if (voiceName.trim().isEmpty || kOpenAIVoices.contains(voiceName)) {
         final googleDefault = Config.getGoogleVoice();
         if (googleDefault.isNotEmpty) {
-          _maybeDebugPrint('[GoogleTTS] Normalizing voiceName "$voiceName" -> Google default: $googleDefault');
+          _maybeDebugPrint(
+            '[GoogleTTS] Normalizing voiceName "$voiceName" -> Google default: $googleDefault',
+          );
           voiceName = googleDefault;
         }
       }
@@ -95,20 +105,30 @@ class GoogleSpeechService {
           return await cachedFile.readAsBytes();
         }
       } on Exception catch (e) {
-        _maybeDebugPrint('[GoogleTTS] Error leyendo caché, continuando con API: $e');
+        _maybeDebugPrint(
+          '[GoogleTTS] Error leyendo caché, continuando con API: $e',
+        );
       }
     }
 
-    final url = Uri.parse('https://texttospeech.googleapis.com/v1/text:synthesize?key=$_apiKey');
+    final url = Uri.parse(
+      'https://texttospeech.googleapis.com/v1/text:synthesize?key=$_apiKey',
+    );
 
     final requestBody = {
       'input': {'text': text.trim()},
       'voice': {'languageCode': languageCode, 'name': voiceName},
-      'audioConfig': {'audioEncoding': audioEncoding, 'speakingRate': speakingRate, 'pitch': pitch},
+      'audioConfig': {
+        'audioEncoding': audioEncoding,
+        'speakingRate': speakingRate,
+        'pitch': pitch,
+      },
     };
 
     try {
-      _maybeDebugPrint('[GoogleTTS] Sintetizando: "${text.length > 100 ? '${text.substring(0, 100)}...' : text}"');
+      _maybeDebugPrint(
+        '[GoogleTTS] Sintetizando: "${text.length > 100 ? '${text.substring(0, 100)}...' : text}"',
+      );
 
       final response = await http.post(
         url,
@@ -122,15 +142,23 @@ class GoogleSpeechService {
 
         if (audioContent != null) {
           final audioData = base64Decode(audioContent);
-          _maybeDebugPrint('[GoogleTTS] Audio generado exitosamente: ${audioData.length} bytes');
+          _maybeDebugPrint(
+            '[GoogleTTS] Audio generado exitosamente: ${audioData.length} bytes',
+          );
 
           // If the user prefers m4a, attempt to convert the received bytes to m4a
           // using ffmpeg. Fallback to original bytes on any error.
           if (preferredFmt == 'm4a') {
             try {
-              final converted = await AudioConversion.convertBytesToPreferredCompressed(audioData, 'm4a');
+              final converted =
+                  await AudioConversion.convertBytesToPreferredCompressed(
+                    audioData,
+                    'm4a',
+                  );
               if (converted != null && converted.isNotEmpty) {
-                _maybeDebugPrint('[GoogleTTS] Converted TTS bytes to m4a (size=${converted.length} bytes)');
+                _maybeDebugPrint(
+                  '[GoogleTTS] Converted TTS bytes to m4a (size=${converted.length} bytes)',
+                );
                 final audioDataConverted = converted;
                 if (useCache && !noCache) {
                   try {
@@ -144,13 +172,17 @@ class GoogleSpeechService {
                       extension: 'm4a',
                     );
                   } on Exception catch (e) {
-                    _maybeDebugPrint('[GoogleTTS] Warning: Error guardando en caché (m4a): $e');
+                    _maybeDebugPrint(
+                      '[GoogleTTS] Warning: Error guardando en caché (m4a): $e',
+                    );
                   }
                 }
                 return audioDataConverted;
               }
             } on Exception catch (e) {
-              _maybeDebugPrint('[GoogleTTS] Warning: failed converting TTS bytes to m4a: $e');
+              _maybeDebugPrint(
+                '[GoogleTTS] Warning: failed converting TTS bytes to m4a: $e',
+              );
             }
           }
 
@@ -167,16 +199,22 @@ class GoogleSpeechService {
                 extension: ext,
               );
             } on Exception catch (e) {
-              _maybeDebugPrint('[GoogleTTS] Warning: Error guardando en caché: $e');
+              _maybeDebugPrint(
+                '[GoogleTTS] Warning: Error guardando en caché: $e',
+              );
             }
           }
 
           return audioData;
         } else {
-          _maybeDebugPrint('[GoogleTTS] Error: respuesta sin contenido de audio');
+          _maybeDebugPrint(
+            '[GoogleTTS] Error: respuesta sin contenido de audio',
+          );
         }
       } else {
-        _maybeDebugPrint('[GoogleTTS] Error ${response.statusCode}: ${response.body}');
+        _maybeDebugPrint(
+          '[GoogleTTS] Error ${response.statusCode}: ${response.body}',
+        );
       }
     } on Exception catch (e) {
       _maybeDebugPrint('[GoogleTTS] Exception: $e');
@@ -186,7 +224,8 @@ class GoogleSpeechService {
   }
 
   /// Convierte texto a voz y guarda como archivo
-  static Future<File?> textToSpeechFile({
+  @override
+  Future<File?> textToSpeechFile({
     required final String text,
     final String? customFileName,
     final String languageCode = 'es-ES',
@@ -204,7 +243,9 @@ class GoogleSpeechService {
       if (voiceName.trim().isEmpty || kOpenAIVoices.contains(voiceName)) {
         final googleDefault = Config.getGoogleVoice();
         if (googleDefault.isNotEmpty) {
-          _maybeDebugPrint('[GoogleTTS] Normalizing voiceName in file flow "$voiceName" -> $googleDefault');
+          _maybeDebugPrint(
+            '[GoogleTTS] Normalizing voiceName in file flow "$voiceName" -> $googleDefault',
+          );
           voiceName = googleDefault;
         }
       }
@@ -221,14 +262,20 @@ class GoogleSpeechService {
           languageCode: languageCode,
           speakingRate: speakingRate,
           pitch: pitch,
-          extension: audioEncoding.toLowerCase().contains('wav') ? 'wav' : 'mp3',
+          extension: audioEncoding.toLowerCase().contains('wav')
+              ? 'wav'
+              : 'mp3',
         );
         if (cachedFile != null) {
-          _maybeDebugPrint('[GoogleTTS] Returning cached file path directly: ${cachedFile.path}');
+          _maybeDebugPrint(
+            '[GoogleTTS] Returning cached file path directly: ${cachedFile.path}',
+          );
           return cachedFile;
         }
       } on Exception catch (e) {
-        _maybeDebugPrint('[GoogleTTS] Error checking cache before file creation: $e');
+        _maybeDebugPrint(
+          '[GoogleTTS] Error checking cache before file creation: $e',
+        );
       }
     }
 
@@ -261,7 +308,9 @@ class GoogleSpeechService {
       } else if (fmt.contains('mp3')) {
         ext = 'mp3';
       }
-      final fileName = customFileName ?? 'google_tts_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final fileName =
+          customFileName ??
+          'google_tts_${DateTime.now().millisecondsSinceEpoch}.$ext';
       final file = File('${directory.path}/$fileName');
 
       if (audioData != null) {
@@ -279,7 +328,8 @@ class GoogleSpeechService {
   }
 
   /// Convierte voz a texto usando Google Cloud Speech-to-Text
-  static Future<String?> speechToText({
+  @override
+  Future<String?> speechToText({
     required final Uint8List audioData,
     final String languageCode = 'es-ES',
     final String audioEncoding = 'WEBM_OPUS',
@@ -287,7 +337,9 @@ class GoogleSpeechService {
     final bool enableAutomaticPunctuation = true,
   }) async {
     if (_apiKey.isEmpty) {
-      _maybeDebugPrint('[GoogleSTT] Error: GOOGLE_CLOUD_API_KEY no configurada');
+      _maybeDebugPrint(
+        '[GoogleSTT] Error: GOOGLE_CLOUD_API_KEY no configurada',
+      );
       return null;
     }
 
@@ -296,7 +348,9 @@ class GoogleSpeechService {
       return null;
     }
 
-    final url = Uri.parse('https://speech.googleapis.com/v1/speech:recognize?key=$_apiKey');
+    final url = Uri.parse(
+      'https://speech.googleapis.com/v1/speech:recognize?key=$_apiKey',
+    );
 
     final audioContentBase64 = base64Encode(audioData);
 
@@ -313,7 +367,9 @@ class GoogleSpeechService {
     };
 
     try {
-      _maybeDebugPrint('[GoogleSTT] Transcribiendo audio: ${audioData.length} bytes');
+      _maybeDebugPrint(
+        '[GoogleSTT] Transcribiendo audio: ${audioData.length} bytes',
+      );
 
       final response = await http.post(
         url,
@@ -340,7 +396,9 @@ class GoogleSpeechService {
           _maybeDebugPrint('[GoogleSTT] No se detectó habla en el audio');
         }
       } else {
-        _maybeDebugPrint('[GoogleSTT] Error ${response.statusCode}: ${response.body}');
+        _maybeDebugPrint(
+          '[GoogleSTT] Error ${response.statusCode}: ${response.body}',
+        );
       }
     } on Exception catch (e) {
       _maybeDebugPrint('[GoogleSTT] Exception: $e');
@@ -350,21 +408,26 @@ class GoogleSpeechService {
   }
 
   /// Transcribe un archivo de audio
-  static Future<String?> speechToTextFromFile(
+  @override
+  Future<String?> speechToTextFromFile(
     final File audioFile, {
     final String languageCode = 'es-ES',
     final String audioEncoding = 'MP3',
     final int sampleRateHertz = 24000,
   }) async {
     try {
-      _maybeDebugPrint('[GoogleSTT] speechToTextFromFile called with: ${audioFile.path}');
+      _maybeDebugPrint(
+        '[GoogleSTT] speechToTextFromFile called with: ${audioFile.path}',
+      );
 
       // Read user preferred audio format from config. This lets the
       // pipeline adapt ordering of conversion attempts based on the
       // developer/user preference (e.g. prefer WAV conversion first).
       final preferredRaw = Config.get('PREFERRED_AUDIO_FORMAT', 'mp3');
       final preferred = preferredRaw.trim().toLowerCase();
-      _maybeDebugPrint('[GoogleSTT] Preferred audio format from config: $preferred');
+      _maybeDebugPrint(
+        '[GoogleSTT] Preferred audio format from config: $preferred',
+      );
 
       // Decide extension and try a direct transcription with a guessed encoding
       final ext = audioFile.path.split('.').last.toLowerCase();
@@ -372,7 +435,10 @@ class GoogleSpeechService {
       final Uint8List audioData = await audioFile.readAsBytes();
 
       // Helper: try direct transcription with guessed encoding
-      Future<String?> tryDirect(final String guessedEncoding, final int guessedSR) async {
+      Future<String?> tryDirect(
+        final String guessedEncoding,
+        final int guessedSR,
+      ) async {
         try {
           _maybeDebugPrint(
             '[GoogleSTT] Trying direct STT with encoding=$guessedEncoding sr=$guessedSR for ${audioFile.path}',
@@ -415,7 +481,9 @@ class GoogleSpeechService {
             final wavConverted = await _convertToWavIfPossible(audioFile);
             if (wavConverted != null) {
               final wavData = await wavConverted.readAsBytes();
-              _maybeDebugPrint('[GoogleSTT] Retrying STT with WAV (preferred) ${wavConverted.path}');
+              _maybeDebugPrint(
+                '[GoogleSTT] Retrying STT with WAV (preferred) ${wavConverted.path}',
+              );
               final res = await speechToText(
                 audioData: wavData,
                 languageCode: languageCode,
@@ -425,11 +493,16 @@ class GoogleSpeechService {
               if (res != null && res.trim().isNotEmpty) return res;
             }
           } on Exception catch (e) {
-            _maybeDebugPrint('[GoogleSTT] preferred WAV conversion attempt failed: $e');
+            _maybeDebugPrint(
+              '[GoogleSTT] preferred WAV conversion attempt failed: $e',
+            );
           }
         }
 
-        final compressed = await _convertToCompressedIfPossible(audioFile, preferred);
+        final compressed = await _convertToCompressedIfPossible(
+          audioFile,
+          preferred,
+        );
         if (compressed != null) {
           final compData = await compressed.readAsBytes();
           _maybeDebugPrint(
@@ -444,7 +517,9 @@ class GoogleSpeechService {
           if (res != null && res.trim().isNotEmpty) return res;
         }
       } on Exception catch (e) {
-        _maybeDebugPrint('[GoogleSTT] compressed MP3 conversion attempt failed: $e');
+        _maybeDebugPrint(
+          '[GoogleSTT] compressed MP3 conversion attempt failed: $e',
+        );
       }
 
       // As a last resort, try converting to WAV PCM16 and extract PCM for LINEAR16
@@ -457,7 +532,9 @@ class GoogleSpeechService {
 
         try {
           final len = await fileToUse.length();
-          _maybeDebugPrint('[GoogleSTT] Using file for WAV/STT: ${fileToUse.path} (size=$len bytes)');
+          _maybeDebugPrint(
+            '[GoogleSTT] Using file for WAV/STT: ${fileToUse.path} (size=$len bytes)',
+          );
         } on Exception catch (_) {}
 
         final wavData = await fileToUse.readAsBytes();
@@ -468,11 +545,18 @@ class GoogleSpeechService {
           if (header == 'RIFF') {
             int sr = sampleRateHertz;
             try {
-              sr = wavData[24] | (wavData[25] << 8) | (wavData[26] << 16) | (wavData[27] << 24);
+              sr =
+                  wavData[24] |
+                  (wavData[25] << 8) |
+                  (wavData[26] << 16) |
+                  (wavData[27] << 24);
             } on Exception catch (_) {}
             int dataStart = -1;
             for (int i = 0; i < wavData.length - 4; i++) {
-              if (wavData[i] == 0x64 && wavData[i + 1] == 0x61 && wavData[i + 2] == 0x74 && wavData[i + 3] == 0x61) {
+              if (wavData[i] == 0x64 &&
+                  wavData[i + 1] == 0x61 &&
+                  wavData[i + 2] == 0x74 &&
+                  wavData[i + 3] == 0x61) {
                 dataStart = i + 8;
                 break;
               }
@@ -508,7 +592,10 @@ class GoogleSpeechService {
 
   /// Try to convert to a compact MP3 file using ffmpeg if available.
   /// MP3 is smaller than WAV and widely supported by Google STT.
-  static Future<File?> _convertToCompressedIfPossible(final File src, [final String preferredFormat = 'mp3']) async {
+  static Future<File?> _convertToCompressedIfPossible(
+    final File src, [
+    final String preferredFormat = 'mp3',
+  ]) async {
     // Delegate to AudioConversion helper. If preferredFormat is 'm4a', try
     // converting to m4a using AAC encoder; otherwise default to mp3.
     try {
@@ -522,7 +609,9 @@ class GoogleSpeechService {
       }
       return await AudioConversion.convertToMp3IfPossible(src);
     } on Exception catch (e) {
-      _maybeDebugPrint('[GoogleSTT] compressed conversion delegation failed: $e');
+      _maybeDebugPrint(
+        '[GoogleSTT] compressed conversion delegation failed: $e',
+      );
       return null;
     }
   }
@@ -544,8 +633,13 @@ class GoogleSpeechService {
 
   /// Fetch the official list of Google TTS voices from the API and cache it locally.
   /// Returns a list of maps with keys: name, languageCodes, ssmlGender, naturalSampleRateHertz
-  static Future<List<Map<String, dynamic>>> fetchGoogleVoices({final bool forceRefresh = false}) async {
-    _maybeDebugPrint('[GoogleTTS] fetchGoogleVoices INICIADO - forceRefresh=$forceRefresh');
+  @override
+  Future<List<Map<String, dynamic>>> fetchGoogleVoices({
+    final bool forceRefresh = false,
+  }) async {
+    _maybeDebugPrint(
+      '[GoogleTTS] fetchGoogleVoices INICIADO - forceRefresh=$forceRefresh',
+    );
 
     if (!isConfigured) {
       _maybeDebugPrint('[GoogleTTS] fetchGoogleVoices: not configured');
@@ -556,28 +650,44 @@ class GoogleSpeechService {
       // Intentar obtener desde caché primero
       if (!forceRefresh) {
         _maybeDebugPrint('[GoogleTTS] Intentando obtener desde caché...');
-        final cachedVoices = await CacheService.getCachedVoices(provider: 'google');
+        final cachedVoices = await CacheService.getCachedVoices(
+          provider: 'google',
+        );
         if (cachedVoices != null) {
-          _maybeDebugPrint('[GoogleTTS] Usando ${cachedVoices.length} voces desde caché');
+          _maybeDebugPrint(
+            '[GoogleTTS] Usando ${cachedVoices.length} voces desde caché',
+          );
           return cachedVoices;
         }
         _maybeDebugPrint('[GoogleTTS] No hay caché, procediendo a API...');
       } else {
-        _maybeDebugPrint('[GoogleTTS] ForceRefresh=true - saltando caché, yendo directo a API');
+        _maybeDebugPrint(
+          '[GoogleTTS] ForceRefresh=true - saltando caché, yendo directo a API',
+        );
       }
 
       _maybeDebugPrint('[GoogleTTS] Haciendo llamada HTTP a Google TTS API...');
-      final url = Uri.parse('https://texttospeech.googleapis.com/v1/voices?key=$_apiKey');
+      final url = Uri.parse(
+        'https://texttospeech.googleapis.com/v1/voices?key=$_apiKey',
+      );
       final resp = await http.get(url).timeout(const Duration(seconds: 30));
-      _maybeDebugPrint('[GoogleTTS] Respuesta HTTP recibida: ${resp.statusCode}');
+      _maybeDebugPrint(
+        '[GoogleTTS] Respuesta HTTP recibida: ${resp.statusCode}',
+      );
 
       if (resp.statusCode != 200) {
-        _maybeDebugPrint('[GoogleTTS] fetchGoogleVoices error ${resp.statusCode}: ${resp.body}');
+        _maybeDebugPrint(
+          '[GoogleTTS] fetchGoogleVoices error ${resp.statusCode}: ${resp.body}',
+        );
 
         // Si hay error, intentar usar caché como fallback
-        final fallbackVoices = await CacheService.getCachedVoices(provider: 'google');
+        final fallbackVoices = await CacheService.getCachedVoices(
+          provider: 'google',
+        );
         if (fallbackVoices != null) {
-          _maybeDebugPrint('[GoogleTTS] Usando caché como fallback tras error de API');
+          _maybeDebugPrint(
+            '[GoogleTTS] Usando caché como fallback tras error de API',
+          );
           return fallbackVoices;
         }
         return [];
@@ -590,7 +700,8 @@ class GoogleSpeechService {
           .map(
             (final v) => {
               'name': v['name'],
-              'languageCodes': (v['languageCodes'] as List<dynamic>).cast<String>(),
+              'languageCodes': (v['languageCodes'] as List<dynamic>)
+                  .cast<String>(),
               'ssmlGender': v['ssmlGender'],
               'naturalSampleRateHertz': v['naturalSampleRateHertz'],
             },
@@ -599,20 +710,31 @@ class GoogleSpeechService {
 
       // Guardar en caché
       try {
-        await CacheService.saveVoicesToCache(voices: processedVoices, provider: 'google');
+        await CacheService.saveVoicesToCache(
+          voices: processedVoices,
+          provider: 'google',
+        );
       } on Exception catch (e) {
-        _maybeDebugPrint('[GoogleTTS] Warning: Error guardando voces en caché: $e');
+        _maybeDebugPrint(
+          '[GoogleTTS] Warning: Error guardando voces en caché: $e',
+        );
       }
 
-      _maybeDebugPrint('[GoogleTTS] Obtenidas ${processedVoices.length} voces desde API');
+      _maybeDebugPrint(
+        '[GoogleTTS] Obtenidas ${processedVoices.length} voces desde API',
+      );
       return processedVoices;
     } on Exception catch (e) {
       _maybeDebugPrint('[GoogleTTS] Exception fetching voices: $e');
 
       // Intentar caché como último recurso
-      final fallbackVoices = await CacheService.getCachedVoices(provider: 'google');
+      final fallbackVoices = await CacheService.getCachedVoices(
+        provider: 'google',
+      );
       if (fallbackVoices != null) {
-        _maybeDebugPrint('[GoogleTTS] Usando caché como último recurso tras excepción');
+        _maybeDebugPrint(
+          '[GoogleTTS] Usando caché como último recurso tras excepción',
+        );
         return fallbackVoices;
       }
       return [];
@@ -622,7 +744,8 @@ class GoogleSpeechService {
   /// Return voices that match the provided language codes (AI country and user country).
   /// Each languageCode can be a 2-letter code ('ja') or a region code ('ja-JP').
   /// If both lists are empty, defaults to Spanish (Spain) voices.
-  static Future<List<Map<String, dynamic>>> voicesForUserAndAi(
+  @override
+  Future<List<Map<String, dynamic>>> voicesForUserAndAi(
     final List<String> userLanguageCodes,
     final List<String> aiLanguageCodes, {
     final bool forceRefresh = false,
@@ -648,7 +771,8 @@ class GoogleSpeechService {
     final List<Map<String, dynamic>> filtered = [];
 
     for (final v in all) {
-      final languageCodes = (v['languageCodes'] as List<dynamic>).cast<String>();
+      final languageCodes = (v['languageCodes'] as List<dynamic>)
+          .cast<String>();
       // final ssmlGender = (v['ssmlGender'] as String? ?? '').toUpperCase();
 
       // Do not filter by gender here; include voices of any gender
@@ -677,25 +801,36 @@ class GoogleSpeechService {
   }
 
   /// Cachea los resultados y permite forzar refresh.
-  static Future<List<Map<String, dynamic>>> getNeuralWaveNetVoices(
+  @override
+  Future<List<Map<String, dynamic>>> getNeuralWaveNetVoices(
     final List<String> userLanguageCodes,
     final List<String> aiLanguageCodes, {
     final bool forceRefresh = false,
   }) async {
-    _maybeDebugPrint('[GoogleTTS] getNeuralWaveNetVoices INICIADO - forceRefresh=$forceRefresh');
+    _maybeDebugPrint(
+      '[GoogleTTS] getNeuralWaveNetVoices INICIADO - forceRefresh=$forceRefresh',
+    );
     try {
       // Generar clave de caché específica
       final allLanguageCodes = [...userLanguageCodes, ...aiLanguageCodes];
-      final languageKey = allLanguageCodes.isEmpty ? 'es-ES' : allLanguageCodes.join('_');
+      final languageKey = allLanguageCodes.isEmpty
+          ? 'es-ES'
+          : allLanguageCodes.join('_');
       final cacheKey = 'neural_wavenet_$languageKey';
 
-      _maybeDebugPrint('[GoogleTTS] Cache key: $cacheKey, forceRefresh: $forceRefresh');
+      _maybeDebugPrint(
+        '[GoogleTTS] Cache key: $cacheKey, forceRefresh: $forceRefresh',
+      );
 
       // Si no es refresh forzado, intentar obtener desde caché
       if (!forceRefresh) {
-        final cachedVoices = await CacheService.getCachedVoices(provider: cacheKey);
+        final cachedVoices = await CacheService.getCachedVoices(
+          provider: cacheKey,
+        );
         if (cachedVoices != null) {
-          _maybeDebugPrint('[GoogleTTS] Usando ${cachedVoices.length} voces Neural/WaveNet desde caché');
+          _maybeDebugPrint(
+            '[GoogleTTS] Usando ${cachedVoices.length} voces Neural/WaveNet desde caché',
+          );
           return cachedVoices;
         }
       } else {
@@ -703,7 +838,9 @@ class GoogleSpeechService {
       }
 
       // Obtener todas las voces directamente de la API
-      _maybeDebugPrint('[GoogleTTS] Obteniendo voces Neural desde API con forceRefresh...');
+      _maybeDebugPrint(
+        '[GoogleTTS] Obteniendo voces Neural desde API con forceRefresh...',
+      );
       final allVoices = await fetchGoogleVoices(forceRefresh: true);
 
       // Normalizar códigos de idioma para comparación exacta
@@ -720,24 +857,33 @@ class GoogleSpeechService {
       _maybeDebugPrint('[GoogleTTS] Target language codes: $targetCodes');
 
       // Debug: listar TODAS las voces antes de filtrar
-      _maybeDebugPrint('[GoogleTTS] TOTAL de voces desde API: ${allVoices.length}');
+      _maybeDebugPrint(
+        '[GoogleTTS] TOTAL de voces desde API: ${allVoices.length}',
+      );
 
       // Debug: buscar WaveNet específicamente Y TODAS las voces que contengan "Wavenet"
       final waveNetVoices = allVoices.where((final v) {
         final name = (v['name'] as String? ?? '').toLowerCase();
         return name.contains('wavenet');
       }).toList();
-      _maybeDebugPrint('[GoogleTTS] Voces WaveNet encontradas en API (case insensitive): ${waveNetVoices.length}');
+      _maybeDebugPrint(
+        '[GoogleTTS] Voces WaveNet encontradas en API (case insensitive): ${waveNetVoices.length}',
+      );
 
       // Debug: buscar específicamente voces españolas WaveNet
       final spanishWaveNet = allVoices.where((final v) {
         final name = (v['name'] as String? ?? '').toLowerCase();
-        final langs = (v['languageCodes'] as List<dynamic>? ?? []).cast<String>();
+        final langs = (v['languageCodes'] as List<dynamic>? ?? [])
+            .cast<String>();
         final hasWaveNet = name.contains('wavenet');
-        final isSpanish = langs.any((final lang) => lang.toLowerCase().startsWith('es'));
+        final isSpanish = langs.any(
+          (final lang) => lang.toLowerCase().startsWith('es'),
+        );
         return hasWaveNet && isSpanish;
       }).toList();
-      _maybeDebugPrint('[GoogleTTS] Voces WaveNet ESPAÑOLAS encontradas: ${spanishWaveNet.length}');
+      _maybeDebugPrint(
+        '[GoogleTTS] Voces WaveNet ESPAÑOLAS encontradas: ${spanishWaveNet.length}',
+      );
 
       // Filtrar voces según criterios:
       // 1. Cualquier género (no filtrar por ssmlGender)
@@ -745,11 +891,14 @@ class GoogleSpeechService {
       // 3. Solo idiomas especificados
       final filteredVoices = allVoices.where((final voice) {
         final name = voice['name'] as String? ?? '';
-        final languageCodes = (voice['languageCodes'] as List<dynamic>).cast<String>();
+        final languageCodes = (voice['languageCodes'] as List<dynamic>)
+            .cast<String>();
 
         // Filtro 2: Solo Neural o WaveNet (case insensitive)
         final isNeural = name.toLowerCase().contains('neural');
-        final isWaveNet = name.toLowerCase().contains('wavenet'); // case insensitive
+        final isWaveNet = name.toLowerCase().contains(
+          'wavenet',
+        ); // case insensitive
         if (!isNeural && !isWaveNet) {
           return false;
         }
@@ -763,7 +912,9 @@ class GoogleSpeechService {
         return matches;
       }).toList();
 
-      _maybeDebugPrint('[GoogleTTS] Voces después del filtro: ${filteredVoices.length}');
+      _maybeDebugPrint(
+        '[GoogleTTS] Voces después del filtro: ${filteredVoices.length}',
+      );
 
       // Eliminar duplicados por nombre
       final seen = <String>{};
@@ -776,7 +927,9 @@ class GoogleSpeechService {
         }
       }
 
-      _maybeDebugPrint('[GoogleTTS] Filtradas ${unique.length} voces Neural/WaveNet');
+      _maybeDebugPrint(
+        '[GoogleTTS] Filtradas ${unique.length} voces Neural/WaveNet',
+      );
 
       // Debug: listar voces encontradas
       for (final voice in unique) {
@@ -786,13 +939,20 @@ class GoogleSpeechService {
 
       // Guardar en caché
       try {
-        await CacheService.saveVoicesToCache(voices: unique, provider: cacheKey);
-        _maybeDebugPrint('[GoogleTTS] Guardadas ${unique.length} voces en caché ($cacheKey)');
+        await CacheService.saveVoicesToCache(
+          voices: unique,
+          provider: cacheKey,
+        );
+        _maybeDebugPrint(
+          '[GoogleTTS] Guardadas ${unique.length} voces en caché ($cacheKey)',
+        );
       } on Exception catch (e) {
         debugPrint('[GoogleTTS] Warning: Error guardando en caché: $e');
       }
 
-      debugPrint('🚨🚨🚨 [GoogleTTS] RETORNANDO ${unique.length} voces Neural/WaveNet 🚨🚨🚨');
+      debugPrint(
+        '🚨🚨🚨 [GoogleTTS] RETORNANDO ${unique.length} voces Neural/WaveNet 🚨🚨🚨',
+      );
       return unique;
     } on Exception catch (e) {
       debugPrint('🚨🚨🚨 [GoogleTTS] ERROR: $e 🚨🚨🚨');
@@ -802,7 +962,8 @@ class GoogleSpeechService {
   }
 
   /// Obtiene configuración de voz desde variables de entorno
-  static Map<String, dynamic> getVoiceConfig() {
+  @override
+  Map<String, dynamic> getVoiceConfig() {
     // Voice name may be configurable, but language, speaking rate and pitch are
     // intentionally hardcoded per project policy (do not use env to override).
     final voiceName = Config.get('GOOGLE_VOICE_NAME', 'es-ES-Wavenet-F');
@@ -810,7 +971,12 @@ class GoogleSpeechService {
     final speakingRate = 1.0;
     final pitch = 0.0;
 
-    return {'voiceName': voiceName, 'languageCode': languageCode, 'speakingRate': speakingRate, 'pitch': pitch};
+    return {
+      'voiceName': voiceName,
+      'languageCode': languageCode,
+      'speakingRate': speakingRate,
+      'pitch': pitch,
+    };
   }
 
   /// Resolve a sensible default language code for Google TTS.
@@ -818,7 +984,9 @@ class GoogleSpeechService {
   static String resolveDefaultLanguageCode([final String? countryIso2]) {
     try {
       if (countryIso2 != null && countryIso2.trim().isNotEmpty) {
-        final codes = LocaleUtils.officialLanguageCodesForCountry(countryIso2.trim().toUpperCase());
+        final codes = LocaleUtils.officialLanguageCodesForCountry(
+          countryIso2.trim().toUpperCase(),
+        );
         if (codes.isNotEmpty) return codes.first;
       }
     } on Exception catch (_) {}
@@ -836,15 +1004,150 @@ class GoogleSpeechService {
   }
 
   /// Verifica si el servicio está configurado correctamente
-  static bool get isConfigured => _apiKey.isNotEmpty;
+  @override
+  bool get isConfigured => _apiKey.isNotEmpty;
 
   /// Limpia el caché de voces de Google, forzando una nueva descarga en la próxima consulta
-  static Future<void> clearVoicesCache() async {
+  @override
+  Future<void> clearVoicesCache() async {
     try {
       await CacheService.clearVoicesCache(provider: 'google');
       debugPrint('[GoogleTTS] Caché de voces Google limpiado');
     } on Exception catch (e) {
       debugPrint('[GoogleTTS] Error limpiando caché de voces: $e');
     }
+  }
+
+  /// Versión estática de fetchGoogleVoices
+  static Future<List<Map<String, dynamic>>> fetchGoogleVoicesStatic({
+    final bool forceRefresh = false,
+  }) async {
+    final service = GoogleSpeechService();
+    return service.fetchGoogleVoices(forceRefresh: forceRefresh);
+  }
+
+  /// Versión estática de getNeuralWaveNetVoices
+  static Future<List<Map<String, dynamic>>> getNeuralWaveNetVoicesStatic(
+    final List<String> userLanguageCodes,
+    final List<String> aiLanguageCodes, {
+    final bool forceRefresh = false,
+  }) async {
+    final service = GoogleSpeechService();
+    return service.getNeuralWaveNetVoices(
+      userLanguageCodes,
+      aiLanguageCodes,
+      forceRefresh: forceRefresh,
+    );
+  }
+
+  /// Versión estática de getVoiceConfig
+  static Map<String, dynamic> getVoiceConfigStatic() {
+    // Voice name may be configurable, but language, speaking rate and pitch are
+    // intentionally hardcoded per project policy (do not use env to override).
+    final voiceName = Config.get('GOOGLE_VOICE_NAME', 'es-ES-Wavenet-F');
+    final languageCode = resolveDefaultLanguageCode();
+    final speakingRate = 1.0;
+    final pitch = 0.0;
+
+    return {
+      'voiceName': voiceName,
+      'languageCode': languageCode,
+      'speakingRate': speakingRate,
+      'pitch': pitch,
+    };
+  }
+
+  /// Versión estática de clearVoicesCache
+  static Future<void> clearVoicesCacheStatic() async {
+    final service = GoogleSpeechService();
+    return service.clearVoicesCache();
+  }
+
+  /// Versión estática de textToSpeechFile
+  static Future<File?> textToSpeechFileStatic({
+    required final String text,
+    final String? customFileName,
+    final String languageCode = 'es-ES',
+    final String voiceName = 'es-ES-Wavenet-F',
+    final String audioEncoding = 'MP3',
+    final int sampleRateHertz = 24000,
+    final bool noCache = false,
+    final bool useCache = false,
+    final double speakingRate = 1.0,
+    final double pitch = 0.0,
+  }) async {
+    final service = GoogleSpeechService();
+    return service.textToSpeechFile(
+      text: text,
+      customFileName: customFileName,
+      languageCode: languageCode,
+      voiceName: voiceName,
+      audioEncoding: audioEncoding,
+      sampleRateHertz: sampleRateHertz,
+      noCache: noCache,
+      useCache: useCache,
+      speakingRate: speakingRate,
+      pitch: pitch,
+    );
+  }
+
+  /// Versión estática de textToSpeech
+  static Future<Uint8List?> textToSpeechStatic({
+    required final String text,
+    final String languageCode = 'es-ES',
+    final String voiceName = 'es-ES-Wavenet-F',
+    final String audioEncoding = 'MP3',
+    final int sampleRateHertz = 24000,
+    final bool noCache = false,
+    final bool useCache = false,
+    final double speakingRate = 1.0,
+    final double pitch = 0.0,
+  }) async {
+    final service = GoogleSpeechService();
+    return service.textToSpeech(
+      text: text,
+      languageCode: languageCode,
+      voiceName: voiceName,
+      audioEncoding: audioEncoding,
+      sampleRateHertz: sampleRateHertz,
+      noCache: noCache,
+      useCache: useCache,
+      speakingRate: speakingRate,
+      pitch: pitch,
+    );
+  }
+
+  /// Versión estática de speechToTextFromFile
+  static Future<String?> speechToTextFromFileStatic(
+    final File audioFile, {
+    final String languageCode = 'es-ES',
+    final String audioEncoding = 'MP3',
+    final int sampleRateHertz = 24000,
+  }) async {
+    final service = GoogleSpeechService();
+    return service.speechToTextFromFile(
+      audioFile,
+      languageCode: languageCode,
+      audioEncoding: audioEncoding,
+      sampleRateHertz: sampleRateHertz,
+    );
+  }
+
+  /// Versión estática de speechToText
+  static Future<String?> speechToTextStatic({
+    required final Uint8List audioData,
+    final String languageCode = 'es-ES',
+    final String audioEncoding = 'WEBM_OPUS',
+    final int sampleRateHertz = 48000,
+    final bool enableAutomaticPunctuation = true,
+  }) async {
+    final service = GoogleSpeechService();
+    return service.speechToText(
+      audioData: audioData,
+      languageCode: languageCode,
+      audioEncoding: audioEncoding,
+      sampleRateHertz: sampleRateHertz,
+      enableAutomaticPunctuation: enableAutomaticPunctuation,
+    );
   }
 }

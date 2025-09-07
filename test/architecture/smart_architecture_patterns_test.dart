@@ -10,33 +10,40 @@ import 'dart:io';
 
 void main() {
   group('🎯 Smart Architecture Pattern Validation', () {
-    test('Application Services should follow Command-Query separation where applicable', () async {
-      final violations = <String>[];
-      final boundedContexts = _findBoundedContexts();
+    test(
+      'Application Services should follow Command-Query separation where applicable',
+      () async {
+        final violations = <String>[];
+        final boundedContexts = _findBoundedContexts();
 
-      for (final context in boundedContexts) {
-        final serviceFiles = await _findApplicationServices(context);
+        for (final context in boundedContexts) {
+          final serviceFiles = await _findApplicationServices(context);
 
-        for (final serviceFile in serviceFiles) {
-          final content = await serviceFile.readAsString();
-          final analysis = _analyzeCQRSCompliance(content);
+          for (final serviceFile in serviceFiles) {
+            final content = await serviceFile.readAsString();
+            final analysis = _analyzeCQRSCompliance(content);
 
-          if (analysis.hasViolations) {
-            violations.addAll(
-              analysis.violations.map((final violation) => '❌ ${_getRelativePath(serviceFile.path)}: $violation'),
-            );
+            if (analysis.hasViolations) {
+              violations.addAll(
+                analysis.violations.map(
+                  (final violation) =>
+                      '❌ ${_getRelativePath(serviceFile.path)}: $violation',
+                ),
+              );
+            }
           }
         }
-      }
 
-      // Only fail if there are clear CQRS violations, not just mixed operations
-      final criticalViolations = violations.where((final v) => v.contains('command and query')).toList();
+        // Only fail if there are clear CQRS violations, not just mixed operations
+        final criticalViolations = violations
+            .where((final v) => v.contains('command and query'))
+            .toList();
 
-      expect(
-        criticalViolations,
-        isEmpty,
-        reason:
-            '''
+        expect(
+          criticalViolations,
+          isEmpty,
+          reason:
+              '''
 🚨 CQRS PATTERN VIOLATIONS:
 ${criticalViolations.join('\n')}
 
@@ -47,8 +54,9 @@ CQRS GUIDELINES:
 
 Note: Simple operations may legitimately combine command/query patterns.
         ''',
-      );
-    });
+        );
+      },
+    );
 
     test('Port-Adapter pattern must be consistently implemented', () async {
       final violations = <String>[];
@@ -77,21 +85,26 @@ This ensures clean dependency inversion and testability.
       );
     });
 
-    test('Clean Architecture dependency direction must be maintained', () async {
-      final violations = <String>[];
-      final allFiles = await _findAllProjectFiles();
+    test(
+      'Clean Architecture dependency direction must be maintained',
+      () async {
+        final violations = <String>[];
+        final allFiles = await _findAllProjectFiles();
 
-      for (final file in allFiles) {
-        final content = await file.readAsString();
-        final dependencyViolations = _analyzeDependencyDirection(file.path, content);
-        violations.addAll(dependencyViolations);
-      }
+        for (final file in allFiles) {
+          final content = await file.readAsString();
+          final dependencyViolations = _analyzeDependencyDirection(
+            file.path,
+            content,
+          );
+          violations.addAll(dependencyViolations);
+        }
 
-      expect(
-        violations,
-        isEmpty,
-        reason:
-            '''
+        expect(
+          violations,
+          isEmpty,
+          reason:
+              '''
 🚨 DEPENDENCY DIRECTION VIOLATIONS:
 ${violations.join('\n')}
 
@@ -103,8 +116,9 @@ CLEAN ARCHITECTURE RULES:
 
 Dependencies must point inward toward the domain.
         ''',
-      );
-    });
+        );
+      },
+    );
   });
 }
 
@@ -120,14 +134,18 @@ List<String> _findBoundedContexts() {
       .listSync()
       .whereType<Directory>()
       .map((final d) => d.path.split('/').last)
-      .where((final name) => !name.startsWith('.') && name != 'core' && _isBoundedContext(name))
+      .where(
+        (final name) =>
+            !name.startsWith('.') && name != 'core' && _isBoundedContext(name),
+      )
       .toList();
 }
 
 bool _isBoundedContext(final String name) {
   final contextDir = Directory('lib/$name');
   return contextDir.existsSync() &&
-      (Directory('lib/$name/domain').existsSync() || Directory('lib/$name/application').existsSync());
+      (Directory('lib/$name/domain').existsSync() ||
+          Directory('lib/$name/application').existsSync());
 }
 
 Future<List<File>> _findApplicationServices(final String context) async {
@@ -169,10 +187,15 @@ CQRSAnalysis _analyzeCQRSCompliance(final String content) {
   // Only flag services that are clearly violating CQRS principles
   final totalMethods = commandMethods + queryMethods + mixedMethods;
   if (totalMethods > 10 && mixedMethods > totalMethods * 0.3) {
-    violations.add('Service has too many mixed command/query methods - consider splitting');
+    violations.add(
+      'Service has too many mixed command/query methods - consider splitting',
+    );
   }
 
-  return CQRSAnalysis(hasViolations: violations.isNotEmpty, violations: violations);
+  return CQRSAnalysis(
+    hasViolations: violations.isNotEmpty,
+    violations: violations,
+  );
 }
 
 List<String> _extractMethods(final String content) {
@@ -209,15 +232,31 @@ bool _isCommandMethod(final String methodName) {
     'stop',
     'end',
   ];
-  return commandKeywords.any((final keyword) => methodName.toLowerCase().contains(keyword));
+  return commandKeywords.any(
+    (final keyword) => methodName.toLowerCase().contains(keyword),
+  );
 }
 
 bool _isQueryMethod(final String methodName) {
-  final queryKeywords = ['get', 'find', 'fetch', 'retrieve', 'search', 'load', 'read', 'list', 'count'];
-  return queryKeywords.any((final keyword) => methodName.toLowerCase().contains(keyword));
+  final queryKeywords = [
+    'get',
+    'find',
+    'fetch',
+    'retrieve',
+    'search',
+    'load',
+    'read',
+    'list',
+    'count',
+  ];
+  return queryKeywords.any(
+    (final keyword) => methodName.toLowerCase().contains(keyword),
+  );
 }
 
-Future<PortAdapterAnalysis> _analyzePortAdapterPattern(final String context) async {
+Future<PortAdapterAnalysis> _analyzePortAdapterPattern(
+  final String context,
+) async {
   final violations = <String>[];
 
   // Check for external dependencies without proper abstractions
@@ -229,7 +268,9 @@ Future<PortAdapterAnalysis> _analyzePortAdapterPattern(final String context) asy
 
     for (final dep in externalDeps) {
       if (!_hasCorrespondingDomainInterface(dep, context)) {
-        violations.add('❌ ${_getRelativePath(file.path)}: External dependency "$dep" needs domain interface');
+        violations.add(
+          '❌ ${_getRelativePath(file.path)}: External dependency "$dep" needs domain interface',
+        );
       }
     }
   }
@@ -271,19 +312,30 @@ bool _isInternalPackage(final String package) {
   return internalPackages.any((final internal) => package.startsWith(internal));
 }
 
-bool _hasCorrespondingDomainInterface(final String dependency, final String context) {
+bool _hasCorrespondingDomainInterface(
+  final String dependency,
+  final String context,
+) {
   // This is a simplified check - in practice, you'd scan domain interfaces
   // for abstractions that correspond to external dependencies
   final interfacesDir = Directory('lib/$context/domain/interfaces');
   if (!interfacesDir.existsSync()) return false;
 
   // Check if there are domain interfaces that might abstract this dependency
-  final interfaces = interfacesDir.listSync().whereType<File>().where((final f) => f.path.endsWith('.dart')).toList();
+  final interfaces = interfacesDir
+      .listSync()
+      .whereType<File>()
+      .where((final f) => f.path.endsWith('.dart'))
+      .toList();
 
-  return interfaces.isNotEmpty; // Simplified - real implementation would be more sophisticated
+  return interfaces
+      .isNotEmpty; // Simplified - real implementation would be more sophisticated
 }
 
-List<String> _analyzeDependencyDirection(final String filePath, final String content) {
+List<String> _analyzeDependencyDirection(
+  final String filePath,
+  final String content,
+) {
   final violations = <String>[];
   final layer = _determineLayer(filePath);
 
@@ -294,7 +346,9 @@ List<String> _analyzeDependencyDirection(final String filePath, final String con
   for (final import in imports) {
     final importLayer = _determineLayerFromImport(import);
     if (!_isValidDependency(layer, importLayer)) {
-      violations.add('❌ ${_getRelativePath(filePath)}: $layer layer cannot depend on $importLayer');
+      violations.add(
+        '❌ ${_getRelativePath(filePath)}: $layer layer cannot depend on $importLayer',
+      );
     }
   }
 
@@ -326,7 +380,9 @@ String _determineLayerFromImport(final String import) {
   if (import.contains('/infrastructure/')) return 'infrastructure';
   if (import.contains('/presentation/')) return 'presentation';
   if (import.startsWith('package:flutter/')) return 'framework';
-  if (import.startsWith('package:') && !import.startsWith('package:ai_chan/')) return 'external';
+  if (import.startsWith('package:') && !import.startsWith('package:ai_chan/')) {
+    return 'external';
+  }
   return 'unknown';
 }
 
@@ -336,7 +392,9 @@ bool _isValidDependency(final String fromLayer, final String toLayer) {
     case 'domain':
       return toLayer == 'domain' || toLayer == 'unknown';
     case 'application':
-      return toLayer == 'domain' || toLayer == 'application' || toLayer == 'unknown';
+      return toLayer == 'domain' ||
+          toLayer == 'application' ||
+          toLayer == 'unknown';
     case 'infrastructure':
       return toLayer != 'presentation'; // Can depend on domain, application
     case 'presentation':

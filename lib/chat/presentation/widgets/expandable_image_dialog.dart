@@ -5,8 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:ai_chan/main.dart';
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/shared/widgets/app_dialog.dart';
-import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 
 class ExpandableImageDialog {
   /// images: lista de mensajes con imagePath válido

@@ -1,6 +1,6 @@
 import 'package:ai_chan/chat/domain/interfaces/i_language_resolver.dart';
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
-import 'package:ai_chan/call/infrastructure/adapters/google_speech_service.dart';
+import 'package:ai_chan/call/infrastructure/services/google_speech_service.dart';
 
 /// Implementation of language resolver that detects language codes for TTS voices
 /// Specializes in Google TTS voice format detection
@@ -20,7 +20,8 @@ class LanguageResolverService implements ILanguageResolver {
           final languageCode = '${parts[0]}-${parts[1]}';
 
           // Verificar que existe en las voces disponibles de Google
-          final googleVoices = await GoogleSpeechService.fetchGoogleVoices();
+          final googleVoices =
+              await GoogleSpeechService.fetchGoogleVoicesStatic();
           final matchingVoices = googleVoices
               .where(
                 (final voice) =>

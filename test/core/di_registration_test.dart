@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/core/di.dart' as di;
-import 'package:ai_chan/call/infrastructure/clients/openai_realtime_client.dart';
-import 'package:ai_chan/call/infrastructure/clients/gemini_realtime_client.dart';
+import 'package:ai_chan/call/infrastructure/services/openai_realtime_client.dart';
+import 'package:ai_chan/call/infrastructure/services/gemini_realtime_client.dart';
 import 'package:ai_chan/core/di_test_bootstrap.dart' as di_test_bootstrap;
 import '../test_setup.dart' as test_setup;
 

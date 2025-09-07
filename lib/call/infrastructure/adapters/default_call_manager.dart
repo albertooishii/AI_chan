@@ -6,7 +6,8 @@ import 'package:flutter/foundation.dart';
 /// Maneja el ciclo de vida de las llamadas
 class DefaultCallManager implements ICallManager {
   bool _isCallActive = false;
-  final StreamController<bool> _callStateController = StreamController<bool>.broadcast();
+  final StreamController<bool> _callStateController =
+      StreamController<bool>.broadcast();
 
   @override
   bool get isCallActive => _isCallActive;

@@ -22,12 +22,21 @@ class InMemoryCallRepository implements ICallRepository {
 
   @override
   Future<List<Call>> getAllCalls() async {
-    return _calls.values.toList()..sort((final a, final b) => b.startTime.compareTo(a.startTime));
+    return _calls.values.toList()
+      ..sort((final a, final b) => b.startTime.compareTo(a.startTime));
   }
 
   @override
-  Future<List<Call>> getCallsByDateRange(final DateTime from, final DateTime to) async {
-    return _calls.values.where((final call) => call.startTime.isAfter(from) && call.startTime.isBefore(to)).toList()
+  Future<List<Call>> getCallsByDateRange(
+    final DateTime from,
+    final DateTime to,
+  ) async {
+    return _calls.values
+        .where(
+          (final call) =>
+              call.startTime.isAfter(from) && call.startTime.isBefore(to),
+        )
+        .toList()
       ..sort((final a, final b) => b.startTime.compareTo(a.startTime));
   }
 
@@ -54,7 +63,10 @@ class InMemoryCallRepository implements ICallRepository {
   }
 
   @override
-  Future<void> addMessageToCall(final String callId, final CallMessage message) async {
+  Future<void> addMessageToCall(
+    final String callId,
+    final CallMessage message,
+  ) async {
     if (_calls.containsKey(callId)) {
       _callMessages.putIfAbsent(callId, () => []).add(message);
       debugPrint('[InMemoryCallRepository] Message added to call $callId');

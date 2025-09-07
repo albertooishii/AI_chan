@@ -23,17 +23,25 @@ class AudioPlaybackStrategyFactory implements IAudioPlaybackStrategyFactory {
   }
 
   @override
-  void registerStrategy(final String provider, final IAudioPlaybackStrategy strategy) {
+  void registerStrategy(
+    final String provider,
+    final IAudioPlaybackStrategy strategy,
+  ) {
     _strategies[provider] = strategy;
   }
 
   /// Creates appropriate strategy based on realtime provider
-  static AudioPlaybackStrategy createStrategyStatic({required final RealtimeProvider provider}) {
+  static AudioPlaybackStrategy createStrategyStatic({
+    required final RealtimeProvider provider,
+  }) {
     final factory = AudioPlaybackStrategyFactory();
-    return factory._createStrategyForProvider(provider) as AudioPlaybackStrategy;
+    return factory._createStrategyForProvider(provider)
+        as AudioPlaybackStrategy;
   }
 
-  IAudioPlaybackStrategy _createStrategyForProvider(final RealtimeProvider provider) {
+  IAudioPlaybackStrategy _createStrategyForProvider(
+    final RealtimeProvider provider,
+  ) {
     switch (provider) {
       case RealtimeProvider.openai:
         return OpenAIAudioPlaybackStrategy();

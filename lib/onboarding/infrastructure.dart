@@ -2,5 +2,4 @@
 
 // Adapters
 export 'infrastructure/adapters/profile_adapter.dart';
-
-// Repositories (to be added later)
+export 'infrastructure/adapters/in_memory_profile_repository.dart';
