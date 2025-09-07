@@ -46,6 +46,7 @@ dependencies:
   flutter_tts: ^4.0.2
   audioplayers: ^6.5.0
   path_provider: ^2.1.5
+  path: ^1.8.3
   audio_session: ^0.2.2
   file_picker: ^10.2.0
   record: ^6.0.0
@@ -61,14 +62,11 @@ dependencies:
   qr_flutter: ^4.0.0
   flutter_appauth: ^9.0.1
   google_sign_in: ^7.1.1
-  # image_picker: ^1.1.2
   characters: ^1.4.0
   emoji_picker_flutter: ^4.3.0
   markdown_widget: ^2.3.2+8
   image_picker: ^1.1.2
   image: ^4.5.4
-  # image_gallery_saver_plus: ^4.0.1
-  # gallery_saver: ^2.3.2
 
 dev_dependencies:
   flutter_test:

@@ -1,9 +1,10 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/core/config.dart';
 import 'test_utils/prefs_test_utils.dart';
 import 'package:ai_chan/core/di.dart' as di;
-import 'package:ai_chan/core/interfaces/i_stt_service.dart';
+import 'package:ai_chan/call/domain/interfaces/i_speech_service.dart'; // Usar nueva interfaz de dominio
 import 'fakes/fake_connectors.dart' as fake_connectors;
 import 'fakes/fake_http_client.dart';
 import 'fakes/fake_audio_playback.dart';
@@ -12,7 +13,7 @@ import 'package:ai_chan/core/http_connector.dart';
 // (No global fake realtime client here — tests opt-in to install fakes
 // using `di.setTestRealtimeClientFactory(...)` when they need to.)
 
-class _FakeTestStt implements ISttService {
+class _FakeTestStt implements ICallSttService {
   @override
   Future<String?> transcribeAudio(final String filePath) async {
     return 'fake transcription for testing';
@@ -24,6 +25,21 @@ class _FakeTestStt implements ISttService {
     final Map<String, dynamic>? options,
   }) async {
     return await transcribeAudio(filePath);
+  }
+
+  @override
+  Future<String> processAudio(final Uint8List audioData) async {
+    return 'fake audio processing result';
+  }
+
+  @override
+  void configure(final Map<String, dynamic> config) {
+    // Configuración fake para tests
+  }
+
+  @override
+  Future<bool> isAvailable() async {
+    return true; // Siempre disponible en tests
   }
 }
 

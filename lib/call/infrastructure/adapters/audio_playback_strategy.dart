@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/call/domain/interfaces/audio_scheduling_service.dart';
+import 'package:ai_chan/call/domain/interfaces/i_audio_playback_strategy.dart';
 
 /// Abstract strategy for audio playback scheduling
-abstract class AudioPlaybackStrategy implements AudioSchedulingService {
+abstract class AudioPlaybackStrategy implements AudioSchedulingService, IAudioPlaybackStrategy {
   /// Schedule audio playback with provider-specific timing
   @override
   void schedulePlayback(final Function playbackFunction);

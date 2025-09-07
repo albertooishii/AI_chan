@@ -1,11 +1,11 @@
 import 'dart:io';
 
-import 'package:ai_chan/core/interfaces/i_stt_service.dart';
+import 'package:ai_chan/call/domain/interfaces/i_speech_service.dart';
 import 'package:ai_chan/call/infrastructure/adapters/google_speech_service.dart';
 import 'package:flutter/foundation.dart';
 
-/// Adapter that exposes GoogleSpeechService as ISttService
-class GoogleSttAdapter implements ISttService {
+/// Adapter that exposes GoogleSpeechService as ICallSttService
+class GoogleSttAdapter implements ICallSttService {
   const GoogleSttAdapter();
 
   @override
@@ -20,11 +20,35 @@ class GoogleSttAdapter implements ISttService {
     }
   }
 
+  // ISttAdapter implementation
   @override
-  Future<String?> transcribeFile({
-    required final String filePath,
-    final Map<String, dynamic>? options,
-  }) async {
+  Future<String> processAudio(final Uint8List audioData) async {
+    // Convert audio data to file temporarily and process
+    try {
+      final tempFile = File('${Directory.systemTemp.path}/temp_audio.wav');
+      await tempFile.writeAsBytes(audioData);
+      final result = await GoogleSpeechService.speechToTextFromFile(tempFile);
+      await tempFile.delete();
+      return result ?? '';
+    } on Exception catch (e) {
+      debugPrint('[GoogleSttAdapter] processAudio error: $e');
+      return '';
+    }
+  }
+
+  @override
+  void configure(final Map<String, dynamic> config) {
+    // Google STT adapter configuration if needed
+    debugPrint('[GoogleSttAdapter] Configured with: $config');
+  }
+
+  @override
+  Future<bool> isAvailable() async {
+    return GoogleSpeechService.apiKey.isNotEmpty;
+  }
+
+  @override
+  Future<String?> transcribeFile({required final String filePath, final Map<String, dynamic>? options}) async {
     return await transcribeAudio(filePath);
   }
 }

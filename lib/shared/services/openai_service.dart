@@ -9,7 +9,7 @@ import 'package:ai_chan/shared/utils/audio_conversion.dart';
 
 import 'ai_service.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/chat/infrastructure/services/prompt_builder_service.dart';
+import 'package:ai_chan/chat/infrastructure/adapters/prompt_builder_service.dart' as pb;
 import 'package:http/http.dart' as http;
 import 'package:ai_chan/core/http_connector.dart';
 
@@ -18,42 +18,28 @@ class OpenAIService implements AIService {
   @override
   Future<List<String>> getAvailableModels() async {
     if (apiKey.trim().isEmpty) {
-      throw Exception(
-        'Falta la API key de OpenAI. Por favor, configúrala en la app.',
-      );
+      throw Exception('Falta la API key de OpenAI. Por favor, configúrala en la app.');
     }
     const endpoint = 'https://api.openai.com/v1/models';
     final response = await HttpConnector.client.get(
       Uri.parse(endpoint),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $apiKey',
-      },
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $apiKey'},
     );
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       final List models = data['data'] ?? [];
       // Filtrar solo modelos gpt-*
-      final gptModels = models
-          .where(
-            (final m) =>
-                m['id'] != null && m['id'].toString().startsWith('gpt-'),
-          )
-          .toList();
+      final gptModels = models.where((final m) => m['id'] != null && m['id'].toString().startsWith('gpt-')).toList();
       // Agrupar por versión y tipo base (ej. gpt-5, gpt-4.1-mini, gpt-4.1, gpt-4.1-mini, etc.)
       final groupMap = <String, List<String>>{};
       final noVersion = <String>[];
-      final groupRegex = RegExp(
-        r'^(gpt-(\d+(?:\.\d+)?)(?:-(mini|nano|chat|o|realtime|latest))?)',
-      );
+      final groupRegex = RegExp(r'^(gpt-(\d+(?:\.\d+)?)(?:-(mini|nano|chat|o|realtime|latest))?)');
       for (final m in gptModels) {
         final id = m['id'].toString();
         final match = groupRegex.firstMatch(id);
         if (match != null && match.group(2) != null) {
           final type = match.group(3) ?? '';
-          final key = type.isNotEmpty
-              ? 'gpt-${match.group(2)}-$type'
-              : 'gpt-${match.group(2)}';
+          final key = type.isNotEmpty ? 'gpt-${match.group(2)}-$type' : 'gpt-${match.group(2)}';
           groupMap.putIfAbsent(key, () => []);
           groupMap[key]!.add(id);
         } else {
@@ -64,16 +50,8 @@ class OpenAIService implements AIService {
       final ordered = <String>[];
       final sortedKeys = groupMap.keys.toList()
         ..sort((final a, final b) {
-          final vA =
-              double.tryParse(
-                RegExp(r'gpt-(\d+(?:\.\d+)?)').firstMatch(a)?.group(1) ?? '0',
-              ) ??
-              0.0;
-          final vB =
-              double.tryParse(
-                RegExp(r'gpt-(\d+(?:\.\d+)?)').firstMatch(b)?.group(1) ?? '0',
-              ) ??
-              0.0;
+          final vA = double.tryParse(RegExp(r'gpt-(\d+(?:\.\d+)?)').firstMatch(a)?.group(1) ?? '0') ?? 0.0;
+          final vB = double.tryParse(RegExp(r'gpt-(\d+(?:\.\d+)?)').firstMatch(b)?.group(1) ?? '0') ?? 0.0;
           if (vA != vB) return vB.compareTo(vA);
           return a.compareTo(b);
         });
@@ -113,20 +91,14 @@ class OpenAIService implements AIService {
     // Safety: refuse to call OpenAI endpoints with non-OpenAI model ids.
     final modelNorm = model?.trim().toLowerCase() ?? '';
     if (modelNorm.isNotEmpty && !modelNorm.startsWith('gpt-')) {
-      Log.e(
-        'OpenAIService called with non-OpenAI model "$model". Aborting remote call.',
-        tag: 'OPENAI_SERVICE',
-      );
+      Log.e('OpenAIService called with non-OpenAI model "$model". Aborting remote call.', tag: 'OPENAI_SERVICE');
       return AIResponse(
         text:
             'Error: modelo no válido para OpenAI: $model. Asegúrate de usar un modelo que empiece por "gpt-" o de enrutar la petición al proveedor correcto.',
       );
     }
     if (apiKey.trim().isEmpty) {
-      return AIResponse(
-        text:
-            'Error: Falta la API key de OpenAI. Por favor, configúrala en la app.',
-      );
+      return AIResponse(text: 'Error: Falta la API key de OpenAI. Por favor, configúrala en la app.');
     }
     final url = Uri.parse('https://api.openai.com/v1/responses');
     final headers = {
@@ -160,14 +132,10 @@ class OpenAIService implements AIService {
         if (!looksLikeAvatar) {
           // Inyectar instrucciones sobre foto y metadatos cuando corresponda
           if (enableImageGeneration) {
-            instrRoot['photo_instructions'] = imageInstructions(
-              systemPrompt.profile.userName,
-            );
+            instrRoot['photo_instructions'] = pb.imageInstructions(systemPrompt.profile.userName);
           }
           if (imageBase64 != null && imageBase64.isNotEmpty) {
-            instrRoot['attached_image_metadata_instructions'] = imageMetadata(
-              systemPrompt.profile.userName,
-            );
+            instrRoot['attached_image_metadata_instructions'] = pb.imageMetadata(systemPrompt.profile.userName);
           }
         }
       }
@@ -191,10 +159,7 @@ class OpenAIService implements AIService {
       {'type': 'input_text', 'text': allText.toString()},
     ];
     if (imageBase64 != null && imageBase64.isNotEmpty) {
-      userContent.add({
-        'type': 'input_image',
-        'image_url': "data:${imageMimeType ?? 'image/png'};base64,$imageBase64",
-      });
+      userContent.add({'type': 'input_image', 'image_url': "data:${imageMimeType ?? 'image/png'};base64,$imageBase64"});
     }
     // Prefer explicit getter firstAvatar for clarity (primer avatar histórico)
     final avatar = systemPrompt.profile.firstAvatar;
@@ -207,12 +172,7 @@ class OpenAIService implements AIService {
     if (enableImageGeneration) {
       Log.i('image_generation ACTIVADO', tag: 'OPENAI_SERVICE');
       tools = [
-        {
-          'type': 'image_generation',
-          'input_fidelity': 'low',
-          'moderation': 'low',
-          'background': 'opaque',
-        },
+        {'type': 'image_generation', 'input_fidelity': 'low', 'moderation': 'low', 'background': 'opaque'},
       ];
 
       final imageGenCall = <String, dynamic>{};
@@ -231,17 +191,11 @@ class OpenAIService implements AIService {
           Log.d('Seed es Image ID: $seed', tag: 'OPENAI_SERVICE');
           if (looksLikeAvatar) {
             imageGenCall['size'] = '1024x1024';
-            Log.d(
-              'Detección: petición tratada como AVATAR -> size=1024x1024',
-              tag: 'OPENAI_SERVICE',
-            );
+            Log.d('Detección: petición tratada como AVATAR -> size=1024x1024', tag: 'OPENAI_SERVICE');
           }
         }
       } else {
-        Log.d(
-          'No hay avatar.seed; no se añadirá el campo id',
-          tag: 'OPENAI_SERVICE',
-        );
+        Log.d('No hay avatar.seed; no se añadirá el campo id', tag: 'OPENAI_SERVICE');
         if (looksLikeAvatar) {
           Log.d(
             'Detección: petición tratada como AVATAR -> size=1024x1024 (aplicado vía tools)',
@@ -273,21 +227,14 @@ class OpenAIService implements AIService {
       );
     }
     final Map<String, dynamic> bodyMap = {
-      'model':
-          model ??
-          Config.getDefaultImageModel(), // default OpenAI cuando se fuerza imagen
+      'model': model ?? Config.getDefaultImageModel(), // default OpenAI cuando se fuerza imagen
       'input': input,
       if (tools.isNotEmpty) 'tools': tools,
-      if (previousResponseId != null)
-        'previous_response_id': previousResponseId,
+      if (previousResponseId != null) 'previous_response_id': previousResponseId,
     };
     final body = jsonEncode(bodyMap);
 
-    final response = await HttpConnector.client.post(
-      url,
-      headers: headers,
-      body: body,
-    );
+    final response = await HttpConnector.client.post(url, headers: headers, body: body);
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       String text = '';
@@ -302,20 +249,17 @@ class OpenAIService implements AIService {
             // formatos potenciales
             if (block['image_base64'] is String) return block['image_base64'];
             if (block['b64_json'] is String) return block['b64_json'];
-            if (block['image_url'] is String &&
-                (block['image_url'] as String).startsWith('data:image/')) {
+            if (block['image_url'] is String && (block['image_url'] as String).startsWith('data:image/')) {
               return block['image_url'];
             }
-            if (block['data'] is String &&
-                (block['data'] as String).startsWith('data:image/')) {
+            if (block['data'] is String && (block['data'] as String).startsWith('data:image/')) {
               return block['data'];
             }
             if (block['image'] is Map) {
               final img = block['image'] as Map;
               if (img['base64'] is String) return img['base64'];
               if (img['b64_json'] is String) return img['b64_json'];
-              if (img['data'] is String &&
-                  (img['data'] as String).startsWith('data:image/')) {
+              if (img['data'] is String && (img['data'] as String).startsWith('data:image/')) {
                 return img['data'];
               }
             }
@@ -344,18 +288,12 @@ class OpenAIService implements AIService {
             if (item['content'] != null && item['content'] is List) {
               final contentList = item['content'] as List;
               for (final c in contentList) {
-                if (text.trim().isEmpty &&
-                    c is Map &&
-                    c['type'] == 'output_text' &&
-                    c['text'] != null) {
+                if (text.trim().isEmpty && c is Map && c['type'] == 'output_text' && c['text'] != null) {
                   text = c['text'];
                 }
                 if (imageBase64.isEmpty && c is Map) {
                   final t = (c['type'] ?? '').toString();
-                  if (t == 'output_image' ||
-                      t == 'image' ||
-                      t == 'image_base64' ||
-                      t == 'image_url') {
+                  if (t == 'output_image' || t == 'image' || t == 'image_base64' || t == 'image_url') {
                     final maybe = extractImageBase64FromBlock(c);
                     if (maybe != null && maybe.isNotEmpty) {
                       imageBase64 = maybe;
@@ -374,28 +312,16 @@ class OpenAIService implements AIService {
       // preferir el id de la respuesta; en caso contrario usar el item.id existente.
       try {
         final respId = data['id']?.toString();
-        final effectiveModel = (model ?? Config.getDefaultImageModel())
-            .toString()
-            .toLowerCase();
-        if (respId != null &&
-            respId.isNotEmpty &&
-            effectiveModel.startsWith('gpt-5')) {
+        final effectiveModel = (model ?? Config.getDefaultImageModel()).toString().toLowerCase();
+        if (respId != null && respId.isNotEmpty && effectiveModel.startsWith('gpt-5')) {
           imageId = respId;
-          Log.d(
-            'Modelo $effectiveModel -> usando response.id como seed: $imageId',
-            tag: 'OPENAI_SERVICE',
-          );
+          Log.d('Modelo $effectiveModel -> usando response.id como seed: $imageId', tag: 'OPENAI_SERVICE');
         } else {
-          Log.d(
-            'Modelo $effectiveModel -> usando item.id como seed: $imageId',
-            tag: 'OPENAI_SERVICE',
-          );
+          Log.d('Modelo $effectiveModel -> usando item.id como seed: $imageId', tag: 'OPENAI_SERVICE');
         }
       } on Exception catch (_) {}
 
-      final effectivePrompt = (revisedPrompt.trim().isNotEmpty)
-          ? revisedPrompt.trim()
-          : metaPrompt;
+      final effectivePrompt = (revisedPrompt.trim().isNotEmpty) ? revisedPrompt.trim() : metaPrompt;
       final aiResponse = AIResponse(
         text: (text.trim().isNotEmpty) ? text : '',
         base64: imageBase64,
@@ -404,14 +330,8 @@ class OpenAIService implements AIService {
       );
       return aiResponse;
     } else {
-      Log.e(
-        'ERROR: statusCode=${response.statusCode}, body=${response.body}',
-        tag: 'OPENAI_SERVICE',
-      );
-      return AIResponse(
-        text:
-            'Error al conectar con la IA: Status ${response.statusCode} ${response.body}',
-      );
+      Log.e('ERROR: statusCode=${response.statusCode}, body=${response.body}', tag: 'OPENAI_SERVICE');
+      return AIResponse(text: 'Error al conectar con la IA: Status ${response.statusCode} ${response.body}');
     }
   }
 
@@ -424,9 +344,7 @@ class OpenAIService implements AIService {
     final Map<String, String>? extraFields,
   }) async {
     if (apiKey.trim().isEmpty) {
-      throw Exception(
-        'Falta la API key de OpenAI. Por favor, configúrala en la app.',
-      );
+      throw Exception('Falta la API key de OpenAI. Por favor, configúrala en la app.');
     }
     final url = Uri.parse('https://api.openai.com/v1/audio/transcriptions');
     final request = http.MultipartRequest('POST', url)
@@ -451,10 +369,7 @@ class OpenAIService implements AIService {
           .send(request)
           .timeout(
             const Duration(seconds: 30),
-            onTimeout: () => throw TimeoutException(
-              'Timeout en transcripción de audio',
-              const Duration(seconds: 30),
-            ),
+            onTimeout: () => throw TimeoutException('Timeout en transcripción de audio', const Duration(seconds: 30)),
           );
       final response = await http.Response.fromStream(streamed);
 
@@ -462,20 +377,13 @@ class OpenAIService implements AIService {
         final data = jsonDecode(response.body);
         return data['text'] as String?;
       } else {
-        throw Exception(
-          'Error STT OpenAI (${response.statusCode}): ${response.body}',
-        );
+        throw Exception('Error STT OpenAI (${response.statusCode}): ${response.body}');
       }
     } on Exception catch (e) {
       if (e is TimeoutException) {
-        throw Exception(
-          'Timeout al transcribir audio: la conexión tardó demasiado',
-        );
-      } else if (e.toString().contains('Connection closed') ||
-          e.toString().contains('ClientException')) {
-        throw Exception(
-          'Error de conexión al transcribir audio: verifica tu conexión a internet',
-        );
+        throw Exception('Timeout al transcribir audio: la conexión tardó demasiado');
+      } else if (e.toString().contains('Connection closed') || e.toString().contains('ClientException')) {
+        throw Exception('Error de conexión al transcribir audio: verifica tu conexión a internet');
       } else {
         throw Exception('Error STT OpenAI: $e');
       }
@@ -498,9 +406,7 @@ class OpenAIService implements AIService {
 
     if (apiKey.trim().isEmpty) {
       Log.e('Missing OpenAI API key', tag: 'OPENAI_TTS');
-      throw Exception(
-        'Falta la API key de OpenAI. Por favor, configúrala en la app.',
-      );
+      throw Exception('Falta la API key de OpenAI. Por favor, configúrala en la app.');
     }
     if (text.trim().isEmpty) {
       Log.w('Empty text provided', tag: 'OPENAI_TTS');
@@ -508,9 +414,7 @@ class OpenAIService implements AIService {
     }
 
     // Incluir instructions en la clave de caché si están presentes
-    final cacheKey = instructions != null && instructions.isNotEmpty
-        ? '$text|$voice|$instructions'
-        : text;
+    final cacheKey = instructions != null && instructions.isNotEmpty ? '$text|$voice|$instructions' : text;
 
     try {
       // Verificar caché primero
@@ -521,8 +425,7 @@ class OpenAIService implements AIService {
       final cachedFile = await CacheService.getCachedAudioFile(
         text: cacheKey,
         voice: voice,
-        languageCode:
-            'openai-$effectiveModel', // Usar modelo como "idioma" para OpenAI
+        languageCode: 'openai-$effectiveModel', // Usar modelo como "idioma" para OpenAI
         provider: 'openai',
         extension: 'mp3',
       );
@@ -549,33 +452,19 @@ class OpenAIService implements AIService {
     };
 
     // Solo agregar instructions si el modelo las soporta (gpt-4o-mini-tts, no tts-1 o tts-1-hd)
-    if (instructions != null &&
-        instructions.isNotEmpty &&
-        effectiveModel.contains('gpt-4o-mini-tts')) {
+    if (instructions != null && instructions.isNotEmpty && effectiveModel.contains('gpt-4o-mini-tts')) {
       requestBody['instructions'] = instructions;
-      Log.d(
-        'Adding instructions to OpenAI TTS request: $instructions',
-        tag: 'OPENAI_TTS',
-      );
+      Log.d('Adding instructions to OpenAI TTS request: $instructions', tag: 'OPENAI_TTS');
     } else if (instructions != null && instructions.isNotEmpty) {
-      Log.w(
-        'Instructions provided but model $effectiveModel does not support them',
-        tag: 'OPENAI_TTS',
-      );
+      Log.w('Instructions provided but model $effectiveModel does not support them', tag: 'OPENAI_TTS');
     }
 
     // 🔴 LOG: Request completo a OpenAI
-    Log.d(
-      '📡 REQUEST OPENAI TTS: ${jsonEncode(requestBody)}',
-      tag: 'OPENAI_TTS',
-    );
+    Log.d('📡 REQUEST OPENAI TTS: ${jsonEncode(requestBody)}', tag: 'OPENAI_TTS');
 
     final response = await HttpConnector.client.post(
       url,
-      headers: {
-        'Authorization': 'Bearer $apiKey',
-        'Content-Type': 'application/json',
-      },
+      headers: {'Authorization': 'Bearer $apiKey', 'Content-Type': 'application/json'},
       body: jsonEncode(requestBody),
     );
 
@@ -591,19 +480,12 @@ class OpenAIService implements AIService {
           final String ext = preferred == 'm4a' ? 'm4a' : 'mp3';
           var dataToSave = response.bodyBytes;
           try {
-            final converted =
-                await AudioConversion.convertBytesToPreferredCompressed(
-                  dataToSave,
-                  preferred,
-                );
+            final converted = await AudioConversion.convertBytesToPreferredCompressed(dataToSave, preferred);
             if (converted != null && converted.isNotEmpty) {
               dataToSave = converted;
             }
           } on Exception catch (e) {
-            Log.w(
-              'Warning: Could not convert OpenAI TTS to preferred format: $e',
-              tag: 'OPENAI_TTS',
-            );
+            Log.w('Warning: Could not convert OpenAI TTS to preferred format: $e', tag: 'OPENAI_TTS');
           }
 
           final cachedFile = await CacheService.saveAudioToCache(
@@ -634,9 +516,7 @@ class OpenAIService implements AIService {
         final audioDir = await getLocalAudioDir();
         dirPath = audioDir.path;
       }
-      final file = File(
-        '$dirPath/ai_tts_${DateTime.now().millisecondsSinceEpoch}.mp3',
-      );
+      final file = File('$dirPath/ai_tts_${DateTime.now().millisecondsSinceEpoch}.mp3');
       if (!File(dirPath).existsSync()) {
         Directory(dirPath).createSync(recursive: true);
       }
@@ -649,10 +529,7 @@ class OpenAIService implements AIService {
   }
 
   // Estimación rápida de tokens (1 token ≈ 4 caracteres)
-  int estimateTokens(
-    final List<Map<String, String>> history,
-    final SystemPrompt systemPrompt,
-  ) {
+  int estimateTokens(final List<Map<String, String>> history, final SystemPrompt systemPrompt) {
     int charCount = jsonEncode(systemPrompt.toJson()).length;
     for (final msg in history) {
       charCount += msg['content']?.length ?? 0;
@@ -710,9 +587,7 @@ class OpenAIService implements AIService {
 
   /// Obtiene voces femeninas de OpenAI
   static List<Map<String, dynamic>> getFemaleVoices() {
-    return getAvailableVoices()
-        .where((final voice) => voice['gender'] == 'feminine')
-        .toList();
+    return getAvailableVoices().where((final voice) => voice['gender'] == 'feminine').toList();
   }
 
   /// Limpia el caché de audio de OpenAI

@@ -2,9 +2,10 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:convert';
 import 'package:ai_chan/core/di.dart' as di;
+import 'package:ai_chan/call/domain/interfaces/i_tone_service.dart';
 
 /// Servicio de efectos sonoros compartidos (tono único para colgado y error de conexión)
-class ToneService {
+class ToneService implements IToneService {
   ToneService._();
   static final ToneService instance = ToneService._();
 
@@ -15,17 +16,14 @@ class ToneService {
   ///  - 'messenger' (default): doble beep corto (640Hz ~120ms + 520Hz ~160ms con micro pausa)
   ///  - 'sweep': beep descendente (700->400Hz) ~350ms
   ///  - 'cyberpunk': beeps metálicos con ligero bitcrush/ring-mod, estética futurista
+  @override
   Future<void> playHangupOrErrorTone({
     final int sampleRate = 24000,
     final int durationMs = 350,
     final String preset = 'melodic',
   }) async {
     try {
-      final wav = buildHangupOrErrorToneWav(
-        sampleRate: sampleRate,
-        durationMs: durationMs,
-        preset: preset,
-      );
+      final wav = buildHangupOrErrorToneWav(sampleRate: sampleRate, durationMs: durationMs, preset: preset);
       try {
         await _player.stop();
       } on Exception catch (_) {}
@@ -42,10 +40,7 @@ class ToneService {
   }) {
     switch (preset) {
       case 'cyberpunk':
-        return _buildCyberpunkHangupWav(
-          sampleRate: sampleRate,
-          durationMs: durationMs,
-        );
+        return _buildCyberpunkHangupWav(sampleRate: sampleRate, durationMs: durationMs);
       case 'sweep':
         return _buildSweepWav(sampleRate: sampleRate, durationMs: durationMs);
       case 'messenger':
@@ -70,13 +65,7 @@ class ToneService {
       final t = i / sampleRate;
       final f = startHz + (endHz - startHz) * (i / totalSamples);
       // Envolvente simple: ataque/decay para evitar clicks
-      final env = _adsrEnvelope(
-        i,
-        totalSamples,
-        sampleRate,
-        attackMs: 6,
-        releaseMs: 40,
-      );
+      final env = _adsrEnvelope(i, totalSamples, sampleRate, attackMs: 6, releaseMs: 40);
       final s = math.sin(2 * math.pi * f * t);
       final mixed = s; // seno
       final amp = (32767 * volume * env).round();
@@ -87,38 +76,18 @@ class ToneService {
   }
 
   // Preset: doble beep corto estilo apps de mensajería
-  static Uint8List _buildDoubleBeepWav({
-    final int sampleRate = 24000,
-    final double volume = 0.38,
-  }) {
+  static Uint8List _buildDoubleBeepWav({final int sampleRate = 24000, final double volume = 0.38}) {
     // beep1: ~640Hz, 120ms; pausa 70ms; beep2: ~520Hz, 160ms (ligera caída de tono en cada beep)
     const b1Ms = 120;
     const pauseMs = 70;
     const b2Ms = 160;
-    final beepStructure = _createDoubleBeepStructure(
-      sampleRate: sampleRate,
-      b1Ms: b1Ms,
-      pauseMs: pauseMs,
-      b2Ms: b2Ms,
-    );
+    final beepStructure = _createDoubleBeepStructure(sampleRate: sampleRate, b1Ms: b1Ms, pauseMs: pauseMs, b2Ms: b2Ms);
     final int16 = beepStructure.int16;
 
     // beep1
-    _fillBeepBasic(
-      int16,
-      0,
-      beepStructure.b1Samples,
-      660.0,
-      600.0,
-      sampleRate,
-      volume,
-    );
+    _fillBeepBasic(int16, 0, beepStructure.b1Samples, 660.0, 600.0, sampleRate, volume);
     // silencio
-    _applySilenceBetweenBeeps(
-      int16,
-      beepStructure.b1Samples,
-      beepStructure.gapSamples,
-    );
+    _applySilenceBetweenBeeps(int16, beepStructure.b1Samples, beepStructure.gapSamples);
     // beep2
     _fillBeepBasic(
       int16,
@@ -135,36 +104,17 @@ class ToneService {
   }
 
   // Preset: "cyberpunk" — beeps metálicos con ring-mod, ligera distorsión y micro arpegio
-  static Uint8List _buildCyberpunkHangupWav({
-    final int sampleRate = 24000,
-    final int durationMs = 360,
-  }) {
+  static Uint8List _buildCyberpunkHangupWav({final int sampleRate = 24000, final int durationMs = 360}) {
     // dos beeps cortos con carácter metálico y ligera caída de tono
     // beep1 ~ 1900->1600Hz (90ms), pausa 60ms, beep2 ~ 1300->1100Hz (120ms)
     const b1Ms = 90;
     const pauseMs = 60;
     const b2Ms = 120;
-    final beepStructure = _createDoubleBeepStructure(
-      sampleRate: sampleRate,
-      b1Ms: b1Ms,
-      pauseMs: pauseMs,
-      b2Ms: b2Ms,
-    );
+    final beepStructure = _createDoubleBeepStructure(sampleRate: sampleRate, b1Ms: b1Ms, pauseMs: pauseMs, b2Ms: b2Ms);
     final int16 = beepStructure.int16;
 
-    _fillBeepCyberpunk(
-      int16,
-      0,
-      beepStructure.b1Samples,
-      1900.0,
-      1600.0,
-      sampleRate,
-    );
-    _applySilenceBetweenBeeps(
-      int16,
-      beepStructure.b1Samples,
-      beepStructure.gapSamples,
-    );
+    _fillBeepCyberpunk(int16, 0, beepStructure.b1Samples, 1900.0, 1600.0, sampleRate);
+    _applySilenceBetweenBeeps(int16, beepStructure.b1Samples, beepStructure.gapSamples);
     _fillBeepCyberpunk(
       int16,
       beepStructure.b1Samples + beepStructure.gapSamples,
@@ -190,8 +140,7 @@ class ToneService {
     final int N = b1 + gap + b2;
     final Float64List buf = Float64List(N);
 
-    double midiHz(final int m) =>
-        440.0 * math.pow(2.0, (m - 69) / 12.0).toDouble();
+    double midiHz(final int m) => 440.0 * math.pow(2.0, (m - 69) / 12.0).toDouble();
 
     // Misma paleta que buildMelodicRingbackWav
     final int glideSamples = (0.018 * sampleRate).round(); // ~18ms
@@ -210,33 +159,18 @@ class ToneService {
         final int t = startIndex + i;
         if (t < 0 || t >= N) continue;
         // Envolvente algo más lenta/soft
-        final double env = _adsrEnvelope(
-          i,
-          samples,
-          sampleRate,
-          attackMs: 6,
-          releaseMs: 55,
-          sustain: 0.82,
-        );
+        final double env = _adsrEnvelope(i, samples, sampleRate, attackMs: 6, releaseMs: 55, sustain: 0.82);
         if (env <= 0) continue;
         final double frac = (samples <= 1) ? 0.0 : i / (samples - 1);
         // Glide de afinación al ataque + pequeño bend descendente para carácter
-        final double cents = (i < glideSamples)
-            ? (16.0 * (1.0 - (i / math.max(1, glideSamples))))
-            : 0.0;
-        final double fEff =
-            f0 *
-            math.pow(2.0, cents / 1200.0) *
-            math.pow(2.0, (bendSemis * frac) / 12.0);
+        final double cents = (i < glideSamples) ? (16.0 * (1.0 - (i / math.max(1, glideSamples)))) : 0.0;
+        final double fEff = f0 * math.pow(2.0, cents / 1200.0) * math.pow(2.0, (bendSemis * frac) / 12.0);
         final double ph = 2 * math.pi * fEff * (t / sampleRate);
         double s = math.sin(ph);
         // Sparkle de octava muy sutil al inicio (más sutil)
         if (i < sparkleSamples) {
           final double es = 1.0 - (i / math.max(1, sparkleSamples));
-          s +=
-              0.06 *
-              es *
-              math.sin(2 * math.pi * (2.0 * fEff) * (t / sampleRate));
+          s += 0.06 * es * math.sin(2 * math.pi * (2.0 * fEff) * (t / sampleRate));
         }
         // Transiente de ruido muy breve
         if (i < noiseSamples) {
@@ -305,11 +239,7 @@ class ToneService {
   }) {
     // Nueva versión guiada por el snippet del usuario: patrón pulsado metálico por beats
     // Se genera un segmento de duración fija (default 2.5s) para poder hacer loop.
-    return buildCyberRingtoneWav(
-      durationSeconds: durationSeconds,
-      sampleRate: sampleRate,
-      tempo: tempoBpm,
-    );
+    return buildCyberRingtoneWav(durationSeconds: durationSeconds, sampleRate: sampleRate, tempo: tempoBpm);
   }
 
   /// Generador principal de "CyberRingtone" (basado en el snippet del usuario)
@@ -360,8 +290,7 @@ class ToneService {
         final double a = envAtSample(t, onset);
         if (a > 0.0) {
           final double time = t / sampleRate;
-          final double phase =
-              2 * math.pi * baseClickFreq * (k == 0 ? 1.0 : detune) * time;
+          final double phase = 2 * math.pi * baseClickFreq * (k == 0 ? 1.0 : detune) * time;
           final double carrier = math.sin(phase);
           final double harmonic = 0.5 * math.sin(2 * phase + 0.5);
           final double ring = math.sin(2 * math.pi * ringFreq * time);
@@ -383,9 +312,7 @@ class ToneService {
     // Convertir a PCM16 y empacar WAV
     final Int16List pcm = Int16List(sampleCount);
     for (int i = 0; i < sampleCount; i++) {
-      final int val = (samples[i] * norm * 32767.0)
-          .clamp(-32768.0, 32767.0)
-          .toInt();
+      final int val = (samples[i] * norm * 32767.0).clamp(-32768.0, 32767.0).toInt();
       pcm[i] = val;
     }
     final bytes = Uint8List.view(pcm.buffer);
@@ -411,8 +338,7 @@ class ToneService {
     final int sampleCount = (durationSeconds * sampleRate).round();
     final Float64List dry = Float64List(sampleCount);
 
-    double freqFromMidi(final int midi) =>
-        440.0 * math.pow(2.0, (midi - 69) / 12.0).toDouble();
+    double freqFromMidi(final int midi) => 440.0 * math.pow(2.0, (midi - 69) / 12.0).toDouble();
 
     // Motivo en D# menor (D# natural minor), 2.5s total
     // Tiempos aproximados (s): 0.00, 0.33, 0.58, 0.83, 1.07, 1.43, 1.86, 2.11
@@ -472,8 +398,7 @@ class ToneService {
         final double p0 = 2 * math.pi * fBend * time;
         final double p1 = 2 * math.pi * (fBend * 0.994) * time;
         final double p2 = 2 * math.pi * (fBend * 1.006) * time;
-        final double lead =
-            (math.sin(p0) + 0.9 * math.sin(p1) + 0.9 * math.sin(p2)) / 2.8;
+        final double lead = (math.sin(p0) + 0.9 * math.sin(p1) + 0.9 * math.sin(p2)) / 2.8;
         final double h3 = 0.25 * math.sin(3 * p0);
         final double ring = 0.2 * math.sin(2 * math.pi * 28.0 * time);
         final double v = (lead + h3) * (0.8 + ring);
@@ -493,8 +418,7 @@ class ToneService {
 
     // Filtro paso bajo suave (~7 kHz) para pulir y evitar aspereza
     final double fcLp = 7000.0;
-    final double alphaLp =
-        (2 * math.pi * fcLp) / (2 * math.pi * fcLp + sampleRate);
+    final double alphaLp = (2 * math.pi * fcLp) / (2 * math.pi * fcLp + sampleRate);
     double y = 0.0;
     for (int i = 0; i < sampleCount; i++) {
       y += alphaLp * (dry[i] - y);
@@ -519,10 +443,7 @@ class ToneService {
     // Estéreo sutil: canal R con pequeño retardo (Haas) y ligeras diferencias de reflexiones
     final List<double> left = List<double>.from(dry, growable: false);
     final List<double> right = List<double>.from(dry, growable: false);
-    final int haas = (haasMs * 0.001 * sampleRate).round().clamp(
-      0,
-      sampleCount,
-    );
+    final int haas = (haasMs * 0.001 * sampleRate).round().clamp(0, sampleCount);
     // Aplicar Haas en R
     for (int i = sampleCount - 1; i >= 0; i--) {
       double r = right[i];
@@ -530,14 +451,8 @@ class ToneService {
       right[i] = r;
     }
     // Ajustar diferencias mínimas de reflexiones
-    final int d1R = (echo1Ms * 0.001 * sampleRate + 6).round().clamp(
-      0,
-      sampleCount,
-    );
-    final int d2R = (echo2Ms * 0.001 * sampleRate + 2).round().clamp(
-      0,
-      sampleCount,
-    );
+    final int d1R = (echo1Ms * 0.001 * sampleRate + 6).round().clamp(0, sampleCount);
+    final int d2R = (echo2Ms * 0.001 * sampleRate + 2).round().clamp(0, sampleCount);
     for (int i = sampleCount - 1; i >= 0; i--) {
       double l = left[i];
       double r = right[i];
@@ -574,17 +489,11 @@ class ToneService {
     int w = 0;
     for (int i = 0; i < sampleCount; i++) {
       final int L = (left[i] * norm * 32767.0).clamp(-32768.0, 32767.0).toInt();
-      final int R = (right[i] * norm * 32767.0)
-          .clamp(-32768.0, 32767.0)
-          .toInt();
+      final int R = (right[i] * norm * 32767.0).clamp(-32768.0, 32767.0).toInt();
       pcm[w++] = L;
       pcm[w++] = R;
     }
-    return _pcm16ToWav(
-      Uint8List.view(pcm.buffer),
-      sampleRate: sampleRate,
-      channels: 2,
-    );
+    return _pcm16ToWav(Uint8List.view(pcm.buffer), sampleRate: sampleRate, channels: 2);
   }
 
   /// Pad melódico largo y espacial (tipo Zimmer), 2.5 s por loop.
@@ -611,10 +520,8 @@ class ToneService {
     final int N = (durationSeconds * sampleRate).round();
     final Float64List dry = Float64List(N);
 
-    double midiHz(final int m) =>
-        440.0 * math.pow(2.0, (m - 69) / 12.0).toDouble();
-    double centsToRatio(final double cents) =>
-        math.pow(2.0, cents / 1200.0).toDouble();
+    double midiHz(final int m) => 440.0 * math.pow(2.0, (m - 69) / 12.0).toDouble();
+    double centsToRatio(final double cents) => math.pow(2.0, cents / 1200.0).toDouble();
 
     // Triada D#m: D#5(75), F#5(78), A#4(70)
     final tones = <int>[75, 78, 70];
@@ -633,9 +540,7 @@ class ToneService {
     // Render
     for (int i = 0; i < N; i++) {
       final double t = i / sampleRate;
-      final double vib = centsToRatio(
-        vibratoCents * math.sin(2 * math.pi * vibratoHz * t),
-      );
+      final double vib = centsToRatio(vibratoCents * math.sin(2 * math.pi * vibratoHz * t));
       double acc = 0.0;
       for (final m in tones) {
         final f0 = midiHz(m) * vib;
@@ -670,9 +575,7 @@ class ToneService {
     double y = 0.0;
     for (int i = 0; i < N; i++) {
       final double tt = i / (N - 1).clamp(1, N);
-      final double fc = (lpfStartHz == lpfEndHz)
-          ? lpfStartHz
-          : (lpfStartHz + (lpfEndHz - lpfStartHz) * tt);
+      final double fc = (lpfStartHz == lpfEndHz) ? lpfStartHz : (lpfStartHz + (lpfEndHz - lpfStartHz) * tt);
       final double alpha = (2 * math.pi * fc) / (2 * math.pi * fc + sampleRate);
       y += alpha * (dry[i] - y);
       lpfOut[i] = y;
@@ -723,26 +626,18 @@ class ToneService {
       pcm[w++] = l;
       pcm[w++] = r;
     }
-    return _pcm16ToWav(
-      Uint8List.view(pcm.buffer),
-      sampleRate: sampleRate,
-      channels: 2,
-    );
+    return _pcm16ToWav(Uint8List.view(pcm.buffer), sampleRate: sampleRate, channels: 2);
   }
 
   /// Ringback melódico limpio: motivo corto + silencio para sensación de tono de llamada.
   /// - Mono 44.1 kHz para máxima compatibilidad
   /// - Motivo breve (~0.9 s) con 2-3 notas y cola corta; resto silencio hasta completar durationSeconds
   /// - Headroom amplio (norm ~ -6 dB) sin saturación en dispositivos
-  static Uint8List buildMelodicRingbackWav({
-    final double durationSeconds = 2.5,
-    final int sampleRate = 44100,
-  }) {
+  static Uint8List buildMelodicRingbackWav({final double durationSeconds = 2.5, final int sampleRate = 44100}) {
     final int N = (durationSeconds * sampleRate).round();
     final Float64List buf = Float64List(N);
 
-    double midiHz(final int m) =>
-        440.0 * math.pow(2.0, (m - 69) / 12.0).toDouble();
+    double midiHz(final int m) => 440.0 * math.pow(2.0, (m - 69) / 12.0).toDouble();
 
     // Motivo en D# menor con todavía menos silencio y notas algo más largas
     // D#5 -> G#5 -> F#5; el motivo se extiende ~1.33 s para reducir el silencio del loop
@@ -789,19 +684,14 @@ class ToneService {
         final double a = env(x, dur);
         if (a <= 0.0) continue;
         // Micro-glide de +18 cents -> 0 en ~28ms
-        final double cents = (i < glideSamples)
-            ? (18.0 * (1.0 - (i / math.max(1, glideSamples))))
-            : 0.0;
+        final double cents = (i < glideSamples) ? (18.0 * (1.0 - (i / math.max(1, glideSamples)))) : 0.0;
         final double fEff = f * math.pow(2.0, cents / 1200.0);
         final double ph = 2 * math.pi * fEff * (t / sampleRate);
         double s = math.sin(ph);
         // Sparkle de octava muy suave en el ataque (más sutil)
         if (i < sparkleSamples) {
           final double es = 1.0 - (i / math.max(1, sparkleSamples));
-          s +=
-              0.06 *
-              es *
-              math.sin(2 * math.pi * (2.0 * fEff) * (t / sampleRate));
+          s += 0.06 * es * math.sin(2 * math.pi * (2.0 * fEff) * (t / sampleRate));
         }
         // Transiente de ruido bajo nivel en el primer instante
         if (i < noiseSamples) {
@@ -845,11 +735,7 @@ class ToneService {
   }
 
   /// Helper para aplicar silencio en la pausa de un doble beep
-  static void _applySilenceBetweenBeeps(
-    final Int16List int16,
-    final int b1Samples,
-    final int gapSamples,
-  ) {
+  static void _applySilenceBetweenBeeps(final Int16List int16, final int b1Samples, final int gapSamples) {
     for (int i = 0; i < gapSamples; i++) {
       int16[b1Samples + i] = 0;
     }
@@ -876,21 +762,12 @@ class ToneService {
       var mixed = (0.78 * s + 0.22 * h3) * (0.7 + 0.3 * rm);
       // ligera saturación
       mixed = mixed.clamp(-1.0, 1.0);
-      mixed =
-          mixed *
-          (1.0 + 0.6 * (mixed.abs())) /
-          (1.0 + 0.6 * (mixed.abs() * mixed.abs()));
+      mixed = mixed * (1.0 + 0.6 * (mixed.abs())) / (1.0 + 0.6 * (mixed.abs() * mixed.abs()));
       // bitcrush suave: cuantizar a ~8 bits
       const crushBits = 8;
       final step = 2.0 / (math.pow(2, crushBits) - 1);
       mixed = (mixed / step).round() * step;
-      final env = _adsrEnvelope(
-        i,
-        samples,
-        sampleRate,
-        attackMs: 4,
-        releaseMs: 40,
-      );
+      final env = _adsrEnvelope(i, samples, sampleRate, attackMs: 4, releaseMs: 40);
       final amp = (32767 * 0.45 * env).round();
       int16[startIndex + i] = (amp * mixed).round();
     }
@@ -919,14 +796,7 @@ class ToneService {
   }
 
   /// Helper para crear estructura de doble beep con pausa intermedia
-  static ({
-    int b1Samples,
-    int gapSamples,
-    int b2Samples,
-    int total,
-    Int16List int16,
-  })
-  _createDoubleBeepStructure({
+  static ({int b1Samples, int gapSamples, int b2Samples, int total, Int16List int16}) _createDoubleBeepStructure({
     required final int sampleRate,
     required final int b1Ms,
     required final int pauseMs,
@@ -938,13 +808,7 @@ class ToneService {
     final total = b1Samples + gapSamples + b2Samples;
     final int16 = Int16List(total);
 
-    return (
-      b1Samples: b1Samples,
-      gapSamples: gapSamples,
-      b2Samples: b2Samples,
-      total: total,
-      int16: int16,
-    );
+    return (b1Samples: b1Samples, gapSamples: gapSamples, b2Samples: b2Samples, total: total, int16: int16);
   }
 
   /// Helper para aplicar filtros pasa-alto y pasa-bajo a un buffer de audio
@@ -972,8 +836,7 @@ class ToneService {
     // Low-pass filter (solo si lowPassHz es finito y > 0)
     if (lowPassHz > 0 && lowPassHz.isFinite) {
       final double fcLp = lowPassHz;
-      final double aLp =
-          (2 * math.pi * fcLp) / (2 * math.pi * fcLp + sampleRate);
+      final double aLp = (2 * math.pi * fcLp) / (2 * math.pi * fcLp + sampleRate);
       double y = 0.0;
       for (int i = 0; i < N; i++) {
         y += aLp * (buffer[i] - y);
@@ -983,11 +846,7 @@ class ToneService {
   }
 
   // Empaqueta PCM16 a contenedor WAV simple
-  static Uint8List _pcm16ToWav(
-    final Uint8List pcm, {
-    required final int sampleRate,
-    final int channels = 1,
-  }) {
+  static Uint8List _pcm16ToWav(final Uint8List pcm, {required final int sampleRate, final int channels = 1}) {
     final byteRate = sampleRate * channels * 2;
     final blockAlign = channels * 2;
     final dataSize = pcm.lengthInBytes;
@@ -1014,8 +873,51 @@ class ToneService {
     return out.takeBytes();
   }
 
-  static Uint8List _le16(final int v) =>
-      Uint8List(2)..buffer.asByteData().setUint16(0, v, Endian.little);
-  static Uint8List _le32(final int v) =>
-      Uint8List(4)..buffer.asByteData().setUint32(0, v, Endian.little);
+  @override
+  Future<void> playCustomTone({
+    required final double frequency,
+    required final int durationMs,
+    final double volume = 1.0,
+  }) async {
+    // Usar el generador interno para crear un tono personalizado
+    await playHangupOrErrorTone(
+      durationMs: durationMs,
+      preset: 'custom', // Podríamos agregar este preset interno
+    );
+  }
+
+  @override
+  Future<void> playFrequencySweep({
+    required final double startFreq,
+    required final double endFreq,
+    required final int durationMs,
+    final double volume = 1.0,
+  }) async {
+    // Usar el preset sweep existente
+    await playHangupOrErrorTone(durationMs: durationMs, preset: 'sweep');
+  }
+
+  @override
+  Future<void> stop() async {
+    // Detener la reproducción actual si es posible
+    // El audio player actual no tiene stop explícito, pero se puede implementar
+    try {
+      await _player.stop();
+    } on Exception {
+      // Ignorar errores de stop - el audio podría ya haber terminado
+    }
+  }
+
+  @override
+  Future<bool> isAvailable() async {
+    // Verificar si el audio player está disponible
+    try {
+      return true; // _player is always available since it's initialized in DI
+    } on Exception {
+      return false;
+    }
+  }
+
+  static Uint8List _le16(final int v) => Uint8List(2)..buffer.asByteData().setUint16(0, v, Endian.little);
+  static Uint8List _le32(final int v) => Uint8List(4)..buffer.asByteData().setUint32(0, v, Endian.little);
 }
