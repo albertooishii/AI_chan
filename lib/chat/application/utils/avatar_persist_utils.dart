@@ -19,14 +19,12 @@ Future<void> addAvatarAndPersist(
     if (replace) {
       updatedProfile = currentProfile.copyWith(avatars: [avatar]);
     } else {
-      updatedProfile = currentProfile.copyWith(
-        avatars: [...(currentProfile.avatars ?? []), avatar],
-      );
+      updatedProfile = currentProfile.copyWith(avatars: [...(currentProfile.avatars ?? []), avatar]);
       // Note: System message about avatar addition is now handled by ChatController
       // through the domain events system instead of direct message manipulation
     }
 
-    chatController.updateProfile(updatedProfile);
+    chatController.dataController.updateProfile(updatedProfile);
     // ChatController automatically handles persistence and notifications
   } on Exception catch (_) {
     // Handle errors silently as in original implementation
@@ -38,22 +36,17 @@ Future<void> addAvatarAndPersist(
 /// multiple UI places when the user deletes an image that could be an avatar.
 ///
 /// ✅ DDD MIGRATION: Updated to use ChatController instead of legacy ChatProvider
-Future<void> removeImageFromProfileAndPersist(
-  final ChatController chatController,
-  final AiImage? deleted,
-) async {
+Future<void> removeImageFromProfileAndPersist(final ChatController chatController, final AiImage? deleted) async {
   if (deleted == null) return;
   try {
     final currentProfile = chatController.profile;
     if (currentProfile == null) return;
 
     final avatars = List<AiImage>.from(currentProfile.avatars ?? []);
-    avatars.removeWhere(
-      (final a) => a.seed == deleted.seed || a.url == deleted.url,
-    );
+    avatars.removeWhere((final a) => a.seed == deleted.seed || a.url == deleted.url);
     final updated = currentProfile.copyWith(avatars: avatars);
 
-    chatController.updateProfile(updated);
+    chatController.dataController.updateProfile(updated);
     // ChatController automatically handles persistence and notifications
   } on Exception catch (_) {
     // Handle errors silently as in original implementation

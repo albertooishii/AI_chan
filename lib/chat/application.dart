@@ -3,9 +3,6 @@
 // Use Cases
 export 'application/use_cases.dart';
 
-// Controllers
-export 'application/controllers.dart';
-
 // Application Services
 export 'application/services/tts_service.dart';
 export 'application/services/message_queue_manager.dart';
