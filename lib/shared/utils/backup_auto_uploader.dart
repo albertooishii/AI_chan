@@ -74,7 +74,7 @@ class BackupAutoUploader {
         // behavior.
         final tokenLoader = testTokenLoaderFactory != null
             ? testTokenLoaderFactory!()
-            : GoogleBackupService(accessToken: null);
+            : GoogleBackupService();
 
         storedToken = await tokenLoader.loadStoredAccessToken();
         if (storedToken == null || storedToken.isEmpty) {

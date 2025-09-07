@@ -7,7 +7,10 @@ import 'package:ai_chan/shared/utils/provider_persist_utils.dart';
 class SaveChatExportUseCase {
   SaveChatExportUseCase();
 
-  Future<void> saveChatExport(final ChatExport exported, {final IChatRepository? repository}) async {
+  Future<void> saveChatExport(
+    final ChatExport exported, {
+    final IChatRepository? repository,
+  }) async {
     await ProviderPersistUtils.saveChatExport(exported, repository: repository);
   }
 }

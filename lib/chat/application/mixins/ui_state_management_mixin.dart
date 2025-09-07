@@ -75,7 +75,10 @@ mixin UIStateManagementMixin on ChangeNotifier {
   }
 
   /// Executes a synchronous operation with notifications
-  void executeSyncWithNotification({required final void Function() operation, final String? errorMessage}) {
+  void executeSyncWithNotification({
+    required final void Function() operation,
+    final String? errorMessage,
+  }) {
     try {
       operation();
       notifyListeners();
@@ -87,7 +90,10 @@ mixin UIStateManagementMixin on ChangeNotifier {
   }
 
   /// Simple delegate pattern: call service method and notify
-  Future<void> delegate({required final Future<void> Function() serviceCall, final String? errorMessage}) async {
+  Future<void> delegate({
+    required final Future<void> Function() serviceCall,
+    final String? errorMessage,
+  }) async {
     try {
       await serviceCall();
       notifyListeners();

@@ -33,9 +33,11 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
   }
 
   void _initializeController() {
-    // Usar DI para obtener builder y crear controller con todas las dependencias
-    final builder = di.getVoiceCallControllerBuilder();
-    _controller = builder.create(
+    // ✅ DDD: Usar VoiceCallApplicationService con DI directo
+    final voiceCallService = di.getVoiceCallApplicationService();
+
+    _controller = VoiceCallScreenController(
+      voiceCallService: voiceCallService,
       chatController: widget.chatController,
       callType: widget.incoming ? CallType.incoming : CallType.outgoing,
     );
@@ -87,7 +89,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => _controller.hangUp(),
+          onPressed: () => _controller.hangupCall(),
         ),
         title: Text(
           _getCallTitle(state),
@@ -323,7 +325,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
           _buildControlButton(
             icon: Icons.call_end,
             color: Colors.red,
-            onTap: () => _controller.hangUp(),
+            onTap: () => _controller.hangupCall(),
           ),
       ],
     );

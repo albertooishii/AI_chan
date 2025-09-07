@@ -22,8 +22,7 @@ import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/services/ai_runtime_provider.dart'
     as runtime_factory;
 import 'package:ai_chan/shared/infrastructure/audio/audio_playback.dart';
-import 'package:ai_chan/call/application/interfaces/voice_call_controller_builder.dart';
-import 'package:ai_chan/call/infrastructure/builders/voice_call_controller_builder.dart';
+// VoiceCallControllerBuilder removed - migrated to direct DI in application layer
 import 'package:ai_chan/shared/domain/interfaces/i_file_service.dart';
 import 'package:ai_chan/shared/infrastructure/services/file_service.dart';
 import 'package:ai_chan/shared/domain/interfaces/i_file_operations_service.dart';
@@ -32,6 +31,13 @@ import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 import 'package:ai_chan/chat/application/services/chat_application_service.dart';
 import 'package:ai_chan/chat/application/controllers/chat_controller.dart';
 import 'package:ai_chan/chat/infrastructure/services/prompt_builder_service.dart';
+import 'package:ai_chan/call/application/services/voice_call_application_service.dart';
+import 'package:ai_chan/call/application/use_cases/start_call_use_case.dart';
+import 'package:ai_chan/call/application/use_cases/end_call_use_case.dart';
+import 'package:ai_chan/call/application/use_cases/handle_incoming_call_use_case.dart';
+import 'package:ai_chan/call/application/use_cases/manage_audio_use_case.dart';
+import 'package:ai_chan/call/infrastructure/managers/call_manager_impl.dart';
+import 'package:ai_chan/call/infrastructure/managers/audio_manager_impl.dart';
 
 /// Pequeñas fábricas/funciones de DI para la migración incremental.
 /// Idealmente esto evolucionará a un contenedor/locator más completo.
@@ -109,9 +115,7 @@ ILanguageResolver getLanguageResolver() => LanguageResolverService();
 /// Factory for file service - handles file operations
 IFileService getFileService() => FileService();
 
-/// Factory for voice call controller builder
-IVoiceCallControllerBuilder getVoiceCallControllerBuilder() =>
-    VoiceCallControllerBuilder();
+// VoiceCallControllerBuilder - REMOVED: Migrated to application layer with direct DI
 
 // Test-time overrides (used by tests to inject fakes without touching DI calls)
 ISttService? _testSttOverride;
@@ -421,3 +425,17 @@ ChatApplicationService getChatApplicationService() => ChatApplicationService(
 /// Factory for Chat Controller - nueva arquitectura DDD
 ChatController getChatController() =>
     ChatController(chatService: getChatApplicationService());
+
+/// Factory for Voice Call Application Service - nueva arquitectura DDD
+VoiceCallApplicationService getVoiceCallApplicationService() {
+  // Crear instancias de managers
+  final callManager = CallManagerImpl();
+  final audioManager = AudioManagerImpl();
+
+  return VoiceCallApplicationService(
+    startCallUseCase: StartCallUseCase(callManager),
+    endCallUseCase: EndCallUseCase(callManager),
+    handleIncomingCallUseCase: HandleIncomingCallUseCase(callManager),
+    manageAudioUseCase: ManageAudioUseCase(audioManager),
+  );
+}

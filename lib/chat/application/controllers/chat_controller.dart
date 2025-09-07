@@ -63,9 +63,15 @@ class ChatController extends ChangeNotifier with UIStateManagementMixin {
   String? get googleAvatarUrl => googleController.googleAvatarUrl;
   String? get googleName => googleController.googleName;
 
-  Future<void> initialize() async =>
-      await executeWithState(operation: () => _chatService.initialize(), errorMessage: 'Error al cargar chat');
-  Future<void> sendMessage({required final String text, final String? model, final dynamic image}) async {
+  Future<void> initialize() async => await executeWithState(
+    operation: () => _chatService.initialize(),
+    errorMessage: 'Error al cargar chat',
+  );
+  Future<void> sendMessage({
+    required final String text,
+    final String? model,
+    final dynamic image,
+  }) async {
     if (_chatService.profile == null) {
       executeSyncWithNotification(
         operation: () => throw Exception('Perfil no inicializado'),
@@ -74,13 +80,16 @@ class ChatController extends ChangeNotifier with UIStateManagementMixin {
       return;
     }
     await executeWithState(
-      operation: () => _chatService.sendMessage(text: text, model: model, image: image),
+      operation: () =>
+          _chatService.sendMessage(text: text, model: model, image: image),
       errorMessage: 'Error al enviar mensaje',
     );
   }
 
-  Future<void> clearMessages() async =>
-      await executeWithState(operation: () => _chatService.clearAll(), errorMessage: 'Error al limpiar mensajes');
+  Future<void> clearMessages() async => await executeWithState(
+    operation: () => _chatService.clearAll(),
+    errorMessage: 'Error al limpiar mensajes',
+  );
   Future<void> saveState() async {
     await executeWithNotification(
       operation: () async {
@@ -92,14 +101,17 @@ class ChatController extends ChangeNotifier with UIStateManagementMixin {
   }
 
   // Service-level operations that don't require coordination
-  void setSelectedModel(final String? model) =>
-      executeSyncWithNotification(operation: () => _chatService.setSelectedModel(model));
+  void setSelectedModel(final String? model) => executeSyncWithNotification(
+    operation: () => _chatService.setSelectedModel(model),
+  );
 
   Future<List<String>> getAllModels({final bool forceRefresh = false}) async =>
       await _chatService.getAllModels(forceRefresh: forceRefresh);
 
   void schedulePromiseEvent(final EventEntry event) =>
-      executeSyncWithNotification(operation: () => _chatService.schedulePromiseEvent(event));
+      executeSyncWithNotification(
+        operation: () => _chatService.schedulePromiseEvent(event),
+      );
 
   bool isPlaying(final Message msg) => _chatService.isPlaying(msg);
 
@@ -109,10 +121,11 @@ class ChatController extends ChangeNotifier with UIStateManagementMixin {
     return await dataController.exportAllToJson(data);
   }
 
-  Future<void> applyChatExport(final Map<String, dynamic> chatExport) async => await executeWithState(
-    operation: () => _chatService.applyChatExport(chatExport),
-    errorMessage: 'Error al importar chat',
-  );
+  Future<void> applyChatExport(final Map<String, dynamic> chatExport) async =>
+      await executeWithState(
+        operation: () => _chatService.applyChatExport(chatExport),
+        errorMessage: 'Error al importar chat',
+      );
 
   @override
   void dispose() {

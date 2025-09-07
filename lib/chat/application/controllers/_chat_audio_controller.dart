@@ -17,7 +17,8 @@ import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
 /// - Delegation: All logic delegated to ChatApplicationService
 /// - UI State Management: Via mixin pattern
 class ChatAudioController extends ChangeNotifier with UIStateManagementMixin {
-  ChatAudioController({required final ChatApplicationService chatService}) : _chatService = chatService;
+  ChatAudioController({required final ChatApplicationService chatService})
+    : _chatService = chatService;
 
   final ChatApplicationService _chatService;
 
@@ -36,12 +37,18 @@ class ChatAudioController extends ChangeNotifier with UIStateManagementMixin {
 
   /// Start recording audio message
   Future<void> startRecording() async {
-    await delegate(serviceCall: () => _chatService.startRecording(), errorMessage: 'Error al iniciar grabación');
+    await delegate(
+      serviceCall: () => _chatService.startRecording(),
+      errorMessage: 'Error al iniciar grabación',
+    );
   }
 
   /// Cancel current recording
   Future<void> cancelRecording() async {
-    await delegate(serviceCall: () => _chatService.cancelRecording(), errorMessage: 'Error al cancelar grabación');
+    await delegate(
+      serviceCall: () => _chatService.cancelRecording(),
+      errorMessage: 'Error al cancelar grabación',
+    );
   }
 
   /// Stop recording and send as message
@@ -59,11 +66,17 @@ class ChatAudioController extends ChangeNotifier with UIStateManagementMixin {
 
   /// Toggle audio playback for a message
   Future<void> togglePlayAudio(final Message msg) async {
-    await delegate(serviceCall: () => _chatService.togglePlayAudio(msg), errorMessage: 'Error al reproducir audio');
+    await delegate(
+      serviceCall: () => _chatService.togglePlayAudio(msg),
+      errorMessage: 'Error al reproducir audio',
+    );
   }
 
   /// Generate TTS audio for a message
-  Future<void> generateTtsForMessage(final Message msg, {final String voice = 'nova'}) async {
+  Future<void> generateTtsForMessage(
+    final Message msg, {
+    final String voice = 'nova',
+  }) async {
     await delegate(
       serviceCall: () => _chatService.generateTtsForMessage(msg, voice: voice),
       errorMessage: 'Error al generar TTS',

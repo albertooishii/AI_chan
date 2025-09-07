@@ -1160,6 +1160,18 @@ bool _isAppropriateFallback(
   final block2Text = block2.join(' ').toLowerCase();
   final combinedText = '$block1Text $block2Text';
 
+  // ✅ NUEVO: Delegación a métodos privados (patrón post-refactorización válido)
+  // Si ambos bloques solo hacen 'return _privateMethod(...)', es una delegación válida
+  if (_isDelegationToPrivateMethod(block1, block2)) {
+    return true;
+  }
+
+  // ✅ NUEVO: Métodos que solo configuran parámetros y llaman a un método común
+  // (patrón facade/wrapper válido en Application Services)
+  if (_isParameterConfigurationWrapper(block1Text, block2Text, path)) {
+    return true;
+  }
+
   // 6. NUEVO: Estructuras de datos constantes (templates, configuraciones, JSON schemas)
   final hasDataStructurePattern =
       (combinedText.contains('nombre') ||
@@ -1508,4 +1520,80 @@ String _extractSyntacticStructure(final String line) {
   }
 
   return structure;
+}
+
+/// Detecta si dos bloques de código representan delegación a un método privado
+/// Ejemplo: return _privateMethod(...) con diferentes parámetros
+bool _isDelegationToPrivateMethod(
+  final List<String> block1,
+  final List<String> block2,
+) {
+  // Si ambos bloques son muy pequeños (2-4 líneas significativas) y contienen
+  // solo una llamada a return + método privado, es delegación válida
+  if (block1.length <= 4 && block2.length <= 4) {
+    final block1Clean = block1
+        .where((final line) => line.trim().isNotEmpty)
+        .toList();
+    final block2Clean = block2
+        .where((final line) => line.trim().isNotEmpty)
+        .toList();
+
+    // Buscar patrón: return _methodName(...)
+    final privateDelegationPattern = RegExp(r'return\s+_\w+\s*\(');
+
+    final block1HasDelegation = block1Clean.any(
+      (final line) => privateDelegationPattern.hasMatch(line),
+    );
+    final block2HasDelegation = block2Clean.any(
+      (final line) => privateDelegationPattern.hasMatch(line),
+    );
+
+    // Si ambos delegan a métodos privados, es refactorización válida
+    if (block1HasDelegation && block2HasDelegation) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/// Detecta si dos bloques representan wrappers de configuración de parámetros
+/// Común en Application Services donde diferentes métodos configuran parámetros
+/// y llaman al mismo método helper interno
+bool _isParameterConfigurationWrapper(
+  final String block1Text,
+  final String block2Text,
+  final String path,
+) {
+  // Solo aplicar en archivos de Application Services
+  if (!path.contains('application/services') &&
+      !path.contains('application_service')) {
+    return false;
+  }
+
+  // Ambos bloques deben contener llamadas a métodos similares con diferentes parámetros
+  final hasMethodCall1 = RegExp(r'_\w+\s*\(').hasMatch(block1Text);
+  final hasMethodCall2 = RegExp(r'_\w+\s*\(').hasMatch(block2Text);
+
+  if (!hasMethodCall1 || !hasMethodCall2) {
+    return false;
+  }
+
+  // Debe haber diferencias en los parámetros (diferentes strings/valores)
+  final strings1 = RegExp(r"'[^']*'").allMatches(block1Text);
+  final strings2 = RegExp(r"'[^']*'").allMatches(block2Text);
+
+  // Si tienen diferentes strings/parámetros, es configuración válida
+  if (strings1.isNotEmpty && strings2.isNotEmpty) {
+    final values1 = strings1.map((final m) => m.group(0)).toSet();
+    final values2 = strings2.map((final m) => m.group(0)).toSet();
+
+    // Si tienen valores diferentes, es parametrización válida
+    if (values1.intersection(values2).length < values1.length ||
+        values1.intersection(values2).length < values2.length) {
+      return true;
+    }
+  }
+
+  return false;
 }

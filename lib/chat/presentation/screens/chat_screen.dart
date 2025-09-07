@@ -51,7 +51,8 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   Directory? _imageDir;
-  bool _isRegeneratingAppearance = false; // Muestra spinner en avatar durante la regeneración
+  bool _isRegeneratingAppearance =
+      false; // Muestra spinner en avatar durante la regeneración
   late final FileUIService _fileUIService;
   // Google Drive linked account state is now provided by ChatProvider
   // Pagination / lazy loading for messages
@@ -97,13 +98,21 @@ class _ChatScreenState extends State<ChatScreen> {
         final provider = widget.chatController;
         _chatInputController = ChatInputController(
           scheduleSend: (final text, {final image, final imageMimeType}) async {
-            provider.messageController.scheduleSendMessage(text, image: image, imageMimeType: imageMimeType);
+            provider.messageController.scheduleSendMessage(
+              text,
+              image: image,
+              imageMimeType: imageMimeType,
+            );
             return Future.value();
           },
-          startRecording: () async => await provider.audioController.startRecording(),
-          stopAndSendRecording: () async => await provider.audioController.stopAndSendRecording(),
-          cancelRecording: () async => await provider.audioController.cancelRecording(),
-          onUserTyping: (final text) => provider.messageController.onUserTyping(text),
+          startRecording: () async =>
+              await provider.audioController.startRecording(),
+          stopAndSendRecording: () async =>
+              await provider.audioController.stopAndSendRecording(),
+          cancelRecording: () async =>
+              await provider.audioController.cancelRecording(),
+          onUserTyping: (final text) =>
+              provider.messageController.onUserTyping(text),
         );
 
         // Listener to push provider recording-related state into controller streams
@@ -136,7 +145,8 @@ class _ChatScreenState extends State<ChatScreen> {
     final filtered = chatController.messages
         .where(
           (final m) =>
-              m.sender != MessageSender.system || (m.sender == MessageSender.system && m.text.contains('[call]')),
+              m.sender != MessageSender.system ||
+              (m.sender == MessageSender.system && m.text.contains('[call]')),
         )
         .toList();
     if (filtered.length <= _displayedCount) return;
@@ -151,7 +161,9 @@ class _ChatScreenState extends State<ChatScreen> {
     await Future.delayed(const Duration(milliseconds: 120));
     if (!mounted) return;
     setState(() {
-      _displayedCount = (_displayedCount + _pageSize).clamp(0, filtered.length).toInt();
+      _displayedCount = (_displayedCount + _pageSize)
+          .clamp(0, filtered.length)
+          .toInt();
     });
 
     // Allow a frame to render the newly added items and then adjust scroll
@@ -175,7 +187,8 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _showImportDialog(final ChatController chatController) async {
     // ✅ DDD: ETAPA 3
     // ✅ DDD: Type safety en ETAPA 2
-    final (jsonStr, error) = await chat_json_utils.ChatJsonUtils.importJsonFile();
+    final (jsonStr, error) =
+        await chat_json_utils.ChatJsonUtils.importJsonFile();
     if (error != null) {
       showErrorDialog(error);
       return;
@@ -183,7 +196,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (jsonStr != null && jsonStr.trim().isNotEmpty) {
       try {
-        final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
+        final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
+          jsonStr,
+        );
         if (widget.onImportJson != null && imported != null) {
           await widget.onImportJson!.call(imported);
         } else {
@@ -220,22 +235,34 @@ class _ChatScreenState extends State<ChatScreen> {
             if (localLoading) return;
             setStateDialog(() => localLoading = true);
             try {
-              final fetched = await chatController.getAllModels(forceRefresh: true);
+              final fetched = await chatController.getAllModels(
+                forceRefresh: true,
+              );
               setStateDialog(() => localModels = fetched);
             } on Exception catch (e) {
               // show error inside dialog
-              showAppSnackBar('Error al actualizar modelos: $e', preferRootMessenger: true);
+              showAppSnackBar(
+                'Error al actualizar modelos: $e',
+                preferRootMessenger: true,
+              );
             } finally {
               setStateDialog(() => localLoading = false);
             }
           }
 
           return AppAlertDialog(
-            title: const Text('Modelo de texto', style: TextStyle(color: AppColors.primary)),
+            title: const Text(
+              'Modelo de texto',
+              style: TextStyle(color: AppColors.primary),
+            ),
             headerActions: [
               IconButton(
                 icon: localLoading
-                    ? const SizedBox(width: 18, height: 18, child: CyberpunkLoader(message: 'SYNC...'))
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CyberpunkLoader(message: 'SYNC...'),
+                      )
                     : const Icon(Icons.refresh, color: AppColors.primary),
                 tooltip: 'Actualizar modelos',
                 onPressed: () {
@@ -244,7 +271,10 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ],
             content: localModels.isEmpty
-                ? const Text('No se encontraron modelos disponibles.', style: TextStyle(color: AppColors.primary))
+                ? const Text(
+                    'No se encontraron modelos disponibles.',
+                    style: TextStyle(color: AppColors.primary),
+                  )
                 : Builder(
                     builder: (final innerCtx) {
                       final double maxWidth = dialogContentMaxWidth(innerCtx);
@@ -259,17 +289,35 @@ class _ChatScreenState extends State<ChatScreen> {
                             shrinkWrap: true,
                             children: () {
                               // Agrupar modelos por proveedor usando heurísticas sencillas.
-                              final grouped = ModelUtils.groupModels(localModels);
+                              final grouped = ModelUtils.groupModels(
+                                localModels,
+                              );
                               final preferred = ModelUtils.preferredOrder();
-                              final others = grouped.keys.where((final k) => !preferred.contains(k)).toList()..sort();
-                              final order = [...preferred.where((final k) => grouped.containsKey(k)), ...others];
+                              final others =
+                                  grouped.keys
+                                      .where(
+                                        (final k) => !preferred.contains(k),
+                                      )
+                                      .toList()
+                                    ..sort();
+                              final order = [
+                                ...preferred.where(
+                                  (final k) => grouped.containsKey(k),
+                                ),
+                                ...others,
+                              ];
                               final widgets = <Widget>[];
                               for (final grp in order) {
                                 final items = grouped[grp] ?? [];
                                 if (items.isEmpty) continue;
                                 widgets.add(
                                   Padding(
-                                    padding: const EdgeInsets.fromLTRB(12.0, 8.0, 12.0, 8.0),
+                                    padding: const EdgeInsets.fromLTRB(
+                                      12.0,
+                                      8.0,
+                                      12.0,
+                                      8.0,
+                                    ),
                                     child: Text(
                                       grp,
                                       style: const TextStyle(
@@ -283,16 +331,38 @@ class _ChatScreenState extends State<ChatScreen> {
                                 widgets.addAll(
                                   items.map(
                                     (final m) => ListTile(
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-                                      title: Text(m, style: const TextStyle(color: AppColors.primary)),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 12.0,
+                                            vertical: 4.0,
+                                          ),
+                                      title: Text(
+                                        m,
+                                        style: const TextStyle(
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
                                       trailing: initialModel == m
-                                          ? const Icon(Icons.radio_button_checked, color: AppColors.secondary)
-                                          : const Icon(Icons.radio_button_off, color: AppColors.primary),
-                                      onTap: () => Navigator.of(dialogCtxInner).pop(m),
+                                          ? const Icon(
+                                              Icons.radio_button_checked,
+                                              color: AppColors.secondary,
+                                            )
+                                          : const Icon(
+                                              Icons.radio_button_off,
+                                              color: AppColors.primary,
+                                            ),
+                                      onTap: () =>
+                                          Navigator.of(dialogCtxInner).pop(m),
                                     ),
                                   ),
                                 );
-                                widgets.add(const Divider(color: AppColors.secondary, thickness: 1, height: 24));
+                                widgets.add(
+                                  const Divider(
+                                    color: AppColors.secondary,
+                                    thickness: 1,
+                                    height: 24,
+                                  ),
+                                );
                               }
                               return widgets;
                             }(),
@@ -308,12 +378,18 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  void _setSelectedModel(final String? selected, final String? current, final ChatController chatController) {
+  void _setSelectedModel(
+    final String? selected,
+    final String? current,
+    final ChatController chatController,
+  ) {
     // ✅ DDD: ETAPA 3
     // ✅ DDD: Type safety en ETAPA 2
     if (!mounted) return;
     if (selected != null && selected != current) {
-      chatController.setSelectedModel(selected); // ✅ DDD: ETAPA 3 - Usar método setSelectedModel
+      chatController.setSelectedModel(
+        selected,
+      ); // ✅ DDD: ETAPA 3 - Usar método setSelectedModel
       setState(() {});
     }
   }
@@ -323,7 +399,10 @@ class _ChatScreenState extends State<ChatScreen> {
     showAppSnackBar('Chat importado correctamente.', preferRootMessenger: true);
   }
 
-  void _showExportDialog(final String jsonStr, final ChatController chatController) {
+  void _showExportDialog(
+    final String jsonStr,
+    final ChatController chatController,
+  ) {
     // ✅ DDD: ETAPA 3
     // ✅ DDD: Type safety en ETAPA 2
     final chatExport = ChatExport(
@@ -333,7 +412,10 @@ class _ChatScreenState extends State<ChatScreen> {
       timeline: chatController.timeline,
     );
     // Delegate to shared util which shows preview and offers copy/save
-    chat_json_utils.ChatJsonUtils.showExportedJsonDialog(jsonStr, chat: chatExport);
+    chat_json_utils.ChatJsonUtils.showExportedJsonDialog(
+      jsonStr,
+      chat: chatExport,
+    );
   }
 
   // Central handler para eliminaciones de imagenes desde los viewers/galería.
@@ -364,12 +446,18 @@ class _ChatScreenState extends State<ChatScreen> {
       final navigator = Navigator.of(navCtx);
       if (chatController.isCalling) {
         // Abrir VoiceCallScreen en modo incoming solo si no hay ya otra ruta de llamada
-        final alreadyOpen = navigator.widget is VoiceCallScreen; // heurístico simple
+        final alreadyOpen =
+            navigator.widget is VoiceCallScreen; // heurístico simple
         if (!alreadyOpen) {
           // Clear the calling flag to avoid reopening while the screen is active.
           chatController.callController.clearPendingIncomingCall();
           navigator.push(
-            MaterialPageRoute(builder: (_) => VoiceCallScreen(incoming: true, chatController: chatController)),
+            MaterialPageRoute(
+              builder: (_) => VoiceCallScreen(
+                incoming: true,
+                chatController: chatController,
+              ),
+            ),
           );
         }
       }
@@ -383,7 +471,9 @@ class _ChatScreenState extends State<ChatScreen> {
         shadowColor: Colors.transparent,
         surfaceTintColor: Colors.black,
         title: Padding(
-          padding: EdgeInsets.only(right: MediaQuery.of(context).padding.right + 8.0),
+          padding: EdgeInsets.only(
+            right: MediaQuery.of(context).padding.right + 8.0,
+          ),
           child: Row(
             children: [
               if (_isRegeneratingAppearance)
@@ -400,7 +490,9 @@ class _ChatScreenState extends State<ChatScreen> {
                         Positioned.fill(
                           child: CircularProgressIndicator(
                             strokeWidth: 1.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary.withValues(alpha: 0.3)),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              AppColors.primary.withValues(alpha: 0.3),
+                            ),
                           ),
                         ),
                         // Punto central con glow cyberpunk
@@ -411,7 +503,13 @@ class _ChatScreenState extends State<ChatScreen> {
                             decoration: const BoxDecoration(
                               shape: BoxShape.circle,
                               color: AppColors.primary,
-                              boxShadow: [BoxShadow(color: AppColors.primary, blurRadius: 8, spreadRadius: 1)],
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary,
+                                  blurRadius: 8,
+                                  spreadRadius: 1,
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -419,7 +517,9 @@ class _ChatScreenState extends State<ChatScreen> {
                         const Positioned.fill(
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              AppColors.primary,
+                            ),
                           ),
                         ),
                       ],
@@ -438,7 +538,12 @@ class _ChatScreenState extends State<ChatScreen> {
                           final messages = avatars.map((final a) {
                             final filename = a.url?.split('/').last ?? '';
                             return Message(
-                              image: AiImage(url: filename, seed: a.seed, prompt: a.prompt, createdAtMs: a.createdAtMs),
+                              image: AiImage(
+                                url: filename,
+                                seed: a.seed,
+                                prompt: a.prompt,
+                                createdAtMs: a.createdAtMs,
+                              ),
                               text: '',
                               sender: MessageSender.assistant,
                               isImage: true,
@@ -463,7 +568,9 @@ class _ChatScreenState extends State<ChatScreen> {
                               return CircleAvatar(
                                 radius: 16,
                                 backgroundColor: AppColors.secondary,
-                                backgroundImage: MemoryImage(Uint8List.fromList(snapshot.data!)),
+                                backgroundImage: MemoryImage(
+                                  Uint8List.fromList(snapshot.data!),
+                                ),
                               );
                             }
                             return const CircleAvatar(
@@ -501,18 +608,29 @@ class _ChatScreenState extends State<ChatScreen> {
             tooltip: 'Llamada de voz',
             onPressed: () {
               final existingController = widget.chatController;
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => VoiceCallScreen(chatController: existingController)));
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      VoiceCallScreen(chatController: existingController),
+                ),
+              );
             },
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: AppColors.primary),
             itemBuilder: (final context) => [
               // Galería primero
-              _buildMenuItem(value: 'gallery', icon: Icons.photo_library, text: 'Ver galería de fotos'),
+              _buildMenuItem(
+                value: 'gallery',
+                icon: Icons.photo_library,
+                text: 'Ver galería de fotos',
+              ),
               // Abrir calendario (opción normal, arriba de debug)
-              _buildMenuItem(value: 'calendar', icon: Icons.calendar_month, text: 'Abrir calendario'),
+              _buildMenuItem(
+                value: 'calendar',
+                icon: Icons.calendar_month,
+                text: 'Abrir calendario',
+              ),
               // (Eliminado) Selector de países
               // Seleccionar modelo
               PopupMenuItem<String>(
@@ -520,20 +638,29 @@ class _ChatScreenState extends State<ChatScreen> {
                 value: 'select_model',
                 child: Row(
                   children: [
-                    const Icon(Icons.memory, color: AppColors.primary, size: 20),
+                    const Icon(
+                      Icons.memory,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Builder(
                         builder: (final context) {
                           final defaultModel = Config.getDefaultTextModel();
-                          final selected = chatController.selectedModel ?? defaultModel;
+                          final selected =
+                              chatController.selectedModel ?? defaultModel;
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                _loadingModels ? 'Cargando modelos...' : 'Modelo de texto',
-                                style: const TextStyle(color: AppColors.primary),
+                                _loadingModels
+                                    ? 'Cargando modelos...'
+                                    : 'Modelo de texto',
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                ),
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
                               ),
@@ -562,7 +689,11 @@ class _ChatScreenState extends State<ChatScreen> {
                 value: 'select_voice',
                 child: Row(
                   children: [
-                    const Icon(Icons.settings_voice, color: AppColors.primary, size: 20),
+                    const Icon(
+                      Icons.settings_voice,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Builder(
@@ -607,7 +738,9 @@ class _ChatScreenState extends State<ChatScreen> {
                                         return const SizedBox.shrink();
                                       }
                                       return Padding(
-                                        padding: const EdgeInsets.only(left: 8.0),
+                                        padding: const EdgeInsets.only(
+                                          left: 8.0,
+                                        ),
                                         child: Text(
                                           v,
                                           style: const TextStyle(
@@ -633,10 +766,16 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               const PopupMenuDivider(),
               // Copia de seguridad local (unificada)
-              _buildMenuItem(value: 'local_backup', icon: Icons.sd_storage, text: 'Copia de seguridad local'),
+              _buildMenuItem(
+                value: 'local_backup',
+                icon: Icons.sd_storage,
+                text: 'Copia de seguridad local',
+              ),
               // Google Drive menu entry: always show a simple label (no avatar/email)
               _buildMenuItem(
-                value: chatController.googleLinked ? 'backup_status' : 'backup_google',
+                value: chatController.googleLinked
+                    ? 'backup_status'
+                    : 'backup_google',
                 icon: Icons.add_to_drive,
                 text: 'Copia de seguridad en Google Drive',
               ),
@@ -674,21 +813,33 @@ class _ChatScreenState extends State<ChatScreen> {
                 const PopupMenuDivider(),
               ],
               // Cerrar sesión - siempre visible, al final del menú
-              _buildMenuItem(value: 'logout', icon: Icons.logout, text: 'Cerrar sesión', color: Colors.redAccent),
+              _buildMenuItem(
+                value: 'logout',
+                icon: Icons.logout,
+                text: 'Cerrar sesión',
+                color: Colors.redAccent,
+              ),
               // Debug options removed: import chat and clear all not applicable in release flows
             ],
             onSelected: (final value) async {
               if (value == 'gallery') {
                 final images = chatController.messages
                     .where(
-                      (final m) => m.isImage && m.image != null && m.image!.url != null && m.image!.url!.isNotEmpty,
+                      (final m) =>
+                          m.isImage &&
+                          m.image != null &&
+                          m.image!.url != null &&
+                          m.image!.url!.isNotEmpty,
                     )
                     .toList();
                 final navCtx = navigatorKey.currentContext;
                 if (navCtx == null) return;
                 Navigator.of(navCtx).push(
                   MaterialPageRoute(
-                    builder: (_) => GalleryScreen(images: images, onImageDeleted: _handleImageDeleted),
+                    builder: (_) => GalleryScreen(
+                      images: images,
+                      onImageDeleted: _handleImageDeleted,
+                    ),
                   ),
                 );
               } else if (value == 'calendar') {
@@ -713,7 +864,11 @@ class _ChatScreenState extends State<ChatScreen> {
                   if (navCtx == null) return;
                   _showExportDialog(jsonStr, widget.chatController);
                 } on Exception catch (e) {
-                  Log.e('Error al exportar biografía', tag: 'CHAT_SCREEN', error: e);
+                  Log.e(
+                    'Error al exportar biografía',
+                    tag: 'CHAT_SCREEN',
+                    error: e,
+                  );
                   // showErrorDialog resolves context via navigatorKey internally
                   showErrorDialog(e.toString());
                 }
@@ -735,7 +890,9 @@ class _ChatScreenState extends State<ChatScreen> {
                         );
                       },
                       onImportedJson: (final imported) async {
-                        await widget.chatController.applyChatExport(imported.toJson());
+                        await widget.chatController.applyChatExport(
+                          imported.toJson(),
+                        );
                         if (mounted) setState(() {});
                       },
                       onImportError: (final err) {
@@ -750,7 +907,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   // La generación del avatar se ejecutará automáticamente desde el provider
                   // después de actualizar la appearance. Propagamos errores para que la UI
                   // muestre un único diálogo.
-                  await widget.chatController.dataController.regenerateAppearance();
+                  await widget.chatController.dataController
+                      .regenerateAppearance();
                 } on Exception catch (e) {
                   if (!mounted) return;
                   showErrorDialog('Error al regenerar apariencia:\n$e');
@@ -762,7 +920,8 @@ class _ChatScreenState extends State<ChatScreen> {
               } else if (value == 'add_new_avatar') {
                 setState(() => _isRegeneratingAppearance = true);
                 try {
-                  await widget.chatController.dataController.generateAvatarFromAppearance();
+                  await widget.chatController.dataController
+                      .generateAvatarFromAppearance();
                 } on Exception catch (e) {
                   if (!mounted) return;
                   showErrorDialog('Error al generar avatar:\n$e');
@@ -777,18 +936,27 @@ class _ChatScreenState extends State<ChatScreen> {
                 final confirm = await showAppDialog<bool>(
                   builder: (final ctx) => AlertDialog(
                     backgroundColor: Colors.black,
-                    title: const Text('Cerrar sesión', style: TextStyle(color: Colors.redAccent)),
+                    title: const Text(
+                      'Cerrar sesión',
+                      style: TextStyle(color: Colors.redAccent),
+                    ),
                     content: const Text(
                       '¿Seguro que quieres cerrar sesión? Se borrarán todos los datos de la app incluyendo conversaciones, configuraciones y credenciales guardadas.\n\nEsta acción no se puede deshacer.',
                       style: TextStyle(color: AppColors.primary),
                     ),
                     actions: [
                       TextButton(
-                        child: const Text('Cancelar', style: TextStyle(color: AppColors.primary)),
+                        child: const Text(
+                          'Cancelar',
+                          style: TextStyle(color: AppColors.primary),
+                        ),
                         onPressed: () => Navigator.of(navCtx).pop(false),
                       ),
                       TextButton(
-                        child: const Text('Cerrar sesión', style: TextStyle(color: Colors.redAccent)),
+                        child: const Text(
+                          'Cerrar sesión',
+                          style: TextStyle(color: Colors.redAccent),
+                        ),
                         onPressed: () => Navigator.of(navCtx).pop(true),
                       ),
                     ],
@@ -831,8 +999,14 @@ class _ChatScreenState extends State<ChatScreen> {
                 final defaultModel = Config.getDefaultTextModel();
                 final initialModel =
                     current ??
-                    (models.contains(defaultModel) ? defaultModel : (models.isNotEmpty ? models.first : null));
-                final selected = await _showModelSelectionDialog(models, initialModel, widget.chatController);
+                    (models.contains(defaultModel)
+                        ? defaultModel
+                        : (models.isNotEmpty ? models.first : null));
+                final selected = await _showModelSelectionDialog(
+                  models,
+                  initialModel,
+                  widget.chatController,
+                );
                 if (!mounted) return;
                 _setSelectedModel(selected, current, widget.chatController);
               } else if (value == 'select_voice') {
@@ -840,13 +1014,17 @@ class _ChatScreenState extends State<ChatScreen> {
                 final userCountry = widget.bio.userCountryCode;
                 List<String> userLangCodes = [];
                 if (userCountry != null && userCountry.trim().isNotEmpty) {
-                  userLangCodes = LocaleUtils.officialLanguageCodesForCountry(userCountry.trim().toUpperCase());
+                  userLangCodes = LocaleUtils.officialLanguageCodesForCountry(
+                    userCountry.trim().toUpperCase(),
+                  );
                 }
 
                 final aiCountry = widget.bio.aiCountryCode;
                 List<String> aiLangCodes = [];
                 if (aiCountry != null && aiCountry.trim().isNotEmpty) {
-                  aiLangCodes = LocaleUtils.officialLanguageCodesForCountry(aiCountry.trim().toUpperCase());
+                  aiLangCodes = LocaleUtils.officialLanguageCodesForCountry(
+                    aiCountry.trim().toUpperCase(),
+                  );
                 }
 
                 // Mostrar configuración de TTS en diálogo consistente con AppAlertDialog
@@ -865,12 +1043,13 @@ class _ChatScreenState extends State<ChatScreen> {
                         required final forDialogDemo,
                       }) async {
                         try {
-                          final file = await widget.chatController.audioService.synthesizeTts(
-                            phrase,
-                            voice: voice,
-                            languageCode: language,
-                            forDialogDemo: forDialogDemo,
-                          );
+                          final file = await widget.chatController.audioService
+                              .synthesizeTts(
+                                phrase,
+                                voice: voice,
+                                languageCode: language,
+                                forDialogDemo: forDialogDemo,
+                              );
                           return file; // Ya es String?, no necesita conversión
                         } on Exception {
                           return null;
@@ -890,7 +1069,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 await showAppDialog<void>(
                   builder: (final ctx) => AlertDialog(
                     backgroundColor: Colors.black,
-                    content: _buildGoogleDriveBackupDialog(widget.chatController),
+                    content: _buildGoogleDriveBackupDialog(
+                      widget.chatController,
+                    ),
                   ),
                 );
                 // ChatProvider will be updated by the dialog; no local refresh needed.
@@ -900,7 +1081,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 await showAppDialog<void>(
                   builder: (final ctx) => AlertDialog(
                     backgroundColor: Colors.black,
-                    content: _buildGoogleDriveBackupDialog(widget.chatController),
+                    content: _buildGoogleDriveBackupDialog(
+                      widget.chatController,
+                    ),
                   ),
                 );
                 return;
@@ -919,7 +1102,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       .where(
                         (final m) =>
                             m.sender != MessageSender.system ||
-                            (m.sender == MessageSender.system && m.text.contains('[call]')),
+                            (m.sender == MessageSender.system &&
+                                m.text.contains('[call]')),
                       )
                       .toList();
                   if (filteredMessages.isEmpty) return const SizedBox.shrink();
@@ -927,7 +1111,9 @@ class _ChatScreenState extends State<ChatScreen> {
                   final int take = filteredMessages.length <= _displayedCount
                       ? filteredMessages.length
                       : _displayedCount;
-                  final shown = filteredMessages.sublist(filteredMessages.length - take);
+                  final shown = filteredMessages.sublist(
+                    filteredMessages.length - take,
+                  );
                   final reversedShown = shown.reversed.toList();
                   final hasMore = filteredMessages.length > shown.length;
                   final totalCount = reversedShown.length + (hasMore ? 1 : 0);
@@ -935,7 +1121,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   return ListView.builder(
                     controller: _scrollController,
                     reverse: true,
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16,
+                      horizontal: 8,
+                    ),
                     itemCount: totalCount,
                     itemBuilder: (final context, final index) {
                       if (index == reversedShown.length && hasMore) {
@@ -946,9 +1135,16 @@ class _ChatScreenState extends State<ChatScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                SizedBox(width: 16, height: 16, child: CyberpunkLoader(message: 'LOADING...')),
+                                SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CyberpunkLoader(message: 'LOADING...'),
+                                ),
                                 SizedBox(width: 8),
-                                Text('Cargando mensajes antiguos...', style: TextStyle(color: AppColors.primary)),
+                                Text(
+                                  'Cargando mensajes antiguos...',
+                                  style: TextStyle(color: AppColors.primary),
+                                ),
                               ],
                             ),
                           ),
@@ -978,10 +1174,15 @@ class _ChatScreenState extends State<ChatScreen> {
                             final images = chatController.messages
                                 .where(
                                   (final m) =>
-                                      m.isImage && m.image != null && m.image!.url != null && m.image!.url!.isNotEmpty,
+                                      m.isImage &&
+                                      m.image != null &&
+                                      m.image!.url != null &&
+                                      m.image!.url!.isNotEmpty,
                                 )
                                 .toList();
-                            final idx = images.indexWhere((final m) => m.image?.url == message.image?.url);
+                            final idx = images.indexWhere(
+                              (final m) => m.image?.url == message.image?.url,
+                            );
                             if (idx != -1) {
                               ExpandableImageDialog.show(
                                 images,
@@ -993,8 +1194,10 @@ class _ChatScreenState extends State<ChatScreen> {
                             }
                           } on Exception catch (_) {}
                         },
-                        isAudioPlaying: (final msg) => chatController.isPlaying(msg),
-                        onToggleAudio: (final msg) => chatController.audioController.togglePlayAudio(msg),
+                        isAudioPlaying: (final msg) =>
+                            chatController.isPlaying(msg),
+                        onToggleAudio: (final msg) =>
+                            chatController.audioController.togglePlayAudio(msg),
                         getAudioPosition: () => chatController.playingPosition,
                         getAudioDuration: () => chatController.playingDuration,
                       );
@@ -1010,13 +1213,20 @@ class _ChatScreenState extends State<ChatScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 14),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 6,
+                        horizontal: 14,
+                      ),
                       decoration: BoxDecoration(
-                        color: AppColors.secondary.withAlpha((0.18 * 255).round()),
+                        color: AppColors.secondary.withAlpha(
+                          (0.18 * 255).round(),
+                        ),
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.secondary.withAlpha((0.12 * 255).round()),
+                            color: AppColors.secondary.withAlpha(
+                              (0.12 * 255).round(),
+                            ),
                             blurRadius: 8.0,
                             offset: const Offset(0, 2),
                           ),
@@ -1024,11 +1234,19 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       child: const Row(
                         children: [
-                          Icon(Icons.photo_camera, color: AppColors.secondary, size: 22),
+                          Icon(
+                            Icons.photo_camera,
+                            color: AppColors.secondary,
+                            size: 22,
+                          ),
                           SizedBox(width: 10),
                           Text(
                             'Enviando imagen...',
-                            style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w500, fontSize: 15),
+                            style: TextStyle(
+                              color: AppColors.secondary,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 15,
+                            ),
                           ),
                         ],
                       ),
@@ -1043,13 +1261,20 @@ class _ChatScreenState extends State<ChatScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 14),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 6,
+                        horizontal: 14,
+                      ),
                       decoration: BoxDecoration(
-                        color: AppColors.secondary.withAlpha((0.18 * 255).round()),
+                        color: AppColors.secondary.withAlpha(
+                          (0.18 * 255).round(),
+                        ),
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.secondary.withAlpha((0.12 * 255).round()),
+                            color: AppColors.secondary.withAlpha(
+                              (0.12 * 255).round(),
+                            ),
                             blurRadius: 8.0,
                             offset: const Offset(0, 2),
                           ),
@@ -1057,7 +1282,11 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       child: const Row(
                         children: [
-                          Icon(Icons.mic_external_on, color: AppColors.secondary, size: 22),
+                          Icon(
+                            Icons.mic_external_on,
+                            color: AppColors.secondary,
+                            size: 22,
+                          ),
                           SizedBox(width: 10),
                           Row(
                             children: [
@@ -1065,7 +1294,11 @@ class _ChatScreenState extends State<ChatScreen> {
                               SizedBox(width: 8),
                               Text(
                                 'Grabando nota de voz...',
-                                style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w500, fontSize: 15),
+                                style: TextStyle(
+                                  color: AppColors.secondary,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 15,
+                                ),
                               ),
                             ],
                           ),
@@ -1082,13 +1315,20 @@ class _ChatScreenState extends State<ChatScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 14),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 6,
+                        horizontal: 14,
+                      ),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withAlpha((0.18 * 255).round()),
+                        color: AppColors.primary.withAlpha(
+                          (0.18 * 255).round(),
+                        ),
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withAlpha((0.12 * 255).round()),
+                            color: AppColors.primary.withAlpha(
+                              (0.12 * 255).round(),
+                            ),
                             blurRadius: 8.0,
                             offset: const Offset(0, 2),
                           ),
@@ -1096,7 +1336,11 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       child: const Row(
                         children: [
-                          Icon(Icons.keyboard_alt, color: AppColors.primary, size: 22),
+                          Icon(
+                            Icons.keyboard_alt,
+                            color: AppColors.primary,
+                            size: 22,
+                          ),
                           SizedBox(width: 10),
                           TypingAnimation(),
                         ],
@@ -1109,18 +1353,24 @@ class _ChatScreenState extends State<ChatScreen> {
               controller:
                   _chatInputController ??
                   ChatInputController(
-                    scheduleSend: (final text, {final image, final imageMimeType}) async {
-                      chatController.messageController.scheduleSendMessage(
-                        text,
-                        image: image,
-                        imageMimeType: imageMimeType,
-                      );
-                      return Future.value();
-                    },
-                    startRecording: () async => await chatController.audioController.startRecording(),
-                    stopAndSendRecording: () async => await chatController.audioController.stopAndSendRecording(),
-                    cancelRecording: () async => await chatController.audioController.cancelRecording(),
-                    onUserTyping: (final text) => chatController.messageController.onUserTyping(text),
+                    scheduleSend:
+                        (final text, {final image, final imageMimeType}) async {
+                          chatController.messageController.scheduleSendMessage(
+                            text,
+                            image: image,
+                            imageMimeType: imageMimeType,
+                          );
+                          return Future.value();
+                        },
+                    startRecording: () async =>
+                        await chatController.audioController.startRecording(),
+                    stopAndSendRecording: () async => await chatController
+                        .audioController
+                        .stopAndSendRecording(),
+                    cancelRecording: () async =>
+                        await chatController.audioController.cancelRecording(),
+                    onUserTyping: (final text) =>
+                        chatController.messageController.onUserTyping(text),
                   ),
               fileService: _fileUIService,
             ),
@@ -1130,7 +1380,9 @@ class _ChatScreenState extends State<ChatScreen> {
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: _showScrollToBottomButton
           ? Padding(
-              padding: const EdgeInsets.only(bottom: 70.0), // bajar un poco el FAB
+              padding: const EdgeInsets.only(
+                bottom: 70.0,
+              ), // bajar un poco el FAB
               child: FloatingActionButton(
                 backgroundColor: AppColors.primary,
                 child: const Icon(Icons.arrow_downward, color: Colors.black),
@@ -1202,7 +1454,9 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   /// Helper para crear GoogleDriveBackupDialog con callbacks estandarizados
-  GoogleDriveBackupDialog _buildGoogleDriveBackupDialog(final dynamic provider) {
+  GoogleDriveBackupDialog _buildGoogleDriveBackupDialog(
+    final dynamic provider,
+  ) {
     return GoogleDriveBackupDialog(
       requestBackupJson: () async => await BackupUtils.exportChatPartsToJson(
         profile: provider.onboardingData,
@@ -1211,7 +1465,9 @@ class _ChatScreenState extends State<ChatScreen> {
         timeline: provider.timeline,
       ),
       onImportedJson: (final jsonStr) async {
-        final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(jsonStr);
+        final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
+          jsonStr,
+        );
         if (imported != null) {
           await widget.chatController.applyChatExport(imported.toJson());
         }

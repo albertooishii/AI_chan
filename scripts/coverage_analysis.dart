@@ -28,7 +28,6 @@ Future<void> main() async {
 }
 
 class CoverageData {
-
   CoverageData({
     required this.filePath,
     required this.totalLines,
@@ -46,7 +45,6 @@ class CoverageData {
 enum Priority { critical, high, medium, low }
 
 class CoverageReport {
-
   CoverageReport({
     required this.files,
     required this.overallCoverage,
@@ -96,9 +94,17 @@ CoverageReport analyzeCoverage(final String lcovContent) {
     }
   }
 
-  final totalLines = files.fold(0, (final sum, final file) => sum + file.totalLines);
-  final totalCovered = files.fold(0, (final sum, final file) => sum + file.coveredLines);
-  final overallCoverage = totalLines > 0 ? (totalCovered / totalLines) * 100 : 0.0;
+  final totalLines = files.fold(
+    0,
+    (final sum, final file) => sum + file.totalLines,
+  );
+  final totalCovered = files.fold(
+    0,
+    (final sum, final file) => sum + file.coveredLines,
+  );
+  final overallCoverage = totalLines > 0
+      ? (totalCovered / totalLines) * 100
+      : 0.0;
 
   return CoverageReport(
     files: files,
@@ -108,15 +114,23 @@ CoverageReport analyzeCoverage(final String lcovContent) {
   );
 }
 
-Priority calculatePriority(final String filePath, final double coverage, final int lines) {
+Priority calculatePriority(
+  final String filePath,
+  final double coverage,
+  final int lines,
+) {
   // Factor 1: Tipo de archivo (criticidad del dominio)
   int criticalityScore = 0;
 
-  if (filePath.contains('/use_cases/') || filePath.contains('/services/') || filePath.contains('/domain/')) {
+  if (filePath.contains('/use_cases/') ||
+      filePath.contains('/services/') ||
+      filePath.contains('/domain/')) {
     criticalityScore += 3; // Lógica de negocio crítica
-  } else if (filePath.contains('/controllers/') || filePath.contains('/repositories/')) {
+  } else if (filePath.contains('/controllers/') ||
+      filePath.contains('/repositories/')) {
     criticalityScore += 2; // Lógica de aplicación importante
-  } else if (filePath.contains('/adapters/') || filePath.contains('/infrastructure/')) {
+  } else if (filePath.contains('/adapters/') ||
+      filePath.contains('/infrastructure/')) {
     criticalityScore += 1; // Infraestructura
   }
 
@@ -143,14 +157,29 @@ Priority calculatePriority(final String filePath, final double coverage, final i
   return Priority.low;
 }
 
-void _appendCategoryStats(final StringBuffer output, final List<CoverageData> files, final String category, final String pathPattern) {
-  final categoryFiles = files.where((final f) => f.filePath.contains(pathPattern)).toList();
+void _appendCategoryStats(
+  final StringBuffer output,
+  final List<CoverageData> files,
+  final String category,
+  final String pathPattern,
+) {
+  final categoryFiles = files
+      .where((final f) => f.filePath.contains(pathPattern))
+      .toList();
   if (categoryFiles.isEmpty) return;
 
-  final totalLines = categoryFiles.fold(0, (final sum, final f) => sum + f.totalLines);
-  final coveredLines = categoryFiles.fold(0, (final sum, final f) => sum + f.coveredLines);
+  final totalLines = categoryFiles.fold(
+    0,
+    (final sum, final f) => sum + f.totalLines,
+  );
+  final coveredLines = categoryFiles.fold(
+    0,
+    (final sum, final f) => sum + f.coveredLines,
+  );
   final avgCoverage = totalLines > 0 ? (coveredLines / totalLines) * 100 : 0.0;
-  final zeroCoverage = categoryFiles.where((final f) => f.coveragePercent == 0).length;
+  final zeroCoverage = categoryFiles
+      .where((final f) => f.coveragePercent == 0)
+      .length;
 
   output.writeln(
     '$category: ${avgCoverage.toStringAsFixed(1)}% (${categoryFiles.length} archivos, $zeroCoverage sin cobertura)',
@@ -166,20 +195,36 @@ String generateReport(final CoverageReport report) {
   // Análisis general
   output.writeln('📊 RESUMEN GENERAL');
   output.writeln('─────────────────');
-  output.writeln('Cobertura global: ${report.overallCoverage.toStringAsFixed(1)}%');
-  output.writeln('Líneas cubiertas: ${report.totalCoveredLines}/${report.totalLines}');
+  output.writeln(
+    'Cobertura global: ${report.overallCoverage.toStringAsFixed(1)}%',
+  );
+  output.writeln(
+    'Líneas cubiertas: ${report.totalCoveredLines}/${report.totalLines}',
+  );
   output.writeln('Archivos analizados: ${report.files.length}');
   output.writeln();
 
   // Agrupar por prioridad
-  final critical = report.files.where((final f) => f.priority == Priority.critical).toList();
-  final high = report.files.where((final f) => f.priority == Priority.high).toList();
-  final medium = report.files.where((final f) => f.priority == Priority.medium).toList();
+  final critical = report.files
+      .where((final f) => f.priority == Priority.critical)
+      .toList();
+  final high = report.files
+      .where((final f) => f.priority == Priority.high)
+      .toList();
+  final medium = report.files
+      .where((final f) => f.priority == Priority.medium)
+      .toList();
 
   // Ordenar por cobertura (menor primero)
-  critical.sort((final a, final b) => a.coveragePercent.compareTo(b.coveragePercent));
-  high.sort((final a, final b) => a.coveragePercent.compareTo(b.coveragePercent));
-  medium.sort((final a, final b) => a.coveragePercent.compareTo(b.coveragePercent));
+  critical.sort(
+    (final a, final b) => a.coveragePercent.compareTo(b.coveragePercent),
+  );
+  high.sort(
+    (final a, final b) => a.coveragePercent.compareTo(b.coveragePercent),
+  );
+  medium.sort(
+    (final a, final b) => a.coveragePercent.compareTo(b.coveragePercent),
+  );
 
   if (critical.isNotEmpty) {
     output.writeln('🚨 PRIORIDAD CRÍTICA (${critical.length} archivos)');
@@ -212,7 +257,9 @@ String generateReport(final CoverageReport report) {
     output.writeln('═══════════════════════════════════════════');
     output.writeln('Los primeros 5 archivos con menor cobertura:');
     for (final file in medium.take(5)) {
-      output.writeln('• ${_getFileName(file.filePath)}: ${file.coveragePercent.toStringAsFixed(1)}%');
+      output.writeln(
+        '• ${_getFileName(file.filePath)}: ${file.coveragePercent.toStringAsFixed(1)}%',
+      );
     }
     output.writeln();
   }
@@ -224,7 +271,12 @@ String generateReport(final CoverageReport report) {
   _appendCategoryStats(output, report.files, 'Services', '/services/');
   _appendCategoryStats(output, report.files, 'Controllers', '/controllers/');
   _appendCategoryStats(output, report.files, 'Domain', '/domain/');
-  _appendCategoryStats(output, report.files, 'Infrastructure', '/infrastructure/');
+  _appendCategoryStats(
+    output,
+    report.files,
+    'Infrastructure',
+    '/infrastructure/',
+  );
   _appendCategoryStats(output, report.files, 'Presentation', '/presentation/');
 
   // Recomendaciones
@@ -235,9 +287,15 @@ String generateReport(final CoverageReport report) {
     output.writeln('\n🔥 ACCIÓN INMEDIATA REQUERIDA:');
     output.writeln('──────────────────────────────');
 
-    final useCases = critical.where((final f) => f.filePath.contains('/use_cases/')).toList();
-    final services = critical.where((final f) => f.filePath.contains('/services/')).toList();
-    final controllers = critical.where((final f) => f.filePath.contains('/controllers/')).toList();
+    final useCases = critical
+        .where((final f) => f.filePath.contains('/use_cases/'))
+        .toList();
+    final services = critical
+        .where((final f) => f.filePath.contains('/services/'))
+        .toList();
+    final controllers = critical
+        .where((final f) => f.filePath.contains('/controllers/'))
+        .toList();
 
     if (useCases.isNotEmpty) {
       output.writeln('\n1️⃣ USE CASES (lógica de negocio crítica):');

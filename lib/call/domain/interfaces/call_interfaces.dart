@@ -85,48 +85,9 @@ abstract interface class IRealtimeCallClient {
   Stream<void> get completionStream;
 }
 
-/// Interfaz para el controlador de llamadas de voz
-/// Abstrae la lógica de manejo de llamadas en tiempo real
-abstract interface class IVoiceCallController {
-  /// Inicia una nueva llamada
-  Future<void> startCall();
-
-  /// Termina la llamada actual
-  Future<void> endCall();
-
-  /// Responde una llamada entrante
-  Future<void> answerCall();
-
-  /// Rechaza una llamada entrante
-  Future<void> rejectCall();
-
-  /// Silencia/des-silencia el micrófono
-  void toggleMute();
-
-  /// Estado actual del micrófono
-  bool get isMuted;
-
-  /// Envía audio al servicio
-  void sendAudio(final List<int> audioBytes);
-
-  /// Obtiene el nivel de audio actual
-  double get audioLevel;
-
-  /// Stream de cambios en el estado de la llamada
-  Stream<dynamic> get stateChanges;
-
-  /// Stream de texto recibido del asistente
-  Stream<String> get textStream;
-
-  /// Stream de audio recibido del asistente
-  Stream<Uint8List> get audioStream;
-
-  /// Stream de errores
-  Stream<Object> get errorStream;
-
-  /// Libera recursos
-  void dispose();
-}
+// Nota: IVoiceCallController fue eliminada como parte del refactor DDD.
+// Ahora se usan interfaces más específicas: ICallManager, IAudioManager
+// y IRealtimeCallClient para separar responsabilidades según DDD.
 
 /// Interfaz para el manejo de audio en llamadas
 /// Se usa en use cases para abstraer la implementación específica

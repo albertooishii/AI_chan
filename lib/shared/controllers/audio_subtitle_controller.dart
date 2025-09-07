@@ -1,10 +1,14 @@
 import 'dart:async';
+import 'package:ai_chan/shared/application/services/audio_subtitle_application_service.dart';
 
 /// Controlador para subtítulos sincronizados con reproducción de audio.
 /// Recibe timeline opcional de palabras (startMs/endMs). Si no hay timeline
 /// se puede usar revelado proporcional o texto completo instantáneo.
+///
+/// ✅ DDD: Refactorizado para usar Application Service
 class AudioSubtitleController {
-  AudioSubtitleController() {
+  AudioSubtitleController()
+    : _applicationService = AudioSubtitleApplicationService() {
     progressiveTextStream = Stream.multi((final emitter) async {
       String last = '';
       final subs = <StreamSubscription>[];
@@ -18,26 +22,37 @@ class AudioSubtitleController {
       subs.add(
         _positionStream.listen((final pos) {
           if (_manualMode) return;
-          if (_timeline.isEmpty || _audioTotal.inMilliseconds <= 0) return;
-          final ms = pos.inMilliseconds;
-          final buf = StringBuffer();
-          for (final w in _timeline) {
-            if (w.startMs <= ms) {
-              buf.write(w.text);
-              if (w.appendSpace && !w.text.endsWith(' ')) buf.write(' ');
-            } else {
-              break;
-            }
-          }
-          emitIfChanged(buf.toString().trimRight());
+
+          // ✅ DDD: Convert local units to Application Service format
+          final timelineItems = _timeline
+              .map(
+                (final unit) => WordTimelineItem(
+                  text: unit.text,
+                  startMs: unit.startMs,
+                  endMs: unit.endMs,
+                  appendSpace: unit.appendSpace,
+                ),
+              )
+              .toList();
+
+          // ✅ DDD: Delegate to Application Service
+          final progressiveText = _applicationService.generateProgressiveText(
+            audioPosition: pos,
+            timeline: timelineItems,
+            totalDuration: _audioTotal,
+          );
+
+          emitIfChanged(progressiveText);
         }),
       );
+
       subs.add(
         _manualTextCtrl.stream.listen((final txt) {
           _manualMode = true;
           emitIfChanged(txt);
         }),
       );
+
       emitter.onCancel = () async {
         for (final s in subs) {
           try {
@@ -47,6 +62,9 @@ class AudioSubtitleController {
       };
     });
   }
+
+  // ✅ DDD: Application Service dependency
+  final AudioSubtitleApplicationService _applicationService;
   final _positionStreamCtrl = StreamController<Duration>.broadcast();
   final _manualTextCtrl = StreamController<String>.broadcast();
   List<WordSubtitleUnit> _timeline = [];

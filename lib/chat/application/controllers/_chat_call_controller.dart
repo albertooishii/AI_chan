@@ -16,7 +16,8 @@ import 'package:ai_chan/chat/application/mixins/ui_state_management_mixin.dart';
 /// - Delegation: All logic delegated to ChatApplicationService
 /// - UI State Management: Via mixin pattern
 class ChatCallController extends ChangeNotifier with UIStateManagementMixin {
-  ChatCallController({required final ChatApplicationService chatService}) : _chatService = chatService;
+  ChatCallController({required final ChatApplicationService chatService})
+    : _chatService = chatService;
 
   final ChatApplicationService _chatService;
 
@@ -35,7 +36,9 @@ class ChatCallController extends ChangeNotifier with UIStateManagementMixin {
 
   /// Clear pending incoming call
   void clearPendingIncomingCall() {
-    executeSyncWithNotification(operation: () => _chatService.clearPendingIncomingCall());
+    executeSyncWithNotification(
+      operation: () => _chatService.clearPendingIncomingCall(),
+    );
   }
 
   /// Replace incoming call placeholder with actual call summary
@@ -45,15 +48,24 @@ class ChatCallController extends ChangeNotifier with UIStateManagementMixin {
     required final String summaryText,
   }) {
     executeSyncWithNotification(
-      operation: () =>
-          _chatService.replaceIncomingCallPlaceholder(index: index, summary: summary, summaryText: summaryText),
+      operation: () => _chatService.replaceIncomingCallPlaceholder(
+        index: index,
+        summary: summary,
+        summaryText: summaryText,
+      ),
     );
   }
 
   /// Reject incoming call placeholder
-  void rejectIncomingCallPlaceholder({required final int index, required final String rejectionText}) {
+  void rejectIncomingCallPlaceholder({
+    required final int index,
+    required final String rejectionText,
+  }) {
     executeSyncWithNotification(
-      operation: () => _chatService.rejectIncomingCallPlaceholder(index: index, rejectionText: rejectionText),
+      operation: () => _chatService.rejectIncomingCallPlaceholder(
+        index: index,
+        rejectionText: rejectionText,
+      ),
     );
   }
 

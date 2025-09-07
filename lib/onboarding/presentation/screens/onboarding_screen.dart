@@ -13,6 +13,7 @@ import 'package:ai_chan/onboarding/application/controllers/form_onboarding_contr
 import 'conversational_onboarding_screen.dart';
 import 'onboarding_mode_selector.dart';
 import 'package:ai_chan/chat/application/services/chat_application_service.dart'; // ✅ DDD: ETAPA 3 - ChatApplicationService directo
+import 'package:ai_chan/core/di.dart' as di;
 
 /// Callback typedef para finalizar el onboarding
 typedef OnboardingFinishCallback =
@@ -58,7 +59,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.initState();
     // If no external provider was supplied, create one and retain it across rebuilds.
     if (widget.onboardingLifecycle == null) {
-      _createdLifecycle = OnboardingLifecycleController();
+      _createdLifecycle = OnboardingLifecycleController(
+        chatRepository: di.getChatRepository(),
+      );
     }
   }
 

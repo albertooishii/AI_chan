@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'dart:async';
 import '../use_cases/start_call_use_case.dart';
 import '../use_cases/end_call_use_case.dart';
 import '../use_cases/handle_incoming_call_use_case.dart';
@@ -47,7 +48,9 @@ class VoiceCallApplicationService {
 
       return VoiceCallInitializationResult.success();
     } on Exception catch (e) {
-      return VoiceCallInitializationResult.failure('Error initializing voice call: $e');
+      return VoiceCallInitializationResult.failure(
+        'Error initializing voice call: $e',
+      );
     }
   }
 
@@ -58,13 +61,12 @@ class VoiceCallApplicationService {
     required final VoidCallback onCallStarted,
     required final Function(CallEndReason) onCallEnded,
   }) async {
-    try {
-      await _startCallUseCase.execute(isIncoming: isIncoming, onCallStarted: onCallStarted, onCallEnded: onCallEnded);
-
-      return VoiceCallOperationResult.success();
-    } on Exception catch (e) {
-      return VoiceCallOperationResult.failure('Error starting outgoing call: $e');
-    }
+    return _executeStartCall(
+      isIncoming: isIncoming,
+      onCallStarted: onCallStarted,
+      onCallEnded: onCallEnded,
+      errorMessage: 'Error starting outgoing call',
+    );
   }
 
   /// 📲 **Handle Incoming Call**
@@ -75,7 +77,9 @@ class VoiceCallApplicationService {
 
       return VoiceCallOperationResult.success();
     } on Exception catch (e) {
-      return VoiceCallOperationResult.failure('Error handling incoming call: $e');
+      return VoiceCallOperationResult.failure(
+        'Error handling incoming call: $e',
+      );
     }
   }
 
@@ -87,7 +91,9 @@ class VoiceCallApplicationService {
 
       return VoiceCallOperationResult.success();
     } on Exception catch (e) {
-      return VoiceCallOperationResult.failure('Error accepting incoming call: $e');
+      return VoiceCallOperationResult.failure(
+        'Error accepting incoming call: $e',
+      );
     }
   }
 
@@ -98,13 +104,12 @@ class VoiceCallApplicationService {
     required final VoidCallback onCallStarted,
     required final Function(CallEndReason) onCallEnded,
   }) async {
-    try {
-      await _startCallUseCase.execute(isIncoming: isIncoming, onCallStarted: onCallStarted, onCallEnded: onCallEnded);
-
-      return VoiceCallOperationResult.success();
-    } on Exception catch (e) {
-      return VoiceCallOperationResult.failure('Error starting call internal: $e');
-    }
+    return _executeStartCall(
+      isIncoming: isIncoming,
+      onCallStarted: onCallStarted,
+      onCallEnded: onCallEnded,
+      errorMessage: 'Error starting call internal',
+    );
   }
 
   /// ✋ **Stop Incoming Call Ringing**
@@ -115,7 +120,9 @@ class VoiceCallApplicationService {
 
       return VoiceCallOperationResult.success();
     } on Exception catch (e) {
-      return VoiceCallOperationResult.failure('Error stopping incoming call ringing: $e');
+      return VoiceCallOperationResult.failure(
+        'Error stopping incoming call ringing: $e',
+      );
     }
   }
 
@@ -146,11 +153,138 @@ class VoiceCallApplicationService {
     required final VoiceCallState callState,
   }) async {
     try {
-      await _endCallUseCase.execute(chatController: chatController, callState: callState);
+      await _endCallUseCase.execute(
+        chatController: chatController,
+        callState: callState,
+      );
 
       return VoiceCallOperationResult.success();
     } on Exception catch (e) {
       return VoiceCallOperationResult.failure('Error ending voice call: $e');
+    }
+  }
+
+  /// 🎯 **Complex Flow Coordination Methods**
+  /// These methods handle the complex orchestration that was in the controller
+
+  /// Coordinate complete incoming call flow with timeout management
+  Future<IncomingCallFlowResult> coordinateIncomingCallFlow({
+    required final VoiceCallState initialState,
+    required final Function(VoiceCallState) onStateChange,
+    final Duration timeout = const Duration(seconds: 10),
+  }) async {
+    try {
+      // Start incoming call handling
+      final handleResult = await handleIncomingCall();
+      if (!handleResult.success) {
+        return IncomingCallFlowResult.failure(
+          handleResult.errorMessage ?? 'Failed to handle incoming call',
+        );
+      }
+
+      // Set up timeout timer
+      Timer? timeoutTimer;
+      final completer = Completer<IncomingCallFlowResult>();
+
+      timeoutTimer = Timer(timeout, () {
+        if (!completer.isCompleted) {
+          completer.complete(IncomingCallFlowResult.timeout());
+        }
+      });
+
+      // Return control to UI but provide completion mechanism
+      return IncomingCallFlowResult.waitingForAcceptance(
+        timeoutTimer: timeoutTimer,
+        completer: completer,
+      );
+    } on Exception catch (e) {
+      return IncomingCallFlowResult.failure('Error in incoming call flow: $e');
+    }
+  }
+
+  /// Coordinate outgoing call startup flow
+  Future<OutgoingCallFlowResult> coordinateOutgoingCallFlow({
+    required final VoiceCallState initialState,
+    required final Function(VoiceCallState) onStateChange,
+    required final VoidCallback onCallStarted,
+    required final Function(CallEndReason) onCallEnded,
+  }) async {
+    try {
+      // Start outgoing call
+      final startResult = await startOutgoingCall(
+        isIncoming: false,
+        onCallStarted: onCallStarted,
+        onCallEnded: onCallEnded,
+      );
+
+      if (!startResult.success) {
+        return OutgoingCallFlowResult.failure(
+          startResult.errorMessage ?? 'Failed to start outgoing call',
+        );
+      }
+
+      return OutgoingCallFlowResult.success();
+    } on Exception catch (e) {
+      return OutgoingCallFlowResult.failure('Error in outgoing call flow: $e');
+    }
+  }
+
+  /// Coordinate call acceptance and transition to active
+  Future<CallAcceptanceResult> coordinateCallAcceptance({
+    required final VoiceCallState currentState,
+    required final Timer? incomingTimer,
+    required final VoidCallback onCallStarted,
+    required final Function(CallEndReason) onCallEnded,
+  }) async {
+    try {
+      // Cancel incoming timer if exists
+      incomingTimer?.cancel();
+
+      // Accept the incoming call
+      final acceptResult = await acceptIncomingCall();
+      if (!acceptResult.success) {
+        return CallAcceptanceResult.failure(
+          acceptResult.errorMessage ?? 'Failed to accept call',
+        );
+      }
+
+      // Start the actual call flow
+      final startResult = await startOutgoingCall(
+        isIncoming: true,
+        onCallStarted: onCallStarted,
+        onCallEnded: onCallEnded,
+      );
+
+      if (!startResult.success) {
+        return CallAcceptanceResult.failure(
+          startResult.errorMessage ?? 'Failed to start accepted call',
+        );
+      }
+
+      return CallAcceptanceResult.success();
+    } on Exception catch (e) {
+      return CallAcceptanceResult.failure('Error accepting call: $e');
+    }
+  }
+
+  /// 🔧 **Private Helper - Execute Start Call**
+  /// Common logic for starting calls with proper error handling
+  Future<VoiceCallOperationResult> _executeStartCall({
+    required final bool isIncoming,
+    required final VoidCallback onCallStarted,
+    required final Function(CallEndReason) onCallEnded,
+    required final String errorMessage,
+  }) async {
+    try {
+      await _startCallUseCase.execute(
+        isIncoming: isIncoming,
+        onCallStarted: onCallStarted,
+        onCallEnded: onCallEnded,
+      );
+
+      return VoiceCallOperationResult.success();
+    } on Exception catch (e) {
+      return VoiceCallOperationResult.failure('$errorMessage: $e');
     }
   }
 }
@@ -158,22 +292,92 @@ class VoiceCallApplicationService {
 /// 🎯 **Result Objects for Voice Call Operations**
 
 class VoiceCallInitializationResult {
-  factory VoiceCallInitializationResult.success() => const VoiceCallInitializationResult(success: true);
+  factory VoiceCallInitializationResult.success() =>
+      const VoiceCallInitializationResult(success: true);
 
   factory VoiceCallInitializationResult.failure(final String errorMessage) =>
       VoiceCallInitializationResult(success: false, errorMessage: errorMessage);
-  const VoiceCallInitializationResult({required this.success, this.errorMessage});
+  const VoiceCallInitializationResult({
+    required this.success,
+    this.errorMessage,
+  });
 
   final bool success;
   final String? errorMessage;
 }
 
 class VoiceCallOperationResult {
-  factory VoiceCallOperationResult.success() => const VoiceCallOperationResult(success: true);
+  factory VoiceCallOperationResult.success() =>
+      const VoiceCallOperationResult(success: true);
 
   factory VoiceCallOperationResult.failure(final String errorMessage) =>
       VoiceCallOperationResult(success: false, errorMessage: errorMessage);
   const VoiceCallOperationResult({required this.success, this.errorMessage});
+
+  final bool success;
+  final String? errorMessage;
+}
+
+/// Complex Flow Result Objects
+
+class IncomingCallFlowResult {
+  const IncomingCallFlowResult({
+    required this.success,
+    this.isTimeout = false,
+    this.isWaiting = false,
+    this.errorMessage,
+    this.timeoutTimer,
+    this.completer,
+  });
+
+  factory IncomingCallFlowResult.success() =>
+      const IncomingCallFlowResult(success: true);
+
+  factory IncomingCallFlowResult.failure(final String errorMessage) =>
+      IncomingCallFlowResult(success: false, errorMessage: errorMessage);
+
+  factory IncomingCallFlowResult.timeout() =>
+      const IncomingCallFlowResult(success: false, isTimeout: true);
+
+  factory IncomingCallFlowResult.waitingForAcceptance({
+    required final Timer timeoutTimer,
+    required final Completer<IncomingCallFlowResult> completer,
+  }) => IncomingCallFlowResult(
+    success: true,
+    isWaiting: true,
+    timeoutTimer: timeoutTimer,
+    completer: completer,
+  );
+
+  final bool success;
+  final bool isTimeout;
+  final bool isWaiting;
+  final String? errorMessage;
+  final Timer? timeoutTimer;
+  final Completer<IncomingCallFlowResult>? completer;
+}
+
+class OutgoingCallFlowResult {
+  const OutgoingCallFlowResult({required this.success, this.errorMessage});
+
+  factory OutgoingCallFlowResult.success() =>
+      const OutgoingCallFlowResult(success: true);
+
+  factory OutgoingCallFlowResult.failure(final String errorMessage) =>
+      OutgoingCallFlowResult(success: false, errorMessage: errorMessage);
+
+  final bool success;
+  final String? errorMessage;
+}
+
+class CallAcceptanceResult {
+  const CallAcceptanceResult({required this.success, this.errorMessage});
+
+  factory CallAcceptanceResult.success() =>
+      const CallAcceptanceResult(success: true);
+
+  factory CallAcceptanceResult.failure(final String errorMessage) =>
+      CallAcceptanceResult(success: false, errorMessage: errorMessage);
 
   final bool success;
   final String? errorMessage;

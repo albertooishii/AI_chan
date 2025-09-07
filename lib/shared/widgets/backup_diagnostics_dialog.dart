@@ -18,7 +18,8 @@ class BackupDiagnosticsDialog extends StatefulWidget {
   final ChatController? chatProvider;
 
   @override
-  State<BackupDiagnosticsDialog> createState() => _BackupDiagnosticsDialogState();
+  State<BackupDiagnosticsDialog> createState() =>
+      _BackupDiagnosticsDialogState();
 }
 
 class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
@@ -45,19 +46,26 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
     _countdownTimer?.cancel(); // Cancelar timer anterior si existe
 
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (final timer) {
-      if (!mounted || _isLoading || _lastAdvancedDiagnosis == null || _originalTokenExpiresIn == null) {
+      if (!mounted ||
+          _isLoading ||
+          _lastAdvancedDiagnosis == null ||
+          _originalTokenExpiresIn == null) {
         return;
       }
 
       // Calcular tiempo transcurrido desde el diagnóstico
-      final elapsedSeconds = DateTime.now().difference(_lastDiagnosisTime!).inSeconds;
-      final currentExpiresIn = (_originalTokenExpiresIn! - elapsedSeconds).clamp(0, _originalTokenExpiresIn!);
+      final elapsedSeconds = DateTime.now()
+          .difference(_lastDiagnosisTime!)
+          .inSeconds;
+      final currentExpiresIn = (_originalTokenExpiresIn! - elapsedSeconds)
+          .clamp(0, _originalTokenExpiresIn!);
 
       // Solo actualizar UI si el tiempo ha cambiado
       setState(() {
         // Actualizar el serviceStatus temporalmente para mostrar el countdown
         if (_lastAdvancedDiagnosis!['serviceStatus'] != null) {
-          final serviceStatus = _lastAdvancedDiagnosis!['serviceStatus'] as Map<String, dynamic>;
+          final serviceStatus =
+              _lastAdvancedDiagnosis!['serviceStatus'] as Map<String, dynamic>;
           serviceStatus['tokenExpiresInSeconds'] = currentExpiresIn;
         }
         _diagnosticResult = _buildDiagnosticOutput();
@@ -87,31 +95,61 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
       final advancedDiagnosis = _lastAdvancedDiagnosis!;
 
       buffer.writeln('2. DIAGNÓSTICO AVANZADO DE AUTENTICACIÓN:');
-      buffer.writeln('   - Google Linked (ChatProvider): ${advancedDiagnosis['googleLinked']}');
-      buffer.writeln('   - Email: ${advancedDiagnosis['chatProviderState']?['googleEmail'] ?? 'N/A'}');
-      buffer.writeln('   - Nombre: ${advancedDiagnosis['chatProviderState']?['googleName'] ?? 'N/A'}');
-      buffer.writeln('   - Token válido: ${advancedDiagnosis['hasValidToken']}');
-      buffer.writeln('   - Token length: ${advancedDiagnosis['tokenLength'] ?? 'N/A'}');
+      buffer.writeln(
+        '   - Google Linked (ChatProvider): ${advancedDiagnosis['googleLinked']}',
+      );
+      buffer.writeln(
+        '   - Email: ${advancedDiagnosis['chatProviderState']?['googleEmail'] ?? 'N/A'}',
+      );
+      buffer.writeln(
+        '   - Nombre: ${advancedDiagnosis['chatProviderState']?['googleName'] ?? 'N/A'}',
+      );
+      buffer.writeln(
+        '   - Token válido: ${advancedDiagnosis['hasValidToken']}',
+      );
+      buffer.writeln(
+        '   - Token length: ${advancedDiagnosis['tokenLength'] ?? 'N/A'}',
+      );
 
       // Circuit Breaker Status
       if (advancedDiagnosis['circuitBreakerStatus'] != null) {
-        final cb = advancedDiagnosis['circuitBreakerStatus'] as Map<String, dynamic>;
+        final cb =
+            advancedDiagnosis['circuitBreakerStatus'] as Map<String, dynamic>;
         buffer.writeln('   - Circuit Breaker:');
-        buffer.writeln('     * Estado: ${cb['isActive'] == true ? 'ABIERTO (bloqueado)' : 'CERRADO (funcionando)'}');
-        buffer.writeln('     * Fallos: ${cb['failures'] ?? 0}/${cb['maxFailures'] ?? 8}');
-        buffer.writeln('     * Último fallo: ${cb['lastFailure'] ?? 'Ninguno'}');
-        buffer.writeln('     * Cooldown: ${cb['cooldownMinutes'] ?? 15} minutos');
+        buffer.writeln(
+          '     * Estado: ${cb['isActive'] == true ? 'ABIERTO (bloqueado)' : 'CERRADO (funcionando)'}',
+        );
+        buffer.writeln(
+          '     * Fallos: ${cb['failures'] ?? 0}/${cb['maxFailures'] ?? 8}',
+        );
+        buffer.writeln(
+          '     * Último fallo: ${cb['lastFailure'] ?? 'Ninguno'}',
+        );
+        buffer.writeln(
+          '     * Cooldown: ${cb['cooldownMinutes'] ?? 15} minutos',
+        );
       }
 
       // Android específico con countdown en tiempo real
       if (advancedDiagnosis['serviceStatus'] != null) {
-        final serviceStatus = advancedDiagnosis['serviceStatus'] as Map<String, dynamic>;
+        final serviceStatus =
+            advancedDiagnosis['serviceStatus'] as Map<String, dynamic>;
         buffer.writeln('   - Estado Android:');
-        buffer.writeln('     * Credenciales almacenadas: ${serviceStatus['hasStoredCredentials']}');
-        buffer.writeln('     * Refresh token: ${serviceStatus['hasRefreshToken']}');
-        buffer.writeln('     * Access token: ${serviceStatus['hasAccessToken']}');
-        buffer.writeln('     * Token expira en: ${serviceStatus['tokenExpiresInSeconds']}s ⏱️');
-        buffer.writeln('     * Native SignIn: ${serviceStatus['nativeSignInStatus']}');
+        buffer.writeln(
+          '     * Credenciales almacenadas: ${serviceStatus['hasStoredCredentials']}',
+        );
+        buffer.writeln(
+          '     * Refresh token: ${serviceStatus['hasRefreshToken']}',
+        );
+        buffer.writeln(
+          '     * Access token: ${serviceStatus['hasAccessToken']}',
+        );
+        buffer.writeln(
+          '     * Token expira en: ${serviceStatus['tokenExpiresInSeconds']}s ⏱️',
+        );
+        buffer.writeln(
+          '     * Native SignIn: ${serviceStatus['nativeSignInStatus']}',
+        );
       }
       buffer.writeln();
 
@@ -151,7 +189,9 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
       if (androidClientId.endsWith(expectedSuffix)) {
         buffer.writeln('   ✅ Android Client ID has correct suffix');
       } else {
-        buffer.writeln('   ⚠️  Android Client ID should end with $expectedSuffix');
+        buffer.writeln(
+          '   ⚠️  Android Client ID should end with $expectedSuffix',
+        );
       }
     }
 
@@ -168,18 +208,31 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
     if (!kIsWeb && Platform.isAndroid) {
       buffer.writeln('   🤖 Platform: Android');
       buffer.writeln('   🔄 Refresh Token Requirements:');
-      buffer.writeln('     1. Android Client ID configured: ${androidClientId.isNotEmpty ? '✅' : '❌'}');
-      buffer.writeln('     2. Web Client ID configured: ${webClientId.isNotEmpty ? '✅' : '❌'}');
-      buffer.writeln('     3. Web Client Secret configured: ${webClientSecret.isNotEmpty ? '✅' : '❌'}');
-      buffer.writeln('     4. AndroidManifest intent-filter: 🤔 (check manually)');
+      buffer.writeln(
+        '     1. Android Client ID configured: ${androidClientId.isNotEmpty ? '✅' : '❌'}',
+      );
+      buffer.writeln(
+        '     2. Web Client ID configured: ${webClientId.isNotEmpty ? '✅' : '❌'}',
+      );
+      buffer.writeln(
+        '     3. Web Client Secret configured: ${webClientSecret.isNotEmpty ? '✅' : '❌'}',
+      );
+      buffer.writeln(
+        '     4. AndroidManifest intent-filter: 🤔 (check manually)',
+      );
       buffer.writeln('     5. Google Cloud Console SHA-1: 🤔 (check manually)');
 
       // Summary for Android
-      final allConfigured = androidClientId.isNotEmpty && webClientId.isNotEmpty && webClientSecret.isNotEmpty;
+      final allConfigured =
+          androidClientId.isNotEmpty &&
+          webClientId.isNotEmpty &&
+          webClientSecret.isNotEmpty;
       if (allConfigured) {
         buffer.writeln('   ✅ OAuth configuration looks good for Android');
       } else {
-        buffer.writeln('   ❌ OAuth configuration incomplete - refresh tokens may not work');
+        buffer.writeln(
+          '   ❌ OAuth configuration incomplete - refresh tokens may not work',
+        );
       }
     } else if (!kIsWeb) {
       buffer.writeln('   🖥️  Platform: Desktop');
@@ -204,10 +257,17 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
         final expiresIn = (creds['expires_in'] as int?) ?? 3600;
 
         if (persistedAtMs > 0) {
-          final tokenCreationTime = DateTime.fromMillisecondsSinceEpoch(persistedAtMs);
-          final tokenExpiryTime = tokenCreationTime.add(Duration(seconds: expiresIn));
+          final tokenCreationTime = DateTime.fromMillisecondsSinceEpoch(
+            persistedAtMs,
+          );
+          final tokenExpiryTime = tokenCreationTime.add(
+            Duration(seconds: expiresIn),
+          );
           final now = DateTime.now();
-          final realRemainingSeconds = tokenExpiryTime.difference(now).inSeconds.clamp(0, expiresIn);
+          final realRemainingSeconds = tokenExpiryTime
+              .difference(now)
+              .inSeconds
+              .clamp(0, expiresIn);
 
           // Sistema de corrección de tiempo funcionando correctamente
 
@@ -233,7 +293,8 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
       if (mounted && widget.chatProvider != null) {
         try {
           final chatProvider = widget.chatProvider!;
-          final advancedDiagnosis = await chatProvider.googleController.diagnoseGoogleState();
+          final advancedDiagnosis = await chatProvider.googleController
+              .diagnoseGoogleState();
 
           // Guardar datos para el countdown en tiempo real
           _lastAdvancedDiagnosis = advancedDiagnosis;
@@ -241,50 +302,84 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
 
           // Guardar el valor original del token si existe
           if (advancedDiagnosis['serviceStatus'] != null) {
-            final serviceStatus = advancedDiagnosis['serviceStatus'] as Map<String, dynamic>;
-            final reportedSeconds = serviceStatus['tokenExpiresInSeconds'] as int?;
+            final serviceStatus =
+                advancedDiagnosis['serviceStatus'] as Map<String, dynamic>;
+            final reportedSeconds =
+                serviceStatus['tokenExpiresInSeconds'] as int?;
 
             // 🔧 Usar tiempo corregido para el countdown también
             if (reportedSeconds != null) {
-              final correctedSeconds = await _correctTokenExpirationTime(reportedSeconds);
+              final correctedSeconds = await _correctTokenExpirationTime(
+                reportedSeconds,
+              );
               _originalTokenExpiresIn = correctedSeconds ?? reportedSeconds;
             }
           }
 
           buffer.writeln('2. DIAGNÓSTICO AVANZADO DE AUTENTICACIÓN:');
-          buffer.writeln('   - Google Linked (ChatProvider): ${advancedDiagnosis['googleLinked']}');
-          buffer.writeln('   - Email: ${advancedDiagnosis['chatProviderState']?['googleEmail'] ?? 'N/A'}');
-          buffer.writeln('   - Nombre: ${advancedDiagnosis['chatProviderState']?['googleName'] ?? 'N/A'}');
-          buffer.writeln('   - Token válido: ${advancedDiagnosis['hasValidToken']}');
-          buffer.writeln('   - Token length: ${advancedDiagnosis['tokenLength'] ?? 'N/A'}');
+          buffer.writeln(
+            '   - Google Linked (ChatProvider): ${advancedDiagnosis['googleLinked']}',
+          );
+          buffer.writeln(
+            '   - Email: ${advancedDiagnosis['chatProviderState']?['googleEmail'] ?? 'N/A'}',
+          );
+          buffer.writeln(
+            '   - Nombre: ${advancedDiagnosis['chatProviderState']?['googleName'] ?? 'N/A'}',
+          );
+          buffer.writeln(
+            '   - Token válido: ${advancedDiagnosis['hasValidToken']}',
+          );
+          buffer.writeln(
+            '   - Token length: ${advancedDiagnosis['tokenLength'] ?? 'N/A'}',
+          );
 
           // Circuit Breaker Status
           if (advancedDiagnosis['circuitBreakerStatus'] != null) {
-            final cb = advancedDiagnosis['circuitBreakerStatus'] as Map<String, dynamic>;
+            final cb =
+                advancedDiagnosis['circuitBreakerStatus']
+                    as Map<String, dynamic>;
             buffer.writeln('   - Circuit Breaker:');
             buffer.writeln(
               '     * Estado: ${cb['isActive'] == true ? 'ABIERTO (bloqueado)' : 'CERRADO (funcionando)'}',
             );
-            buffer.writeln('     * Fallos: ${cb['failures'] ?? 0}/${cb['maxFailures'] ?? 8}');
-            buffer.writeln('     * Último fallo: ${cb['lastFailure'] ?? 'Ninguno'}');
-            buffer.writeln('     * Cooldown: ${cb['cooldownMinutes'] ?? 15} minutos');
+            buffer.writeln(
+              '     * Fallos: ${cb['failures'] ?? 0}/${cb['maxFailures'] ?? 8}',
+            );
+            buffer.writeln(
+              '     * Último fallo: ${cb['lastFailure'] ?? 'Ninguno'}',
+            );
+            buffer.writeln(
+              '     * Cooldown: ${cb['cooldownMinutes'] ?? 15} minutos',
+            );
           }
 
           // Android específico
           if (advancedDiagnosis['serviceStatus'] != null) {
-            final serviceStatus = advancedDiagnosis['serviceStatus'] as Map<String, dynamic>;
+            final serviceStatus =
+                advancedDiagnosis['serviceStatus'] as Map<String, dynamic>;
 
             // 🔧 Corregir el tiempo de expiración basado en la fecha real de creación
-            final reportedSeconds = serviceStatus['tokenExpiresInSeconds'] as int? ?? 0;
-            final correctedSeconds = await _correctTokenExpirationTime(reportedSeconds);
+            final reportedSeconds =
+                serviceStatus['tokenExpiresInSeconds'] as int? ?? 0;
+            final correctedSeconds = await _correctTokenExpirationTime(
+              reportedSeconds,
+            );
             final displaySeconds = correctedSeconds ?? reportedSeconds;
 
             buffer.writeln('   - Estado Android:');
-            buffer.writeln('     * Credenciales almacenadas: ${serviceStatus['hasStoredCredentials']}');
-            buffer.writeln('     * Refresh token: ${serviceStatus['hasRefreshToken']}');
-            buffer.writeln('     * Access token: ${serviceStatus['hasAccessToken']}');
+            buffer.writeln(
+              '     * Credenciales almacenadas: ${serviceStatus['hasStoredCredentials']}',
+            );
+            buffer.writeln(
+              '     * Refresh token: ${serviceStatus['hasRefreshToken']}',
+            );
+            buffer.writeln(
+              '     * Access token: ${serviceStatus['hasAccessToken']}',
+            );
             buffer.writeln('     * Token expira en: ${displaySeconds}s ⏱️');
-            buffer.writeln('     * Native SignIn: ${serviceStatus['nativeSignInStatus']}');
+            buffer.writeln(
+              '     * Native SignIn: ${serviceStatus['nativeSignInStatus']}',
+            );
           }
           buffer.writeln();
         } on Exception catch (e) {
@@ -301,13 +396,15 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
 
       // 4. Verificar token usando método pasivo para evitar activar OAuth
       buffer.writeln('\n4. Token de acceso:');
-      final service = GoogleBackupService(accessToken: null);
+      final service = GoogleBackupService();
       final token = await service.loadStoredAccessTokenPassive();
       final hasToken = token != null && token.isNotEmpty;
       buffer.writeln('   - Token presente: $hasToken');
       if (hasToken) {
         buffer.writeln('   - Token length: ${token.length}');
-        buffer.writeln('   - Válido: ${token.startsWith('ya29.') ? 'Probablemente sí' : 'Formato inusual'}');
+        buffer.writeln(
+          '   - Válido: ${token.startsWith('ya29.') ? 'Probablemente sí' : 'Formato inusual'}',
+        );
       }
 
       // 5. Último backup
@@ -333,13 +430,17 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
           buffer.writeln('   - Cantidad encontrada: ${backups.length}');
           if (backups.isNotEmpty) {
             final latest = backups.first;
-            buffer.writeln('   - Último: ${latest['name']} (${latest['createdTime']})');
+            buffer.writeln(
+              '   - Último: ${latest['name']} (${latest['createdTime']})',
+            );
           }
         } on Exception catch (e) {
           buffer.writeln('   - Error: $e');
         }
       } else {
-        buffer.writeln('\n6. Backups remotos: No se puede verificar (sin token)');
+        buffer.writeln(
+          '\n6. Backups remotos: No se puede verificar (sin token)',
+        );
       }
 
       // 7. Diagnóstico final
@@ -347,11 +448,14 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
       final googleLinked = googleInfo['linked'] as bool? ?? false;
       final needsBackup =
           lastBackupMs == null ||
-          (DateTime.now().millisecondsSinceEpoch - lastBackupMs) > const Duration(hours: 24).inMilliseconds;
+          (DateTime.now().millisecondsSinceEpoch - lastBackupMs) >
+              const Duration(hours: 24).inMilliseconds;
 
       if (googleLinked && !hasToken) {
         buffer.writeln('⚠️  PROBLEMA DETECTADO:');
-        buffer.writeln('   Cuenta marcada como vinculada pero sin token válido.');
+        buffer.writeln(
+          '   Cuenta marcada como vinculada pero sin token válido.',
+        );
         buffer.writeln('   Los backups automáticos fallarán silenciosamente.');
         buffer.writeln('   SOLUCIÓN: Re-vincular cuenta en configuración.');
       } else if (googleLinked && hasToken && needsBackup) {
@@ -387,24 +491,38 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
       backgroundColor: Colors.black,
       title: const Text(
         'GOOGLE DRIVE DIAGNOSTICS // グーグルドライブシンダン',
-        style: TextStyle(color: Color(0xFF00FFAA), fontFamily: 'monospace', fontSize: 16),
+        style: TextStyle(
+          color: Color(0xFF00FFAA),
+          fontFamily: 'monospace',
+          fontSize: 16,
+        ),
       ),
       content: SizedBox(
         width: double.maxFinite,
         height: 500,
         child: SingleChildScrollView(
           child: _isLoading
-              ? const CyberpunkLoader(message: 'SCANNING BACKUP SYSTEMS...', showProgressBar: true)
+              ? const CyberpunkLoader(
+                  message: 'SCANNING BACKUP SYSTEMS...',
+                  showProgressBar: true,
+                )
               : SelectableText(
                   _diagnosticResult,
-                  style: const TextStyle(color: Color(0xFF00FFAA), fontFamily: 'monospace', fontSize: 12),
+                  style: const TextStyle(
+                    color: Color(0xFF00FFAA),
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                  ),
                 ),
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('CLOSE', style: TextStyle(color: Color(0xFF00FFAA))),
+          child: const Text(
+            'CLOSE',
+            style: TextStyle(color: Color(0xFF00FFAA)),
+          ),
         ),
         TextButton(
           onPressed: () async {
@@ -413,22 +531,27 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
             });
             await _runDiagnostics();
           },
-          child: const Text('REFRESH', style: TextStyle(color: Color(0xFF00FFAA))),
+          child: const Text(
+            'REFRESH',
+            style: TextStyle(color: Color(0xFF00FFAA)),
+          ),
         ),
         // 🧪 DEBUG: Test token refresh button
         TextButton(
           onPressed: () async {
             setState(() {
               _isLoading = true;
-              _diagnosticResult = '🧪 TESTING: Iniciando test detallado de refresh...\n';
+              _diagnosticResult =
+                  '🧪 TESTING: Iniciando test detallado de refresh...\n';
             });
 
             try {
               // Create service instance for testing
-              final service = GoogleBackupService(accessToken: null);
+              final service = GoogleBackupService();
 
               // Use the new detailed diagnostics method
-              final diagnosticResult = await service.forceTokenAgeAndRefreshWithDiagnostics();
+              final diagnosticResult = await service
+                  .forceTokenAgeAndRefreshWithDiagnostics();
 
               // Display the detailed step-by-step results
               final steps = (diagnosticResult['steps'] as List<String>);
@@ -441,32 +564,41 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
               final success = diagnosticResult['success'] as bool;
               setState(() {
                 _diagnosticResult += '\n═══════════════════════════════\n';
-                _diagnosticResult += 'RESULTADO FINAL: ${success ? '✅ ÉXITO' : '❌ FALLO'}\n';
+                _diagnosticResult +=
+                    'RESULTADO FINAL: ${success ? '✅ ÉXITO' : '❌ FALLO'}\n';
 
                 if (diagnosticResult['error'] != null) {
                   _diagnosticResult += 'Error: ${diagnosticResult['error']}\n';
                 }
 
                 _diagnosticResult += '\n📊 INFORMACIÓN DE PLATAFORMA:\n';
-                _diagnosticResult += '• Plataforma: ${diagnosticResult['platformDetected'] ?? 'desconocida'}\n';
-                _diagnosticResult += '• Client ID original: ${diagnosticResult['originalClientId'] ?? 0} caracteres\n';
-                _diagnosticResult += '• Client Secret: ${diagnosticResult['clientSecretLength'] ?? 0} caracteres\n';
+                _diagnosticResult +=
+                    '• Plataforma: ${diagnosticResult['platformDetected'] ?? 'desconocida'}\n';
+                _diagnosticResult +=
+                    '• Client ID original: ${diagnosticResult['originalClientId'] ?? 0} caracteres\n';
+                _diagnosticResult +=
+                    '• Client Secret: ${diagnosticResult['clientSecretLength'] ?? 0} caracteres\n';
 
                 if (diagnosticResult['finalToken'] != null) {
-                  _diagnosticResult += '• Nuevo token: ${diagnosticResult['finalToken']}...\n';
+                  _diagnosticResult +=
+                      '• Nuevo token: ${diagnosticResult['finalToken']}...\n';
                 }
 
                 if (success) {
-                  _diagnosticResult += '\n🎉 ¡ANDROID OAUTH FIX FUNCIONANDO CORRECTAMENTE!\n';
+                  _diagnosticResult +=
+                      '\n🎉 ¡ANDROID OAUTH FIX FUNCIONANDO CORRECTAMENTE!\n';
                 } else {
-                  _diagnosticResult += '\n💡 Consulta los logs de consola para más detalles\n';
+                  _diagnosticResult +=
+                      '\n💡 Consulta los logs de consola para más detalles\n';
                 }
               });
             } on Exception catch (e) {
               setState(() {
                 _diagnosticResult += '❌ Test failed with error: $e\n';
-                _diagnosticResult += '💡 Esto normalmente indica un problema de OAuth\n';
-                _diagnosticResult += '📱 Esperado en Android debido al mismatch de credenciales web\n';
+                _diagnosticResult +=
+                    '💡 Esto normalmente indica un problema de OAuth\n';
+                _diagnosticResult +=
+                    '📱 Esperado en Android debido al mismatch de credenciales web\n';
               });
             }
 
@@ -474,7 +606,10 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
               _isLoading = false;
             });
           },
-          child: const Text('🧪 TEST REFRESH', style: TextStyle(color: Color(0xFFFF6B6B))),
+          child: const Text(
+            '🧪 TEST REFRESH',
+            style: TextStyle(color: Color(0xFFFF6B6B)),
+          ),
         ),
       ],
     );

@@ -17,7 +17,8 @@ import 'package:ai_chan/chat/application/mixins/ui_state_management_mixin.dart';
 /// - Delegation: All logic delegated to ChatApplicationService
 /// - UI State Management: Via mixin pattern
 class ChatMessageController extends ChangeNotifier with UIStateManagementMixin {
-  ChatMessageController({required final ChatApplicationService chatService}) : _chatService = chatService;
+  ChatMessageController({required final ChatApplicationService chatService})
+    : _chatService = chatService;
 
   final ChatApplicationService _chatService;
 
@@ -30,31 +31,51 @@ class ChatMessageController extends ChangeNotifier with UIStateManagementMixin {
     // Only inform service about user typing (to cancel queue timers etc.).
     // Do NOT mark the UI "isTyping" here: that flag is reserved for when
     // the assistant/IA is actually sending a response.
-    executeSyncWithNotification(operation: () => _chatService.onUserTyping(text));
+    executeSyncWithNotification(
+      operation: () => _chatService.onUserTyping(text),
+    );
   }
 
   /// Typing indicator
   void setTyping(final bool typing) {
     // Delegate to underlying service so a single source of truth exists.
-    executeSyncWithNotification(operation: () => _chatService.isTyping = typing);
+    executeSyncWithNotification(
+      operation: () => _chatService.isTyping = typing,
+    );
   }
 
   /// Schedule sending a message (legacy compatibility)
-  void scheduleSendMessage(final String text, {final String? model, final dynamic image, final String? imageMimeType}) {
+  void scheduleSendMessage(
+    final String text, {
+    final String? model,
+    final dynamic image,
+    final String? imageMimeType,
+  }) {
     executeSyncWithNotification(
-      operation: () => _chatService.scheduleSendMessage(text, model: model, image: image, imageMimeType: imageMimeType),
+      operation: () => _chatService.scheduleSendMessage(
+        text,
+        model: model,
+        image: image,
+        imageMimeType: imageMimeType,
+      ),
     );
   }
 
   /// Add user image message
   void addUserImageMessage(final Message msg) {
-    executeSyncWithNotification(operation: () => _chatService.addUserImageMessage(msg));
+    executeSyncWithNotification(
+      operation: () => _chatService.addUserImageMessage(msg),
+    );
   }
 
   /// Add assistant message
-  Future<void> addAssistantMessage(final String text, {final bool isAudio = false}) async {
+  Future<void> addAssistantMessage(
+    final String text, {
+    final bool isAudio = false,
+  }) async {
     await delegate(
-      serviceCall: () => _chatService.addAssistantMessage(text, isAudio: isAudio),
+      serviceCall: () =>
+          _chatService.addAssistantMessage(text, isAudio: isAudio),
       errorMessage: 'Error al añadir mensaje del asistente',
     );
   }
@@ -77,11 +98,15 @@ class ChatMessageController extends ChangeNotifier with UIStateManagementMixin {
 
   /// Control de mensajes periódicos de IA
   void startPeriodicIaMessages() {
-    executeSyncWithNotification(operation: () => _chatService.startPeriodicIaMessages());
+    executeSyncWithNotification(
+      operation: () => _chatService.startPeriodicIaMessages(),
+    );
   }
 
   void stopPeriodicIaMessages() {
-    executeSyncWithNotification(operation: () => _chatService.stopPeriodicIaMessages());
+    executeSyncWithNotification(
+      operation: () => _chatService.stopPeriodicIaMessages(),
+    );
   }
 
   @override

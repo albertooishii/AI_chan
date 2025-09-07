@@ -17,7 +17,8 @@ import 'package:ai_chan/chat/application/mixins/ui_state_management_mixin.dart';
 /// - Delegation: All logic delegated to ChatApplicationService
 /// - UI State Management: Via mixin pattern
 class ChatDataController extends ChangeNotifier with UIStateManagementMixin {
-  ChatDataController({required final ChatApplicationService chatService}) : _chatService = chatService;
+  ChatDataController({required final ChatApplicationService chatService})
+    : _chatService = chatService;
 
   final ChatApplicationService _chatService;
 
@@ -29,16 +30,22 @@ class ChatDataController extends ChangeNotifier with UIStateManagementMixin {
 
   /// Profile management
   void updateProfile(final AiChanProfile profile) {
-    executeSyncWithNotification(operation: () => _chatService.updateProfile(profile));
+    executeSyncWithNotification(
+      operation: () => _chatService.updateProfile(profile),
+    );
   }
 
   /// Model management
   void setModel(final String model) {
-    executeSyncWithNotification(operation: () => _chatService.selectedModel = model);
+    executeSyncWithNotification(
+      operation: () => _chatService.selectedModel = model,
+    );
   }
 
   void clearModel() {
-    executeSyncWithNotification(operation: () => _chatService.selectedModel = null);
+    executeSyncWithNotification(
+      operation: () => _chatService.selectedModel = null,
+    );
   }
 
   /// Data export operations
@@ -63,9 +70,12 @@ class ChatDataController extends ChangeNotifier with UIStateManagementMixin {
   }
 
   /// Generate avatar from appearance
-  Future<void> generateAvatarFromAppearance({final bool replace = false}) async {
+  Future<void> generateAvatarFromAppearance({
+    final bool replace = false,
+  }) async {
     await executeWithState(
-      operation: () => _chatService.generateAvatarFromAppearance(replace: replace),
+      operation: () =>
+          _chatService.generateAvatarFromAppearance(replace: replace),
       errorMessage: 'Error al generar avatar',
     );
   }
@@ -75,7 +85,11 @@ class ChatDataController extends ChangeNotifier with UIStateManagementMixin {
     required final AiChanProfile profile,
     required final List<Message> messages,
     final int maxRecent = 32,
-  }) => _chatService.buildRealtimeSystemPromptJson(profile: profile, messages: messages, maxRecent: maxRecent);
+  }) => _chatService.buildRealtimeSystemPromptJson(
+    profile: profile,
+    messages: messages,
+    maxRecent: maxRecent,
+  );
 
   String buildCallSystemPromptJson({
     required final AiChanProfile profile,

@@ -1,59 +1,232 @@
 import 'package:flutter/material.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/onboarding/domain/domain.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
-import 'package:ai_chan/onboarding/utils/onboarding_utils.dart';
-import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
+import 'package:ai_chan/onboarding/application/services/form_onboarding_application_service.dart';
 
-/// Controller para el onboarding por formulario
-/// Coordina la UI con validación directa, manteniendo la separación de responsabilidades
+/// Form Onboarding Controller - Compact form management
 class FormOnboardingController extends ChangeNotifier {
   FormOnboardingController();
 
-  // Estado del controller
+  // DDD Application Service for business logic delegation
+  final _formService = FormOnboardingApplicationService();
+
+  // Core state
   bool _isLoading = false;
   String? _errorMessage;
   ChatExport? _importedData;
 
-  // Form fields owned by the controller (migrating responsibility from provider)
-  // Keep a form key so presentation code can reference the same key as before
+  // Form controllers - centralized management
   late final GlobalKey<FormState> formKey = GlobalKey<FormState>();
   final userNameController = TextEditingController();
   final aiNameController = TextEditingController();
   final meetStoryController = TextEditingController();
   final birthDateController = TextEditingController();
   DateTime? userBirthdate;
-  String? userCountryCode;
-  String? aiCountryCode;
+  String? userCountryCode, aiCountryCode;
 
   // Getters
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   ChatExport? get importedData => _importedData;
-  bool get hasError => _errorMessage != null;
+  bool get hasImportedData => _importedData != null;
+  bool get isFormValid => formKey.currentState?.validate() ?? false;
 
-  // Convenience getter that mirrors old provider logic
-  bool get isFormCompleteComputed => isFormComplete(
-    userName: userNameController.text,
-    aiName: aiNameController.text,
-    birthDateText: birthDateController.text,
-    meetStory: meetStoryController.text,
-  );
-
-  /// Valida si el formulario está completo - Direct validation
-  bool isFormComplete({
-    required final String userName,
-    required final String aiName,
-    required final String birthDateText,
-    required final String meetStory,
-  }) {
-    return userName.trim().isNotEmpty &&
-        aiName.trim().isNotEmpty &&
-        birthDateText.trim().isNotEmpty &&
-        meetStory.trim().isNotEmpty;
+  /// Initialize form with default values
+  void initializeForm() {
+    _setLoading(false);
+    _clearError();
+    meetStoryController.text = 'AUTO_GENERATE_STORY';
+    notifyListeners();
   }
 
-  /// Procesa los datos del formulario - Direct processing with simple validation
+  /// Validate current form state
+  bool validateForm() {
+    final isValid = formKey.currentState?.validate() ?? false;
+    if (!isValid) _setError('Please check the form for errors');
+    return isValid;
+  }
+
+  /// Save form data to profile - delegated to Application Service
+  Future<OnboardingFormResult> saveFormData() async {
+    return _executeOperation(() async {
+      // Delegate to Application Service for processing
+      final result = await _formService.processOnboardingData(
+        userName: userNameController.text,
+        aiName: aiNameController.text,
+        meetStory: meetStoryController.text.isNotEmpty
+            ? meetStoryController.text
+            : 'AUTO_GENERATE_STORY',
+        userBirthdate: userBirthdate!,
+        userCountryCode: userCountryCode,
+        aiCountryCode: aiCountryCode,
+      );
+
+      // Simple logging without LogUtils dependency
+      if (result.success) {
+        debugPrint('Form saved: ${result.userName}');
+      }
+
+      return result;
+    });
+  }
+
+  /// Import data from JSON - delegated to Application Service
+  Future<void> importFromJson(final String jsonData) async {
+    await _executeOperationAsync(() async {
+      // Delegate to Application Service for import coordination
+      final result = await _formService.coordinateDataImport(jsonData);
+
+      if (!result.success) {
+        throw Exception(result.error ?? 'Import failed');
+      }
+
+      _importedData = result.importedData;
+
+      // Pre-fill form with imported data
+      if (result.formPreset != null) {
+        final preset = result.formPreset!;
+        userNameController.text = preset.userName;
+        aiNameController.text = preset.aiName;
+        meetStoryController.text = preset.meetStory;
+
+        userBirthdate = preset.userBirthdate;
+        if (userBirthdate != null) {
+          birthDateController.text = _formService.formatDateForDisplay(
+            userBirthdate!,
+          );
+        }
+
+        userCountryCode = preset.userCountryCode;
+        aiCountryCode = preset.aiCountryCode;
+      }
+
+      notifyListeners();
+    });
+  }
+
+  /// Clear imported data
+  void clearImportedData() {
+    _importedData = null;
+    notifyListeners();
+  }
+
+  /// Update user birthdate
+  void updateUserBirthdate(final DateTime? date) {
+    userBirthdate = date;
+    _updateBirthDateController();
+    notifyListeners();
+  }
+
+  /// Update country codes - consolidated
+  void updateUserCountry(final String? countryCode) =>
+      _updateAndNotify(() => userCountryCode = countryCode);
+  void updateAICountry(final String? countryCode) =>
+      _updateAndNotify(() => aiCountryCode = countryCode);
+
+  /// Reset form to defaults
+  void resetForm() => _updateAndNotify(() {
+    userNameController.clear();
+    aiNameController.clear();
+    meetStoryController.text = 'AUTO_GENERATE_STORY';
+    birthDateController.clear();
+    userBirthdate = null;
+    userCountryCode = null;
+    aiCountryCode = null;
+    _importedData = null;
+    _clearError();
+  });
+
+  /// Get form summary - delegated to Application Service
+  Map<String, dynamic> getFormSummary() {
+    final summary = _formService.generateFormSummary(
+      userName: userNameController.text,
+      aiName: aiNameController.text,
+      meetStory: meetStoryController.text,
+      userBirthdate: userBirthdate,
+      userCountryCode: userCountryCode,
+      aiCountryCode: aiCountryCode,
+    );
+
+    return {
+      'summary': summary,
+      'userName': userNameController.text.trim(),
+      'aiName': aiNameController.text.trim(),
+      'meetStory': meetStoryController.text.trim(),
+      'userBirthdate': userBirthdate?.toIso8601String(),
+      'userCountryCode': userCountryCode,
+      'aiCountryCode': aiCountryCode,
+      'hasImportedData': hasImportedData,
+      'isValid': isFormValid,
+    };
+  }
+
+  /// Check if form has been modified
+  bool hasFormChanges() {
+    return userNameController.text.isNotEmpty ||
+        aiNameController.text.isNotEmpty ||
+        (meetStoryController.text != 'AUTO_GENERATE_STORY' &&
+            meetStoryController.text.isNotEmpty) ||
+        userBirthdate != null ||
+        userCountryCode != null ||
+        aiCountryCode != null;
+  }
+
+  /// Clear current error
+  void clearError() {
+    _clearError();
+    notifyListeners();
+  }
+
+  // UI Interface methods - consolidated setters
+  void setMeetStory(final String value) =>
+      _updateAndNotify(() => meetStoryController.text = value);
+  void setUserCountryCode(final String? code) =>
+      _updateAndNotify(() => userCountryCode = code);
+  void setUserName(final String value) =>
+      _updateAndNotify(() => userNameController.text = value);
+  void setUserBirthdate(final DateTime? date) => updateUserBirthdate(date);
+  void setAiCountryCode(final String? code) =>
+      _updateAndNotify(() => aiCountryCode = code);
+  void setAiName(final String name) =>
+      _updateAndNotify(() => aiNameController.text = name);
+
+  Future<void> suggestStory(final BuildContext context) async {
+    await _executeOperationAsync(() async {
+      // Delegate story generation to Application Service
+      final result = await _formService.generateMeetStory(
+        userName: userNameController.text,
+        aiName: aiNameController.text,
+        userCountryCode: userCountryCode,
+        aiCountryCode: aiCountryCode,
+      );
+
+      if (result.success) {
+        meetStoryController.text = result.story;
+        notifyListeners();
+      } else {
+        // Fallback to default story
+        meetStoryController.text =
+            'We met through a mutual friend at a coffee shop.';
+        notifyListeners();
+      }
+    });
+  }
+
+  bool get isFormCompleteComputed {
+    // Delegate to Application Service for completion analysis
+    final analysis = _formService.analyzeFormCompletion(
+      userName: userNameController.text,
+      aiName: aiNameController.text,
+      meetStory: meetStoryController.text,
+      userBirthdate: userBirthdate,
+      userCountryCode: userCountryCode,
+      aiCountryCode: aiCountryCode,
+      hasImportedData: hasImportedData,
+    );
+
+    return analysis.isComplete;
+  }
+
   Future<OnboardingFormResult> processForm({
     required final String userName,
     required final String aiName,
@@ -62,176 +235,50 @@ class FormOnboardingController extends ChangeNotifier {
     final String? userCountryCode,
     final String? aiCountryCode,
   }) async {
+    // Update internal state with provided values
+    userNameController.text = userName;
+    aiNameController.text = aiName;
+    meetStoryController.text = meetStory;
+    this.userCountryCode = userCountryCode;
+    this.aiCountryCode = aiCountryCode;
+
+    // Parse birthdate using Application Service
+    if (birthDateText.isNotEmpty) {
+      final dateResult = _formService.parseDateString(birthDateText);
+      if (dateResult.success) {
+        userBirthdate = dateResult.parsedDate;
+      } else {
+        debugPrint('Error parsing birthdate: ${dateResult.error}');
+      }
+    }
+
+    return await saveFormData();
+  }
+
+  // Private helper methods
+  T _executeOperation<T>(final T Function() operation) {
     _setLoading(true);
     _clearError();
 
     try {
-      Log.d(
-        '🎯 Procesando formulario de onboarding',
-        tag: 'FORM_ONBOARDING_CTRL',
-      );
-
-      // Simple validation
-      if (!isFormComplete(
-        userName: userName,
-        aiName: aiName,
-        birthDateText: birthDateText,
-        meetStory: meetStory,
-      )) {
-        _setError('Todos los campos son obligatorios');
-        return OnboardingFormResult.failure(
-          'Todos los campos son obligatorios',
-        );
-      }
-
-      // Parse birth date
-      final birthDate = DateTime.tryParse(birthDateText);
-      if (birthDate == null) {
-        _setError('Fecha de nacimiento inválida');
-        return OnboardingFormResult.failure('Fecha de nacimiento inválida');
-      }
-
-      // Form is valid - return success result
-      Log.d('✅ Formulario procesado exitosamente', tag: 'FORM_ONBOARDING_CTRL');
-      return OnboardingFormResult.success(
-        userName: userName,
-        aiName: aiName,
-        userBirthdate: birthDate,
-        meetStory: meetStory,
-        userCountryCode: userCountryCode,
-        aiCountryCode: aiCountryCode,
-      );
-    } on Exception catch (e) {
-      Log.e('Error procesando formulario: $e', tag: 'FORM_ONBOARDING_CTRL');
-      _setError('Error inesperado procesando el formulario: $e');
-      return OnboardingFormResult.failure(
-        'Error inesperado procesando el formulario: $e',
-      );
+      final result = operation();
+      return result;
+    } catch (e) {
+      _setError(e.toString());
+      rethrow;
     } finally {
       _setLoading(false);
     }
   }
 
-  /// Importa datos desde JSON - Direct implementation without use case
-  Future<bool> importFromJson() async {
+  Future<void> _executeOperationAsync(
+    final Future<void> Function() operation,
+  ) async {
     _setLoading(true);
     _clearError();
 
     try {
-      Log.d('📤 Iniciando importación JSON', tag: 'FORM_ONBOARDING_CTRL');
-
-      final result = await chat_json_utils.ChatJsonUtils.importJsonFile();
-      final String? jsonStr = result.$1;
-      final String? error = result.$2;
-
-      if (error != null) {
-        _setError('Error importando JSON: $error');
-        return false;
-      }
-
-      if (jsonStr == null || jsonStr.trim().isEmpty) {
-        Log.d('🚫 Importación JSON cancelada', tag: 'FORM_ONBOARDING_CTRL');
-        return false;
-      }
-
-      // TODO: Parse JSON data and set _importedData if needed
-      Log.d('✅ Importación JSON exitosa', tag: 'FORM_ONBOARDING_CTRL');
-      return true;
-    } on Exception catch (e) {
-      _setError('Error durante importación JSON: $e');
-      return false;
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  /// Restaura desde un backup local - Simplified placeholder
-  Future<bool> restoreFromLocalBackup() async {
-    _setLoading(true);
-    _clearError();
-
-    try {
-      Log.d(
-        '📥 Restauración de backup no implementada',
-        tag: 'FORM_ONBOARDING_CTRL',
-      );
-      return false;
-    } on Exception catch (e) {
-      _setError('Error durante restauración: $e');
-      return false;
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  /// Limpia los datos importados
-  void clearImportedData() {
-    _importedData = null;
-    _clearError();
-    notifyListeners();
-  }
-
-  // --- Form state setters (migrated from provider) ---
-  void setUserName(final String value) {
-    userNameController.text = value;
-    notifyListeners();
-  }
-
-  void setAiName(final String value) {
-    aiNameController.text = value;
-    notifyListeners();
-  }
-
-  void setUserBirthdate(final DateTime? value) {
-    userBirthdate = value;
-    if (value != null) {
-      birthDateController.text = '${value.day}/${value.month}/${value.year}';
-    } else {
-      birthDateController.text = '';
-    }
-    notifyListeners();
-  }
-
-  void setMeetStory(final String value) {
-    if (meetStoryController.text != value) {
-      meetStoryController.text = value;
-      notifyListeners();
-    }
-  }
-
-  void setUserCountryCode(final String value) {
-    userCountryCode = value.trim().toUpperCase();
-    notifyListeners();
-  }
-
-  void setAiCountryCode(final String value) {
-    aiCountryCode = value.trim().toUpperCase();
-    notifyListeners();
-  }
-
-  /// Forwarder for suggestStory that existed on the provider. It delegates to
-  /// the same helper used previously via OnboardingUtils through the use case.
-  Future<void> suggestStory(final BuildContext context) async {
-    try {
-      if (userNameController.text.isNotEmpty &&
-          aiNameController.text.isNotEmpty) {
-        _setLoading(true);
-        meetStoryController.text = 'Generando historia...';
-        final storyText = await OnboardingUtils.generateMeetStoryFromContext(
-          userName: userNameController.text,
-          aiName: aiNameController.text,
-          userCountry: userCountryCode,
-          aiCountry: aiCountryCode,
-          userBirthdate: userBirthdate,
-        );
-
-        if (storyText.toLowerCase().contains('error')) {
-          _setError(storyText);
-          meetStoryController.text = '';
-        } else {
-          meetStoryController.text = storyText.trim();
-        }
-      }
+      await operation();
     } on Exception catch (e) {
       _setError(e.toString());
     } finally {
@@ -239,31 +286,20 @@ class FormOnboardingController extends ChangeNotifier {
     }
   }
 
-  String get birthDateText => birthDateController.text;
-
-  @override
-  void dispose() {
-    try {
-      userNameController.dispose();
-      aiNameController.dispose();
-      meetStoryController.dispose();
-      birthDateController.dispose();
-    } on Exception catch (_) {}
-    super.dispose();
+  void _updateBirthDateController() {
+    if (userBirthdate != null) {
+      // Delegate formatting to Application Service
+      birthDateController.text = _formService.formatDateForDisplay(
+        userBirthdate!,
+      );
+    } else {
+      birthDateController.clear();
+    }
   }
-
-  /// Limpia el mensaje de error
-  void clearError() {
-    _clearError();
-  }
-
-  // --- Métodos privados ---
 
   void _setLoading(final bool loading) {
-    if (_isLoading != loading) {
-      _isLoading = loading;
-      notifyListeners();
-    }
+    _isLoading = loading;
+    notifyListeners();
   }
 
   void _setError(final String error) {
@@ -271,10 +307,20 @@ class FormOnboardingController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _clearError() {
-    if (_errorMessage != null) {
-      _errorMessage = null;
-      notifyListeners();
-    }
+  void _clearError() => _errorMessage = null;
+
+  // Helper method for consolidated updates
+  void _updateAndNotify(final void Function() update) {
+    update();
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    userNameController.dispose();
+    aiNameController.dispose();
+    meetStoryController.dispose();
+    birthDateController.dispose();
+    super.dispose();
   }
 }

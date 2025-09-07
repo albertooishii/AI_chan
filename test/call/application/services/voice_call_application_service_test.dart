@@ -27,7 +27,9 @@ void main() {
         expect(successResult.success, isTrue);
         expect(successResult.errorMessage, isNull);
 
-        final failureResult = VoiceCallInitializationResult.failure('Test error');
+        final failureResult = VoiceCallInitializationResult.failure(
+          'Test error',
+        );
         expect(failureResult, isNotNull);
         expect(failureResult.success, isFalse);
         expect(failureResult.errorMessage, equals('Test error'));
@@ -41,22 +43,30 @@ void main() {
         expect(successResult.success, isTrue);
         expect(successResult.errorMessage, isNull);
 
-        final failureResult = VoiceCallOperationResult.failure('Operation error');
+        final failureResult = VoiceCallOperationResult.failure(
+          'Operation error',
+        );
         expect(failureResult, isNotNull);
         expect(failureResult.success, isFalse);
         expect(failureResult.errorMessage, equals('Operation error'));
       });
 
-      test('debe tener VoiceCallApplicationException para manejo de errores', () {
-        // ✅ GIVEN: Application exception
-        const exception = VoiceCallApplicationException('Test error message');
+      test(
+        'debe tener VoiceCallApplicationException para manejo de errores',
+        () {
+          // ✅ GIVEN: Application exception
+          const exception = VoiceCallApplicationException('Test error message');
 
-        // ✅ THEN: Should have proper error handling
-        expect(exception, isNotNull);
-        expect(exception.message, equals('Test error message'));
-        expect(exception.toString(), contains('VoiceCallApplicationException'));
-        expect(exception.toString(), contains('Test error message'));
-      });
+          // ✅ THEN: Should have proper error handling
+          expect(exception, isNotNull);
+          expect(exception.message, equals('Test error message'));
+          expect(
+            exception.toString(),
+            contains('VoiceCallApplicationException'),
+          );
+          expect(exception.toString(), contains('Test error message'));
+        },
+      );
     });
 
     group('🎯 SRP Violation Resolution', () {
@@ -97,27 +107,32 @@ void main() {
     });
 
     group('📈 Integration Readiness', () {
-      test('debe estar listo para integración con voice_call_screen_controller', () {
-        // ✅ GIVEN: Service is ready for controller integration
-        // ✅ THEN: Should have proper interfaces and result objects
+      test(
+        'debe estar listo para integración con voice_call_screen_controller',
+        () {
+          // ✅ GIVEN: Service is ready for controller integration
+          // ✅ THEN: Should have proper interfaces and result objects
 
-        // Verify result objects are ready for controller consumption
-        final successInit = VoiceCallInitializationResult.success();
-        final failureInit = VoiceCallInitializationResult.failure('Init failed');
+          // Verify result objects are ready for controller consumption
+          final successInit = VoiceCallInitializationResult.success();
+          final failureInit = VoiceCallInitializationResult.failure(
+            'Init failed',
+          );
 
-        expect(successInit.success, isTrue);
-        expect(successInit.errorMessage, isNull);
-        expect(failureInit.success, isFalse);
-        expect(failureInit.errorMessage, equals('Init failed'));
+          expect(successInit.success, isTrue);
+          expect(successInit.errorMessage, isNull);
+          expect(failureInit.success, isFalse);
+          expect(failureInit.errorMessage, equals('Init failed'));
 
-        final successOp = VoiceCallOperationResult.success();
-        final failureOp = VoiceCallOperationResult.failure('Op failed');
+          final successOp = VoiceCallOperationResult.success();
+          final failureOp = VoiceCallOperationResult.failure('Op failed');
 
-        expect(successOp.success, isTrue);
-        expect(successOp.errorMessage, isNull);
-        expect(failureOp.success, isFalse);
-        expect(failureOp.errorMessage, equals('Op failed'));
-      });
+          expect(successOp.success, isTrue);
+          expect(successOp.errorMessage, isNull);
+          expect(failureOp.success, isFalse);
+          expect(failureOp.errorMessage, equals('Op failed'));
+        },
+      );
 
       test('debe manejar excepciones de coordinación graciosamente', () {
         // ✅ GIVEN: Exception scenarios during use case coordination
@@ -158,8 +173,14 @@ void main() {
         // Verify result objects follow DDD naming
         final initResult = VoiceCallInitializationResult.success();
         final opResult = VoiceCallOperationResult.success();
-        expect(initResult.runtimeType.toString(), contains('VoiceCallInitializationResult'));
-        expect(opResult.runtimeType.toString(), contains('VoiceCallOperationResult'));
+        expect(
+          initResult.runtimeType.toString(),
+          contains('VoiceCallInitializationResult'),
+        );
+        expect(
+          opResult.runtimeType.toString(),
+          contains('VoiceCallOperationResult'),
+        );
       });
     });
 
@@ -176,7 +197,9 @@ void main() {
 
         // Verify result objects can handle all coordination scenarios
         final initSuccess = VoiceCallInitializationResult.success();
-        final initFailure = VoiceCallInitializationResult.failure('Init failed');
+        final initFailure = VoiceCallInitializationResult.failure(
+          'Init failed',
+        );
         final opSuccess = VoiceCallOperationResult.success();
         final opFailure = VoiceCallOperationResult.failure('Op failed');
 

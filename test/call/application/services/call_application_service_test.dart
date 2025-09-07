@@ -34,7 +34,10 @@ void main() {
         // ✅ THEN: Solo debe coordinar, no implementar lógica de dominio
 
         // Verifica que no tiene dependencias complejas inyectadas
-        expect(service.runtimeType.toString(), contains('CallApplicationService'));
+        expect(
+          service.runtimeType.toString(),
+          contains('CallApplicationService'),
+        );
 
         // Verifica que tiene capacidades bien definidas
         final state = service.getCoordinationState();
@@ -53,7 +56,9 @@ void main() {
         };
 
         // ✅ WHEN: Coordinar inicio de llamada
-        final result = await service.coordinateCallStart(callParameters: callParams);
+        final result = await service.coordinateCallStart(
+          callParameters: callParams,
+        );
 
         // ✅ THEN: Debe retornar resultado exitoso
         expect(result.success, isTrue);
@@ -134,7 +139,10 @@ void main() {
         final metadata = {'priority': 'high', 'type': 'voice'};
 
         // ✅ WHEN: Coordinar llamada entrante
-        final result = await service.coordinateIncomingCall(callerId: callerId, metadata: metadata);
+        final result = await service.coordinateIncomingCall(
+          callerId: callerId,
+          metadata: metadata,
+        );
 
         // ✅ THEN: Debe retornar resultado exitoso
         expect(result.success, isTrue);
@@ -153,7 +161,11 @@ void main() {
         final toDate = DateTime(2024, 12, 31);
 
         // ✅ WHEN: Coordinar obtención de historial
-        final result = await service.coordinateHistoryRetrieval(limit: limit, fromDate: fromDate, toDate: toDate);
+        final result = await service.coordinateHistoryRetrieval(
+          limit: limit,
+          fromDate: fromDate,
+          toDate: toDate,
+        );
 
         // ✅ THEN: Debe retornar resultado exitoso
         expect(result.success, isTrue);
@@ -169,10 +181,17 @@ void main() {
       test('debe coordinar configuración correctamente', () async {
         // ✅ GIVEN: Datos de configuración
         const configType = 'audio_settings';
-        final configData = {'sampleRate': 44100, 'bitRate': 128, 'format': 'wav'};
+        final configData = {
+          'sampleRate': 44100,
+          'bitRate': 128,
+          'format': 'wav',
+        };
 
         // ✅ WHEN: Coordinar configuración
-        final result = await service.coordinateConfiguration(configType: configType, configData: configData);
+        final result = await service.coordinateConfiguration(
+          configType: configType,
+          configData: configData,
+        );
 
         // ✅ THEN: Debe retornar resultado exitoso
         expect(result.success, isTrue);

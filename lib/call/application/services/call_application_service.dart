@@ -80,26 +80,13 @@ class CallApplicationService {
     required final String audioAction,
     final Map<String, dynamic>? parameters,
   }) async {
-    try {
-      return CallCoordinationResult(
-        success: true,
-        operation: 'audio_processing',
-        message: 'Audio procesado correctamente',
-        data: {
-          'callId': callId,
-          'action': audioAction,
-          'parameters': parameters,
-        },
-      );
-    } on Exception catch (e) {
-      return CallCoordinationResult(
-        success: false,
-        operation: 'audio_processing',
-        message: 'Error procesando audio',
-        data: {'callId': callId, 'action': audioAction},
-        error: e.toString(),
-      );
-    }
+    return _executeCoordinationOperation(
+      operation: 'audio_processing',
+      successMessage: 'Audio procesado correctamente',
+      errorMessage: 'Error procesando audio',
+      data: {'callId': callId, 'action': audioAction, 'parameters': parameters},
+      fallbackData: {'callId': callId, 'action': audioAction},
+    );
   }
 
   /// 🤖 **Coordinar Respuesta del Asistente**
@@ -109,26 +96,17 @@ class CallApplicationService {
     required final String responseText,
     final Map<String, dynamic>? options,
   }) async {
-    try {
-      return CallCoordinationResult(
-        success: true,
-        operation: 'assistant_response',
-        message: 'Respuesta del asistente coordinada',
-        data: {
-          'callId': callId,
-          'responseText': responseText,
-          'options': options,
-        },
-      );
-    } on Exception catch (e) {
-      return CallCoordinationResult(
-        success: false,
-        operation: 'assistant_response',
-        message: 'Error coordinando respuesta',
-        data: {'callId': callId},
-        error: e.toString(),
-      );
-    }
+    return _executeCoordinationOperation(
+      operation: 'assistant_response',
+      successMessage: 'Respuesta del asistente coordinada',
+      errorMessage: 'Error coordinando respuesta',
+      data: {
+        'callId': callId,
+        'responseText': responseText,
+        'options': options,
+      },
+      fallbackData: {'callId': callId},
+    );
   }
 
   /// 📲 **Coordinar Llamada Entrante**
@@ -224,6 +202,32 @@ class CallApplicationService {
         'configuration',
       ],
     );
+  }
+
+  // Private helper method to eliminate code duplication
+  Future<CallCoordinationResult> _executeCoordinationOperation({
+    required final String operation,
+    required final String successMessage,
+    required final String errorMessage,
+    required final Map<String, dynamic> data,
+    required final Map<String, dynamic> fallbackData,
+  }) async {
+    try {
+      return CallCoordinationResult(
+        success: true,
+        operation: operation,
+        message: successMessage,
+        data: data,
+      );
+    } on Exception catch (e) {
+      return CallCoordinationResult(
+        success: false,
+        operation: operation,
+        message: errorMessage,
+        data: fallbackData,
+        error: e.toString(),
+      );
+    }
   }
 }
 

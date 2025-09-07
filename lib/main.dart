@@ -14,7 +14,8 @@ import 'dart:convert';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'core/di.dart' as di;
 import 'core/di_bootstrap.dart' as di_bootstrap;
-import 'package:ai_chan/chat/application/utils/profile_persist_utils.dart' as profile_persist_utils;
+import 'package:ai_chan/chat/application/utils/profile_persist_utils.dart'
+    as profile_persist_utils;
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/shared/utils/app_data_utils.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -22,7 +23,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:ai_chan/shared/services/firebase_init.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,7 +58,10 @@ Future<void> main() async {
       Log.i('MAIN: no onboarding_data found at startup', tag: 'STARTUP');
     }
   } on Exception catch (e) {
-    Log.e('MAIN: failed reading onboarding_data at startup: $e', tag: 'STARTUP');
+    Log.e(
+      'MAIN: failed reading onboarding_data at startup: $e',
+      tag: 'STARTUP',
+    );
   }
 
   runApp(const RootApp());
@@ -75,7 +80,9 @@ class _RootAppState extends State<RootApp> {
   @override
   void initState() {
     super.initState();
-    _onboardingLifecycle = OnboardingLifecycleController();
+    _onboardingLifecycle = OnboardingLifecycleController(
+      chatRepository: di.getChatRepository(),
+    );
   }
 
   @override
@@ -96,7 +103,10 @@ class _RootAppState extends State<RootApp> {
         title: Config.getAppName(),
         theme: ThemeData(
           brightness: Brightness.dark,
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.pinkAccent, brightness: Brightness.dark),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.pinkAccent,
+            brightness: Brightness.dark,
+          ),
           scaffoldBackgroundColor: Colors.black,
           useMaterial3: true,
         ),
@@ -137,7 +147,8 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
       // Limpiar estado en memoria de los providers
       if (_chatController != null) {
-        await _chatController!.clearMessages(); // ✅ DDD: ETAPA 3 - Usar método de ChatController
+        await _chatController!
+            .clearMessages(); // ✅ DDD: ETAPA 3 - Usar método de ChatController
         // Crear perfil vacío en memoria sin persistir
         _chatController!.dataController.updateProfile(
           AiChanProfile(
@@ -187,7 +198,11 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
           await Permission.storage.request();
         }
       } on Exception catch (e) {
-        Log.e('Error solicitando permisos de almacenamiento', tag: 'PERM', error: e);
+        Log.e(
+          'Error solicitando permisos de almacenamiento',
+          tag: 'PERM',
+          error: e,
+        );
       }
       setState(() {
         _initialized = true;
@@ -209,16 +224,28 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (!_initialized) {
       return const Scaffold(
         backgroundColor: Colors.black,
-        body: Center(child: CyberpunkLoader(message: 'BOOTING SYSTEM...', showProgressBar: true)),
+        body: Center(
+          child: CyberpunkLoader(
+            message: 'BOOTING SYSTEM...',
+            showProgressBar: true,
+          ),
+        ),
       );
     }
 
     // Listen to the provider so UI rebuilds when lifecycle state changes
-    final onboardingLifecycle = Provider.of<OnboardingLifecycleController>(context);
+    final onboardingLifecycle = Provider.of<OnboardingLifecycleController>(
+      context,
+    );
     if (onboardingLifecycle.loading) {
       return const Scaffold(
         backgroundColor: Colors.black,
-        body: Center(child: CyberpunkLoader(message: 'LOADING USER DATA...', showProgressBar: true)),
+        body: Center(
+          child: CyberpunkLoader(
+            message: 'LOADING USER DATA...',
+            showProgressBar: true,
+          ),
+        ),
       );
     }
 
@@ -240,7 +267,9 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
               // navigator avoids Null check operator failures.
               final nav = navigatorKey.currentState;
               if (nav == null) {
-                Log.e('Navigator state is not available when finishing onboarding');
+                Log.e(
+                  'Navigator state is not available when finishing onboarding',
+                );
                 return;
               }
 
@@ -251,23 +280,24 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 MaterialPageRoute(
                   fullscreenDialog: true,
                   builder: (_) => InitializingScreen(
-                    bioFutureFactory: ([final void Function(String)? onProgress]) async {
-                      await onboardingLifecycle.generateAndSaveBiography(
-                        context: context,
-                        userName: userName,
-                        aiName: aiName,
-                        userBirthdate: userBirthdate,
-                        meetStory: meetStory,
-                        userCountryCode: userCountryCode,
-                        aiCountryCode: aiCountryCode,
-                        appearance: appearance,
-                        onProgress: onProgress,
-                      );
-                      if (onboardingLifecycle.generatedBiography == null) {
-                        throw Exception('No se pudo generar la biografía');
-                      }
-                      return onboardingLifecycle.generatedBiography!;
-                    },
+                    bioFutureFactory:
+                        ([final void Function(String)? onProgress]) async {
+                          await onboardingLifecycle.generateAndSaveBiography(
+                            context: context,
+                            userName: userName,
+                            aiName: aiName,
+                            userBirthdate: userBirthdate,
+                            meetStory: meetStory,
+                            userCountryCode: userCountryCode,
+                            aiCountryCode: aiCountryCode,
+                            appearance: appearance,
+                            onProgress: onProgress,
+                          );
+                          if (onboardingLifecycle.generatedBiography == null) {
+                            throw Exception('No se pudo generar la biografía');
+                          }
+                          return onboardingLifecycle.generatedBiography!;
+                        },
                   ),
                 ),
               );
@@ -288,7 +318,8 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   _chatController = di.getChatController();
                 }
 
-                if (onboardingLifecycle.generatedBiography != null && onboardingLifecycle.biographySaved) {
+                if (onboardingLifecycle.generatedBiography != null &&
+                    onboardingLifecycle.biographySaved) {
                   Log.i(
                     'MAIN: Persistiendo biografía tras InitializingScreen: ${onboardingLifecycle.generatedBiography!.aiName}',
                   );
@@ -320,10 +351,12 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
                         onImportJson: (final importedChat) async {
                           final ob = onboardingLifecycle;
                           final jsonStr = jsonEncode(importedChat.toJson());
-                          final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
-                            jsonStr,
-                            onError: (final err) => ob.setImportError(err),
-                          );
+                          final imported =
+                              await chat_json_utils
+                                  .ChatJsonUtils.importAllFromJson(
+                                jsonStr,
+                                onError: (final err) => ob.setImportError(err),
+                              );
                           if (imported != null) {
                             await ob.applyChatExport(imported);
                           }
@@ -340,10 +373,11 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
         onClearAllDebug: resetApp,
         onImportJson: (final importedChat) async {
           final jsonStr = jsonEncode(importedChat.toJson());
-          final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
-            jsonStr,
-            onError: (final err) => onboardingLifecycle.setImportError(err),
-          );
+          final imported =
+              await chat_json_utils.ChatJsonUtils.importAllFromJson(
+                jsonStr,
+                onError: (final err) => onboardingLifecycle.setImportError(err),
+              );
           if (imported != null) {
             await onboardingLifecycle.applyChatExport(imported);
             if (mounted) setState(() {});
@@ -355,13 +389,18 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     // Ensure we only create the ChatController once and pass it down explicitly
     if (_chatController == null) {
-      Log.i('MAIN: Creando nuevo ChatController (nueva arquitectura DDD)'); // ✅ DDD: ETAPA 3
+      Log.i(
+        'MAIN: Creando nuevo ChatController (nueva arquitectura DDD)',
+      ); // ✅ DDD: ETAPA 3
       _chatController = di.getChatController(); // ✅ DDD: ETAPA 3
 
       // Solo persistir datos si realmente hay una biografía válida Y los datos están guardados
       // Esto evita que se persistan datos fantasma después de un resetApp()
-      if (onboardingLifecycle.generatedBiography != null && onboardingLifecycle.biographySaved) {
-        Log.i('MAIN: Persistiendo biografía: ${onboardingLifecycle.generatedBiography!.aiName}');
+      if (onboardingLifecycle.generatedBiography != null &&
+          onboardingLifecycle.biographySaved) {
+        Log.i(
+          'MAIN: Persistiendo biografía: ${onboardingLifecycle.generatedBiography!.aiName}',
+        );
         // Schedule persistence and initialization asynchronously. We don't block
         // build(), but ensure the controller is initialized as soon as possible.
         Future(() async {
@@ -382,14 +421,17 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
         );
       }
 
-      Log.i('MAIN: ChatController inicializado (carga automática)'); // ✅ DDD: ETAPA 3 - Ya no necesita loadAll() manual
+      Log.i(
+        'MAIN: ChatController inicializado (carga automática)',
+      ); // ✅ DDD: ETAPA 3 - Ya no necesita loadAll() manual
       // _chatController!.loadAll(); // ✅ DDD: ChatController hace carga automática
     } else {
       Log.i('MAIN: Reutilizando ChatController existente'); // ✅ DDD: ETAPA 3
     }
 
     return ChangeNotifierProvider.value(
-      value: _chatController, // ✅ DDD: ETAPA 3 COMPLETADA - Usar ChatController directamente
+      value:
+          _chatController, // ✅ DDD: ETAPA 3 COMPLETADA - Usar ChatController directamente
       child: ChatScreen(
         bio: onboardingLifecycle.generatedBiography!,
         aiName: onboardingLifecycle.generatedBiography!.aiName,
@@ -398,10 +440,11 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
         onImportJson: (final importedChat) async {
           final ob = onboardingLifecycle;
           final jsonStr = jsonEncode(importedChat.toJson());
-          final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
-            jsonStr,
-            onError: (final err) => ob.setImportError(err),
-          );
+          final imported =
+              await chat_json_utils.ChatJsonUtils.importAllFromJson(
+                jsonStr,
+                onError: (final err) => ob.setImportError(err),
+              );
           if (imported != null) {
             await ob.applyChatExport(imported);
           }

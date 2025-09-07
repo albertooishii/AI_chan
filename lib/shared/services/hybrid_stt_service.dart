@@ -297,9 +297,7 @@ class HybridSttService {
       localeId: localeId,
       listenFor: timeout,
       pauseFor: const Duration(seconds: 3),
-      // ignore: deprecated_member_use
-      partialResults:
-          false, // TODO: Migrar a SpeechListenOptions cuando esté disponible
+      listenOptions: stt.SpeechListenOptions(partialResults: false),
     );
   }
 

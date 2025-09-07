@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/services/google_backup_service.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
@@ -35,7 +37,7 @@ class _GoogleDriveConnectorState extends State<GoogleDriveConnector> {
     }
 
     try {
-      final service = GoogleBackupService(accessToken: null);
+      final service = GoogleBackupService();
       final userInfo = await service.fetchUserInfoIfTokenValid();
 
       if (mounted) {
@@ -75,9 +77,10 @@ class _GoogleDriveConnectorState extends State<GoogleDriveConnector> {
     }
 
     try {
-      final service = GoogleBackupService(accessToken: null);
+      final service = GoogleBackupService();
+      final forceNative = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
       final tokenMap = await service.linkAccount(
-        forceUseGoogleSignIn: true, // Force native chooser on Android
+        forceUseGoogleSignIn: forceNative,
         scopes: [
           'openid',
           'email',
@@ -152,7 +155,7 @@ class _GoogleDriveConnectorState extends State<GoogleDriveConnector> {
     }
 
     try {
-      final service = GoogleBackupService(accessToken: null);
+      final service = GoogleBackupService();
       await service.clearStoredCredentials();
 
       if (mounted) {

@@ -141,7 +141,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // First, check if we already have stored credentials
       try {
-        final svc = GoogleBackupService(accessToken: null);
+        final svc = GoogleBackupService();
         final token = await svc.loadStoredAccessToken();
 
         if (token != null) {
@@ -172,9 +172,11 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         // On Android explicitly force the google_sign_in path so the
         // native account chooser is shown even if cached credentials
         // exist. This ensures auto-link uses the same flow as the button.
-        await GoogleBackupService(
-          accessToken: null,
-        ).linkAccount(clientId: candidateCid, forceUseGoogleSignIn: true);
+        final forceNative = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+        await GoogleBackupService().linkAccount(
+          clientId: candidateCid,
+          forceUseGoogleSignIn: forceNative,
+        );
         Log.d(
           'GoogleDriveBackupDialog: Auto-link completed',
           tag: 'GoogleBackup',
@@ -200,7 +202,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
     if (!mounted) return;
 
     try {
-      final svc = GoogleBackupService(accessToken: null);
+      final svc = GoogleBackupService();
       final token = await svc.loadStoredAccessToken();
 
       if (token != null) {
@@ -237,9 +239,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
           // If we detect an unauthorized state, clear stored credentials
           if (e is StateError && e.toString().contains('Unauthorized')) {
             try {
-              await GoogleBackupService(
-                accessToken: null,
-              ).clearStoredCredentials();
+              await GoogleBackupService().clearStoredCredentials();
             } on Exception catch (_) {}
             _safeSetState(() {
               _service = null;
@@ -385,7 +385,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
     _setWorkingState(checkingMessage);
 
     try {
-      final svc = _service ?? GoogleBackupService(accessToken: null);
+      final svc = _service ?? GoogleBackupService();
       final files = await svc.listBackups();
       if (!mounted) return;
 
@@ -436,14 +436,14 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
       if (msg.contains('Invalid Credentials') ||
           msg.contains('Expected OAuth 2 access token')) {
         try {
-          await GoogleBackupService(accessToken: null).clearStoredCredentials();
+          await GoogleBackupService().clearStoredCredentials();
         } on Exception catch (_) {}
         // Bubble up a StateError so callers (ensureLinkedAndCheck) can react.
         throw StateError('Unauthorized');
       }
       if (msg.contains('invalid_scope')) {
         try {
-          await GoogleBackupService(accessToken: null).clearStoredCredentials();
+          await GoogleBackupService().clearStoredCredentials();
         } on Exception catch (_) {}
         _insufficientScope = true;
         _clearWorkingState();
@@ -458,7 +458,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
           'Detected insufficient scopes for requested spaces; verifying stored credentials before prompting re-link',
         );
         try {
-          final svc = GoogleBackupService(accessToken: null);
+          final svc = GoogleBackupService();
           final creds = await svc.loadStoredCredentials();
           final storedScope = (creds?['scope'] as String?) ?? '';
           if (kDebugMode) debugPrint('Stored credential scopes: $storedScope');
@@ -468,7 +468,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
             try {
               final clientId = await _resolveClientId(widget.clientId);
               final clientSecret = await _resolveClientSecret();
-              final svc = GoogleBackupService(accessToken: null);
+              final svc = GoogleBackupService();
               final refreshed = await svc.refreshAccessToken(
                 clientId: clientId,
                 clientSecret: clientSecret,
@@ -545,7 +545,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
         try {
           final clientId = await _resolveClientId(widget.clientId);
           final clientSecret = await _resolveClientSecret();
-          final svc = GoogleBackupService(accessToken: null);
+          final svc = GoogleBackupService();
           final refreshed = await svc.refreshAccessToken(
             clientId: clientId,
             clientSecret: clientSecret,
@@ -655,7 +655,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
   Future<void> _diagnoseBackupState() async {
     try {
       debugPrint('=== DIAGNÓSTICO DE BACKUP STATE ===');
-      final svc = _service ?? GoogleBackupService(accessToken: null);
+      final svc = _service ?? GoogleBackupService();
       final storedToken = await svc.loadStoredAccessToken();
       if (storedToken == null) {
         debugPrint('No stored access token');
@@ -700,7 +700,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
       '[DOWNLOAD_INITIATED] Retrieving archive from cloud storage',
       showProgress: true,
     );
-    final svc = _service ?? GoogleBackupService(accessToken: null);
+    final svc = _service ?? GoogleBackupService();
     try {
       final backupId = _latestBackup!['id'] as String;
       final file = await svc.downloadBackup(backupId);
@@ -986,9 +986,8 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                 ? null
                                 : () async {
                                     try {
-                                      await GoogleBackupService(
-                                        accessToken: null,
-                                      ).clearStoredCredentials();
+                                      await GoogleBackupService()
+                                          .clearStoredCredentials();
                                     } on Exception catch (_) {}
                                     setState(() => _insufficientScope = false);
                                     await _checkStatusOnly(); // Just check status, don't do additional auth
@@ -1028,11 +1027,12 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                               // native account chooser is shown even if cached credentials
                               // exist. This ensures the button always opens the native
                               // selector as the UX expects.
-                              await GoogleBackupService(
-                                accessToken: null,
-                              ).linkAccount(
+                              final forceNative =
+                                  !kIsWeb &&
+                                  (Platform.isAndroid || Platform.isIOS);
+                              await GoogleBackupService().linkAccount(
                                 clientId: candidateCid,
-                                forceUseGoogleSignIn: true,
+                                forceUseGoogleSignIn: forceNative,
                               );
                               Log.d(
                                 'GoogleDriveBackupDialog: Android linkAccount returned',
@@ -1120,9 +1120,9 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                               final candidateCid = await _resolveClientId(
                                 widget.clientId,
                               );
-                              await GoogleBackupService(
-                                accessToken: null,
-                              ).linkAccount(clientId: candidateCid);
+                              await GoogleBackupService().linkAccount(
+                                clientId: candidateCid,
+                              );
                               Log.d(
                                 'GoogleDriveBackupDialog: Desktop linkAccount returned',
                                 tag: 'GoogleBackup',
@@ -1197,9 +1197,8 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                     '[DISCONNECT_INIT] Terminating account interface',
                                   );
                                   try {
-                                    await GoogleBackupService(
-                                      accessToken: null,
-                                    ).clearStoredCredentials();
+                                    await GoogleBackupService()
+                                        .clearStoredCredentials();
                                   } on Exception catch (_) {}
                                   _safeSetState(() {
                                     _service = null;
@@ -1340,9 +1339,7 @@ class _GoogleDriveBackupDialogState extends State<GoogleDriveBackupDialog> {
                                   '[DELETE_INITIATED] Purging backup archive',
                                 );
                                 try {
-                                  final svc =
-                                      _service ??
-                                      GoogleBackupService(accessToken: null);
+                                  final svc = _service ?? GoogleBackupService();
                                   final id = _latestBackup!['id'] as String;
                                   await svc.deleteBackup(id);
                                   // Refresh list

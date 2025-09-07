@@ -848,9 +848,7 @@ class ChatApplicationService {
   Future<List<Map<String, dynamic>>> _listBackupsWithAutoRefresh() async {
     try {
       // Intentar con token actual
-      final currentToken = await GoogleBackupService(
-        accessToken: null,
-      ).loadStoredAccessToken();
+      final currentToken = await GoogleBackupService().loadStoredAccessToken();
       if (currentToken == null) {
         throw Exception('No stored access token available');
       }
@@ -868,7 +866,7 @@ class ChatApplicationService {
         );
 
         try {
-          final service = GoogleBackupService(accessToken: null);
+          final service = GoogleBackupService();
           final refreshed = await service.refreshAccessToken(
             clientId: await GoogleBackupService.resolveClientId(''),
             clientSecret: await GoogleBackupService.resolveClientSecret(),

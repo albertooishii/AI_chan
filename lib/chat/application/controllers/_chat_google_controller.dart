@@ -14,7 +14,8 @@ import 'package:ai_chan/chat/application/mixins/ui_state_management_mixin.dart';
 /// - Delegation: All logic delegated to ChatApplicationService
 /// - UI State Management: Via mixin pattern
 class ChatGoogleController extends ChangeNotifier with UIStateManagementMixin {
-  ChatGoogleController({required final ChatApplicationService chatService}) : _chatService = chatService;
+  ChatGoogleController({required final ChatApplicationService chatService})
+    : _chatService = chatService;
 
   final ChatApplicationService _chatService;
 
@@ -54,7 +55,9 @@ class ChatGoogleController extends ChangeNotifier with UIStateManagementMixin {
 
   /// Set Google linked status (UI state)
   void setGoogleLinked(final bool linked) {
-    executeSyncWithNotification(operation: () => _chatService.setGoogleLinked(linked));
+    executeSyncWithNotification(
+      operation: () => _chatService.setGoogleLinked(linked),
+    );
   }
 
   /// Diagnose Google account state for debugging

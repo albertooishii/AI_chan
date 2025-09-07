@@ -20,7 +20,7 @@ enum ConsentStatus {
 /// Servicio para manejo de backups en Google Drive con OAuth robusto
 class GoogleBackupService {
   GoogleBackupService({
-    required this.accessToken,
+    this.accessToken,
     final http.Client? httpClient,
     final Uri? uploadEndpoint,
     final Uri? listEndpoint,
@@ -1116,7 +1116,7 @@ class GoogleBackupService {
         );
 
         try {
-          final svc = GoogleBackupService(accessToken: null);
+          final svc = GoogleBackupService();
           final refreshed = await svc.refreshAccessToken(
             clientId: await GoogleBackupService.resolveClientId(''),
             clientSecret: await GoogleBackupService.resolveClientSecret(),

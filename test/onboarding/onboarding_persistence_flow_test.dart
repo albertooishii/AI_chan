@@ -329,7 +329,9 @@ void main() async {
         );
 
         // 6.4 Crear OnboardingLifecycleController (otra forma de cargar datos)
-        final lifecycleController = OnboardingLifecycleController();
+        final lifecycleController = OnboardingLifecycleController(
+          chatRepository: LocalChatRepository(),
+        );
         await Future.doWhile(() async {
           await Future.delayed(const Duration(milliseconds: 10));
           return lifecycleController.loading;
@@ -456,7 +458,9 @@ void main() async {
       );
 
       // 8.4 Verificar que una nueva sesión arranca completamente desde cero
-      final newLifecycleController = OnboardingLifecycleController();
+      final newLifecycleController = OnboardingLifecycleController(
+        chatRepository: LocalChatRepository(),
+      );
       await Future.doWhile(() async {
         await Future.delayed(const Duration(milliseconds: 10));
         return newLifecycleController.loading;
@@ -854,7 +858,9 @@ void main() async {
         );
 
         // 6.4 Verificar OnboardingLifecycleController con datos conversacionales
-        final convLifecycleController = OnboardingLifecycleController();
+        final convLifecycleController = OnboardingLifecycleController(
+          chatRepository: LocalChatRepository(),
+        );
         await Future.doWhile(() async {
           await Future.delayed(const Duration(milliseconds: 10));
           return convLifecycleController.loading;
@@ -989,7 +995,9 @@ void main() async {
       );
 
       // 8.4 Verificar que una nueva sesión conversacional arranca desde cero
-      final newConvLifecycleController = OnboardingLifecycleController();
+      final newConvLifecycleController = OnboardingLifecycleController(
+        chatRepository: LocalChatRepository(),
+      );
       await Future.doWhile(() async {
         await Future.delayed(const Duration(milliseconds: 10));
         return newConvLifecycleController.loading;
