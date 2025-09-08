@@ -1,5 +1,6 @@
 import 'package:ai_chan/core/models.dart';
 import '../../utils/event_parser_utils.dart';
+import '../../utils/log_utils.dart';
 
 class EventTimelineService {
   // Añade un evento al timeline si se detecta fecha y palabras clave
@@ -113,12 +114,14 @@ class EventTimelineService {
         );
         onboardingData = onboardingData.copyWith(events: updatedEvents);
         await saveAll();
-        print(
-          '[EVENTO IA] Guardado evento en events: $descripcionNatural (${eventEntry.startDate})',
+        Log.d(
+          'Guardado evento en events: $descripcionNatural (${eventEntry.startDate})',
+          tag: 'EVENTO_IA',
         );
       } else {
-        print(
-          '[EVENTO IA] Evento duplicado detectado. No se guarda: $descripcionNatural (${eventEntry.startDate})',
+        Log.d(
+          'Evento duplicado detectado. No se guarda: $descripcionNatural (${eventEntry.startDate})',
+          tag: 'EVENTO_IA',
         );
       }
     }
@@ -180,11 +183,13 @@ class EventTimelineService {
           tipoHorario = 'busy';
         }
       }
-      print(
-        '[HORARIO IA] Intentando extraer días: ${diasMatch != null ? diasMatch.group(0) : 'NO DETECTADO'}',
+      Log.d(
+        'Intentando extraer días: ${diasMatch != null ? diasMatch.group(0) : 'NO DETECTADO'}',
+        tag: 'HORARIO_IA',
       );
-      print(
-        '[HORARIO IA] Intentando extraer rango de horas: ${rangoMatch.group(0)}',
+      Log.d(
+        'Intentando extraer rango de horas: ${rangoMatch.group(0)}',
+        tag: 'HORARIO_IA',
       );
       if (tipoHorario.isNotEmpty) {
         final String fromHour = rangoMatch.group(2) ?? '';
@@ -308,9 +313,12 @@ class EventTimelineService {
           }
           onboardingData = onboardingData.copyWith(biography: bio);
           await saveAll();
-          print('[HORARIO IA] Guardado en biography: $tipoHorario=$entry');
+          Log.d(
+            'Guardado en biography: $tipoHorario=$entry',
+            tag: 'HORARIO_IA',
+          );
         } on Exception catch (e) {
-          print('[HORARIO IA] Error guardando en biography: $e');
+          Log.e('Error guardando en biography: $e', tag: 'HORARIO_IA');
         }
       }
     }

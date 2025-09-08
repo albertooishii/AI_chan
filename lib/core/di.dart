@@ -460,7 +460,6 @@ VoiceCallApplicationService getVoiceCallApplicationService() {
     ),
     handleIncomingCallUseCase: HandleIncomingCallUseCase(callManager),
     manageAudioUseCase: ManageAudioUseCase(audioManager),
-    chatCommunicationService: getCallToChatCommunicationService(),
   );
 }
 

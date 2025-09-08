@@ -4,7 +4,6 @@ import '../use_cases/end_call_use_case.dart';
 import '../use_cases/handle_incoming_call_use_case.dart';
 import '../use_cases/manage_audio_use_case.dart';
 import '../../domain/entities/voice_call_state.dart';
-import 'package:ai_chan/core/domain/interfaces/i_call_to_chat_communication_service.dart'; // ✅ Bounded Context Abstraction
 
 /// 🎯 **Voice Call Application Service** - DDD Coordinator for Call Operations
 ///
@@ -28,23 +27,16 @@ class VoiceCallApplicationService {
     required final EndCallUseCase endCallUseCase,
     required final HandleIncomingCallUseCase handleIncomingCallUseCase,
     required final ManageAudioUseCase manageAudioUseCase,
-    required final ICallToChatCommunicationService
-    chatCommunicationService, // ✅ Bounded Context Abstraction
   }) : _startCallUseCase = startCallUseCase,
        _endCallUseCase = endCallUseCase,
        _handleIncomingCallUseCase = handleIncomingCallUseCase,
-       _manageAudioUseCase = manageAudioUseCase,
-       _chatCommunicationService =
-           chatCommunicationService; // ✅ Bounded Context Abstraction
+       _manageAudioUseCase = manageAudioUseCase;
 
   // 🔧 **Use Cases Dependencies** - Core 4 use cases from controller
   final StartCallUseCase _startCallUseCase;
   final EndCallUseCase _endCallUseCase;
   final HandleIncomingCallUseCase _handleIncomingCallUseCase;
   final ManageAudioUseCase _manageAudioUseCase;
-  // ignore: unused_field
-  final ICallToChatCommunicationService
-  _chatCommunicationService; // ✅ Bounded Context Abstraction
 
   /// 🚀 **Initialize Voice Call System**
   /// Coordinates initialization of all audio and call systems

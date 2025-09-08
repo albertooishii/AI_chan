@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:ai_chan/shared/domain/interfaces/audio_playback_service.dart';
-import 'package:flutter/foundation.dart';
+import 'package:ai_chan/shared/utils/log_utils.dart';
 
 /// Application Service for Call Playback coordination
 /// Handles audio playback orchestration following DDD patterns
@@ -26,7 +26,7 @@ class CallPlaybackApplicationService {
       // Start new audio playback
       await _audioPlayer.play(audioPath);
 
-      debugPrint('🔊 [AUDIO] Playing: ${audioId ?? audioPath}');
+      Log.d('Playing: ${audioId ?? audioPath}', tag: 'AUDIO');
 
       return CallPlaybackResult.success(
         audioId: audioId,
@@ -45,7 +45,7 @@ class CallPlaybackApplicationService {
   Future<CallPlaybackResult> stopAIAudio() async {
     try {
       await _audioPlayer.stop();
-      debugPrint('⏹️ [AUDIO] Stopped AI audio');
+      Log.d('Stopped AI audio', tag: 'AUDIO');
 
       return CallPlaybackResult.success(status: 'stopped');
     } on Exception catch (e) {
@@ -63,10 +63,10 @@ class CallPlaybackApplicationService {
     try {
       if (shouldRing) {
         await _ringPlayer.play('assets/sounds/ring.mp3');
-        debugPrint('📞 [RING] Started');
+        Log.d('Ring tone started', tag: 'RING');
       } else {
         await _ringPlayer.stop();
-        debugPrint('🔇 [RING] Stopped');
+        Log.d('Ring tone stopped', tag: 'RING');
       }
 
       return CallPlaybackResult.success(
@@ -143,7 +143,7 @@ class CallPlaybackApplicationService {
       await _audioPlayer.stop();
       await _ringPlayer.stop();
 
-      debugPrint('🔄 [AUDIO] Reset complete');
+      Log.d('Reset complete', tag: 'AUDIO');
 
       return CallPlaybackResult.success(status: 'reset_complete');
     } on Exception catch (e) {
