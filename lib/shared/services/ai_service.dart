@@ -7,6 +7,7 @@ import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/model_utils.dart';
 import 'package:ai_chan/core/cache/cache_service.dart';
+import 'package:ai_chan/shared/utils/log_utils.dart';
 
 abstract class AIService {
   /// Test hook: permite inyectar una implementación fake durante tests.
@@ -24,6 +25,104 @@ abstract class AIService {
     final String? imageMimeType,
     final bool enableImageGeneration = false,
   });
+
+  /// Maneja reintentos con backoff exponencial para errores transitorios (503, 429, etc.)
+  /// Este método es usado internamente por AIService.sendMessage
+  static Future<AIResponse> _retryOnTransientErrors(
+    final Future<AIResponse> Function() operation,
+    final String modelName,
+    final String serviceName,
+  ) async {
+    const maxRetries = 3;
+    const baseDelayMs = 1000; // 1 segundo base
+
+    for (int attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        final response = await operation();
+
+        // Si la respuesta contiene texto, consideramos que fue exitosa
+        if (response.text.isNotEmpty) {
+          return response;
+        }
+
+        // Si está vacía, podría ser un error que no lanzó excepción
+        // Intentamos detectar si es un error transitorio por el contenido
+        if (attempt < maxRetries && _isTransientError(response.text)) {
+          final delayMs = baseDelayMs * (1 << attempt);
+          Log.w(
+            '[$serviceName] Posible error transitorio detectado para modelo $modelName (intento ${attempt + 1}/$maxRetries). Reintentando en ${delayMs}ms...',
+          );
+          await Future.delayed(Duration(milliseconds: delayMs));
+          continue;
+        }
+
+        return response;
+      } on Exception catch (e) {
+        // Verificar si es un error transitorio que merece reintento
+        if (attempt < maxRetries && _isTransientException(e)) {
+          final delayMs = baseDelayMs * (1 << attempt);
+          Log.w(
+            '[$serviceName] Error transitorio para modelo $modelName (intento ${attempt + 1}/$maxRetries): $e. Reintentando en ${delayMs}ms...',
+          );
+          await Future.delayed(Duration(milliseconds: delayMs));
+          continue;
+        }
+
+        // Si no es transitorio o agotamos reintentos, relanzar la excepción
+        rethrow;
+      }
+    }
+
+    // Esto no debería ejecutarse, pero por seguridad
+    return AIResponse(text: 'Error: se agotaron los reintentos');
+  }
+
+  /// Detecta si una excepción representa un error transitorio que merece reintento
+  static bool _isTransientException(final Exception e) {
+    final errorStr = e.toString().toLowerCase();
+
+    // Errores de conexión de red
+    if (errorStr.contains('socketexception') ||
+        errorStr.contains('timeoutexception') ||
+        errorStr.contains('connection') ||
+        errorStr.contains('network')) {
+      return true;
+    }
+
+    // Errores HTTP específicos (503, 429, 502, 504)
+    if (errorStr.contains('503') ||
+        errorStr.contains('429') ||
+        errorStr.contains('502') ||
+        errorStr.contains('504')) {
+      return true;
+    }
+
+    // Errores específicos de servicios de IA
+    if (errorStr.contains('overloaded') ||
+        errorStr.contains('rate limit') ||
+        errorStr.contains('quota') ||
+        errorStr.contains('temporarily unavailable') ||
+        errorStr.contains('service unavailable')) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /// Detecta si el contenido de respuesta indica un error transitorio
+  static bool _isTransientError(final String responseText) {
+    final text = responseText.toLowerCase();
+
+    return text.contains('overloaded') ||
+        text.contains('rate limit') ||
+        text.contains('quota') ||
+        text.contains('temporarily unavailable') ||
+        text.contains('service unavailable') ||
+        text.contains('error 503') ||
+        text.contains('error 429') ||
+        text.contains('error 502') ||
+        text.contains('error 504');
+  }
 
   /// Punto único de entrada para enviar mensajes a la IA con fallback automático.
   static Future<AIResponse> sendMessage(
@@ -105,13 +204,19 @@ abstract class AIService {
     final bool requestHadImage = imageBase64 != null && imageBase64.isNotEmpty;
 
     final int startMs = DateTime.now().millisecondsSinceEpoch;
-    AIResponse response = await aiService.sendMessageImpl(
-      history,
-      systemPrompt,
-      model: model,
-      imageBase64: imageBase64,
-      imageMimeType: imageMimeType,
-      enableImageGeneration: enableImageGeneration,
+
+    // Usar reintentos automáticos para errores transitorios
+    AIResponse response = await _retryOnTransientErrors(
+      () => aiService.sendMessageImpl(
+        history,
+        systemPrompt,
+        model: model,
+        imageBase64: imageBase64,
+        imageMimeType: imageMimeType,
+        enableImageGeneration: enableImageGeneration,
+      ),
+      model,
+      aiService.runtimeType.toString(),
     );
     // Eliminar siempre etiquetas [img_caption] del texto de la respuesta.
     // Solo cuando la petición ORIGINAL incluía imagen (requestHadImage) se guardará

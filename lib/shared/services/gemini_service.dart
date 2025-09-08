@@ -294,14 +294,19 @@ class GeminiService implements AIService {
       final secondKey = (firstKey == primary) ? fallback : primary;
 
       String keyUsed = firstKey;
+
+      // Los reintentos ahora se manejan en AIService.sendMessage
       http.Response resp = await doPost(keyUsed);
+
       if (resp.statusCode != 200 &&
           secondKey.isNotEmpty &&
           AIServiceUtils.isQuotaLike(resp.statusCode, resp.body)) {
         Log.w(
           '[Gemini] ${resp.statusCode} con primera clave; reintentando con alternativa.',
         );
+
         final r2 = await doPost(secondKey);
+
         if (r2.statusCode == 200) {
           _preferFallback = (secondKey == fallback);
           keyUsed = secondKey;
@@ -316,12 +321,37 @@ class GeminiService implements AIService {
       if (resp.statusCode == 200) {
         return await parseAndBuild(resp.body);
       }
+
       final bodyPreview = resp.body.length > 1000
           ? resp.body.substring(0, 1000)
           : resp.body;
       Log.e(
         '[Gemini] Error ${resp.statusCode} con modelo $modelId usando ${keyUsed == primary ? 'PRIMARY' : 'FALLBACK'}: $bodyPreview',
       );
+
+      // Convertir errores transitorios en excepciones para que AIService los maneje
+      if (resp.statusCode == 503 ||
+          resp.statusCode == 429 ||
+          resp.statusCode == 502 ||
+          resp.statusCode == 504) {
+        try {
+          final decoded = jsonDecode(resp.body);
+          final errMsg = decoded is Map && decoded['error'] != null
+              ? (decoded['error']['message'] ?? '')
+              : '';
+
+          if (errMsg.toString().toLowerCase().contains('overloaded') ||
+              errMsg.toString().toLowerCase().contains('quota') ||
+              errMsg.toString().toLowerCase().contains('rate') ||
+              resp.statusCode == 503 ||
+              resp.statusCode == 429) {
+            throw Exception('Error transitorio ${resp.statusCode}: $errMsg');
+          }
+        } on FormatException catch (_) {
+          // Si no se puede parsear el JSON, aún lanzar excepción para códigos transitorios
+          throw Exception('Error transitorio ${resp.statusCode}: $bodyPreview');
+        }
+      }
 
       // Si el error indica que el modelo no existe, intentar obtener la lista de modelos
       // accesibles con la clave y reintentar con el primero disponible.
@@ -345,7 +375,7 @@ class GeminiService implements AIService {
               Log.d(
                 '[Gemini] Reintentando con modelo alternativo: $fallbackModel',
               );
-              // Intentar con el primer modelo válido encontrado
+              // Los reintentos ahora se manejan en AIService.sendMessage
               final retryUrl = Uri.parse(
                 '$endpointBase${fallbackModel.trim()}:generateContent?key=$keyUsed',
               );
@@ -354,6 +384,7 @@ class GeminiService implements AIService {
                 headers: headers,
                 body: body,
               );
+
               if (retryResp.statusCode == 200) {
                 return await parseAndBuild(retryResp.body);
               }

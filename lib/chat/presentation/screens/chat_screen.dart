@@ -1474,7 +1474,7 @@ class _ChatScreenState extends State<ChatScreen> {
             final bool linked = false,
             final bool triggerAutoBackup = false,
           }) async {
-            await provider.updateGoogleAccountInfo(
+            await provider.googleController.updateGoogleAccountInfo(
               email: email,
               avatarUrl: avatarUrl,
               name: name,
