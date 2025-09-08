@@ -1,17 +1,25 @@
-import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_language_resolver.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_chat_preferences_service.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_chat_logger.dart';
 import 'package:ai_chan/shared/domain/interfaces/i_file_service.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
 
 /// Servicio dedicado para sintetizar TTS y persistir el archivo en el
 /// directorio local de audio configurado. Devuelve la ruta final del archivo
 /// sintetizado o null si falló.
 class TtsService {
-  TtsService(this.audioService, this.languageResolver, this.fileService);
+  TtsService(
+    this.audioService,
+    this.languageResolver,
+    this.fileService,
+    this.preferencesService,
+    this.logger,
+  );
   final IAudioChatService audioService;
   final ILanguageResolver languageResolver;
   final IFileService fileService;
+  final IChatPreferencesService preferencesService;
+  final IChatLogger logger;
 
   /// Sintetiza `text` usando el audioService y persiste el fichero en la
   /// carpeta local de audio configurada. Devuelve la ruta final o null.
@@ -23,8 +31,8 @@ class TtsService {
       // Resolve language code using the injected language resolver
       final lang = await languageResolver.resolveLanguageCode(voice);
 
-      // Resolve preferred voice using PrefsUtils helper
-      final preferredVoice = await PrefsUtils.getPreferredVoice(
+      // Resolve preferred voice using the injected preferences service
+      final preferredVoice = await preferencesService.getPreferredVoice(
         fallback: voice,
       );
 
@@ -69,7 +77,11 @@ class TtsService {
 
       return synthesizedPath; // Fallback to original path
     } on Exception catch (e) {
-      Log.w('[Audio][TTS] Error in synthesizeAndPersist: $e');
+      logger.error(
+        '[Audio][TTS] Error in synthesizeAndPersist: $e',
+        tag: 'TTS',
+        error: e,
+      );
       return null;
     }
   }

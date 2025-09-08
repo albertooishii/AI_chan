@@ -1,5 +1,5 @@
 import 'package:ai_chan/chat/domain/models.dart';
-import 'package:ai_chan/chat/domain/interfaces.dart';
+import 'package:ai_chan/chat/domain/interfaces/index.dart';
 
 /// Import Chat Use Case - Chat Application Layer
 /// Maneja la importación de conversación desde JSON string

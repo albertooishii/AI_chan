@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:ai_chan/shared/utils.dart';
-import 'package:ai_chan/chat/application/utils/profile_persist_utils.dart'
+import 'package:ai_chan/shared/infrastructure/utils/profile_persist_utils.dart'
     as profile_persist_utils;
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/constants.dart';
 import 'package:ai_chan/shared/application/services/calendar_processing_service.dart';
-import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro completado
+import 'package:ai_chan/chat/presentation/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro completado
 
 class CalendarScreen extends StatefulWidget {
   // ✅ DDD: ETAPA 3 - Usar ChatController directamente
@@ -339,10 +339,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         events.add(newEvent);
       }
       // Persist via application util to centralize logic
-      await profile_persist_utils.setEventsAndPersist(
-        chatProvider, // ✅ DDD: ETAPA 3 - ChatController es el controlador directo
-        events,
-      );
+      await profile_persist_utils.setEventsAndPersist(events);
       // Programar promesa si aplica
       chatProvider.schedulePromiseEvent(newEvent);
       if (mounted) setState(() {});
@@ -393,10 +390,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           x.description == e.description &&
           x.date == e.date,
     );
-    await profile_persist_utils.setEventsAndPersist(
-      chatProvider, // ✅ DDD: ETAPA 3 - ChatController es el controlador directo
-      events,
-    );
+    await profile_persist_utils.setEventsAndPersist(events);
     if (mounted) setState(() {});
   }
 

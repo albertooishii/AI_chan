@@ -1,10 +1,10 @@
 // Core Bounded Context Barrel Export
 
 // Domain Layer
-export 'core/domain.dart';
+export 'core/index.dart';
 
 // Infrastructure Layer
-export 'core/infrastructure.dart';
+export 'core/infrastructure/index.dart';
 
 // Interfaces
 export 'core/interfaces.dart';

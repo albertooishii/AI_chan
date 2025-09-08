@@ -2,6 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/chat/application/use_cases/send_message_use_case.dart';
+import 'package:ai_chan/chat/application/services/message_retry_service.dart';
+import 'package:ai_chan/chat/application/services/message_image_processing_service.dart';
+import 'package:ai_chan/chat/infrastructure/ai/chat_ai_service_adapter.dart';
+import 'package:ai_chan/chat/infrastructure/logging/chat_logger_adapter.dart';
+import 'package:ai_chan/chat/infrastructure/image/chat_image_service_adapter.dart';
+import 'package:ai_chan/chat/infrastructure/events/chat_event_timeline_service_adapter.dart';
 import '../fakes/fake_ai_service.dart';
 import '../test_setup.dart';
 
@@ -16,7 +22,19 @@ void main() {
       // For test that asserts method called, wrap to detect usage
       AIService.testOverride = fake;
 
-      final useCase = SendMessageUseCase();
+      // Use proper dependency injection instead of relying on stub implementations
+      final logger = ChatLoggerAdapter();
+      final aiServiceAdapter = const ChatAIServiceAdapter();
+      final retryService = MessageRetryService(aiServiceAdapter);
+      final imageService = MessageImageProcessingService(
+        const ChatImageServiceAdapter(),
+        logger,
+      );
+      final useCase = SendMessageUseCase(
+        retryService: retryService,
+        imageService: imageService,
+        eventTimelineService: const ChatEventTimelineServiceAdapter(),
+      );
 
       final recent = <Message>[
         Message(
@@ -54,50 +72,59 @@ void main() {
     },
   );
 
-  test(
-    'SendMessageUseCase extracts inner audio text and requests TTS',
-    () async {
-      final fake = FakeAIService.withAudio('[audio] ¡Hola audio! [/audio]');
-      AIService.testOverride = fake;
+  test('SendMessageUseCase extracts inner audio text and requests TTS', () async {
+    final fake = FakeAIService.withAudio('[audio] ¡Hola audio! [/audio]');
+    AIService.testOverride = fake;
 
-      final useCase = SendMessageUseCase();
+    // Use proper dependency injection instead of relying on stub implementations
+    final logger = ChatLoggerAdapter();
+    final aiServiceAdapter = const ChatAIServiceAdapter();
+    final retryService = MessageRetryService(aiServiceAdapter);
+    final imageService = MessageImageProcessingService(
+      const ChatImageServiceAdapter(),
+      logger,
+    );
+    final useCase = SendMessageUseCase(
+      retryService: retryService,
+      imageService: imageService,
+      eventTimelineService: const ChatEventTimelineServiceAdapter(),
+    );
 
-      final recent = <Message>[
-        Message(
-          text: 'hola',
-          sender: MessageSender.user,
-          dateTime: DateTime.now(),
-          status: MessageStatus.sent,
-        ),
-      ];
-      final profile = AiChanProfile(
-        userName: 'u',
-        aiName: 'ai',
-        userBirthdate: DateTime(2000),
-        aiBirthdate: DateTime(2000),
-        biography: {},
-        appearance: {},
-      );
-      final systemPrompt = SystemPrompt(
-        profile: profile,
+    final recent = <Message>[
+      Message(
+        text: 'hola',
+        sender: MessageSender.user,
         dateTime: DateTime.now(),
-        recentMessages: [],
-        instructions: {},
-      );
+        status: MessageStatus.sent,
+      ),
+    ];
+    final profile = AiChanProfile(
+      userName: 'u',
+      aiName: 'ai',
+      userBirthdate: DateTime(2000),
+      aiBirthdate: DateTime(2000),
+      biography: {},
+      appearance: {},
+    );
+    final systemPrompt = SystemPrompt(
+      profile: profile,
+      dateTime: DateTime.now(),
+      recentMessages: [],
+      instructions: {},
+    );
 
-      final outcome2 = await useCase.sendChat(
-        recentMessages: recent,
-        systemPromptObj: systemPrompt,
-        model: 'gpt-fake',
-      );
+    final outcome2 = await useCase.sendChat(
+      recentMessages: recent,
+      systemPromptObj: systemPrompt,
+      model: 'gpt-fake',
+    );
 
-      expect(outcome2.ttsRequested, isTrue);
-      expect(outcome2.result.text, equals('¡Hola audio!'));
-      expect(outcome2.assistantMessage.text, equals('¡Hola audio!'));
+    expect(outcome2.ttsRequested, isTrue);
+    expect(outcome2.result.text, equals('¡Hola audio!'));
+    expect(outcome2.assistantMessage.text, equals('¡Hola audio!'));
 
-      AIService.testOverride = null;
-    },
-  );
+    AIService.testOverride = null;
+  });
 
   test(
     'SendMessageUseCase leaves text unchanged and ttsRequested false when no audio tag',
@@ -105,7 +132,19 @@ void main() {
       final fake2 = FakeAIService.withText('Texto normal sin tag');
       AIService.testOverride = fake2;
 
-      final useCase2 = SendMessageUseCase();
+      // Use proper dependency injection instead of relying on stub implementations
+      final logger = ChatLoggerAdapter();
+      final aiServiceAdapter = const ChatAIServiceAdapter();
+      final retryService = MessageRetryService(aiServiceAdapter);
+      final imageService = MessageImageProcessingService(
+        const ChatImageServiceAdapter(),
+        logger,
+      );
+      final useCase2 = SendMessageUseCase(
+        retryService: retryService,
+        imageService: imageService,
+        eventTimelineService: const ChatEventTimelineServiceAdapter(),
+      );
 
       final recent2 = <Message>[
         Message(

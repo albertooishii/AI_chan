@@ -5,6 +5,7 @@ import 'ai_service.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared/utils/ai_service_utils.dart';
 import 'package:ai_chan/chat/infrastructure/adapters/prompt_builder_service.dart'
     as pb;
 // duplicate import removed
@@ -20,11 +21,6 @@ class GeminiService implements AIService {
   @override
   Future<List<String>> getAvailableModels() async {
     // Obtiene la lista real de modelos desde el endpoint de Gemini con fallback de API key
-    bool isQuotaLike(final int code, final String body) {
-      if (code == 400 || code == 403 || code == 429) return true;
-      return false;
-    }
-
     Future<http.Response> getWithKey(final String key) async {
       final url = Uri.parse(
         'https://generativelanguage.googleapis.com/v1beta/models?key=$key',
@@ -48,7 +44,7 @@ class GeminiService implements AIService {
     response = await getWithKey(usedKey);
     if (response.statusCode != 200 &&
         secondKey.isNotEmpty &&
-        isQuotaLike(response.statusCode, response.body)) {
+        AIServiceUtils.isQuotaLike(response.statusCode, response.body)) {
       Log.w(
         '[Gemini] ${response.statusCode} con primera clave; probando la alternativa.',
       );
@@ -283,10 +279,6 @@ class GeminiService implements AIService {
       if (modelId.startsWith('models/')) {
         modelId = modelId.replaceFirst('models/', '');
       }
-      bool isQuotaLike(final int code, final String body) {
-        if (code == 400 || code == 403 || code == 429) return true;
-        return false;
-      }
 
       Future<http.Response> doPost(final String key) {
         final mUrl = Uri.parse(
@@ -305,7 +297,7 @@ class GeminiService implements AIService {
       http.Response resp = await doPost(keyUsed);
       if (resp.statusCode != 200 &&
           secondKey.isNotEmpty &&
-          isQuotaLike(resp.statusCode, resp.body)) {
+          AIServiceUtils.isQuotaLike(resp.statusCode, resp.body)) {
         Log.w(
           '[Gemini] ${resp.statusCode} con primera clave; reintentando con alternativa.',
         );

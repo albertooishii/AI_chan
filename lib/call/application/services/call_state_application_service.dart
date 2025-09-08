@@ -1,5 +1,5 @@
 import '../../domain/entities/voice_call_state.dart';
-import '../../../chat/domain/models/message.dart';
+import '../../domain/entities/voice_call_message.dart';
 
 /// Result objects for DDD pattern compliance
 class CallPhaseTransitionResult {

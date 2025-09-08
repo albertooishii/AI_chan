@@ -8,7 +8,7 @@ import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/services/google_backup_service.dart';
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
-import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - ChatController directo
+import 'package:ai_chan/chat/presentation/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - ChatController directo
 
 /// Widget de diagnóstico para verificar el estado de backups automáticos y autenticación Google
 class BackupDiagnosticsDialog extends StatefulWidget {
@@ -561,7 +561,7 @@ class _BackupDiagnosticsDialogState extends State<BackupDiagnosticsDialog> {
                 });
               }
 
-              final success = diagnosticResult['success'] as bool;
+              final success = diagnosticResult['success'] as bool? ?? false;
               setState(() {
                 _diagnosticResult += '\n═══════════════════════════════\n';
                 _diagnosticResult +=

@@ -1,7 +1,7 @@
 import 'package:ai_chan/core.dart'; // Core bounded context barrel
 import 'package:ai_chan/shared.dart'; // Shared bounded context barrel
-import 'package:ai_chan/chat.dart'; // Chat bounded context barrel
-import 'package:ai_chan/call.dart'; // Call bounded context barrel
+// Chat bounded context barrel
+// Call bounded context barrel
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'dart:io' show Platform;

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro
+import 'package:ai_chan/chat/presentation/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro
 
 /// Application Controller for Chat Screen
 /// Orchestrates business logic for the chat interface

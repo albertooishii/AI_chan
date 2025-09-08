@@ -11,7 +11,7 @@
 // import 'package:ai_chan/ai_chan.dart'; // Imports everything from the main project
 //
 // Or import specific layers:
-// import 'package:ai_chan/chat/domain.dart'; // Only domain layer from chat
-// import 'package:ai_chan/shared/infrastructure.dart'; // Only infrastructure from shared
+// import 'package:ai_chan/chat/index.dart'; // Only domain layer from chat
+// import 'package:ai_chan/shared/infrastructure/index.dart'; // Only infrastructure from shared
 
 // This file demonstrates the barrel export system implementation

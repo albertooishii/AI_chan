@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/core/config.dart';
 import '../widgets/birth_date_field.dart';
-import 'package:ai_chan/onboarding/application/controllers/onboarding_lifecycle_controller.dart';
+import 'package:ai_chan/onboarding/presentation/controllers/onboarding_lifecycle_controller.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/locale_utils.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
 import 'package:ai_chan/shared/widgets/country_autocomplete.dart';
 import 'package:ai_chan/shared/widgets/female_name_autocomplete.dart';
-import 'package:ai_chan/onboarding/application/controllers/form_onboarding_controller.dart';
+import 'package:ai_chan/onboarding/presentation/controllers/form_onboarding_controller.dart';
 import 'conversational_onboarding_screen.dart';
 import 'onboarding_mode_selector.dart';
 import 'package:ai_chan/chat/application/services/chat_application_service.dart'; // ✅ DDD: ETAPA 3 - ChatApplicationService directo
@@ -400,9 +400,9 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
               ),
               const SizedBox(height: 8),
               CyberpunkButton(
-                onPressed: _formController.isLoading
-                    ? null
-                    : () => _formController.suggestStory(context),
+                onPressed: _formController.canSuggestStory
+                    ? () => _formController.suggestStory(context)
+                    : null,
                 text: 'Sugerir historia',
                 icon: _formController.isLoading
                     ? const SizedBox(

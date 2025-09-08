@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/domain/interfaces/audio_playback_service.dart';
+import 'package:flutter/foundation.dart';
 
 /// Application Service for Call Playback coordination
 /// Handles audio playback orchestration following DDD patterns

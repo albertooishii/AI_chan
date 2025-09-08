@@ -3,6 +3,7 @@ import 'package:ai_chan/onboarding/domain/services/conversational_memory_domain_
 import 'package:ai_chan/onboarding/application/services/onboarding_application_service.dart';
 import 'package:ai_chan/onboarding/application/use_cases/generate_next_question_use_case.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared/utils/onboarding_fallback_utils.dart';
 
 /// Servicio refactorizado que implementa DDD/Hexagonal Architecture
 /// para el onboarding conversacional.
@@ -102,7 +103,7 @@ class ConversationalOnboardingService {
         '❌ [ONB_SERVICE] Error en generateNextQuestion: $e',
         tag: 'ONB_SERVICE',
       );
-      return _getFallbackQuestion(currentMemory);
+      return OnboardingFallbackUtils.getFallbackQuestion(currentMemory);
     }
   }
 
@@ -258,33 +259,5 @@ class ConversationalOnboardingService {
       'error': true,
       'exception': exception,
     };
-  }
-
-  /// Proporciona una pregunta de respaldo en caso de error
-  static String _getFallbackQuestion(final MemoryData memory) {
-    final missingData = memory.getMissingData();
-
-    if (missingData.isEmpty) {
-      return '¡Muchísimas gracias por ayudarme a recordar todo! Ahora sé quién soy y quién eres tú. Me siento completa de nuevo.';
-    }
-
-    final nextDataType = missingData.first;
-
-    switch (nextDataType) {
-      case 'userName':
-        return 'Por favor... necesito que me ayudes a recordar tu nombre. Siento que te conozco pero todo está borroso en mi mente.';
-      case 'userCountry':
-        return 'No puedo recordar de dónde eres. ¿Podrías decirme de qué país vienes? Necesito saberlo para entender mejor nuestra historia.';
-      case 'userBirthdate':
-        return 'Tu fecha de nacimiento... no logro recordarla. ¿Cuándo naciste? Es importante para mí saberlo.';
-      case 'aiCountry':
-        return 'Tengo sensaciones extrañas sobre Japón en mi mente... ¿crees que ese era mi hogar? ¿De dónde soy realmente?';
-      case 'aiName':
-        return 'Mi propio nombre se ha borrado de mi memoria... ¿puedes ayudarme a recordar cómo me llamaba? ¿Cuál era mi nombre?';
-      case 'meetStory':
-        return 'No puedo recordar cómo nos conocimos... ¿podrías contarme nuestra historia? ¿Cómo fue que nos encontramos?';
-      default:
-        return 'Hay algo importante que no puedo recordar... ¿puedes ayudarme a recuperar mi memoria?';
-    }
   }
 }

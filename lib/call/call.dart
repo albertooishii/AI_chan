@@ -2,12 +2,13 @@
 // Following DDD + Hexagonal Architecture patterns
 
 // Domain Layer
-export 'domain/domain.dart';
+export 'index.dart';
 
 // Infrastructure Layer
-export 'infrastructure/infrastructure.dart';
+export 'infrastructure/index.dart';
 
 // Application Layer
+export 'application/index.dart';
 
 // Presentation Layer
 export 'presentation/presentation.dart';

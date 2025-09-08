@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart' show dotenv;
 
 /// Helper centralizado para acceder a configuración derivada de .env.
@@ -113,10 +114,32 @@ class Config {
     }
 
     try {
+      // Inicializar dotenv primero
       await dotenv.load();
-    } on Exception {
-      // Si no hay .env en disco, cargamos valores por defecto usando el mismo
-      // mecanismo temporal.
+      debugPrint('Config: dotenv initialized successfully');
+
+      // Intentar cargar el archivo .env manualmente
+      final envFile = File('.env');
+      if (envFile.existsSync()) {
+        final contents = await envFile.readAsString();
+        final lines = contents.split('\n');
+        for (final line in lines) {
+          final trimmed = line.trim();
+          if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
+          final parts = trimmed.split('=');
+          if (parts.length >= 2) {
+            final key = parts[0].trim();
+            final value = parts.sublist(1).join('=').trim();
+            dotenv.env[key] = value;
+          }
+        }
+        debugPrint('Config: Loaded .env file manually');
+      } else {
+        throw Exception('File not found');
+      }
+    } on Exception catch (e) {
+      debugPrint('Config: Failed to load .env file: $e');
+      // Si no hay .env en disco, cargamos valores por defecto
       const defaultContents = '''
 DEFAULT_TEXT_MODEL=gemini-2.5-flash
 DEFAULT_IMAGE_MODEL=gpt-4.1-mini
@@ -124,14 +147,18 @@ GOOGLE_REALTIME_MODEL=gemini-2.5-flash
 DEBUG_MODE=full
 SUMMARY_BLOCK_SIZE=32
 ''';
-      final tmp = await _writeTempEnv(defaultContents);
-      try {
-        await dotenv.load(fileName: tmp.path);
-      } finally {
-        try {
-          await tmp.delete();
-        } on Exception catch (_) {}
+      final lines = defaultContents.split('\n');
+      for (final line in lines) {
+        final trimmed = line.trim();
+        if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
+        final parts = trimmed.split('=');
+        if (parts.length >= 2) {
+          final key = parts[0].trim();
+          final value = parts.sublist(1).join('=').trim();
+          dotenv.env[key] = value;
+        }
       }
+      debugPrint('Config: Loaded default configuration manually');
     }
   }
 

@@ -1,4 +1,4 @@
-import 'package:ai_chan/chat/application/controllers/chat_controller.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_chat_controller.dart';
 import 'package:ai_chan/core/models.dart';
 
 /// Adds or replaces an avatar in the controller's profile, persists and
@@ -7,7 +7,7 @@ import 'package:ai_chan/core/models.dart';
 ///
 /// ✅ DDD MIGRATION: Updated to use ChatController instead of legacy ChatProvider
 Future<void> addAvatarAndPersist(
-  final ChatController chatController,
+  final IChatController chatController,
   final AiImage avatar, {
   final bool replace = false,
 }) async {
@@ -39,7 +39,7 @@ Future<void> addAvatarAndPersist(
 ///
 /// ✅ DDD MIGRATION: Updated to use ChatController instead of legacy ChatProvider
 Future<void> removeImageFromProfileAndPersist(
-  final ChatController chatController,
+  final IChatController chatController,
   final AiImage? deleted,
 ) async {
   if (deleted == null) return;

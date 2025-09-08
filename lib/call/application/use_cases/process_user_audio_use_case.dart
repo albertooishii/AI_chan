@@ -1,4 +1,4 @@
-import 'package:ai_chan/call/domain/domain.dart';
+import 'package:ai_chan/call/index.dart';
 
 /// Caso de uso para procesar audio enviado por el usuario
 class ProcessUserAudioUseCase {

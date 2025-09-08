@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/di.dart' as di;
-import 'package:ai_chan/onboarding/application/controllers/onboarding_lifecycle_controller.dart';
+import 'package:ai_chan/onboarding/presentation/controllers/onboarding_lifecycle_controller.dart';
 import 'package:ai_chan/onboarding/domain/entities/memory_data.dart';
 import 'package:ai_chan/onboarding/services/conversational_onboarding_service.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';

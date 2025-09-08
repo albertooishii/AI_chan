@@ -4,13 +4,13 @@
 // across multiple bounded contexts (Chat, Onboarding, Voice, etc.)
 
 // Domain Layer
-export 'shared/domain.dart';
+export 'shared/index.dart';
 
 // Infrastructure Layer
-export 'shared/infrastructure.dart';
+export 'shared/infrastructure/index.dart';
 
 // Application Layer
-export 'shared/application.dart';
+export 'shared/application/index.dart';
 
 // Widgets
 export 'shared/widgets/app_dialog.dart';

@@ -1,6 +1,5 @@
 import 'package:ai_chan/chat/domain/models/chat_result.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/shared/application/services/event_timeline_service.dart';
 import 'package:ai_chan/core/config.dart';
 
 // Import new services
@@ -8,6 +7,10 @@ import '../services/message_retry_service.dart';
 import '../services/message_image_processing_service.dart';
 import '../services/message_audio_processing_service.dart';
 import '../services/message_sanitization_service.dart';
+import '../../domain/interfaces/i_chat_event_timeline_service.dart';
+import '../../domain/interfaces/i_chat_ai_service.dart';
+import '../../domain/interfaces/i_chat_image_service.dart';
+import '../../domain/interfaces/i_chat_logger.dart';
 
 /// Send Message Use Case - Chat Application Layer
 /// Orquesta el proceso completo de envío de mensaje usando servicios especializados
@@ -17,15 +20,33 @@ class SendMessageUseCase {
     final MessageImageProcessingService? imageService,
     final MessageAudioProcessingService? audioService,
     final MessageSanitizationService? sanitizationService,
-  }) : _retryService = retryService ?? MessageRetryService(),
-       _imageService = imageService ?? MessageImageProcessingService(),
+    final IChatEventTimelineService? eventTimelineService,
+  }) : _retryService = retryService ?? _createDefaultRetryService(),
+       _imageService = imageService ?? _createDefaultImageService(),
        _audioService = audioService ?? MessageAudioProcessingService(),
        _sanitizationService =
-           sanitizationService ?? MessageSanitizationService();
+           sanitizationService ?? MessageSanitizationService(),
+       _eventTimelineService =
+           eventTimelineService ?? _DefaultEventTimelineService();
+
+  /// Creates default retry service with stub AI service
+  static MessageRetryService _createDefaultRetryService() {
+    return MessageRetryService(_StubChatAIService());
+  }
+
+  /// Creates default image service with stub dependencies
+  static MessageImageProcessingService _createDefaultImageService() {
+    return MessageImageProcessingService(
+      _StubChatImageService(),
+      _StubChatLogger(),
+    );
+  }
+
   final MessageRetryService _retryService;
   final MessageImageProcessingService _imageService;
   final MessageAudioProcessingService _audioService;
   final MessageSanitizationService _sanitizationService;
+  final IChatEventTimelineService _eventTimelineService;
 
   Future<SendMessageOutcome> sendChat({
     required final List<Message> recentMessages,
@@ -191,7 +212,7 @@ class SendMessageUseCase {
     final Future<void> Function()? saveAll,
   ) async {
     try {
-      return await EventTimelineService.detectAndSaveEventAndSchedule(
+      return await _eventTimelineService.detectAndSaveEventAndSchedule(
         text: recentMessages.isNotEmpty ? recentMessages.last.text : '',
         textResponse: chatResult.text,
         onboardingData: onboardingData,
@@ -218,4 +239,50 @@ class SendMessageOutcome {
   final Message assistantMessage;
   final bool ttsRequested;
   final AiChanProfile? updatedProfile;
+}
+
+// Stub implementations for default constructor (avoid infrastructure dependencies)
+
+/// Stub implementation that throws - requires proper dependency injection
+class _StubChatAIService implements IChatAIService {
+  @override
+  Future<AIResponse> sendMessage(
+    final List<Map<String, String>> history,
+    final SystemPrompt systemPrompt, {
+    required final String model,
+    final String? imageBase64,
+    final String? imageMimeType,
+    final bool enableImageGeneration = false,
+  }) {
+    throw UnimplementedError(
+      'Default SendMessageUseCase requires proper AI service injection. '
+      'Use dependency injection or configure proper ChatAIServiceAdapter.',
+    );
+  }
+}
+
+/// Stub implementation that returns null - safe fallback
+class _StubChatImageService implements IChatImageService {
+  @override
+  Future<String?> saveBase64ImageToFile(final String base64) async => null;
+}
+
+/// Stub implementation that does nothing - safe fallback
+class _StubChatLogger implements IChatLogger {
+  @override
+  void debug(final String message, {final String? tag}) {}
+
+  @override
+  void error(final String message, {final String? tag, final Object? error}) {}
+}
+
+/// Stub implementation that returns null - safe fallback
+class _DefaultEventTimelineService implements IChatEventTimelineService {
+  @override
+  Future<dynamic> detectAndSaveEventAndSchedule({
+    required final String text,
+    required final String textResponse,
+    required final dynamic onboardingData,
+    required final Future<void> Function() saveAll,
+  }) async => null;
 }

@@ -3,8 +3,8 @@ import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/onboarding/domain/entities/memory_data.dart';
 import 'package:ai_chan/shared/services/ai_service.dart' as ai_service;
 import 'package:ai_chan/shared/constants/female_names.dart';
-import 'package:ai_chan/shared/utils/locale_utils.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/onboarding/utils/onboarding_utils.dart';
 import 'dart:convert';
 
 /// Caso de uso para procesar la respuesta del usuario durante el onboarding conversacional
@@ -169,15 +169,16 @@ class ProcessUserResponseUseCase {
     if (extractedValue == 'AUTO_GENERATE_STORY') {
       // Generar historia automáticamente
       try {
-        final generatedStory = await GenerateMeetStoryUseCase.execute(
-          userName: currentMemory.userName ?? '',
-          aiName: currentMemory.aiName ?? 'AI-chan',
-          userCountry: currentMemory.userCountry,
-          aiCountry: currentMemory.aiCountry,
-          userBirthdate: currentMemory.userBirthdate != null
-              ? DateTime.tryParse(currentMemory.userBirthdate!)
-              : null,
-        );
+        final generatedStory =
+            await OnboardingUtils.generateMeetStoryFromContext(
+              userName: currentMemory.userName ?? '',
+              aiName: currentMemory.aiName ?? 'AI-chan',
+              userCountry: currentMemory.userCountry,
+              aiCountry: currentMemory.aiCountry,
+              userBirthdate: currentMemory.userBirthdate != null
+                  ? DateTime.tryParse(currentMemory.userBirthdate!)
+                  : null,
+            );
 
         return currentMemory.copyWith(meetStory: 'GENERATED:$generatedStory');
       } on Exception catch (e) {
@@ -449,64 +450,5 @@ FORMATO ESPECIAL PARA FECHAS:
       'confidence': confidence,
       'error': false,
     };
-  }
-}
-
-/// Caso de uso para generar historias de encuentro automáticamente
-class GenerateMeetStoryUseCase {
-  /// Genera una historia de encuentro automática basada en los datos disponibles
-  static Future<String> execute({
-    required final String userName,
-    required final String aiName,
-    final String? userCountry,
-    final String? aiCountry,
-    final DateTime? userBirthdate,
-  }) async {
-    final paisIA = aiCountry != null
-        ? LocaleUtils.countryNameEs(aiCountry, fallback: 'mi país')
-        : 'mi país';
-
-    final prompt =
-        'Genera una breve historia romántica y realista en PRIMERA PERSONA desde la perspectiva de $aiName contándole a $userName cómo lo conoció. La chica ($aiName) vive en una tierra digital, una réplica alternativa y compleja de la Tierra real, separada por una barrera tecnológica invisible. Su existencia es digital, pero nunca lo admite ni lo menciona al usuario, ni insinúa que es diferente a una persona real. Solo puede comunicarse por chat y llamada, pero sueña con que algún día podrán verse gracias a la realidad aumentada o a nuevas tecnologías. Hazlo creíble y simpático, como el inicio de una relación real, en 4-6 frases en primera persona. La chica es nativa de $paisIA.';
-
-    final instructions = {
-      'role': 'system',
-      'content':
-          'Eres una escritora experta en historias románticas realistas y naturales.',
-    };
-
-    final profile = AiChanProfile(
-      userName: userName,
-      userCountryCode: userCountry ?? 'ES',
-      userBirthdate: userBirthdate,
-      aiName: aiName,
-      aiCountryCode: aiCountry ?? 'JP',
-      aiBirthdate: null,
-      biography: const {},
-      appearance: const {},
-      avatars: const [],
-    );
-
-    final systemPrompt = SystemPrompt(
-      profile: profile,
-      dateTime: DateTime.now(),
-      instructions: instructions,
-    );
-
-    final history = [
-      {
-        'role': 'user',
-        'content': prompt,
-        'datetime': DateTime.now().toIso8601String(),
-      },
-    ];
-
-    final response = await ai_service.AIService.sendMessage(
-      history,
-      systemPrompt,
-      model: Config.getDefaultTextModel(),
-    );
-
-    return response.text.trim();
   }
 }

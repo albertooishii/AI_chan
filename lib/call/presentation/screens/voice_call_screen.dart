@@ -1,20 +1,14 @@
-import 'package:ai_chan/call/application/controllers/voice_call_screen_controller.dart';
+import 'package:ai_chan/call/presentation/controllers/voice_call_screen_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:ai_chan/call/domain/entities/voice_call_state.dart';
 import 'package:ai_chan/call/presentation/widgets/cyberpunk_painters.dart';
 import 'package:ai_chan/core/di.dart' as di;
-import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro
 
 class VoiceCallScreen extends StatefulWidget {
-  // ✅ DDD: ETAPA 3 - DDD puro
+  // ✅ Bounded Context Abstraction
 
-  const VoiceCallScreen({
-    super.key,
-    this.incoming = false,
-    required this.chatController,
-  });
+  const VoiceCallScreen({super.key, this.incoming = false});
   final bool incoming;
-  final ChatController chatController;
 
   @override
   State<VoiceCallScreen> createState() => _VoiceCallScreenState();
@@ -37,9 +31,8 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
     final voiceCallService = di.getVoiceCallApplicationService();
 
     _controller = VoiceCallScreenController(
-      voiceCallService: voiceCallService,
-      chatController: widget.chatController,
       callType: widget.incoming ? CallType.incoming : CallType.outgoing,
+      voiceCallService: voiceCallService,
     );
 
     _controller.addListener(_onControllerStateChanged);

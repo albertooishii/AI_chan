@@ -3,14 +3,19 @@ import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'package:ai_chan/shared/domain/interfaces/i_file_service.dart';
 import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/shared/utils/log_utils.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:ai_chan/onboarding/domain/interfaces/i_file_picker_service.dart';
 
 /// Use Case que maneja la lógica de import/export de datos de onboarding
 /// Extrae toda la lógica de archivos y backup de la UI
 class ImportExportOnboardingUseCase {
-  ImportExportOnboardingUseCase({final IFileService? fileService})
-    : fileService = fileService ?? di.getFileService();
+  ImportExportOnboardingUseCase({
+    final IFileService? fileService,
+    required final IFilePickerService filePickerService,
+  }) : fileService = fileService ?? di.getFileService(),
+       _filePickerService = filePickerService;
+
   final IFileService fileService;
+  final IFilePickerService _filePickerService;
 
   /// Importa datos desde un archivo JSON
   Future<ImportExportResult> importFromJson() async {
@@ -61,7 +66,7 @@ class ImportExportOnboardingUseCase {
     );
 
     try {
-      final result = await FilePicker.platform.pickFiles();
+      final result = await _filePickerService.pickFiles();
       if (result == null || result.files.isEmpty) {
         return ImportExportResult.cancelled();
       }

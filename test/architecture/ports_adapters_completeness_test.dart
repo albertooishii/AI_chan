@@ -38,7 +38,7 @@ void main() {
 
         final missing = <String>[];
         final knownMissingInterfaces = [
-          'IChatFileOperationsService', // Temporary - will be implemented in infrastructure
+          // ✅ RESOLVED: IChatFileOperationsService implemented in BasicChatFileOperationsService
         ];
 
         for (final iface in domainInterfaces.keys) {

@@ -12,13 +12,13 @@ export 'core.dart';
 export 'shared.dart';
 
 // Bounded Contexts - Domain & Infrastructure Layers
-export 'chat/domain.dart';
-export 'chat/infrastructure.dart';
-export 'onboarding/domain.dart';
-export 'onboarding/infrastructure.dart';
-export 'call/domain.dart';
-export 'call/infrastructure.dart';
-export 'core/domain.dart';
-export 'core/infrastructure.dart';
-export 'shared/domain.dart';
-export 'shared/infrastructure.dart';
+export 'chat/index.dart';
+export 'chat/infrastructure/index.dart';
+export 'onboarding/index.dart';
+export 'onboarding/infrastructure/index.dart';
+export 'call/index.dart';
+export 'call/infrastructure/index.dart';
+export 'core/index.dart';
+export 'core/infrastructure/index.dart';
+export 'shared/index.dart';
+export 'shared/infrastructure/index.dart';

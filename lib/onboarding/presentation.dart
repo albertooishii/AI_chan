@@ -1,5 +1,10 @@
 // Onboarding Presentation Layer Barrel Export
 
+// Controllers - NOW HERE! ✅
+export 'presentation/controllers/form_onboarding_controller.dart';
+export 'presentation/controllers/onboarding_lifecycle_controller.dart';
+export 'presentation/controllers/onboarding_screen_controller.dart';
+
 // Models
 export 'presentation/models/onboarding_step.dart'
     hide

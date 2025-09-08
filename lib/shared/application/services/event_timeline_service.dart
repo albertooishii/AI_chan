@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:ai_chan/core/models.dart';
 import '../../utils/event_parser_utils.dart';
 
@@ -114,11 +113,11 @@ class EventTimelineService {
         );
         onboardingData = onboardingData.copyWith(events: updatedEvents);
         await saveAll();
-        debugPrint(
+        print(
           '[EVENTO IA] Guardado evento en events: $descripcionNatural (${eventEntry.startDate})',
         );
       } else {
-        debugPrint(
+        print(
           '[EVENTO IA] Evento duplicado detectado. No se guarda: $descripcionNatural (${eventEntry.startDate})',
         );
       }
@@ -181,10 +180,10 @@ class EventTimelineService {
           tipoHorario = 'busy';
         }
       }
-      debugPrint(
+      print(
         '[HORARIO IA] Intentando extraer días: ${diasMatch != null ? diasMatch.group(0) : 'NO DETECTADO'}',
       );
-      debugPrint(
+      print(
         '[HORARIO IA] Intentando extraer rango de horas: ${rangoMatch.group(0)}',
       );
       if (tipoHorario.isNotEmpty) {
@@ -309,9 +308,9 @@ class EventTimelineService {
           }
           onboardingData = onboardingData.copyWith(biography: bio);
           await saveAll();
-          debugPrint('[HORARIO IA] Guardado en biography: $tipoHorario=$entry');
+          print('[HORARIO IA] Guardado en biography: $tipoHorario=$entry');
         } on Exception catch (e) {
-          debugPrint('[HORARIO IA] Error guardando en biography: $e');
+          print('[HORARIO IA] Error guardando en biography: $e');
         }
       }
     }

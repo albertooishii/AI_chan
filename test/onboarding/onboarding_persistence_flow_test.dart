@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:ai_chan/onboarding/application/use_cases/biography_generation_use_case.dart';
-import 'package:ai_chan/onboarding/application/controllers/form_onboarding_controller.dart';
+import 'package:ai_chan/onboarding/presentation/controllers/form_onboarding_controller.dart';
 import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart';
@@ -15,7 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../fakes/fake_ai_service.dart';
 import '../test_setup.dart';
 import '../test_utils/prefs_test_utils.dart';
-import 'package:ai_chan/onboarding/application/controllers/onboarding_lifecycle_controller.dart';
+import 'package:ai_chan/onboarding/presentation/controllers/onboarding_lifecycle_controller.dart';
 
 void main() async {
   await initializeTestEnvironment();

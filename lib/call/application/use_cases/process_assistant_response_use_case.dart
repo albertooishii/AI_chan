@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:ai_chan/call/domain/domain.dart';
+import 'package:ai_chan/call/index.dart';
 
 /// Caso de uso para procesar respuestas del asistente
 class ProcessAssistantResponseUseCase {

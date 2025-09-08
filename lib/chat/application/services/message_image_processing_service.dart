@@ -1,9 +1,14 @@
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/shared/utils/image_utils.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_chat_image_service.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_chat_logger.dart';
 
 /// Service responsible for processing AI-generated images
+/// Uses domain interfaces to maintain bounded context isolation.
 class MessageImageProcessingService {
+  MessageImageProcessingService(this._imageService, this._logger);
+  final IChatImageService _imageService;
+  final IChatLogger _logger;
+
   /// Process image response from AI and save it locally
   Future<MessageImageResult> processImageResponse(
     final AIResponse response,
@@ -19,7 +24,7 @@ class MessageImageProcessingService {
     // Check if AI sent URL/path instead of base64
     final urlPattern = RegExp(r'^(https?:\/\/|file:|\/|[A-Za-z]:\\)');
     if (urlPattern.hasMatch(response.base64)) {
-      Log.e(
+      _logger.error(
         'La IA envió una URL/ruta en vez de imagen base64',
         tag: 'AI_CHAT_RESPONSE',
       );
@@ -32,9 +37,11 @@ class MessageImageProcessingService {
     }
 
     try {
-      final imagePath = await saveBase64ImageToFile(response.base64);
+      final imagePath = await _imageService.saveBase64ImageToFile(
+        response.base64,
+      );
       if (imagePath == null) {
-        Log.e(
+        _logger.error(
           'No se pudo guardar la imagen localmente',
           tag: 'AI_CHAT_RESPONSE',
         );
@@ -51,7 +58,11 @@ class MessageImageProcessingService {
         processedText: response.text,
       );
     } on Exception catch (e) {
-      Log.e('Fallo guardando imagen', tag: 'AI_CHAT_RESPONSE', error: e);
+      _logger.error(
+        'Fallo guardando imagen',
+        tag: 'AI_CHAT_RESPONSE',
+        error: e,
+      );
       return MessageImageResult(
         isImage: false,
         imagePath: null,
@@ -67,7 +78,7 @@ class MessageImageProcessingService {
 
     if (markdownImagePattern.hasMatch(text) ||
         urlInTextPattern.hasMatch(text)) {
-      Log.e(
+      _logger.error(
         'La IA envió una imagen Markdown o URL en el texto',
         tag: 'AI_CHAT_RESPONSE',
       );

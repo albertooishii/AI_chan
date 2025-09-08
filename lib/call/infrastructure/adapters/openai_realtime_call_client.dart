@@ -4,8 +4,6 @@ import 'package:flutter/foundation.dart';
 
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/di.dart';
-import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
-import 'package:ai_chan/call/domain/interfaces/call_interfaces.dart';
 
 /// Cliente OpenAI Realtime adaptado para la interfaz del dominio
 class OpenAIRealtimeCallClient implements IRealtimeCallClient {

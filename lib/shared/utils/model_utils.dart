@@ -30,5 +30,5 @@ class ModelUtils {
   }
 
   /// Orden preferido de aparición en UI.
-  static List<String> preferredOrder() => ['Google', 'Grok', 'OpenAI'];
+  static List<String> preferredOrder() => ['Google', 'OpenAI', 'Grok'];
 }

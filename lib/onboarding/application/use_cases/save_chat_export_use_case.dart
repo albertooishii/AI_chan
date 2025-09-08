@@ -1,5 +1,4 @@
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_repository.dart';
 import 'package:ai_chan/shared/utils/provider_persist_utils.dart';
 
 /// Application-level wrapper to persist an exported chat.
@@ -9,8 +8,10 @@ class SaveChatExportUseCase {
 
   Future<void> saveChatExport(
     final ChatExport exported, {
-    final IChatRepository? repository,
+    // TODO: Usar interfaz de onboarding en lugar de IChatRepository
+    final Object? repository,
   }) async {
-    await ProviderPersistUtils.saveChatExport(exported, repository: repository);
+    // TODO: Implementar usando la interfaz de onboarding
+    await ProviderPersistUtils.saveChatExport(exported);
   }
 }

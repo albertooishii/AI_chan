@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:ai_chan/call/domain/entities/voice_call_state.dart';
 import 'package:ai_chan/call/domain/interfaces/call_interfaces.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
@@ -10,7 +9,7 @@ class StartCallUseCase {
 
   Future<void> execute({
     required final bool isIncoming,
-    required final VoidCallback onCallStarted,
+    required final void Function() onCallStarted,
     required final Function(CallEndReason) onCallEnded,
   }) async {
     try {

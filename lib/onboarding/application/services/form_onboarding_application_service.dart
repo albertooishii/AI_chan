@@ -1,5 +1,5 @@
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/onboarding/domain/domain.dart';
+import 'package:ai_chan/onboarding/index.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 
 /// Result objects for DDD pattern compliance
@@ -94,23 +94,6 @@ class FormCompletionAnalysis {
   final bool hasChanges;
 }
 
-class StoryGenerationResult {
-  const StoryGenerationResult({
-    required this.success,
-    required this.story,
-    this.error,
-  });
-
-  factory StoryGenerationResult.success(final String story) =>
-      StoryGenerationResult(success: true, story: story);
-
-  factory StoryGenerationResult.failure(final String error) =>
-      StoryGenerationResult(success: false, story: '', error: error);
-  final bool success;
-  final String story;
-  final String? error;
-}
-
 /// DDD Application Service for Form-based Onboarding coordination and business logic
 class FormOnboardingApplicationService {
   /// Validate form data with comprehensive business rules
@@ -147,8 +130,6 @@ class FormOnboardingApplicationService {
       // Allow auto-generate as valid
     } else if (meetStory.trim().length < 10) {
       fieldErrors['meetStory'] = 'Meet story must be at least 10 characters';
-    } else if (meetStory.trim().length > 500) {
-      fieldErrors['meetStory'] = 'Meet story must be less than 500 characters';
     }
 
     // Business rule: Birthdate validation
@@ -248,41 +229,6 @@ class FormOnboardingApplicationService {
       return DateParsingResult.success(parsedDate);
     } on Exception catch (e) {
       return DateParsingResult.failure('Date parsing failed: $e');
-    }
-  }
-
-  /// Generate meet story with business logic
-  Future<StoryGenerationResult> generateMeetStory({
-    required final String userName,
-    required final String aiName,
-    final String? userCountryCode,
-    final String? aiCountryCode,
-  }) async {
-    try {
-      // Business rule: Names must be provided for story generation
-      if (userName.trim().isEmpty || aiName.trim().isEmpty) {
-        return StoryGenerationResult.failure(
-          'User and AI names are required for story generation',
-        );
-      }
-
-      // Business rule: Generate contextual story
-      final stories = [
-        'We met through a mutual friend at a coffee shop.',
-        'We connected through an online community and decided to meet.',
-        'We were introduced at a tech conference and immediately hit it off.',
-        'We met at a bookstore while browsing the same section.',
-        'We encountered each other at a local art gallery opening.',
-        'We were paired up for a collaborative project and became close friends.',
-      ];
-
-      // Simple random story selection - could be enhanced with AI generation
-      final randomIndex = DateTime.now().millisecond % stories.length;
-      final selectedStory = stories[randomIndex];
-
-      return StoryGenerationResult.success(selectedStory);
-    } on Exception catch (e) {
-      return StoryGenerationResult.failure('Story generation failed: $e');
     }
   }
 

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/config.dart';
 
@@ -11,7 +10,7 @@ class PromiseService {
     required this.sendSystemPrompt,
   });
   final List<EventEntry> events; // referencia viva a la lista de eventos global
-  final VoidCallback onEventsChanged;
+  final void Function() onEventsChanged;
   final Future<void> Function(String text, {String? callPrompt, String? model})
   sendSystemPrompt;
 

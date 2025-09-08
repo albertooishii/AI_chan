@@ -19,8 +19,7 @@ class BasicChatFileOperationsService implements IChatFileOperationsService {
     try {
       final file = File(path);
       return file.existsSync();
-    } on Exception catch (e) {
-      print('❌ [ChatFileOps] Error checking file existence: $path - $e');
+    } on Exception {
       return false;
     }
   }
@@ -30,12 +29,10 @@ class BasicChatFileOperationsService implements IChatFileOperationsService {
     try {
       final file = File(path);
       if (!file.existsSync()) {
-        print('⚠️ [ChatFileOps] File does not exist: $path');
         return null;
       }
       return await file.readAsBytes();
-    } on Exception catch (e) {
-      print('❌ [ChatFileOps] Error reading file as bytes: $path - $e');
+    } on Exception {
       return null;
     }
   }
@@ -45,12 +42,10 @@ class BasicChatFileOperationsService implements IChatFileOperationsService {
     try {
       final file = File(path);
       if (!file.existsSync()) {
-        print('⚠️ [ChatFileOps] File does not exist: $path');
         return null;
       }
       return await file.readAsString();
-    } on Exception catch (e) {
-      print('❌ [ChatFileOps] Error reading file as string: $path - $e');
+    } on Exception {
       return null;
     }
   }
@@ -63,9 +58,7 @@ class BasicChatFileOperationsService implements IChatFileOperationsService {
     try {
       final file = File(path);
       await file.writeAsBytes(bytes);
-      print('✅ [ChatFileOps] File written successfully: $path');
-    } on Exception catch (e) {
-      print('❌ [ChatFileOps] Error writing file as bytes: $path - $e');
+    } on Exception {
       rethrow;
     }
   }
@@ -78,9 +71,7 @@ class BasicChatFileOperationsService implements IChatFileOperationsService {
     try {
       final file = File(path);
       await file.writeAsString(content);
-      print('✅ [ChatFileOps] File written successfully: $path');
-    } on Exception catch (e) {
-      print('❌ [ChatFileOps] Error writing file as string: $path - $e');
+    } on Exception {
       rethrow;
     }
   }
@@ -91,12 +82,8 @@ class BasicChatFileOperationsService implements IChatFileOperationsService {
       final file = File(path);
       if (file.existsSync()) {
         await file.delete();
-        print('✅ [ChatFileOps] File deleted successfully: $path');
-      } else {
-        print('⚠️ [ChatFileOps] File does not exist, cannot delete: $path');
       }
-    } on Exception catch (e) {
-      print('❌ [ChatFileOps] Error deleting file: $path - $e');
+    } on Exception {
       rethrow;
     }
   }
@@ -106,13 +93,11 @@ class BasicChatFileOperationsService implements IChatFileOperationsService {
     try {
       final file = File(path);
       if (!file.existsSync()) {
-        print('⚠️ [ChatFileOps] File does not exist: $path');
         return 0;
       }
-      final stat = await file.stat();
+      final stat = file.statSync();
       return stat.size;
-    } on Exception catch (e) {
-      print('❌ [ChatFileOps] Error getting file size: $path - $e');
+    } on Exception {
       return 0;
     }
   }
@@ -123,12 +108,8 @@ class BasicChatFileOperationsService implements IChatFileOperationsService {
       final directory = Directory(path);
       if (!directory.existsSync()) {
         await directory.create(recursive: true);
-        print('✅ [ChatFileOps] Directories created successfully: $path');
-      } else {
-        print('ℹ️ [ChatFileOps] Directories already exist: $path');
       }
-    } on Exception catch (e) {
-      print('❌ [ChatFileOps] Error creating directories: $path - $e');
+    } on Exception {
       rethrow;
     }
   }

@@ -1,13 +1,13 @@
 // Call Bounded Context Barrel Export
 
 // Domain Layer
-export 'call/domain.dart';
+export 'call/index.dart';
 
 // Infrastructure Layer
-export 'call/infrastructure.dart';
+export 'call/infrastructure/index.dart';
 
 // Application Layer
-export 'call/application.dart';
+export 'call/application/index.dart';
 
 // Presentation Layer
 export 'call/presentation.dart';

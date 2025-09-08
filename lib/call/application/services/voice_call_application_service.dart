@@ -1,11 +1,10 @@
-import 'package:flutter/foundation.dart';
 import 'dart:async';
 import '../use_cases/start_call_use_case.dart';
 import '../use_cases/end_call_use_case.dart';
 import '../use_cases/handle_incoming_call_use_case.dart';
 import '../use_cases/manage_audio_use_case.dart';
 import '../../domain/entities/voice_call_state.dart';
-import 'package:ai_chan/chat/application/controllers/chat_controller.dart';
+import 'package:ai_chan/core/domain/interfaces/i_call_to_chat_communication_service.dart'; // ✅ Bounded Context Abstraction
 
 /// 🎯 **Voice Call Application Service** - DDD Coordinator for Call Operations
 ///
@@ -29,16 +28,23 @@ class VoiceCallApplicationService {
     required final EndCallUseCase endCallUseCase,
     required final HandleIncomingCallUseCase handleIncomingCallUseCase,
     required final ManageAudioUseCase manageAudioUseCase,
+    required final ICallToChatCommunicationService
+    chatCommunicationService, // ✅ Bounded Context Abstraction
   }) : _startCallUseCase = startCallUseCase,
        _endCallUseCase = endCallUseCase,
        _handleIncomingCallUseCase = handleIncomingCallUseCase,
-       _manageAudioUseCase = manageAudioUseCase;
+       _manageAudioUseCase = manageAudioUseCase,
+       _chatCommunicationService =
+           chatCommunicationService; // ✅ Bounded Context Abstraction
 
   // 🔧 **Use Cases Dependencies** - Core 4 use cases from controller
   final StartCallUseCase _startCallUseCase;
   final EndCallUseCase _endCallUseCase;
   final HandleIncomingCallUseCase _handleIncomingCallUseCase;
   final ManageAudioUseCase _manageAudioUseCase;
+  // ignore: unused_field
+  final ICallToChatCommunicationService
+  _chatCommunicationService; // ✅ Bounded Context Abstraction
 
   /// 🚀 **Initialize Voice Call System**
   /// Coordinates initialization of all audio and call systems
@@ -58,7 +64,7 @@ class VoiceCallApplicationService {
   /// Coordinates the complete process of starting an outgoing voice call
   Future<VoiceCallOperationResult> startOutgoingCall({
     required final bool isIncoming,
-    required final VoidCallback onCallStarted,
+    required final void Function() onCallStarted,
     required final Function(CallEndReason) onCallEnded,
   }) async {
     return _executeStartCall(
@@ -101,7 +107,7 @@ class VoiceCallApplicationService {
   /// Coordinates the internal call start process with callbacks
   Future<VoiceCallOperationResult> startCallInternal({
     required final bool isIncoming,
-    required final VoidCallback onCallStarted,
+    required final void Function() onCallStarted,
     required final Function(CallEndReason) onCallEnded,
   }) async {
     return _executeStartCall(
@@ -149,14 +155,12 @@ class VoiceCallApplicationService {
   /// 📴 **End Voice Call**
   /// Coordinates the complete process of ending a voice call
   Future<VoiceCallOperationResult> endVoiceCall({
-    required final ChatController chatController,
     required final VoiceCallState callState,
   }) async {
     try {
       await _endCallUseCase.execute(
-        chatController: chatController,
         callState: callState,
-      );
+      ); // ✅ Bounded Context Abstraction
 
       return VoiceCallOperationResult.success();
     } on Exception catch (e) {
@@ -206,7 +210,7 @@ class VoiceCallApplicationService {
   Future<OutgoingCallFlowResult> coordinateOutgoingCallFlow({
     required final VoiceCallState initialState,
     required final Function(VoiceCallState) onStateChange,
-    required final VoidCallback onCallStarted,
+    required final void Function() onCallStarted,
     required final Function(CallEndReason) onCallEnded,
   }) async {
     try {
@@ -233,7 +237,7 @@ class VoiceCallApplicationService {
   Future<CallAcceptanceResult> coordinateCallAcceptance({
     required final VoiceCallState currentState,
     required final Timer? incomingTimer,
-    required final VoidCallback onCallStarted,
+    required final void Function() onCallStarted,
     required final Function(CallEndReason) onCallEnded,
   }) async {
     try {
@@ -271,7 +275,7 @@ class VoiceCallApplicationService {
   /// Common logic for starting calls with proper error handling
   Future<VoiceCallOperationResult> _executeStartCall({
     required final bool isIncoming,
-    required final VoidCallback onCallStarted,
+    required final void Function() onCallStarted,
     required final Function(CallEndReason) onCallEnded,
     required final String errorMessage,
   }) async {

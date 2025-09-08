@@ -1,35 +1,8 @@
 import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/index.dart';
 import 'dart:math';
 
 enum MessageStatus { sending, sent, read, failed }
-
-/// Mensaje de voz dentro de una llamada
-class VoiceCallMessage {
-  VoiceCallMessage({
-    required this.text,
-    required this.isUser,
-    required this.timestamp,
-  });
-
-  factory VoiceCallMessage.fromJson(final Map<String, dynamic> json) {
-    return VoiceCallMessage(
-      text: json['text'] ?? '',
-      isUser: json['isUser'] == true,
-      timestamp: json['timestamp'] != null && json['timestamp'] is String
-          ? DateTime.tryParse(json['timestamp']) ?? DateTime.now()
-          : DateTime.now(),
-    );
-  }
-  final String text;
-  final bool isUser;
-  final DateTime timestamp;
-
-  Map<String, dynamic> toJson() => {
-    'text': text,
-    'isUser': isUser,
-    'timestamp': timestamp.toIso8601String(),
-  };
-}
 
 /// Resumen completo de una llamada de voz
 class VoiceCallSummary {

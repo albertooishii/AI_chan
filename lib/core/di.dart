@@ -1,9 +1,50 @@
+// lib/core/di.dart
+// Dependency Injection Container with Barrel Exports
+// This file provides clean imports using barrels instead of individual imports
+
+// ===== BARREL EXPORTS =====
+// Core barrels
+export 'package:ai_chan/core/interfaces/index.dart';
+export 'package:ai_chan/core/infrastructure/adapters/index.dart';
+export 'package:ai_chan/core/domain/interfaces/index.dart';
+export 'package:ai_chan/core/cache/index.dart';
+
+// Chat bounded context barrels
+export 'package:ai_chan/chat/domain/interfaces/index.dart';
+export 'package:ai_chan/chat/infrastructure/adapters/index.dart';
+export 'package:ai_chan/chat/application/services/index.dart';
+export 'package:ai_chan/chat/presentation/controllers/index.dart';
+export 'package:ai_chan/chat/application/use_cases/index.dart';
+export 'package:ai_chan/chat/infrastructure/services/index.dart';
+
+// Call bounded context barrels
+export 'package:ai_chan/call/domain/interfaces/index.dart';
+export 'package:ai_chan/call/infrastructure/adapters/index.dart';
+export 'package:ai_chan/call/application/use_cases/index.dart';
+export 'package:ai_chan/call/application/services/index.dart';
+export 'package:ai_chan/call/presentation/controllers/index.dart';
+export 'package:ai_chan/call/infrastructure/managers/index.dart';
+export 'package:ai_chan/call/infrastructure/services/index.dart';
+export 'package:ai_chan/call/domain/services/index.dart';
+
+// Onboarding bounded context barrels
+export 'package:ai_chan/onboarding/domain/interfaces/index.dart';
+export 'package:ai_chan/onboarding/infrastructure/adapters/index.dart';
+
+// Shared bounded context barrels
+export 'package:ai_chan/shared/domain/interfaces/index.dart';
+export 'package:ai_chan/shared/infrastructure/services/index.dart';
+export 'package:ai_chan/shared/infrastructure/adapters/index.dart';
+
+// ===== INDIVIDUAL IMPORTS =====
+// These are kept for services that don't have barrel files yet or need specific imports
+import 'dart:typed_data';
+
 import 'package:ai_chan/chat/domain/interfaces/i_chat_repository.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_language_resolver.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_promise_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_audio_utils_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_backup_utils_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_logging_utils_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_preferences_utils_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_debounced_persistence_service.dart';
@@ -15,15 +56,12 @@ import 'package:ai_chan/chat/infrastructure/adapters/language_resolver_service.d
 import 'package:ai_chan/core/interfaces/ai_service.dart';
 import 'package:ai_chan/onboarding/domain/interfaces/i_profile_service.dart';
 import 'package:ai_chan/onboarding/infrastructure/adapters/profile_adapter.dart';
-import 'package:ai_chan/call/domain/interfaces/i_speech_service.dart'; // Usar interfaces del dominio call
+import 'package:ai_chan/call/domain/interfaces/i_speech_service.dart';
 import 'package:ai_chan/call/infrastructure/adapters/default_tts_service.dart';
-import 'package:ai_chan/call/infrastructure/adapters/google_speech_adapter.dart';
 import 'package:ai_chan/call/infrastructure/adapters/openai_stt_adapter.dart';
 import 'package:ai_chan/call/infrastructure/adapters/openai_tts_adapter.dart';
 import 'package:ai_chan/call/infrastructure/adapters/android_native_stt_adapter.dart';
 import 'package:ai_chan/call/infrastructure/adapters/android_native_tts_adapter.dart';
-
-import 'dart:typed_data';
 import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
 import 'package:ai_chan/core/infrastructure/adapters/openai_adapter.dart';
 import 'package:ai_chan/core/infrastructure/adapters/gemini_adapter.dart';
@@ -41,7 +79,7 @@ import 'package:ai_chan/chat/domain/interfaces/i_logging_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_network_service.dart';
 import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 import 'package:ai_chan/chat/application/services/chat_application_service.dart';
-import 'package:ai_chan/chat/application/controllers/chat_controller.dart';
+import 'package:ai_chan/chat/presentation/controllers/chat_controller.dart';
 import 'package:ai_chan/chat/infrastructure/adapters/prompt_builder_service.dart';
 import 'package:ai_chan/call/application/services/voice_call_application_service.dart';
 import 'package:ai_chan/call/application/use_cases/start_call_use_case.dart';
@@ -50,26 +88,20 @@ import 'package:ai_chan/call/application/use_cases/handle_incoming_call_use_case
 import 'package:ai_chan/call/application/use_cases/manage_audio_use_case.dart';
 import 'package:ai_chan/call/infrastructure/managers/call_manager_impl.dart';
 import 'package:ai_chan/call/infrastructure/managers/audio_manager_impl.dart';
-// Nuevas implementaciones de dominio call
 import 'package:ai_chan/call/domain/interfaces/call_interfaces.dart';
 import 'package:ai_chan/call/domain/interfaces/realtime_transport_service.dart';
 import 'package:ai_chan/call/infrastructure/adapters/in_memory_call_repository.dart';
 import 'package:ai_chan/call/infrastructure/adapters/flutter_audio_manager.dart';
 import 'package:ai_chan/call/infrastructure/adapters/default_call_manager.dart';
 import 'package:ai_chan/call/infrastructure/adapters/websocket_realtime_transport_service.dart';
-// Import para IRealtimeCallClient
 import 'package:ai_chan/call/infrastructure/adapters/openai_realtime_call_client.dart';
-// Import para IProfileRepository
 import 'package:ai_chan/onboarding/domain/interfaces/i_profile_repository.dart';
 import 'package:ai_chan/onboarding/infrastructure/adapters/in_memory_profile_repository.dart';
-// Import para AudioPlaybackService
 import 'package:ai_chan/shared/domain/interfaces/audio_playback_service.dart';
-// Nuevos imports para las interfaces huérfanas
 import 'package:ai_chan/call/domain/interfaces/i_vad_service.dart';
 import 'package:ai_chan/call/infrastructure/vad_service.dart';
 import 'package:ai_chan/shared/infrastructure/services/basic_chat_promise_service.dart';
 import 'package:ai_chan/shared/infrastructure/services/basic_chat_audio_utils_service.dart';
-import 'package:ai_chan/shared/infrastructure/services/basic_chat_backup_utils_service.dart';
 import 'package:ai_chan/shared/infrastructure/services/basic_chat_logging_utils_service.dart';
 import 'package:ai_chan/shared/infrastructure/services/basic_chat_preferences_utils_service.dart';
 import 'package:ai_chan/shared/infrastructure/services/basic_chat_debounced_persistence_service.dart';
@@ -77,23 +109,34 @@ import 'package:ai_chan/shared/infrastructure/services/basic_chat_message_queue_
 import 'package:ai_chan/chat/infrastructure/services/basic_chat_file_operations_service.dart';
 import 'package:ai_chan/call/domain/services/call_summary_service.dart';
 import 'package:ai_chan/shared/domain/interfaces/i_ui_state_service.dart';
+import 'package:ai_chan/shared/infrastructure/services/flutter_secure_storage_service.dart';
 import 'package:ai_chan/shared/infrastructure/services/basic_ui_state_service.dart';
 
-/// Pequeñas fábricas/funciones de DI para la migración incremental.
-/// Idealmente esto evolucionará a un contenedor/locator más completo.
+// Additional imports for missing services
+import 'package:ai_chan/core/domain/interfaces/i_call_to_chat_communication_service.dart';
+import 'package:ai_chan/chat/application/adapters/call_to_chat_communication_adapter.dart';
+import 'package:ai_chan/call/infrastructure/adapters/google_stt_adapter.dart';
+import 'package:ai_chan/call/infrastructure/adapters/google_tts_adapter.dart';
+import 'package:ai_chan/shared/infrastructure/services/basic_file_operations_service.dart';
+import 'package:ai_chan/shared/domain/interfaces/i_file_operations_service.dart';
+import 'package:ai_chan/shared/infrastructure/services/real_preferences_service.dart';
+
+/// Factory functions and small helpers used across the app.
+/// This file provides DI factories for the entire application.
+
 IChatRepository getChatRepository() => LocalChatRepository();
 
 /// Factory for file operations service - DDD compliance
 IChatFileOperationsService getFileOperationsService() =>
-    BasicChatFileOperationsService();
+    const BasicChatFileOperationsService();
+
+/// Factory for basic file operations service - DDD compliance
+IFileOperationsService getBasicFileOperationsService() =>
+    const BasicFileOperationsService();
 
 /// Factory for File UI Service - DDD compliance for presentation layer
-FileUIService getFileUIService() => FileUIService(getFileOperationsService());
-
-// DI factories and small helpers used across the app. Legacy adapters have
-// been removed and their logic migrated into higher-level use-cases such
-// as `SendMessageUseCase` and `AIService` — keep this file focused on
-// active factory functions and test overrides.
+FileUIService getFileUIService() =>
+    const FileUIService(BasicFileOperationsService());
 
 /// Factory for audio chat service with required callbacks
 IAudioChatService getAudioChatService({
@@ -101,71 +144,20 @@ IAudioChatService getAudioChatService({
   required final void Function(List<int>) onWaveform,
 }) => AudioChatService(onStateChanged: onStateChanged, onWaveform: onWaveform);
 
-/// Fábrica centralizada para obtener instancias de `IAIService` por modelo.
-/// Mantiene singletons por proveedor para reutilizar estado interno (caches, preferencias de clave, etc.).
-final Map<String, IAIService> _aiServiceSingletons = {};
-
-IAIService getAIServiceForModel(final String modelId) {
-  final normalized = modelId.trim().toLowerCase();
-  String key = normalized;
-  if (key.isEmpty) key = 'default';
-  if (_aiServiceSingletons.containsKey(key)) return _aiServiceSingletons[key]!;
-
-  IAIService impl;
-  if (normalized.startsWith('gpt-')) {
-    final runtime = runtime_factory.getRuntimeAIServiceForModel(normalized);
-    impl = OpenAIAdapter(modelId: normalized, runtime: runtime);
-  } else if (normalized.startsWith('gemini-') ||
-      normalized.startsWith('imagen-')) {
-    final runtime = runtime_factory.getRuntimeAIServiceForModel(normalized);
-    impl = GeminiAdapter(modelId: normalized, runtime: runtime);
-  } else if (normalized.isEmpty) {
-    // Default behavior: require configured default model; fail fast if missing
-    final defaultModel = Config.requireDefaultTextModel();
-    final runtime = runtime_factory.getRuntimeAIServiceForModel(defaultModel);
-    if (defaultModel.startsWith('gpt-')) {
-      impl = OpenAIAdapter(modelId: defaultModel, runtime: runtime);
-    } else {
-      impl = GeminiAdapter(modelId: defaultModel, runtime: runtime);
-    }
-  } else {
-    // Fallback: prefer configured DEFAULT_TEXT_MODEL, otherwise fall back to Gemini as project-wide default
-    final fallbackModel = Config.requireDefaultTextModel();
-    final runtime = runtime_factory.getRuntimeAIServiceForModel(fallbackModel);
-    // Choose adapter based on resolved runtime (runtime factory inspects prefix)
-    if (fallbackModel.startsWith('gpt-')) {
-      impl = OpenAIAdapter(modelId: fallbackModel, runtime: runtime);
-    } else {
-      impl = GeminiAdapter(modelId: fallbackModel, runtime: runtime);
-    }
-  }
-  _aiServiceSingletons[key] = impl;
-  return impl;
-}
-
-/// Fábrica para obtener las implementaciones runtime de `AIService` (OpenAIService/GeminiService)
-// Use centralized runtime factory from `lib/core/runtime_factory.dart`
-
-ICallSttService getSttService() => _testSttOverride ?? GoogleSttAdapter();
-
-ICallTtsService getTtsService() => const DefaultTtsService();
-
 /// Factory for language resolver - resolves language codes from TTS voice names
 ILanguageResolver getLanguageResolver() => LanguageResolverService();
 
 /// Factory for file service - handles file operations
 IFileService getFileService() => FileService();
 
-// VoiceCallControllerBuilder - REMOVED: Migrated to application layer with direct DI
-
-// Test-time overrides (used by tests to inject fakes without touching DI calls)
+// Test-time overrides
 ICallSttService? _testSttOverride;
-
-/// Audio playback test override (allows tests to inject a fake playback globally).
 AudioPlayback? _testAudioPlaybackOverride;
 
-/// Factory for production code to obtain an AudioPlayback instance. Tests can
-/// override it via [setTestAudioPlaybackOverride].
+ICallSttService getSttService() => _testSttOverride ?? const GoogleSttAdapter();
+ICallTtsService getTtsService() => const DefaultTtsService();
+
+/// Factory for production code to obtain an AudioPlayback instance
 AudioPlayback getAudioPlayback([final dynamic candidate]) {
   if (_testAudioPlaybackOverride != null) return _testAudioPlaybackOverride!;
   return AudioPlayback.adapt(candidate);
@@ -175,16 +167,15 @@ void setTestAudioPlaybackOverride(final AudioPlayback? impl) {
   _testAudioPlaybackOverride = impl;
 }
 
-/// Permite a los tests inyectar un ICallSttService falso globalmente.
 void setTestSttOverride(final ICallSttService? impl) {
   _testSttOverride = impl;
 }
 
-/// Provider-specific factories (useful for calls where we want Google-backed STT/TTS)
+/// Provider-specific factories
 ICallSttService getSttServiceForProvider(final String provider) {
   final p = provider.toLowerCase();
   if (p == 'google') {
-    return _testSttOverride ?? GoogleSttAdapter();
+    return _testSttOverride ?? const GoogleSttAdapter();
   }
   if (p == 'openai') {
     return _testSttOverride ?? const OpenAISttAdapter();
@@ -198,7 +189,7 @@ ICallSttService getSttServiceForProvider(final String provider) {
 ICallTtsService getTtsServiceForProvider(final String provider) {
   final p = provider.toLowerCase();
   if (p == 'google') {
-    return GoogleTtsAdapter();
+    return const GoogleTtsAdapter();
   }
   if (p == 'openai') {
     return OpenAITtsAdapter(OpenAITtsService());
@@ -209,10 +200,7 @@ ICallTtsService getTtsServiceForProvider(final String provider) {
   return getTtsService();
 }
 
-/// Fábrica que devuelve un cliente realtime compatible con la interfaz usada por VoiceCallController.
-/// Para 'openai' devuelve el OpenAIRealtimeClient; para 'google' devuelve el GeminiCallOrchestrator (emulación).
-// ---------------- Realtime client registry ----------------
-/// Factory signature for provider-specific realtime client creators.
+/// Realtime client registry
 typedef RealtimeClientCreator =
     IRealtimeClient Function({
       String? model,
@@ -223,105 +211,6 @@ typedef RealtimeClientCreator =
       void Function(String)? onUserTranscription,
     });
 
-final Map<String, RealtimeClientCreator> _realtimeClientRegistry = {};
-
-/// Register a realtime client factory for a provider key (e.g. 'openai', 'google').
-void registerRealtimeClientFactory(
-  final String provider,
-  final RealtimeClientCreator creator,
-) {
-  _realtimeClientRegistry[provider.trim().toLowerCase()] = creator;
-}
-
-// Note: creators for specific providers should be registered at bootstrap
-// using `registerRealtimeClientFactory(provider, creator)` so the app can
-// choose which providers to enable at runtime.
-
-/// A fallback client returned when a provider has not been registered.
-class NotSupportedRealtimeClient implements IRealtimeClient {
-  NotSupportedRealtimeClient(this.provider);
-  final String provider;
-
-  @override
-  bool get isConnected => false;
-
-  @override
-  void appendAudio(final List<int> bytes) {
-    // no-op
-  }
-
-  @override
-  Future<void> close() async {
-    // no-op
-  }
-
-  @override
-  Future<void> commitPendingAudio() async {
-    // no-op
-  }
-
-  @override
-  Future<void> connect({
-    required final String systemPrompt,
-    final String voice = 'marin',
-    final String? inputAudioFormat,
-    final String? outputAudioFormat,
-    final String? turnDetectionType,
-    final int? silenceDurationMs,
-    final Map<String, dynamic>? options,
-  }) async {
-    throw UnsupportedError(
-      'Realtime provider "$provider" not supported/configured',
-    );
-  }
-
-  @override
-  void requestResponse({final bool audio = true, final bool text = true}) {
-    // no-op
-  }
-
-  @override
-  void sendText(final String text) {
-    // no-op
-  }
-
-  @override
-  void updateVoice(final String voice) {
-    // no-op
-  }
-
-  // Implementaciones por defecto de los nuevos métodos
-  @override
-  void sendImageWithText({
-    required final String imageBase64,
-    final String? text,
-    final String imageFormat = 'png',
-  }) {
-    // no-op - funcionalidad no soportada
-  }
-
-  @override
-  void configureTools(final List<Map<String, dynamic>> tools) {
-    // no-op - funcionalidad no soportada
-  }
-
-  @override
-  void sendFunctionCallOutput({
-    required final String callId,
-    required final String output,
-  }) {
-    // no-op - funcionalidad no soportada
-  }
-
-  @override
-  void cancelResponse({final String? itemId, final int? sampleCount}) {
-    // no-op - funcionalidad no soportada
-  }
-}
-
-// ---------------- Test overrides for realtime client ----------------
-/// Type of factory used by tests to create a fake IRealtimeClient that
-/// mirrors the production constructor signature.
 typedef RealtimeClientFactory =
     IRealtimeClient Function(
       String provider, {
@@ -333,14 +222,21 @@ typedef RealtimeClientFactory =
       void Function(String)? onUserTranscription,
     });
 
+final Map<String, RealtimeClientCreator> _realtimeClientRegistry = {};
+
+void registerRealtimeClientFactory(
+  final String provider,
+  final RealtimeClientCreator creator,
+) {
+  _realtimeClientRegistry[provider.trim().toLowerCase()] = creator;
+}
+
 RealtimeClientFactory? _testRealtimeClientFactory;
 
-/// Allow tests to install a factory to create a fake realtime client.
 void setTestRealtimeClientFactory(final RealtimeClientFactory? factory) {
   _testRealtimeClientFactory = factory;
 }
 
-/// Factory that uses the registry (or the test override) to create a realtime client.
 IRealtimeClient getRealtimeClientForProvider(
   final String provider, {
   final String? model,
@@ -350,9 +246,6 @@ IRealtimeClient getRealtimeClientForProvider(
   final void Function(Object)? onError,
   final void Function(String)? onUserTranscription,
 }) {
-  // Test override: if tests provided a factory, use it so tests can inject
-  // a fake realtime client wired with the same callbacks the production
-  // code would receive. This avoids touching network stacks in tests.
   if (_testRealtimeClientFactory != null) {
     return _testRealtimeClientFactory!(
       provider,
@@ -378,49 +271,134 @@ IRealtimeClient getRealtimeClientForProvider(
     );
   }
 
-  // If the provider isn't registered we return a clear fallback that will
-  // throw on connect. This forces callers to register new providers (eg. Gemini)
-  // via `registerRealtimeClientFactory` rather than sprinkling provider checks.
   return NotSupportedRealtimeClient(provider);
 }
 
+class NotSupportedRealtimeClient implements IRealtimeClient {
+  NotSupportedRealtimeClient(this.provider);
+  final String provider;
+
+  @override
+  bool get isConnected => false;
+
+  @override
+  void appendAudio(final List<int> bytes) {}
+
+  @override
+  Future<void> close() async {}
+
+  @override
+  Future<void> commitPendingAudio() async {}
+
+  @override
+  Future<void> connect({
+    required final String systemPrompt,
+    final String voice = 'marin',
+    final String? inputAudioFormat,
+    final String? outputAudioFormat,
+    final String? turnDetectionType,
+    final int? silenceDurationMs,
+    final Map<String, dynamic>? options,
+  }) async {
+    throw UnsupportedError(
+      'Realtime provider "$provider" not supported/configured',
+    );
+  }
+
+  @override
+  void requestResponse({final bool audio = true, final bool text = true}) {}
+
+  @override
+  void sendText(final String text) {}
+
+  @override
+  void updateVoice(final String voice) {}
+
+  @override
+  void sendImageWithText({
+    required final String imageBase64,
+    final String? text,
+    final String imageFormat = 'png',
+  }) {}
+
+  @override
+  void configureTools(final List<Map<String, dynamic>> tools) {}
+
+  @override
+  void sendFunctionCallOutput({
+    required final String callId,
+    required final String output,
+  }) {}
+
+  @override
+  void cancelResponse({final String? itemId, final int? sampleCount}) {}
+}
+
+/// AI Service factory with singleton pattern
+final Map<String, IAIService> _aiServiceSingletons = {};
+
+IAIService getAIServiceForModel(final String modelId) {
+  final normalized = modelId.trim().toLowerCase();
+  String key = normalized;
+  if (key.isEmpty) key = 'default';
+  if (_aiServiceSingletons.containsKey(key)) return _aiServiceSingletons[key]!;
+
+  IAIService impl;
+  if (normalized.startsWith('gpt-')) {
+    final runtime = runtime_factory.getRuntimeAIServiceForModel(normalized);
+    impl = OpenAIAdapter(modelId: normalized, runtime: runtime);
+  } else if (normalized.startsWith('gemini-') ||
+      normalized.startsWith('imagen-')) {
+    final runtime = runtime_factory.getRuntimeAIServiceForModel(normalized);
+    impl = GeminiAdapter(modelId: normalized, runtime: runtime);
+  } else if (normalized.isEmpty) {
+    final defaultModel = Config.requireDefaultTextModel();
+    final runtime = runtime_factory.getRuntimeAIServiceForModel(defaultModel);
+    if (defaultModel.startsWith('gpt-')) {
+      impl = OpenAIAdapter(modelId: defaultModel, runtime: runtime);
+    } else {
+      impl = GeminiAdapter(modelId: defaultModel, runtime: runtime);
+    }
+  } else {
+    final fallbackModel = Config.requireDefaultTextModel();
+    final runtime = runtime_factory.getRuntimeAIServiceForModel(fallbackModel);
+    if (fallbackModel.startsWith('gpt-')) {
+      impl = OpenAIAdapter(modelId: fallbackModel, runtime: runtime);
+    } else {
+      impl = GeminiAdapter(modelId: fallbackModel, runtime: runtime);
+    }
+  }
+  _aiServiceSingletons[key] = impl;
+  return impl;
+}
+
 IProfileService getProfileServiceForProvider([final String? provider]) {
-  // If caller passes provider explicitly, use it.
   if (provider != null && provider.trim().isNotEmpty) {
     final p = provider.toLowerCase();
     if (p == 'google' || p == 'gemini') {
       final imgModel = Config.getDefaultImageModel().isNotEmpty
           ? Config.getDefaultImageModel()
-          : Config.getDefaultImageModel();
-      // If still empty, fall back to a reasonable image-capable model
-      final resolvedImg = imgModel.isNotEmpty ? imgModel : 'gpt-4.1-mini';
+          : 'gpt-4o-mini';
       return ProfileAdapter(
-        aiService: runtime_factory.getRuntimeAIServiceForModel(resolvedImg),
+        aiService: runtime_factory.getRuntimeAIServiceForModel(imgModel),
       );
     }
     if (p == 'openai') {
       final txtModel = Config.getDefaultTextModel().isNotEmpty
           ? Config.getDefaultTextModel()
-          : Config.getDefaultTextModel();
-      final resolvedTxt = txtModel.isNotEmpty ? txtModel : 'gpt-4.1-mini';
+          : 'gpt-4o-mini';
       return ProfileAdapter(
-        aiService: runtime_factory.getRuntimeAIServiceForModel(resolvedTxt),
+        aiService: runtime_factory.getRuntimeAIServiceForModel(txtModel),
       );
     }
     final fallbackImg = Config.getDefaultImageModel().isNotEmpty
         ? Config.getDefaultImageModel()
-        : Config.getDefaultImageModel();
-    final resolvedFallbackImg = fallbackImg.isNotEmpty
-        ? fallbackImg
-        : 'gpt-4.1-mini';
+        : 'gpt-4o-mini';
     return ProfileAdapter(
-      aiService: runtime_factory.getRuntimeAIServiceForModel(
-        resolvedFallbackImg,
-      ),
+      aiService: runtime_factory.getRuntimeAIServiceForModel(fallbackImg),
     );
   }
 
-  // Otherwise, prefer the DEFAULT_TEXT_MODEL from config to infer the provider.
   final defaultTextModel = Config.getDefaultTextModel();
   final defaultImageModel = Config.getDefaultImageModel();
   String resolved = '';
@@ -435,11 +413,7 @@ IProfileService getProfileServiceForProvider([final String? provider]) {
     }
   }
 
-  // If we couldn't infer from DEFAULT_TEXT_MODEL/DEFAULT_IMAGE_MODEL, default to Gemini ('google').
-  // This corresponds to using 'gemini-2.5-flash' as the default text model.
-  if (resolved.isEmpty) {
-    resolved = 'google';
-  }
+  if (resolved.isEmpty) resolved = 'google';
 
   if (resolved == 'google' || resolved == 'gemini') {
     return ProfileAdapter(
@@ -462,124 +436,82 @@ IProfileService getProfileServiceForProvider([final String? provider]) {
   );
 }
 
-/// Factory for Chat Application Service - nueva arquitectura DDD
+/// Application Services Factories
 ChatApplicationService getChatApplicationService() => ChatApplicationService(
   repository: getChatRepository(),
   promptBuilder: PromptBuilderService(),
-  fileOperations: getFileOperationsService(),
+  fileOperations:
+      const BasicFileOperationsService(), // Use the shared file operations service
   secureStorage: getSecureStorageService(),
-  backupService: getBackupService(),
-  preferences: getPreferencesService(),
-  logger: getLoggingService(),
-  networkService: getNetworkService(),
-  promiseService: getChatPromiseService(),
-  audioUtils: getChatAudioUtilsService(),
-  backupUtils: getChatBackupUtilsService(),
-  loggingUtils: getChatLoggingUtilsService(),
-  preferencesUtils: getChatPreferencesUtilsService(),
-  debouncedPersistence: getChatDebouncedPersistenceService(),
-  messageQueueManager: getChatMessageQueueManager(),
 );
 
-/// Factory for Chat Controller - nueva arquitectura DDD
 ChatController getChatController() =>
     ChatController(chatService: getChatApplicationService());
 
-/// Factory for Voice Call Application Service - nueva arquitectura DDD
 VoiceCallApplicationService getVoiceCallApplicationService() {
-  // Crear instancias de managers
   final callManager = CallManagerImpl();
   final audioManager = AudioManagerImpl();
 
   return VoiceCallApplicationService(
     startCallUseCase: StartCallUseCase(callManager),
-    endCallUseCase: EndCallUseCase(callManager),
+    endCallUseCase: EndCallUseCase(
+      callManager,
+      getCallToChatCommunicationService(),
+    ),
     handleIncomingCallUseCase: HandleIncomingCallUseCase(callManager),
     manageAudioUseCase: ManageAudioUseCase(audioManager),
+    chatCommunicationService: getCallToChatCommunicationService(),
   );
 }
 
-// ===== NUEVAS FACTORIES PARA INTERFACES DE DOMINIO CALL =====
-
-/// Factory for call repository - DDD domain interface
+/// Domain Services Factories
 ICallRepository getCallRepository() => InMemoryCallRepository();
-
-/// Factory for audio manager - DDD domain interface
 IAudioManager getAudioManager() => FlutterAudioManager();
-
-/// Factory for call manager - DDD domain interface
 ICallManager getCallManager() => DefaultCallManager();
-
-/// Factory for realtime transport service - DDD domain interface
 RealtimeTransportService getRealtimeTransportService() =>
     WebSocketRealtimeTransportService();
-
-/// Factory for realtime call client - DDD domain interface
 IRealtimeCallClient getRealtimeCallClient() => OpenAIRealtimeCallClient();
-
-/// Factory for profile repository - DDD domain interface
 IProfileRepository getProfileRepository() => InMemoryProfileRepository();
-
-/// Factory for audio playback service - DDD domain interface
 AudioPlaybackService getAudioPlaybackService([final dynamic candidate]) =>
     getAudioPlayback(candidate);
-
-/// Factory for VAD service - DDD domain interface
 IVadService getVadService() => VadService();
 
-/// Factory for secure storage service - DDD domain interface
-ISecureStorageService getSecureStorageService() => BasicSecureStorageService();
-
-/// Factory for backup service - DDD domain interface
+/// Infrastructure Services Factories
+ISecureStorageService getSecureStorageService() =>
+    const FlutterSecureStorageService();
 IBackupService getBackupService() => BasicBackupService();
-
-/// Factory for preferences service - DDD domain interface
-IPreferencesService getPreferencesService() => BasicPreferencesService();
-
-/// Factory for logging service - DDD domain interface
+IPreferencesService getPreferencesService() => RealPreferencesService();
 ILoggingService getLoggingService() => BasicLoggingService();
-
-/// Factory for network service - DDD domain interface
 INetworkService getNetworkService() => BasicNetworkService();
 
-/// Factory for call summary service - DDD domain service
 CallSummaryService getCallSummaryService(final Map<String, dynamic> profile) =>
     CallSummaryService(
       profile: profile,
       aiService: getAIServiceForModel(Config.getDefaultTextModel()),
     );
 
-/// Factory for UI state service - Clean Architecture compliance
 IUIStateService getUIStateService() => BasicUIStateService();
 
-/// Factory for chat promise service - DDD domain interface
+/// Chat Domain Services Factories
 IChatPromiseService getChatPromiseService() => BasicChatPromiseService();
-
-/// Factory for chat audio utils service - DDD domain interface
 IChatAudioUtilsService getChatAudioUtilsService() =>
     BasicChatAudioUtilsService();
-
-/// Factory for chat backup utils service - DDD domain interface
-IChatBackupUtilsService getChatBackupUtilsService() =>
-    BasicChatBackupUtilsService();
-
-/// Factory for chat logging utils service - DDD domain interface
 IChatLoggingUtilsService getChatLoggingUtilsService() =>
     BasicChatLoggingUtilsService();
-
-/// Factory for chat preferences utils service - DDD domain interface
 IChatPreferencesUtilsService getChatPreferencesUtilsService() =>
     BasicChatPreferencesUtilsService();
-
-/// Factory for chat debounced persistence service - DDD domain interface
 IChatDebouncedPersistenceService getChatDebouncedPersistenceService() =>
     BasicChatDebouncedPersistenceService();
+IChatMessageQueueManager getChatMessageQueueManager() {
+  // Usar la implementación completa que funciona correctamente
+  return CompleteChatMessageQueueManager();
+}
 
-/// Factory for chat message queue manager - DDD domain interface
-IChatMessageQueueManager getChatMessageQueueManager() =>
-    BasicChatMessageQueueManager();
+/// Communication Service Factory
+ICallToChatCommunicationService getCallToChatCommunicationService() =>
+    CallToChatCommunicationAdapter(getChatController());
 
-/// Basic implementations for missing services
+/// Basic service implementations
 class BasicSecureStorageService implements ISecureStorageService {
   @override
   Future<String?> read(final String key) async => null;

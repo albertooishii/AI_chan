@@ -6,7 +6,7 @@ import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
 import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'package:ai_chan/shared/services/backup_service.dart';
-import 'package:ai_chan/onboarding/application/controllers/onboarding_lifecycle_controller.dart';
+import 'package:ai_chan/onboarding/presentation/controllers/onboarding_lifecycle_controller.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:ai_chan/core/di.dart' as di;

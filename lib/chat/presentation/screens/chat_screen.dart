@@ -1,5 +1,5 @@
 import 'package:ai_chan/chat/application/utils/avatar_persist_utils.dart';
-import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro completado
+import 'package:ai_chan/chat/presentation/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro completado
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'package:flutter/material.dart';
@@ -24,6 +24,8 @@ import 'package:ai_chan/shared/widgets/backup_diagnostics_dialog.dart';
 import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
 import 'package:ai_chan/core/di.dart' as di;
 import 'dart:typed_data';
+// ignore: unused_import
+import 'package:ai_chan/core/domain/interfaces/i_call_to_chat_communication_service.dart'; // ✅ Bounded Context Abstraction
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({
@@ -450,10 +452,7 @@ class _ChatScreenState extends State<ChatScreen> {
           chatController.callController.clearPendingIncomingCall();
           navigator.push(
             MaterialPageRoute(
-              builder: (_) => VoiceCallScreen(
-                incoming: true,
-                chatController: chatController,
-              ),
+              builder: (_) => const VoiceCallScreen(incoming: true),
             ),
           );
         }
@@ -604,12 +603,10 @@ class _ChatScreenState extends State<ChatScreen> {
             icon: const Icon(Icons.call, color: AppColors.secondary),
             tooltip: 'Llamada de voz',
             onPressed: () {
+              // ignore: unused_local_variable
               final existingController = widget.chatController;
               Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) =>
-                      VoiceCallScreen(chatController: existingController),
-                ),
+                MaterialPageRoute(builder: (_) => const VoiceCallScreen()),
               );
             },
           ),

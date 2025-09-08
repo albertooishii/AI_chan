@@ -1,8 +1,12 @@
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/shared/services/ai_service.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_chat_ai_service.dart';
 
 /// Service responsible for retry logic when AI responses are invalid
+/// Uses domain interfaces to maintain bounded context isolation.
 class MessageRetryService {
+  MessageRetryService(this._aiService);
+  final IChatAIService _aiService;
+
   /// Retry sending message with validation and exponential backoff
   Future<AIResponse> sendWithRetries({
     required final List<Map<String, String>> history,
@@ -13,7 +17,7 @@ class MessageRetryService {
     final bool enableImageGeneration = false,
     final int maxRetries = 3,
   }) async {
-    AIResponse response = await AIService.sendMessage(
+    AIResponse response = await _aiService.sendMessage(
       history,
       systemPrompt,
       model: model,
@@ -29,7 +33,7 @@ class MessageRetryService {
       final waitSeconds = _extractWaitSeconds(response.text);
       await Future.delayed(Duration(seconds: waitSeconds));
 
-      response = await AIService.sendMessage(
+      response = await _aiService.sendMessage(
         history,
         systemPrompt,
         model: model,

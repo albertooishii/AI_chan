@@ -45,6 +45,8 @@ class GrokService implements AIService {
         if (names.isEmpty) {
           return ['grok-3'];
         }
+        // Ordenar alfabéticamente descendente (Z-A)
+        names.sort((final a, final b) => b.compareTo(a));
         return names;
       }
       Log.w('[GrokService] getAvailableModels failed: ${resp.statusCode}');

@@ -2,16 +2,15 @@ import 'dart:async';
 import 'package:ai_chan/call/domain/entities/voice_call_state.dart';
 import 'package:ai_chan/call/domain/interfaces/call_interfaces.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
-import 'package:ai_chan/chat/application/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro
+import 'package:ai_chan/core/domain/interfaces/i_call_to_chat_communication_service.dart'; // ✅ Bounded Context Abstraction
 
 class EndCallUseCase {
-  EndCallUseCase(this._callManager);
-  final ICallManager _callManager;
+  EndCallUseCase(this._callManager, this._chatCommunicationService);
 
-  Future<void> execute({
-    required final ChatController chatController, // ✅ DDD: ETAPA 3 - DDD puro
-    required final VoiceCallState callState,
-  }) async {
+  final ICallManager _callManager;
+  final ICallToChatCommunicationService _chatCommunicationService;
+
+  Future<void> execute({required final VoiceCallState callState}) async {
     try {
       Log.d('🔚 EndCallUseCase: Finalizando llamada', tag: 'END_CALL_USE_CASE');
 
@@ -19,10 +18,9 @@ class EndCallUseCase {
       await _callManager.endCall();
 
       // Actualizar estado en ChatProvider
-      await _updateChatController(
-        chatController: chatController,
+      await _updateChatCommunication(
         callState: callState,
-      ); // ✅ DDD: ETAPA 3
+      ); // ✅ Bounded Context Abstraction
 
       Log.d(
         '✅ EndCallUseCase: Llamada finalizada exitosamente',
@@ -34,11 +32,10 @@ class EndCallUseCase {
     }
   }
 
-  Future<void> _updateChatController({
-    required final ChatController chatController, // ✅ DDD: ETAPA 3
+  Future<void> _updateChatCommunication({
     required final VoiceCallState callState,
   }) async {
-    // ✅ DDD: ETAPA 3 - usar ChatController directo
+    // ✅ Bounded Context Abstraction - usar interfaz en lugar de dependencia directa
     try {
       // Determinar tipo de finalización de llamada
       final shouldMarkRejected = callState.forceReject;
@@ -47,55 +44,46 @@ class EndCallUseCase {
           callState.endReason == CallEndReason.missed;
 
       if (shouldMarkRejected) {
-        await _handleRejectedCall(
-          chatController: chatController,
-          callState: callState,
-        );
+        await _handleRejectedCall(callState: callState);
       } else if (shouldMarkMissed) {
-        await _handleMissedCall(
-          chatController: chatController,
-          callState: callState,
-        );
+        await _handleMissedCall(callState: callState);
       } else {
-        await _handleCompletedCall(
-          chatController: chatController,
-          callState: callState,
-        );
+        await _handleCompletedCall(callState: callState);
       }
     } on Exception catch (e) {
       Log.e(
-        '❌ Error actualizando ChatController',
+        '❌ Error actualizando comunicación con chat',
         tag: 'END_CALL_USE_CASE',
         error: e,
-      ); // ✅ DDD: ETAPA 3
+      ); // ✅ Bounded Context Abstraction
     }
   }
 
   Future<void> _handleRejectedCall({
-    required final ChatController chatController, // ✅ DDD: ETAPA 3
     required final VoiceCallState callState,
   }) async {
-    // ✅ DDD: ETAPA 3 - usar ChatController directo
+    // ✅ Bounded Context Abstraction - usar interfaz
     final rejectionText = _getRejectionText(callState.endReason);
-    await chatController.sendMessage(text: rejectionText); // ✅ DDD: ETAPA 3
+    await _chatCommunicationService.sendCallMessage(
+      text: rejectionText,
+      callType: 'rejected',
+    ); // ✅ Bounded Context Abstraction
   }
 
   Future<void> _handleMissedCall({
-    required final ChatController chatController,
     required final VoiceCallState callState,
   }) async {
-    // ✅ DDD: ETAPA 3
-    // ✅ DDD: ETAPA 3 - usar ChatController directo
-    await chatController.sendMessage(
+    // ✅ Bounded Context Abstraction
+    await _chatCommunicationService.sendCallMessage(
       text: 'Llamada sin contestar',
-    ); // ✅ DDD: ETAPA 3
+      callType: 'missed',
+    ); // ✅ Bounded Context Abstraction
   }
 
   Future<void> _handleCompletedCall({
-    required final ChatController chatController, // ✅ DDD: ETAPA 3
     required final VoiceCallState callState,
   }) async {
-    // ✅ DDD: Type safety en ETAPA 2
+    // ✅ Bounded Context Abstraction: Type safety en ETAPA 2
     // Para llamadas completadas, generar resumen si hay contenido
     if (callState.aiText.isNotEmpty || callState.userText.isNotEmpty) {
       // TODO: Implementar generación de resumen de llamada
