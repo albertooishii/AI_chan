@@ -1,0 +1,257 @@
+# 🚀 AI Providers Configuration
+# Dynamic AI Providers System - Configuration File
+# This file defines all available AI providers, their capabilities, and fallback chains
+
+version: "1.0.0"
+metadata:
+  description: "AI Providers configuration for AI-chan"
+  created: "2025-09-08"
+  last_updated: "2025-09-08"
+
+# Global settings
+global_settings:
+  default_timeout_seconds: 30
+  max_retries: 3
+  retry_delay_seconds: 1
+  enable_fallback: true
+  log_provider_usage: true
+  debug_mode: false
+
+# AI Providers Configuration
+ai_providers:
+  openai:
+    enabled: true
+    priority: 1
+    display_name: "OpenAI GPT"
+    description: "OpenAI models with advanced text generation, image analysis, and creation"
+    
+    capabilities:
+      - text_generation
+      - image_generation
+      - image_analysis
+      - realtime_conversation
+    
+    api_settings:
+      base_url: "https://api.openai.com"
+      version: "v1"
+      authentication_type: "bearer_token"
+      required_env_keys:
+        - "OPENAI_API_KEY"
+    
+    models:
+      text_generation:
+        - "gpt-5"
+        - "gpt-4.1"
+        - "gpt-4.1-mini"
+        - "gpt-4o"
+        - "gpt-4o-mini"
+      image_generation:
+        - "gpt-5"
+        - "gpt-4.1"
+        - "gpt-4o"
+      image_analysis:
+        - "gpt-5"
+        - "gpt-4.1"
+        - "gpt-4o"
+        - "gpt-4.1-vision"
+      realtime_conversation:
+        - "gpt-5"
+        - "gpt-4.1"
+        - "gpt-4o"
+    
+    defaults:
+      text_generation: "gpt-4.1-mini"
+      image_generation: "gpt-4.1"
+      image_analysis: "gpt-4.1-vision"
+      realtime_conversation: "gpt-4.1"
+    
+    rate_limits:
+      requests_per_minute: 3500
+      tokens_per_minute: 350000
+    
+    configuration:
+      max_context_tokens: 128000
+      max_output_tokens: 4096
+      supports_streaming: true
+      supports_function_calling: true
+      supports_tools: true
+
+  google:
+    enabled: true
+    priority: 2
+    display_name: "Google Gemini"
+    description: "Google Gemini models with multimodal capabilities"
+    
+    capabilities:
+      - text_generation
+      - image_generation
+      - image_analysis
+      - realtime_conversation
+    
+    api_settings:
+      base_url: "https://generativelanguage.googleapis.com"
+      version: "v1beta"
+      authentication_type: "api_key"
+      required_env_keys:
+        - "GEMINI_API_KEY"
+    
+    models:
+      text_generation:
+        - "gemini-2.5-flash"
+        - "gemini-2.5"
+        - "gemini-1.5-flash-latest"
+        - "gemini-1.5-pro-latest"
+      image_generation:
+        - "gemini-2.5-flash-image-preview"
+        - "gemini-2.5-flash"
+      image_analysis:
+        - "gemini-2.5-flash"
+        - "gemini-2.5"
+        - "gemini-1.5-flash-latest"
+      realtime_conversation:
+        - "gemini-2.5-flash"
+        - "gemini-2.5"
+    
+    defaults:
+      text_generation: "gemini-2.5-flash"
+      image_generation: "gemini-2.5-flash-image-preview"
+      image_analysis: "gemini-2.5-flash"
+      realtime_conversation: "gemini-2.5-flash"
+    
+    rate_limits:
+      requests_per_minute: 2000
+      tokens_per_minute: 1000000
+    
+    configuration:
+      max_context_tokens: 1000000
+      max_output_tokens: 8192
+      supports_streaming: true
+      supports_function_calling: true
+      supports_tools: false
+
+  xai:
+    enabled: true
+    priority: 3
+    display_name: "X.AI Grok"
+    description: "X.AI Grok models for advanced reasoning and text generation"
+    
+    capabilities:
+      - text_generation
+      - image_analysis
+    
+    api_settings:
+      base_url: "https://api.x.ai"
+      version: "v1"
+      authentication_type: "bearer_token"
+      required_env_keys:
+        - "GROK_API_KEY"
+    
+    models:
+      text_generation:
+        - "grok-4"
+        - "grok-3"
+        - "grok-2"
+        - "grok-beta"
+        - "grok-vision-beta"
+      image_analysis:
+        - "grok-vision-beta"
+        - "grok-4"
+    
+    defaults:
+      text_generation: "grok-4"
+      image_analysis: "grok-vision-beta"
+    
+    rate_limits:
+      requests_per_minute: 5000
+      tokens_per_minute: 200000
+    
+    configuration:
+      max_context_tokens: 131072
+      max_output_tokens: 4096
+      supports_streaming: false
+      supports_function_calling: false
+      supports_tools: false
+
+# Fallback chains define which providers to try in sequence for each capability
+fallback_chains:
+  text_generation:
+    primary: "openai"
+    fallbacks:
+      - "google"
+      - "xai"
+    
+  image_generation:
+    primary: "openai"
+    fallbacks:
+      - "google"
+    
+  image_analysis:
+    primary: "openai"
+    fallbacks:
+      - "google"
+      - "xai"
+    
+  realtime_conversation:
+    primary: "openai"
+    fallbacks:
+      - "google"
+
+# Environment-specific overrides
+environments:
+  development:
+    global_settings:
+      debug_mode: true
+      log_provider_usage: true
+    
+    ai_providers:
+      openai:
+        defaults:
+          text_generation: "gpt-4.1-mini"  # Use cheaper model in dev
+      google:
+        defaults:
+          text_generation: "gemini-2.5-flash"  # Use faster model in dev
+  
+  production:
+    global_settings:
+      debug_mode: false
+      log_provider_usage: false
+    
+    ai_providers:
+      openai:
+        defaults:
+          text_generation: "gpt-4.1"  # Use better model in prod
+      google:
+        defaults:
+          text_generation: "gemini-2.5"  # Use better model in prod
+
+# Advanced routing rules
+routing_rules:
+  # Route image generation requests to specific providers based on request type
+  image_generation:
+    avatar_requests:
+      preferred_provider: "openai"
+      fallback_providers: ["google"]
+    
+    creative_requests:
+      preferred_provider: "google"
+      fallback_providers: ["openai"]
+  
+  # Route based on context length
+  text_generation:
+    long_context:
+      threshold_tokens: 50000
+      preferred_provider: "google"  # Gemini has 1M token context
+      fallback_providers: ["openai", "xai"]
+    
+    short_context:
+      threshold_tokens: 50000
+      preferred_provider: "openai"
+      fallback_providers: ["google", "xai"]
+
+# Health check configuration
+health_checks:
+  enabled: true
+  interval_minutes: 5
+  timeout_seconds: 10
+  failure_threshold: 3
+  success_threshold: 2
