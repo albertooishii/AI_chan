@@ -55,6 +55,8 @@ class GeminiService implements AIService {
         usedKey = secondKey;
         response = r2;
       } else {
+        // Actualizar usedKey para logging correcto aunque falle
+        usedKey = secondKey;
         // Si también falla, mantener la respuesta original
         response = r2;
       }
@@ -302,16 +304,24 @@ class GeminiService implements AIService {
           secondKey.isNotEmpty &&
           AIServiceUtils.isQuotaLike(resp.statusCode, resp.body)) {
         Log.w(
-          '[Gemini] ${resp.statusCode} con primera clave; reintentando con alternativa.',
+          '[Gemini] ${resp.statusCode} con primera clave (${firstKey == primary ? 'PRIMARY' : 'FALLBACK'}); reintentando con alternativa (${secondKey == primary ? 'PRIMARY' : 'FALLBACK'}).',
         );
 
         final r2 = await doPost(secondKey);
 
         if (r2.statusCode == 200) {
+          Log.i(
+            '[Gemini] Éxito con clave alternativa (${secondKey == primary ? 'PRIMARY' : 'FALLBACK'})',
+          );
           _preferFallback = (secondKey == fallback);
           keyUsed = secondKey;
           resp = r2;
         } else {
+          Log.w(
+            '[Gemini] Falló también con clave alternativa (${secondKey == primary ? 'PRIMARY' : 'FALLBACK'}): ${r2.statusCode}',
+          );
+          // Actualizar keyUsed para logging correcto aunque falle
+          keyUsed = secondKey;
           resp = r2; // conservar el último error
         }
       } else if (resp.statusCode == 200) {

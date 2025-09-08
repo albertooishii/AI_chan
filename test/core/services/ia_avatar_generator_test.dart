@@ -57,8 +57,8 @@ void main() {
 
   test('generateAvatarWithRetries throws when no base64 returned', () async {
     final fake = FakeAIService.withResponses([
-      AIResponse(text: ''),
-      AIResponse(text: ''),
+      AIResponse(text: 'No image generated'),
+      AIResponse(text: 'Still no image'),
     ]);
     AIService.testOverride = fake;
     final baseTmp = Directory('${Directory.systemTemp.path}/ai_chan');

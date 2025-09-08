@@ -114,29 +114,9 @@ class Config {
     }
 
     try {
-      // Inicializar dotenv primero
+      // Cargar dotenv desde el archivo .env en el directorio raíz del proyecto
       await dotenv.load();
-      debugPrint('Config: dotenv initialized successfully');
-
-      // Intentar cargar el archivo .env manualmente
-      final envFile = File('.env');
-      if (envFile.existsSync()) {
-        final contents = await envFile.readAsString();
-        final lines = contents.split('\n');
-        for (final line in lines) {
-          final trimmed = line.trim();
-          if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
-          final parts = trimmed.split('=');
-          if (parts.length >= 2) {
-            final key = parts[0].trim();
-            final value = parts.sublist(1).join('=').trim();
-            dotenv.env[key] = value;
-          }
-        }
-        debugPrint('Config: Loaded .env file manually');
-      } else {
-        throw Exception('File not found');
-      }
+      debugPrint('Config: dotenv loaded successfully from .env file');
     } on Exception catch (e) {
       debugPrint('Config: Failed to load .env file: $e');
       // Si no hay .env en disco, cargamos valores por defecto

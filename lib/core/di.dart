@@ -49,6 +49,8 @@ import 'package:ai_chan/chat/domain/interfaces/i_chat_logging_utils_service.dart
 import 'package:ai_chan/chat/domain/interfaces/i_chat_preferences_utils_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_debounced_persistence_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_message_queue_manager.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_chat_ai_service.dart'; // For ChatAIService interface
+import 'package:ai_chan/chat/infrastructure/ai/chat_ai_service_adapter.dart'; // Direct import for DI
 import 'package:ai_chan/chat/domain/interfaces/i_chat_file_operations_service.dart';
 import 'package:ai_chan/chat/infrastructure/adapters/local_chat_repository.dart';
 import 'package:ai_chan/chat/infrastructure/adapters/audio_chat_service.dart';
@@ -438,6 +440,7 @@ IProfileService getProfileServiceForProvider([final String? provider]) {
 
 /// Application Services Factories
 ChatApplicationService getChatApplicationService() => ChatApplicationService(
+  chatAIService: const ChatAIServiceAdapter(),
   repository: getChatRepository(),
   promptBuilder: PromptBuilderService(),
   fileOperations:
@@ -490,6 +493,9 @@ CallSummaryService getCallSummaryService(final Map<String, dynamic> profile) =>
     );
 
 IUIStateService getUIStateService() => BasicUIStateService();
+
+/// Chat AI Service Factory
+IChatAIService getChatAIServiceAdapter() => const ChatAIServiceAdapter();
 
 /// Chat Domain Services Factories
 IChatPromiseService getChatPromiseService() => BasicChatPromiseService();

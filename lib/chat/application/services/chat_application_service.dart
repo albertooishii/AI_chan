@@ -10,11 +10,13 @@ import 'package:ai_chan/core/di.dart' as di;
 import 'package:ai_chan/chat/index.dart'; // Para PeriodicIaMessageScheduler y domain interfaces
 import 'package:ai_chan/chat/application/index.dart';
 import 'package:ai_chan/chat/application/services/debounced_save.dart'; // No está en barrel
+import 'package:ai_chan/chat/application/services/message_retry_service.dart';
 
 import 'package:ai_chan/shared/index.dart';
 import 'package:ai_chan/shared/utils/index.dart';
 import 'package:ai_chan/shared/application/index.dart';
 import 'package:ai_chan/shared/services/google_backup_service.dart';
+import 'package:ai_chan/shared/services/ai_service.dart' as ai_service;
 
 /// Callback para notificar cambios de estado a la UI
 typedef StateChangeCallback = void Function();
@@ -28,12 +30,14 @@ class ChatApplicationService {
     required final IPromptBuilderService promptBuilder,
     required final IFileOperationsService fileOperations,
     required final ISecureStorageService secureStorage,
+    required final IChatAIService chatAIService,
     final MemoryManager? memoryManagerParam,
     final PeriodicIaMessageScheduler? periodicScheduler,
   }) : _repository = repository,
        _promptBuilder = promptBuilder,
        _fileOperations = fileOperations,
        _secureStorage = secureStorage,
+       _chatAIService = chatAIService,
        memoryManager = memoryManagerParam,
        _periodicScheduler = periodicScheduler ?? PeriodicIaMessageScheduler() {
     // Inicializar audio service con callbacks vacíos por ahora
@@ -86,8 +90,10 @@ class ChatApplicationService {
               sendMessage(text: text, model: model),
     );
 
-    // Initialize SendMessageUseCase
-    _sendMessageUseCase = SendMessageUseCase();
+    // Initialize SendMessageUseCase with proper AI service
+    _sendMessageUseCase = SendMessageUseCase(
+      retryService: MessageRetryService(_chatAIService),
+    );
 
     // Initialize DebouncedSave for persistence optimization
     _debouncedPersistence = DebouncedSave(
@@ -102,6 +108,7 @@ class ChatApplicationService {
   factory ChatApplicationService.withDefaults({
     required final IChatRepository repository,
     required final IPromptBuilderService promptBuilder,
+    final IChatAIService? chatAIService,
     final MemoryManager? memoryManager,
     final PeriodicIaMessageScheduler? periodicScheduler,
   }) {
@@ -111,6 +118,7 @@ class ChatApplicationService {
     final fileOps = di.getBasicFileOperationsService();
 
     return ChatApplicationService(
+      chatAIService: chatAIService ?? di.getChatAIServiceAdapter(),
       repository: repository,
       promptBuilder: promptBuilder,
       fileOperations: fileOps,
@@ -123,6 +131,7 @@ class ChatApplicationService {
   final IPromptBuilderService _promptBuilder;
   final IFileOperationsService _fileOperations;
   final ISecureStorageService _secureStorage;
+  final IChatAIService _chatAIService;
   late final IAudioChatService _audioService;
   final MemoryManager? memoryManager;
   final PeriodicIaMessageScheduler _periodicScheduler;
@@ -560,7 +569,21 @@ class ChatApplicationService {
   }
 
   Future<List<String>> getAllModels({final bool forceRefresh = false}) async {
-    return ['gpt-4', 'gpt-3.5-turbo', 'claude-3'];
+    try {
+      // Usar el método correcto que obtiene modelos ordenados por proveedor:
+      // Primero Gemini, después OpenAI, después Grok
+      return await ai_service.getAllAIModels(forceRefresh: forceRefresh);
+    } on Exception catch (e) {
+      Log.w('[ChatService] Error obteniendo modelos: $e');
+      // Fallback a modelos estáticos si falla la obtención dinámica
+      return [
+        'gemini-2.5-flash',
+        'gemini-2.5-pro',
+        'gpt-4o-mini',
+        'gpt-4o',
+        'grok-3',
+      ];
+    }
   }
 
   /// Google integration

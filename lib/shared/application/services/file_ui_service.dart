@@ -1,5 +1,5 @@
 import 'package:ai_chan/shared/domain/interfaces/i_file_operations_service.dart';
-import 'dart:convert';
+import 'package:ai_chan/shared/utils/image_utils.dart';
 
 /// Servicio de aplicación para operaciones de archivo desde la UI.
 /// Proporciona una interfaz limpia para que los widgets accedan a archivos
@@ -82,25 +82,13 @@ class FileUIService {
     return dir.endsWith('/') ? '$dir$fileName' : '$dir/$fileName';
   }
 
-  /// Guarda una imagen en base64 como archivo
+  /// Guarda una imagen en base64 como archivo en el directorio correcto de la aplicación
   Future<String?> saveBase64Image(
     final String base64, {
     final String prefix = 'img',
   }) async {
-    try {
-      final bytes = base64Decode(base64);
-      final fileName = '${prefix}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-      // Crear un path temporal, la implementación concreta manejará el directorio
-      final imagePath = 'temp/$fileName';
-
-      await _fileOperations.createDirectories(getDirectoryPath(imagePath));
-      await _fileOperations.writeFileAsBytes(imagePath, bytes);
-
-      return fileName;
-    } on Exception {
-      return null;
-    }
+    // Delegar al servicio de imagen que maneja correctamente el directorio de la aplicación
+    return await saveBase64ImageToFile(base64, prefix: prefix);
   }
 
   /// Crea un archivo temporal desde bytes y devuelve su path

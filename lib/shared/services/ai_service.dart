@@ -40,17 +40,28 @@ abstract class AIService {
       try {
         final response = await operation();
 
-        // Si la respuesta contiene texto, consideramos que fue exitosa
+        // Verificar primero si es un error no transitorio (aunque tenga texto)
+        if (response.text.isNotEmpty && _isTransientError(response.text)) {
+          if (attempt < maxRetries) {
+            final delayMs = baseDelayMs * (1 << attempt);
+            Log.w(
+              '[$serviceName] Error transitorio detectado para modelo $modelName (intento ${attempt + 1}/$maxRetries). Reintentando en ${delayMs}ms...',
+            );
+            await Future.delayed(Duration(milliseconds: delayMs));
+            continue;
+          }
+        }
+
+        // Si la respuesta contiene texto y no es un error transitorio, consideramos que fue exitosa
         if (response.text.isNotEmpty) {
           return response;
         }
 
-        // Si está vacía, podría ser un error que no lanzó excepción
-        // Intentamos detectar si es un error transitorio por el contenido
-        if (attempt < maxRetries && _isTransientError(response.text)) {
+        // Si está vacía, reintentamos hasta agotar los intentos
+        if (attempt < maxRetries) {
           final delayMs = baseDelayMs * (1 << attempt);
           Log.w(
-            '[$serviceName] Posible error transitorio detectado para modelo $modelName (intento ${attempt + 1}/$maxRetries). Reintentando en ${delayMs}ms...',
+            '[$serviceName] Respuesta vacía para modelo $modelName (intento ${attempt + 1}/$maxRetries). Reintentando en ${delayMs}ms...',
           );
           await Future.delayed(Duration(milliseconds: delayMs));
           continue;
@@ -80,6 +91,16 @@ abstract class AIService {
   /// Detecta si una excepción representa un error transitorio que merece reintento
   static bool _isTransientException(final Exception e) {
     final errorStr = e.toString().toLowerCase();
+
+    // Errores no transitorios que NO deben reintentarse (400, 401, 403, 404)
+    if (errorStr.contains('400') ||
+        errorStr.contains('401') ||
+        errorStr.contains('403') ||
+        errorStr.contains('404') ||
+        errorStr.contains('context_length_exceeded') ||
+        errorStr.contains('invalid_request_error')) {
+      return false;
+    }
 
     // Errores de conexión de red
     if (errorStr.contains('socketexception') ||
@@ -112,6 +133,17 @@ abstract class AIService {
   /// Detecta si el contenido de respuesta indica un error transitorio
   static bool _isTransientError(final String responseText) {
     final text = responseText.toLowerCase();
+
+    // Errores no transitorios que NO deben reintentarse
+    if (text.contains('context_length_exceeded') ||
+        text.contains('invalid_request_error') ||
+        text.contains('context window') ||
+        text.contains('error 400') ||
+        text.contains('error 401') ||
+        text.contains('error 403') ||
+        text.contains('error 404')) {
+      return false;
+    }
 
     return text.contains('overloaded') ||
         text.contains('rate limit') ||

@@ -265,13 +265,8 @@ class OpenAIService implements AIService {
         input.add(imageGenCall);
       }
     }
-    final int tokens = estimateTokens(history, systemPrompt);
-    if (tokens > 128000) {
-      return AIResponse(
-        text:
-            'Error: El mensaje supera el límite de 128,000 tokens permitido por GPT-5 y GPT-4o. Reduce la cantidad de mensajes o bloques.',
-      );
-    }
+    // Ya no imponemos corte local por tokens: dejamos que OpenAI gestione límites reales.
+    // (Antes: se devolvía error si tokens > 128000)
     final Map<String, dynamic> bodyMap = {
       'model':
           model ??

@@ -84,7 +84,11 @@ class FakeAIService extends AIService {
     // If a sequence of responses was provided, return them in order.
     if (responses != null) {
       if (_idx >= responses!.length) {
-        return AIResponse(text: '');
+        // Instead of returning empty response, cycle back to last response or throw
+        if (responses!.isNotEmpty) {
+          return responses!.last;
+        }
+        return AIResponse(text: 'No more responses available');
       }
       final r = responses![_idx];
       _idx++;
