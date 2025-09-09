@@ -8,12 +8,6 @@
     },
     "dart.lineLength": 120,
     "dart.runPubGetOnPubspecChanges": "never",
-    "files.watcherExclude": {
-        "**/.git/objects/**": true,
-        "**/.git/subtree-cache/**": true,
-        "**/build/**": true,
-        "**/.dart_tool/**": true
-    },
     "gitlens.autolinks": null,
     "gitlens.hovers.enabled": false,
     "gitlens.codeLens.enabled": false,
@@ -25,12 +19,27 @@
     "dart.flutterHotReloadOnSave": "all",
     "cmake.sourceDirectory": "/home/albertooishii/AI_chan/ai_chan/linux",
     
-    // Configuración para aplicar dart fix automáticamente al guardar
+    "dart.closeFileDeletesFromList": true,
+    "dart.updateImportsOnRename": true,
+    "dart.renameFilesWithClasses": "prompt",
+    "dart.allowAnalytics": false,
+    "dart.checkForSdkUpdates": false,
+    "dart.automaticCommentSlashes": "none",
+    "dart.showTodos": false,
+    "dart.previewHotReloadOnSaveWatcher": false,
+    "dart.completeFunctionCalls": false,
+    "dart.enableSdkFormatter": true,
+    "dart.promptToGetPackages": false,
+    "dart.flutterCreateAndroidLanguage": "kotlin",
+    "dart.flutterCreateIOSLanguage": "swift",
+    "dart.analyzeAngularTemplates": false,
+    "dart.previewLsp": true,
+    "dart.openDevTools": "never",
+    
     "editor.codeActionsOnSave": {
         "source.fixAll": "explicit"
     },
     
-    // Habilitar formateo automático para archivos Dart
     "[dart]": {
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
@@ -38,29 +47,52 @@
         }
     },
     
-    // 🔧 CONFIGURACIONES PARA EVITAR ARCHIVOS FANTASMA
-    "files.enableTrash": true,                    // Usar papelera del sistema
-    "files.hotExit": "onExitAndWindowClose",      // No restaurar archivos eliminados
-    "workbench.editor.restoreViewState": false,   // No restaurar estado de pestañas
-    "workbench.editor.enablePreview": false,      // Evitar pestañas en preview
-    "workbench.editor.openPositioning": "last",  // Nuevas pestañas al final
-    "workbench.editor.closeEmptyGroups": true,   // Cerrar grupos vacíos
-    "window.restoreWindows": "none",              // No restaurar ventanas al iniciar
-    "files.exclude": {                            // Excluir archivos temporales del explorador
+    "files.enableTrash": true,
+    "files.hotExit": "onExitAndWindowClose",
+    "workbench.editor.restoreViewState": false,
+    "workbench.editor.enablePreview": false,
+    "workbench.editor.openPositioning": "last",
+    "workbench.editor.closeEmptyGroups": true,
+    "window.restoreWindows": "none",
+    "workbench.editor.enablePreviewFromCodeNavigation": false,
+    "workbench.editor.enablePreviewFromQuickOpen": false,
+    "problems.showCurrentInStatus": false,
+    "breadcrumbs.enabled": false,
+    "workbench.editor.revealIfOpen": false,
+    "workbench.editor.highlightModifiedTabs": true,
+    "workbench.editor.decorations.colors": false,
+    "workbench.editor.decorations.badges": false,
+    "workbench.startup.editor": "none",
+    "workbench.editor.centeredLayoutAutoResize": false,
+    
+    "files.exclude": {
         "**/*.tmp": true,
         "**/*.temp": true,
         "**/*~": true,
         "**/.DS_Store": true,
         "**/Thumbs.db": true
     },
-    "search.exclude": {                           // Excluir de búsquedas
+    "search.exclude": {
         "**/*.tmp": true,
         "**/*.temp": true,
         "**/*~": true,
         "**/.DS_Store": true,
         "**/Thumbs.db": true
     },
-    "files.associations": {                       // Evitar archivos sin extensión problemáticos
+    "files.associations": {
         "**/.vscode/*.json": "jsonc"
+    },
+    
+    "files.watcherExclude": {
+        "**/.git/objects/**": true,
+        "**/.git/subtree-cache/**": true,
+        "**/build/**": true,
+        "**/.dart_tool/**": true,
+        "**/node_modules/**": true,
+        "**/.pub-cache/**": true,
+        "**/coverage/**": true,
+        "**/*.tmp": true,
+        "**/*.temp": true,
+        "**/*~": true
     }
 }

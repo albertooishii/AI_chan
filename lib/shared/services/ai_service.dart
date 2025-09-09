@@ -1,17 +1,19 @@
-// dotenv no se usa aquí; la configuración se centraliza en runtime_factory / Config
+// dotenv no se usa aquí; la configuración se centraliza en Enhanced AI / Config
 import '../utils/debug_call_logger/debug_call_logger.dart';
 import 'package:flutter/foundation.dart';
-import 'package:ai_chan/shared/services/ai_runtime_provider.dart'
-    as runtime_factory;
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/model_utils.dart';
 import 'package:ai_chan/core/cache/cache_service.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared/services/enhanced_ai_runtime_provider.dart';
 
 abstract class AIService {
   /// Test hook: permite inyectar una implementación fake durante tests.
   static AIService? testOverride;
+
+  /// Test hook: desactiva delays en retries durante tests para acelerar ejecución
+  static bool disableDelaysInTests = false;
 
   /// Implementación base para enviar mensajes a la IA.
   ///
@@ -47,7 +49,9 @@ abstract class AIService {
             Log.w(
               '[$serviceName] Error transitorio detectado para modelo $modelName (intento ${attempt + 1}/$maxRetries). Reintentando en ${delayMs}ms...',
             );
-            await Future.delayed(Duration(milliseconds: delayMs));
+            if (!disableDelaysInTests) {
+              await Future.delayed(Duration(milliseconds: delayMs));
+            }
             continue;
           }
         }
@@ -63,7 +67,9 @@ abstract class AIService {
           Log.w(
             '[$serviceName] Respuesta vacía para modelo $modelName (intento ${attempt + 1}/$maxRetries). Reintentando en ${delayMs}ms...',
           );
-          await Future.delayed(Duration(milliseconds: delayMs));
+          if (!disableDelaysInTests) {
+            await Future.delayed(Duration(milliseconds: delayMs));
+          }
           continue;
         }
 
@@ -75,7 +81,9 @@ abstract class AIService {
           Log.w(
             '[$serviceName] Error transitorio para modelo $modelName (intento ${attempt + 1}/$maxRetries): $e. Reintentando en ${delayMs}ms...',
           );
-          await Future.delayed(Duration(milliseconds: delayMs));
+          if (!disableDelaysInTests) {
+            await Future.delayed(Duration(milliseconds: delayMs));
+          }
           continue;
         }
 
@@ -165,15 +173,15 @@ abstract class AIService {
     final String? imageMimeType,
     final bool enableImageGeneration = false,
   }) async {
-    model = model ?? runtime_factory.getDefaultModelId();
-    // Resolver runtime: prefer testOverride si está presente, si no usar la fábrica
+    model = model ?? Config.getDefaultTextModel();
+    // Resolver runtime: prefer testOverride si está presente, si no usar Enhanced AI
     final AIService? override = AIService.testOverride;
     late AIService aiService;
     if (override != null) {
       aiService = override;
     } else {
       try {
-        aiService = runtime_factory.getRuntimeAIServiceForModel(model);
+        aiService = await EnhancedAIRuntimeProvider.getAIServiceForModel(model);
       } on Exception {
         // Fall back silently: return an empty response on resolution failure.
         return AIResponse(text: '');
@@ -187,25 +195,17 @@ abstract class AIService {
       );
     } on Exception catch (_) {}
 
-    // Sanity: asegurar que el runtime seleccionado coincide con el prefijo del modelo
+    // Sanity: Enhanced AI system ya hace routing correcto por modelo
     try {
       final modelNorm = model.trim().toLowerCase();
       final implType = aiService.runtimeType.toString();
       // IMPORTANT: If a test override is set, do not replace it. Tests rely on testOverride fakes.
       if (AIService.testOverride == null) {
-        if (modelNorm.startsWith('gpt-') && implType != 'OpenAIService') {
-          debugPrint(
-            '[AIService] Runtime mismatch: recreating OpenAIService for $modelNorm',
-          );
-          aiService = runtime_factory.getRuntimeAIServiceForModel(modelNorm);
-        } else if ((modelNorm.startsWith('gemini-') ||
-                modelNorm.startsWith('imagen-')) &&
-            implType != 'GeminiService') {
-          debugPrint(
-            '[AIService] Runtime mismatch: recreating GeminiService for $modelNorm',
-          );
-          aiService = runtime_factory.getRuntimeAIServiceForModel(modelNorm);
-        }
+        // Enhanced AI system already handles proper provider selection,
+        // but we can log for debugging
+        debugPrint(
+          '[AIService] Using Enhanced AI runtime for model: $modelNorm, type: $implType',
+        );
       } else {
         // keep test override silently
       }
@@ -351,7 +351,7 @@ abstract class AIService {
   Future<List<String>> getAvailableModels();
 
   /// Selecciona el servicio IA adecuado según el modelo
-  // Note: AIService.select removed — runtime resolution must use runtime_factory.getRuntimeAIServiceForModel
+  // Note: AIService.select removed — runtime resolution must use EnhancedAIRuntimeProvider.getAIServiceForModel
 }
 
 /// Devuelve la lista combinada de modelos de todos los servicios IA
@@ -403,7 +403,7 @@ Future<List<String>> getAllAIModels({final bool forceRefresh = false}) async {
   for (final provider in providerOrder) {
     try {
       final rep = representativeForProvider(provider);
-      final service = runtime_factory.getRuntimeAIServiceForModel(rep);
+      final service = await EnhancedAIRuntimeProvider.getAIServiceForModel(rep);
       final providerName = service.runtimeType.toString().toLowerCase();
 
       // If cache present and allowed, use it as-is (preserves order)
@@ -458,7 +458,7 @@ Future<List<String>> getAllAIModels({final bool forceRefresh = false}) async {
     }
     if (n.startsWith('grok-') && providerOrder.contains('Grok')) continue;
     try {
-      final s = runtime_factory.getRuntimeAIServiceForModel(ex);
+      final s = await EnhancedAIRuntimeProvider.getAIServiceForModel(ex);
       final providerName = s.runtimeType.toString().toLowerCase();
       bool shouldUseCache = !forceRefresh;
       if (shouldUseCache) {

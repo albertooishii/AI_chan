@@ -9,6 +9,8 @@ import 'fakes/fake_connectors.dart' as fake_connectors;
 import 'fakes/fake_http_client.dart';
 import 'fakes/fake_audio_playback.dart';
 import 'package:ai_chan/core/http_connector.dart';
+import 'package:ai_chan/shared/services/ai_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
 
 // (No global fake realtime client here — tests opt-in to install fakes
 // using `di.setTestRealtimeClientFactory(...)` when they need to.)
@@ -48,7 +50,13 @@ Future<void> initializeTestEnvironment({
   final String? dotenvContents,
 }) async {
   TestWidgetsFlutterBinding.ensureInitialized();
-  // Ensure tests run with minimal noisy logging
+
+  // ⚡ ACELERAR TESTS: Desactivar delays en retries de AIService
+  AIService.disableDelaysInTests = true;
+
+  // 🧪 TESTS: Desactivar validación de environment variables
+  AIProviderConfigLoader.skipEnvironmentValidation =
+      true; // Ensure tests run with minimal noisy logging
   // Create a central temporary base directory for ai_chan tests under systemTemp
   final baseTmp = Directory('${Directory.systemTemp.path}/ai_chan');
   if (!baseTmp.existsSync()) baseTmp.createSync(recursive: true);
@@ -67,13 +75,16 @@ Future<void> initializeTestEnvironment({
     'TEST_CACHE_DIR': tmpCacheDir.path,
   });
 
-  // Provide test environment with required default models
+  // Provide test environment with required default models and ALL API keys for tests
   final testDotenvContents =
       dotenvContents ??
       '''
 DEFAULT_TEXT_MODEL=gemini-1.5-flash-latest
 DEFAULT_IMAGE_MODEL=gemini-1.5-flash-latest
 GEMINI_API_KEY=test_key
+OPENAI_API_KEY=test_openai_key
+ANTHROPIC_API_KEY=test_anthropic_key
+MISTRAL_API_KEY=test_mistral_key
 ''';
 
   await Config.initialize(dotenvContents: testDotenvContents);

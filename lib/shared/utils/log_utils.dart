@@ -14,6 +14,7 @@ class Log {
       raw = Config.get('DEBUG_MODE', '').toLowerCase().trim();
       if (raw.isEmpty) raw = null;
     } on Exception catch (_) {
+      // Si Config no está inicializado o falla, usar valor por defecto
       raw = null;
     }
     switch (raw) {
@@ -28,7 +29,13 @@ class Log {
         return LogLevel.error;
       default:
         // Si no se define: en debug -> debug, en release -> warn
-        return kDebugMode ? LogLevel.debug : LogLevel.warn;
+        // Durante tests, usar un nivel permisivo por defecto
+        if (kDebugMode) {
+          return LogLevel.debug;
+        } else {
+          // En tests o cuando Config no está disponible, permitir warn y error
+          return LogLevel.warn;
+        }
     }
   }
 

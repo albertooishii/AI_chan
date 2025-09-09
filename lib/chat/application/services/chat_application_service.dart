@@ -7,15 +7,8 @@ import 'package:ai_chan/core/services/image_request_service.dart';
 import 'package:ai_chan/core/services/memory_summary_service.dart';
 import 'package:ai_chan/core/di.dart' as di;
 
-import 'package:ai_chan/chat/index.dart'; // Para PeriodicIaMessageScheduler y domain interfaces
-import 'package:ai_chan/chat/application/index.dart';
-import 'package:ai_chan/chat/application/services/debounced_save.dart'; // No está en barrel
-import 'package:ai_chan/chat/application/services/message_retry_service.dart';
-
-import 'package:ai_chan/shared/index.dart';
-import 'package:ai_chan/shared/utils/index.dart';
-import 'package:ai_chan/shared/application/index.dart';
-import 'package:ai_chan/shared/services/google_backup_service.dart';
+import 'package:ai_chan/chat.dart'; // Para PeriodicIaMessageScheduler y domain interfaces
+import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/shared/services/ai_service.dart' as ai_service;
 
 /// Callback para notificar cambios de estado a la UI

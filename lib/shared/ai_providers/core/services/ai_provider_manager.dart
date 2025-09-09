@@ -9,6 +9,10 @@ import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_config.dart'
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_factory.dart';
+import 'package:ai_chan/shared/ai_providers/core/interfaces/i_cache_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/in_memory_cache_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/performance_monitoring_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/request_deduplication_service.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 
@@ -24,72 +28,65 @@ class NoProviderAvailableException implements Exception {
 
 /// Main manager for the Dynamic AI Providers system
 class AIProviderManager {
-
-  AIProviderManager._();
-  static AIProviderManager? _instance;
-  static AIProviderManager get instance => _instance ??= AIProviderManager._();
+  AIProviderManager._internal();
+  static final AIProviderManager _instance = AIProviderManager._internal();
+  static AIProviderManager get instance => _instance;
 
   AIProvidersConfig? _config;
-  Map<String, IAIProvider> _providers = {};
+  final Map<String, IAIProvider> _providers = {};
   bool _initialized = false;
 
-  /// Initialize the provider manager with configuration
-  Future<bool> initialize({final String? configPath, final String? environment}) async {
+  // Performance and optimization services
+  ICacheService? _cacheService;
+  PerformanceMonitoringService? _performanceService;
+  RequestDeduplicationService? _deduplicationService;
+
+  /// Initialize the manager with configuration
+  Future<void> initialize() async {
+    if (_initialized) return;
+
     try {
-      Log.i('Initializing AI Provider Manager');
+      Log.i('Initializing AI Provider Manager...');
 
       // Load configuration
-      _config = configPath != null
-          ? await AIProviderConfigLoader.loadFromFile(configPath)
-          : await AIProviderConfigLoader.loadDefault();
-
-      // Apply environment overrides if specified
-      if (environment != null) {
-        _config = AIProviderConfigLoader.applyEnvironmentOverrides(
-          _config!,
-          environment,
-        );
-      }
-
-      // Validate environment variables
-      final missingEnvVars =
-          AIProviderConfigLoader.validateEnvironmentVariables(_config!);
-      if (missingEnvVars.isNotEmpty) {
-        Log.w('Missing environment variables: ${missingEnvVars.join(', ')}');
-        // Continue initialization but some providers might fail
-      }
-
-      // Create providers from configuration
-      _providers = AIProviderFactory.createProviders(_config!.aiProviders);
-
-      // Initialize all providers
-      final initResults = await _initializeProviders();
-
-      // Log initialization results
-      final successCount = initResults.values
-          .where((final success) => success)
-          .length;
-      Log.i(
-        'Initialized $successCount/${initResults.length} providers successfully',
+      _config = await AIProviderConfigLoader.loadDefault();
+      Log.d(
+        'Loaded configuration: ${_config!.aiProviders.length} providers defined',
       );
 
-      // Validate fallback chains
-      final chainErrors = AIProviderFactory.validateFallbackChains(
-        _config!.aiProviders,
-        _config!.fallbackChains,
-      );
+      // Create providers
+      final providers = AIProviderFactory.createProviders(_config!.aiProviders);
+      _providers.clear();
+      _providers.addAll(providers);
 
-      if (chainErrors.isNotEmpty) {
-        Log.w('Fallback chain validation warnings: ${chainErrors.join(', ')}');
-      }
+      // Initialize performance and optimization services
+      _initializeOptimizationServices();
 
       _initialized = true;
       Log.i('AI Provider Manager initialized successfully');
-      return true;
-    } catch (e) {
-      Log.e('Failed to initialize AI Provider Manager: $e');
-      _initialized = false;
-      return false;
+    } on Exception catch (e) {
+      Log.e('Failed to initialize AI Provider Manager', error: e);
+      rethrow;
+    }
+  }
+
+  /// Initialize optimization services (cache, monitoring, deduplication)
+  void _initializeOptimizationServices() {
+    try {
+      // Initialize cache service
+      _cacheService = InMemoryCacheService();
+      Log.d('Cache service initialized');
+
+      // Initialize performance monitoring
+      _performanceService = PerformanceMonitoringService();
+      Log.d('Performance monitoring service initialized');
+
+      // Initialize request deduplication
+      _deduplicationService = RequestDeduplicationService();
+      Log.d('Request deduplication service initialized');
+    } on Exception catch (e) {
+      Log.w('Failed to initialize optimization services: $e');
+      // Continue without optimization services
     }
   }
 
@@ -108,6 +105,58 @@ class AIProviderManager {
       throw StateError('AIProviderManager not initialized');
     }
 
+    // Try deduplication service if available
+    if (_deduplicationService != null) {
+      final fingerprint = _deduplicationService!.createFingerprint(
+        providerId: preferredProviderId ?? '',
+        model: preferredModel ?? '',
+        capability: capability.name,
+        history: history,
+        systemPrompt: systemPrompt,
+        imageBase64: imageBase64,
+        imageMimeType: imageMimeType,
+        additionalParams: additionalParams,
+      );
+
+      return _deduplicationService!.getOrCreateRequest(
+        fingerprint,
+        () => _sendMessageWithMonitoring(
+          history: history,
+          systemPrompt: systemPrompt,
+          capability: capability,
+          preferredProviderId: preferredProviderId,
+          preferredModel: preferredModel,
+          imageBase64: imageBase64,
+          imageMimeType: imageMimeType,
+          additionalParams: additionalParams,
+        ),
+      );
+    }
+
+    // Fallback to direct execution if deduplication is not available
+    return _sendMessageWithMonitoring(
+      history: history,
+      systemPrompt: systemPrompt,
+      capability: capability,
+      preferredProviderId: preferredProviderId,
+      preferredModel: preferredModel,
+      imageBase64: imageBase64,
+      imageMimeType: imageMimeType,
+      additionalParams: additionalParams,
+    );
+  }
+
+  /// Internal method to send message with performance monitoring and caching
+  Future<AIResponse> _sendMessageWithMonitoring({
+    required final List<Map<String, String>> history,
+    required final SystemPrompt systemPrompt,
+    required final AICapability capability,
+    final String? preferredProviderId,
+    final String? preferredModel,
+    final String? imageBase64,
+    final String? imageMimeType,
+    final Map<String, dynamic>? additionalParams,
+  }) async {
     final providersToTry = _getProvidersForCapability(
       capability,
       preferredProviderId,
@@ -132,6 +181,27 @@ class AIProviderManager {
         continue;
       }
 
+      // Check cache first if available
+      CacheKey? cacheKey;
+      if (_cacheService != null) {
+        cacheKey = CacheKey(
+          providerId: providerId,
+          model: preferredModel ?? '',
+          capability: capability.name,
+          messageHash: history.toString().hashCode.toString(),
+          additionalData: additionalParams ?? {},
+        );
+
+        final cachedResponse = await _cacheService!.get(cacheKey);
+        if (cachedResponse != null) {
+          Log.d('Cache hit for provider: $providerId');
+          return cachedResponse;
+        }
+      }
+
+      // Start performance monitoring
+      final startTime = _performanceService?.startTiming() ?? DateTime.now();
+
       try {
         // Determine model to use
         final modelToUse = _selectModel(providerId, capability, preferredModel);
@@ -150,11 +220,31 @@ class AIProviderManager {
           additionalParams: additionalParams,
         );
 
+        // Record successful performance metrics
+        _performanceService?.recordRequest(
+          providerId: providerId,
+          startTime: startTime,
+          success: true,
+        );
+
+        // Cache the response if caching is available
+        if (_cacheService != null && cacheKey != null) {
+          await _cacheService!.set(cacheKey, response);
+        }
+
         Log.i('Successfully received response from provider: $providerId');
         return response;
-      } catch (e) {
+      } on Exception catch (e) {
         Log.w('Provider $providerId failed: $e');
-        lastException = e is Exception ? e : Exception(e.toString());
+        lastException = e;
+
+        // Record failed performance metrics
+        _performanceService?.recordRequest(
+          providerId: providerId,
+          startTime: startTime,
+          success: false,
+          errorType: e.runtimeType.toString(),
+        );
 
         // Continue to next provider in fallback chain
         continue;
@@ -194,7 +284,7 @@ class AIProviderManager {
             capability,
           );
           allModels.addAll(models);
-        } catch (e) {
+        } on Exception catch (e) {
           Log.w('Failed to get models from provider ${entry.key}: $e');
         }
       }
@@ -222,6 +312,24 @@ class AIProviderManager {
         .toList();
   }
 
+  /// Get the first available provider for a specific capability
+  Future<IAIProvider?> getProviderForCapability(
+    final AICapability capability,
+  ) async {
+    if (!_initialized) return null;
+
+    final providersForCapability = _getProvidersForCapability(capability, null);
+
+    for (final providerId in providersForCapability) {
+      final provider = _providers[providerId];
+      if (provider != null && await provider.isHealthy()) {
+        return provider;
+      }
+    }
+
+    return null;
+  }
+
   /// Health check for all providers
   Future<Map<String, bool>> healthCheck() async {
     if (!_initialized) return {};
@@ -231,7 +339,7 @@ class AIProviderManager {
     for (final entry in _providers.entries) {
       try {
         results[entry.key] = await entry.value.isHealthy();
-      } catch (e) {
+      } on Exception catch (e) {
         Log.w('Health check failed for provider ${entry.key}: $e');
         results[entry.key] = false;
       }
@@ -241,14 +349,18 @@ class AIProviderManager {
   }
 
   /// Reload configuration and reinitialize
-  Future<bool> reload({final String? configPath, final String? environment}) async {
+  Future<bool> reload({
+    final String? configPath,
+    final String? environment,
+  }) async {
     Log.i('Reloading AI Provider Manager');
 
     // Dispose current providers
     await dispose();
 
     // Reinitialize
-    return await initialize(configPath: configPath, environment: environment);
+    await initialize();
+    return true;
   }
 
   /// Dispose resources
@@ -258,10 +370,17 @@ class AIProviderManager {
     for (final provider in _providers.values) {
       try {
         await provider.dispose();
-      } catch (e) {
+      } on Exception catch (e) {
         Log.w('Error disposing provider: $e');
       }
     }
+
+    // Dispose optimization services
+    if (_cacheService is InMemoryCacheService) {
+      (_cacheService as InMemoryCacheService).dispose();
+    }
+
+    _deduplicationService?.dispose();
 
     _providers.clear();
     _config = null;
@@ -269,31 +388,67 @@ class AIProviderManager {
     AIProviderFactory.clearCache();
   }
 
-  /// Initialize all providers
-  Future<Map<String, bool>> _initializeProviders() async {
-    final results = <String, bool>{};
+  /// Get comprehensive system statistics including performance metrics
+  Map<String, dynamic> getSystemStats() {
+    final baseStats = {
+      'initialized': _initialized,
+      'total_providers': _providers.length,
+      'available_providers': _providers.keys.toList(),
+      'has_cache': _cacheService != null,
+      'has_performance_monitoring': _performanceService != null,
+      'has_deduplication': _deduplicationService != null,
+    };
 
-    for (final entry in _providers.entries) {
-      final providerId = entry.key;
-      final provider = entry.value;
-
+    // Add cache statistics if available
+    if (_cacheService != null) {
       try {
-        Log.d('Initializing provider: $providerId');
-        final success = await provider.initialize({});
-        results[providerId] = success;
-
-        if (success) {
-          Log.d('Provider $providerId initialized successfully');
-        } else {
-          Log.w('Provider $providerId failed to initialize');
-        }
-      } catch (e) {
-        Log.e('Error initializing provider $providerId: $e');
-        results[providerId] = false;
+        final cacheStats = _cacheService!.getStats();
+        baseStats['cache_stats'] = cacheStats;
+      } on Exception catch (e) {
+        baseStats['cache_stats_error'] = e.toString();
       }
     }
 
-    return results;
+    // Add performance statistics if available
+    if (_performanceService != null) {
+      try {
+        final perfStats = _performanceService!.getSystemStats();
+        baseStats['performance_stats'] = perfStats;
+      } on Exception catch (e) {
+        baseStats['performance_stats_error'] = e.toString();
+      }
+    }
+
+    // Add deduplication statistics if available
+    if (_deduplicationService != null) {
+      try {
+        final dedupStats = _deduplicationService!.getStats();
+        baseStats['deduplication_stats'] = dedupStats;
+      } on Exception catch (e) {
+        baseStats['deduplication_stats_error'] = e.toString();
+      }
+    }
+
+    return baseStats;
+  }
+
+  /// Get performance metrics for a specific provider
+  ProviderMetrics? getProviderPerformanceMetrics(final String providerId) {
+    return _performanceService?.getProviderMetrics(providerId);
+  }
+
+  /// Get provider health rankings based on performance
+  List<MapEntry<String, double>> getProviderHealthRankings() {
+    return _performanceService?.getProviderHealthScores() ?? [];
+  }
+
+  /// Clear all caches and reset performance metrics
+  Future<void> clearOptimizationData() async {
+    await _cacheService?.clear();
+    _performanceService?.clearMetrics();
+    _deduplicationService?.clearInFlightRequests();
+    _deduplicationService?.resetStats();
+    Log.i('Cleared all optimization data');
   }
 
   /// Get ordered list of providers to try for a capability

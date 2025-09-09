@@ -2,7 +2,7 @@
 # Dynamic AI Providers System - Configuration File
 # This file defines all available AI providers, their capabilities, and fallback chains
 
-version: "1.0.0"
+version: "1.0"
 metadata:
   description: "AI Providers configuration for AI-chan"
   created: "2025-09-08"
@@ -29,6 +29,8 @@ ai_providers:
       - text_generation
       - image_generation
       - image_analysis
+      - audio_generation
+      - audio_transcription
       - realtime_conversation
     
     api_settings:
@@ -54,6 +56,11 @@ ai_providers:
         - "gpt-4.1"
         - "gpt-4o"
         - "gpt-4.1-vision"
+      audio_generation:
+        - "tts-1"
+        - "tts-1-hd"
+      audio_transcription:
+        - "whisper-1"
       realtime_conversation:
         - "gpt-5"
         - "gpt-4.1"
@@ -63,6 +70,8 @@ ai_providers:
       text_generation: "gpt-4.1-mini"
       image_generation: "gpt-4.1"
       image_analysis: "gpt-4.1-vision"
+      audio_generation: "tts-1"
+      audio_transcription: "whisper-1"
       realtime_conversation: "gpt-4.1"
     
     rate_limits:
@@ -189,7 +198,14 @@ fallback_chains:
     primary: "openai"
     fallbacks:
       - "google"
-      - "xai"
+    
+  audio_generation:
+    primary: "openai"
+    fallbacks: []
+    
+  audio_transcription:
+    primary: "openai"
+    fallbacks: []
     
   realtime_conversation:
     primary: "openai"

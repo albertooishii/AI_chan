@@ -1,5 +1,4 @@
-import 'package:ai_chan/chat/domain/models.dart';
-import 'package:ai_chan/chat/domain/interfaces/index.dart';
+import 'package:ai_chan/chat.dart';
 
 /// Load Chat History Use Case - Chat Application Layer
 /// Maneja la carga del historial de conversación desde el almacenamiento

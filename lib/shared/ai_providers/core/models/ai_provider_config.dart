@@ -6,7 +6,6 @@ import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 
 /// Root configuration model that represents the entire YAML file
 class AIProvidersConfig {
-
   factory AIProvidersConfig.fromMap(final Map<String, dynamic> map) {
     return AIProvidersConfig(
       version: map['version'] as String,
@@ -87,7 +86,6 @@ class AIProvidersConfig {
 
 /// Metadata about the configuration file
 class ConfigMetadata {
-
   factory ConfigMetadata.fromMap(final Map<String, dynamic> map) {
     return ConfigMetadata(
       description: map['description'] as String,
@@ -116,7 +114,6 @@ class ConfigMetadata {
 
 /// Global configuration settings
 class GlobalSettings {
-
   factory GlobalSettings.fromMap(final Map<String, dynamic> map) {
     return GlobalSettings(
       defaultTimeoutSeconds: map['default_timeout_seconds'] as int,
@@ -157,7 +154,6 @@ class GlobalSettings {
 
 /// Configuration for a specific AI provider
 class ProviderConfig {
-
   factory ProviderConfig.fromMap(final Map<String, dynamic> map) {
     return ProviderConfig(
       enabled: map['enabled'] as bool,
@@ -222,8 +218,12 @@ class ProviderConfig {
       'description': description,
       'capabilities': capabilities.map((final cap) => cap.identifier).toList(),
       'api_settings': apiSettings.toMap(),
-      'models': models.map((final key, final value) => MapEntry(key.identifier, value)),
-      'defaults': defaults.map((final key, final value) => MapEntry(key.identifier, value)),
+      'models': models.map(
+        (final key, final value) => MapEntry(key.identifier, value),
+      ),
+      'defaults': defaults.map(
+        (final key, final value) => MapEntry(key.identifier, value),
+      ),
       'rate_limits': rateLimits.toMap(),
       'configuration': configuration.toMap(),
     };
@@ -232,7 +232,6 @@ class ProviderConfig {
 
 /// API settings for a provider
 class ApiSettings {
-
   factory ApiSettings.fromMap(final Map<String, dynamic> map) {
     return ApiSettings(
       baseUrl: map['base_url'] as String,
@@ -265,7 +264,6 @@ class ApiSettings {
 
 /// Rate limits configuration
 class RateLimits {
-
   factory RateLimits.fromMap(final Map<String, dynamic> map) {
     return RateLimits(
       requestsPerMinute: map['requests_per_minute'] as int,
@@ -290,7 +288,6 @@ class RateLimits {
 
 /// Provider-specific configuration
 class ProviderConfiguration {
-
   factory ProviderConfiguration.fromMap(final Map<String, dynamic> map) {
     return ProviderConfiguration(
       maxContextTokens: map['max_context_tokens'] as int,
@@ -327,7 +324,6 @@ class ProviderConfiguration {
 
 /// Fallback chain configuration for a capability
 class FallbackChain {
-
   factory FallbackChain.fromMap(final Map<String, dynamic> map) {
     return FallbackChain(
       primary: map['primary'] as String,
@@ -346,7 +342,6 @@ class FallbackChain {
 
 /// Environment-specific configuration overrides
 class EnvironmentConfig {
-
   factory EnvironmentConfig.fromMap(final Map<String, dynamic> map) {
     return EnvironmentConfig(
       globalSettings: map['global_settings'] != null
@@ -382,7 +377,6 @@ class EnvironmentConfig {
 
 /// Advanced routing rules configuration
 class RoutingRules {
-
   factory RoutingRules.fromMap(final Map<String, dynamic> map) {
     return RoutingRules(
       imageGeneration: map['image_generation'] != null
@@ -412,7 +406,6 @@ class RoutingRules {
 
 /// Image generation routing rules
 class ImageGenerationRouting {
-
   factory ImageGenerationRouting.fromMap(final Map<String, dynamic> map) {
     return ImageGenerationRouting(
       avatarRequests: map['avatar_requests'] != null
@@ -441,7 +434,6 @@ class ImageGenerationRouting {
 
 /// Text generation routing rules
 class TextGenerationRouting {
-
   factory TextGenerationRouting.fromMap(final Map<String, dynamic> map) {
     return TextGenerationRouting(
       longContext: map['long_context'] != null
@@ -471,7 +463,6 @@ class TextGenerationRouting {
 
 /// Basic routing rule
 class RoutingRule {
-
   factory RoutingRule.fromMap(final Map<String, dynamic> map) {
     return RoutingRule(
       preferredProvider: map['preferred_provider'] as String,
@@ -496,7 +487,6 @@ class RoutingRule {
 
 /// Context-based routing rule with threshold
 class ContextRoutingRule extends RoutingRule {
-
   factory ContextRoutingRule.fromMap(final Map<String, dynamic> map) {
     return ContextRoutingRule(
       thresholdTokens: map['threshold_tokens'] as int,
@@ -520,7 +510,6 @@ class ContextRoutingRule extends RoutingRule {
 
 /// Health check configuration
 class HealthCheckConfig {
-
   factory HealthCheckConfig.fromMap(final Map<String, dynamic> map) {
     return HealthCheckConfig(
       enabled: map['enabled'] as bool,

@@ -1,9 +1,8 @@
 import 'dart:async';
 
+import 'package:ai_chan/call/domain/interfaces/call_interfaces.dart';
+import 'package:ai_chan/core.dart';
 import 'package:flutter/foundation.dart';
-
-import 'package:ai_chan/core/config.dart';
-import 'package:ai_chan/core/di.dart';
 
 /// Cliente OpenAI Realtime adaptado para la interfaz del dominio
 class OpenAIRealtimeCallClient implements IRealtimeCallClient {

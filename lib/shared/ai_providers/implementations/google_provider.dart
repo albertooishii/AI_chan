@@ -351,6 +351,35 @@ class GoogleProvider implements IAIProvider {
   }
 
   @override
+  Future<AIResponse> generateAudio({
+    required final String text,
+    final String? voice,
+    final String? model,
+    final Map<String, dynamic>? additionalParams,
+  }) async {
+    // Google TTS not implemented in Enhanced AI yet
+    Log.w('[GoogleProvider] TTS not implemented yet - use Google TTS service');
+    return AIResponse(
+      text: 'Google TTS not implemented in Enhanced AI - use legacy service',
+    );
+  }
+
+  @override
+  Future<AIResponse> transcribeAudio({
+    required final String audioBase64,
+    final String? audioFormat,
+    final String? model,
+    final String? language,
+    final Map<String, dynamic>? additionalParams,
+  }) async {
+    // Google STT not implemented in Enhanced AI yet
+    Log.w('[GoogleProvider] STT not implemented yet - use Google STT service');
+    return AIResponse(
+      text: 'Google STT not implemented in Enhanced AI - use legacy service',
+    );
+  }
+
+  @override
   Future<void> dispose() async {
     _initialized = false;
   }

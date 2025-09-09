@@ -360,6 +360,31 @@ class XAIProvider implements IAIProvider {
   }
 
   @override
+  Future<AIResponse> generateAudio({
+    required final String text,
+    final String? voice,
+    final String? model,
+    final Map<String, dynamic>? additionalParams,
+  }) async {
+    // XAI doesn't support TTS
+    Log.w('[XAIProvider] TTS not supported by XAI/Grok');
+    return AIResponse(text: 'XAI/Grok does not support TTS functionality');
+  }
+
+  @override
+  Future<AIResponse> transcribeAudio({
+    required final String audioBase64,
+    final String? audioFormat,
+    final String? model,
+    final String? language,
+    final Map<String, dynamic>? additionalParams,
+  }) async {
+    // XAI doesn't support STT
+    Log.w('[XAIProvider] STT not supported by XAI/Grok');
+    return AIResponse(text: 'XAI/Grok does not support STT functionality');
+  }
+
+  @override
   Future<void> dispose() async {
     _initialized = false;
   }

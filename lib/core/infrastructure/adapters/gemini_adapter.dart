@@ -1,7 +1,4 @@
-import 'package:ai_chan/shared/services/ai_runtime_provider.dart'
-    as runtime_factory;
 import 'package:ai_chan/core/interfaces/ai_service.dart';
-import 'package:ai_chan/core/config.dart';
 
 class GeminiAdapter implements IAIService {
   const GeminiAdapter({final String? modelId, this.runtime})
@@ -10,13 +7,13 @@ class GeminiAdapter implements IAIService {
   final dynamic runtime;
 
   dynamic get _impl {
-    final resolvedModel = modelId.isNotEmpty
-        ? modelId
-        : (Config.getDefaultImageModel().isNotEmpty
-              ? Config.getDefaultImageModel()
-              : 'gemini-2.5-flash');
-    return runtime ??
-        runtime_factory.getRuntimeAIServiceForModel(resolvedModel);
+    if (runtime != null) {
+      return runtime;
+    }
+    // Fallback should not be used in production - DI should always provide runtime
+    throw StateError(
+      'GeminiAdapter runtime not provided by DI. Enhanced AI system required.',
+    );
   }
 
   @override

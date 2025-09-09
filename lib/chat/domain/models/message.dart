@@ -1,5 +1,5 @@
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/shared/index.dart';
+import 'package:ai_chan/shared.dart';
 import 'dart:math';
 
 enum MessageStatus { sending, sent, read, failed }

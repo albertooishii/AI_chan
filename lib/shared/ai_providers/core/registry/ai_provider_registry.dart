@@ -1,6 +1,5 @@
 import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
-import 'package:ai_chan/shared/ai_providers/implementations/openai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/implementations/google_provider.dart';
 import 'package:ai_chan/shared/ai_providers/implementations/xai_provider.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
@@ -10,8 +9,8 @@ import 'package:ai_chan/shared/utils/log_utils.dart';
 /// This registry maintains compatibility with the existing runtime factory
 /// system while providing the new plugin architecture interface.
 class AIProviderRegistry {
-  factory AIProviderRegistry() => _instance;
   AIProviderRegistry._internal();
+  factory AIProviderRegistry() => _instance;
   static final AIProviderRegistry _instance = AIProviderRegistry._internal();
 
   final Map<String, IAIProvider> _providers = {};
@@ -19,7 +18,6 @@ class AIProviderRegistry {
 
   /// Initialize the registry with default providers
   Future<void> initialize() async {
-    await registerProvider(OpenAIProvider());
     await registerProvider(GoogleProvider());
     await registerProvider(XAIProvider());
 

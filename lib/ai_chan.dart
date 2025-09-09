@@ -12,13 +12,5 @@ export 'core.dart';
 export 'shared.dart';
 
 // Bounded Contexts - Domain & Infrastructure Layers
-export 'chat/index.dart';
-export 'chat/infrastructure/index.dart';
-export 'onboarding/index.dart';
-export 'onboarding/infrastructure/index.dart';
-export 'call/index.dart';
-export 'call/infrastructure/index.dart';
-export 'core/index.dart';
-export 'core/infrastructure/index.dart';
-export 'shared/index.dart';
-export 'shared/infrastructure/index.dart';
+// Note: index.dart files have been removed for cleaner imports
+// Import specific files directly instead

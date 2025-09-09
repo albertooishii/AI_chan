@@ -1,7 +1,11 @@
 import 'package:ai_chan/onboarding.dart';
 import 'package:ai_chan/core/config.dart';
-import 'package:ai_chan/shared/utils/index.dart' as utils;
+import 'package:ai_chan/shared/utils/prefs_utils.dart' as utils;
+import 'package:ai_chan/shared/utils/log_utils.dart' as utils;
+import 'package:ai_chan/shared/utils/app_data_utils.dart' as utils;
+import 'package:ai_chan/shared/utils/chat_json_utils.dart' as utils;
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
+import 'package:ai_chan/core/models/ai_chan_profile.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';

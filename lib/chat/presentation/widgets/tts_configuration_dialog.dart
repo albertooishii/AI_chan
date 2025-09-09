@@ -1,11 +1,22 @@
-import 'package:ai_chan/core.dart'; // Core bounded context barrel
-import 'package:ai_chan/shared.dart'; // Shared bounded context barrel
-// Chat bounded context barrel
-// Call bounded context barrel
+import 'package:ai_chan/core/cache/cache_service.dart';
+import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/core/di.dart';
+import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared/utils/dialog_utils.dart';
+import 'package:ai_chan/shared/utils/prefs_utils.dart';
+import 'package:ai_chan/shared/utils/voice_display_utils.dart';
+import 'package:ai_chan/shared/utils/openai_voice_utils.dart';
+import 'package:ai_chan/shared/constants/openai_voices.dart';
+import 'package:ai_chan/shared/application/services/file_ui_service.dart';
+import 'package:ai_chan/shared/domain/interfaces/audio_playback_service.dart';
+import 'package:ai_chan/shared/widgets/app_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'dart:io' show Platform;
 import 'package:android_intent_plus/android_intent.dart' show AndroidIntent;
+
+import '../../domain/interfaces/i_tts_voice_management_service.dart';
+import 'package:ai_chan/shared/constants/app_colors.dart';
 
 typedef SynthesizeTtsFn =
     Future<String?> Function(
@@ -86,6 +97,10 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
   // 🎵 Instancia persistente de audio para evitar múltiples players
   final AudioPlaybackService _audioPlayer = getAudioPlaybackService();
 
+  // Application service for voice management - using DI factory
+  final ITtsVoiceManagementService _voiceService =
+      getTtsVoiceManagementService();
+
   @override
   void initState() {
     super.initState();
@@ -119,44 +134,22 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
   Future<void> _refreshNativeVoices() async {
     setState(() => _isLoading = true);
     try {
-      final voices = await AndroidNativeTtsService.getVoices();
-      // Aplicar filtrado por idioma similar a Google Cloud TTS
-      final effectiveUserCodes = widget.userLangCodes ?? <String>[];
-      final effectiveAiCodes = widget.aiLangCodes ?? <String>[];
-      // Debug: mostrar códigos efectivos y una muestra de locales recuperadas
-      try {
-        final sampleLocales = voices
-            .take(10)
-            .map(
-              (final v) =>
-                  (v['locale'] as String?) ??
-                  (v['name'] as String?) ??
-                  '<no-locale>',
-            )
-            .join(', ');
-        Log.d(
-          'DEBUG TTS: effectiveUserCodes=$effectiveUserCodes effectiveAiCodes=$effectiveAiCodes sampleLocales=[$sampleLocales]',
-          tag: 'TTS_DIALOG',
-        );
-      } on Exception catch (_) {}
-      final filtered = await AndroidNativeTtsService.filterVoicesByCodes(
-        voices,
-        effectiveUserCodes,
-        effectiveAiCodes,
+      // Use application service instead of direct infrastructure access
+      final voices = await _voiceService.getAndroidNativeVoices(
+        userLangCodes: widget.userLangCodes,
+        aiLangCodes: widget.aiLangCodes,
       );
       setState(() {
         _androidNativeVoices.clear();
-        _androidNativeVoices.addAll(filtered);
+        _androidNativeVoices.addAll(voices);
         _isLoading = false;
       });
       Log.d(
-        'DEBUG TTS: Voces nativas actualizadas: ${voices.length} -> filtradas: ${filtered.length}',
+        'DEBUG TTS: Voces nativas actualizadas: ${voices.length}',
         tag: 'TTS_DIALOG',
       );
       if (mounted) {
-        showAppSnackBar(
-          'Voces nativas detectadas: ${voices.length}. Filtradas: ${filtered.length}',
-        );
+        showAppSnackBar('Voces nativas detectadas: ${voices.length}');
       }
     } on Exception catch (e) {
       Log.d(
@@ -210,7 +203,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
   Future<void> _checkAndroidNative() async {
     // Detectar plataforma y comprobar disponibilidad nativa solo en Android
     if (Platform.isAndroid) {
-      final available = await AndroidNativeTtsService.checkNativeTtsAvailable();
+      final available = _voiceService.isAndroidNativeTtsAvailable();
       setState(() {
         _androidNativeAvailable = available;
       });
@@ -295,7 +288,30 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
 
   /// Obtiene el nivel de calidad legible de una voz Neural/WaveNet
   String _getVoiceQualityLevel(final Map<String, dynamic> voice) {
-    return TtsVoiceService.getVoiceQualityLevel(voice);
+    // Extract quality from voice name or properties
+    final voiceName = voice['name'] as String? ?? '';
+    final naturalSampleRateHertz = voice['naturalSampleRateHertz'] as int? ?? 0;
+
+    // Determine quality based on voice name patterns
+    if (voiceName.contains('WaveNet')) {
+      return 'WaveNet';
+    } else if (voiceName.contains('Neural2')) {
+      return 'Neural2';
+    } else if (voiceName.contains('Polyglot')) {
+      return 'Polyglot';
+    } else if (voiceName.contains('Journey')) {
+      return 'Journey';
+    } else if (voiceName.contains('Studio')) {
+      return 'Studio';
+    } else if (voiceName.contains('Neural')) {
+      return 'Neural';
+    } else if (voiceName.contains('Standard')) {
+      return 'Standard';
+    } else if (naturalSampleRateHertz >= 24000) {
+      return 'High Quality';
+    } else {
+      return 'Standard';
+    }
   }
 
   Future<void> _loadVoices({final bool forceRefresh = false}) async {
@@ -304,14 +320,10 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
       tag: 'TTS_DIALOG',
     );
     try {
-      // Preferir los códigos proporcionados por el widget; si no existen, no filtrar por idioma
-      final effectiveUserCodes = widget.userLangCodes ?? <String>[];
-      final effectiveAiCodes = widget.aiLangCodes ?? <String>[];
-
       // If caller requested forceRefresh, clear cached voices to force re-download
       if (forceRefresh) {
         try {
-          await CacheService.clearAllVoicesCache();
+          await _voiceService.clearVoicesCache();
           Log.d(
             'DEBUG TTS: ClearAllVoicesCache invoked due to forceRefresh',
             tag: 'TTS_DIALOG',
@@ -321,11 +333,11 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
         }
       }
 
-      final voices = await GoogleSpeechService.fetchGoogleVoicesStatic(
+      final voices = await _voiceService.getGoogleVoices(
         forceRefresh: forceRefresh,
       );
       Log.d(
-        'DEBUG TTS: Neural/WaveNet voices loaded: ${voices.length} (user=$effectiveUserCodes, ai=$effectiveAiCodes)',
+        'DEBUG TTS: Neural/WaveNet voices loaded: ${voices.length}',
         tag: 'TTS_DIALOG',
       );
 
@@ -407,8 +419,8 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
     );
 
     if (confirmed == true) {
-      await CacheService.clearAudioCache();
-      await GoogleSpeechService.clearVoicesCacheStatic();
+      await _voiceService.clearAudioCache();
+      await _voiceService.clearVoicesCache();
       await _loadCacheSize();
 
       if (mounted) {
@@ -468,12 +480,12 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                   : const Icon(Icons.radio_button_unchecked),
               title: const Text('Google Cloud TTS'),
               subtitle: Text(
-                GoogleSpeechService.isConfiguredStatic
+                _voiceService.isGoogleTtsConfigured()
                     ? '${_googleVoices.length} voces disponibles'
                     : 'No configurado',
               ),
-              enabled: GoogleSpeechService.isConfiguredStatic,
-              onTap: GoogleSpeechService.isConfiguredStatic
+              enabled: _voiceService.isGoogleTtsConfigured(),
+              onTap: _voiceService.isGoogleTtsConfigured()
                   ? () async {
                       setState(() => _selectedProvider = 'google');
                       await _saveSettings();
@@ -593,20 +605,21 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                       if (codes.isEmpty) codes = ['es-ES'];
                       for (final c in codes) {
                         try {
-                          await AndroidNativeTtsService.dumpVoicesJsonForLanguage(
-                            c,
-                            exactOnly: true,
+                          // Debug functionality removed - would need to be implemented in application service
+                          Log.d(
+                            'DEBUG TTS: Would dump voices for language $c',
+                            tag: 'TTS_DIALOG',
                           );
                         } on Exception catch (e) {
                           Log.d(
-                            'DEBUG TTS: dumpVoicesJsonForLanguage failed for $c: $e',
+                            'DEBUG TTS: Debug dump failed for $c: $e',
                             tag: 'TTS_DIALOG',
                           );
                         }
                       }
                     } on Exception catch (e) {
                       Log.d(
-                        'DEBUG TTS: Error dumping native voices JSON: $e',
+                        'DEBUG TTS: Error in debug dump: $e',
                         tag: 'TTS_DIALOG',
                       );
                     }
@@ -779,7 +792,12 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
           // Use the provided synthesizeTts callback to generate demo audio
 
           if (_selectedProvider == 'android_native') {
-            subtitle = AndroidNativeTtsService.formatVoiceInfoStatic(voice);
+            // Simple voice info formatting
+            final locale = voice['locale'] as String? ?? '';
+            final quality = voice['quality'] as String? ?? '';
+            subtitle = locale.isNotEmpty
+                ? '$locale${quality.isNotEmpty ? ' · $quality' : ''}'
+                : 'Native voice';
           } else if (_selectedProvider == 'google') {
             // Usar nombre amigable para voces de Google
             displayName = VoiceDisplayUtils.getGoogleVoiceFriendlyName(voice);

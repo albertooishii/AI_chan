@@ -1,5 +1,5 @@
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/onboarding/index.dart';
+import 'package:ai_chan/onboarding.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 
 /// Result objects for DDD pattern compliance

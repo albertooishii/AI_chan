@@ -1,4 +1,7 @@
-import 'package:ai_chan/call/index.dart';
+import 'package:ai_chan/call/domain/interfaces/call_interfaces.dart';
+import 'package:ai_chan/call/domain/models/call.dart';
+import 'package:ai_chan/call/domain/models/call_provider.dart';
+import 'package:ai_chan/call/domain/services/call_service.dart';
 import 'package:ai_chan/core/models.dart';
 
 /// Caso de uso para obtener el historial de llamadas

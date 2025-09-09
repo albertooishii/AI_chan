@@ -1,4 +1,6 @@
-import 'package:ai_chan/call/index.dart';
+import 'package:ai_chan/call/domain/interfaces/call_interfaces.dart';
+import 'package:ai_chan/call/domain/models/call.dart';
+import 'package:ai_chan/call/domain/services/call_service.dart';
 
 /// Caso de uso para gestionar la configuración de llamadas
 class ManageCallConfigUseCase {

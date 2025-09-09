@@ -1,5 +1,4 @@
-import 'package:ai_chan/chat/domain/models.dart';
-import 'package:ai_chan/chat/domain/interfaces/index.dart';
+import 'package:ai_chan/chat.dart';
 
 /// Export Chat Use Case - Chat Application Layer
 /// Maneja la exportación de la conversación a formato JSON

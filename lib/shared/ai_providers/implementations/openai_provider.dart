@@ -9,6 +9,8 @@ import 'package:ai_chan/chat/infrastructure/adapters/prompt_builder_service.dart
     as pb;
 import 'dart:convert';
 import 'dart:async';
+import 'dart:io';
+import 'package:http/http.dart' as http;
 
 /// OpenAI provider implementation using the new architecture.
 /// This provider directly implements HTTP calls to OpenAI API without depending on OpenAIService.
@@ -565,6 +567,151 @@ class OpenAIProvider implements IAIProvider {
       }
     } on Exception catch (e) {
       return AIResponse(text: 'Error connecting to OpenAI TTS: $e');
+    }
+  }
+
+  @override
+  Future<AIResponse> generateAudio({
+    required final String text,
+    final String? voice,
+    final String? model,
+    final Map<String, dynamic>? additionalParams,
+  }) async {
+    if (_apiKey.trim().isEmpty) {
+      return AIResponse(text: 'Error: Missing OpenAI API key for TTS.');
+    }
+
+    if (text.isEmpty) {
+      return AIResponse(text: 'Error: No text provided for TTS.');
+    }
+
+    final selectedModel = model ?? 'tts-1';
+    final selectedVoice = voice ?? additionalParams?['voice'] ?? 'alloy';
+    final speed = additionalParams?['speed'] ?? 1.0;
+
+    final payload = {
+      'model': selectedModel,
+      'input': text,
+      'voice': selectedVoice,
+      'speed': speed,
+    };
+
+    try {
+      final url = Uri.parse('https://api.openai.com/v1/audio/speech');
+      final response = await HttpConnector.client.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $_apiKey',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(payload),
+      );
+
+      if (response.statusCode == 200) {
+        final audioBase64 = base64Encode(response.bodyBytes);
+        return AIResponse(
+          text: 'Audio generated successfully',
+          base64: audioBase64,
+        );
+      } else {
+        Log.e(
+          '[OpenAIProvider] TTS Error ${response.statusCode}: ${response.body}',
+        );
+        return AIResponse(
+          text: 'Error generating audio: ${response.statusCode}',
+        );
+      }
+    } on Exception catch (e) {
+      Log.e('[OpenAIProvider] TTS Exception: $e');
+      return AIResponse(text: 'Error connecting to OpenAI TTS: $e');
+    }
+  }
+
+  @override
+  Future<AIResponse> transcribeAudio({
+    required final String audioBase64,
+    final String? audioFormat,
+    final String? model,
+    final String? language,
+    final Map<String, dynamic>? additionalParams,
+  }) async {
+    try {
+      if (_apiKey.trim().isEmpty) {
+        return AIResponse(text: 'Error: Missing OpenAI API key for STT.');
+      }
+
+      // Convert base64 to bytes and create temporary file
+      final audioBytes = base64Decode(audioBase64);
+      final format = audioFormat ?? 'mp3';
+      final tempFile = File(
+        '${Directory.systemTemp.path}/whisper_${DateTime.now().millisecondsSinceEpoch}.$format',
+      );
+      await tempFile.writeAsBytes(audioBytes);
+
+      try {
+        // Create multipart request using http package directly
+        final url = Uri.parse('https://api.openai.com/v1/audio/transcriptions');
+        final request = http.MultipartRequest('POST', url);
+
+        request.headers['Authorization'] = 'Bearer $_apiKey';
+        request.fields['model'] = model ?? 'whisper-1';
+
+        if (language != null && language.trim().isNotEmpty) {
+          request.fields['language'] = language.trim();
+        }
+
+        // Add additional parameters from additionalParams
+        if (additionalParams != null) {
+          additionalParams.forEach((final k, final v) {
+            if (v != null) {
+              request.fields[k] = v.toString();
+            }
+          });
+        }
+
+        // Add audio file
+        request.files.add(
+          await http.MultipartFile.fromPath('file', tempFile.path),
+        );
+
+        final streamedResponse = await request.send().timeout(
+          const Duration(seconds: 30),
+          onTimeout: () => throw TimeoutException(
+            'Timeout en transcripción de audio',
+            const Duration(seconds: 30),
+          ),
+        );
+
+        final response = await http.Response.fromStream(streamedResponse);
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final transcribedText = data['text'] as String? ?? '';
+          Log.d(
+            '[OpenAIProvider] STT success: ${transcribedText.length} characters',
+          );
+          return AIResponse(text: transcribedText);
+        } else {
+          Log.e(
+            '[OpenAIProvider] STT Error ${response.statusCode}: ${response.body}',
+          );
+          return AIResponse(
+            text: 'Error transcribing audio: ${response.statusCode}',
+          );
+        }
+      } finally {
+        // Clean up temporary file
+        try {
+          if (tempFile.existsSync()) {
+            await tempFile.delete();
+          }
+        } on Exception catch (e) {
+          Log.w('[OpenAIProvider] Error cleaning up temp file: $e');
+        }
+      }
+    } on Exception catch (e) {
+      Log.e('[OpenAIProvider] STT Exception: $e');
+      return AIResponse(text: 'Error connecting to OpenAI STT: $e');
     }
   }
 

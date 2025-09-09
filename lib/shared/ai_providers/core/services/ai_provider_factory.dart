@@ -5,9 +5,7 @@ library;
 
 import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_config.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_metadata.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
-import 'package:ai_chan/shared/ai_providers/implementations/openai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/implementations/google_provider.dart';
 import 'package:ai_chan/shared/ai_providers/implementations/xai_provider.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
@@ -29,7 +27,10 @@ class AIProviderFactory {
   static final Map<String, IAIProvider> _providerCache = {};
 
   /// Create a provider instance from configuration
-  static IAIProvider createProvider(final String providerId, final ProviderConfig config) {
+  static IAIProvider createProvider(
+    final String providerId,
+    final ProviderConfig config,
+  ) {
     try {
       // Check cache first
       if (_providerCache.containsKey(providerId)) {
@@ -62,7 +63,7 @@ class AIProviderFactory {
 
       Log.i('Successfully created provider: $providerId');
       return provider;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('Failed to create provider $providerId: $e');
       if (e is ProviderCreationException) {
         rethrow;
@@ -91,7 +92,7 @@ class AIProviderFactory {
 
       try {
         providers[providerId] = createProvider(providerId, config);
-      } catch (e) {
+      } on Exception catch (e) {
         Log.e('Failed to create provider $providerId, skipping: $e');
         // Continue with other providers even if one fails
       }
@@ -116,82 +117,23 @@ class AIProviderFactory {
 
   /// Create OpenAI provider with configuration
   static IAIProvider _createOpenAIProvider(final ProviderConfig config) {
-    // Create metadata from configuration
-    final metadata = AIProviderMetadata(
-      providerId: 'openai',
-      providerName: config.displayName,
-      company: 'OpenAI',
-      version: '1.0.0',
-      description: config.description,
-      supportedCapabilities: config.capabilities,
-      defaultModels: config.defaults,
-      availableModels: config.models,
-      rateLimits: {
-        'requests_per_minute': config.rateLimits.requestsPerMinute,
-        'tokens_per_minute': config.rateLimits.tokensPerMinute,
-      },
-      requiresAuthentication: true,
-      requiredConfigKeys: config.apiSettings.requiredEnvKeys,
-      maxContextTokens: config.configuration.maxContextTokens,
-      maxOutputTokens: config.configuration.maxOutputTokens,
-      supportsStreaming: config.configuration.supportsStreaming,
-      supportsFunctionCalling: config.configuration.supportsFunctionCalling,
+    // Note: OpenAI provider not implemented yet, return null
+    // TODO: Implement OpenAIProvider when available
+    throw ProviderCreationException(
+      'OpenAI provider not yet implemented',
+      UnsupportedError('OpenAI provider construction not available'),
     );
-
-    return OpenAIProvider();
   }
 
   /// Create Google provider with configuration
   static IAIProvider _createGoogleProvider(final ProviderConfig config) {
-    // Create metadata from configuration
-    final metadata = AIProviderMetadata(
-      providerId: 'google',
-      providerName: config.displayName,
-      company: 'Google',
-      version: '1.0.0',
-      description: config.description,
-      supportedCapabilities: config.capabilities,
-      defaultModels: config.defaults,
-      availableModels: config.models,
-      rateLimits: {
-        'requests_per_minute': config.rateLimits.requestsPerMinute,
-        'tokens_per_minute': config.rateLimits.tokensPerMinute,
-      },
-      requiresAuthentication: true,
-      requiredConfigKeys: config.apiSettings.requiredEnvKeys,
-      maxContextTokens: config.configuration.maxContextTokens,
-      maxOutputTokens: config.configuration.maxOutputTokens,
-      supportsStreaming: config.configuration.supportsStreaming,
-      supportsFunctionCalling: config.configuration.supportsFunctionCalling,
-    );
-
+    // Google provider creates its own metadata internally
     return GoogleProvider();
   }
 
-  /// Create X.AI provider with configuration
+  /// Create XAI provider with configuration
   static IAIProvider _createXAIProvider(final ProviderConfig config) {
-    // Create metadata from configuration
-    final metadata = AIProviderMetadata(
-      providerId: 'xai',
-      providerName: config.displayName,
-      company: 'X.AI',
-      version: '1.0.0',
-      description: config.description,
-      supportedCapabilities: config.capabilities,
-      defaultModels: config.defaults,
-      availableModels: config.models,
-      rateLimits: {
-        'requests_per_minute': config.rateLimits.requestsPerMinute,
-        'tokens_per_minute': config.rateLimits.tokensPerMinute,
-      },
-      requiresAuthentication: true,
-      requiredConfigKeys: config.apiSettings.requiredEnvKeys,
-      maxContextTokens: config.configuration.maxContextTokens,
-      maxOutputTokens: config.configuration.maxOutputTokens,
-      supportsStreaming: config.configuration.supportsStreaming,
-      supportsFunctionCalling: config.configuration.supportsFunctionCalling,
-    );
-
+    // XAI provider creates its own metadata internally
     return XAIProvider();
   }
 
@@ -260,7 +202,7 @@ class AIProviderFactory {
 
       Log.i('Provider $providerId passed creation and health tests');
       return true;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('Provider $providerId failed creation test: $e');
       return false;
     }

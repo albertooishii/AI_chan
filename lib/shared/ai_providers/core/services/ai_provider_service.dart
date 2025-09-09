@@ -1,8 +1,7 @@
 import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/ai_providers/core/registry/ai_provider_registry.dart';
-import 'package:ai_chan/shared/services/ai_runtime_provider.dart'
-    as runtime_factory;
+import 'package:ai_chan/shared/services/enhanced_ai_runtime_provider.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 
@@ -76,11 +75,13 @@ class AIProviderService {
       }
     }
 
-    // Fallback to existing runtime factory system
+    // Fallback to Enhanced AI Runtime Provider
     Log.d(
-      '[AIProviderService] Falling back to runtime factory for model: $modelId',
+      '[AIProviderService] Falling back to Enhanced AI runtime for model: $modelId',
     );
-    final service = runtime_factory.getRuntimeAIServiceForModel(modelId);
+    final service = await EnhancedAIRuntimeProvider.getAIServiceForModel(
+      modelId,
+    );
     return await service.sendMessageImpl(
       history,
       systemPrompt,

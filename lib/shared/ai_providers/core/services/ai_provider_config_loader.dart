@@ -27,6 +27,9 @@ class AIProviderConfigLoader {
   /// Configuration file path in assets
   static const String _defaultConfigPath = 'assets/ai_providers_config.yaml';
 
+  /// Flag to skip environment validation during tests
+  static bool skipEnvironmentValidation = false;
+
   /// Load default configuration from assets
   static Future<AIProvidersConfig> loadDefault() async {
     return loadFromAssets();
@@ -41,7 +44,7 @@ class AIProviderConfigLoader {
 
       final String yamlString = await rootBundle.loadString(configPath);
       return _parseConfiguration(yamlString);
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('Failed to load configuration from assets', error: e);
       throw ConfigurationLoadException(
         'Failed to load configuration from assets at $configPath',
@@ -56,7 +59,7 @@ class AIProviderConfigLoader {
       Log.i('Loading AI providers configuration from file: $filePath');
 
       final file = File(filePath);
-      if (!await file.exists()) {
+      if (!file.existsSync()) {
         throw ConfigurationLoadException(
           'Configuration file not found: $filePath',
         );
@@ -64,7 +67,7 @@ class AIProviderConfigLoader {
 
       final String yamlString = await file.readAsString();
       return _parseConfiguration(yamlString);
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('Failed to load configuration from file', error: e);
       if (e is ConfigurationLoadException) rethrow;
       throw ConfigurationLoadException(
@@ -79,7 +82,7 @@ class AIProviderConfigLoader {
     try {
       Log.i('Loading AI providers configuration from string');
       return _parseConfiguration(yamlString);
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('Failed to parse configuration string', error: e);
       if (e is ConfigurationLoadException) rethrow;
       throw ConfigurationLoadException(
@@ -115,7 +118,7 @@ class AIProviderConfigLoader {
 
       // Create configuration object
       return AIProvidersConfig.fromMap(processedConfig);
-    } catch (e) {
+    } on Exception catch (e) {
       Log.e('Failed to parse YAML configuration', error: e);
       if (e is ConfigurationLoadException) rethrow;
       throw ConfigurationLoadException('Failed to parse YAML configuration', e);
@@ -289,7 +292,9 @@ class AIProviderConfigLoader {
   }
 
   /// Validate environment variables and return missing ones
-  static List<String> validateEnvironmentVariables(final AIProvidersConfig config) {
+  static List<String> validateEnvironmentVariables(
+    final AIProvidersConfig config,
+  ) {
     final missing = <String>[];
 
     for (final entry in config.aiProviders.entries) {
@@ -312,7 +317,14 @@ class AIProviderConfigLoader {
   }
 
   /// Validate that required environment variables are available
-  static void _validateEnvironmentVariables(final Map<String, dynamic> configMap) {
+  static void _validateEnvironmentVariables(
+    final Map<String, dynamic> configMap,
+  ) {
+    // Skip validation during tests
+    if (skipEnvironmentValidation) {
+      return;
+    }
+
     final errors = <String>[];
     final providers = configMap['ai_providers'] as Map<String, dynamic>;
 
@@ -419,7 +431,7 @@ class AIProviderConfigLoader {
         Log.d(
           'Provider "$providerKey" health check: ${isHealthy ? 'PASS' : 'FAIL'}',
         );
-      } catch (e) {
+      } on Exception catch (e) {
         Log.e('Health check failed for provider "$providerKey"', error: e);
         results[providerKey] = false;
       }

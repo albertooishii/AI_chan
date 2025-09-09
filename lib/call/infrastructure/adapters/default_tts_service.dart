@@ -4,13 +4,9 @@ import 'package:ai_chan/call/infrastructure/services/google_speech_service.dart'
 import 'package:ai_chan/call/domain/interfaces/i_speech_service.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:ai_chan/core/infrastructure/adapters/openai_adapter.dart';
-import 'package:ai_chan/core/infrastructure/adapters/gemini_adapter.dart';
 // dotenv usage removed — use Config getters instead
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
-import 'package:ai_chan/shared/services/ai_runtime_provider.dart'
-    as runtime_factory;
 import 'package:ai_chan/shared/constants/openai_voices.dart';
 
 /// Default TTS service that tries native -> Google -> OpenAI in that order.
@@ -187,24 +183,10 @@ class DefaultTtsService implements ICallTtsService {
         '[DefaultTTS] Trying direct OpenAI handling for voice: $voice',
       );
       try {
-        // Use OpenAI adapter directly with gpt model
-        final runtime = runtime_factory.getRuntimeAIServiceForModel(
-          'gpt-4o-mini',
-        );
-        final adapter = OpenAIAdapter(modelId: 'gpt-4o-mini', runtime: runtime);
-        final path = await adapter.textToSpeech(
-          text,
-          voice: voice,
-          options: options,
-        );
-        if (path != null) {
-          debugPrint('[DefaultTTS] Direct OpenAI success: $path');
-          return path;
-        } else {
-          debugPrint('[DefaultTTS] Direct OpenAI returned null');
-        }
+        // Enhanced AI system doesn't support TTS yet - skip for now
+        debugPrint('[DefaultTTS] Enhanced AI TTS not implemented yet');
       } on Exception catch (e) {
-        debugPrint('[DefaultTTS] Direct OpenAI error: $e');
+        debugPrint('[DefaultTTS] Enhanced AI error: $e');
       }
     }
 
@@ -224,40 +206,13 @@ class DefaultTtsService implements ICallTtsService {
                       : 'gemini-2.5-flash'));
 
       debugPrint(
-        '[DefaultTTS] Fallback to runtime adapter - provider: $provider, voice: $voice, modelToUse: $modelToUse',
+        '[DefaultTTS] Fallback to Enhanced AI - provider: $provider, voice: $voice, modelToUse: $modelToUse',
       );
 
-      final runtime = runtime_factory.getRuntimeAIServiceForModel(modelToUse);
-      // Choose adapter wrapper according to model prefix
-      if (modelToUse.startsWith('gpt-')) {
-        debugPrint('[DefaultTTS] Using OpenAIAdapter for model: $modelToUse');
-        final adapter = OpenAIAdapter(modelId: modelToUse, runtime: runtime);
-        final path = await adapter.textToSpeech(
-          text,
-          voice: voice,
-          options: options,
-        );
-        if (path != null) {
-          debugPrint('[DefaultTTS] OpenAIAdapter success: $path');
-          return path;
-        } else {
-          debugPrint('[DefaultTTS] OpenAIAdapter returned null');
-        }
-      } else {
-        debugPrint('[DefaultTTS] Using GeminiAdapter for model: $modelToUse');
-        final adapter = GeminiAdapter(modelId: modelToUse, runtime: runtime);
-        final path = await adapter.textToSpeech(
-          text,
-          voice: voice,
-          options: options,
-        );
-        if (path != null) {
-          debugPrint('[DefaultTTS] GeminiAdapter success: $path');
-          return path;
-        } else {
-          debugPrint('[DefaultTTS] GeminiAdapter returned null');
-        }
-      }
+      // Enhanced AI TTS not implemented yet - skip fallback
+      debugPrint('[DefaultTTS] Enhanced AI TTS fallback not implemented yet');
+
+      return null; // No TTS path available from Enhanced AI yet
     } on Exception catch (e) {
       debugPrint('[DefaultTTS] Runtime adapter error: $e');
     }

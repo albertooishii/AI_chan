@@ -1,130 +1,41 @@
 // lib/core/di.dart
-// Dependency Injection Container with Barrel Exports
-// This file provides clean imports using barrels instead of individual imports
+// Dependency Injection Container for AI Chan
+// Clean imports using barrel exports where possible for better maintainability
 
-// ===== BARREL EXPORTS =====
-// Core barrels
-export 'package:ai_chan/core/interfaces/index.dart';
-export 'package:ai_chan/core/infrastructure/adapters/index.dart';
-export 'package:ai_chan/core/domain/interfaces/index.dart';
-export 'package:ai_chan/core/cache/index.dart';
-
-// Chat bounded context barrels
-export 'package:ai_chan/chat/domain/interfaces/index.dart';
-export 'package:ai_chan/chat/infrastructure/adapters/index.dart';
-export 'package:ai_chan/chat/application/services/index.dart';
-export 'package:ai_chan/chat/presentation/controllers/index.dart';
-export 'package:ai_chan/chat/application/use_cases/index.dart';
-export 'package:ai_chan/chat/infrastructure/services/index.dart';
-
-// Call bounded context barrels
-export 'package:ai_chan/call/domain/interfaces/index.dart';
-export 'package:ai_chan/call/infrastructure/adapters/index.dart';
-export 'package:ai_chan/call/application/use_cases/index.dart';
-export 'package:ai_chan/call/application/services/index.dart';
-export 'package:ai_chan/call/presentation/controllers/index.dart';
-export 'package:ai_chan/call/infrastructure/managers/index.dart';
-export 'package:ai_chan/call/infrastructure/services/index.dart';
-export 'package:ai_chan/call/domain/services/index.dart';
-
-// Onboarding bounded context barrels
-export 'package:ai_chan/onboarding/domain/interfaces/index.dart';
-export 'package:ai_chan/onboarding/infrastructure/adapters/index.dart';
-
-// Shared bounded context barrels
-export 'package:ai_chan/shared/domain/interfaces/index.dart';
-export 'package:ai_chan/shared/infrastructure/services/index.dart';
-export 'package:ai_chan/shared/infrastructure/adapters/index.dart';
-
-// ===== INDIVIDUAL IMPORTS =====
-// These are kept for services that don't have barrel files yet or need specific imports
+// Dart Imports
 import 'dart:typed_data';
 
-import 'package:ai_chan/chat/domain/interfaces/i_chat_repository.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_language_resolver.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_promise_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_audio_utils_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_logging_utils_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_preferences_utils_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_debounced_persistence_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_message_queue_manager.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_ai_service.dart'; // For ChatAIService interface
-import 'package:ai_chan/chat/infrastructure/ai/chat_ai_service_adapter.dart'; // Direct import for DI
-import 'package:ai_chan/chat/domain/interfaces/i_chat_file_operations_service.dart';
-import 'package:ai_chan/chat/infrastructure/adapters/local_chat_repository.dart';
-import 'package:ai_chan/chat/infrastructure/adapters/audio_chat_service.dart';
-import 'package:ai_chan/chat/infrastructure/adapters/language_resolver_service.dart';
-import 'package:ai_chan/core/interfaces/ai_service.dart';
-import 'package:ai_chan/onboarding/domain/interfaces/i_profile_service.dart';
-import 'package:ai_chan/onboarding/infrastructure/adapters/profile_adapter.dart';
-import 'package:ai_chan/call/domain/interfaces/i_speech_service.dart';
-import 'package:ai_chan/call/infrastructure/adapters/default_tts_service.dart';
-import 'package:ai_chan/call/infrastructure/adapters/openai_stt_adapter.dart';
-import 'package:ai_chan/call/infrastructure/adapters/openai_tts_adapter.dart';
-import 'package:ai_chan/call/infrastructure/adapters/android_native_stt_adapter.dart';
-import 'package:ai_chan/call/infrastructure/adapters/android_native_tts_adapter.dart';
-import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
-import 'package:ai_chan/core/infrastructure/adapters/openai_adapter.dart';
-import 'package:ai_chan/core/infrastructure/adapters/gemini_adapter.dart';
-import 'package:ai_chan/core/config.dart';
-import 'package:ai_chan/shared/services/ai_runtime_provider.dart'
-    as runtime_factory;
-import 'package:ai_chan/shared/services/openai_tts_service.dart';
-import 'package:ai_chan/shared/infrastructure/adapters/audio_playback.dart';
-import 'package:ai_chan/shared/domain/interfaces/i_file_service.dart';
-import 'package:ai_chan/shared/infrastructure/services/file_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_secure_storage_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_backup_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_preferences_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_logging_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_network_service.dart';
-import 'package:ai_chan/shared/application/services/file_ui_service.dart';
-import 'package:ai_chan/chat/application/services/chat_application_service.dart';
-import 'package:ai_chan/chat/presentation/controllers/chat_controller.dart';
-import 'package:ai_chan/chat/infrastructure/adapters/prompt_builder_service.dart';
-import 'package:ai_chan/call/application/services/voice_call_application_service.dart';
-import 'package:ai_chan/call/application/use_cases/start_call_use_case.dart';
-import 'package:ai_chan/call/application/use_cases/end_call_use_case.dart';
-import 'package:ai_chan/call/application/use_cases/handle_incoming_call_use_case.dart';
-import 'package:ai_chan/call/application/use_cases/manage_audio_use_case.dart';
-import 'package:ai_chan/call/infrastructure/managers/call_manager_impl.dart';
-import 'package:ai_chan/call/infrastructure/managers/audio_manager_impl.dart';
-import 'package:ai_chan/call/domain/interfaces/call_interfaces.dart';
-import 'package:ai_chan/call/domain/interfaces/realtime_transport_service.dart';
-import 'package:ai_chan/call/infrastructure/adapters/in_memory_call_repository.dart';
-import 'package:ai_chan/call/infrastructure/adapters/flutter_audio_manager.dart';
-import 'package:ai_chan/call/infrastructure/adapters/default_call_manager.dart';
-import 'package:ai_chan/call/infrastructure/adapters/websocket_realtime_transport_service.dart';
-import 'package:ai_chan/call/infrastructure/adapters/openai_realtime_call_client.dart';
-import 'package:ai_chan/onboarding/domain/interfaces/i_profile_repository.dart';
-import 'package:ai_chan/onboarding/infrastructure/adapters/in_memory_profile_repository.dart';
-import 'package:ai_chan/shared/domain/interfaces/audio_playback_service.dart';
-import 'package:ai_chan/call/domain/interfaces/i_vad_service.dart';
-import 'package:ai_chan/call/infrastructure/vad_service.dart';
-import 'package:ai_chan/shared/infrastructure/services/basic_chat_promise_service.dart';
-import 'package:ai_chan/shared/infrastructure/services/basic_chat_audio_utils_service.dart';
-import 'package:ai_chan/shared/infrastructure/services/basic_chat_logging_utils_service.dart';
-import 'package:ai_chan/shared/infrastructure/services/basic_chat_preferences_utils_service.dart';
-import 'package:ai_chan/shared/infrastructure/services/basic_chat_debounced_persistence_service.dart';
-import 'package:ai_chan/shared/infrastructure/services/basic_chat_message_queue_manager.dart';
-import 'package:ai_chan/chat/infrastructure/services/basic_chat_file_operations_service.dart';
-import 'package:ai_chan/call/domain/services/call_summary_service.dart';
-import 'package:ai_chan/shared/domain/interfaces/i_ui_state_service.dart';
-import 'package:ai_chan/shared/infrastructure/services/flutter_secure_storage_service.dart';
-import 'package:ai_chan/shared/infrastructure/services/basic_ui_state_service.dart';
+// AI Chan - Barrel Imports (DDD Bounded Contexts)
+import 'package:ai_chan/chat.dart';
+import 'package:ai_chan/call.dart';
+import 'package:ai_chan/core.dart';
+import 'package:ai_chan/onboarding.dart';
 
-// Additional imports for missing services
-import 'package:ai_chan/core/domain/interfaces/i_call_to_chat_communication_service.dart';
-import 'package:ai_chan/chat/application/adapters/call_to_chat_communication_adapter.dart';
-import 'package:ai_chan/call/infrastructure/adapters/google_stt_adapter.dart';
-import 'package:ai_chan/call/infrastructure/adapters/google_tts_adapter.dart';
-import 'package:ai_chan/shared/infrastructure/services/basic_file_operations_service.dart';
-import 'package:ai_chan/shared/domain/interfaces/i_file_operations_service.dart';
-import 'package:ai_chan/shared/infrastructure/services/real_preferences_service.dart';
+// Import specific services that need DI
+import 'package:ai_chan/chat/domain/interfaces/i_tts_voice_management_service.dart';
+import 'package:ai_chan/chat/application/services/tts_voice_management_service.dart';
 
 /// Factory functions and small helpers used across the app.
 /// This file provides DI factories for the entire application.
+
+/// Global initialization flag for Enhanced AI Runtime Provider
+bool _enhancedSystemInitialized = false;
+
+/// Initialize the Enhanced AI Provider System
+/// Call this during app startup to enable the new provider system
+Future<void> initializeEnhancedAISystem() async {
+  if (_enhancedSystemInitialized) return;
+
+  try {
+    await EnhancedAIRuntimeProvider.initialize();
+    _enhancedSystemInitialized = true;
+    Log.i('Enhanced AI Provider System initialized successfully');
+  } on Exception catch (e) {
+    Log.w('Enhanced AI Provider System initialization failed: $e');
+    Log.i('Falling back to legacy runtime system');
+    // Continue with legacy system
+  }
+}
 
 IChatRepository getChatRepository() => LocalChatRepository();
 
@@ -336,8 +247,71 @@ class NotSupportedRealtimeClient implements IRealtimeClient {
   void cancelResponse({final String? itemId, final int? sampleCount}) {}
 }
 
-/// AI Service factory with singleton pattern
+/// AI Service factory with singleton pattern - Enhanced AI system only
 final Map<String, IAIService> _aiServiceSingletons = {};
+
+/// Enhanced AI Service that implements IAIService interface
+class _EnhancedAIService implements IAIService {
+  _EnhancedAIService(this.modelId);
+  final String modelId;
+
+  @override
+  Future<List<String>> getAvailableModels() async {
+    try {
+      await initializeEnhancedAISystem();
+      final service = await EnhancedAIRuntimeProvider.getAIServiceForModel(
+        modelId,
+      );
+      return await service.getAvailableModels();
+    } on Exception {
+      return [modelId];
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> sendMessage({
+    required final List<Map<String, dynamic>> messages,
+    final Map<String, dynamic>? options,
+  }) async {
+    try {
+      await initializeEnhancedAISystem();
+      final service = await EnhancedAIRuntimeProvider.getAIServiceForModel(
+        modelId,
+      );
+
+      final model = options?['model'] as String?;
+      final imageBase64 = options?['imageBase64'] as String?;
+      final imageMimeType = options?['imageMimeType'] as String?;
+      final enableImageGeneration =
+          options?['enableImageGeneration'] as bool? ?? false;
+
+      final response = await service.sendMessageImpl(
+        messages.cast<Map<String, String>>(),
+        options?['systemPromptObj'] as dynamic,
+        model: model,
+        imageBase64: imageBase64,
+        imageMimeType: imageMimeType,
+        enableImageGeneration: enableImageGeneration,
+      );
+
+      // Convert AIResponse to legacy format
+      return response.toJson();
+    } on Exception catch (e) {
+      Log.e('Enhanced AI Service failed: $e');
+      return {'text': 'AI system temporarily unavailable. Please try again.'};
+    }
+  }
+
+  @override
+  Future<String?> textToSpeech(
+    final String text, {
+    final String voice = '',
+    final Map<String, dynamic>? options,
+  }) async {
+    // TTS not implemented in Enhanced AI yet - return null for now
+    return null;
+  }
+}
 
 IAIService getAIServiceForModel(final String modelId) {
   final normalized = modelId.trim().toLowerCase();
@@ -345,33 +319,66 @@ IAIService getAIServiceForModel(final String modelId) {
   if (key.isEmpty) key = 'default';
   if (_aiServiceSingletons.containsKey(key)) return _aiServiceSingletons[key]!;
 
-  IAIService impl;
-  if (normalized.startsWith('gpt-')) {
-    final runtime = runtime_factory.getRuntimeAIServiceForModel(normalized);
-    impl = OpenAIAdapter(modelId: normalized, runtime: runtime);
-  } else if (normalized.startsWith('gemini-') ||
-      normalized.startsWith('imagen-')) {
-    final runtime = runtime_factory.getRuntimeAIServiceForModel(normalized);
-    impl = GeminiAdapter(modelId: normalized, runtime: runtime);
-  } else if (normalized.isEmpty) {
-    final defaultModel = Config.requireDefaultTextModel();
-    final runtime = runtime_factory.getRuntimeAIServiceForModel(defaultModel);
-    if (defaultModel.startsWith('gpt-')) {
-      impl = OpenAIAdapter(modelId: defaultModel, runtime: runtime);
-    } else {
-      impl = GeminiAdapter(modelId: defaultModel, runtime: runtime);
-    }
-  } else {
-    final fallbackModel = Config.requireDefaultTextModel();
-    final runtime = runtime_factory.getRuntimeAIServiceForModel(fallbackModel);
-    if (fallbackModel.startsWith('gpt-')) {
-      impl = OpenAIAdapter(modelId: fallbackModel, runtime: runtime);
-    } else {
-      impl = GeminiAdapter(modelId: fallbackModel, runtime: runtime);
-    }
-  }
+  // Create Enhanced AI Service directly - no more adapters
+  final effectiveModelId = normalized.isEmpty
+      ? Config.requireDefaultTextModel()
+      : normalized;
+  final impl = _EnhancedAIService(effectiveModelId);
+
   _aiServiceSingletons[key] = impl;
   return impl;
+}
+
+/// Create a synchronous Enhanced AI service adapter for runtime AI services
+dynamic _createEnhancedRuntimeServiceSync(final String modelId) {
+  return _EnhancedRuntimeServiceAdapter(modelId);
+}
+
+/// Runtime service adapter that bridges to Enhanced AI system
+class _EnhancedRuntimeServiceAdapter extends AIService {
+  _EnhancedRuntimeServiceAdapter(this.modelId);
+  final String modelId;
+
+  @override
+  Future<List<String>> getAvailableModels() async {
+    try {
+      await initializeEnhancedAISystem();
+      final service = await EnhancedAIRuntimeProvider.getAIServiceForModel(
+        modelId,
+      );
+      return await service.getAvailableModels();
+    } on Exception {
+      return [modelId];
+    }
+  }
+
+  @override
+  Future<AIResponse> sendMessageImpl(
+    final List<Map<String, String>> history,
+    final SystemPrompt systemPrompt, {
+    final String? model,
+    final String? imageBase64,
+    final String? imageMimeType,
+    final bool enableImageGeneration = false,
+  }) async {
+    try {
+      await initializeEnhancedAISystem();
+      final service = await EnhancedAIRuntimeProvider.getAIServiceForModel(
+        model ?? modelId,
+      );
+      return await service.sendMessageImpl(
+        history,
+        systemPrompt,
+        model: model,
+        imageBase64: imageBase64,
+        imageMimeType: imageMimeType,
+        enableImageGeneration: enableImageGeneration,
+      );
+    } on Exception catch (e) {
+      Log.w('Enhanced AI Runtime error for model ${model ?? modelId}: $e');
+      rethrow;
+    }
+  }
 }
 
 IProfileService getProfileServiceForProvider([final String? provider]) {
@@ -382,7 +389,7 @@ IProfileService getProfileServiceForProvider([final String? provider]) {
           ? Config.getDefaultImageModel()
           : 'gpt-4o-mini';
       return ProfileAdapter(
-        aiService: runtime_factory.getRuntimeAIServiceForModel(imgModel),
+        aiService: _createEnhancedRuntimeServiceSync(imgModel),
       );
     }
     if (p == 'openai') {
@@ -390,14 +397,14 @@ IProfileService getProfileServiceForProvider([final String? provider]) {
           ? Config.getDefaultTextModel()
           : 'gpt-4o-mini';
       return ProfileAdapter(
-        aiService: runtime_factory.getRuntimeAIServiceForModel(txtModel),
+        aiService: _createEnhancedRuntimeServiceSync(txtModel),
       );
     }
     final fallbackImg = Config.getDefaultImageModel().isNotEmpty
         ? Config.getDefaultImageModel()
         : 'gpt-4o-mini';
     return ProfileAdapter(
-      aiService: runtime_factory.getRuntimeAIServiceForModel(fallbackImg),
+      aiService: _createEnhancedRuntimeServiceSync(fallbackImg),
     );
   }
 
@@ -419,20 +426,20 @@ IProfileService getProfileServiceForProvider([final String? provider]) {
 
   if (resolved == 'google' || resolved == 'gemini') {
     return ProfileAdapter(
-      aiService: runtime_factory.getRuntimeAIServiceForModel(
+      aiService: _createEnhancedRuntimeServiceSync(
         Config.requireDefaultImageModel(),
       ),
     );
   }
   if (resolved == 'openai') {
     return ProfileAdapter(
-      aiService: runtime_factory.getRuntimeAIServiceForModel(
+      aiService: _createEnhancedRuntimeServiceSync(
         Config.requireDefaultTextModel(),
       ),
     );
   }
   return ProfileAdapter(
-    aiService: runtime_factory.getRuntimeAIServiceForModel(
+    aiService: _createEnhancedRuntimeServiceSync(
       Config.requireDefaultImageModel(),
     ),
   );
@@ -503,7 +510,7 @@ IChatAudioUtilsService getChatAudioUtilsService() =>
     BasicChatAudioUtilsService();
 IChatLoggingUtilsService getChatLoggingUtilsService() =>
     BasicChatLoggingUtilsService();
-IChatPreferencesUtilsService getChatPreferencesUtilsService() =>
+BasicChatPreferencesUtilsService getChatPreferencesUtilsService() =>
     BasicChatPreferencesUtilsService();
 IChatDebouncedPersistenceService getChatDebouncedPersistenceService() =>
     BasicChatDebouncedPersistenceService();
@@ -512,89 +519,10 @@ IChatMessageQueueManager getChatMessageQueueManager() {
   return CompleteChatMessageQueueManager();
 }
 
+/// TTS Voice Management Service Factory
+ITtsVoiceManagementService getTtsVoiceManagementService() =>
+    TtsVoiceManagementService();
+
 /// Communication Service Factory
 ICallToChatCommunicationService getCallToChatCommunicationService() =>
     CallToChatCommunicationAdapter(getChatController());
-
-/// Basic service implementations
-class BasicSecureStorageService implements ISecureStorageService {
-  @override
-  Future<String?> read(final String key) async => null;
-  @override
-  Future<void> write(final String key, final String value) async {}
-  @override
-  Future<void> delete(final String key) async {}
-  @override
-  Future<bool> containsKey(final String key) async => false;
-}
-
-class BasicBackupService implements IBackupService {
-  @override
-  Future<bool> isAvailable() async => false;
-  @override
-  Future<void> uploadAfterChanges({
-    required final Map<String, dynamic> profile,
-    required final List<Map<String, dynamic>> messages,
-    required final List<Map<String, dynamic>> timeline,
-    required final bool isLinked,
-  }) async {}
-  @override
-  Future<List<Map<String, dynamic>>> listBackups() async => [];
-  @override
-  Future<bool> refreshAccessToken() async => false;
-}
-
-class BasicPreferencesService implements IPreferencesService {
-  @override
-  Future<void> setSelectedModel(final String model) async {}
-  @override
-  Future<String?> getSelectedModel() async => null;
-  @override
-  Future<void> setSelectedAudioProvider(final String provider) async {}
-  @override
-  Future<String?> getSelectedAudioProvider() async => null;
-  @override
-  Future<void> setGoogleAccountInfo({
-    final String? email,
-    final String? avatar,
-    final String? name,
-    final bool? linked,
-  }) async {}
-  @override
-  Future<void> clearGoogleAccountInfo() async {}
-  @override
-  Future<Map<String, dynamic>> getGoogleAccountInfo() async => {};
-  @override
-  Future<int?> getLastAutoBackupMs() async => null;
-  @override
-  Future<void> setLastAutoBackupMs(final int timestamp) async {}
-  @override
-  Future<String> getEvents() async => '[]';
-  @override
-  Future<void> setEvents(final String eventsJson) async {}
-}
-
-class BasicLoggingService implements ILoggingService {
-  @override
-  void debug(final String message, {final Object? error, final String? tag}) {}
-  @override
-  void info(final String message, {final Object? error, final String? tag}) {}
-  @override
-  void warning(
-    final String message, {
-    final Object? error,
-    final String? tag,
-  }) {}
-  @override
-  void error(
-    final String message, {
-    final Object? error,
-    final StackTrace? stackTrace,
-    final String? tag,
-  }) {}
-}
-
-class BasicNetworkService implements INetworkService {
-  @override
-  Future<bool> hasInternetConnection() async => true;
-}

@@ -71,6 +71,34 @@ abstract class IAIProvider {
   /// Get rate limit information for this provider
   Map<String, int> getRateLimits();
 
+  /// Generate audio from text (Text-to-Speech)
+  /// [text] - Text to convert to speech
+  /// [voice] - Voice to use (provider-specific)
+  /// [model] - TTS model to use
+  /// [additionalParams] - Provider-specific parameters (speed, format, etc.)
+  /// Returns AIResponse with base64 encoded audio data
+  Future<AIResponse> generateAudio({
+    required final String text,
+    final String? voice,
+    final String? model,
+    final Map<String, dynamic>? additionalParams,
+  });
+
+  /// Transcribe audio to text (Speech-to-Text)
+  /// [audioBase64] - Base64 encoded audio data
+  /// [audioFormat] - Audio format (mp3, wav, etc.)
+  /// [model] - STT model to use
+  /// [language] - Language code for transcription
+  /// [additionalParams] - Provider-specific parameters
+  /// Returns AIResponse with transcribed text
+  Future<AIResponse> transcribeAudio({
+    required final String audioBase64,
+    final String? audioFormat,
+    final String? model,
+    final String? language,
+    final Map<String, dynamic>? additionalParams,
+  });
+
   /// Dispose of any resources used by this provider
   Future<void> dispose();
 }
