@@ -13,6 +13,12 @@ import 'package:ai_chan/shared/ai_providers/core/interfaces/i_cache_service.dart
 import 'package:ai_chan/shared/ai_providers/core/services/in_memory_cache_service.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/performance_monitoring_service.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/request_deduplication_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/interfaces/i_http_connection_pool.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/http_connection_pool.dart';
+import 'package:ai_chan/shared/ai_providers/core/interfaces/i_retry_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/intelligent_retry_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/interfaces/i_alert_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/provider_alert_service.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 
@@ -40,6 +46,11 @@ class AIProviderManager {
   ICacheService? _cacheService;
   PerformanceMonitoringService? _performanceService;
   RequestDeduplicationService? _deduplicationService;
+
+  // Advanced Phase 6 services
+  IHttpConnectionPool? _connectionPool;
+  IRetryService? _retryService;
+  IProviderAlertService? _alertService;
 
   /// Initialize the manager with configuration
   Future<void> initialize() async {
@@ -84,9 +95,40 @@ class AIProviderManager {
       // Initialize request deduplication
       _deduplicationService = RequestDeduplicationService();
       Log.d('Request deduplication service initialized');
+
+      // Initialize advanced Phase 6 services
+      _initializeAdvancedServices();
     } on Exception catch (e) {
       Log.w('Failed to initialize optimization services: $e');
       // Continue without optimization services
+    }
+  }
+
+  /// Initialize advanced Phase 6 services
+  void _initializeAdvancedServices() {
+    try {
+      // Initialize HTTP connection pool
+      _connectionPool = HttpConnectionPool();
+      _connectionPool!.initialize(const ConnectionPoolConfig());
+      Log.d('HTTP connection pool initialized');
+
+      // Initialize intelligent retry service
+      _retryService = IntelligentRetryService();
+      _retryService!.initialize(
+        const RetryConfig(),
+        const CircuitBreakerConfig(),
+      );
+      Log.d('Intelligent retry service initialized');
+
+      // Initialize provider alert service
+      _alertService = ProviderAlertService();
+      _alertService!.initialize(const AlertThresholds());
+      Log.d('Provider alert service initialized');
+
+      Log.i('Advanced Phase 6 services initialized successfully');
+    } on Exception catch (e) {
+      Log.w('Failed to initialize advanced services: $e');
+      // Continue without advanced services
     }
   }
 
