@@ -1,0 +1,31 @@
+# Analysis options específicas para tests
+# Este archivo permite configuraciones más flexibles para el código de testing
+
+include: ../analysis_options.yaml
+
+linter:
+  rules:
+    # =================== TEST-SPECIFIC OVERRIDES ===================
+    # Permitir print() en tests para output de debug y progreso
+    avoid_print: false
+    
+    # Flexibilidad adicional para tests
+    prefer_final_parameters: false  # Tests pueden usar parámetros mutables
+    public_member_api_docs: false   # No requerir docs en código de test
+    
+    # =================== MANTENER CALIDAD EN TESTS ===================
+    # Estas reglas siguen activas para mantener código de test limpio
+    prefer_const_constructors: true
+    prefer_single_quotes: true
+    curly_braces_in_flow_control_structures: true
+    
+analyzer:
+  errors:
+    # Permitir prints en tests pero mantener otras reglas
+    avoid_print: ignore
+    
+    # Mantener detección de código no usado en tests
+    unused_element: warning
+    unused_field: warning  
+    unused_import: warning
+    unused_local_variable: info
