@@ -16,21 +16,73 @@ import 'package:ai_chan/shared/widgets/country_autocomplete.dart';
 import 'package:ai_chan/shared/widgets/female_name_autocomplete.dart';
 import 'package:ai_chan/onboarding/presentation/widgets/birth_date_field.dart';
 import 'package:ai_chan/shared/constants/countries_es.dart';
+import 'package:ai_chan/shared/utils/audio_duration_utils.dart';
 import 'dart:async';
 import 'onboarding_screen.dart' show OnboardingFinishCallback, OnboardingScreen;
 import 'onboarding_mode_selector.dart' as mode_selector;
 
-// TODO: Clase temporal para compilar - migrar a nuevos servicios
+/// Real TTS service implementation using DI
 class OpenAITtsService {
-  bool get isPlaying => false;
-  Future<void> stop() async {}
-  Future<void> dispose() async {}
-  Future<void> waitForCompletion() async {}
+  bool _isPlaying = false;
+  AudioPlayer? _audioPlayer;
+
+  bool get isPlaying => _isPlaying;
+
   Future<AudioInfo> synthesizeAndPlay(
     final String text, {
     final Map<String, dynamic>? options,
   }) async {
-    return AudioInfo(duration: Duration.zero);
+    try {
+      // Get TTS service through DI to avoid architecture violation
+      final ttsService = di.getTtsService();
+
+      // Synthesize to file
+      final audioPath = await ttsService.synthesizeToFile(
+        text: text,
+        options: options,
+      );
+
+      if (audioPath == null) {
+        throw Exception('Failed to synthesize audio');
+      }
+
+      // Create audio player and play
+      _audioPlayer = AudioPlayer();
+      await _audioPlayer!.play(DeviceFileSource(audioPath));
+      _isPlaying = true;
+
+      // Get audio duration
+      final duration = await AudioDurationUtils.getAudioDuration(audioPath);
+
+      // Listen for completion
+      _audioPlayer!.onPlayerComplete.listen((_) {
+        _isPlaying = false;
+      });
+
+      return AudioInfo(duration: duration ?? Duration.zero);
+    } catch (e) {
+      _isPlaying = false;
+      rethrow;
+    }
+  }
+
+  Future<void> stop() async {
+    if (_audioPlayer != null) {
+      await _audioPlayer!.stop();
+      _isPlaying = false;
+    }
+  }
+
+  Future<void> waitForCompletion() async {
+    if (_audioPlayer != null && _isPlaying) {
+      await _audioPlayer!.onPlayerComplete.first;
+    }
+  }
+
+  Future<void> dispose() async {
+    await stop();
+    await _audioPlayer?.dispose();
+    _audioPlayer = null;
   }
 }
 

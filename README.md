@@ -197,7 +197,11 @@ Todo se guarda en `SharedPreferences` y puede exportarse/importarse como JSON.
 
 *Este repositorio es experimental y está en desarrollo activo. Respeta el consentimiento, la edad legal y las políticas de los proveedores de IA.*
 
-## 🔧 Variables de entorno (`.env`)
+## 🔧 Configuración del proyecto
+
+### Variables de entorno (`.env`)
+
+El archivo `.env` maneja credenciales y configuraciones específicas del entorno. Los **modelos por defecto ahora se configuran en `assets/ai_providers_config.yaml`**.
 
 Usa el archivo `.env.example` incluido en la raíz como referencia y renómbralo a `.env` con tus claves privadas:
 
@@ -217,19 +221,9 @@ GOOGLE_CLIENT_ID_WEB=PUT_YOUR_GOOGLE_CLIENT_ID_WEB
 # --- Configuración de Audio/Voz ---
 AUDIO_PROVIDER=gemini                 # openai | gemini
 AUDIO_TTS_MODE=google                 # google | local
-OPENAI_VOICE_NAME=marin                # alloy|ash|ballad|coral|echo|sage|shimmer|verse|cedar|marin
+OPENAI_VOICE_NAME=marin               # alloy|ash|coral|echo|sage|shimmer|nova|fable|onyx|cedar|marin
 GOOGLE_VOICE_NAME=es-ES-Wavenet-F     # Voz premium de Google TTS
 PREFERRED_AUDIO_FORMAT=mp3            # mp3 | m4a | wav
-
-# --- Modelos de IA ---
-DEFAULT_TEXT_MODEL=gemini-2.5-flash
-DEFAULT_IMAGE_MODEL=gpt-4.1-mini
-OPENAI_REALTIME_MODEL=gpt-realtime
-GOOGLE_REALTIME_MODEL=gemini-2.5-flash
-
-# --- Modelos específicos OpenAI ---
-OPENAI_TTS_MODEL=gpt-4o-mini-tts       # Modelo para síntesis de voz
-OPENAI_STT_MODEL=gpt-4o-mini-transcribe # Modelo para transcripción
 
 # --- Configuración avanzada ---
 DEBUG_MODE=full                       # full|basic|minimal|off (controla logs, JSON debug, y opciones UI)
@@ -237,14 +231,38 @@ SUMMARY_BLOCK_SIZE=32                 # Mensajes por bloque de resumen
 APP_NAME=AI-チャン                     # Nombre de la aplicación
 ```
 
-### Notas importantes:
+### Configuración de modelos (`.yaml`)
+
+Los **modelos por defecto y capacidades de proveedores** se configuran centralmente en `assets/ai_providers_config.yaml`:
+
+```yaml
+providers:
+  openai:
+    capabilities:
+      text_generation:
+        models: ["gpt-4.1-mini", "gpt-4o", "gpt-5"]
+        default: "gpt-4.1-mini"
+      audio_generation:
+        models: ["gpt-4o-mini-tts"]
+        default: "gpt-4o-mini-tts"
+      # ... más configuraciones
+```
+
+Este enfoque centralizado permite:
+- ✅ **Gestión simplificada** de modelos disponibles por proveedor
+- ✅ **Configuración por defecto** sin variables de environment
+- ✅ **Escalabilidad** para añadir nuevos proveedores y modelos
+- ✅ **Validación automática** de compatibilidad
+
+### Notas importantes sobre configuración:
 - 🔒 **El archivo `.env` está en `.gitignore`**: nunca subas tus claves al repositorio
 - 🔄 **Fallback automático**: Si `GEMINI_API_KEY` falla (cuota/permisos), la app usa `GEMINI_API_KEY_FALLBACK`
-- 🎵 **Voces OpenAI**: alloy, ash, ballad, coral, echo, sage, shimmer, verse, cedar, marin
+- 🎵 **Voces OpenAI**: alloy, ash, coral, echo, sage, shimmer, nova, fable, onyx, cedar, marin
 - 🗣️ **Voces Google**: Consulta [Google TTS Voices](https://cloud.google.com/text-to-speech/docs/voices) para opciones
 - ☁️ **Google Cloud**: necesario para TTS/STT premium con detección automática de idioma
 - 🔊 **Audio Provider**: `gemini` usa Google TTS/STT, `openai` usa OpenAI Realtime
-- ✨ **Nuevas voces**: `cedar` y `marin` están disponibles exclusivamente con el modelo `gpt-realtime`
+- ✨ **Nuevas voces**: `cedar` y `marin` están disponibles exclusivamente con `gpt-4o-mini-tts`
+- ⚙️ **Modelos centralizados**: Los defaults se configuran en `assets/ai_providers_config.yaml`, no en `.env`
 
 ## 🔒 Hooks pre-commit y CI/CD
 

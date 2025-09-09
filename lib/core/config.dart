@@ -5,6 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart' show dotenv;
 
 /// Helper centralizado para acceder a configuración derivada de .env.
 /// Permite inyectar overrides en tests mediante `Config.setOverrides`.
+/// Los modelos por defecto se configuran en assets/ai_providers_config.yaml
 class Config {
   static Map<String, String>? _overrides;
 
@@ -13,40 +14,9 @@ class Config {
     _overrides = overrides;
   }
 
-  static String getDefaultTextModel() => _get('DEFAULT_TEXT_MODEL', '');
-  static String getDefaultImageModel() => _get('DEFAULT_IMAGE_MODEL', '');
-
-  /// Devuelve el DEFAULT_TEXT_MODEL y lanza si no está configurado.
-  static String requireDefaultTextModel() {
-    final v = getDefaultTextModel();
-    if (v.trim().isEmpty) {
-      throw Exception('DEFAULT_TEXT_MODEL no está configurado');
-    }
-    return v;
-  }
-
-  /// Devuelve el DEFAULT_IMAGE_MODEL y lanza si no está configurado.
-  static String requireDefaultImageModel() {
-    final v = getDefaultImageModel();
-    if (v.trim().isEmpty) {
-      throw Exception('DEFAULT_IMAGE_MODEL no está configurado');
-    }
-    return v;
-  }
-
   static String getOpenAIKey() => _get('OPENAI_API_KEY', '');
   static String getGeminiKey() => _get('GEMINI_API_KEY', '');
   static String getOpenAIRealtimeModel() => _get('OPENAI_REALTIME_MODEL', '');
-
-  /// Modelo TTS para OpenAI (usado para síntesis de mensajes, no realtime calls).
-  /// Valor por defecto alineado con la documentación: 'gpt-4o-mini-tts'.
-  static String getOpenAITtsModel() =>
-      _get('OPENAI_TTS_MODEL', 'gpt-4o-mini-tts');
-
-  /// Modelo STT para OpenAI (usado en transcripción).
-  /// Valor por defecto alineado con la documentación: 'gpt-4o-mini-transcribe'.
-  static String getOpenAISttModel() =>
-      _get('OPENAI_STT_MODEL', 'gpt-4o-mini-transcribe');
 
   /// Devuelve el OPENAI_REALTIME_MODEL y lanza si no está configurado.
   static String requireOpenAIRealtimeModel() {
@@ -82,6 +52,30 @@ class Config {
   /// Acceso genérico para claves no previstas por getters específicos.
   static String get(final String key, final String fallback) =>
       _get(key, fallback);
+
+  /// Devuelve el modelo de texto por defecto
+  static String requireDefaultTextModel() {
+    return 'gemini-2.5-flash'; // Configurado en assets/ai_providers_config.yaml
+  }
+
+  /// Devuelve el modelo de imagen por defecto
+  static String requireDefaultImageModel() {
+    return 'gpt-4.1-mini'; // Configurado en assets/ai_providers_config.yaml
+  }
+
+  /// Métodos legacy para compatibilidad - usar el nuevo sistema cuando sea posible
+  static String getDefaultTextModel() {
+    return requireDefaultTextModel();
+  }
+
+  static String getDefaultImageModel() {
+    return requireDefaultImageModel();
+  }
+
+  /// Modelo STT para OpenAI - configurado en assets/ai_providers_config.yaml
+  static String getOpenAISttModel() {
+    return 'gpt-4o-mini-transcribe';
+  }
 
   /// Getter para el modo TTS (google/openai)
   static String getAudioTtsMode() => _get('AUDIO_TTS_MODE', 'google');
@@ -119,10 +113,8 @@ class Config {
       debugPrint('Config: dotenv loaded successfully from .env file');
     } on Exception catch (e) {
       debugPrint('Config: Failed to load .env file: $e');
-      // Si no hay .env en disco, cargamos valores por defecto
+      // Si no hay .env en disco, cargamos valores mínimos esenciales
       const defaultContents = '''
-DEFAULT_TEXT_MODEL=gemini-2.5-flash
-DEFAULT_IMAGE_MODEL=gpt-4.1-mini
 GOOGLE_REALTIME_MODEL=gemini-2.5-flash
 DEBUG_MODE=full
 SUMMARY_BLOCK_SIZE=32
@@ -138,7 +130,7 @@ SUMMARY_BLOCK_SIZE=32
           dotenv.env[key] = value;
         }
       }
-      debugPrint('Config: Loaded default configuration manually');
+      debugPrint('Config: Loaded minimal default configuration manually');
     }
   }
 

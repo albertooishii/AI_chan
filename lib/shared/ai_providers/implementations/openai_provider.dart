@@ -537,15 +537,55 @@ class OpenAIProvider implements IAIProvider {
       return AIResponse(text: 'Error: Missing OpenAI API key for TTS.');
     }
 
+    // 🔍 DEBUG: Log the received parameters
+    Log.d(
+      '🎵 [_sendTTSRequest] ⚠️ DEBUGGING: About to check if text is empty...',
+      tag: 'OPENAI_TTS',
+    );
+    Log.d('🎵 [_sendTTSRequest] Called with:', tag: 'OPENAI_TTS');
+    Log.d('  - History length: ${history.length}', tag: 'OPENAI_TTS');
+    Log.d('  - History content: $history', tag: 'OPENAI_TTS');
+    Log.d('  - AdditionalParams: $additionalParams', tag: 'OPENAI_TTS');
+
     final text = history.isNotEmpty ? history.last['content'] ?? '' : '';
+    Log.d(
+      '  - Extracted text: "$text" (length: ${text.length})',
+      tag: 'OPENAI_TTS',
+    );
+
+    Log.d(
+      '🎵 [_sendTTSRequest] ⚠️ DEBUGGING: Checking if text.isEmpty...',
+      tag: 'OPENAI_TTS',
+    );
+
     if (text.isEmpty) {
+      Log.e(
+        '🎵 [_sendTTSRequest] ❌ No text provided for TTS',
+        tag: 'OPENAI_TTS',
+      );
       return AIResponse(text: 'Error: No text provided for TTS.');
     }
+
+    Log.d('🎵 [_sendTTSRequest] ✅ Text validation passed', tag: 'OPENAI_TTS');
 
     final selectedModel = model ?? 'gpt-4o-mini-tts';
     final voice = additionalParams?['voice'] ?? 'alloy';
 
+    Log.d(
+      '🎵 [_sendTTSRequest] ✅ Model and voice determined:',
+      tag: 'OPENAI_TTS',
+    );
+    Log.d('  - Model: $selectedModel (override: $model)', tag: 'OPENAI_TTS');
+    Log.d('  - Voice: $voice', tag: 'OPENAI_TTS');
+
     final payload = {'model': selectedModel, 'input': text, 'voice': voice};
+
+    Log.d('🎵 [_sendTTSRequest] About to send request:', tag: 'OPENAI_TTS');
+    Log.d('  - Model: $selectedModel', tag: 'OPENAI_TTS');
+    Log.d('  - Voice: $voice', tag: 'OPENAI_TTS');
+    Log.d('  - Payload: ${jsonEncode(payload)}', tag: 'OPENAI_TTS');
+
+    Log.d('🎵 [_sendTTSRequest] Calling HttpConnector...', tag: 'OPENAI_TTS');
 
     try {
       final url = Uri.parse('https://api.openai.com/v1/audio/speech');
@@ -558,18 +598,39 @@ class OpenAIProvider implements IAIProvider {
         body: jsonEncode(payload),
       );
 
+      Log.d('🎵 [_sendTTSRequest] Response received:', tag: 'OPENAI_TTS');
+      Log.d('  - Status code: ${response.statusCode}', tag: 'OPENAI_TTS');
+      Log.d(
+        '  - Response body length: ${response.bodyBytes.length} bytes',
+        tag: 'OPENAI_TTS',
+      );
+
       if (response.statusCode == 200) {
         final audioBase64 = base64Encode(response.bodyBytes);
-        return AIResponse(
+        Log.d(
+          '🎵 [_sendTTSRequest] ✅ Success! Base64 length: ${audioBase64.length}',
+          tag: 'OPENAI_TTS',
+        );
+        final result = AIResponse(
           text: 'Audio generated successfully',
           base64: audioBase64,
         );
+        Log.d(
+          '🎵 [_sendTTSRequest] ✅ Returning AIResponse with base64: ${result.base64.isNotEmpty}',
+          tag: 'OPENAI_TTS',
+        );
+        return result;
       } else {
+        Log.e(
+          '🎵 [_sendTTSRequest] ❌ Error response: ${response.body}',
+          tag: 'OPENAI_TTS',
+        );
         return AIResponse(
           text: 'Error generating audio: ${response.statusCode}',
         );
       }
     } on Exception catch (e) {
+      Log.e('🎵 [_sendTTSRequest] ❌ Exception: $e', tag: 'OPENAI_TTS');
       return AIResponse(text: 'Error connecting to OpenAI TTS: $e');
     }
   }
@@ -581,6 +642,15 @@ class OpenAIProvider implements IAIProvider {
     final String? model,
     final Map<String, dynamic>? additionalParams,
   }) async {
+    Log.d(
+      '🎵 [generateAudio] ❗ Este método NO debería llamarse desde sendMessage!',
+      tag: 'OPENAI_TTS',
+    );
+    Log.d('  - text: $text', tag: 'OPENAI_TTS');
+    Log.d('  - voice: $voice', tag: 'OPENAI_TTS');
+    Log.d('  - model: $model', tag: 'OPENAI_TTS');
+    Log.d('  - additionalParams: $additionalParams', tag: 'OPENAI_TTS');
+
     if (_apiKey.trim().isEmpty) {
       return AIResponse(text: 'Error: Missing OpenAI API key for TTS.');
     }
@@ -589,8 +659,9 @@ class OpenAIProvider implements IAIProvider {
       return AIResponse(text: 'Error: No text provided for TTS.');
     }
 
+    // El modelo debe venir del AIProviderManager, no de variables de environment
     final selectedModel =
-        model ?? Config.get('OPENAI_TTS_MODEL', 'gpt-4o-mini-tts');
+        model ?? 'gpt-4o-mini-tts'; // Fallback si no se proporciona modelo
     final selectedVoice = voice ?? additionalParams?['voice'] ?? 'alloy';
     final speed = additionalParams?['speed'] ?? 1.0;
     final responseFormat = additionalParams?['response_format'] ?? 'mp3';

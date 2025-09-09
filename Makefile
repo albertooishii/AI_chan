@@ -31,8 +31,6 @@ help:
 	@echo "  setup-env    - Interactive environment setup"
 	@echo "  install-hooks- Install git pre-commit hooks"
 	@echo ""
-	@echo "⚙️ Configuration:"
-	@echo "  Set OPENAI_TTS_MODEL / OPENAI_STT_MODEL in your .env to choose OpenAI TTS/STT models used by the app (recommended: gpt-4o-mini-tts / gpt-4o-mini-transcribe)."
 	@echo "💡 Quick start: make install && make run"
 
 # Common alias for setup

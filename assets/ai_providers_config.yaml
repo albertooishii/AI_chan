@@ -43,36 +43,33 @@ ai_providers:
     models:
       text_generation:
         - "gpt-5"
+        - "gpt-5-mini"
         - "gpt-4.1"
         - "gpt-4.1-mini"
-        - "gpt-4o"
-        - "gpt-4o-mini"
       image_generation:
         - "gpt-5"
+        - "gpt-5-mini"
         - "gpt-4.1"
-        - "gpt-4o"
+        - "gpt-4.1-mini"
       image_analysis:
         - "gpt-5"
+        - "gpt-5-mini"
         - "gpt-4.1"
-        - "gpt-4o"
-        - "gpt-4.1-vision"
+        - "gpt-4.1-mini"
       audio_generation:
-        - "tts-1"
-        - "tts-1-hd"
+        - "gpt-4o-mini-tts"
       audio_transcription:
-        - "whisper-1"
+        - "gpt-4o-mini-transcribe"
       realtime_conversation:
-        - "gpt-5"
-        - "gpt-4.1"
-        - "gpt-4o"
+        - "gpt-realtime"
     
     defaults:
       text_generation: "gpt-4.1-mini"
-      image_generation: "gpt-4.1"
-      image_analysis: "gpt-4.1-vision"
-      audio_generation: "tts-1"
-      audio_transcription: "whisper-1"
-      realtime_conversation: "gpt-4.1"
+      image_generation: "gpt-4.1-mini"
+      image_analysis: "gpt-4.1-mini"
+      audio_generation: "gpt-4o-mini-tts"
+      audio_transcription: "gpt-4o-mini-transcribe"
+      realtime_conversation: "gpt-realtime"
     
     rate_limits:
       requests_per_minute: 3500
@@ -107,20 +104,14 @@ ai_providers:
     models:
       text_generation:
         - "gemini-2.5-flash"
-        - "gemini-2.5"
-        - "gemini-1.5-flash-latest"
-        - "gemini-1.5-pro-latest"
+        - "gemini-2.5-pro"
       image_generation:
         - "gemini-2.5-flash-image-preview"
-        - "gemini-2.5-flash"
       image_analysis:
         - "gemini-2.5-flash"
-        - "gemini-2.5"
-        - "gemini-1.5-flash-latest"
       realtime_conversation:
         - "gemini-2.5-flash"
-        - "gemini-2.5"
-    
+        - "gemini-2.5-pro"
     defaults:
       text_generation: "gemini-2.5-flash"
       image_generation: "gemini-2.5-flash-image-preview"
@@ -184,9 +175,9 @@ ai_providers:
 # Fallback chains define which providers to try in sequence for each capability
 fallback_chains:
   text_generation:
-    primary: "openai"
+    primary: "google"
     fallbacks:
-      - "google"
+      - "openai"
       - "xai"
     
   image_generation:

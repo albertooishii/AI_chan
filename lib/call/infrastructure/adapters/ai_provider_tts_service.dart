@@ -169,6 +169,14 @@ class AIProviderTtsService implements ICallTtsService {
         '[AIProviderTtsService] Trying AIProviderManager for TTS - provider: $provider, voice: $voice',
       );
 
+      // Ensure AIProviderManager is initialized before checking capabilities
+      if (!AIProviderManager.instance.isInitialized) {
+        debugPrint(
+          '[AIProviderTtsService] AIProviderManager not initialized, initializing...',
+        );
+        await AIProviderManager.instance.initialize();
+      }
+
       // Check if any provider supports audio generation
       final audioProviders = AIProviderManager.instance
           .getProvidersByCapability(AICapability.audioGeneration);
@@ -203,6 +211,13 @@ class AIProviderTtsService implements ICallTtsService {
           capability: AICapability.audioGeneration,
           additionalParams: {'voice': voice, 'language_code': languageCode},
         );
+
+        debugPrint(
+          '[AIProviderTtsService] AIProviderManager response received:',
+        );
+        debugPrint('  - text: "${response.text}"');
+        debugPrint('  - base64.isNotEmpty: ${response.base64.isNotEmpty}');
+        debugPrint('  - base64.length: ${response.base64.length}');
 
         if (response.base64.isNotEmpty) {
           // Save the base64 audio to a temporary file
@@ -247,6 +262,14 @@ class AIProviderTtsService implements ICallTtsService {
       debugPrint(
         '[AIProviderTtsService] synthesize called - voice: $voice, speed: $speed',
       );
+
+      // Ensure AIProviderManager is initialized before checking capabilities
+      if (!AIProviderManager.instance.isInitialized) {
+        debugPrint(
+          '[AIProviderTtsService] AIProviderManager not initialized, initializing...',
+        );
+        await AIProviderManager.instance.initialize();
+      }
 
       // Check if any provider supports audio generation
       final audioProviders = AIProviderManager.instance

@@ -87,18 +87,6 @@ prompt_key "AUDIO_PROVIDER" "Audio provider (openai|gemini) [gemini]: " "gemini"
 prompt_key "AUDIO_TTS_MODE" "TTS mode (google|local) [google]: " "google" false
 prompt_key "OPENAI_VOICE_NAME" "OpenAI voice [marin]: " "marin" false
 prompt_key "GOOGLE_VOICE_NAME" "Google voice name [es-ES-Wavenet-F]: " "es-ES-Wavenet-F" false
-
-
-echo ""
-echo "🤖 AI Models:"
-prompt_key "DEFAULT_TEXT_MODEL" "Default text model [gemini-2.5-flash]: " "gemini-2.5-flash" false
-prompt_key "DEFAULT_IMAGE_MODEL" "Default image model [gpt-4.1-mini]: " "gpt-4.1-mini" false
-prompt_key "OPENAI_REALTIME_MODEL" "OpenAI realtime model [gpt-realtime]: " "gpt-realtime" false
-prompt_key "GOOGLE_REALTIME_MODEL" "Google realtime model [gemini-2.5-flash]: " "gemini-2.5-flash" false
-
-# OpenAI TTS/STT models (defaults aligned with documentation)
-prompt_key "OPENAI_TTS_MODEL" "OpenAI TTS model [gpt-4o-mini-tts]: " "gpt-4o-mini-tts" false
-prompt_key "OPENAI_STT_MODEL" "OpenAI STT model [gpt-4o-mini-transcribe]: " "gpt-4o-mini-transcribe" false
 # The application uses OS-recommended default directories for images/audio/cache.
 # We no longer write platform-specific path overrides to .env.
 echo ""
@@ -128,7 +116,7 @@ for k in GEMINI_API_KEY GEMINI_API_KEY_FALLBACK OPENAI_API_KEY GROK_API_KEY GOOG
 done
 
 echo ""
-echo "🤖 Models & Audio configured with your preferences"
+echo "🤖 Model defaults are now configured in assets/ai_providers_config.yaml"
 echo "📁 Default directories set for all platforms" 
 echo "📝 Log level: debug"
 
