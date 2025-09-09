@@ -116,12 +116,12 @@ class ConfigMetadata {
 class GlobalSettings {
   factory GlobalSettings.fromMap(final Map<String, dynamic> map) {
     return GlobalSettings(
-      defaultTimeoutSeconds: map['default_timeout_seconds'] as int,
-      maxRetries: map['max_retries'] as int,
-      retryDelaySeconds: map['retry_delay_seconds'] as int,
-      enableFallback: map['enable_fallback'] as bool,
-      logProviderUsage: map['log_provider_usage'] as bool,
-      debugMode: map['debug_mode'] as bool,
+      defaultTimeoutSeconds: map['default_timeout_seconds'] as int? ?? 30,
+      maxRetries: map['max_retries'] as int? ?? 3,
+      retryDelaySeconds: map['retry_delay_seconds'] as int? ?? 1,
+      enableFallback: map['enable_fallback'] as bool? ?? true,
+      logProviderUsage: map['log_provider_usage'] as bool? ?? false,
+      debugMode: map['debug_mode'] as bool? ?? false,
     );
   }
   const GlobalSettings({

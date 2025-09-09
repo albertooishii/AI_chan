@@ -62,7 +62,7 @@ class EnhancedAIRuntimeProvider {
       return AICapability.textGeneration;
     } else if (modelLower.contains('gemini') || modelLower.contains('google')) {
       return AICapability
-          .imageAnalysis; // Gemini supports multimodal but is mapped to imageAnalysis
+          .textGeneration; // ✅ CORREGIDO: Gemini también es principalmente generación de texto
     } else if (modelLower.contains('grok') || modelLower.contains('xai')) {
       return AICapability.textGeneration;
     }

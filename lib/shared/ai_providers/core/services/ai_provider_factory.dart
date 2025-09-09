@@ -76,9 +76,9 @@ class AIProviderFactory {
   }
 
   /// Create multiple providers from configuration
-  static Map<String, IAIProvider> createProviders(
+  static Future<Map<String, IAIProvider>> createProviders(
     final Map<String, ProviderConfig> configs,
-  ) {
+  ) async {
     final providers = <String, IAIProvider>{};
 
     for (final entry in configs.entries) {
@@ -91,15 +91,26 @@ class AIProviderFactory {
       }
 
       try {
-        providers[providerId] = createProvider(providerId, config);
+        final provider = createProvider(providerId, config);
+
+        // Initialize the provider after creation
+        Log.d('Initializing provider: $providerId');
+        final initialized = await provider.initialize({});
+
+        if (initialized) {
+          providers[providerId] = provider;
+          Log.d('Provider $providerId initialized successfully');
+        } else {
+          Log.w('Provider $providerId failed to initialize, skipping');
+        }
       } on Exception catch (e) {
-        Log.e('Failed to create provider $providerId, skipping: $e');
+        Log.e('Failed to create/initialize provider $providerId, skipping: $e');
         // Continue with other providers even if one fails
       }
     }
 
     Log.i(
-      'Created ${providers.length} providers: ${providers.keys.join(', ')}',
+      'Created and initialized ${providers.length} providers: ${providers.keys.join(', ')}',
     );
     return providers;
   }

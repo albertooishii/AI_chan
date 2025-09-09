@@ -213,32 +213,33 @@ fallback_chains:
       - "google"
 
 # Environment-specific overrides
-environments:
-  development:
-    global_settings:
-      debug_mode: true
-      log_provider_usage: true
-    
-    ai_providers:
-      openai:
-        defaults:
-          text_generation: "gpt-4.1-mini"  # Use cheaper model in dev
-      google:
-        defaults:
-          text_generation: "gemini-2.5-flash"  # Use faster model in dev
-  
-  production:
-    global_settings:
-      debug_mode: false
-      log_provider_usage: false
-    
-    ai_providers:
-      openai:
-        defaults:
-          text_generation: "gpt-4.1"  # Use better model in prod
-      google:
-        defaults:
-          text_generation: "gemini-2.5"  # Use better model in prod
+# TEMPORALMENTE COMENTADO PARA TESTING - PROBLEMAS CON MERGE DE CONFIGURACIONES
+# environments:
+#   development:
+#     global_settings:
+#       debug_mode: true
+#       log_provider_usage: true
+#     
+#     ai_providers:
+#       openai:
+#         defaults:
+#           text_generation: "gpt-4.1-mini"  # Use cheaper model in dev
+#       google:
+#         defaults:
+#           text_generation: "gemini-2.5-flash"  # Use faster model in dev
+#   
+#   production:
+#     global_settings:
+#       debug_mode: false
+#       log_provider_usage: false
+#     
+#     ai_providers:
+#       openai:
+#         defaults:
+#           text_generation: "gpt-4.1"  # Use better model in prod
+#       google:
+#         defaults:
+#           text_generation: "gemini-2.5"  # Use better model in prod
 
 # Advanced routing rules
 routing_rules:

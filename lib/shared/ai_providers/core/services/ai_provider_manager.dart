@@ -66,7 +66,9 @@ class AIProviderManager {
       );
 
       // Create providers
-      final providers = AIProviderFactory.createProviders(_config!.aiProviders);
+      final providers = await AIProviderFactory.createProviders(
+        _config!.aiProviders,
+      );
       _providers.clear();
       _providers.addAll(providers);
 

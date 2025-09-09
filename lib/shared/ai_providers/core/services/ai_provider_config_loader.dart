@@ -8,6 +8,7 @@ import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:flutter/services.dart';
 import 'package:yaml/yaml.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_config.dart';
+import 'package:ai_chan/core/config.dart'; // ✅ AGREGADO Config import
 
 /// Exception thrown when configuration loading fails
 class ConfigurationLoadException implements Exception {
@@ -276,7 +277,31 @@ class AIProviderConfigLoader {
         if (existingProviders.containsKey(providerKey)) {
           final existingProvider =
               existingProviders[providerKey] as Map<String, dynamic>;
-          existingProviders[providerKey] = {...existingProvider, ...overrides};
+          final mergedProvider = Map<String, dynamic>.from(existingProvider);
+
+          // Hacer merge profundo para campos específicos
+          for (final overrideEntry in overrides.entries) {
+            final overrideKey = overrideEntry.key;
+            final overrideValue = overrideEntry.value;
+
+            if (overrideKey == 'defaults' &&
+                overrideValue is Map<String, dynamic> &&
+                mergedProvider.containsKey('defaults') &&
+                mergedProvider['defaults'] is Map<String, dynamic>) {
+              // Merge profundo para defaults
+              final existingDefaults =
+                  mergedProvider['defaults'] as Map<String, dynamic>;
+              mergedProvider['defaults'] = {
+                ...existingDefaults,
+                ...overrideValue,
+              };
+            } else {
+              // Merge normal para otros campos
+              mergedProvider[overrideKey] = overrideValue;
+            }
+          }
+
+          existingProviders[providerKey] = mergedProvider;
           Log.d(
             'Applied overrides for provider "$providerKey": ${overrides.keys}',
           );
@@ -306,8 +331,9 @@ class AIProviderConfigLoader {
 
       // Check required environment variables
       for (final envKey in provider.apiSettings.requiredEnvKeys) {
-        final envValue = Platform.environment[envKey];
-        if (envValue == null || envValue.isEmpty) {
+        // ✅ CORREGIDO: Usar Config en lugar de Platform.environment
+        final envValue = Config.get(envKey, '');
+        if (envValue.isEmpty) {
           missing.add('$providerKey: $envKey');
         }
       }
@@ -342,8 +368,9 @@ class AIProviderConfigLoader {
         final requiredEnvKeys = apiSettings['required_env_keys'] as List?;
         if (requiredEnvKeys != null) {
           for (final envKey in requiredEnvKeys) {
-            final envValue = Platform.environment[envKey.toString()];
-            if (envValue == null || envValue.isEmpty) {
+            // ✅ CORREGIDO: Usar Config en lugar de Platform.environment
+            final envValue = Config.get(envKey.toString(), '');
+            if (envValue.isEmpty) {
               errors.add(
                 'Provider "$providerKey" requires environment variable: $envKey',
               );
@@ -420,8 +447,9 @@ class AIProviderConfigLoader {
         // Basic validation - check if required environment variables exist
         bool isHealthy = true;
         for (final envKey in provider.apiSettings.requiredEnvKeys) {
-          final envValue = Platform.environment[envKey];
-          if (envValue == null || envValue.isEmpty) {
+          // ✅ CORREGIDO: Usar Config en lugar de Platform.environment
+          final envValue = Config.get(envKey, '');
+          if (envValue.isEmpty) {
             isHealthy = false;
             break;
           }
