@@ -9,7 +9,7 @@ import 'fakes/fake_connectors.dart' as fake_connectors;
 import 'fakes/fake_http_client.dart';
 import 'fakes/fake_audio_playback.dart';
 import 'package:ai_chan/core/http_connector.dart';
-import 'package:ai_chan/shared/services/ai_service.dart';
+// import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
 
 // (No global fake realtime client here — tests opt-in to install fakes
@@ -52,7 +52,8 @@ Future<void> initializeTestEnvironment({
   TestWidgetsFlutterBinding.ensureInitialized();
 
   // ⚡ ACELERAR TESTS: Desactivar delays en retries de AIService
-  AIService.disableDelaysInTests = true;
+  // TODO: Migrar setup de AIService
+  // AIService.disableDelaysInTests = true;
 
   // 🧪 TESTS: Desactivar validación de environment variables
   AIProviderConfigLoader.skipEnvironmentValidation =

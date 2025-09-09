@@ -1,19 +1,16 @@
 import 'package:ai_chan/onboarding/domain/interfaces/i_profile_service.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/core/services/ia_bio_generator.dart';
 import 'package:ai_chan/core/services/ia_appearance_generator.dart';
 import 'package:ai_chan/core/services/ia_avatar_generator.dart';
-import 'package:ai_chan/core/config.dart';
 
 /// Adaptador canónico de perfil: delega la generación de biografía y apariencia
-/// a los generadores existentes pasando una instancia de [AIService].
+/// a los generadores existentes usando el nuevo sistema AIProviderManager.
 ///
-/// Permite inyectar una implementación de [AIService] para tests.
+/// Permite generar perfiles completos para el onboarding.
 class ProfileAdapter implements IProfileService {
-  /// Constructor que requiere la inyección de una implementación de `AIService`.
-  ProfileAdapter({required final AIService aiService}) : _aiService = aiService;
-  final AIService _aiService;
+  /// Constructor simplificado que usa el nuevo sistema AIProviderManager.
+  const ProfileAdapter();
 
   @override
   Future<AiChanProfile> generateBiography({
@@ -25,15 +22,7 @@ class ProfileAdapter implements IProfileService {
     final String? aiCountryCode,
   }) async {
     try {
-      // Sólo pasar el override si el runtime coincide con el modelo por defecto
-      final defaultModel = Config.getDefaultTextModel().trim().toLowerCase();
-      final implType = _aiService.runtimeType.toString();
-      if (defaultModel.startsWith('gpt-') && implType == 'OpenAIService') {
-      } else if ((defaultModel.startsWith('gemini-') ||
-              defaultModel.startsWith('imagen-')) &&
-          implType == 'GeminiService') {
-      } else {}
-      // Delegar a la función existente que resolverá el runtime correctamente
+      // Use the new AIProviderManager system directly
       return await generateAIBiographyWithAI(
         userName: userName,
         aiName: aiName,

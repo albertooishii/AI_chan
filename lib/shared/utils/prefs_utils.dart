@@ -280,6 +280,22 @@ class PrefsUtils {
     } on Exception catch (_) {}
   }
 
+  static Future<String?> getTimeline() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('timeline');
+    } on Exception catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> setTimeline(final String json) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('timeline', json);
+    } on Exception catch (_) {}
+  }
+
   static Future<void> setFullExport(final String json) async {
     try {
       final prefs = await SharedPreferences.getInstance();

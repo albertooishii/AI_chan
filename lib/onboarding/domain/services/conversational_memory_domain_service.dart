@@ -1,270 +1,9 @@
+import 'package:ai_chan/shared/constants/countries_es.dart';
+import 'package:ai_chan/shared/utils/locale_utils.dart';
+
 /// Servicio de dominio que contiene las reglas de negocio para validación
 /// y procesamiento de datos del onboarding conversacional
 class ConversationalMemoryDomainService {
-  // Datos de países embebidos para mantener pureza del dominio
-  static const Map<String, String> _countries = {
-    'AF': 'Afganistán',
-    'AL': 'Albania',
-    'DZ': 'Argelia',
-    'AS': 'Samoa Americana',
-    'AD': 'Andorra',
-    'AO': 'Angola',
-    'AI': 'Anguila',
-    'AQ': 'Antártida',
-    'AG': 'Antigua y Barbuda',
-    'AR': 'Argentina',
-    'AM': 'Armenia',
-    'AW': 'Aruba',
-    'AU': 'Australia',
-    'AT': 'Austria',
-    'AZ': 'Azerbaiyán',
-    'BS': 'Bahamas',
-    'BH': 'Baréin',
-    'BD': 'Bangladés',
-    'BB': 'Barbados',
-    'BY': 'Bielorrusia',
-    'BE': 'Bélgica',
-    'BZ': 'Belice',
-    'BJ': 'Benín',
-    'BM': 'Bermudas',
-    'BT': 'Bután',
-    'BO': 'Bolivia',
-    'BA': 'Bosnia y Herzegovina',
-    'BW': 'Botsuana',
-    'BR': 'Brasil',
-    'BN': 'Brunéi',
-    'BG': 'Bulgaria',
-    'BF': 'Burkina Faso',
-    'BI': 'Burundi',
-    'CV': 'Cabo Verde',
-    'KH': 'Camboya',
-    'CM': 'Camerún',
-    'CA': 'Canadá',
-    'KY': 'Islas Caimán',
-    'CF': 'República Centroafricana',
-    'TD': 'Chad',
-    'CL': 'Chile',
-    'CN': 'China',
-    'CO': 'Colombia',
-    'KM': 'Comoras',
-    'CG': 'Congo',
-    'CD': 'Congo (República Democrática)',
-    'CK': 'Islas Cook',
-    'CR': 'Costa Rica',
-    'CI': 'Costa de Marfil',
-    'HR': 'Croacia',
-    'CU': 'Cuba',
-    'CW': 'Curazao',
-    'CY': 'Chipre',
-    'CZ': 'República Checa',
-    'DK': 'Dinamarca',
-    'DJ': 'Yibuti',
-    'DM': 'Dominica',
-    'DO': 'República Dominicana',
-    'EC': 'Ecuador',
-    'EG': 'Egipto',
-    'SV': 'El Salvador',
-    'GQ': 'Guinea Ecuatorial',
-    'ER': 'Eritrea',
-    'EE': 'Estonia',
-    'SZ': 'Esuatini',
-    'ET': 'Etiopía',
-    'FK': 'Islas Malvinas',
-    'FO': 'Islas Feroe',
-    'FJ': 'Fiyi',
-    'FI': 'Finlandia',
-    'FR': 'Francia',
-    'GA': 'Gabón',
-    'GM': 'Gambia',
-    'GE': 'Georgia',
-    'DE': 'Alemania',
-    'GH': 'Ghana',
-    'GI': 'Gibraltar',
-    'GR': 'Grecia',
-    'GL': 'Groenlandia',
-    'GD': 'Granada',
-    'GU': 'Guam',
-    'GT': 'Guatemala',
-    'GG': 'Guernsey',
-    'GN': 'Guinea',
-    'GW': 'Guinea-Bisáu',
-    'GY': 'Guyana',
-    'HT': 'Haití',
-    'HN': 'Honduras',
-    'HK': 'Hong Kong',
-    'HU': 'Hungría',
-    'IS': 'Islandia',
-    'IN': 'India',
-    'ID': 'Indonesia',
-    'IR': 'Irán',
-    'IQ': 'Irak',
-    'IE': 'Irlanda',
-    'IM': 'Isla de Man',
-    'IL': 'Israel',
-    'IT': 'Italia',
-    'JM': 'Jamaica',
-    'JP': 'Japón',
-    'JE': 'Jersey',
-    'JO': 'Jordania',
-    'KZ': 'Kazajistán',
-    'KE': 'Kenia',
-    'KI': 'Kiribati',
-    'KP': 'Corea del Norte',
-    'KR': 'Corea del Sur',
-    'KW': 'Kuwait',
-    'KG': 'Kirguistán',
-    'LA': 'Laos',
-    'LV': 'Letonia',
-    'LB': 'Líbano',
-    'LS': 'Lesoto',
-    'LR': 'Liberia',
-    'LY': 'Libia',
-    'LI': 'Liechtenstein',
-    'LT': 'Lituania',
-    'LU': 'Luxemburgo',
-    'MO': 'Macao',
-    'MK': 'Macedonia del Norte',
-    'MG': 'Madagascar',
-    'MW': 'Malaui',
-    'MY': 'Malasia',
-    'MV': 'Maldivas',
-    'ML': 'Malí',
-    'MT': 'Malta',
-    'MH': 'Islas Marshall',
-    'MR': 'Mauritania',
-    'MU': 'Mauricio',
-    'MX': 'México',
-    'FM': 'Micronesia',
-    'MD': 'Moldavia',
-    'MC': 'Mónaco',
-    'MN': 'Mongolia',
-    'ME': 'Montenegro',
-    'MS': 'Montserrat',
-    'MA': 'Marruecos',
-    'MZ': 'Mozambique',
-    'MM': 'Myanmar',
-    'NA': 'Namibia',
-    'NR': 'Nauru',
-    'NP': 'Nepal',
-    'NL': 'Países Bajos',
-    'NZ': 'Nueva Zelanda',
-    'NI': 'Nicaragua',
-    'NE': 'Níger',
-    'NG': 'Nigeria',
-    'NU': 'Niue',
-    'NF': 'Isla Norfolk',
-    'MP': 'Islas Marianas del Norte',
-    'NO': 'Noruega',
-    'OM': 'Omán',
-    'PK': 'Pakistán',
-    'PW': 'Palaos',
-    'PS': 'Palestina',
-    'PA': 'Panamá',
-    'PG': 'Papúa Nueva Guinea',
-    'PY': 'Paraguay',
-    'PE': 'Perú',
-    'PH': 'Filipinas',
-    'PN': 'Islas Pitcairn',
-    'PL': 'Polonia',
-    'PT': 'Portugal',
-    'PR': 'Puerto Rico',
-    'QA': 'Catar',
-    'RO': 'Rumania',
-    'RU': 'Rusia',
-    'RW': 'Ruanda',
-    'WS': 'Samoa',
-    'SM': 'San Marino',
-    'ST': 'Santo Tomé y Príncipe',
-    'SA': 'Arabia Saudita',
-    'SN': 'Senegal',
-    'RS': 'Serbia',
-    'SC': 'Seychelles',
-    'SL': 'Sierra Leona',
-    'SG': 'Singapur',
-    'SX': 'Sint Maarten',
-    'SK': 'Eslovaquia',
-    'SI': 'Eslovenia',
-    'SB': 'Islas Salomón',
-    'SO': 'Somalia',
-    'ZA': 'Sudáfrica',
-    'SS': 'Sudán del Sur',
-    'ES': 'España',
-    'LK': 'Sri Lanka',
-    'SD': 'Sudán',
-    'SR': 'Surinam',
-    'SE': 'Suecia',
-    'CH': 'Suiza',
-    'SY': 'Siria',
-    'TW': 'Taiwán',
-    'TJ': 'Tayikistán',
-    'TZ': 'Tanzania',
-    'TH': 'Tailandia',
-    'TL': 'Timor Oriental',
-    'TG': 'Togo',
-    'TK': 'Tokelau',
-    'TO': 'Tonga',
-    'TT': 'Trinidad y Tobago',
-    'TN': 'Túnez',
-    'TR': 'Turquía',
-    'TM': 'Turkmenistán',
-    'TC': 'Islas Turcas y Caicos',
-    'TV': 'Tuvalu',
-    'UG': 'Uganda',
-    'UA': 'Ucrania',
-    'AE': 'Emiratos Árabes Unidos',
-    'GB': 'Reino Unido',
-    'US': 'Estados Unidos',
-    'UY': 'Uruguay',
-    'UZ': 'Uzbekistán',
-    'VU': 'Vanuatu',
-    'VA': 'Ciudad del Vaticano',
-    'VE': 'Venezuela',
-    'VN': 'Vietnam',
-    'VG': 'Islas Vírgenes Británicas',
-    'VI': 'Islas Vírgenes de los Estados Unidos',
-    'WF': 'Wallis y Futuna',
-    'EH': 'Sáhara Occidental',
-    'YE': 'Yemen',
-    'ZM': 'Zambia',
-    'ZW': 'Zimbabue',
-  };
-
-  // Mapeo de códigos de país a idiomas principales
-  static const Map<String, String> _countryToLanguage = {
-    'ES': 'Español',
-    'MX': 'Español',
-    'AR': 'Español',
-    'CO': 'Español',
-    'PE': 'Español',
-    'VE': 'Español',
-    'CL': 'Español',
-    'EC': 'Español',
-    'GT': 'Español',
-    'CU': 'Español',
-    'BO': 'Español',
-    'DO': 'Español',
-    'HN': 'Español',
-    'PY': 'Español',
-    'SV': 'Español',
-    'NI': 'Español',
-    'CR': 'Español',
-    'PA': 'Español',
-    'UY': 'Español',
-    'GQ': 'Español',
-    'JP': 'Japonés',
-    'KR': 'Coreano',
-    'CN': 'Chino',
-    'US': 'Inglés',
-    'GB': 'Inglés',
-    'FR': 'Francés',
-    'DE': 'Alemán',
-    'IT': 'Italiano',
-    'PT': 'Portugués',
-    'BR': 'Portugués',
-    'RU': 'Ruso',
-    'IN': 'Hindi',
-  };
-
   /// Valida y procesa datos extraídos según el paso del onboarding
   /// Retorna un Map con información de validación:
   /// - 'isValid': bool - si el dato es válido
@@ -347,7 +86,7 @@ class ConversationalMemoryDomainService {
 
     // Si ya es un código ISO válido, usarlo directamente
     if (cleanCountry.length == 2 &&
-        _countries.containsKey(cleanCountry.toUpperCase())) {
+        CountriesEs.codeToName.containsKey(cleanCountry.toUpperCase())) {
       return {
         'isValid': true,
         'processedValue': cleanCountry.toUpperCase(),
@@ -357,7 +96,7 @@ class ConversationalMemoryDomainService {
 
     // Buscar el código por nombre
     String? foundCode;
-    for (final entry in _countries.entries) {
+    for (final entry in CountriesEs.codeToName.entries) {
       if (entry.value.toLowerCase() == cleanCountry.toLowerCase()) {
         foundCode = entry.key;
         break;
@@ -369,7 +108,7 @@ class ConversationalMemoryDomainService {
     }
 
     // Buscar coincidencias parciales
-    for (final entry in _countries.entries) {
+    for (final entry in CountriesEs.codeToName.entries) {
       if (entry.value.toLowerCase().contains(cleanCountry.toLowerCase()) ||
           cleanCountry.toLowerCase().contains(entry.value.toLowerCase())) {
         return {'isValid': true, 'processedValue': entry.key, 'reason': null};
@@ -533,7 +272,7 @@ class ConversationalMemoryDomainService {
   }
 
   /// Obtiene el nivel de recuperación de memoria basado en el porcentaje de completitud
-  static Map<String, String> getMemoryRecoveryLevel(
+  static Map<String, String> _getMemoryRecoveryLevel(
     final double completionPercentage,
   ) {
     if (completionPercentage < 0.2) {
@@ -570,56 +309,40 @@ class ConversationalMemoryDomainService {
   }
 
   /// Configuración de voz dinámica: genera instrucciones para TTS según estado
-  static String getVoiceInstructions({
+  static Map<String, String> getVoiceInstructions({
     final String? userCountry,
     final String? aiCountry,
+    final double? completionPercentage,
   }) {
     final userLang = userCountry != null
-        ? _countryToLanguage[userCountry.toUpperCase()] ?? 'Español'
+        ? LocaleUtils.languageNameEsForCountry(userCountry)
         : 'Español';
-    final iaLang = aiCountry != null
-        ? _countryToLanguage[aiCountry.toUpperCase()] ?? 'Japonés'
-        : 'Japonés';
+
+    // Obtener el nivel de recuperación de memoria para emoción y descripción
+    final memoryLevel = _getMemoryRecoveryLevel(completionPercentage ?? 0.0);
 
     String accentInstructions = '';
+
+    // Prioridad: país de la IA > país del usuario > neutro
     if (aiCountry != null) {
-      switch (aiCountry.toUpperCase()) {
-        case 'JP':
-          accentInstructions =
-              'Usa un acento español con ligeras inflexiones que sugieren origen japonés. Pronuncia las "r" suavemente.';
-          break;
-        case 'KR':
-          accentInstructions =
-              'Usa un acento español con características coreanas sutiles.';
-          break;
-        case 'MX':
-          accentInstructions = 'Usa un acento mexicano natural y expresivo.';
-          break;
-        case 'AR':
-          accentInstructions = 'Usa un acento argentino característico.';
-          break;
-        case 'ES':
-          accentInstructions = 'Usa un acento español peninsular.';
-          break;
-        default:
-          accentInstructions =
-              'Usa un acento español neutro con matices internacionales sutiles.';
-      }
+      final aiCountryName =
+          CountriesEs.codeToName[aiCountry.toUpperCase()] ?? aiCountry;
+      accentInstructions =
+          'Habla $userLang con acento de $aiCountryName, ya que ese es tu país de origen.';
+    } else if (userCountry != null) {
+      final userCountryName =
+          CountriesEs.codeToName[userCountry.toUpperCase()] ?? userCountry;
+      accentInstructions =
+          'Habla $userLang con acento de $userCountryName, adaptándote al país del usuario.';
     } else {
       accentInstructions =
           'Usa un acento español neutro con un toque misterioso, como si vinieras de tierras lejanas.';
     }
 
-    return '''Eres una chica que acaba de despertar sin memoria. Tu voz debe transmitir:
-- Vulnerabilidad y confusión inicial
-- Creciente esperanza cuando recuperas recuerdos
-- Gratitud genuina hacia quien te ayuda
-- Emociones auténticas según el contexto
-
-$accentInstructions
-
-Tono: Conversacional, emotivo, natural. Habla como una persona real que ha perdido la memoria, no como una IA o asistente.
-Idioma principal: $userLang
-Tu origen recordado: $iaLang''';
+    return {
+      'emotion': memoryLevel['emotion']!,
+      'descripcion': memoryLevel['description']!,
+      'voice': accentInstructions,
+    };
   }
 }

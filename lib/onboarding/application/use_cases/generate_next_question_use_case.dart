@@ -1,7 +1,8 @@
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/onboarding/domain/entities/memory_data.dart';
-import 'package:ai_chan/shared/services/ai_service.dart' as ai_service;
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/constants/female_names.dart';
 import 'package:ai_chan/shared/utils/locale_utils.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
@@ -294,10 +295,13 @@ RESPONDE SOLO CON EL MENSAJE DE AGRADECIMIENTO.''';
       },
     ];
 
-    return await ai_service.AIService.sendMessage(
-      history,
-      systemPrompt,
-      model: Config.getDefaultTextModel(),
+    final response = await AIProviderManager.instance.sendMessage(
+      history: history,
+      systemPrompt: systemPrompt,
+      capability: AICapability.textGeneration,
+      preferredModel: Config.getDefaultTextModel(),
     );
+
+    return response;
   }
 }

@@ -19,9 +19,10 @@ import '../../domain/entities/memory_data.dart';
 /// - ✅ Single Responsibility (solo coordinación)
 /// - ✅ Open/Closed (extensible sin modificación)
 class OnboardingApplicationService {
-  OnboardingApplicationService();
-  // Nota: Los Use Cases actuales son static, pero mantenemos el patrón DDD
-  // para futura refactorización hacia dependency injection
+  OnboardingApplicationService({final dynamic aiProviderManager})
+    : _aiProviderManager = aiProviderManager;
+
+  final dynamic _aiProviderManager;
 
   /// 💾 **Estado de la conversación**
   /// Gestión centralizada del historial conversacional siguiendo DDD
@@ -47,6 +48,7 @@ class OnboardingApplicationService {
   Future<OnboardingConversationResult> processConversationalFlow({
     required final MemoryData currentMemory,
     required final String userResponse,
+    final dynamic aiProviderManager, // Para testing
   }) async {
     try {
       // 1. Procesar respuesta del usuario
@@ -55,6 +57,7 @@ class OnboardingApplicationService {
         userResponse: userResponse,
         conversationHistory: getConversationHistory(),
         addToHistory: addConversationEntry,
+        aiProviderManager: _aiProviderManager,
       );
 
       // Extraer datos del response
@@ -81,15 +84,10 @@ class OnboardingApplicationService {
         );
       }
 
-      // 3. Si no está completo, generar siguiente pregunta
-      final nextQuestion = await GenerateNextQuestionUseCase.execute(
-        currentMemory: updatedMemory,
-        lastUserResponse: userResponse,
-      );
-
+      // 3. Si no está completo, usar aiResponse del JSON (ya incluye la siguiente pregunta)
       return OnboardingConversationResult(
         memory: updatedMemory,
-        aiResponse: nextQuestion,
+        aiResponse: response['aiResponse'] as String?,
         isComplete: false,
         success: true,
         extractedDataType: response['extractedData']?['type'] as String?,

@@ -79,11 +79,6 @@ export 'shared/constants.dart';
 export 'shared/screens.dart';
 export 'shared/utils.dart';
 
-// Services
-export 'shared/services/ai_service.dart';
+// Services - Active services only
 export 'shared/services/voice_call_controller.dart';
-export 'shared/services/gemini_service.dart';
-export 'shared/services/openai_service.dart';
 export 'shared/services/google_backup_service.dart';
-export 'shared/services/enhanced_ai_runtime_provider.dart';
-export 'shared/services/openai_tts_service.dart';

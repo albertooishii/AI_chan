@@ -5,8 +5,8 @@ library;
 
 import 'dart:async';
 import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_config.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_config.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_factory.dart';
 import 'package:ai_chan/shared/ai_providers/core/interfaces/i_cache_service.dart';
@@ -36,7 +36,16 @@ class NoProviderAvailableException implements Exception {
 class AIProviderManager {
   AIProviderManager._internal();
   static final AIProviderManager _instance = AIProviderManager._internal();
-  static AIProviderManager get instance => _instance;
+  static bool _autoInitializeCalled = false;
+
+  static AIProviderManager get instance {
+    if (!_autoInitializeCalled) {
+      _autoInitializeCalled = true;
+      // Schedule auto-initialization on first access
+      Future.microtask(() => _instance.initialize());
+    }
+    return _instance;
+  }
 
   AIProvidersConfig? _config;
   final Map<String, IAIProvider> _providers = {};
@@ -134,6 +143,24 @@ class AIProviderManager {
     }
   }
 
+  /// Ensure the manager is initialized, waiting if necessary
+  Future<void> _ensureInitialized() async {
+    if (_initialized) return;
+
+    // If already initializing, wait for it
+    int attempts = 0;
+    while (!_initialized && attempts < 50) {
+      // Max 5 seconds wait
+      await Future.delayed(const Duration(milliseconds: 100));
+      attempts++;
+    }
+
+    // If still not initialized, try to initialize
+    if (!_initialized) {
+      await initialize();
+    }
+  }
+
   /// Send a message using the best available provider for the capability
   Future<AIResponse> sendMessage({
     required final List<Map<String, String>> history,
@@ -145,8 +172,13 @@ class AIProviderManager {
     final String? imageMimeType,
     final Map<String, dynamic>? additionalParams,
   }) async {
+    // Wait for initialization if needed
+    if (!_initialized) {
+      await _ensureInitialized();
+    }
+
     if (!_initialized || _config == null) {
-      throw StateError('AIProviderManager not initialized');
+      throw StateError('AIProviderManager failed to initialize');
     }
 
     // Try deduplication service if available
@@ -306,8 +338,13 @@ class AIProviderManager {
     final AICapability capability, {
     final String? providerId,
   }) async {
+    // Wait for initialization if needed
+    if (!_initialized) {
+      await _ensureInitialized();
+    }
+
     if (!_initialized || _config == null) {
-      throw StateError('AIProviderManager not initialized');
+      throw StateError('AIProviderManager failed to initialize');
     }
 
     if (providerId != null) {
@@ -354,6 +391,62 @@ class AIProviderManager {
         .where((final entry) => entry.value.supportsCapability(capability))
         .map((final entry) => entry.key)
         .toList();
+  }
+
+  /// Get the appropriate provider for a specific model
+  Future<IAIProvider?> getProviderForModel(
+    final String modelId,
+    final AICapability capability,
+  ) async {
+    if (!_initialized) return null;
+
+    final modelLower = modelId.toLowerCase().trim();
+
+    // Model-based provider selection
+    for (final entry in _providers.entries) {
+      final provider = entry.value;
+      final providerId = entry.key;
+
+      // Skip if provider doesn't support the capability
+      if (!provider.supportsCapability(capability)) {
+        continue;
+      }
+
+      // Check if this provider supports this model
+      final availableModels = await provider.getAvailableModelsForCapability(
+        capability,
+      );
+      final supportsModel = availableModels.any(
+        (final String model) => model.toLowerCase().trim() == modelLower,
+      );
+
+      if (supportsModel && await provider.isHealthy()) {
+        Log.i('Selected provider $providerId for model: $modelId');
+        return provider;
+      }
+
+      // Provider-specific model pattern matching as fallback
+      if (await provider.isHealthy()) {
+        if (providerId == 'openai' && modelLower.startsWith('gpt-')) {
+          Log.i('Selected OpenAI provider for GPT model: $modelId');
+          return provider;
+        }
+        if (providerId == 'google' &&
+            (modelLower.startsWith('gemini-') ||
+                modelLower.startsWith('text-'))) {
+          Log.i('Selected Google provider for Gemini model: $modelId');
+          return provider;
+        }
+        if (providerId == 'xai' &&
+            (modelLower.startsWith('grok-') || modelLower.startsWith('xai-'))) {
+          Log.i('Selected XAI provider for Grok model: $modelId');
+          return provider;
+        }
+      }
+    }
+
+    Log.w('No provider found for model: $modelId with capability: $capability');
+    return null;
   }
 
   /// Get the first available provider for a specific capability

@@ -27,7 +27,7 @@ Future<void> initializeEnhancedAISystem() async {
   if (_enhancedSystemInitialized) return;
 
   try {
-    await EnhancedAIRuntimeProvider.initialize();
+    // The new AIProviderManager initializes automatically on first access
     _enhancedSystemInitialized = true;
     Log.i('Enhanced AI Provider System initialized successfully');
   } on Exception catch (e) {
@@ -67,8 +67,9 @@ IFileService getFileService() => FileService();
 ICallSttService? _testSttOverride;
 AudioPlayback? _testAudioPlaybackOverride;
 
-ICallSttService getSttService() => _testSttOverride ?? const GoogleSttAdapter();
-ICallTtsService getTtsService() => const DefaultTtsService();
+ICallSttService getSttService() =>
+    _testSttOverride ?? const AIProviderSttAdapter();
+ICallTtsService getTtsService() => const AIProviderTtsService();
 
 /// Factory for production code to obtain an AudioPlayback instance
 AudioPlayback getAudioPlayback([final dynamic candidate]) {
@@ -88,10 +89,10 @@ void setTestSttOverride(final ICallSttService? impl) {
 ICallSttService getSttServiceForProvider(final String provider) {
   final p = provider.toLowerCase();
   if (p == 'google') {
-    return _testSttOverride ?? const GoogleSttAdapter();
+    return _testSttOverride ?? const AIProviderSttAdapter();
   }
   if (p == 'openai') {
-    return _testSttOverride ?? const OpenAISttAdapter();
+    return _testSttOverride ?? const AIProviderSttAdapter();
   }
   if (p == 'native' || p == 'android_native') {
     return _testSttOverride ?? const AndroidNativeSttAdapter();
@@ -105,7 +106,7 @@ ICallTtsService getTtsServiceForProvider(final String provider) {
     return const GoogleTtsAdapter();
   }
   if (p == 'openai') {
-    return OpenAITtsAdapter(OpenAITtsService());
+    return const AIProviderTtsService();
   }
   if (p == 'android_native' || p == 'native') {
     return const AndroidNativeTtsAdapter();
@@ -257,15 +258,8 @@ class _EnhancedAIService implements IAIService {
 
   @override
   Future<List<String>> getAvailableModels() async {
-    try {
-      await initializeEnhancedAISystem();
-      final service = await EnhancedAIRuntimeProvider.getAIServiceForModel(
-        modelId,
-      );
-      return await service.getAvailableModels();
-    } on Exception {
-      return [modelId];
-    }
+    // Legacy compatibility - return common models
+    return ['gpt-4o', 'gpt-4o-mini', 'gemini-2.5-flash', 'gemini-2.5-pro'];
   }
 
   @override
@@ -273,33 +267,11 @@ class _EnhancedAIService implements IAIService {
     required final List<Map<String, dynamic>> messages,
     final Map<String, dynamic>? options,
   }) async {
-    try {
-      await initializeEnhancedAISystem();
-      final service = await EnhancedAIRuntimeProvider.getAIServiceForModel(
-        modelId,
-      );
-
-      final model = options?['model'] as String?;
-      final imageBase64 = options?['imageBase64'] as String?;
-      final imageMimeType = options?['imageMimeType'] as String?;
-      final enableImageGeneration =
-          options?['enableImageGeneration'] as bool? ?? false;
-
-      final response = await service.sendMessageImpl(
-        messages.cast<Map<String, String>>(),
-        options?['systemPromptObj'] as dynamic,
-        model: model,
-        imageBase64: imageBase64,
-        imageMimeType: imageMimeType,
-        enableImageGeneration: enableImageGeneration,
-      );
-
-      // Convert AIResponse to legacy format
-      return response.toJson();
-    } on Exception catch (e) {
-      Log.e('Enhanced AI Service failed: $e');
-      return {'text': 'AI system temporarily unavailable. Please try again.'};
-    }
+    // Legacy compatibility - this shouldn't be used anymore
+    // All new code should use AIProviderManager directly
+    return {
+      'text': 'Legacy AI service deprecated. Use AIProviderManager directly.',
+    };
   }
 
   @override
@@ -329,83 +301,16 @@ IAIService getAIServiceForModel(final String modelId) {
   return impl;
 }
 
-/// Create a synchronous Enhanced AI service adapter for runtime AI services
-dynamic _createEnhancedRuntimeServiceSync(final String modelId) {
-  return _EnhancedRuntimeServiceAdapter(modelId);
-}
-
-/// Runtime service adapter that bridges to Enhanced AI system
-class _EnhancedRuntimeServiceAdapter extends AIService {
-  _EnhancedRuntimeServiceAdapter(this.modelId);
-  final String modelId;
-
-  @override
-  Future<List<String>> getAvailableModels() async {
-    try {
-      await initializeEnhancedAISystem();
-      final service = await EnhancedAIRuntimeProvider.getAIServiceForModel(
-        modelId,
-      );
-      return await service.getAvailableModels();
-    } on Exception {
-      return [modelId];
-    }
-  }
-
-  @override
-  Future<AIResponse> sendMessageImpl(
-    final List<Map<String, String>> history,
-    final SystemPrompt systemPrompt, {
-    final String? model,
-    final String? imageBase64,
-    final String? imageMimeType,
-    final bool enableImageGeneration = false,
-  }) async {
-    try {
-      await initializeEnhancedAISystem();
-      final service = await EnhancedAIRuntimeProvider.getAIServiceForModel(
-        model ?? modelId,
-      );
-      return await service.sendMessageImpl(
-        history,
-        systemPrompt,
-        model: model,
-        imageBase64: imageBase64,
-        imageMimeType: imageMimeType,
-        enableImageGeneration: enableImageGeneration,
-      );
-    } on Exception catch (e) {
-      Log.w('Enhanced AI Runtime error for model ${model ?? modelId}: $e');
-      rethrow;
-    }
-  }
-}
-
 IProfileService getProfileServiceForProvider([final String? provider]) {
   if (provider != null && provider.trim().isNotEmpty) {
     final p = provider.toLowerCase();
     if (p == 'google' || p == 'gemini') {
-      final imgModel = Config.getDefaultImageModel().isNotEmpty
-          ? Config.getDefaultImageModel()
-          : 'gpt-4o-mini';
-      return ProfileAdapter(
-        aiService: _createEnhancedRuntimeServiceSync(imgModel),
-      );
+      return const ProfileAdapter();
     }
     if (p == 'openai') {
-      final txtModel = Config.getDefaultTextModel().isNotEmpty
-          ? Config.getDefaultTextModel()
-          : 'gpt-4o-mini';
-      return ProfileAdapter(
-        aiService: _createEnhancedRuntimeServiceSync(txtModel),
-      );
+      return const ProfileAdapter();
     }
-    final fallbackImg = Config.getDefaultImageModel().isNotEmpty
-        ? Config.getDefaultImageModel()
-        : 'gpt-4o-mini';
-    return ProfileAdapter(
-      aiService: _createEnhancedRuntimeServiceSync(fallbackImg),
-    );
+    return const ProfileAdapter();
   }
 
   final defaultTextModel = Config.getDefaultTextModel();
@@ -425,24 +330,12 @@ IProfileService getProfileServiceForProvider([final String? provider]) {
   if (resolved.isEmpty) resolved = 'google';
 
   if (resolved == 'google' || resolved == 'gemini') {
-    return ProfileAdapter(
-      aiService: _createEnhancedRuntimeServiceSync(
-        Config.requireDefaultImageModel(),
-      ),
-    );
+    return const ProfileAdapter();
   }
   if (resolved == 'openai') {
-    return ProfileAdapter(
-      aiService: _createEnhancedRuntimeServiceSync(
-        Config.requireDefaultTextModel(),
-      ),
-    );
+    return const ProfileAdapter();
   }
-  return ProfileAdapter(
-    aiService: _createEnhancedRuntimeServiceSync(
-      Config.requireDefaultImageModel(),
-    ),
-  );
+  return const ProfileAdapter();
 }
 
 /// Application Services Factories

@@ -2,7 +2,8 @@ import 'package:ai_chan/core/config.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:async';
 // Replaced legacy barrel import with canonical barrel
-import 'package:ai_chan/shared/services/ai_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/json_utils.dart';
 
@@ -40,10 +41,11 @@ class MemorySummaryService {
       recentMessages: recentMessages,
       instructions: {'raw': instrucciones},
     );
-    final response = await AIService.sendMessage(
-      [],
-      systemPrompt,
-      model: superblockModel,
+    final response = await AIProviderManager.instance.sendMessage(
+      history: [],
+      systemPrompt: systemPrompt,
+      capability: AICapability.textGeneration,
+      preferredModel: superblockModel,
     );
     final resumenJson = extractJsonBlock(response.text.trim());
     if (resumenJson.toString().isNotEmpty && resumenJson.toString() != '') {

@@ -12,7 +12,8 @@ import 'package:ai_chan/shared/utils/onboarding_fallback_utils.dart';
 /// Este servicio actúa como compatibilidad con la API existente.
 class ConversationalOnboardingService {
   /// 🎯 **Application Service** siguiendo DDD
-  static final _applicationService = OnboardingApplicationService();
+  static OnboardingApplicationService _applicationService =
+      OnboardingApplicationService();
 
   /// Texto inicial del flujo de "despertar".
   static const String initialMessage =
@@ -37,6 +38,7 @@ class ConversationalOnboardingService {
   static Future<Map<String, dynamic>> processUserResponse({
     required final MemoryData currentMemory,
     required final String userResponse,
+    final dynamic aiProviderManager, // Para testing
   }) async {
     Log.d(
       '🔍 [ONB_SERVICE] Iniciando procesamiento de respuesta del usuario',
@@ -45,7 +47,11 @@ class ConversationalOnboardingService {
 
     try {
       // ✅ DDD: Delegar al OnboardingApplicationService
-      final result = await _applicationService.processConversationalFlow(
+      final applicationService = aiProviderManager != null
+          ? OnboardingApplicationService(aiProviderManager: aiProviderManager)
+          : _applicationService;
+
+      final result = await applicationService.processConversationalFlow(
         currentMemory: currentMemory,
         userResponse: userResponse,
       );
@@ -75,6 +81,7 @@ class ConversationalOnboardingService {
         'Error procesando respuesta',
         currentMemory,
         userResponse,
+        aiProviderManager,
       );
     }
   }
@@ -160,14 +167,22 @@ class ConversationalOnboardingService {
   }
 
   /// Obtiene las instrucciones de voz para el TTS según el estado del onboarding
-  static String getVoiceInstructions({
+  static Map<String, String> getVoiceInstructions({
     final String? userCountry,
     final String? aiCountry,
+    final double? completionPercentage,
+    final MemoryData? memory,
   }) {
+    // Si no se proporciona completionPercentage pero sí memoria, calcularlo
+    final finalCompletionPercentage =
+        completionPercentage ??
+        (memory != null ? getMemoryCompletionPercentage(memory) : 0.0);
+
     // Usar el servicio de dominio para obtener instrucciones de voz
     return ConversationalMemoryDomainService.getVoiceInstructions(
       userCountry: userCountry,
       aiCountry: aiCountry,
+      completionPercentage: finalCompletionPercentage,
     );
   }
 
@@ -251,6 +266,7 @@ class ConversationalOnboardingService {
     final String? exception,
     final MemoryData currentMemory,
     final String userResponse,
+    final dynamic aiProviderManager,
   ) {
     return {
       'updatedMemory': currentMemory,
@@ -259,5 +275,17 @@ class ConversationalOnboardingService {
       'error': true,
       'exception': exception,
     };
+  }
+
+  /// Método para testing: permite inyectar un Application Service personalizado
+  static void setApplicationServiceForTesting(
+    final OnboardingApplicationService service,
+  ) {
+    _applicationService = service;
+  }
+
+  /// Método para testing: restaura el Application Service original
+  static void resetApplicationServiceForTesting() {
+    _applicationService = OnboardingApplicationService();
   }
 }

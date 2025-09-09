@@ -6,7 +6,6 @@ import 'package:ai_chan/shared/utils/app_data_utils.dart' as utils;
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as utils;
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
 import 'package:ai_chan/core/models/ai_chan_profile.dart';
-import 'package:ai_chan/shared/services/enhanced_ai_runtime_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -30,20 +29,11 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Config.initialize();
 
-  // Initialize Enhanced AI Runtime Provider
-  try {
-    await EnhancedAIRuntimeProvider.initialize();
-    utils.Log.i(
-      'Enhanced AI Provider system initialized successfully',
-      tag: 'STARTUP',
-    );
-  } on Exception catch (e) {
-    utils.Log.w(
-      'Failed to initialize Enhanced AI Provider system: $e',
-      tag: 'STARTUP',
-    );
-    // Continue with legacy system
-  }
+  // The new AIProviderManager system auto-initializes on first access
+  utils.Log.i(
+    'AI Provider system will initialize automatically on first use',
+    tag: 'STARTUP',
+  );
 
   // Initialize Firebase early so adapters using FirebaseAuth can work.
   // Use the helper that tries native init first and falls back to parsing

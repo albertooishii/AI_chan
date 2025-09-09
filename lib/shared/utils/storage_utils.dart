@@ -18,5 +18,11 @@ class StorageUtils {
         jsonEncode(exported.events.map((final e) => e.toJson()).toList()),
       );
     } on Exception catch (_) {}
+    // Guardar timeline también para asegurar que se persiste correctamente
+    try {
+      await PrefsUtils.setTimeline(
+        jsonEncode(exported.timeline.map((final t) => t.toJson()).toList()),
+      );
+    } on Exception catch (_) {}
   }
 }

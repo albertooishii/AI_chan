@@ -10,8 +10,8 @@ import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/shared/widgets/animated_indicators.dart';
 import '../controllers/chat_input_controller.dart';
-import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/application/services/file_ui_service.dart';
+import 'package:ai_chan/core/models/image.dart';
 
 // Intents para atajos de teclado en escritorio
 class SendMessageIntent extends Intent {
@@ -266,23 +266,17 @@ class _MessageInputState extends State<MessageInput> {
     AiImage? imageToSend;
     final String? imageMimeType = _attachedImageMime;
     if (hasImage) {
+      // Save image file for display purposes and create AiImage object for AI processing
       final savedPath = await widget.fileService.saveBase64Image(
         _attachedImageBase64!,
         prefix: 'img_user',
       );
-      if (savedPath != null) {
-        final fileName = widget.fileService.getFileName(savedPath);
-        imageToSend = AiImage(url: fileName, base64: _attachedImageBase64!);
-      } else {
-        final ext = imageMimeType == 'image/jpeg'
-            ? 'jpg'
-            : imageMimeType == 'image/webp'
-            ? 'webp'
-            : 'png';
-        final fileName =
-            'img_user_${DateTime.now().millisecondsSinceEpoch}.$ext';
-        imageToSend = AiImage(url: fileName, base64: _attachedImageBase64!);
-      }
+      // Create AiImage object with the saved file path and original base64
+      imageToSend = AiImage(
+        url: savedPath,
+        base64: _attachedImageBase64,
+        createdAtMs: DateTime.now().millisecondsSinceEpoch,
+      );
     }
     if (mounted) {
       setState(() {
@@ -292,7 +286,7 @@ class _MessageInputState extends State<MessageInput> {
         _attachedImageMime = null;
       });
     }
-    // Delegate to controller
+    // Delegate to controller - pass AiImage object instead of file path
     await widget.controller.scheduleSend(
       text,
       image: imageToSend,

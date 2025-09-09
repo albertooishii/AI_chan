@@ -192,7 +192,7 @@ class XAIProvider implements IAIProvider {
         }
       }
 
-      Log.i('Cuerpo de solicitud Grok: ${jsonEncode(body)}');
+      // Log.i('Cuerpo de solicitud Grok: ${jsonEncode(body)}');
 
       // Use the x.ai (Grok) chat completions endpoint which is OpenAI-compatible.
       final url = Uri.parse('https://api.x.ai/v1/chat/completions');
@@ -205,7 +205,7 @@ class XAIProvider implements IAIProvider {
         body: jsonEncode(body),
       );
 
-      Log.i('Respuesta de Grok recibida: ${resp.body}');
+      // Log.i('Respuesta de Grok recibida: ${resp.body}');
 
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);

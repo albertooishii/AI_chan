@@ -3,7 +3,8 @@ import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/image_utils.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/shared/services/ai_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/core/ai_runtime_guard.dart';
 
 class IAAvatarGenerator {
@@ -194,10 +195,11 @@ class IAAvatarGenerator {
         dateTime: DateTime.now(),
         instructions: instructions,
       );
-      final response = await AIService.sendMessage(
-        [],
-        systemPrompt,
-        model: textModel,
+      final response = await AIProviderManager.instance.sendMessage(
+        history: [],
+        systemPrompt: systemPrompt,
+        capability: AICapability.textGeneration,
+        preferredModel: textModel,
       );
       final generated =
           (response.text.isNotEmpty ? response.text : response.prompt).trim();
@@ -262,11 +264,11 @@ class IAAvatarGenerator {
           instructions: promptToSend,
         );
 
-        final response = await AIService.sendMessage(
-          [],
-          systemPrompt,
-          model: imageModel,
-          enableImageGeneration: true,
+        final response = await AIProviderManager.instance.sendMessage(
+          history: [],
+          systemPrompt: systemPrompt,
+          capability: AICapability.imageGeneration,
+          preferredModel: imageModel,
         );
 
         if (response.base64.isNotEmpty) {

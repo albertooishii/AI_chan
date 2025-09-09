@@ -1,7 +1,6 @@
 import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/ai_providers/core/registry/ai_provider_registry.dart';
-import 'package:ai_chan/shared/services/enhanced_ai_runtime_provider.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 
@@ -69,27 +68,14 @@ class AIProviderService {
           additionalParams: additionalParams,
         );
       } on Exception catch (e) {
-        Log.w(
-          '[AIProviderService] Provider failed, falling back to runtime factory: $e',
-        );
+        Log.w('[AIProviderService] Provider failed: $e');
+        // No fallback - throw the error
+        rethrow;
       }
     }
 
-    // Fallback to Enhanced AI Runtime Provider
-    Log.d(
-      '[AIProviderService] Falling back to Enhanced AI runtime for model: $modelId',
-    );
-    final service = await EnhancedAIRuntimeProvider.getAIServiceForModel(
-      modelId,
-    );
-    return await service.sendMessageImpl(
-      history,
-      systemPrompt,
-      model: modelId,
-      imageBase64: imageBase64,
-      imageMimeType: imageMimeType,
-      enableImageGeneration: capability == AICapability.imageGeneration,
-    );
+    // No provider available for the requested model
+    throw Exception('No provider available for model: $modelId');
   }
 
   /// Get available models for capability

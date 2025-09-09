@@ -1,8 +1,8 @@
 import 'dart:async';
-// import 'dart:io';
+import 'package:ai_chan/core/models/image.dart';
 
 typedef ScheduleSendFn =
-    Future<void> Function(String text, {dynamic image, String? imageMimeType});
+    Future<void> Function(String text, {AiImage? image, String? imageMimeType});
 
 /// Minimal controller that exposes actions and ValueListenables for the
 /// MessageInput widget so the widget doesn't depend on Provider directly.

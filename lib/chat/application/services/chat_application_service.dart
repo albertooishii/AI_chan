@@ -9,7 +9,8 @@ import 'package:ai_chan/core/di.dart' as di;
 
 import 'package:ai_chan/chat.dart'; // Para PeriodicIaMessageScheduler y domain interfaces
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/shared/services/ai_service.dart' as ai_service;
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 
 /// Callback para notificar cambios de estado a la UI
 typedef StateChangeCallback = void Function();
@@ -322,6 +323,27 @@ class ChatApplicationService {
     final now = DateTime.now();
     final hasImage = image != null;
 
+    // Separate image data: base64 for AI processing, AiImage object for message storage
+    String? imageBase64ForAI;
+    AiImage? imageForMessage;
+
+    if (hasImage && image is String) {
+      // If image is base64 string, use it for AI and create AiImage for storage
+      imageBase64ForAI = image;
+      // Create a simple AiImage reference (without storing base64 in message)
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final ext = imageMimeType == 'image/jpeg'
+          ? 'jpg'
+          : imageMimeType == 'image/webp'
+          ? 'webp'
+          : 'png';
+      imageForMessage = AiImage(url: 'img_user_$timestamp.$ext');
+    } else if (hasImage) {
+      // If image is already an AiImage object (from retry), keep it as is
+      imageForMessage = image as AiImage?;
+      imageBase64ForAI = null; // No base64 available for retry scenarios
+    }
+
     // Existing message index logic for retries
     Message message;
     if (existingMessageIndex != null &&
@@ -331,7 +353,7 @@ class ChatApplicationService {
       message = _messages[existingMessageIndex].copyWith(
         status: MessageStatus.sending,
         text: text,
-        image: image,
+        image: imageForMessage,
         dateTime: now,
       );
       _messages[existingMessageIndex] = message;
@@ -342,7 +364,7 @@ class ChatApplicationService {
         sender: MessageSender.user,
         dateTime: now,
         isImage: hasImage,
-        image: image,
+        image: imageForMessage,
       );
       _messages.add(message);
     }
@@ -374,7 +396,7 @@ class ChatApplicationService {
     // Process AI response with simplified method
     final options = QueuedSendOptions(
       model: model,
-      image: image,
+      image: imageBase64ForAI, // Use base64 for AI processing
       imageMimeType: imageMimeType,
     );
     await _processWithSendMessageUseCase(message, options);
@@ -563,9 +585,23 @@ class ChatApplicationService {
 
   Future<List<String>> getAllModels({final bool forceRefresh = false}) async {
     try {
-      // Usar el método correcto que obtiene modelos ordenados por proveedor:
-      // Primero Gemini, después OpenAI, después Grok
-      return await ai_service.getAllAIModels(forceRefresh: forceRefresh);
+      // Get all available models from all providers
+      final allModels = <String>[];
+
+      // Get models for text generation capability from all providers
+      final textModels = await AIProviderManager.instance.getAvailableModels(
+        AICapability.textGeneration,
+      );
+      allModels.addAll(textModels);
+
+      // Get models for image generation capability from all providers
+      final imageModels = await AIProviderManager.instance.getAvailableModels(
+        AICapability.imageGeneration,
+      );
+      allModels.addAll(imageModels);
+
+      // Remove duplicates and return
+      return allModels.toSet().toList();
     } on Exception catch (e) {
       Log.w('[ChatService] Error obteniendo modelos: $e');
       // Fallback a modelos estáticos si falla la obtención dinámica

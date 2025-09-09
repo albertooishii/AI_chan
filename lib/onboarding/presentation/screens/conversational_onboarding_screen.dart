@@ -6,7 +6,7 @@ import 'package:ai_chan/onboarding/presentation/controllers/onboarding_lifecycle
 import 'package:ai_chan/onboarding/domain/entities/memory_data.dart';
 import 'package:ai_chan/onboarding/services/conversational_onboarding_service.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
-import 'package:ai_chan/shared/services/openai_tts_service.dart';
+// import 'package:ai_chan/shared/services/openai_tts_service.dart';
 import 'package:ai_chan/shared/services/hybrid_stt_service.dart';
 import 'package:ai_chan/shared/controllers/audio_subtitle_controller.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -19,6 +19,25 @@ import 'package:ai_chan/shared/constants/countries_es.dart';
 import 'dart:async';
 import 'onboarding_screen.dart' show OnboardingFinishCallback, OnboardingScreen;
 import 'onboarding_mode_selector.dart' as mode_selector;
+
+// TODO: Clase temporal para compilar - migrar a nuevos servicios
+class OpenAITtsService {
+  bool get isPlaying => false;
+  Future<void> stop() async {}
+  Future<void> dispose() async {}
+  Future<void> waitForCompletion() async {}
+  Future<AudioInfo> synthesizeAndPlay(
+    final String text, {
+    final Map<String, dynamic>? options,
+  }) async {
+    return AudioInfo(duration: Duration.zero);
+  }
+}
+
+class AudioInfo {
+  AudioInfo({required this.duration});
+  final Duration duration;
+}
 
 /// Pantalla de onboarding completamente conversacional
 /// Implementa el flujo tipo "despertar" donde AI-chan habla con el usuario
@@ -190,7 +209,7 @@ class _ConversationalOnboardingScreenState
 
   /// Determina la configuración de voz con acento dinámico
   Map<String, dynamic> _getVoiceConfiguration() {
-    final String instructions =
+    final Map<String, String> instructions =
         ConversationalOnboardingService.getVoiceInstructions(
           userCountry: _userCountry,
           aiCountry: _aiCountry,
@@ -623,98 +642,51 @@ class _ConversationalOnboardingScreenState
         return;
       }
 
-      if (audioInfo != null) {
-        Log.d(
-          '✅ Audio generado, iniciando subtítulos progresivos',
-          tag: 'CONV_ONBOARDING',
-        );
+      Log.d(
+        '✅ Audio generado, iniciando subtítulos progresivos',
+        tag: 'CONV_ONBOARDING',
+      );
 
-        // 📝 CONFIGURAR SUBTÍTULOS PROGRESIVOS (como en audio_message_player_with_subs.dart)
-        _progressiveSubtitleController.updateProportional(
-          Duration.zero,
-          text,
-          audioInfo.duration,
-        );
+      // 📝 CONFIGURAR SUBTÍTULOS PROGRESIVOS (como en audio_message_player_with_subs.dart)
+      _progressiveSubtitleController.updateProportional(
+        Duration.zero,
+        text,
+        audioInfo.duration,
+      );
 
-        // 🎬 SUSCRIBIRSE AL STREAM PROGRESIVO
-        // Antes de suscribirnos, cancelar cualquier reproducción/subs previa
-        _progressiveSub?.cancel();
-        _progressiveTimer?.cancel();
-        _progressiveSub = _progressiveSubtitleController.progressiveTextStream
-            .listen((final progressiveText) {
-              if (progressiveText.isNotEmpty && mounted) {
-                _subtitleController.handleAiChunk(
-                  progressiveText,
-                  audioStarted: true,
-                  suppressFurther: false,
-                );
-              }
-            });
+      // 🎬 SUSCRIBIRSE AL STREAM PROGRESIVO
+      // Antes de suscribirnos, cancelar cualquier reproducción/subs previa
+      _progressiveSub?.cancel();
+      _progressiveTimer?.cancel();
+      _progressiveSub = _progressiveSubtitleController.progressiveTextStream
+          .listen((final progressiveText) {
+            if (progressiveText.isNotEmpty && mounted) {
+              _subtitleController.handleAiChunk(
+                progressiveText,
+                audioStarted: true,
+                suppressFurther: false,
+              );
+            }
+          });
 
-        // ⏰ SIMULAR PROGRESO DE TIEMPO (como en audio_message_player_with_subs.dart)
-        const updateInterval = Duration(milliseconds: 100);
-        const revealDelay = Duration(
-          milliseconds: 500,
-        ); // Delay inicial para evitar flash
-        final adjustedDuration = audioInfo.duration - revealDelay;
+      // ⏰ SIMULAR PROGRESO DE TIEMPO (como en audio_message_player_with_subs.dart)
+      const updateInterval = Duration(milliseconds: 100);
+      const revealDelay = Duration(
+        milliseconds: 500,
+      ); // Delay inicial para evitar flash
+      final adjustedDuration = audioInfo.duration - revealDelay;
 
-        _progressiveTimer?.cancel();
-        _progressiveTimer = Timer.periodic(updateInterval, (final timer) {
-          // 🔒 VERIFICAR CANCELACIÓN DURANTE REPRODUCCIÓN
-          if (!mounted ||
-              !_isSpeaking ||
-              currentOperationId != _currentOperationId) {
-            Log.d(
-              '🛑 Subtítulos cancelados durante reproducción',
-              tag: 'CONV_ONBOARDING',
-            );
-            timer.cancel();
-            _progressiveTimer?.cancel();
-            _progressiveTimer = null;
-            _progressiveSub?.cancel();
-            _progressiveSub = null;
-            return;
-          }
-
-          final elapsed = Duration(
-            milliseconds: timer.tick * updateInterval.inMilliseconds,
-          );
-
-          if (elapsed <= revealDelay) {
-            // Durante el delay inicial: mantener subtítulos limpios
-            _subtitleController.clearAll();
-          } else if (elapsed >= audioInfo.duration) {
-            // Al final: mostrar texto completo y limpiar
-            timer.cancel();
-            _progressiveTimer?.cancel();
-            _progressiveTimer = null;
-            _progressiveSub?.cancel();
-            _progressiveSub = null;
-            _subtitleController.handleAiChunk(
-              text,
-              audioStarted: true,
-              suppressFurther: false,
-            );
-          } else {
-            // Progreso normal: actualizar posición proporcional
-            final effectiveElapsed = elapsed - revealDelay;
-            _progressiveSubtitleController.updateProportional(
-              effectiveElapsed,
-              text,
-              adjustedDuration,
-            );
-          }
-        });
-
-        // ⏳ ESPERAR A QUE TERMINE LA REPRODUCCIÓN
-        await _openaiTtsService.waitForCompletion();
-
-        // 🔒 VERIFICAR CANCELACIÓN DESPUÉS DE REPRODUCCIÓN
-        if (currentOperationId != _currentOperationId) {
+      _progressiveTimer?.cancel();
+      _progressiveTimer = Timer.periodic(updateInterval, (final timer) {
+        // 🔒 VERIFICAR CANCELACIÓN DURANTE REPRODUCCIÓN
+        if (!mounted ||
+            !_isSpeaking ||
+            currentOperationId != _currentOperationId) {
           Log.d(
-            '🛑 Audio completado pero operación fue cancelada',
+            '🛑 Subtítulos cancelados durante reproducción',
             tag: 'CONV_ONBOARDING',
           );
+          timer.cancel();
           _progressiveTimer?.cancel();
           _progressiveTimer = null;
           _progressiveSub?.cancel();
@@ -722,33 +694,71 @@ class _ConversationalOnboardingScreenState
           return;
         }
 
-        // Limpiar suscripción si aún está activa
+        final elapsed = Duration(
+          milliseconds: timer.tick * updateInterval.inMilliseconds,
+        );
+
+        if (elapsed <= revealDelay) {
+          // Durante el delay inicial: mantener subtítulos limpios
+          _subtitleController.clearAll();
+        } else if (elapsed >= audioInfo.duration) {
+          // Al final: mostrar texto completo y limpiar
+          timer.cancel();
+          _progressiveTimer?.cancel();
+          _progressiveTimer = null;
+          _progressiveSub?.cancel();
+          _progressiveSub = null;
+          _subtitleController.handleAiChunk(
+            text,
+            audioStarted: true,
+            suppressFurther: false,
+          );
+        } else {
+          // Progreso normal: actualizar posición proporcional
+          final effectiveElapsed = elapsed - revealDelay;
+          _progressiveSubtitleController.updateProportional(
+            effectiveElapsed,
+            text,
+            adjustedDuration,
+          );
+        }
+      });
+
+      // ⏳ ESPERAR A QUE TERMINE LA REPRODUCCIÓN
+      await _openaiTtsService.waitForCompletion();
+
+      // 🔒 VERIFICAR CANCELACIÓN DESPUÉS DE REPRODUCCIÓN
+      if (currentOperationId != _currentOperationId) {
+        Log.d(
+          '🛑 Audio completado pero operación fue cancelada',
+          tag: 'CONV_ONBOARDING',
+        );
         _progressiveTimer?.cancel();
         _progressiveTimer = null;
         _progressiveSub?.cancel();
         _progressiveSub = null;
-
-        Log.d(
-          '✅ OpenAI TTS con subtítulos progresivos completado exitosamente',
-          tag: 'CONV_ONBOARDING',
-        );
-
-        // 🔍 LOG DETALLADO: Estado después de completar TTS
-        Log.d('📊 ESTADO POST-TTS:', tag: 'CONV_ONBOARDING');
-        Log.d('   - _isTtsPlaying: $_isTtsPlaying', tag: 'CONV_ONBOARDING');
-        Log.d('   - _isSpeaking: $_isSpeaking', tag: 'CONV_ONBOARDING');
-        Log.d(
-          '   - OpenAI TTS isPlaying: ${_openaiTtsService.isPlaying}',
-          tag: 'CONV_ONBOARDING',
-        );
-      } else {
-        // Fallback si no hay información de audio
-        _subtitleController.handleAiChunk(
-          text,
-          audioStarted: true,
-          suppressFurther: false,
-        );
+        return;
       }
+
+      // Limpiar suscripción si aún está activa
+      _progressiveTimer?.cancel();
+      _progressiveTimer = null;
+      _progressiveSub?.cancel();
+      _progressiveSub = null;
+
+      Log.d(
+        '✅ OpenAI TTS con subtítulos progresivos completado exitosamente',
+        tag: 'CONV_ONBOARDING',
+      );
+
+      // 🔍 LOG DETALLADO: Estado después de completar TTS
+      Log.d('📊 ESTADO POST-TTS:', tag: 'CONV_ONBOARDING');
+      Log.d('   - _isTtsPlaying: $_isTtsPlaying', tag: 'CONV_ONBOARDING');
+      Log.d('   - _isSpeaking: $_isSpeaking', tag: 'CONV_ONBOARDING');
+      Log.d(
+        '   - OpenAI TTS isPlaying: ${_openaiTtsService.isPlaying}',
+        tag: 'CONV_ONBOARDING',
+      );
     } on Exception catch (e) {
       Log.e('❌ Error en OpenAI TTS: $e', tag: 'CONV_ONBOARDING');
 

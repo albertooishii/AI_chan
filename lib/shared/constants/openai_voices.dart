@@ -14,7 +14,6 @@ const Map<String, String> kOpenAIVoiceGender = {
   'nova': 'Femenina',
   'shimmer': 'Femenina',
   'verse': 'Masculina',
-  // Nuevas voces exclusivas del modelo gpt-realtime
   'cedar': 'Masculina',
   'marin': 'Femenina',
 };

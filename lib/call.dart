@@ -59,16 +59,16 @@ export 'call/infrastructure/adapters/call_message_adapter.dart';
 export 'call/infrastructure/adapters/call_strategy.dart';
 export 'call/infrastructure/adapters/chat_integration_service_adapter.dart';
 export 'call/infrastructure/adapters/default_call_manager.dart';
-export 'call/infrastructure/adapters/default_tts_service.dart';
+export 'call/infrastructure/adapters/ai_provider_tts_service.dart';
 export 'call/infrastructure/adapters/flutter_audio_manager.dart';
 export 'call/infrastructure/adapters/google_speech_adapter.dart';
 export 'call/infrastructure/adapters/google_speech_service_adapter.dart';
 export 'call/infrastructure/adapters/google_stt_adapter.dart';
+export 'call/infrastructure/adapters/ai_provider_stt_adapter.dart';
 export 'call/infrastructure/adapters/google_tts_adapter.dart';
 export 'call/infrastructure/adapters/in_memory_call_repository.dart';
 export 'call/infrastructure/adapters/openai_speech_service_adapter.dart';
-export 'call/infrastructure/adapters/openai_stt_adapter.dart';
-export 'call/infrastructure/adapters/openai_tts_adapter.dart';
+
 export 'call/infrastructure/adapters/tone_service.dart';
 export 'call/infrastructure/adapters/websocket_realtime_transport_service.dart';
 

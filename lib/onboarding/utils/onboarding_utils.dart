@@ -1,4 +1,5 @@
-import 'package:ai_chan/shared/services/ai_service.dart' as ai_service;
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/chat/infrastructure/adapters/prompt_builder_service.dart';
@@ -43,10 +44,11 @@ class OnboardingUtils {
       },
     ].map((final m) => Map<String, String>.from(m)).toList();
 
-    final response = await ai_service.AIService.sendMessage(
-      history,
-      systemPrompt,
-      model: Config.getDefaultTextModel(),
+    final response = await AIProviderManager.instance.sendMessage(
+      history: history,
+      systemPrompt: systemPrompt,
+      capability: AICapability.textGeneration,
+      preferredModel: Config.getDefaultTextModel(),
     );
 
     return response.text.trim();

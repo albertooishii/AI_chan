@@ -7,6 +7,7 @@ import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_config.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/ai_providers/implementations/google_provider.dart';
+import 'package:ai_chan/shared/ai_providers/implementations/openai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/implementations/xai_provider.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart' show Log;
 
@@ -128,12 +129,8 @@ class AIProviderFactory {
 
   /// Create OpenAI provider with configuration
   static IAIProvider _createOpenAIProvider(final ProviderConfig config) {
-    // Note: OpenAI provider not implemented yet, return null
-    // TODO: Implement OpenAIProvider when available
-    throw ProviderCreationException(
-      'OpenAI provider not yet implemented',
-      UnsupportedError('OpenAI provider construction not available'),
-    );
+    // Create OpenAI provider instance
+    return OpenAIProvider();
   }
 
   /// Create Google provider with configuration

@@ -3,16 +3,16 @@ import 'dart:convert';
 import 'package:ai_chan/shared/utils/json_utils.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/shared/services/ai_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/core/ai_runtime_guard.dart';
 
 /// Generador de apariencia física detallada para IA
 class IAAppearanceGenerator {
   /// Genera una descripción física exhaustiva basada en la biografía
   Future<Map<String, dynamic>> generateAppearanceFromBiography(
-    final AiChanProfile bio, {
-    final AIService? aiService,
-  }) async {
+    final AiChanProfile bio,
+  ) async {
     final usedModel = Config.getDefaultTextModel();
 
     // Determinar si es japonesa basado en el país de la biografía
@@ -276,17 +276,12 @@ class IAAppearanceGenerator {
         '[IAAppearanceGenerator] Apariencia: intento ${attempt + 1}/$maxJsonAttempts (modelo=$usedModel)',
       );
       try {
-        final AIResponse resp = await (aiService != null
-            ? aiService.sendMessageImpl(
-                [],
-                systemPromptAppearance,
-                model: usedModel,
-              )
-            : AIService.sendMessage(
-                [],
-                systemPromptAppearance,
-                model: usedModel,
-              ));
+        final AIResponse resp = await AIProviderManager.instance.sendMessage(
+          history: [],
+          systemPrompt: systemPromptAppearance,
+          capability: AICapability.textGeneration,
+          preferredModel: usedModel,
+        );
         if ((resp.text).trim().isEmpty) {
           Log.w(
             '[IAAppearanceGenerator] Apariencia: respuesta vacía (posible desconexión), reintentando...',

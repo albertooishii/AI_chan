@@ -7,6 +7,7 @@ import 'package:ai_chan/core/http_connector.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/chat/infrastructure/adapters/prompt_builder_service.dart'
     as pb;
+import 'package:ai_chan/shared/utils/debug_call_logger/debug_call_logger_io.dart';
 import 'dart:convert';
 import 'dart:async';
 
@@ -176,57 +177,97 @@ class GoogleProvider implements IAIProvider {
     final Map<String, dynamic>? additionalParams,
   ) async {
     try {
+      // 🔍 DEBUG: Log image handling
+      Log.d(
+        '[GoogleProvider] _sendTextRequest called - imageBase64: ${imageBase64?.isNotEmpty == true ? "PROVIDED (${imageBase64!.length} chars)" : "NULL/EMPTY"}, additionalParams: $additionalParams',
+      );
+
       Log.i('Enviando solicitud a Gemini: ${history.length} mensajes');
 
-      // Construir prompt final
-      final String finalPrompt = history.isNotEmpty
-          ? history.last['content'] ?? ''
-          : '';
-
-      // Construir system prompt modificado con metadata de imagen si hay imagen adjunta
+      // Usar la misma lógica que el GeminiService que funciona
       final Map<String, dynamic> systemPromptMap = systemPrompt.toJson();
-      if (imageBase64 != null && imageMimeType != null) {
-        Log.i('Imagen adjunta detectada, añadiendo metadata al prompt');
-        try {
-          final instrRoot = systemPromptMap['instructions'];
-          if (instrRoot is Map) {
-            // Inyectar la instrucción para metadatos de imagen cuando el usuario
-            // adjunta una imagen (imageBase64 presente).
+
+      // Inyectar instrucciones según el contexto, igual que en GeminiService
+      try {
+        final instrRoot = systemPromptMap['instructions'];
+        if (instrRoot is Map) {
+          // Inyectar la instrucción para metadatos de imagen cuando el usuario
+          // adjunta una imagen (imageBase64 presente).
+          if (imageBase64 != null && imageBase64.isNotEmpty) {
             instrRoot['attached_image_metadata_instructions'] = pb
                 .imageMetadata(systemPrompt.profile.userName);
           }
-        } on Exception catch (_) {}
-      }
+          // Si se solicita generación de imagen explícita, inyectar también la instrucción de 'foto'.
+          final enableImageGeneration =
+              additionalParams?['enableImageGeneration'] == true;
+          if (enableImageGeneration) {
+            instrRoot['photo_instructions'] = pb.imageInstructions(
+              systemPrompt.profile.userName,
+            );
+          }
+        }
+      } on Exception catch (_) {}
 
-      // Configuración de generación
-      final Map<String, dynamic> generationConfig = {
-        'temperature': additionalParams?['temperature'] ?? 0.7,
-        'maxOutputTokens': additionalParams?['max_tokens'] ?? 2048,
-        'candidateCount': 1,
-      };
+      // Construir contenido usando la MISMA estructura que GeminiService (sin duplicación)
+      final List<Map<String, dynamic>> contents = [];
 
-      // Construir contenido
-      final List<Map<String, dynamic>> parts = [];
-
-      // Añadir instrucciones del sistema como primer texto
+      // Añadir un bloque de role=model con el SystemPrompt serializado
       final sysJson = jsonEncode(systemPromptMap);
-      parts.add({'text': 'System: $sysJson\n\nUser: $finalPrompt'});
+      contents.add({
+        'role': 'model',
+        'parts': [
+          {'text': sysJson},
+        ],
+      });
 
-      // Añadir imagen si existe
-      if (imageBase64 != null && imageMimeType != null) {
-        parts.add({
-          'inlineData': {'mimeType': imageMimeType, 'data': imageBase64},
+      // Manejar imagen correctamente - imageBase64 viene como parámetro separado
+      final bool hasImage = imageBase64 != null && imageBase64.isNotEmpty;
+
+      if (hasImage) {
+        // Si hay imagen, enviar el historial SIN duplicar el systemPrompt (ya está en el bloque 'model')
+        final StringBuffer allText = StringBuffer();
+        for (int i = 0; i < history.length; i++) {
+          final role = history[i]['role'] ?? 'user';
+          final contentStr = history[i]['content'] ?? '';
+          if (allText.isNotEmpty) allText.write('\n\n');
+          allText.write('[$role]: $contentStr');
+        }
+
+        contents.add({
+          'role': 'user',
+          'parts': [
+            {'text': allText.toString()},
+            {
+              'inline_data': {
+                'mime_type': imageMimeType ?? 'image/png',
+                'data': imageBase64,
+              },
+            },
+          ],
         });
+      } else {
+        // Unir todos los mensajes en un solo bloque de texto SIN duplicar systemPrompt
+        final StringBuffer allText = StringBuffer();
+        for (int i = 0; i < history.length; i++) {
+          final role = history[i]['role'] ?? 'user';
+          final contentStr = history[i]['content'] ?? '';
+          if (allText.isNotEmpty) allText.write('\n\n');
+          allText.write('[$role]: $contentStr');
+        }
+
+        final parts = <Map<String, dynamic>>[
+          {'text': allText.toString()},
+        ];
+        contents.add({'role': 'user', 'parts': parts});
       }
 
-      final Map<String, dynamic> requestBody = {
-        'contents': [
-          {'parts': parts},
-        ],
-        'generationConfig': generationConfig,
-      };
+      // Configuración de generación (opcional, como en GeminiService)
+      final Map<String, dynamic> requestPayload = {'contents': contents};
 
-      Log.i('Cuerpo de solicitud Gemini: ${jsonEncode(requestBody)}');
+      // 🔍 DEBUG: Log request payload tal como se envía
+      try {
+        await debugLogCallPrompt('google_provider_request', requestPayload);
+      } on Exception catch (_) {}
 
       final baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
       final url = '$baseUrl/$model:generateContent?key=$_apiKey';
@@ -234,31 +275,60 @@ class GoogleProvider implements IAIProvider {
       final response = await HttpConnector.client.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(requestBody),
+        body: jsonEncode(requestPayload),
       );
 
-      Log.i('Respuesta de Gemini recibida: ${response.body}');
+      // 🔍 DEBUG: Log response tal como se recibe
+      try {
+        if (response.statusCode == 200) {
+          await debugLogCallPrompt(
+            'google_provider_response',
+            jsonDecode(response.body),
+          );
+        } else {
+          await debugLogCallPrompt('google_provider_error', {
+            'status_code': response.statusCode,
+            'body': response.body,
+          });
+        }
+      } on Exception catch (_) {}
 
       if (response.statusCode != 200) {
         Log.e('Error en Gemini: ${response.statusCode} - ${response.body}');
         throw Exception('Error de la API de Gemini: ${response.statusCode}');
       }
 
-      final responseData = jsonDecode(response.body);
+      // Usar la misma lógica de parsing que GeminiService
+      final data = jsonDecode(response.body);
+      String? text;
+      String? imagePrompt;
+      String? outBase64;
+      final candidates = data['candidates'] ?? [];
 
-      if (responseData['candidates'] == null ||
-          responseData['candidates'].isEmpty ||
-          responseData['candidates'][0]['content'] == null ||
-          responseData['candidates'][0]['content']['parts'] == null ||
-          responseData['candidates'][0]['content']['parts'].isEmpty) {
-        throw Exception('Respuesta inválida de la API de Gemini');
+      if (candidates.isNotEmpty && candidates[0]['content'] != null) {
+        final parts = candidates[0]['content']['parts'] ?? [];
+        for (final part in parts) {
+          if (text == null && part is Map && part['text'] != null) {
+            text = part['text'];
+          }
+          if (outBase64 == null && part is Map && part['inline_data'] != null) {
+            final inline = part['inline_data'];
+            final mime = (inline['mime_type'] ?? '').toString();
+            final dataB64 = inline['data']?.toString();
+            if (mime.startsWith('image/') &&
+                dataB64 != null &&
+                dataB64.isNotEmpty) {
+              outBase64 = dataB64;
+            }
+          }
+        }
       }
 
-      final content =
-          responseData['candidates'][0]['content']['parts'][0]['text']
-              as String;
-
-      return AIResponse(text: content);
+      return AIResponse(
+        text: (text != null && text.trim().isNotEmpty) ? text : '',
+        base64: outBase64 ?? '',
+        prompt: imagePrompt ?? '',
+      );
     } catch (e) {
       Log.e('Error en GoogleProvider._sendTextRequest: $e');
       rethrow;

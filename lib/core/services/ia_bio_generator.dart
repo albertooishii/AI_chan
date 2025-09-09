@@ -1,7 +1,8 @@
 import 'package:ai_chan/shared/utils/locale_utils.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/date_utils.dart';
-import 'package:ai_chan/shared/services/ai_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/core/ai_runtime_guard.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/config.dart';
@@ -160,7 +161,6 @@ Future<AiChanProfile> generateAIBiographyWithAI({
   final String? userCountryCode,
   final String? aiCountryCode,
   final int? seed,
-  final AIService? aiServiceOverride,
 }) async {
   // Generar fecha de nacimiento de la IA basada en la edad del usuario
   final aiBirthdateDate = DateUtils.generateAIBirthdate(
@@ -293,13 +293,12 @@ Identidad: $aiIdentityInstructions
     Log.d('[IABioGenerator] Biografía: intento ${attempt + 1}/$maxAttempts');
     try {
       // Use existing Log.* calls for structured logging; avoid noisy debugPrints.
-      final responseObj = await (aiServiceOverride != null
-          ? aiServiceOverride.sendMessageImpl(
-              [],
-              systemPromptObj,
-              model: defaultModel,
-            )
-          : AIService.sendMessage([], systemPromptObj, model: defaultModel));
+      final responseObj = await AIProviderManager.instance.sendMessage(
+        history: [],
+        systemPrompt: systemPromptObj,
+        capability: AICapability.textGeneration,
+        preferredModel: defaultModel,
+      );
       if ((responseObj.text).trim().isEmpty) {
         Log.w(
           '[IABioGenerator] Biografía: respuesta vacía (posible desconexión), reintentando...',

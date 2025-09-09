@@ -1,11 +1,12 @@
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/onboarding/domain/entities/memory_data.dart';
-import 'package:ai_chan/shared/services/ai_service.dart' as ai_service;
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/constants/female_names.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/onboarding/utils/onboarding_utils.dart';
-import 'dart:convert';
+import 'package:ai_chan/shared/utils/json_utils.dart';
 
 /// Caso de uso para procesar la respuesta del usuario durante el onboarding conversacional
 class ProcessUserResponseUseCase {
@@ -18,6 +19,7 @@ class ProcessUserResponseUseCase {
     required final String userResponse,
     required final List<Map<String, String>> conversationHistory,
     required final Function(String, String) addToHistory,
+    final dynamic aiProviderManager, // Para testing
   }) async {
     const maxRetries = 3;
 
@@ -33,6 +35,7 @@ class ProcessUserResponseUseCase {
           userResponse: userResponse,
           conversationHistory: conversationHistory,
           addToHistory: addToHistory,
+          aiProviderManager: aiProviderManager,
         );
 
         Log.d(
@@ -77,6 +80,7 @@ class ProcessUserResponseUseCase {
     required final String userResponse,
     required final List<Map<String, String>> conversationHistory,
     required final Function(String, String) addToHistory,
+    final dynamic aiProviderManager,
   }) async {
     // Actualizar historial de conversación
     addToHistory('role', 'user');
@@ -98,14 +102,33 @@ class ProcessUserResponseUseCase {
       'Usuario',
       instructions,
       conversationHistory,
+      aiProviderManager,
     );
 
-    // Parsear respuesta JSON de la IA
+    // Parsear respuesta JSON de la IA usando la función de utils
     dynamic responseData;
     try {
-      responseData = jsonDecode(response.text);
+      Log.d('🔍 Respuesta original: "${response.text}"', tag: 'ONB_SERVICE');
+      responseData = extractJsonBlock(response.text);
+
+      // Si la función devolvió un objeto con 'raw', significa que no pudo parsear JSON válido
+      if (responseData is Map<String, dynamic> &&
+          responseData.containsKey('raw')) {
+        Log.e(
+          '❌ No se encontró JSON válido en la respuesta',
+          tag: 'ONB_SERVICE',
+        );
+        return _createErrorResponse(
+          'Error de parsing JSON',
+          currentMemory,
+          userResponse,
+        );
+      }
+
+      Log.d('🔍 JSON parseado exitosamente', tag: 'ONB_SERVICE');
     } on Exception catch (e) {
       Log.e('❌ Error parseando JSON: $e', tag: 'ONB_SERVICE');
+      Log.d('🔍 Respuesta original: "${response.text}"', tag: 'ONB_SERVICE');
       return _createErrorResponse(
         'Error de parsing JSON',
         currentMemory,
@@ -134,35 +157,37 @@ class ProcessUserResponseUseCase {
     );
 
     // Actualizar memoria con el valor extraído
-    final updatedMemory = await _updateMemoryWithExtractedData(
+    final updateResult = await _updateMemoryWithExtractedData(
       dataType,
       extractedValue,
       currentMemory,
     );
+    final updatedMemory = updateResult['memory'] as MemoryData;
+    final newAiResponse = updateResult['aiResponse'] as String? ?? aiResponse;
 
     // Añadir respuesta de IA al historial si existe
-    if (aiResponse != null && aiResponse.isNotEmpty) {
+    if (newAiResponse != null && newAiResponse.isNotEmpty) {
       addToHistory('role', 'assistant');
-      addToHistory('content', aiResponse);
+      addToHistory('content', newAiResponse);
       addToHistory('datetime', DateTime.now().toIso8601String());
     }
 
     return _buildProcessResult(
       updatedMemory: updatedMemory,
       extractedData: {'type': dataType, 'value': extractedValue},
-      aiResponse: aiResponse,
+      aiResponse: newAiResponse,
       confidence: confidence,
     );
   }
 
   /// Actualiza la memoria con un nuevo dato extraído
-  static Future<MemoryData> _updateMemoryWithExtractedData(
+  static Future<Map<String, dynamic>> _updateMemoryWithExtractedData(
     final String? dataType,
     final String? extractedValue,
     final MemoryData currentMemory,
   ) async {
     if (dataType == null || extractedValue == null) {
-      return currentMemory;
+      return {'memory': currentMemory, 'aiResponse': null};
     }
 
     // Manejar casos especiales
@@ -180,13 +205,27 @@ class ProcessUserResponseUseCase {
                   : null,
             );
 
-        return currentMemory.copyWith(meetStory: 'GENERATED:$generatedStory');
+        final updatedMemory = currentMemory.copyWith(
+          meetStory: 'GENERATED:$generatedStory',
+        );
+        final cleanStory = generatedStory.replaceAll('GENERATED:', '').trim();
+
+        return {
+          'memory': updatedMemory,
+          'aiResponse':
+              '¡Por fin lo recuerdo! $cleanStory ¿Te suena familiar? ¡Qué hermoso es recordar cómo comenzó todo!',
+        };
       } on Exception catch (e) {
         Log.e('❌ Error generando historia: $e', tag: 'ONB_SERVICE');
-        return currentMemory.copyWith(
+        final fallbackMemory = currentMemory.copyWith(
           meetStory:
               'No puedo recordar exactamente cómo nos conocimos, pero sé que eres muy importante para mí.',
         );
+        return {
+          'memory': fallbackMemory,
+          'aiResponse':
+              'No puedo recordar exactamente cómo nos conocimos, pero sé que eres muy importante para mí.',
+        };
       }
     }
 
@@ -196,27 +235,48 @@ class ProcessUserResponseUseCase {
         final confirmedStory = currentMemory.meetStory!.substring(
           'GENERATED:'.length,
         );
-        return currentMemory.copyWith(meetStory: confirmedStory);
+        return {
+          'memory': currentMemory.copyWith(meetStory: confirmedStory),
+          'aiResponse': null,
+        };
       }
-      return currentMemory;
+      return {'memory': currentMemory, 'aiResponse': null};
     }
 
     // Actualizar campo específico
     switch (dataType) {
       case 'userName':
-        return currentMemory.copyWith(userName: extractedValue);
+        return {
+          'memory': currentMemory.copyWith(userName: extractedValue),
+          'aiResponse': null,
+        };
       case 'userCountry':
-        return currentMemory.copyWith(userCountry: extractedValue);
+        return {
+          'memory': currentMemory.copyWith(userCountry: extractedValue),
+          'aiResponse': null,
+        };
       case 'userBirthdate':
-        return currentMemory.copyWith(userBirthdate: extractedValue);
+        return {
+          'memory': currentMemory.copyWith(userBirthdate: extractedValue),
+          'aiResponse': null,
+        };
       case 'aiCountry':
-        return currentMemory.copyWith(aiCountry: extractedValue);
+        return {
+          'memory': currentMemory.copyWith(aiCountry: extractedValue),
+          'aiResponse': null,
+        };
       case 'aiName':
-        return currentMemory.copyWith(aiName: extractedValue);
+        return {
+          'memory': currentMemory.copyWith(aiName: extractedValue),
+          'aiResponse': null,
+        };
       case 'meetStory':
-        return currentMemory.copyWith(meetStory: extractedValue);
+        return {
+          'memory': currentMemory.copyWith(meetStory: extractedValue),
+          'aiResponse': null,
+        };
       default:
-        return currentMemory;
+        return {'memory': currentMemory, 'aiResponse': null};
     }
   }
 
@@ -391,12 +451,12 @@ FORMATO ESPECIAL PARA FECHAS:
     );
   }
 
-  /// Helper method para enviar requests a la IA eliminando duplicación de código
   static Future<dynamic> _sendAIRequest(
     final String prompt,
     final String userName,
     final Map<String, String> instructions,
     final List<Map<String, String>> conversationHistory,
+    final dynamic aiProviderManager,
   ) async {
     final profile = _createBasicProfile(userName, null);
 
@@ -414,11 +474,16 @@ FORMATO ESPECIAL PARA FECHAS:
       'datetime': DateTime.now().toIso8601String(),
     });
 
-    return await ai_service.AIService.sendMessage(
-      history,
-      systemPrompt,
-      model: Config.getDefaultTextModel(),
+    // Use new AIProviderManager system
+    final providerManager = aiProviderManager ?? AIProviderManager.instance;
+    final response = await providerManager.sendMessage(
+      history: history,
+      systemPrompt: systemPrompt,
+      capability: AICapability.textGeneration,
+      preferredModel: Config.getDefaultTextModel(),
     );
+
+    return response;
   }
 
   /// Crea una respuesta de error consistente para el nuevo formato

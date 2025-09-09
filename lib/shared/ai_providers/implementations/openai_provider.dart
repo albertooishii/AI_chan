@@ -7,6 +7,7 @@ import 'package:ai_chan/core/http_connector.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/chat/infrastructure/adapters/prompt_builder_service.dart'
     as pb;
+import 'package:ai_chan/shared/utils/debug_call_logger/debug_call_logger_io.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
@@ -38,7 +39,7 @@ class OpenAIProvider implements IAIProvider {
         AICapability.imageGeneration:
             'gpt-4.1-mini', // Text model with image generation tool
         AICapability.imageAnalysis: 'gpt-4.1-mini',
-        AICapability.audioGeneration: 'tts-1',
+        AICapability.audioGeneration: 'gpt-4o-mini-tts',
         AICapability.audioTranscription: 'whisper-1',
         AICapability.realtimeConversation: 'gpt-4o-realtime-preview',
       },
@@ -50,7 +51,7 @@ class OpenAIProvider implements IAIProvider {
           'gpt-4.1-mini',
         ], // Text models only
         AICapability.imageAnalysis: ['gpt-5', 'gpt-4.1', 'gpt-4.1-mini'],
-        AICapability.audioGeneration: ['tts-1', 'tts-1-hd'],
+        AICapability.audioGeneration: ['gpt-4o-mini-tts', 'tts-1', 'tts-1-hd'],
         AICapability.audioTranscription: ['whisper-1'],
         AICapability.realtimeConversation: ['gpt-4o-realtime-preview'],
       },
@@ -181,6 +182,11 @@ class OpenAIProvider implements IAIProvider {
     final Map<String, dynamic>? additionalParams,
   ) async {
     try {
+      // 🔍 DEBUG: Log image handling
+      Log.d(
+        '[OpenAIProvider] _sendTextRequest called - imageBase64: ${imageBase64?.isNotEmpty == true ? "PROVIDED (${imageBase64!.length} chars)" : "NULL/EMPTY"}, additionalParams: $additionalParams',
+      );
+
       // Safety: refuse to call OpenAI endpoints with non-OpenAI model ids.
       final selectedModel =
           model ??
@@ -350,11 +356,31 @@ class OpenAIProvider implements IAIProvider {
           'previous_response_id': previousResponseId,
       };
 
+      // 🔍 DEBUG: Log request payload tal como se envía
+      try {
+        await debugLogCallPrompt('openai_provider_request', bodyMap);
+      } on Exception catch (_) {}
+
       final response = await HttpConnector.client.post(
         url,
         headers: headers,
         body: jsonEncode(bodyMap),
       );
+
+      // 🔍 DEBUG: Log response tal como se recibe
+      try {
+        if (response.statusCode == 200) {
+          await debugLogCallPrompt(
+            'openai_provider_response',
+            jsonDecode(response.body),
+          );
+        } else {
+          await debugLogCallPrompt('openai_provider_error', {
+            'status_code': response.statusCode,
+            'body': response.body,
+          });
+        }
+      } on Exception catch (_) {}
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -485,42 +511,20 @@ class OpenAIProvider implements IAIProvider {
     final String? model,
     final Map<String, dynamic>? additionalParams,
   ) async {
-    // For image generation, we use text models with a specific prompt
-    final prompt = history.isNotEmpty
-        ? history.last['content'] ?? ''
-        : 'Generate an image';
-
-    final imageGenerationHistory = [
-      {
-        'role': 'user',
-        'content':
-            'Generate a detailed image based on this description: $prompt',
-      },
-    ];
-
-    final imageSystemPrompt = SystemPrompt(
-      profile: AiChanProfile(
-        userName: '',
-        aiName: '',
-        userBirthdate: null,
-        aiBirthdate: null,
-        biography: const {},
-        appearance: const {},
-      ),
-      dateTime: DateTime.now(),
-      instructions: const {
-        'raw': 'Generate an image based on the conversation context.',
-      },
+    // For image generation, we use text models with image generation tools enabled
+    final imageGenerationParams = Map<String, dynamic>.from(
+      additionalParams ?? {},
     );
+    imageGenerationParams['enableImageGeneration'] = true;
 
-    // Use text generation with special prompt for image generation
+    // Use text generation with enableImageGeneration enabled
     return await _sendTextRequest(
-      imageGenerationHistory,
-      imageSystemPrompt,
+      history,
+      systemPrompt,
       model,
       null,
       null,
-      additionalParams,
+      imageGenerationParams,
     );
   }
 
@@ -538,7 +542,7 @@ class OpenAIProvider implements IAIProvider {
       return AIResponse(text: 'Error: No text provided for TTS.');
     }
 
-    final selectedModel = model ?? 'tts-1';
+    final selectedModel = model ?? 'gpt-4o-mini-tts';
     final voice = additionalParams?['voice'] ?? 'alloy';
 
     final payload = {'model': selectedModel, 'input': text, 'voice': voice};
@@ -585,16 +589,49 @@ class OpenAIProvider implements IAIProvider {
       return AIResponse(text: 'Error: No text provided for TTS.');
     }
 
-    final selectedModel = model ?? 'tts-1';
+    final selectedModel =
+        model ?? Config.get('OPENAI_TTS_MODEL', 'gpt-4o-mini-tts');
     final selectedVoice = voice ?? additionalParams?['voice'] ?? 'alloy';
     final speed = additionalParams?['speed'] ?? 1.0;
+    final responseFormat = additionalParams?['response_format'] ?? 'mp3';
+    final instructions = additionalParams?['instructions'];
 
     final payload = {
       'model': selectedModel,
       'input': text,
       'voice': selectedVoice,
       'speed': speed,
+      'response_format': responseFormat,
     };
+
+    // Add instructions if provided
+    if (instructions != null && instructions.toString().trim().isNotEmpty) {
+      payload['instructions'] = instructions.toString();
+    }
+
+    // 🔍 LOG DETALLADO: Mostrar payload completo que se envía a OpenAI TTS
+    Log.d('🎵 [OPENAI_TTS_PAYLOAD] Enviando petición TTS:', tag: 'OPENAI_TTS');
+    Log.d('  - Model: $selectedModel', tag: 'OPENAI_TTS');
+    Log.d('  - Voice: $selectedVoice', tag: 'OPENAI_TTS');
+    Log.d('  - Speed: $speed', tag: 'OPENAI_TTS');
+    Log.d('  - Response Format: $responseFormat', tag: 'OPENAI_TTS');
+    Log.d('  - Text length: ${text.length} chars', tag: 'OPENAI_TTS');
+    Log.d(
+      '  - Text preview: "${text.length > 50 ? '${text.substring(0, 50)}...' : text}"',
+      tag: 'OPENAI_TTS',
+    );
+    if (instructions != null && instructions.toString().trim().isNotEmpty) {
+      Log.d(
+        '  - Instructions PROVIDED: "${instructions.toString()}"',
+        tag: 'OPENAI_TTS',
+      );
+    } else {
+      Log.d('  - Instructions: NOT PROVIDED', tag: 'OPENAI_TTS');
+    }
+    Log.d(
+      '🎵 [OPENAI_TTS_PAYLOAD] Payload completo: ${jsonEncode(payload)}',
+      tag: 'OPENAI_TTS',
+    );
 
     try {
       final url = Uri.parse('https://api.openai.com/v1/audio/speech');
@@ -607,13 +644,26 @@ class OpenAIProvider implements IAIProvider {
         body: jsonEncode(payload),
       );
 
+      Log.d(
+        '🎵 [OPENAI_TTS_RESPONSE] Status: ${response.statusCode}',
+        tag: 'OPENAI_TTS',
+      );
+
       if (response.statusCode == 200) {
+        Log.d(
+          '🎵 [OPENAI_TTS_RESPONSE] ✅ Audio generado exitosamente - Size: ${response.bodyBytes.length} bytes',
+          tag: 'OPENAI_TTS',
+        );
         final audioBase64 = base64Encode(response.bodyBytes);
         return AIResponse(
           text: 'Audio generated successfully',
           base64: audioBase64,
         );
       } else {
+        Log.e(
+          '🎵 [OPENAI_TTS_RESPONSE] ❌ Error ${response.statusCode}: ${response.body}',
+          tag: 'OPENAI_TTS',
+        );
         Log.e(
           '[OpenAIProvider] TTS Error ${response.statusCode}: ${response.body}',
         );
