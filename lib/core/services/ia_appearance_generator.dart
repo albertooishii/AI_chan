@@ -291,16 +291,17 @@ class IAAppearanceGenerator {
           continue;
         }
         final Map<String, dynamic> extracted = extractJsonBlock(resp.text);
-        // Validación básica: extraer no vacío y contener keys esperadas
-        if (extracted.isNotEmpty && extracted.keys.isNotEmpty) {
+
+        // Validación más robusta del JSON extraído
+        if (_isValidAppearanceJson(extracted)) {
           appearanceMap = Map<String, dynamic>.from(extracted);
           Log.d(
-            '[IAAppearanceGenerator] Apariencia: JSON OK en intento ${attempt + 1} (keys=${appearanceMap.keys.length})',
+            '[IAAppearanceGenerator] Apariencia: JSON válido en intento ${attempt + 1} (keys=${appearanceMap.keys.length})',
           );
           break;
         }
         Log.w(
-          '[IAAppearanceGenerator] Apariencia: intento ${attempt + 1} sin JSON válido, reintentando...',
+          '[IAAppearanceGenerator] Apariencia: intento ${attempt + 1} sin JSON válido (falta campos críticos), reintentando...',
         );
       } on Exception catch (err) {
         if (handleRuntimeError(err, 'IAAppearanceGenerator')) {
@@ -328,5 +329,86 @@ class IAAppearanceGenerator {
     } on Exception catch (_) {}
     // Sin campo de versión: no se requiere completar timestamp
     return appearanceMap;
+  }
+
+  /// Valida que el JSON de apariencia tenga los campos críticos necesarios
+  bool _isValidAppearanceJson(final Map<String, dynamic> json) {
+    if (json.isEmpty) return false;
+
+    // Lista de campos críticos que deben estar presentes
+    final criticalFields = [
+      'genero',
+      'origen_etnico',
+      'ojos',
+      'cabello',
+      'conjuntos_ropa',
+      'estilo',
+      'paleta_color',
+    ];
+
+    // Verificar que todos los campos críticos existan
+    for (final field in criticalFields) {
+      if (!json.containsKey(field)) {
+        Log.w('[IAAppearanceGenerator] Falta campo crítico: $field');
+        return false;
+      }
+    }
+
+    // Validaciones específicas más detalladas
+    try {
+      // Validar que 'ojos' tenga subcampos esenciales
+      final ojos = json['ojos'] as Map<String, dynamic>?;
+      if (ojos == null ||
+          !ojos.containsKey('color') ||
+          !ojos.containsKey('forma')) {
+        Log.w('[IAAppearanceGenerator] Campo ojos incompleto');
+        return false;
+      }
+
+      // Validar que 'cabello' tenga subcampos esenciales
+      final cabello = json['cabello'] as Map<String, dynamic>?;
+      if (cabello == null ||
+          !cabello.containsKey('color') ||
+          !cabello.containsKey('largo')) {
+        Log.w('[IAAppearanceGenerator] Campo cabello incompleto');
+        return false;
+      }
+
+      // Validar que 'conjuntos_ropa' sea una lista con al menos algunos elementos
+      final conjuntos = json['conjuntos_ropa'] as List<dynamic>?;
+      if (conjuntos == null || conjuntos.isEmpty) {
+        Log.w('[IAAppearanceGenerator] Campo conjuntos_ropa vacío o ausente');
+        return false;
+      }
+
+      // Verificar que al menos el primer conjunto tenga estructura básica
+      if (conjuntos.isNotEmpty) {
+        final primerConjunto = conjuntos[0] as Map<String, dynamic>?;
+        if (primerConjunto == null ||
+            !primerConjunto.containsKey('nombre') ||
+            !primerConjunto.containsKey('ocasion') ||
+            !primerConjunto.containsKey('prendas')) {
+          Log.w('[IAAppearanceGenerator] Estructura de conjunto_ropa inválida');
+          return false;
+        }
+      }
+
+      // Validar paleta_color
+      final paleta = json['paleta_color'] as Map<String, dynamic>?;
+      if (paleta == null ||
+          !paleta.containsKey('piel') ||
+          !paleta.containsKey('cabello')) {
+        Log.w('[IAAppearanceGenerator] Campo paleta_color incompleto');
+        return false;
+      }
+
+      Log.d(
+        '[IAAppearanceGenerator] JSON de apariencia validado correctamente',
+      );
+      return true;
+    } on Exception catch (e) {
+      Log.w('[IAAppearanceGenerator] Error validando estructura JSON: $e');
+      return false;
+    }
   }
 }

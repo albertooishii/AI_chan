@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/constants/app_colors.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
-import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
+import 'package:ai_chan/shared/widgets/backup_dialog_factory.dart';
 import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 import 'package:ai_chan/shared/services/backup_service.dart';
@@ -506,7 +506,7 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
 
   /// Maneja el backup con Google Drive
   Future<void> _handleGoogleDriveBackup(final BuildContext context) async {
-    final dynamic cp = widget.chatProvider;
+    final ChatApplicationService? cp = widget.chatProvider;
     final OnboardingLifecycleController? op = widget.onboardingLifecycle;
 
     final res = await showAppDialog<dynamic>(
@@ -520,50 +520,9 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
             final dialogWidth = min(screenWidth - margin, maxWidth).toDouble();
             return SizedBox(
               width: dialogWidth,
-              child: GoogleDriveBackupDialog(
-                requestBackupJson: cp != null
-                    ? () async {
-                        final captured = cp;
-                        return await BackupUtils.exportChatPartsToJson(
-                          profile: captured.onboardingData,
-                          messages: captured.messages,
-                          events: captured.events,
-                          timeline: captured.timeline,
-                        );
-                      }
-                    : null,
-                onImportedJson: cp != null
-                    ? (final jsonStr) async {
-                        final captured = cp;
-                        final imported = await chat_json_utils
-                            .ChatJsonUtils.importAllFromJson(jsonStr);
-                        if (imported != null) {
-                          await captured.applyChatExport(imported);
-                        }
-                      }
-                    : null,
-                onAccountInfoUpdated: cp != null
-                    ? ({
-                        final String? email,
-                        final String? avatarUrl,
-                        final String? name,
-                        final bool linked = false,
-                        final bool triggerAutoBackup = false,
-                      }) async {
-                        final captured = cp;
-                        await captured.updateGoogleAccountInfo(
-                          email: email,
-                          avatarUrl: avatarUrl,
-                          name: name,
-                          linked: linked,
-                          triggerAutoBackup: triggerAutoBackup,
-                        );
-                      }
-                    : null,
-                onClearAccountInfo: cp != null
-                    ? () => cp.clearGoogleAccountInfo()
-                    : null,
-              ),
+              child: cp != null
+                  ? BackupDialogFactory.fromChatApplicationService(cp)
+                  : const GoogleDriveBackupDialog(),
             );
           },
         ),

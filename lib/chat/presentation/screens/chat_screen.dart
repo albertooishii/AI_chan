@@ -17,6 +17,7 @@ import 'package:ai_chan/shared/utils/model_utils.dart';
 import 'package:ai_chan/shared/widgets/animated_indicators.dart';
 import '../widgets/tts_configuration_dialog.dart';
 import 'package:ai_chan/main.dart';
+import 'package:ai_chan/shared/widgets/backup_dialog_factory.dart';
 import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
 // google_backup_service not used directly in this file; ChatProvider exposes necessary state
 import 'package:ai_chan/shared/widgets/local_backup_dialog.dart';
@@ -1449,41 +1450,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   /// Helper para crear GoogleDriveBackupDialog con callbacks estandarizados
   GoogleDriveBackupDialog _buildGoogleDriveBackupDialog(
-    final dynamic provider,
+    final ChatController provider,
   ) {
-    return GoogleDriveBackupDialog(
-      requestBackupJson: () async => await BackupUtils.exportChatPartsToJson(
-        profile: provider.onboardingData,
-        messages: provider.messages,
-        events: provider.events,
-        timeline: provider.timeline,
-      ),
-      onImportedJson: (final jsonStr) async {
-        final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
-          jsonStr,
-        );
-        if (imported != null) {
-          await widget.chatController.applyChatExport(imported.toJson());
-        }
-      },
-      onAccountInfoUpdated:
-          ({
-            final String? email,
-            final String? avatarUrl,
-            final String? name,
-            final bool linked = false,
-            final bool triggerAutoBackup = false,
-          }) async {
-            await provider.googleController.updateGoogleAccountInfo(
-              email: email,
-              avatarUrl: avatarUrl,
-              name: name,
-              linked: linked,
-              triggerAutoBackup: triggerAutoBackup,
-            );
-          },
-      onClearAccountInfo: () => provider.clearGoogleAccountInfo(),
-    );
+    return BackupDialogFactory.fromChatController(provider);
   }
 
   @override
@@ -1503,5 +1472,3 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 }
-
-// ...existing code...

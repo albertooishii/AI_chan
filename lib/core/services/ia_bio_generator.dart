@@ -303,18 +303,22 @@ Identidad: $aiIdentityInstructions
         Log.w(
           '[IABioGenerator] Biografía: respuesta vacía (posible desconexión), reintentando...',
         );
+        // backoff ligero
+        await Future.delayed(Duration(milliseconds: 300 * (attempt + 1)));
         continue;
       }
       final extracted = extractJsonBlock(responseObj.text);
-      if (!extracted.containsKey('raw')) {
+
+      // Validación más robusta del JSON extraído
+      if (_isValidBiographyJson(extracted)) {
         bioJson = Map<String, dynamic>.from(extracted);
         Log.d(
-          '[IABioGenerator] Biografía: JSON OK en intento ${attempt + 1} (keys=${bioJson.keys.length})',
+          '[IABioGenerator] Biografía: JSON válido en intento ${attempt + 1} (keys=${bioJson.keys.length})',
         );
         break;
       }
       Log.w(
-        '[IABioGenerator] Biografía: intento ${attempt + 1} sin JSON válido, reintentando...',
+        '[IABioGenerator] Biografía: intento ${attempt + 1} sin JSON válido (falta campos críticos), reintentando...',
       );
     } on Exception catch (err) {
       if (handleRuntimeError(err, 'IABioGenerator')) {
@@ -324,6 +328,11 @@ Identidad: $aiIdentityInstructions
           '[IABioGenerator] Biografía: error de red/timeout en intento ${attempt + 1}: $err',
         );
       }
+    }
+
+    // Backoff incremental entre reintentos (excepto en el último intento)
+    if (attempt < maxAttempts - 1) {
+      await Future.delayed(Duration(milliseconds: 400 * (attempt + 1)));
     }
   }
   if (bioJson == null) {
@@ -344,4 +353,83 @@ Identidad: $aiIdentityInstructions
   );
 
   return bioModel;
+}
+
+/// Valida que el JSON de biografía tenga los campos críticos necesarios
+bool _isValidBiographyJson(final Map<String, dynamic> json) {
+  if (json.isEmpty) return false;
+
+  // Lista de campos críticos que deben estar presentes
+  final criticalFields = [
+    'datos_personales',
+    'personalidad',
+    'intereses_y_aficiones',
+    'resumen_breve',
+    'historia_personal',
+  ];
+
+  // Verificar que todos los campos críticos existan
+  for (final field in criticalFields) {
+    if (!json.containsKey(field)) {
+      Log.w('[IABioGenerator] Falta campo crítico: $field');
+      return false;
+    }
+  }
+
+  // Validaciones específicas más detalladas
+  try {
+    // Validar que 'datos_personales' tenga subcampos esenciales
+    final datosPersonales = json['datos_personales'] as Map<String, dynamic>?;
+    if (datosPersonales == null ||
+        !datosPersonales.containsKey('nombre_completo') ||
+        !datosPersonales.containsKey('fecha_nacimiento')) {
+      Log.w('[IABioGenerator] Campo datos_personales incompleto');
+      return false;
+    }
+
+    // Validar que 'personalidad' tenga subcampos esenciales
+    final personalidad = json['personalidad'] as Map<String, dynamic>?;
+    if (personalidad == null || !personalidad.containsKey('valores')) {
+      Log.w('[IABioGenerator] Campo personalidad incompleto');
+      return false;
+    }
+
+    // Validar que 'intereses_y_aficiones' existe y no está vacío
+    final intereses = json['intereses_y_aficiones'] as Map<String, dynamic>?;
+    if (intereses == null || intereses.isEmpty) {
+      Log.w('[IABioGenerator] Campo intereses_y_aficiones vacío o ausente');
+      return false;
+    }
+
+    // Validar que 'historia_personal' sea una lista con al menos algunos elementos
+    final historia = json['historia_personal'] as List<dynamic>?;
+    if (historia == null || historia.isEmpty) {
+      Log.w('[IABioGenerator] Campo historia_personal vacío o ausente');
+      return false;
+    }
+
+    // Verificar que al menos el primer elemento de historia tenga estructura básica
+    if (historia.isNotEmpty) {
+      final primerAno = historia[0] as Map<String, dynamic>?;
+      if (primerAno == null ||
+          !primerAno.containsKey('año') ||
+          !primerAno.containsKey('eventos')) {
+        Log.w('[IABioGenerator] Estructura de historia_personal inválida');
+        return false;
+      }
+    }
+
+    // Validar resumen_breve no vacío
+    final resumen = json['resumen_breve'] as String?;
+    if (resumen == null || resumen.trim().isEmpty) {
+      Log.w('[IABioGenerator] Campo resumen_breve vacío');
+      return false;
+    }
+
+    Log.d('[IABioGenerator] JSON de biografía validado correctamente');
+    return true;
+  } on Exception catch (e) {
+    Log.w('[IABioGenerator] Error validando estructura JSON: $e');
+    return false;
+  }
 }
