@@ -26,6 +26,17 @@ git add lib/ test/
 echo "[pre-commit] Applying automatic fixes with dart fix..."
 dart fix --apply
 
+# Verificar si dart fix hizo cambios y agregarlos automáticamente
+if [[ $(git diff --name-only) ]]; then
+    echo "[pre-commit] Auto-staging files modified by dart fix..."
+    # Mostrar qué archivos fueron modificados para transparencia
+    echo "Modified files:"
+    git diff --name-only | sed 's/^/  - /'
+    # Agregar solo archivos Dart que estaban en el staging area original
+    git diff --name-only | grep '\.dart$' | xargs -r git add
+    echo "✅ [pre-commit] Modified files have been automatically staged"
+fi
+
 echo "[pre-commit] Running flutter analyze..."
 # Solo fallar en errores y warnings, permitir info level
 # Las nuevas reglas DDD/Hexagonal están en info level para migración gradual
@@ -48,3 +59,14 @@ else
 fi
 
 echo "🎉 [pre-commit] ALL CHECKS PASSED SUCCESSFULLY!"
+
+# Verificación final: asegurar que no hay archivos modificados sin staging
+if [[ $(git diff --name-only) ]]; then
+    echo "⚠️ [pre-commit] WARNING: Some files were modified but not staged:"
+    git diff --name-only | sed 's/^/  - /'
+    echo ""
+    echo "This might indicate an issue with the pre-commit hook."
+    echo "Run 'git add .' and commit again if these changes should be included."
+    echo ""
+    echo "Continuing with commit (files will remain unstaged)..."
+fi
