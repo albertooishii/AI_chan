@@ -418,8 +418,9 @@ class ProviderAlertService implements IProviderAlertService {
     final AlertType? type,
   }) {
     return _alerts.where((final alert) {
-      if (startTime != null && alert.timestamp.isBefore(startTime))
+      if (startTime != null && alert.timestamp.isBefore(startTime)) {
         return false;
+      }
       if (endTime != null && alert.timestamp.isAfter(endTime)) return false;
       if (providerId != null && alert.providerId != providerId) return false;
       if (severity != null && alert.severity != severity) return false;

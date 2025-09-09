@@ -308,8 +308,9 @@ class IntelligentRetryService implements IRetryService {
       final statusCode = int.tryParse(error.message.split(' ').first) ?? 0;
 
       // Server errors (5xx)
-      if (statusCode >= 500 && statusCode < 600 && config.retryOnServerError)
+      if (statusCode >= 500 && statusCode < 600 && config.retryOnServerError) {
         return true;
+      }
 
       // Rate limiting (429)
       if (statusCode == 429 && config.retryOnRateLimit) return true;
