@@ -858,7 +858,8 @@ class OpenAIProvider implements IAIProvider {
             .where((final id) => id.startsWith('gpt-'))
             .toList();
 
-        models.sort((final a, final b) => b.compareTo(a));
+        // Aplicar ordenamiento personalizado de OpenAI
+        models.sort(_compareOpenAIModels);
         return models;
       } else {
         return _metadata.getAvailableModels(capability);
@@ -866,6 +867,93 @@ class OpenAIProvider implements IAIProvider {
     } on Exception catch (_) {
       return _metadata.getAvailableModels(capability);
     }
+  }
+
+  /// Ordenamiento personalizado para modelos de OpenAI
+  /// Prioridad: GPT-5 sin etiquetas > GPT-5-mini y variantes > GPT-4.1 > GPT-4.1 variantes > GPT-4o > resto
+  int _compareOpenAIModels(final String a, final String b) {
+    final priorityA = _getOpenAIModelPriority(a);
+    final priorityB = _getOpenAIModelPriority(b);
+
+    if (priorityA != priorityB) {
+      return priorityA.compareTo(priorityB);
+    }
+
+    // Si tienen la misma prioridad, ordenar alfabéticamente descendente (más nuevos primero)
+    return b.compareTo(a);
+  }
+
+  /// Obtiene la prioridad numérica de un modelo de OpenAI (menor número = mayor prioridad)
+  int _getOpenAIModelPriority(final String model) {
+    final modelLower = model.toLowerCase();
+
+    // GPT-5 sin etiquetas (máxima prioridad)
+    if (modelLower == 'gpt-5') return 1;
+
+    // GPT-5 variantes por orden de importancia
+    if (modelLower.startsWith('gpt-5')) {
+      if (modelLower.contains('mini') && !modelLower.contains('-2025-')) {
+        return 2;
+      }
+      if (modelLower.contains('nano') && !modelLower.contains('-2025-')) {
+        return 3;
+      }
+      if (modelLower.contains('chat')) return 4;
+      if (modelLower.contains('mini')) return 5; // Con fechas
+      if (modelLower.contains('nano')) return 6; // Con fechas
+      return 7; // Otras variantes de GPT-5
+    }
+
+    // GPT-4.1 sin etiquetas
+    if (modelLower == 'gpt-4.1') return 8;
+
+    // GPT-4.1 variantes por orden de importancia
+    if (modelLower.startsWith('gpt-4.1')) {
+      if (modelLower.contains('mini') && !modelLower.contains('-2025-')) {
+        return 9;
+      }
+      if (modelLower.contains('nano') && !modelLower.contains('-2025-')) {
+        return 10;
+      }
+      if (modelLower.contains('mini')) return 11; // Con fechas
+      if (modelLower.contains('nano')) return 12; // Con fechas
+      return 13; // Otras variantes de GPT-4.1
+    }
+
+    // GPT-4o serie
+    if (modelLower.startsWith('gpt-4o')) {
+      if (modelLower == 'gpt-4o') return 14;
+      if (modelLower.contains('mini') &&
+          !modelLower.contains('preview') &&
+          !modelLower.contains('audio') &&
+          !modelLower.contains('search')) {
+        return 15;
+      }
+      if (modelLower.contains('mini')) return 16; // Otras variantes de mini
+      return 17; // Otras variantes de GPT-4o
+    }
+
+    // GPT-4 serie
+    if (modelLower.startsWith('gpt-4') &&
+        !modelLower.startsWith('gpt-4o') &&
+        !modelLower.startsWith('gpt-4.1')) {
+      if (modelLower == 'gpt-4') return 18;
+      if (modelLower.contains('turbo')) return 19;
+      return 20; // Otras variantes de GPT-4
+    }
+
+    // GPT-3.5 serie
+    if (modelLower.startsWith('gpt-3.5')) return 21;
+
+    // Modelos especiales (audio, imagen, etc.) - van al final
+    if (modelLower.contains('realtime')) return 22;
+    if (modelLower.contains('audio')) return 23;
+    if (modelLower.contains('image')) return 24;
+    if (modelLower.contains('transcribe')) return 25;
+    if (modelLower.contains('search')) return 26;
+
+    // Resto de modelos
+    return 99;
   }
 
   @override

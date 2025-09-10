@@ -343,6 +343,22 @@ class CacheService {
     }
   }
 
+  /// Elimina caché de modelos de un proveedor específico
+  static Future<void> clearModelsCache({required final String provider}) async {
+    try {
+      final cacheDir = await getCacheDirectory();
+      final modelsDir = Directory('${cacheDir.path}/$_modelsSubDir');
+      final cacheFile = File('${modelsDir.path}/${provider}_models_cache.json');
+
+      if (cacheFile.existsSync()) {
+        await cacheFile.delete();
+        debugPrint('[Cache] Caché de modelos $provider eliminado');
+      }
+    } on Exception catch (e) {
+      debugPrint('[Cache] Error eliminando caché de modelos $provider: $e');
+    }
+  }
+
   /// Elimina todos los archivos de caché de voces (usado para forzar refresh completo)
   static Future<void> clearAllVoicesCache() async {
     try {
@@ -361,6 +377,28 @@ class CacheService {
       }
     } on Exception catch (e) {
       debugPrint('[Cache] Error clearing all voices cache: $e');
+    }
+  }
+
+  /// Elimina todos los archivos de caché de modelos (usado para forzar refresh completo)
+  static Future<void> clearAllModelsCache() async {
+    try {
+      final cacheDir = await getCacheDirectory();
+      final modelsDir = Directory('${cacheDir.path}/$_modelsSubDir');
+      if (modelsDir.existsSync()) {
+        final entities = modelsDir.listSync();
+        for (final e in entities) {
+          try {
+            if (e is File) await e.delete();
+            if (e is Directory) await e.delete(recursive: true);
+          } on Exception catch (e) {
+            debugPrint('[Cache] Warning clearing models cache entry: $e');
+          }
+        }
+        debugPrint('[Cache] All models cache cleared');
+      }
+    } on Exception catch (e) {
+      debugPrint('[Cache] Error clearing all models cache: $e');
     }
   }
 

@@ -17,11 +17,25 @@ class XAIProvider implements IAIProvider {
       providerName: 'X.AI Grok',
       company: 'X.AI',
       version: '1.0.0',
-      description: 'X.AI Grok models for advanced text generation',
-      supportedCapabilities: [AICapability.textGeneration],
-      defaultModels: {AICapability.textGeneration: 'grok-beta'},
+      description:
+          'X.AI Grok models for advanced reasoning and text generation',
+      supportedCapabilities: [
+        AICapability.textGeneration,
+        AICapability.imageAnalysis,
+      ],
+      defaultModels: {
+        AICapability.textGeneration: 'grok-4',
+        AICapability.imageAnalysis: 'grok-vision-beta',
+      },
       availableModels: {
-        AICapability.textGeneration: ['grok-beta', 'grok-vision-beta'],
+        AICapability.textGeneration: [
+          'grok-4',
+          'grok-3',
+          'grok-2',
+          'grok-beta',
+          'grok-vision-beta',
+        ],
+        AICapability.imageAnalysis: ['grok-vision-beta', 'grok-4'],
       },
       rateLimits: {'requests_per_minute': 5000, 'tokens_per_minute': 200000},
       requiresAuthentication: true,
@@ -342,8 +356,8 @@ class XAIProvider implements IAIProvider {
         if (names.isEmpty) {
           return ['grok-3'];
         }
-        // Ordenar alfabéticamente descendente (Z-A)
-        names.sort((final a, final b) => b.compareTo(a));
+        // Aplicar ordenamiento personalizado de XAI
+        names.sort(_compareXAIModels);
         return names;
       }
       Log.w('getAvailableModels failed: ${resp.statusCode}');
@@ -387,5 +401,57 @@ class XAIProvider implements IAIProvider {
   @override
   Future<void> dispose() async {
     _initialized = false;
+  }
+
+  /// Ordenamiento personalizado para modelos de XAI
+  /// Prioridad: Grok versiones más altas primero (4 > 3 > 2), luego por variantes
+  int _compareXAIModels(final String a, final String b) {
+    final priorityA = _getXAIModelPriority(a);
+    final priorityB = _getXAIModelPriority(b);
+
+    if (priorityA != priorityB) {
+      return priorityA.compareTo(priorityB);
+    }
+
+    // Si tienen la misma prioridad, ordenar alfabéticamente descendente (más nuevos primero)
+    return b.compareTo(a);
+  }
+
+  /// Obtiene la prioridad numérica de un modelo de XAI (menor número = mayor prioridad)
+  int _getXAIModelPriority(final String model) {
+    final modelLower = model.toLowerCase();
+
+    // Grok-4 serie (versión más alta)
+    if (modelLower.contains('grok-4')) {
+      if (modelLower == 'grok-4') return 1;
+      if (modelLower.contains('0709')) {
+        return 2; // Versiones con fecha (más específicas)
+      }
+      return 3; // Otras variantes de grok-4
+    }
+
+    // Grok-3 serie
+    if (modelLower.contains('grok-3')) {
+      if (modelLower == 'grok-3') return 4;
+      if (modelLower.contains('mini')) return 5;
+      if (modelLower.contains('fast')) return 6;
+      return 7; // Otras variantes de grok-3
+    }
+
+    // Grok-2 serie
+    if (modelLower.contains('grok-2')) {
+      if (modelLower == 'grok-2') return 8;
+      if (modelLower.contains('vision')) return 9;
+      if (modelLower.contains('image')) return 10;
+      return 11; // Otras variantes de grok-2
+    }
+
+    // Modelos especiales
+    if (modelLower.contains('code')) return 12;
+    if (modelLower.contains('beta')) return 13;
+    if (modelLower.contains('vision')) return 14;
+
+    // Resto de modelos
+    return 99;
   }
 }

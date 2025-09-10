@@ -13,9 +13,9 @@ import '../widgets/expandable_image_dialog.dart';
 import 'package:ai_chan/core/models.dart';
 import 'gallery_screen.dart';
 import 'package:ai_chan/shared.dart'; // Using centralized shared exports
-import 'package:ai_chan/shared/utils/model_utils.dart';
 import 'package:ai_chan/shared/widgets/animated_indicators.dart';
 import '../widgets/tts_configuration_dialog.dart';
+import '../widgets/text_model_configuration_dialog.dart';
 import 'package:ai_chan/main.dart';
 import 'package:ai_chan/shared/widgets/backup_dialog_factory.dart';
 import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
@@ -216,184 +216,6 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<String?> _showModelSelectionDialog(
-    final List<String> models,
-    final String? initialModel,
-    final ChatController chatController, // ✅ DDD: ETAPA 3
-  ) async {
-    // ✅ DDD: Type safety en ETAPA 2
-    final navCtx = navigatorKey.currentContext;
-    if (navCtx == null) return null;
-    // Use StatefulBuilder to allow in-dialog refresh of models
-    bool localLoading = false;
-    List<String> localModels = List.from(models);
-
-    return await showAppDialog<String>(
-      builder: (final dialogCtx) => StatefulBuilder(
-        builder: (final dialogCtxInner, final setStateDialog) {
-          Future<void> refreshModels() async {
-            if (localLoading) return;
-            setStateDialog(() => localLoading = true);
-            try {
-              final fetched = await chatController.getAllModels(
-                forceRefresh: true,
-              );
-              setStateDialog(() => localModels = fetched);
-            } on Exception catch (e) {
-              // show error inside dialog
-              showAppSnackBar(
-                'Error al actualizar modelos: $e',
-                preferRootMessenger: true,
-              );
-            } finally {
-              setStateDialog(() => localLoading = false);
-            }
-          }
-
-          return AppAlertDialog(
-            title: const Text(
-              'Modelo de texto',
-              style: TextStyle(color: AppColors.primary),
-            ),
-            headerActions: [
-              IconButton(
-                icon: localLoading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CyberpunkLoader(message: 'SYNC...'),
-                      )
-                    : const Icon(Icons.refresh, color: AppColors.primary),
-                tooltip: 'Actualizar modelos',
-                onPressed: () {
-                  refreshModels();
-                },
-              ),
-            ],
-            content: localModels.isEmpty
-                ? const Text(
-                    'No se encontraron modelos disponibles.',
-                    style: TextStyle(color: AppColors.primary),
-                  )
-                : Builder(
-                    builder: (final innerCtx) {
-                      final double maxWidth = dialogContentMaxWidth(innerCtx);
-                      // Use the full available dialog content width so the scroll bar
-                      // sits at the right edge of the dialog (no forced narrow column).
-                      final double desiredWidth = maxWidth;
-                      return Align(
-                        alignment: Alignment.topLeft,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: desiredWidth),
-                          child: ListView(
-                            shrinkWrap: true,
-                            children: () {
-                              // Agrupar modelos por proveedor usando heurísticas sencillas.
-                              final grouped = ModelUtils.groupModels(
-                                localModels,
-                              );
-                              final preferred = ModelUtils.preferredOrder();
-                              final others =
-                                  grouped.keys
-                                      .where(
-                                        (final k) => !preferred.contains(k),
-                                      )
-                                      .toList()
-                                    ..sort();
-                              final order = [
-                                ...preferred.where(
-                                  (final k) => grouped.containsKey(k),
-                                ),
-                                ...others,
-                              ];
-                              final widgets = <Widget>[];
-                              for (final grp in order) {
-                                final items = grouped[grp] ?? [];
-                                if (items.isEmpty) continue;
-                                widgets.add(
-                                  Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      12.0,
-                                      8.0,
-                                      12.0,
-                                      8.0,
-                                    ),
-                                    child: Text(
-                                      grp,
-                                      style: const TextStyle(
-                                        color: AppColors.cyberpunkYellow,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                                widgets.addAll(
-                                  items.map(
-                                    (final m) => ListTile(
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                            horizontal: 12.0,
-                                            vertical: 4.0,
-                                          ),
-                                      title: Text(
-                                        m,
-                                        style: const TextStyle(
-                                          color: AppColors.primary,
-                                        ),
-                                      ),
-                                      trailing: initialModel == m
-                                          ? const Icon(
-                                              Icons.radio_button_checked,
-                                              color: AppColors.secondary,
-                                            )
-                                          : const Icon(
-                                              Icons.radio_button_off,
-                                              color: AppColors.primary,
-                                            ),
-                                      onTap: () =>
-                                          Navigator.of(dialogCtxInner).pop(m),
-                                    ),
-                                  ),
-                                );
-                                widgets.add(
-                                  const Divider(
-                                    color: AppColors.secondary,
-                                    thickness: 1,
-                                    height: 24,
-                                  ),
-                                );
-                              }
-                              return widgets;
-                            }(),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-            // Bottom actions removed: dialog close is available in the AppAlertDialog title bar.
-          );
-        },
-      ),
-    );
-  }
-
-  void _setSelectedModel(
-    final String? selected,
-    final String? current,
-    final ChatController chatController,
-  ) {
-    // ✅ DDD: ETAPA 3
-    // ✅ DDD: Type safety en ETAPA 2
-    if (!mounted) return;
-    if (selected != null && selected != current) {
-      chatController.setSelectedModel(
-        selected,
-      ); // ✅ DDD: ETAPA 3 - Usar método setSelectedModel
-      setState(() {});
-    }
-  }
-
   void _showImportSuccessSnackBar() {
     if (!mounted) return;
     showAppSnackBar('Chat importado correctamente.', preferRootMessenger: true);
@@ -426,10 +248,6 @@ class _ChatScreenState extends State<ChatScreen> {
       await removeImageFromProfileAndPersist(chatController, deleted);
     } on Exception catch (_) {}
   }
-
-  // Snackbar helper removed: provider handles message insertion; UI will react to provider notifications.
-
-  bool _loadingModels = false;
 
   void _showErrorDialog(final String error) {
     if (!mounted) return;
@@ -629,7 +447,6 @@ class _ChatScreenState extends State<ChatScreen> {
               // (Eliminado) Selector de países
               // Seleccionar modelo
               PopupMenuItem<String>(
-                enabled: !_loadingModels,
                 value: 'select_model',
                 child: Row(
                   children: [
@@ -649,13 +466,9 @@ class _ChatScreenState extends State<ChatScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                _loadingModels
-                                    ? 'Cargando modelos...'
-                                    : 'Modelo de texto',
-                                style: const TextStyle(
-                                  color: AppColors.primary,
-                                ),
+                              const Text(
+                                'Modelo de texto',
+                                style: TextStyle(color: AppColors.primary),
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
                               ),
@@ -978,32 +791,19 @@ class _ChatScreenState extends State<ChatScreen> {
                   ), // ✅ DDD: ETAPA 3 - ChatController directo
                 );
               } else if (value == 'select_model') {
-                if (_loadingModels) return;
-                setState(() => _loadingModels = true);
-                List<String> models = [];
-                try {
-                  models = await widget.chatController.getAllModels();
-                } on Exception catch (e) {
-                  if (!mounted) return;
-                  _showErrorDialog('Error al obtener modelos:\n$e');
-                  setState(() => _loadingModels = false);
-                  return;
-                }
-                setState(() => _loadingModels = false);
-                final current = widget.chatController.selectedModel;
-                final defaultModel = Config.getDefaultTextModel();
-                final initialModel =
-                    current ??
-                    (models.contains(defaultModel)
-                        ? defaultModel
-                        : (models.isNotEmpty ? models.first : null));
-                final selected = await _showModelSelectionDialog(
-                  models,
-                  initialModel,
-                  widget.chatController,
+                // Usar el nuevo diálogo de configuración de modelos de texto
+                final navCtx = navigatorKey.currentContext;
+                if (navCtx == null) return;
+                final result = await showTextModelConfigurationDialog(
+                  context: navCtx,
+                  onSettingsChanged: () {
+                    // Refrescar el estado del chat cuando cambie el modelo
+                    if (mounted) setState(() {});
+                  },
                 );
-                if (!mounted) return;
-                _setSelectedModel(selected, current, widget.chatController);
+                if (result == true && mounted) {
+                  setState(() {});
+                }
               } else if (value == 'select_voice') {
                 // Delegar selección de voz al diálogo centralizado y pasar los códigos de idioma
                 final userCountry = widget.bio.userCountryCode;

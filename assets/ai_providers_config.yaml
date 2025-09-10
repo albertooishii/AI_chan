@@ -71,6 +71,17 @@ ai_providers:
       audio_transcription: "gpt-4o-mini-transcribe"
       realtime_conversation: "gpt-realtime"
     
+    # Voice configuration for TTS
+    voices:
+      available:
+        - "alloy"
+        - "echo"
+        - "fable"
+        - "onyx"
+        - "nova"
+        - "shimmer"
+      default: "alloy"
+      
     rate_limits:
       requests_per_minute: 3500
       tokens_per_minute: 350000
@@ -117,6 +128,25 @@ ai_providers:
       image_generation: "gemini-2.5-flash-image-preview"
       image_analysis: "gemini-2.5-flash"
       realtime_conversation: "gemini-2.5-flash"
+    
+    # Voice configuration (Google TTS via Cloud Text-to-Speech API)
+    voices:
+      available:
+        - "es-ES-Neural2-A"
+        - "es-ES-Neural2-B"
+        - "es-ES-Neural2-C"
+        - "es-ES-Neural2-D"
+        - "es-ES-Standard-A"
+        - "es-ES-Standard-B"
+        - "es-ES-Standard-C"
+        - "es-ES-Standard-D"
+        - "es-US-Neural2-A"
+        - "es-US-Neural2-B"
+        - "es-US-Neural2-C"
+        - "es-US-Standard-A"
+        - "es-US-Standard-B"
+        - "es-US-Standard-C"
+      default: "es-ES-Neural2-A"
     
     rate_limits:
       requests_per_minute: 2000

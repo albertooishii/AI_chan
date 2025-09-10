@@ -398,13 +398,27 @@ class GoogleProvider implements IAIProvider {
           final supportedForCapability = _metadata.getAvailableModels(
             capability,
           );
-          return models.map((final model) => model['name'] as String).where((
-            final modelName,
-          ) {
-            return supportedForCapability.any((final supported) {
-              return modelName.toLowerCase().contains(supported.toLowerCase());
-            });
-          }).toList();
+          final modelsList = models
+              .map((final model) {
+                String modelName = model['name'] as String;
+                // Limpiar el prefijo "models/" que viene de la API de Google
+                if (modelName.startsWith('models/')) {
+                  modelName = modelName.substring(7); // Remover "models/"
+                }
+                return modelName;
+              })
+              .where((final modelName) {
+                return supportedForCapability.any((final supported) {
+                  return modelName.toLowerCase().contains(
+                    supported.toLowerCase(),
+                  );
+                });
+              })
+              .toList();
+
+          // Aplicar ordenamiento personalizado de Google
+          modelsList.sort(_compareGoogleModels);
+          return modelsList;
         }
       }
 
@@ -413,6 +427,80 @@ class GoogleProvider implements IAIProvider {
       Log.e('[GoogleProvider] Failed to get available models: $e');
       return _metadata.getAvailableModels(capability);
     }
+  }
+
+  /// Ordenamiento personalizado para modelos de Google
+  /// Prioridad: Gemini versiones más altas primero (2.5 > 1.5), luego Pro > Flash > Lite
+  int _compareGoogleModels(final String a, final String b) {
+    final priorityA = _getGoogleModelPriority(a);
+    final priorityB = _getGoogleModelPriority(b);
+
+    if (priorityA != priorityB) {
+      return priorityA.compareTo(priorityB);
+    }
+
+    // Si tienen la misma prioridad, ordenar alfabéticamente descendente (más nuevos primero)
+    return b.compareTo(a);
+  }
+
+  /// Obtiene la prioridad numérica de un modelo de Google (menor número = mayor prioridad)
+  int _getGoogleModelPriority(final String model) {
+    final modelLower = model.toLowerCase();
+
+    // Gemini 2.5 serie (versión más alta)
+    if (modelLower.contains('gemini-2.5')) {
+      if (modelLower.contains('pro') && !modelLower.contains('preview')) {
+        return 1;
+      }
+      if (modelLower.contains('flash') &&
+          !modelLower.contains('preview') &&
+          !modelLower.contains('lite')) {
+        return 2;
+      }
+      if (modelLower.contains('pro') && modelLower.contains('preview')) {
+        return 3;
+      }
+      if (modelLower.contains('flash') && modelLower.contains('preview')) {
+        return 4;
+      }
+      if (modelLower.contains('lite')) return 5;
+      return 6; // Otras variantes de 2.5
+    }
+
+    // Gemini 1.5 serie
+    if (modelLower.contains('gemini-1.5')) {
+      if (modelLower.contains('pro') && !modelLower.contains('preview')) {
+        return 7;
+      }
+      if (modelLower.contains('flash') && !modelLower.contains('preview')) {
+        return 8;
+      }
+      if (modelLower.contains('pro') && modelLower.contains('preview')) {
+        return 9;
+      }
+      if (modelLower.contains('flash') && modelLower.contains('preview')) {
+        return 10;
+      }
+      return 11; // Otras variantes de 1.5
+    }
+
+    // Gemini 1.0 o versiones anteriores
+    if (modelLower.contains('gemini-1.0') ||
+        modelLower.startsWith('gemini') &&
+            !modelLower.contains('2.5') &&
+            !modelLower.contains('1.5')) {
+      if (modelLower.contains('pro')) return 12;
+      if (modelLower.contains('flash')) return 13;
+      return 14; // Otras variantes de 1.0
+    }
+
+    // Modelos especiales
+    if (modelLower.contains('image')) return 15;
+    if (modelLower.contains('tts')) return 16;
+    if (modelLower.contains('vision')) return 17;
+
+    // Resto de modelos
+    return 99;
   }
 
   @override

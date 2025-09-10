@@ -180,7 +180,9 @@ void _showOverlaySnackBar(
                         } on Exception catch (_) {}
                         try {
                           entry.remove();
-                        } on Exception catch (_) {}
+                        } on Object catch (_) {
+                          // Capturar cualquier error al remover overlay
+                        }
                         if (_currentOverlaySnackBarEntry == entry) {
                           _currentOverlaySnackBarEntry = null;
                         }
@@ -205,8 +207,12 @@ void _showOverlaySnackBar(
   overlay.insert(entry);
   Future.delayed(duration, () {
     try {
-      entry.remove();
-    } on Exception catch (_) {}
+      if (_currentOverlaySnackBarEntry == entry) {
+        entry.remove();
+      }
+    } on Object catch (_) {
+      // Capturar cualquier error (AssertionError, Exception, etc.)
+    }
     if (_currentOverlaySnackBarEntry == entry) {
       _currentOverlaySnackBarEntry = null;
     }

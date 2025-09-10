@@ -398,6 +398,32 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
     } on Exception catch (_) {}
   }
 
+  String _getProviderDisplayName(final String provider) {
+    switch (provider) {
+      case 'google':
+        return 'Google Cloud TTS';
+      case 'openai':
+        return 'OpenAI TTS';
+      case 'android_native':
+        return 'TTS Nativo Android';
+      default:
+        return 'Desconocido';
+    }
+  }
+
+  String _getProviderDescription(final String provider) {
+    switch (provider) {
+      case 'google':
+        return 'Síntesis de voz de alta calidad con múltiples idiomas';
+      case 'openai':
+        return 'Voces sintéticas naturales impulsadas por IA';
+      case 'android_native':
+        return 'Motor de texto a voz integrado del sistema';
+      default:
+        return 'Proveedor de síntesis de voz';
+    }
+  }
+
   Future<void> _clearCache() async {
     final confirmed = await showAppDialog<bool>(
       builder: (final context) => AlertDialog(
@@ -523,29 +549,88 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
 
             const SizedBox(height: 12),
 
-            // Información del caché y limpiar
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Caché:',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+            // Info section
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.black26,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppColors.secondary.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.info_outline,
+                        color: AppColors.secondary,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Proveedor: ${_getProviderDisplayName(_selectedProvider)}${_selectedVoice != null ? ' ($_selectedVoice)' : ''}',
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _getProviderDescription(_selectedProvider),
+                    style: const TextStyle(color: Colors.grey, fontSize: 11),
+                  ),
+                  if (_cacheSize > 0) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.cached,
+                              color: AppColors.secondary,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Caché: ${CacheService.formatCacheSize(_cacheSize)}',
+                              style: const TextStyle(
+                                color: AppColors.secondary,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                        // Botón limpiar caché en la misma línea
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.delete_outline),
+                          label: const Text('Limpiar'),
+                          onPressed: _cacheSize > 0 ? _clearCache : null,
+                        ),
+                      ],
                     ),
-                    Text(
-                      'Tamaño: ${CacheService.formatCacheSize(_cacheSize)}',
-                      style: const TextStyle(fontSize: 12),
+                  ] else ...[
+                    // Si no hay caché, mostrar el botón solo
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Limpiar'),
+                        onPressed: _cacheSize > 0 ? _clearCache : null,
+                      ),
                     ),
                   ],
-                ),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.delete_outline),
-                  label: const Text('Limpiar'),
-                  onPressed: _cacheSize > 0 ? _clearCache : null,
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 12),
           ],
