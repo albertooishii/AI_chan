@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -5,7 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart' show dotenv;
 
 /// Helper centralizado para acceder a configuración derivada de .env.
 /// Permite inyectar overrides en tests mediante `Config.setOverrides`.
-/// Los modelos por defecto se configuran en assets/ai_providers_config.yaml
+/// Los modelos, voces y proveedores se configuran en assets/ai_providers_config.yaml
 class Config {
   static Map<String, String>? _overrides;
 
@@ -14,25 +15,75 @@ class Config {
     _overrides = overrides;
   }
 
-  static String getOpenAIKey() => _get('OPENAI_API_KEY', '');
-  static String getGeminiKey() => _get('GEMINI_API_KEY', '');
-  static String getOpenAIRealtimeModel() => _get('OPENAI_REALTIME_MODEL', '');
+  // --- Dynamic API Keys (Arrays) ---
+  /// Parse JSON array from environment variable
+  static List<String> parseApiKeysFromJson(final String envVar) {
+    final jsonString = _get(envVar, '');
+    if (jsonString.isEmpty) return [];
 
-  /// Devuelve el OPENAI_REALTIME_MODEL y lanza si no está configurado.
-  static String requireOpenAIRealtimeModel() {
-    final v = getOpenAIRealtimeModel();
-    if (v.trim().isEmpty) {
-      throw Exception('OPENAI_REALTIME_MODEL no está configurado');
+    try {
+      final dynamic parsed = json.decode(jsonString);
+      if (parsed is List) {
+        return parsed
+            .cast<String>()
+            .where((final key) => key.isNotEmpty)
+            .toList();
+      }
+    } on FormatException {
+      // Fallback for legacy comma-separated format
+      return jsonString
+          .split(',')
+          .map((final key) => key.trim())
+          .where((final key) => key.isNotEmpty)
+          .toList();
     }
-    return v;
+    return [];
   }
 
-  static String getAudioProvider() => _get('AUDIO_PROVIDER', 'gemini');
-  static String getOpenaiVoice() => _get('OPENAI_VOICE_NAME', '');
-  static String getGoogleVoice() => _get('GOOGLE_VOICE_NAME', '');
+  /// Get all API keys for OpenAI as a list
+  static List<String> getOpenAIKeys() {
+    return parseApiKeysFromJson('OPENAI_API_KEYS');
+  }
 
-  static String getGoogleRealtimeModel() => _get('GOOGLE_REALTIME_MODEL', '');
-  static String getGrokKey() => _get('GROK_API_KEY', '');
+  /// Get all API keys for Gemini as a list
+  static List<String> getGeminiKeys() {
+    return parseApiKeysFromJson('GEMINI_API_KEYS');
+  }
+
+  /// Get all API keys for Grok as a list
+  static List<String> getGrokKeys() {
+    return parseApiKeysFromJson('GROK_API_KEYS');
+  }
+
+  /// Get all API keys for Google Cloud as a list
+  static List<String> getGoogleCloudKeys() {
+    return parseApiKeysFromJson('GOOGLE_CLOUD_API_KEYS');
+  }
+
+  // --- OAuth Configuration ---
+  static String getGoogleClientIdDesktop() =>
+      _get('GOOGLE_CLIENT_ID_DESKTOP', '');
+  static String getGoogleClientIdAndroid() =>
+      _get('GOOGLE_CLIENT_ID_ANDROID', '');
+  static String getGoogleClientIdWeb() => _get('GOOGLE_CLIENT_ID_WEB', '');
+
+  // --- Audio Configuration ---
+  static String getAudioTtsMode() => _get('AUDIO_TTS_MODE', 'google');
+  static String getPreferredAudioFormat() =>
+      _get('PREFERRED_AUDIO_FORMAT', 'mp3');
+
+  // --- Application Configuration ---
+  static String getAppName() => _get('APP_NAME', 'AI-チャン');
+  static String getDebugMode() => _get('DEBUG_MODE', 'basic');
+
+  static int getSummaryBlockSize() {
+    final v = _get('SUMMARY_BLOCK_SIZE', '32');
+    return int.tryParse(v) ?? 32;
+  }
+
+  /// Acceso genérico para claves no previstas por getters específicos.
+  static String get(final String key, final String fallback) =>
+      _get(key, fallback);
 
   static String _get(final String key, final String fallback) {
     try {
@@ -45,13 +96,7 @@ class Config {
     }
   }
 
-  /// Nombre de la aplicación. Lee `APP_NAME` desde .env o devuelve el
-  /// valor por defecto "AI-チャン'" si no está presente.
-  static String getAppName() => _get('APP_NAME', 'AI-チャン');
-
-  /// Acceso genérico para claves no previstas por getters específicos.
-  static String get(final String key, final String fallback) =>
-      _get(key, fallback);
+  // --- Default Models (configured in assets/ai_providers_config.yaml) ---
 
   /// Devuelve el modelo de texto por defecto
   static String requireDefaultTextModel() {
@@ -78,13 +123,9 @@ class Config {
     return 'gpt-4o-mini-transcribe';
   }
 
-  /// Getter para el modo TTS (google/openai)
-  static String getAudioTtsMode() => _get('AUDIO_TTS_MODE', 'google');
-
-  /// Tamaño por defecto del bloque de resumen en MemorySummaryService
-  static int getSummaryBlockSize() {
-    final v = _get('SUMMARY_BLOCK_SIZE', '32');
-    return int.tryParse(v) ?? 32;
+  /// Modelo STT para OpenAI Realtime - configurado en assets/ai_providers_config.yaml
+  static String getOpenAIRealtimeModel() {
+    return 'gpt-4o-mini-realtime-preview-2024-12-17';
   }
 
   /// Inicializa la configuración cargando `.env`.
@@ -116,9 +157,10 @@ class Config {
       debugPrint('Config: Failed to load .env file: $e');
       // Si no hay .env en disco, cargamos valores mínimos esenciales
       const defaultContents = '''
-GOOGLE_REALTIME_MODEL=gemini-2.5-flash
-DEBUG_MODE=full
+DEBUG_MODE=basic
 SUMMARY_BLOCK_SIZE=32
+AUDIO_TTS_MODE=google
+PREFERRED_AUDIO_FORMAT=mp3
 ''';
       final lines = defaultContents.split('\n');
       for (final line in lines) {

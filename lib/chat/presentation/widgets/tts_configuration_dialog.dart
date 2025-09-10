@@ -1,6 +1,7 @@
 import 'package:ai_chan/core/cache/cache_service.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/di.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
@@ -192,11 +193,22 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
         _selectedModel = selModel ?? Config.getDefaultTextModel();
       });
     } on Exception catch (_) {
-      setState(() {
-        _selectedProvider = Config.getAudioProvider().toLowerCase();
-        _selectedVoice = null;
-        _selectedModel = Config.getDefaultTextModel();
-      });
+      // ✅ YAML: Usar configuración YAML como fallback
+      try {
+        final defaultProvider =
+            AIProviderConfigLoader.getDefaultAudioProvider();
+        setState(() {
+          _selectedProvider = defaultProvider.toLowerCase();
+          _selectedVoice = null;
+          _selectedModel = Config.getDefaultTextModel();
+        });
+      } on Exception catch (_) {
+        setState(() {
+          _selectedProvider = 'google'; // Ultimate fallback
+          _selectedVoice = null;
+          _selectedModel = Config.getDefaultTextModel();
+        });
+      }
     }
   }
 

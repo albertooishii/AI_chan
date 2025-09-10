@@ -20,6 +20,7 @@ import 'package:ai_chan/shared/infrastructure/utils/profile_persist_utils.dart'
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:ai_chan/shared/services/firebase_init.dart';
+import 'package:ai_chan/shared/ai_providers/core/registry/provider_registration.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
@@ -29,9 +30,24 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Config.initialize();
 
+  // 🚀 Initialize the dynamic AI Provider system
+  utils.Log.i('🔧 Initializing dynamic AI Provider system...', tag: 'STARTUP');
+  try {
+    initializeProviderSystem();
+    utils.Log.i(
+      '✅ Dynamic AI Provider system initialized successfully',
+      tag: 'STARTUP',
+    );
+  } on Exception catch (e) {
+    utils.Log.e(
+      '❌ Failed to initialize AI Provider system: $e',
+      tag: 'STARTUP',
+    );
+  }
+
   // The new AIProviderManager system auto-initializes on first access
   utils.Log.i(
-    'AI Provider system will initialize automatically on first use',
+    'AI Provider system ready for configuration-driven provider loading',
     tag: 'STARTUP',
   );
 

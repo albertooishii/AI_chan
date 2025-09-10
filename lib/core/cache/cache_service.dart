@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/app_data_utils.dart';
-import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -113,8 +113,12 @@ class CacheService {
       // or empty voice string.
       if (provider.toLowerCase() == 'google') {
         try {
-          final googleDefault = Config.getGoogleVoice();
-          if (googleDefault.isNotEmpty && googleDefault != voice) {
+          // ✅ YAML: Usar configuración YAML para obtener voz por defecto de Google
+          final googleDefault =
+              AIProviderConfigLoader.getDefaultVoiceForProvider('google');
+          if (googleDefault != null &&
+              googleDefault.isNotEmpty &&
+              googleDefault != voice) {
             final altHash = generateTtsHash(
               text: text,
               voice: googleDefault,

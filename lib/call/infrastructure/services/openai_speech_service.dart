@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:ai_chan/shared/constants/openai_voices.dart';
-import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/api_key_manager.dart';
 import 'package:ai_chan/core/interfaces/i_openai_speech_service.dart';
 
 class OpenAISpeechService implements IOpenAISpeechService {
@@ -11,13 +11,18 @@ class OpenAISpeechService implements IOpenAISpeechService {
     debugPrint('[OpenAI TTS] $msg');
   }
 
+  /// Helper to get OpenAI API key from ApiKeyManager
+  static String? _getApiKey() {
+    return ApiKeyManager.getNextAvailableKey('openai');
+  }
+
   // Marca para evitar reintentos cuando el endpoint remoto no existe (404).
   // Se puede forzar reintento pasando `forceRefresh: true`.
   static bool _remoteVoicesUnavailable = false;
 
   /// Devuelve una lista de voces usando la lista oficial estática del proyecto
   /// (definida en `kOpenAIVoices`) por defecto. Si hay una API key disponible
-  /// en `Config.getOpenAIKey()` intentará pedir la lista a
+  /// via ApiKeyManager intentará pedir la lista a
   /// `https://api.openai.com/v1/audio/voices` y mapearla al formato esperado.
   /// Conserva `forceRefresh` para compatibilidad. Si `femaleOnly` es true,
   /// devuelve sólo las voces listadas en `kOpenAIFemaleVoices`.
@@ -30,11 +35,13 @@ class OpenAISpeechService implements IOpenAISpeechService {
       'fetchOpenAIVoices - start (forceRefresh=$forceRefresh, femaleOnly=$femaleOnly)',
     );
 
-    final apiKey = Config.getOpenAIKey();
+    final apiKey = _getApiKey();
 
     // Si previamente detectamos que el endpoint remoto no existe, evitamos
     // volver a intentar, salvo cuando el llamador fuerza un refresh.
-    if (apiKey.isNotEmpty && (!_remoteVoicesUnavailable || forceRefresh)) {
+    if (apiKey != null &&
+        apiKey.isNotEmpty &&
+        (!_remoteVoicesUnavailable || forceRefresh)) {
       try {
         _maybeDebugPrint('Attempting remote fetch from /v1/audio/voices');
         final resp = await http
@@ -104,7 +111,9 @@ class OpenAISpeechService implements IOpenAISpeechService {
       } on Exception catch (e, st) {
         _maybeDebugPrint('Remote fetch error: $e\n$st');
       }
-    } else if (apiKey.isNotEmpty && _remoteVoicesUnavailable) {
+    } else if (apiKey != null &&
+        apiKey.isNotEmpty &&
+        _remoteVoicesUnavailable) {
       _maybeDebugPrint(
         'Skipping remote fetch because endpoint was previously detected as unavailable (pass forceRefresh=true to retry)',
       );
@@ -140,8 +149,8 @@ class OpenAISpeechService implements IOpenAISpeechService {
 
   @override
   Future<bool> isAvailable() async {
-    final apiKey = Config.getOpenAIKey();
-    return apiKey.isNotEmpty;
+    final apiKey = _getApiKey();
+    return apiKey != null && apiKey.isNotEmpty;
   }
 
   /// Versión estática de fetchOpenAIVoices

@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 /// Cliente OpenAI Realtime adaptado para la interfaz del dominio
 class OpenAIRealtimeCallClient implements IRealtimeCallClient {
   OpenAIRealtimeCallClient({final String? model})
-    : model = model ?? Config.requireOpenAIRealtimeModel() {
+    : model = model ?? Config.getOpenAIRealtimeModel() {
     _textController = StreamController<String>.broadcast();
     _audioController = StreamController<Uint8List>.broadcast();
     _userTranscriptionController = StreamController<String>.broadcast();

@@ -1,9 +1,11 @@
 import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_metadata.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/api_key_manager.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/http_connector.dart';
+import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
+import 'package:ai_chan/call/infrastructure/services/openai_realtime_client.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/chat/infrastructure/adapters/prompt_builder_service.dart'
     as pb;
@@ -11,6 +13,7 @@ import 'package:ai_chan/shared/utils/debug_call_logger/debug_call_logger_io.dart
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 /// OpenAI provider implementation using the new architecture.
@@ -67,7 +70,15 @@ class OpenAIProvider implements IAIProvider {
   late final AIProviderMetadata _metadata;
   bool _initialized = false;
 
-  String get _apiKey => Config.getOpenAIKey();
+  String get _apiKey {
+    final key = ApiKeyManager.getNextAvailableKey('openai');
+    if (key == null || key.isEmpty) {
+      throw Exception(
+        'No valid OpenAI API key available. Please configure OPENAI_API_KEYS in environment.',
+      );
+    }
+    return key;
+  }
 
   @override
   String get providerId => 'openai';
@@ -166,6 +177,13 @@ class OpenAIProvider implements IAIProvider {
         );
       case AICapability.audioGeneration:
         return await _sendTTSRequest(history, model, additionalParams);
+      case AICapability.realtimeConversation:
+        return await _handleRealtimeRequest(
+          history,
+          systemPrompt,
+          model,
+          additionalParams,
+        );
       default:
         return AIResponse(
           text: 'Capability $capability not supported by OpenAI provider',
@@ -491,9 +509,9 @@ class OpenAIProvider implements IAIProvider {
           prompt: effectivePrompt,
         );
       } else {
-        Log.e(
-          '[OpenAIProvider] ERROR: statusCode=${response.statusCode}, body=${response.body}',
-        );
+        // Handle API error and rotate keys if necessary
+        _handleApiError(response, 'text_generation');
+
         return AIResponse(
           text:
               'Error al conectar con la IA: Status ${response.statusCode} ${response.body}',
@@ -959,6 +977,157 @@ class OpenAIProvider implements IAIProvider {
   @override
   Map<String, int> getRateLimits() {
     return _metadata.rateLimits;
+  }
+
+  /// Handle API errors and manage key rotation
+  void _handleApiError(final http.Response response, final String operation) {
+    final statusCode = response.statusCode;
+    final body = response.body;
+
+    Log.e(
+      '[OpenAIProvider] API Error - Operation: $operation, Status: $statusCode, Body: $body',
+    );
+
+    // Handle different types of API errors
+    switch (statusCode) {
+      case 401:
+        // Unauthorized - invalid API key
+        ApiKeyManager.markCurrentKeyFailed('openai', 'Invalid API key (401)');
+        Log.w(
+          '[OpenAIProvider] 🔑 API key marked as invalid, rotating to next key',
+        );
+        break;
+
+      case 429:
+        // Rate limited
+        ApiKeyManager.markCurrentKeyExhausted('openai');
+        Log.w('[OpenAIProvider] 🚦 API key rate limited, rotating to next key');
+        break;
+
+      case 402:
+        // Payment required
+        ApiKeyManager.markCurrentKeyFailed('openai', 'Payment required (402)');
+        Log.w(
+          '[OpenAIProvider] 💳 Payment required for API key, rotating to next key',
+        );
+        break;
+
+      case 403:
+        // Forbidden
+        ApiKeyManager.markCurrentKeyFailed('openai', 'Access forbidden (403)');
+        Log.w(
+          '[OpenAIProvider] 🚫 API key access forbidden, rotating to next key',
+        );
+        break;
+
+      default:
+        // For other errors, don't rotate key but log the issue
+        Log.w(
+          '[OpenAIProvider] ⚠️ API error $statusCode for operation: $operation',
+        );
+        break;
+    }
+  }
+
+  /// Handle realtime conversation requests
+  /// Note: This method sets up the realtime session configuration but doesn't start streaming.
+  /// The actual realtime communication should be handled through createRealtimeClient().
+  Future<AIResponse> _handleRealtimeRequest(
+    final List<Map<String, String>> history,
+    final SystemPrompt systemPrompt,
+    final String? model,
+    final Map<String, dynamic>? additionalParams,
+  ) async {
+    Log.d('[OpenAIProvider] Handling realtime conversation request');
+
+    if (!supportsCapability(AICapability.realtimeConversation)) {
+      return AIResponse(
+        text:
+            'Realtime conversation not supported by this OpenAI provider configuration',
+      );
+    }
+
+    final realtimeModel =
+        model ?? getDefaultModel(AICapability.realtimeConversation);
+    if (realtimeModel == null || !supportsRealtimeForModel(realtimeModel)) {
+      return AIResponse(
+        text: 'Realtime model not available or not supported: $realtimeModel',
+      );
+    }
+
+    // For realtime conversations, we return configuration information
+    // The actual streaming connection should be established via createRealtimeClient()
+    return AIResponse(
+      text:
+          'Realtime conversation session configured successfully. Use createRealtimeClient() to start streaming. Provider: openai, Model: $realtimeModel, Session: realtime, History: ${history.length} messages',
+    );
+  }
+
+  @override
+  IRealtimeClient? createRealtimeClient({
+    final String? model,
+    final void Function(String)? onText,
+    final void Function(Uint8List)? onAudio,
+    final void Function()? onCompleted,
+    final void Function(Object)? onError,
+    final void Function(String)? onUserTranscription,
+    final Map<String, dynamic>? additionalParams,
+  }) {
+    if (!supportsCapability(AICapability.realtimeConversation)) {
+      Log.w('[OpenAIProvider] Realtime conversation not supported');
+      return null;
+    }
+
+    final realtimeModel =
+        model ?? getDefaultModel(AICapability.realtimeConversation);
+    if (realtimeModel == null) {
+      Log.w('[OpenAIProvider] No realtime model available');
+      return null;
+    }
+
+    if (!supportsRealtimeForModel(realtimeModel)) {
+      Log.w('[OpenAIProvider] Model $realtimeModel does not support realtime');
+      return null;
+    }
+
+    try {
+      Log.d(
+        '[OpenAIProvider] Creating realtime client for model: $realtimeModel',
+      );
+
+      return OpenAIRealtimeClient(
+        model: realtimeModel,
+        onText: onText,
+        onAudio: onAudio,
+        onCompleted: onCompleted,
+        onError: onError,
+        onUserTranscription: onUserTranscription,
+      );
+    } on Exception catch (e) {
+      Log.e('[OpenAIProvider] Failed to create realtime client: $e');
+      return null;
+    }
+  }
+
+  @override
+  bool supportsRealtimeForModel(final String? model) {
+    if (model == null) {
+      return supportsCapability(AICapability.realtimeConversation);
+    }
+
+    // Check if the model is in our realtime models list
+    final realtimeModels =
+        availableModels[AICapability.realtimeConversation] ?? [];
+    return realtimeModels.contains(model) || model.contains('realtime');
+  }
+
+  @override
+  List<String> getAvailableRealtimeModels() {
+    if (!supportsCapability(AICapability.realtimeConversation)) {
+      return [];
+    }
+
+    return availableModels[AICapability.realtimeConversation] ?? [];
   }
 
   @override

@@ -1,14 +1,11 @@
 /// Factory for creating AI Providers based on YAML configuration.
 /// This factory uses the configuration loaded from YAML files to instantiate
-/// the appropriate provider implementations.
+/// the appropriate provider implementations dynamically.
 library;
 
 import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_config.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
-import 'package:ai_chan/shared/ai_providers/implementations/google_provider.dart';
-import 'package:ai_chan/shared/ai_providers/implementations/openai_provider.dart';
-import 'package:ai_chan/shared/ai_providers/implementations/xai_provider.dart';
+import 'package:ai_chan/shared/ai_providers/core/registry/provider_auto_registry.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart' show Log;
 
 /// Exception thrown when provider creation fails
@@ -27,7 +24,7 @@ class ProviderCreationException implements Exception {
 class AIProviderFactory {
   static final Map<String, IAIProvider> _providerCache = {};
 
-  /// Create a provider instance from configuration
+  /// Create a provider instance from configuration using dynamic registry
   static IAIProvider createProvider(
     final String providerId,
     final ProviderConfig config,
@@ -40,23 +37,14 @@ class AIProviderFactory {
 
       Log.i('Creating provider: $providerId');
 
-      IAIProvider provider;
+      // Try to create provider using dynamic registry
+      final provider = ProviderAutoRegistry.createProvider(providerId, config);
 
-      // Create provider based on ID
-      switch (providerId.toLowerCase()) {
-        case 'openai':
-          provider = _createOpenAIProvider(config);
-          break;
-        case 'google':
-          provider = _createGoogleProvider(config);
-          break;
-        case 'xai':
-          provider = _createXAIProvider(config);
-          break;
-        default:
-          throw ProviderCreationException(
-            'Unsupported provider type: $providerId',
-          );
+      if (provider == null) {
+        throw ProviderCreationException(
+          'No registered constructor found for provider type: $providerId. '
+          'Make sure the provider is registered in provider_registration.dart',
+        );
       }
 
       // Cache the provider
@@ -127,102 +115,13 @@ class AIProviderFactory {
     return _providerCache[providerId];
   }
 
-  /// Create OpenAI provider with configuration
-  static IAIProvider _createOpenAIProvider(final ProviderConfig config) {
-    // Create OpenAI provider instance
-    return OpenAIProvider();
-  }
-
-  /// Create Google provider with configuration
-  static IAIProvider _createGoogleProvider(final ProviderConfig config) {
-    // Google provider creates its own metadata internally
-    return GoogleProvider();
-  }
-
-  /// Create XAI provider with configuration
-  static IAIProvider _createXAIProvider(final ProviderConfig config) {
-    // XAI provider creates its own metadata internally
-    return XAIProvider();
-  }
-
-  /// Validate that all required providers for fallback chains can be created
-  static List<String> validateFallbackChains(
-    final Map<String, ProviderConfig> providerConfigs,
-    final Map<AICapability, FallbackChain> fallbackChains,
-  ) {
-    final errors = <String>[];
-
-    for (final entry in fallbackChains.entries) {
-      final capability = entry.key;
-      final chain = entry.value;
-
-      // Check primary provider
-      if (!providerConfigs.containsKey(chain.primary)) {
-        errors.add(
-          'Primary provider ${chain.primary} for ${capability.name} not found in configuration',
-        );
-      } else if (!providerConfigs[chain.primary]!.enabled) {
-        errors.add(
-          'Primary provider ${chain.primary} for ${capability.name} is disabled',
-        );
-      }
-
-      // Check fallback providers
-      for (final fallbackId in chain.fallbacks) {
-        if (!providerConfigs.containsKey(fallbackId)) {
-          errors.add(
-            'Fallback provider $fallbackId for ${capability.name} not found in configuration',
-          );
-        } else if (!providerConfigs[fallbackId]!.enabled) {
-          errors.add(
-            'Fallback provider $fallbackId for ${capability.name} is disabled',
-          );
-        }
-      }
-    }
-
-    return errors;
-  }
-
-  /// Test provider creation without caching
-  static Future<bool> testProviderCreation(
-    final String providerId,
-    final ProviderConfig config,
-  ) async {
-    try {
-      final provider = createProvider(providerId, config);
-
-      // Try to initialize the provider
-      final initialized = await provider.initialize({});
-
-      if (!initialized) {
-        Log.w('Provider $providerId failed to initialize');
-        return false;
-      }
-
-      // Test health check if available
-      final healthy = await provider.isHealthy();
-
-      if (!healthy) {
-        Log.w('Provider $providerId failed health check');
-        return false;
-      }
-
-      Log.i('Provider $providerId passed creation and health tests');
-      return true;
-    } on Exception catch (e) {
-      Log.e('Provider $providerId failed creation test: $e');
-      return false;
-    }
-  }
-
-  /// Get available provider types that can be created
+  /// Get available provider types that can be created (now dynamic)
   static List<String> getAvailableProviderTypes() {
-    return ['openai', 'google', 'xai'];
+    return ProviderAutoRegistry.getRegisteredProviders();
   }
 
-  /// Check if a provider type is supported
+  /// Check if a provider type is supported (now dynamic)
   static bool isProviderTypeSupported(final String providerId) {
-    return getAvailableProviderTypes().contains(providerId.toLowerCase());
+    return ProviderAutoRegistry.isProviderRegistered(providerId);
   }
 }

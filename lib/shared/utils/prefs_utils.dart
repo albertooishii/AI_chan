@@ -1,7 +1,9 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
 
 /// Centraliza accesos a SharedPreferences usados en múltiples partes del app.
+/// ✅ MIGRADO: Usa configuración YAML para proveedores de audio y voces
 class PrefsUtils {
   // --- Canonical key constants ---
   static const kSelectedAudioProvider = 'selected_audio_provider';
@@ -26,14 +28,9 @@ class PrefsUtils {
       final prefs = await SharedPreferences.getInstance();
       final savedProvider = prefs.getString('selected_audio_provider');
       if (savedProvider == null || savedProvider.isEmpty) {
-        final env = Config.getAudioProvider().toLowerCase();
-        String defaultProvider = 'google';
-        if (env == 'openai') {
-          defaultProvider = 'openai';
-        }
-        if (env == 'gemini') {
-          defaultProvider = 'google';
-        }
+        // ✅ YAML: Usar nueva configuración YAML
+        final defaultProvider =
+            AIProviderConfigLoader.getDefaultAudioProvider();
         await prefs.setString('selected_audio_provider', defaultProvider);
       }
 
@@ -47,18 +44,15 @@ class PrefsUtils {
 
       final provider =
           prefs.getString('selected_audio_provider') ??
-          Config.getAudioProvider().toLowerCase();
+          AIProviderConfigLoader.getDefaultAudioProvider();
       final providerKey = 'selected_voice_$provider';
       final providerVoice = prefs.getString(providerKey);
       if (providerVoice == null || providerVoice.isEmpty) {
-        String defaultVoice = '';
-        if (provider == 'google') {
-          defaultVoice = Config.getGoogleVoice();
-        }
-        if (provider == 'openai') {
-          defaultVoice = Config.getOpenaiVoice();
-        }
-        if (defaultVoice.isNotEmpty) {
+        // ✅ YAML: Usar nueva configuración YAML para voces
+        final defaultVoice = AIProviderConfigLoader.getDefaultVoiceForProvider(
+          provider,
+        );
+        if (defaultVoice != null && defaultVoice.isNotEmpty) {
           await prefs.setString(providerKey, defaultVoice);
         }
       }
@@ -69,15 +63,12 @@ class PrefsUtils {
     try {
       final prefs = await SharedPreferences.getInstance();
       final saved = prefs.getString('selected_audio_provider');
-      final envValue = Config.getAudioProvider().toLowerCase();
-      String defaultValue = 'google';
-      if (envValue == 'openai') {
-        defaultValue = 'openai';
-      }
-      if (envValue == 'gemini') {
-        defaultValue = 'google';
-      }
+
+      // ✅ YAML: Usar nueva configuración YAML para obtener el provider por defecto
+      final defaultValue = AIProviderConfigLoader.getDefaultAudioProvider();
+
       final resolved = (saved ?? defaultValue).toLowerCase();
+      // Mantener compatibilidad hacia atrás: 'gemini' -> 'google'
       if (resolved == 'gemini') return 'google';
       return resolved;
     } on Exception catch (_) {

@@ -1,6 +1,6 @@
 import 'package:ai_chan/call/domain/interfaces/i_speech_service.dart';
 import 'package:ai_chan/call/infrastructure/services/openai_speech_service.dart';
-import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/api_key_manager.dart';
 import 'package:flutter/foundation.dart';
 
 /// Adapter que implementa ISpeechService usando OpenAISpeechService
@@ -45,7 +45,8 @@ class OpenAISpeechServiceAdapter implements ISpeechService {
   Future<bool> isAvailable() async {
     try {
       // Verificar si hay API key de OpenAI disponible
-      return Config.getOpenAIKey().isNotEmpty;
+      final apiKey = ApiKeyManager.getNextAvailableKey('openai');
+      return apiKey != null && apiKey.isNotEmpty;
     } on Exception catch (_) {
       return false;
     }

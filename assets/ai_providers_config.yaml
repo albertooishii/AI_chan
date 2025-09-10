@@ -38,7 +38,7 @@ ai_providers:
       version: "v1"
       authentication_type: "bearer_token"
       required_env_keys:
-        - "OPENAI_API_KEY"
+        - "OPENAI_API_KEYS"
     
     models:
       text_generation:
@@ -110,7 +110,7 @@ ai_providers:
       version: "v1beta"
       authentication_type: "api_key"
       required_env_keys:
-        - "GEMINI_API_KEY"
+        - "GEMINI_API_KEYS"
     
     models:
       text_generation:
@@ -174,7 +174,7 @@ ai_providers:
       version: "v1"
       authentication_type: "bearer_token"
       required_env_keys:
-        - "GROK_API_KEY"
+        - "GROK_API_KEYS"
     
     models:
       text_generation:

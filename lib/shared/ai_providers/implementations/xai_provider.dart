@@ -1,12 +1,14 @@
 import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_metadata.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/api_key_manager.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/http_connector.dart';
+import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'dart:convert';
 import 'dart:async';
+import 'dart:typed_data';
 
 /// X.AI Grok provider implementation using the new architecture.
 /// This provider directly implements HTTP calls to X.AI API without depending on GrokService.
@@ -49,7 +51,15 @@ class XAIProvider implements IAIProvider {
   late final AIProviderMetadata _metadata;
   bool _initialized = false;
 
-  String get _apiKey => Config.getGrokKey();
+  String get _apiKey {
+    final key = ApiKeyManager.getNextAvailableKey('grok');
+    if (key == null || key.isEmpty) {
+      throw Exception(
+        'No valid Grok API key available. Please configure GROK_API_KEYS in environment.',
+      );
+    }
+    return key;
+  }
 
   @override
   String get providerId => 'xai';
@@ -396,6 +406,33 @@ class XAIProvider implements IAIProvider {
     // XAI doesn't support STT
     Log.w('[XAIProvider] STT not supported by XAI/Grok');
     return AIResponse(text: 'XAI/Grok does not support STT functionality');
+  }
+
+  @override
+  IRealtimeClient? createRealtimeClient({
+    final String? model,
+    final void Function(String)? onText,
+    final void Function(Uint8List)? onAudio,
+    final void Function()? onCompleted,
+    final void Function(Object)? onError,
+    final void Function(String)? onUserTranscription,
+    final Map<String, dynamic>? additionalParams,
+  }) {
+    Log.w('[XAIProvider] Realtime conversation not supported yet');
+    // TODO: Implement XAI/Grok realtime client when API becomes available
+    return null;
+  }
+
+  @override
+  bool supportsRealtimeForModel(final String? model) {
+    // XAI/Grok doesn't support realtime conversation yet
+    return false;
+  }
+
+  @override
+  List<String> getAvailableRealtimeModels() {
+    // XAI/Grok doesn't support realtime conversation yet
+    return [];
   }
 
   @override

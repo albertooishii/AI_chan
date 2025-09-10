@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/api_key_manager.dart';
 
 import '../../../core/interfaces/i_realtime_client.dart';
 import '../transport/openai_transport.dart';
@@ -15,7 +16,7 @@ class OpenAIRealtimeClient implements IRealtimeClient {
     this.onCompleted,
     this.onError,
     this.onUserTranscription,
-  }) : model = model ?? Config.requireOpenAIRealtimeModel() {
+  }) : model = model ?? Config.getOpenAIRealtimeModel() {
     _transport = OpenAITransport(model: model);
     _transport.onMessage = _onTransportMessage;
     _transport.onError = (final e) => onError?.call(e);
@@ -32,7 +33,16 @@ class OpenAIRealtimeClient implements IRealtimeClient {
   Completer<void>? _sessionReadyCompleter;
   // Nota: OpenAI realtime debe usar el OPENAI_REALTIME_MODEL configurado; fallar si no está presente.
 
-  String get _apiKey => Config.getOpenAIKey();
+  String get _apiKey {
+    final key = ApiKeyManager.getNextAvailableKey('openai');
+    if (key == null || key.isEmpty) {
+      throw Exception(
+        'No valid OpenAI API key available. Please configure OPENAI_API_KEYS in environment.',
+      );
+    }
+    return key;
+  }
+
   @override
   bool get isConnected => _transport.isConnected;
   int _bytesSinceCommit = 0;

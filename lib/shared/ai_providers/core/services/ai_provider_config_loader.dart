@@ -8,6 +8,7 @@ import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:flutter/services.dart';
 import 'package:yaml/yaml.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_config.dart';
+import 'package:ai_chan/shared/ai_providers/core/registry/provider_auto_registry.dart';
 import 'package:ai_chan/core/config.dart'; // ✅ AGREGADO Config import
 
 /// Exception thrown when configuration loading fails
@@ -31,9 +32,60 @@ class AIProviderConfigLoader {
   /// Flag to skip environment validation during tests
   static bool skipEnvironmentValidation = false;
 
+  /// Cached configuration for synchronous access
+  static Map<String, dynamic>? _cachedConfig;
+
+  /// Ensure configuration is loaded and return cached config
+  static Map<String, dynamic> _ensureConfigLoaded() {
+    if (_cachedConfig != null) {
+      return _cachedConfig!;
+    }
+
+    // If not cached, load from hardcoded fallback
+    Log.w('Configuration not cached, using fallback values');
+    return {
+      'ai_providers': {
+        'openai': {
+          'priority': 1,
+          'voices': {
+            'available': [
+              'alloy',
+              'ash',
+              'coral',
+              'echo',
+              'sage',
+              'shimmer',
+              'nova',
+              'fable',
+              'onyx',
+              'cedar',
+              'marin',
+            ],
+            'default': 'marin',
+          },
+        },
+        'google': {
+          'priority': 2,
+          'voices': {
+            'available': [
+              'es-ES-Wavenet-F',
+              'es-ES-Standard-A',
+              'en-US-Wavenet-F',
+            ],
+            'default': 'es-ES-Wavenet-F',
+          },
+        },
+      },
+      'audio': {'default_provider': 'google'},
+    };
+  }
+
   /// Load default configuration from assets
   static Future<AIProvidersConfig> loadDefault() async {
-    return loadFromAssets();
+    final config = await loadFromAssets();
+    // Cache the configuration for synchronous access
+    _cachedConfig = config.toMap();
+    return config;
   }
 
   /// Load configuration from assets
@@ -466,5 +518,139 @@ class AIProviderConfigLoader {
     }
 
     return results;
+  }
+
+  /// Get provider ID for a model using prefix mapping
+  static String? getProviderIdForModel(final String modelId) {
+    final normalized = modelId.trim().toLowerCase();
+
+    // Use auto-registry for model mapping if available
+    try {
+      final providerId = ProviderAutoRegistry.getProviderForModel(normalized);
+      if (providerId != null) {
+        return providerId;
+      }
+    } on Exception catch (e) {
+      Log.w('Failed to get provider from auto-registry: $e');
+    }
+
+    // Fallback to hardcoded mapping for compatibility
+    if (normalized.startsWith('gpt-') ||
+        normalized.startsWith('dall-e') ||
+        normalized.startsWith('gpt-realtime')) {
+      return 'openai';
+    }
+
+    if (normalized.startsWith('gemini-') || normalized.startsWith('imagen-')) {
+      return 'google';
+    }
+
+    if (normalized.startsWith('grok-')) {
+      return 'xai';
+    }
+
+    return null;
+  }
+
+  /// Get all model prefixes from configuration
+  static Map<String, List<String>> getAllModelPrefixes() {
+    final result = <String, List<String>>{};
+
+    try {
+      for (final providerId in ProviderAutoRegistry.getRegisteredProviders()) {
+        final prefixes = ProviderAutoRegistry.getModelPrefixes(providerId);
+        if (prefixes != null && prefixes.isNotEmpty) {
+          result[providerId] = prefixes;
+        }
+      }
+    } on Exception catch (e) {
+      Log.w('Failed to get model prefixes from auto-registry: $e');
+    }
+
+    return result;
+  }
+
+  // --- Audio and Voice Configuration ---
+
+  /// Get default audio provider based on priority and capability
+  static String getDefaultAudioProvider() {
+    try {
+      final config = _ensureConfigLoaded();
+      final providers = config['ai_providers'] as Map<String, dynamic>? ?? {};
+
+      // Find providers with audio generation capability, sorted by priority
+      final audioProviders = <String>[];
+
+      for (final entry in providers.entries) {
+        final providerId = entry.key;
+        final providerConfig = entry.value as Map<String, dynamic>? ?? {};
+        final capabilities =
+            (providerConfig['capabilities'] as List<dynamic>?)
+                ?.cast<String>() ??
+            [];
+        final enabled = providerConfig['enabled'] as bool? ?? false;
+
+        if (enabled && capabilities.contains('audio_generation')) {
+          audioProviders.add(providerId);
+        }
+      }
+
+      // Sort by priority (lower number = higher priority)
+      audioProviders.sort((final a, final b) {
+        final priorityA = providers[a]?['priority'] as int? ?? 999;
+        final priorityB = providers[b]?['priority'] as int? ?? 999;
+        return priorityA.compareTo(priorityB);
+      });
+
+      return audioProviders.isNotEmpty ? audioProviders.first : 'google';
+    } on Exception catch (e) {
+      Log.w('Failed to get default audio provider: $e');
+      return 'google'; // Fallback
+    }
+  }
+
+  /// Get available voices for a provider
+  static List<String> getVoicesForProvider(final String providerId) {
+    try {
+      final config = _ensureConfigLoaded();
+      final providers = config['ai_providers'] as Map<String, dynamic>? ?? {};
+      final providerConfig =
+          providers[providerId] as Map<String, dynamic>? ?? {};
+      final voices = providerConfig['voices'] as Map<String, dynamic>? ?? {};
+      final available = voices['available'] as List<dynamic>? ?? [];
+
+      return available.cast<String>();
+    } on Exception catch (e) {
+      Log.w('Failed to get voices for provider $providerId: $e');
+      return [];
+    }
+  }
+
+  /// Get default voice for a provider
+  static String? getDefaultVoiceForProvider(final String providerId) {
+    try {
+      final config = _ensureConfigLoaded();
+      final providers = config['ai_providers'] as Map<String, dynamic>? ?? {};
+      final providerConfig =
+          providers[providerId] as Map<String, dynamic>? ?? {};
+      final voices = providerConfig['voices'] as Map<String, dynamic>? ?? {};
+
+      return voices['default'] as String?;
+    } on Exception catch (e) {
+      Log.w('Failed to get default voice for provider $providerId: $e');
+      return null;
+    }
+  }
+
+  /// Get audio provider mapping (for backward compatibility with 'gemini' -> 'google')
+  static String normalizeAudioProvider(final String provider) {
+    switch (provider.toLowerCase()) {
+      case 'gemini':
+        return 'google';
+      case 'openai':
+        return 'openai';
+      default:
+        return 'google';
+    }
   }
 }

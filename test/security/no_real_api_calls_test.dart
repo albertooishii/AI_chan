@@ -31,13 +31,28 @@ void main() {
   });
 
   test('API keys are test or empty in the test environment', () {
-    final openai = config.Config.getOpenAIKey();
-    final gemini = config.Config.getGeminiKey();
+    final openaiKeys = config.Config.getOpenAIKeys();
+    final geminiKeys = config.Config.getGeminiKeys();
 
-    // Keys should either be empty or contain the substring 'test' to be
+    // Keys should either be empty or all contain the substring 'test' to be
     // considered non-production in CI/local tests.
-    expect(openai == '' || openai.toLowerCase().contains('test'), isTrue);
-    expect(gemini == '' || gemini.toLowerCase().contains('test'), isTrue);
+    final openaiSafe =
+        openaiKeys.isEmpty ||
+        openaiKeys.every((key) => key.toLowerCase().contains('test'));
+    final geminiSafe =
+        geminiKeys.isEmpty ||
+        geminiKeys.every((key) => key.toLowerCase().contains('test'));
+
+    expect(
+      openaiSafe,
+      isTrue,
+      reason: 'OpenAI keys should be empty or contain "test"',
+    );
+    expect(
+      geminiSafe,
+      isTrue,
+      reason: 'Gemini keys should be empty or contain "test"',
+    );
   });
 
   test('Network calls are blocked in tests unless faked', () async {

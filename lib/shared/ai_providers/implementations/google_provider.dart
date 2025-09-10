@@ -1,15 +1,17 @@
 import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_metadata.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/api_key_manager.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/http_connector.dart';
+import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/chat/infrastructure/adapters/prompt_builder_service.dart'
     as pb;
 import 'package:ai_chan/shared/utils/debug_call_logger/debug_call_logger_io.dart';
 import 'dart:convert';
 import 'dart:async';
+import 'dart:typed_data';
 
 /// Google Gemini provider implementation using the new architecture.
 /// This provider directly implements HTTP calls to Google AI API without depending on GeminiService.
@@ -56,7 +58,15 @@ class GoogleProvider implements IAIProvider {
   late final AIProviderMetadata _metadata;
   bool _initialized = false;
 
-  String get _apiKey => Config.getGeminiKey();
+  String get _apiKey {
+    final key = ApiKeyManager.getNextAvailableKey('gemini');
+    if (key == null || key.isEmpty) {
+      throw Exception(
+        'No valid Gemini API key available. Please configure GEMINI_API_KEYS in environment.',
+      );
+    }
+    return key;
+  }
 
   @override
   String get providerId => 'google';
@@ -535,6 +545,33 @@ class GoogleProvider implements IAIProvider {
     return AIResponse(
       text: 'Google STT not implemented in Enhanced AI - use legacy service',
     );
+  }
+
+  @override
+  IRealtimeClient? createRealtimeClient({
+    final String? model,
+    final void Function(String)? onText,
+    final void Function(Uint8List)? onAudio,
+    final void Function()? onCompleted,
+    final void Function(Object)? onError,
+    final void Function(String)? onUserTranscription,
+    final Map<String, dynamic>? additionalParams,
+  }) {
+    Log.w('[GoogleProvider] Realtime conversation not supported yet');
+    // TODO: Implement Google Gemini realtime client when API becomes available
+    return null;
+  }
+
+  @override
+  bool supportsRealtimeForModel(final String? model) {
+    // Google Gemini doesn't support realtime conversation yet
+    return false;
+  }
+
+  @override
+  List<String> getAvailableRealtimeModels() {
+    // Google Gemini doesn't support realtime conversation yet
+    return [];
   }
 
   @override

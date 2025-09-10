@@ -63,14 +63,25 @@ prompt_key() {
 # Ask for API keys (required)
 echo ""
 echo "🔐 API Keys (required for app to work):"
-echo "   Note: API keys will be visible while typing for easier input"
-prompt_key "GEMINI_API_KEY" "Enter GEMINI_API_KEY: " "" false
+echo "   Note: You can provide single keys OR multiple keys in JSON format"
+echo "   Multiple keys format: [\"key1\", \"key2\", \"key3\"] for automatic rotation"
+echo "   API keys will be visible while typing for easier input"
+
+echo ""
+echo "🔐 API Key Configuration:"
+echo "Single key format:"
 prompt_key "OPENAI_API_KEY" "Enter OPENAI_API_KEY: " "" false
+prompt_key "GEMINI_API_KEY" "Enter GEMINI_API_KEY: " "" false
+
+echo ""
+echo "Multiple keys format (recommended for production):"
+prompt_key "OPENAI_API_KEYS" "OPENAI_API_KEYS [JSON array, e.g. '[\"key1\",\"key2\"]' or Enter to skip]: " "" false
+prompt_key "GEMINI_API_KEYS" "GEMINI_API_KEYS [JSON array, e.g. '[\"key1\",\"key2\"]' or Enter to skip]: " "" false
 
 echo ""
 echo "🔐 Optional / additional API keys (press Enter to skip):"
 prompt_key "GROK_API_KEY" "GROK_API_KEY [Enter to skip]: " "" false
-prompt_key "GEMINI_API_KEY_FALLBACK" "GEMINI_API_KEY_FALLBACK [Enter to skip]: " "" false
+prompt_key "GROK_API_KEYS" "GROK_API_KEYS [JSON array or Enter to skip]: " "" false
 prompt_key "GOOGLE_CLOUD_API_KEY" "GOOGLE_CLOUD_API_KEY [Enter to skip]: " "" false
 
 echo ""
@@ -82,21 +93,16 @@ prompt_key "GOOGLE_CLIENT_ID_WEB" "GOOGLE_CLIENT_ID_WEB (OAuth client id para We
 prompt_key "GOOGLE_CLIENT_SECRET_WEB" "GOOGLE_CLIENT_SECRET_WEB (secret) [Enter to skip]: " "" true
 
 echo ""
-echo "🎵 Audio/Voice Configuration:"
-prompt_key "AUDIO_PROVIDER" "Audio provider (openai|gemini) [gemini]: " "gemini" false
+echo "🎵 Audio Configuration:"
 prompt_key "AUDIO_TTS_MODE" "TTS mode (google|local) [google]: " "google" false
-prompt_key "OPENAI_VOICE_NAME" "OpenAI voice [marin]: " "marin" false
-prompt_key "GOOGLE_VOICE_NAME" "Google voice name [es-ES-Wavenet-F]: " "es-ES-Wavenet-F" false
-# The application uses OS-recommended default directories for images/audio/cache.
-# We no longer write platform-specific path overrides to .env.
+prompt_key "PREFERRED_AUDIO_FORMAT" "Preferred audio format (mp3|m4a|wav) [mp3]: " "mp3" false
+
 echo ""
 echo "📁 Using OS default directories for images/audio/cache. No path overrides will be written to .env."
+echo "🎤 Models and voices are configured in assets/ai_providers_config.yaml"
 
 # Set non-path defaults
 set_key "DEBUG_MODE" "basic"
-# Preferred audio format for storage and STT fallbacks
-set_key "PREFERRED_AUDIO_FORMAT" "mp3"
-# Application name (do not prompt; use default)
 set_key "APP_NAME" "AI-チャン"
 
 # Show summary (mask keys partially)
@@ -104,13 +110,19 @@ echo ""
 echo "✅ Environment setup completed!"
 echo ""
 echo "🔐 API Keys:"
-for k in GEMINI_API_KEY GEMINI_API_KEY_FALLBACK OPENAI_API_KEY GROK_API_KEY GOOGLE_CLOUD_API_KEY GOOGLE_CLIENT_ID_DESKTOP GOOGLE_CLIENT_ID_ANDROID GOOGLE_CLIENT_ID_WEB; do
+for k in OPENAI_API_KEY GEMINI_API_KEY GROK_API_KEY GOOGLE_CLOUD_API_KEY OPENAI_API_KEYS GEMINI_API_KEYS GROK_API_KEYS GOOGLE_CLIENT_ID_DESKTOP GOOGLE_CLIENT_ID_ANDROID GOOGLE_CLIENT_ID_WEB; do
   if grep -qE "^${k}=" "$ENV_FILE"; then
     v=$(grep -E "^${k}=" "$ENV_FILE" | sed -E "s/^${k}=(.*)$/\1/")
     if [ -z "$v" ] || [ "$v" = "PUT_YOUR_GEMINI_KEY_HERE" ] || [ "$v" = "PUT_YOUR_OPENAI_KEY_HERE" ] || [ "$v" = "PUT_YOUR_GOOGLE_CLOUD_KEY_HERE" ]; then
       echo "  $k = ❌ <not configured>"
     else
-      echo "  $k = ✅ ${v:0:4}...${v: -4}" || true
+      # For JSON arrays, show count instead of partial content
+      if [[ "$v" =~ ^\[.*\]$ ]]; then
+        count=$(echo "$v" | grep -o '"[^"]*"' | wc -l)
+        echo "  $k = ✅ [$count keys configured]"
+      else
+        echo "  $k = ✅ ${v:0:4}...${v: -4}" || true
+      fi
     fi
   fi
 done

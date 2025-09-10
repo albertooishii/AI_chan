@@ -17,7 +17,7 @@ void registerDefaultRealtimeClientFactories() {
     final onUserTranscription,
   }) {
     return OpenAIRealtimeClient(
-      model: model ?? Config.requireOpenAIRealtimeModel(),
+      model: model ?? Config.getOpenAIRealtimeModel(),
       onText: onText,
       onAudio: onAudio,
       onCompleted: onCompleted,

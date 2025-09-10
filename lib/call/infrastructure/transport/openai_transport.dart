@@ -4,13 +4,14 @@ import 'dart:typed_data';
 
 import 'package:ai_chan/core/network_connectors.dart';
 import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/api_key_manager.dart';
 import 'package:ai_chan/call/domain/interfaces/realtime_transport_service.dart';
 
 /// Skeleton OpenAI transport: handles WebSocket connection and forwards raw
 /// messages to the adapter via onMessage/onError/onDone callbacks.
 class OpenAITransport implements RealtimeTransportService {
   OpenAITransport({final String? model})
-    : model = model ?? Config.requireOpenAIRealtimeModel();
+    : model = model ?? Config.getOpenAIRealtimeModel();
   final String model;
   WsChannel? _channel;
   bool _connected = false;
@@ -21,8 +22,12 @@ class OpenAITransport implements RealtimeTransportService {
 
   @override
   Future<void> connect({required final Map<String, dynamic> options}) async {
-    final apiKey = Config.getOpenAIKey();
-    if (apiKey.trim().isEmpty) throw Exception('Missing OpenAI API key');
+    final apiKey = ApiKeyManager.getNextAvailableKey('openai');
+    if (apiKey == null || apiKey.trim().isEmpty) {
+      throw Exception(
+        'No valid OpenAI API key available. Please configure OPENAI_API_KEYS in environment.',
+      );
+    }
     final uri = Uri.parse('wss://api.openai.com/v1/realtime?model=$model');
     // Use injectable connector so tests can override and avoid real network
     _channel = WebSocketConnector.connect(

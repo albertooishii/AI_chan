@@ -199,70 +199,86 @@ Todo se guarda en `SharedPreferences` y puede exportarse/importarse como JSON.
 
 ## 🔧 Configuración del proyecto
 
-### Variables de entorno (`.env`)
+### ✨ **Configuración Moderna - YAML-First Architecture**
 
-El archivo `.env` maneja credenciales y configuraciones específicas del entorno. Los **modelos por defecto ahora se configuran en `assets/ai_providers_config.yaml`**.
+La nueva arquitectura de configuración separa claramente **credenciales sensibles** (`.env`) de **configuración de aplicación** (`assets/ai_providers_config.yaml`):
 
-Usa el archivo `.env.example` incluido en la raíz como referencia y renómbralo a `.env` con tus claves privadas:
+#### 🔑 **Variables de entorno (`.env`)** - Solo credenciales
+El archivo `.env` ahora maneja **únicamente credenciales y datos sensibles**:
 
 ```env
-# --- Claves de API (obligatorias) ---
+# === CLAVES DE API (OBLIGATORIAS) ===
 GEMINI_API_KEY=PUT_YOUR_GEMINI_KEY_HERE
-GROK_API_KEY=PUT_YOUR_GROK_KEY_HERE
+GROK_API_KEY=PUT_YOUR_GROK_KEY_HERE  
 GEMINI_API_KEY_FALLBACK=PUT_YOUR_FALLBACK_KEY_HERE
 OPENAI_API_KEY=PUT_YOUR_OPENAI_KEY_HERE
 GOOGLE_CLOUD_API_KEY=PUT_YOUR_GOOGLE_CLOUD_KEY_HERE
 
-# --- Configuración OAuth Google (opcional) ---
+# === OAUTH GOOGLE (OPCIONAL) ===
 GOOGLE_CLIENT_ID_DESKTOP=PUT_YOUR_GOOGLE_CLIENT_ID_DESKTOP
 GOOGLE_CLIENT_ID_ANDROID=PUT_YOUR_GOOGLE_CLIENT_ID_ANDROID
 GOOGLE_CLIENT_ID_WEB=PUT_YOUR_GOOGLE_CLIENT_ID_WEB
 
-# --- Configuración de Audio/Voz ---
-AUDIO_PROVIDER=gemini                 # openai | gemini
-AUDIO_TTS_MODE=google                 # google | local
-OPENAI_VOICE_NAME=marin               # alloy|ash|coral|echo|sage|shimmer|nova|fable|onyx|cedar|marin
-GOOGLE_VOICE_NAME=es-ES-Wavenet-F     # Voz premium de Google TTS
-PREFERRED_AUDIO_FORMAT=mp3            # mp3 | m4a | wav
-
-# --- Configuración avanzada ---
-DEBUG_MODE=full                       # full|basic|minimal|off (controla logs, JSON debug, y opciones UI)
+# === CONFIGURACIÓN DE DESARROLLO ===
+DEBUG_MODE=full                       # full|basic|minimal|off
 SUMMARY_BLOCK_SIZE=32                 # Mensajes por bloque de resumen
 APP_NAME=AI-チャン                     # Nombre de la aplicación
 ```
 
-### Configuración de modelos (`.yaml`)
+#### 🎯 **Configuración YAML (`.yaml`)** - Toda la configuración de aplicación
 
-Los **modelos por defecto y capacidades de proveedores** se configuran centralmente en `assets/ai_providers_config.yaml`:
+Los **modelos, voces, proveedores y configuraciones** se centralizan en `assets/ai_providers_config.yaml`:
 
 ```yaml
+# Configuración centralizada de proveedores de IA
 providers:
   openai:
     capabilities:
       text_generation:
-        models: ["gpt-4.1-mini", "gpt-4o", "gpt-5"]
-        default: "gpt-4.1-mini"
+        models: ["gpt-4o-mini", "gpt-4o", "gpt-5"]
+        default: "gpt-4o-mini"
       audio_generation:
         models: ["gpt-4o-mini-tts"]
         default: "gpt-4o-mini-tts"
-      # ... más configuraciones
+        voices: ["alloy", "ash", "coral", "echo", "sage", "shimmer", "nova", "fable", "onyx", "cedar", "marin"]
+        default_voice: "marin"
+  
+  gemini:
+    capabilities:
+      text_generation:
+        models: ["gemini-2.5-flash", "gemini-1.5-pro"]
+        default: "gemini-2.5-flash"
+  
+  google_cloud:
+    capabilities:
+      tts:
+        voices: 
+          es-ES: ["es-ES-Wavenet-F", "es-ES-Standard-A"]
+          en-US: ["en-US-Wavenet-F", "en-US-Standard-C"]
+        default_voice: "es-ES-Wavenet-F"
+
+# Configuración global de audio
+audio:
+  default_provider: "gemini"           # openai | gemini
+  tts_mode: "google"                   # google | local
+  preferred_format: "mp3"              # mp3 | m4a | wav
 ```
 
-Este enfoque centralizado permite:
-- ✅ **Gestión simplificada** de modelos disponibles por proveedor
-- ✅ **Configuración por defecto** sin variables de environment
-- ✅ **Escalabilidad** para añadir nuevos proveedores y modelos
-- ✅ **Validación automática** de compatibilidad
+#### 🚀 **Beneficios de la nueva arquitectura:**
 
-### Notas importantes sobre configuración:
-- 🔒 **El archivo `.env` está en `.gitignore`**: nunca subas tus claves al repositorio
-- 🔄 **Fallback automático**: Si `GEMINI_API_KEY` falla (cuota/permisos), la app usa `GEMINI_API_KEY_FALLBACK`
-- 🎵 **Voces OpenAI**: alloy, ash, coral, echo, sage, shimmer, nova, fable, onyx, cedar, marin
-- 🗣️ **Voces Google**: Consulta [Google TTS Voices](https://cloud.google.com/text-to-speech/docs/voices) para opciones
-- ☁️ **Google Cloud**: necesario para TTS/STT premium con detección automática de idioma
-- 🔊 **Audio Provider**: `gemini` usa Google TTS/STT, `openai` usa OpenAI Realtime
-- ✨ **Nuevas voces**: `cedar` y `marin` están disponibles exclusivamente con `gpt-4o-mini-tts`
-- ⚙️ **Modelos centralizados**: Los defaults se configuran en `assets/ai_providers_config.yaml`, no en `.env`
+- ✅ **Separación de responsabilidades**: Credenciales vs configuración de aplicación
+- ✅ **Seguridad mejorada**: Solo datos sensibles en `.env` (git ignored)
+- ✅ **Configuración declarativa**: YAML legible y versionable
+- ✅ **Gestión centralizada**: Un solo lugar para todos los proveedores y modelos
+- ✅ **Escalabilidad**: Fácil añadir nuevos proveedores sin tocar código
+- ✅ **Validación automática**: Tipos y valores validados en tiempo de carga
+- ✅ **Hot reload**: Cambios en YAML se reflejan sin recompilar
+
+#### 🔧 **Notas de migración:**
+- 🆕 **Configuración automática**: Los valores por defecto están en YAML, no necesitas configurar cada opción
+- 🔄 **Backward compatibility**: Métodos legacy deprecados pero funcionales durante la transición
+- � **Asset bundling**: YAML se incluye en el bundle de la app, no depende de archivos externos
+- 🎯 **Type safety**: Configuración validada con modelos Dart tipados
 
 ## 🔒 Hooks pre-commit y CI/CD
 

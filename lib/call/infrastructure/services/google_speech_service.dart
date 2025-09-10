@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'package:ai_chan/shared/utils/audio_utils.dart' as audio_utils;
@@ -69,8 +70,11 @@ class GoogleSpeechService implements IGoogleSpeechService {
     // are consistent.
     try {
       if (voiceName.trim().isEmpty || kOpenAIVoices.contains(voiceName)) {
-        final googleDefault = Config.getGoogleVoice();
-        if (googleDefault.isNotEmpty) {
+        // ✅ YAML: Usar nueva configuración YAML para voz por defecto de Google
+        final googleDefault = AIProviderConfigLoader.getDefaultVoiceForProvider(
+          'google',
+        );
+        if (googleDefault != null && googleDefault.isNotEmpty) {
           _maybeDebugPrint(
             '[GoogleTTS] Normalizing voiceName "$voiceName" -> Google default: $googleDefault',
           );
@@ -241,8 +245,11 @@ class GoogleSpeechService implements IGoogleSpeechService {
     // (avoids regenerating audio that was cached under the Google default).
     try {
       if (voiceName.trim().isEmpty || kOpenAIVoices.contains(voiceName)) {
-        final googleDefault = Config.getGoogleVoice();
-        if (googleDefault.isNotEmpty) {
+        // ✅ YAML: Usar nueva configuración YAML para voz por defecto de Google
+        final googleDefault = AIProviderConfigLoader.getDefaultVoiceForProvider(
+          'google',
+        );
+        if (googleDefault != null && googleDefault.isNotEmpty) {
           _maybeDebugPrint(
             '[GoogleTTS] Normalizing voiceName in file flow "$voiceName" -> $googleDefault',
           );
@@ -968,6 +975,7 @@ class GoogleSpeechService implements IGoogleSpeechService {
   Map<String, dynamic> getVoiceConfig() {
     // Voice name may be configurable, but language, speaking rate and pitch are
     // intentionally hardcoded per project policy (do not use env to override).
+    // ✅ YAML: Para compatibilidad sincrona, mantenemos fallback con Config.get
     final voiceName = Config.get('GOOGLE_VOICE_NAME', 'es-ES-Wavenet-F');
     final languageCode = resolveDefaultLanguageCode();
     final speakingRate = 1.0;
@@ -1046,6 +1054,7 @@ class GoogleSpeechService implements IGoogleSpeechService {
   static Map<String, dynamic> getVoiceConfigStatic() {
     // Voice name may be configurable, but language, speaking rate and pitch are
     // intentionally hardcoded per project policy (do not use env to override).
+    // ✅ YAML: Para compatibilidad sincrona, mantenemos fallback con Config.get
     final voiceName = Config.get('GOOGLE_VOICE_NAME', 'es-ES-Wavenet-F');
     final languageCode = resolveDefaultLanguageCode();
     final speakingRate = 1.0;

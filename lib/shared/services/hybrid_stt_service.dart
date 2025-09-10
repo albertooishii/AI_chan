@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:record/record.dart';
 import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/api_key_manager.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:http/http.dart' as http;
 
@@ -242,7 +243,13 @@ class HybridSttService {
       );
 
       // Headers
-      request.headers['Authorization'] = 'Bearer ${Config.getOpenAIKey()}';
+      final apiKey = ApiKeyManager.getNextAvailableKey('openai');
+      if (apiKey == null || apiKey.isEmpty) {
+        throw Exception(
+          'No valid OpenAI API key available. Please configure OPENAI_API_KEYS in environment.',
+        );
+      }
+      request.headers['Authorization'] = 'Bearer $apiKey';
 
       // Campos
       request.fields['model'] = Config.getOpenAISttModel();

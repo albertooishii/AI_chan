@@ -1,7 +1,7 @@
 import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
-import 'package:ai_chan/shared/ai_providers/implementations/google_provider.dart';
-import 'package:ai_chan/shared/ai_providers/implementations/xai_provider.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_factory.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 
 /// Central registry for all AI providers in the dynamic provider system.
@@ -15,14 +15,59 @@ class AIProviderRegistry {
   final Map<String, IAIProvider> _providers = {};
   final Map<String, bool> _initialized = {};
 
-  /// Initialize the registry with default providers
+  /// Initialize the registry with providers from configuration
   Future<void> initialize() async {
-    await registerProvider(GoogleProvider());
-    await registerProvider(XAIProvider());
+    try {
+      // Load configuration dynamically
+      final config = await AIProviderConfigLoader.loadDefault();
+      int successCount = 0;
+      int totalCount = 0;
 
-    Log.i(
-      '[AIProviderRegistry] Initialized with ${_providers.length} providers',
-    );
+      Log.i('[AIProviderRegistry] Loading providers from configuration...');
+
+      // Register each enabled provider from config
+      for (final entry in config.aiProviders.entries) {
+        final providerId = entry.key;
+        final providerConfig = entry.value;
+        totalCount++;
+
+        if (!providerConfig.enabled) {
+          Log.i('[AIProviderRegistry] Skipping disabled provider: $providerId');
+          continue;
+        }
+
+        try {
+          // Create provider dynamically using factory
+          final provider = AIProviderFactory.createProvider(
+            providerId,
+            providerConfig,
+          );
+
+          final success = await registerProvider(provider);
+          if (success) {
+            successCount++;
+            Log.i('[AIProviderRegistry] ✅ Successfully loaded: $providerId');
+          } else {
+            Log.w('[AIProviderRegistry] ⚠️ Failed to initialize: $providerId');
+          }
+        } on Exception catch (e) {
+          Log.e(
+            '[AIProviderRegistry] ❌ Error loading provider $providerId: $e',
+          );
+        }
+      }
+
+      Log.i(
+        '[AIProviderRegistry] ✅ Initialization complete: $successCount/$totalCount providers loaded',
+      );
+
+      if (successCount == 0) {
+        Log.w('[AIProviderRegistry] ⚠️ No providers loaded successfully!');
+      }
+    } on Exception catch (e) {
+      Log.e('[AIProviderRegistry] ❌ Failed to initialize registry: $e');
+      // Fallback to empty registry - app can still work with manual registration
+    }
   }
 
   /// Register a new provider
@@ -75,26 +120,18 @@ class AIProviderRegistry {
     return providers.isNotEmpty ? providers.first : null;
   }
 
-  /// Get provider by model name
+  /// Get provider by model name using dynamic mapping
   IAIProvider? getProviderForModel(final String modelId) {
-    final normalized = modelId.trim().toLowerCase();
-
-    // Map model prefixes to providers (preserving existing logic)
-    if (normalized.startsWith('gpt-') ||
-        normalized.startsWith('dall-e') ||
-        normalized.startsWith('gpt-realtime')) {
-      return getProvider('openai');
+    // First try dynamic prefix mapping
+    final providerId = AIProviderConfigLoader.getProviderIdForModel(modelId);
+    if (providerId != null) {
+      final provider = getProvider(providerId);
+      if (provider != null) {
+        return provider;
+      }
     }
 
-    if (normalized.startsWith('gemini-') || normalized.startsWith('imagen-')) {
-      return getProvider('google');
-    }
-
-    if (normalized.startsWith('grok-')) {
-      return getProvider('xai');
-    }
-
-    // Fallback: try to find any provider that supports the model
+    // Fallback: iterate through healthy providers to find one that supports the model
     for (final provider in getHealthyProviders()) {
       for (final capability in provider.supportedCapabilities) {
         if (provider.supportsModel(capability, modelId)) {
@@ -103,6 +140,7 @@ class AIProviderRegistry {
       }
     }
 
+    Log.w('[AIProviderRegistry] No provider found for model: $modelId');
     return null;
   }
 

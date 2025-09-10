@@ -2,6 +2,8 @@ import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_metadata.dart';
 import 'package:ai_chan/core/models/ai_response.dart';
 import 'package:ai_chan/core/models/system_prompt.dart';
+import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
+import 'dart:typed_data';
 
 /// Core interface for all AI providers in the dynamic provider system.
 ///
@@ -98,6 +100,34 @@ abstract class IAIProvider {
     final String? language,
     final Map<String, dynamic>? additionalParams,
   });
+
+  /// Create a realtime client for real-time conversation
+  /// Returns null if this provider doesn't support realtime for the given model
+  ///
+  /// [model] - Specific model to use for realtime (if null, uses default)
+  /// [onText] - Callback for text responses from the AI
+  /// [onAudio] - Callback for audio responses from the AI
+  /// [onCompleted] - Callback when response is completed
+  /// [onError] - Callback for errors
+  /// [onUserTranscription] - Callback for user speech transcription
+  /// [additionalParams] - Provider-specific parameters
+  IRealtimeClient? createRealtimeClient({
+    final String? model,
+    final void Function(String)? onText,
+    final void Function(Uint8List)? onAudio,
+    final void Function()? onCompleted,
+    final void Function(Object)? onError,
+    final void Function(String)? onUserTranscription,
+    final Map<String, dynamic>? additionalParams,
+  });
+
+  /// Check if this provider supports realtime conversation for a specific model
+  /// [model] - Model to check (if null, checks if provider supports realtime at all)
+  bool supportsRealtimeForModel(final String? model);
+
+  /// Get available realtime models for this provider
+  /// Returns list of model IDs that support realtime conversation
+  List<String> getAvailableRealtimeModels();
 
   /// Dispose of any resources used by this provider
   Future<void> dispose();

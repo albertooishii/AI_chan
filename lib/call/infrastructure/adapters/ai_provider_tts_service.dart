@@ -4,9 +4,9 @@ import 'dart:io';
 import 'package:ai_chan/call/domain/interfaces/i_speech_service.dart';
 import 'package:ai_chan/call/infrastructure/services/android_native_tts_service.dart';
 import 'package:ai_chan/call/infrastructure/services/google_speech_service.dart';
-import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/models/ai_chan_profile.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/core/models/system_prompt.dart';
 import 'package:ai_chan/shared/constants/openai_voices.dart';
@@ -60,18 +60,26 @@ class AIProviderTtsService implements ICallTtsService {
           '[AIProviderTtsService] Using configured provider: $provider for voice: $voice',
         );
       } on Exception catch (_) {
-        // Fallback to env config
-        final env = Config.getAudioProvider().toLowerCase();
-        provider = (env == 'openai')
-            ? 'openai'
-            : (env == 'gemini')
-            ? 'google'
-            : env.isNotEmpty
-            ? env
-            : 'openai'; // Default to OpenAI since it has good TTS support
-        debugPrint(
-          '[AIProviderTtsService] Using env config provider: $provider for voice: $voice',
-        );
+        // ✅ YAML: Usar nueva configuración YAML como fallback
+        try {
+          final defaultProvider =
+              AIProviderConfigLoader.getDefaultAudioProvider();
+          provider = (defaultProvider == 'openai')
+              ? 'openai'
+              : (defaultProvider == 'gemini')
+              ? 'google'
+              : defaultProvider.isNotEmpty
+              ? defaultProvider
+              : 'openai'; // Default to OpenAI since it has good TTS support
+          debugPrint(
+            '[AIProviderTtsService] Using YAML config provider: $provider for voice: $voice',
+          );
+        } on Exception catch (_) {
+          provider = 'openai'; // Ultimate fallback
+          debugPrint(
+            '[AIProviderTtsService] Using ultimate fallback provider: $provider for voice: $voice',
+          );
+        }
       }
     }
 
@@ -130,15 +138,23 @@ class AIProviderTtsService implements ICallTtsService {
 
       // Normalize voice: if caller passed an OpenAI voice name, substitute Google default voice
       if (voice.trim().isEmpty || kOpenAIVoices.contains(voice)) {
-        final googleDefault = Config.getGoogleVoice();
-        if (googleDefault.isNotEmpty) {
+        // ✅ YAML: Usar nueva configuración YAML para voces
+        try {
+          final googleDefault =
+              AIProviderConfigLoader.getDefaultVoiceForProvider('google');
+          if (googleDefault != null && googleDefault.isNotEmpty) {
+            debugPrint(
+              '[AIProviderTtsService] Mapping voice "$voice" -> Google default voice: $googleDefault',
+            );
+            voice = googleDefault;
+          } else {
+            debugPrint(
+              '[AIProviderTtsService] No GOOGLE_VOICE_NAME defined in YAML to map voice "$voice" for provider google',
+            );
+          }
+        } on Exception catch (e) {
           debugPrint(
-            '[AIProviderTtsService] Mapping voice "$voice" -> Google default voice: $googleDefault',
-          );
-          voice = googleDefault;
-        } else {
-          debugPrint(
-            '[AIProviderTtsService] No GOOGLE_VOICE_NAME defined in env to map voice "$voice" for provider google',
+            '[AIProviderTtsService] Error getting Google default voice from YAML: $e',
           );
         }
       }
