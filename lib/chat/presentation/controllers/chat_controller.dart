@@ -65,7 +65,7 @@ class ChatController extends ChangeNotifier implements IChatController {
   List<Message> get messages => _chatService.messages;
   @override
   AiChanProfile? get profile => dataController.profile;
-  List<EventEntry> get events => dataController.events;
+  List<ChatEvent> get events => dataController.events;
   List<TimelineEntry> get timeline => dataController.timeline;
   String? get selectedModel => dataController.selectedModel;
 
@@ -173,7 +173,7 @@ class ChatController extends ChangeNotifier implements IChatController {
     }
   }
 
-  void schedulePromiseEvent(final EventEntry event) {
+  void schedulePromiseEvent(final ChatEvent event) {
     try {
       _chatService.schedulePromiseEvent(event);
     } on Exception catch (e) {

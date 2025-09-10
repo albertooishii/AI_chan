@@ -4,10 +4,10 @@ import 'package:ai_chan/shared/ai_providers/core/registry/ai_provider_registry.d
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 
-/// High-level service that bridges the new provider system with existing runtime factory.
+/// High-level service that provides centralized access to AI providers.
 ///
-/// This service maintains backward compatibility while introducing the new
-/// dynamic provider architecture gradually.
+/// This service is the main entry point for accessing AI providers with
+/// dynamic configuration and capability-based selection.
 class AIProviderService {
   factory AIProviderService() => _instance;
   AIProviderService._internal();
@@ -27,7 +27,7 @@ class AIProviderService {
     Log.i('[AIProviderService] Initialized successfully');
   }
 
-  /// Get provider for model (maintains compatibility)
+  /// Get provider for model
   IAIProvider? getProviderForModel(final String modelId) {
     _ensureInitialized();
     return _registry.getProviderForModel(modelId);

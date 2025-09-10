@@ -38,7 +38,7 @@ Future<void> setOnboardingDataAndPersist(
 ///
 /// ✅ DDD COMPLIANT: Shared utilities accessible across bounded contexts
 Future<void> setEventsAndPersist(
-  final List<EventEntry> events, {
+  final List<ChatEvent> events, {
   final ISharedLogger? logger,
   final IProfilePersistenceService? persistenceService,
 }) async {

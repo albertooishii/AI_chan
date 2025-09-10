@@ -76,10 +76,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
   IconData _chipIcon(final String type) =>
       _getChipConfig(type)['icon'] as IconData;
 
-  Map<DateTime, List<EventEntry>> _groupEventsByDay(
-    final List<EventEntry> events,
+  Map<DateTime, List<ChatEvent>> _groupEventsByDay(
+    final List<ChatEvent> events,
   ) {
-    final Map<DateTime, List<EventEntry>> map = {};
+    final Map<DateTime, List<ChatEvent>> map = {};
     for (final e in events) {
       if (e.date == null) continue;
       final dayKey = DateTime(e.date!.year, e.date!.month, e.date!.day);
@@ -89,7 +89,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return map;
   }
 
-  Color _dotColorFor(final EventEntry e) {
+  Color _dotColorFor(final ChatEvent e) {
     switch (e.type) {
       case 'promesa':
         return AppColors.cyberpunkYellow;
@@ -101,7 +101,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Future<void> _openEventEditor(
     final BuildContext context, {
-    final EventEntry? existing,
+    final ChatEvent? existing,
     final DateTime? defaultDay,
   }) async {
     final chatProvider = widget.chatProvider;
@@ -312,7 +312,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         time.hour,
         time.minute,
       );
-      final newEvent = EventEntry(
+      final newEvent = ChatEvent(
         type: type,
         description: descCtrl.text.trim(),
         date: fullDate,
@@ -321,7 +321,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             : null,
       );
       // Añadir o reemplazar en el perfil
-      final events = List<EventEntry>.from(
+      final events = List<ChatEvent>.from(
         chatProvider.events, // ✅ DDD: ETAPA 3 - Usar events del controlador
       );
       int? replaceIdx;
@@ -348,7 +348,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Future<void> _deleteEvent(
     final BuildContext context,
-    final EventEntry e,
+    final ChatEvent e,
   ) async {
     final chatProvider = widget.chatProvider;
     final confirm = await showAppDialog<bool>(
@@ -381,7 +381,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
     );
     if (confirm != true) return;
-    final events = List<EventEntry>.from(
+    final events = List<ChatEvent>.from(
       chatProvider.events, // ✅ DDD: ETAPA 3 - Usar events del controlador
     );
     events.removeWhere(
@@ -580,7 +580,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
     final grouped = _groupEventsByDay(events);
 
-    List<EventEntry> getEventsForDay(final DateTime day) {
+    List<ChatEvent> getEventsForDay(final DateTime day) {
       final key = DateTime(day.year, day.month, day.day);
       final list = grouped[key] ?? [];
       return list
@@ -641,7 +641,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ],
             ),
           ),
-          TableCalendar<EventEntry>(
+          TableCalendar<ChatEvent>(
             firstDay: DateTime.utc(2020),
             lastDay: DateTime.utc(2100, 12, 31),
             focusedDay: _focusedDay,
@@ -684,7 +684,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ),
             ),
             eventLoader: getEventsForDay,
-            calendarBuilders: CalendarBuilders<EventEntry>(
+            calendarBuilders: CalendarBuilders<ChatEvent>(
               markerBuilder: (final context, final day, final events) {
                 if (events.isEmpty) return null;
                 return Wrap(

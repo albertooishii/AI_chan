@@ -47,7 +47,7 @@ class ChatProfilePersistenceServiceAdapter
   }
 
   @override
-  Future<void> setEventsAndPersist(final List<EventEntry> events) async {
+  Future<void> setEventsAndPersist(final List<ChatEvent> events) async {
     try {
       final currentProfile = getCurrentProfile();
       if (currentProfile != null) {

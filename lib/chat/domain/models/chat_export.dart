@@ -1,6 +1,6 @@
 import 'package:ai_chan/core/models/ai_chan_profile.dart';
 import 'message.dart';
-import 'package:ai_chan/core/models/event_entry.dart';
+import 'chat_event.dart';
 import 'package:ai_chan/core/models/timeline_entry.dart';
 
 class ChatExport {
@@ -19,7 +19,7 @@ class ChatExport {
           .map((final e) => Message.fromJson(e))
           .toList(),
       events: (json['events'] as List<dynamic>? ?? [])
-          .map((final e) => EventEntry.fromJson(e))
+          .map((final e) => ChatEvent.fromJson(e))
           .toList(),
       timeline: (json['timeline'] as List<dynamic>? ?? [])
           .map((final e) => TimelineEntry.fromJson(e))
@@ -28,7 +28,7 @@ class ChatExport {
   }
   final AiChanProfile profile;
   final List<Message> messages;
-  final List<EventEntry> events;
+  final List<ChatEvent> events;
   final List<TimelineEntry> timeline;
 
   Map<String, dynamic> toJson() {

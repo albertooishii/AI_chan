@@ -25,7 +25,7 @@ class BackupUtils {
   static Future<String> exportChatPartsToJson({
     required final AiChanProfile profile,
     required final List<Message> messages,
-    required final List<EventEntry> events,
+    required final List<ChatEvent> events,
     required final List<TimelineEntry> timeline,
     final IChatRepository? repository,
   }) async {

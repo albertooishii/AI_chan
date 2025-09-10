@@ -1,11 +1,12 @@
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_ai_service.dart';
+import 'package:ai_chan/shared/domain/interfaces/i_ai_service.dart';
+import 'package:ai_chan/shared/utils/network_utils.dart';
 
 /// Service responsible for retry logic when AI responses are invalid
 /// Uses domain interfaces to maintain bounded context isolation.
 class MessageRetryService {
   MessageRetryService(this._aiService);
-  final IChatAIService _aiService;
+  final IAIService _aiService;
 
   /// Retry sending message with validation and exponential backoff
   Future<AIResponse> sendWithRetries({
@@ -17,6 +18,12 @@ class MessageRetryService {
     final bool enableImageGeneration = false,
     final int maxRetries = 3,
   }) async {
+    // Check internet connectivity before trying to send
+    final hasInternet = await hasInternetConnection();
+    if (!hasInternet) {
+      throw Exception('No internet connection available');
+    }
+
     AIResponse response = await _aiService.sendMessage(
       history,
       systemPrompt,
@@ -32,6 +39,12 @@ class MessageRetryService {
         retry < maxRetries) {
       final waitSeconds = _extractWaitSeconds(response.text);
       await Future.delayed(Duration(seconds: waitSeconds));
+
+      // Check internet again before retry
+      final hasInternetOnRetry = await hasInternetConnection();
+      if (!hasInternetOnRetry) {
+        throw Exception('Lost internet connection during retry');
+      }
 
       response = await _aiService.sendMessage(
         history,

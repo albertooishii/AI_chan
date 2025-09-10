@@ -14,7 +14,7 @@ class SharedProfilePersistenceServiceAdapter
   }
 
   @override
-  Future<void> setEventsAndPersist(final List<EventEntry> events) async {
+  Future<void> setEventsAndPersist(final List<ChatEvent> events) async {
     final eventsJson = jsonEncode(events.map((final e) => e.toJson()).toList());
     await PrefsUtils.setEvents(eventsJson);
   }

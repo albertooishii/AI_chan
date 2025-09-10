@@ -74,10 +74,10 @@ class EventTimelineService {
     // --- EVENTOS/CITAS ---
     final eventEntry = createEventFromText(textResponse);
     if (eventEntry != null) {
-      // Convertir TimelineEntry a EventEntry y guardar en events
-      final List<EventEntry> updatedEvents = onboardingData.events != null
-          ? List<EventEntry>.from(onboardingData.events)
-          : <EventEntry>[];
+      // Convertir TimelineEntry a ChatEvent y guardar en events
+      final List<ChatEvent> updatedEvents = onboardingData.events != null
+          ? List<ChatEvent>.from(onboardingData.events)
+          : <ChatEvent>[];
       // Usar la frase significativa extraída por createEventFromText
       final descripcionNatural = eventEntry.resume;
       final DateTime? eventDate =
@@ -106,7 +106,7 @@ class EventTimelineService {
       }
       if (!isDuplicate) {
         updatedEvents.add(
-          EventEntry(
+          ChatEvent(
             type: 'evento',
             description: descripcionNatural,
             date: eventDate,

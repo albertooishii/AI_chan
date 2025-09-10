@@ -1,4 +1,5 @@
-import 'package:ai_chan/core/interfaces/ai_service.dart';
+import 'package:ai_chan/shared/domain/interfaces/i_ai_service.dart';
+import 'package:ai_chan/core/models.dart';
 
 /// Servicio para generar resúmenes de llamadas de voz
 class CallSummaryService {
@@ -86,11 +87,38 @@ FORMATO DE SALIDA:
         },
       ];
 
-      // Enviar a la IA para generar el resumen
-      final response = await aiService.sendMessage(messages: messages);
+      // Enviar a la IA para generar el resumen usando nueva interface
+      // Create a basic SystemPrompt for summary generation
+      final dummyProfile = AiChanProfile(
+        userName: profile['userName']?.toString() ?? 'Usuario',
+        aiName: profile['aiName']?.toString() ?? 'IA',
+        userBirthdate: null,
+        aiBirthdate: null,
+        biography: const <String, dynamic>{},
+        appearance: const <String, dynamic>{},
+      );
+
+      final systemPrompt = SystemPrompt(
+        profile: dummyProfile,
+        dateTime: DateTime.now(),
+        instructions: {
+          'task': 'call_summary',
+          'instructions': _getSummaryInstructions(),
+        },
+      );
+
+      final history = messages
+          .map((final m) => m.cast<String, String>())
+          .toList();
+
+      final response = await aiService.sendMessage(
+        history,
+        systemPrompt,
+        model: 'gpt-4o-mini', // Default model for summaries
+      );
 
       // Extraer el resumen de la respuesta
-      final summaryText = response['content']?.toString().trim() ?? '';
+      final summaryText = response.text.trim();
 
       // Si la IA dijo SIN_CONTENIDO o devolvió vacío => no guardar
       if (summaryText == 'SIN_CONTENIDO' || summaryText.isEmpty) {

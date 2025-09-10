@@ -8,7 +8,7 @@ import '../services/message_image_processing_service.dart';
 import '../services/message_audio_processing_service.dart';
 import '../services/message_sanitization_service.dart';
 import '../../domain/interfaces/i_chat_event_timeline_service.dart';
-import '../../domain/interfaces/i_chat_ai_service.dart';
+import 'package:ai_chan/shared/domain/interfaces/i_ai_service.dart';
 import '../../domain/interfaces/i_chat_image_service.dart';
 import '../../domain/interfaces/i_chat_logger.dart';
 
@@ -244,7 +244,7 @@ class SendMessageOutcome {
 // Stub implementations for default constructor (avoid infrastructure dependencies)
 
 /// Stub implementation that throws - requires proper dependency injection
-class _StubChatAIService implements IChatAIService {
+class _StubChatAIService implements IAIService {
   @override
   Future<AIResponse> sendMessage(
     final List<Map<String, String>> history,

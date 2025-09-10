@@ -7,5 +7,5 @@ abstract class IProfilePersistenceService {
   Future<void> setOnboardingDataAndPersist(final AiChanProfile profile);
 
   /// Sets events and persists to storage
-  Future<void> setEventsAndPersist(final List<EventEntry> events);
+  Future<void> setEventsAndPersist(final List<ChatEvent> events);
 }

@@ -22,7 +22,7 @@ class ChatDataController extends ChangeNotifier {
 
   // Data state getters
   AiChanProfile? get profile => _chatService.profile;
-  List<EventEntry> get events => _chatService.events;
+  List<ChatEvent> get events => _chatService.events;
   List<TimelineEntry> get timeline => _chatService.timeline;
   String? get selectedModel => _chatService.selectedModel;
 

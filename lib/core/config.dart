@@ -63,11 +63,12 @@ class Config {
     return 'gpt-4.1-mini'; // Configurado en assets/ai_providers_config.yaml
   }
 
-  /// Métodos legacy para compatibilidad - usar el nuevo sistema cuando sea posible
+  /// Get default text model
   static String getDefaultTextModel() {
     return requireDefaultTextModel();
   }
 
+  /// Get default image model
   static String getDefaultImageModel() {
     return requireDefaultImageModel();
   }

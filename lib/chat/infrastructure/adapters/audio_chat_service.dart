@@ -636,14 +636,16 @@ class AudioChatService implements IAudioChatService {
         // Para voces de OpenAI, usar directamente el OpenAI adapter
         debugPrint('[Audio][TTS] Using OpenAI adapter for voice: $voice');
         try {
-          // Usar el adapter de OpenAI que ya está configurado
-          final aiService = di.getAIServiceForModel(
-            'gpt-4o-mini',
-          ); // Usar un modelo GPT para forzar OpenAI
-          final filePath = await aiService.textToSpeech(
-            synthText,
-            voice: voice,
+          // Use new Enhanced AI Provider system for TTS
+          // Note: TTS via AIProviderManager is not yet implemented
+          // Fallback to direct TTS service for now
+          debugPrint(
+            '[Audio][TTS] Enhanced AI system: TTS not yet implemented, falling back to DI TTS service',
           );
+
+          // Use dedicated TTS service instead of legacy AI service
+          final ttsService = di.getTtsServiceForProvider('openai');
+          final filePath = await ttsService.synthesizeToFile(text: synthText);
           if (filePath != null) {
             final file = File(filePath);
             if (file.existsSync()) {

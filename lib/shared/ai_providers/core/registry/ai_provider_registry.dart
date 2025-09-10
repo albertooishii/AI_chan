@@ -6,8 +6,7 @@ import 'package:ai_chan/shared/utils/log_utils.dart';
 
 /// Central registry for all AI providers in the dynamic provider system.
 ///
-/// This registry maintains compatibility with the existing runtime factory
-/// system while providing the new plugin architecture interface.
+/// This registry provides the new plugin architecture interface.
 class AIProviderRegistry {
   AIProviderRegistry._internal();
   factory AIProviderRegistry() => _instance;
@@ -76,7 +75,7 @@ class AIProviderRegistry {
     return providers.isNotEmpty ? providers.first : null;
   }
 
-  /// Get provider by model name (maintains compatibility with existing system)
+  /// Get provider by model name
   IAIProvider? getProviderForModel(final String modelId) {
     final normalized = modelId.trim().toLowerCase();
 

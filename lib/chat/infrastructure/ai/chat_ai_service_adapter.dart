@@ -1,4 +1,4 @@
-import 'package:ai_chan/chat/domain/interfaces/i_chat_ai_service.dart';
+import 'package:ai_chan/shared/domain/interfaces/i_ai_service.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
@@ -6,7 +6,7 @@ import 'package:ai_chan/shared/utils/debug_call_logger/debug_call_logger.dart';
 
 /// Infrastructure adapter implementing chat AI service using the new AI Provider system.
 /// Directly uses AIProviderManager without legacy compatibility layers.
-class ChatAIServiceAdapter implements IChatAIService {
+class ChatAIServiceAdapter implements IAIService {
   const ChatAIServiceAdapter();
 
   @override

@@ -9,7 +9,7 @@ class PromiseService {
     required this.onEventsChanged,
     required this.sendSystemPrompt,
   });
-  final List<EventEntry> events; // referencia viva a la lista de eventos global
+  final List<ChatEvent> events; // referencia viva a la lista de eventos global
   final void Function() onEventsChanged;
   final Future<void> Function(String text, {String? callPrompt, String? model})
   sendSystemPrompt;
@@ -50,7 +50,7 @@ class PromiseService {
     _timers.add(t);
   }
 
-  void schedulePromiseEvent(final EventEntry e) {
+  void schedulePromiseEvent(final ChatEvent e) {
     if (e.type == 'promesa' &&
         e.date != null &&
         e.date!.isAfter(DateTime.now())) {
@@ -185,7 +185,7 @@ class PromiseService {
         return;
       }
       events.add(
-        EventEntry(
+        ChatEvent(
           type: 'promesa',
           description: last.text,
           date: target,
@@ -219,7 +219,7 @@ class PromiseService {
           return;
         }
         events.add(
-          EventEntry(
+          ChatEvent(
             type: 'promesa',
             description: last.text,
             date: target,
@@ -290,7 +290,7 @@ class PromiseService {
         return;
       }
       events.add(
-        EventEntry(
+        ChatEvent(
           type: 'promesa',
           description: last.text,
           date: target,

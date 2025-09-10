@@ -14,6 +14,7 @@ import 'package:ai_chan/onboarding.dart';
 // Import specific services that need DI
 import 'package:ai_chan/chat/domain/interfaces/i_tts_voice_management_service.dart';
 import 'package:ai_chan/chat/application/services/tts_voice_management_service.dart';
+import 'package:ai_chan/shared/domain/interfaces/i_ai_service.dart' as shared;
 
 /// Factory functions and small helpers used across the app.
 /// This file provides DI factories for the entire application.
@@ -32,8 +33,8 @@ Future<void> initializeEnhancedAISystem() async {
     Log.i('Enhanced AI Provider System initialized successfully');
   } on Exception catch (e) {
     Log.w('Enhanced AI Provider System initialization failed: $e');
-    Log.i('Falling back to legacy runtime system');
-    // Continue with legacy system
+    Log.i('Continuing with runtime provider system');
+    // Continue with runtime system
   }
 }
 
@@ -248,58 +249,7 @@ class NotSupportedRealtimeClient implements IRealtimeClient {
   void cancelResponse({final String? itemId, final int? sampleCount}) {}
 }
 
-/// AI Service factory with singleton pattern - Enhanced AI system only
-final Map<String, IAIService> _aiServiceSingletons = {};
-
-/// Enhanced AI Service that implements IAIService interface
-class _EnhancedAIService implements IAIService {
-  _EnhancedAIService(this.modelId);
-  final String modelId;
-
-  @override
-  Future<List<String>> getAvailableModels() async {
-    // Legacy compatibility - return common models
-    return ['gpt-4o', 'gpt-4o-mini', 'gemini-2.5-flash', 'gemini-2.5-pro'];
-  }
-
-  @override
-  Future<Map<String, dynamic>> sendMessage({
-    required final List<Map<String, dynamic>> messages,
-    final Map<String, dynamic>? options,
-  }) async {
-    // Legacy compatibility - this shouldn't be used anymore
-    // All new code should use AIProviderManager directly
-    return {
-      'text': 'Legacy AI service deprecated. Use AIProviderManager directly.',
-    };
-  }
-
-  @override
-  Future<String?> textToSpeech(
-    final String text, {
-    final String voice = '',
-    final Map<String, dynamic>? options,
-  }) async {
-    // TTS not implemented in Enhanced AI yet - return null for now
-    return null;
-  }
-}
-
-IAIService getAIServiceForModel(final String modelId) {
-  final normalized = modelId.trim().toLowerCase();
-  String key = normalized;
-  if (key.isEmpty) key = 'default';
-  if (_aiServiceSingletons.containsKey(key)) return _aiServiceSingletons[key]!;
-
-  // Create Enhanced AI Service directly - no more adapters
-  final effectiveModelId = normalized.isEmpty
-      ? Config.requireDefaultTextModel()
-      : normalized;
-  final impl = _EnhancedAIService(effectiveModelId);
-
-  _aiServiceSingletons[key] = impl;
-  return impl;
-}
+/// AI service factories - Use AIProviderManager.instance for dynamic provider access
 
 IProfileService getProfileServiceForProvider([final String? provider]) {
   if (provider != null && provider.trim().isNotEmpty) {
@@ -387,15 +337,12 @@ ILoggingService getLoggingService() => BasicLoggingService();
 INetworkService getNetworkService() => BasicNetworkService();
 
 CallSummaryService getCallSummaryService(final Map<String, dynamic> profile) =>
-    CallSummaryService(
-      profile: profile,
-      aiService: getAIServiceForModel(Config.getDefaultTextModel()),
-    );
+    CallSummaryService(profile: profile, aiService: getChatAIServiceAdapter());
 
 IUIStateService getUIStateService() => BasicUIStateService();
 
 /// Chat AI Service Factory
-IChatAIService getChatAIServiceAdapter() => const ChatAIServiceAdapter();
+shared.IAIService getChatAIServiceAdapter() => const ChatAIServiceAdapter();
 
 /// Chat Domain Services Factories
 IChatPromiseService getChatPromiseService() => BasicChatPromiseService();

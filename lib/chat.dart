@@ -12,7 +12,6 @@ export 'chat/domain/services/periodic_ia_message_scheduler.dart';
 // Domain Interfaces
 export 'chat/domain/interfaces/i_audio_chat_service.dart';
 export 'chat/domain/interfaces/i_backup_service.dart';
-export 'chat/domain/interfaces/i_chat_ai_service.dart';
 export 'chat/domain/interfaces/i_chat_audio_utils_service.dart';
 export 'chat/domain/interfaces/i_chat_avatar_service.dart';
 export 'chat/domain/interfaces/i_chat_controller.dart';

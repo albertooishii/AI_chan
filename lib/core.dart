@@ -4,7 +4,7 @@
 export 'core/domain/interfaces/i_call_to_chat_communication_service.dart';
 
 // Infrastructure Layer
-export 'core/infrastructure/adapters/gemini_adapter.dart';
+// Legacy adapters removed in Enhanced AI migration
 
 // Interfaces
 export 'core/interfaces.dart';

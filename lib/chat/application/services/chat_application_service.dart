@@ -11,6 +11,7 @@ import 'package:ai_chan/chat.dart'; // Para PeriodicIaMessageScheduler y domain 
 import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
+import 'package:ai_chan/shared/utils/network_utils.dart';
 
 /// Callback para notificar cambios de estado a la UI
 typedef StateChangeCallback = void Function();
@@ -24,7 +25,7 @@ class ChatApplicationService {
     required final IPromptBuilderService promptBuilder,
     required final IFileOperationsService fileOperations,
     required final ISecureStorageService secureStorage,
-    required final IChatAIService chatAIService,
+    required final IAIService chatAIService,
     final MemoryManager? memoryManagerParam,
     final PeriodicIaMessageScheduler? periodicScheduler,
   }) : _repository = repository,
@@ -98,11 +99,11 @@ class ChatApplicationService {
 
   /// Factory method enhancement
   /// Simplified factory method that creates ChatApplicationService.
-  /// Useful for testing and compatibility with existing code.
+  /// Useful for testing.
   factory ChatApplicationService.withDefaults({
     required final IChatRepository repository,
     required final IPromptBuilderService promptBuilder,
-    final IChatAIService? chatAIService,
+    final IAIService? chatAIService,
     final MemoryManager? memoryManager,
     final PeriodicIaMessageScheduler? periodicScheduler,
   }) {
@@ -125,7 +126,7 @@ class ChatApplicationService {
   final IPromptBuilderService _promptBuilder;
   final IFileOperationsService _fileOperations;
   final ISecureStorageService _secureStorage;
-  final IChatAIService _chatAIService;
+  final IAIService _chatAIService;
   late final IAudioChatService _audioService;
   final MemoryManager? memoryManager;
   final PeriodicIaMessageScheduler _periodicScheduler;
@@ -142,7 +143,7 @@ class ChatApplicationService {
   // Estado interno del servicio
   List<Message> _messages = [];
   AiChanProfile? _profile;
-  List<EventEntry> _events = [];
+  List<ChatEvent> _events = [];
   List<TimelineEntry> _timeline = [];
   String? _selectedModel;
   bool _googleLinked = false;
@@ -170,12 +171,12 @@ class ChatApplicationService {
   // Getters públicos
   List<Message> get messages => List.unmodifiable(_messages);
   AiChanProfile? get profile => _profile;
-  List<EventEntry> get events => List.unmodifiable(_events);
+  List<ChatEvent> get events => List.unmodifiable(_events);
   List<TimelineEntry> get timeline => List.unmodifiable(_timeline);
   String? get selectedModel => _selectedModel;
 
   /// Selected model setter interface
-  /// Setter for the selected model, maintains compatibility with ChatProvider
+  /// Setter for the selected model
   set selectedModel(final String? model) {
     _selectedModel = model;
     _saveSelectedModel();
@@ -272,6 +273,18 @@ class ChatApplicationService {
           status: MessageStatus.read,
         );
         _messages.add(responseMessage);
+
+        // Update user message status to "read" when we receive AI response
+        final userMessageIndex = _messages.indexWhere(
+          (final m) => m.localId == message.localId,
+        );
+        if (userMessageIndex != -1 &&
+            _messages[userMessageIndex].sender == MessageSender.user) {
+          _messages[userMessageIndex] = _messages[userMessageIndex].copyWith(
+            status: MessageStatus.read,
+          );
+        }
+
         await _persistStateImmediate();
       }
 
@@ -391,6 +404,40 @@ class ChatApplicationService {
     // Calculate user audio duration in background
     if (message.audio?.url != null && message.audio!.url!.isNotEmpty) {
       _calculateUserAudioDuration(message);
+    }
+
+    // Check network connectivity before processing
+    final hasInternet = await hasInternetConnection();
+
+    if (!hasInternet) {
+      // No internet: mark message as failed immediately
+      final messageIndex = _messages.indexWhere(
+        (final m) => m.localId == message.localId,
+      );
+      if (messageIndex != -1) {
+        _messages[messageIndex] = _messages[messageIndex].copyWith(
+          status: MessageStatus.failed,
+        );
+        await _persistStateImmediate();
+        _notifyStateChanged();
+      }
+      Log.w(
+        'No internet connection. Message marked as failed.',
+        tag: 'CHAT_SERVICE',
+      );
+      return;
+    }
+
+    // Update message to "sent" status after confirming internet connectivity
+    final messageIndex = _messages.indexWhere(
+      (final m) => m.localId == message.localId,
+    );
+    if (messageIndex != -1) {
+      _messages[messageIndex] = _messages[messageIndex].copyWith(
+        status: MessageStatus.sent,
+      );
+      await _persistStateImmediate();
+      _notifyStateChanged();
     }
 
     // Process AI response with simplified method
@@ -549,7 +596,7 @@ class ChatApplicationService {
   /// Event management
   /// Event management with PromiseService
   ///
-  void schedulePromiseEvent(final EventEntry event) {
+  void schedulePromiseEvent(final ChatEvent event) {
     _events.add(event);
     _promiseService.schedulePromiseEvent(event);
   }
@@ -1013,7 +1060,7 @@ class ChatApplicationService {
     }
     if (data['events'] != null) {
       _events = (data['events'] as List)
-          .map((final e) => EventEntry.fromJson(e))
+          .map((final e) => ChatEvent.fromJson(e))
           .toList();
     }
     if (data['timeline'] != null) {
@@ -1118,7 +1165,7 @@ class ChatApplicationService {
     }
   }
 
-  // Additional methods for complete compatibility
+  // Additional application service methods
 
   /// Retry last failed message
   /// Retries sending the last message marked as failed.
@@ -1133,13 +1180,22 @@ class ChatApplicationService {
     );
     if (idx == -1) return false;
 
+    // Check internet connectivity before retrying
+    final hasInternet = await hasInternetConnection();
+    if (!hasInternet) {
+      onError?.call('No hay conexión a internet para reintentar el mensaje');
+      Log.w('Retry failed: No internet connection', tag: 'CHAT_SERVICE');
+      return false;
+    }
+
     final msg = _messages[idx];
     try {
-      // Reintentar reusando la lógica de sendMessage
+      // Reintentar reusando la lógica de sendMessage con índice específico para reutilizar el mensaje
       await sendMessage(
         text: msg.text,
         image: msg.image,
         model: model ?? _selectedModel,
+        existingMessageIndex: idx, // Reuse existing message slot
       );
       return true;
     } on Exception catch (e) {
@@ -1548,29 +1604,5 @@ class ChatApplicationService {
     }
 
     await _persistState();
-  }
-
-  // AI service cache by model for performance optimization
-  final Map<String, dynamic> _services = {};
-
-  /// Gets the appropriate AI service for a specific model.
-  /// Maintains an internal cache to avoid recreating services.
-  ///
-  /// [modelId] Model ID for which to get the service
-  /// Returns: The corresponding AI service or null if there's an error
-  dynamic getServiceForModel(final String modelId) {
-    if (_services.containsKey(modelId)) {
-      return _services[modelId];
-    }
-
-    try {
-      // Usar factory centralizado del DI para obtener implementación del servicio de IA
-      final service = di.getAIServiceForModel(modelId);
-      _services[modelId] = service;
-      return _services[modelId];
-    } on Exception {
-      // En caso de error, retornar null como lo hacía ChatProvider
-      return null;
-    }
   }
 }

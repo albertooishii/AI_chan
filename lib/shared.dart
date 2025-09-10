@@ -9,6 +9,7 @@ export 'shared/domain/models/voice_call_message.dart';
 
 // Domain Interfaces
 export 'shared/domain/interfaces/audio_playback_service.dart';
+export 'shared/domain/interfaces/i_ai_service.dart';
 export 'shared/domain/interfaces/i_file_operations_service.dart';
 export 'shared/domain/interfaces/i_file_service.dart';
 export 'shared/domain/interfaces/i_profile_persistence_service.dart';
