@@ -19,6 +19,7 @@ import '../widgets/text_model_configuration_dialog.dart';
 import 'package:ai_chan/main.dart';
 import 'package:ai_chan/shared/widgets/backup_dialog_factory.dart';
 import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
+import 'package:ai_chan/voice/presentation/screens/voice_screen.dart';
 // google_backup_service not used directly in this file; ChatProvider exposes necessary state
 import 'package:ai_chan/shared/widgets/local_backup_dialog.dart';
 import 'package:ai_chan/shared/widgets/backup_diagnostics_dialog.dart';
@@ -27,6 +28,8 @@ import 'package:ai_chan/core/di.dart' as di;
 import 'dart:typed_data';
 // ignore: unused_import
 import 'package:ai_chan/core/domain/interfaces/i_call_to_chat_communication_service.dart'; // ✅ Bounded Context Abstraction
+// Import nueva pantalla de voz
+import 'package:ai_chan/voice.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({
@@ -420,11 +423,10 @@ class _ChatScreenState extends State<ChatScreen> {
             icon: const Icon(Icons.call, color: AppColors.secondary),
             tooltip: 'Llamada de voz',
             onPressed: () {
-              // TODO: Implementar navegación a nueva pantalla de voz
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('🚧 Nueva funcionalidad de voz en desarrollo'),
-                  duration: Duration(seconds: 2),
+              // Navegar a la nueva pantalla de voz con estilo cyberpunk
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (final context) => const VoiceScreen(),
                 ),
               );
             },

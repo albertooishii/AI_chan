@@ -52,31 +52,24 @@ lib/voice/
 
 #### **✅ SISTEMA DE TONOS FUNCIONAL**
 ```dart
-// 🎵 DISPONIBLE INMEDIATAMENTE:
+// 🎵 API SIMPLIFICADA - Solo 2 métodos principales (como pediste)
 final toneService = getToneService();
 
-// Generar ringtone cyberpunk completo:
-final ringtone = await toneService.generateRingtone(
-  sampleRate: 44100,
+// 📞 Ringtone/RBT - igual que el recuperado del caché:
+await toneService.playRingtone(
   durationMs: 3000,
-  preset: 'cyberpunk'  // Con todos los efectos cyberpunk
+  cyberpunkStyle: true  // o false para melódico
 );
 
-// Frequency sweeps épicos:
-final sweep = await toneService.playFrequencySweep(
-  startFreq: 440.0,
-  endFreq: 880.0,
-  durationMs: 2000,
-  volume: 0.8
+// 📵 Hangup tone - igual que el recuperado del caché:
+await toneService.playHangupTone(
+  durationMs: 350,
+  cyberpunkStyle: true  // o false para simple
 );
 
-// Tones de llamada con envolventes ADSR:
-final callTone = await toneService.generateRingbackTone(
-  sampleRate: 44100,
-  durationSeconds: 5,
-  tempoBpm: 120,
-  preset: 'melodic'
-);
+// ✅ Mantiene exactamente los mismos sonidos cyberpunk originales
+// ✅ API simplificada sin complejidad innecesaria
+// ✅ Compatible con todo el sistema Voice bounded context
 ```
 
 ## 📊 **MÉTRICAS DE ÉXITO NUCLEAR:**
@@ -92,65 +85,48 @@ final callTone = await toneService.generateRingbackTone(
 
 ## 🎯 **FUNCIONALIDADES RECUPERADAS:**
 
-### **🎵 Sistema de Tonos Cyberpunk Completo:**
+### **🎵 Sistema de Tonos Cyberpunk Simplificado:**
 
-#### **1. Generación de Ringtones Avanzados**
+#### **1. API Simple y Directa**
 ```dart
-// Cyberpunk ringtone con ring modulation y pitch bending
-final cyberpunkTone = await toneService.buildCyberRingtoneWav(
-  durationSeconds: 4,
-  sampleRate: 44100,
-  stereo: true,
-  detuneCents: 15,        // Detuning sutil
-  vibratoHz: 6.0,         // Vibrato profundo  
-  vibratoCents: 25,       // Intensidad vibrato
-  haasMs: 20,             // Efecto Haas para width
-  width: 0.8,             // Stereo width
-  echo1Ms: 250,           // Echo delay 1
-  echoGain1: 0.3,         // Echo gain 1
-  lpfStartHz: 2000,       // Low-pass filter start
-  lpfEndHz: 8000          // Low-pass filter end
-);
+// Solo 2 métodos como pediste - mantiene sonidos originales
+final toneService = getToneService();
+
+// 📞 Ringtone (llamada entrante/saliente)
+await toneService.playRingtone(cyberpunkStyle: true);
+
+// 📵 Hangup (fin de llamada/error)  
+await toneService.playHangupTone(cyberpunkStyle: true);
 ```
 
-#### **2. Síntesis Melódica Avanzada**
+#### **2. Casos de Uso Específicos**
 ```dart
-// Ringtone melódico con progresión armónica
-final melodicTone = await toneService.buildMelodicRingtoneWav(
-  durationSeconds: 5,
-  sampleRate: 44100,
-  tempo: 120,
-  stereo: true,
-  haasMs: 15,             // Separación stereo
-  width: 0.9,             // Width stereo
-  echo1Ms: 200,           // Echo musical
-  echo2Ms: 400,           // Echo doble
-  echoGain1: 0.25,        // Ganancia echo 1
-  echoGain2: 0.15,        // Ganancia echo 2
-  panLfoHz: 0.5,          // LFO para pan automático
-  panDepth: 0.6           // Profundidad pan
-);
+// Para Voice Sessions con AI-chan:
+class VoiceCallManager {
+  final toneService = getToneService();
+  
+  Future<void> startCall() async {
+    await toneService.playRingtone();  // Ring ring 📞
+    // ... iniciar sesión de voz
+  }
+  
+  Future<void> endCall() async {
+    await toneService.playHangupTone();  // Beep 📵
+    // ... terminar sesión
+  }
+  
+  Future<void> onError() async {
+    await toneService.playHangupTone();  // Error beep 📵
+    // ... manejar error
+  }
+}
 ```
 
-#### **3. Frequency Sweeps Dinámicos**
-```dart
-// Sweep de frecuencia con envelope ADSR
-final dynamicSweep = await toneService.playFrequencySweep(
-  startFreq: 220.0,       // Nota A3
-  endFreq: 1760.0,        // Nota A6 (3 octavas)
-  durationMs: 3000,       // 3 segundos
-  volume: 0.7
-);
-```
-
-#### **4. Efectos de Audio Profesionales**
-- **Ring Modulation**: Modulación por anillo para texturas cyberpunk
-- **ADSR Envelopes**: Attack, Decay, Sustain, Release profesionales
-- **Spatial Effects**: Haas delay, stereo width, pan automático
-- **Echo Chains**: Múltiples ecos con diferentes delays y gains
-- **Filtros Dinámicos**: Low-pass y high-pass con sweep automático
-- **Pitch Bending**: Modulación de frecuencia estilo MIDI
-- **Vibrato Control**: Vibrato configurable con profundidad variable
+#### **3. Mantiene Sonidos Cyberpunk Originales**
+- **Cyberpunk Ring**: Ring modulation + efectos espaciales + detune
+- **Cyberpunk Hangup**: Decay exponencial + ring modulation + noise
+- **Melodic Ring**: Progresión harmónica + pitch bending + reverb
+- **Melodic Hangup**: Tono simple con envelope natural
 
 ### **🏗️ Arquitectura DDD Pura Implementada:**
 
@@ -243,12 +219,16 @@ class VoiceScreen extends StatelessWidget {
     return Scaffold(
       body: Column(
         children: [
-          // Control de tonos cyberpunk
-          ToneControlWidget(toneService: getToneService()),
-          // Configuración de voz
-          VoiceSettingsWidget(controller: controller),
-          // Estado de sesión
-          VoiceSessionStatusWidget(controller: controller),
+          // Botón simple para llamar a AI-chan
+          ElevatedButton(
+            onPressed: () => controller.startVoiceSession(),
+            child: Text('📞 Llamar AI-chan'),
+          ),
+          // Botón para colgar
+          ElevatedButton(
+            onPressed: () => controller.endVoiceSession(),
+            child: Text('📵 Colgar'),
+          ),
         ],
       ),
     );
@@ -256,52 +236,34 @@ class VoiceScreen extends StatelessWidget {
 }
 ```
 
-### **2. Audio Playback Integration (1-2 horas)**
+### **2. Voice Session Integration (1-2 horas)**
 ```dart
-// Integrar con sistema de audio para reproducción
-class AudioPlaybackService {
-  Future<void> playTone(Uint8List audioData) async {
-    // Reproducir tonos generados por ToneService
+// Integrar tonos con sesiones de voz
+class VoiceController extends ChangeNotifier {
+  final toneService = getToneService();
+  
+  Future<void> startVoiceSession() async {
+    await toneService.playRingtone();     // 📞 Ring
+    // ... iniciar TTS/STT
   }
   
-  Future<void> playTTSAudio(String audioFilePath) async {
-    // Reproducir síntesis TTS
+  Future<void> endVoiceSession() async {
+    await toneService.playHangupTone();   // 📵 Hangup
+    // ... terminar sesión
   }
 }
 ```
 
-### **3. Real-time Voice Controls (2-3 horas)**
+### **3. Error Handling con Tonos (30 min)**
 ```dart
-// UI para controles en tiempo real
-class RealtimeVoiceControls extends StatelessWidget {
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Control de volumen en tiempo real
-        VolumeSlider(onChanged: (volume) => controller.setVolume(volume)),
-        // Selector de preset de tonos
-        TonePresetSelector(onChanged: (preset) => controller.setTonePreset(preset)),
-        // Configuración de efectos
-        EffectsPanel(onChanged: (effects) => controller.setEffects(effects)),
-      ],
-    );
+// Manejar errores con feedback de audio
+class VoiceErrorHandler {
+  static Future<void> onConnectionError() async {
+    await getToneService().playHangupTone();  // Error beep
   }
-}
-```
-
-### **4. Voice Chat Integration (3-4 horas)**
-```dart
-// Integrar sistema Voice con chat existente
-class VoiceEnhancedChatService {
-  final VoiceApplicationService voiceService;
-  final ChatApplicationService chatService;
   
-  Future<void> startVoiceChat() async {
-    // Combinar chat de texto con capacidades de voz
-    final session = await voiceService.startVoiceSession();
-    final chatSession = await chatService.startSession();
-    
-    // Flujo completo: STT → AI processing → TTS → Audio playback
+  static Future<void> onSessionTimeout() async {
+    await getToneService().playHangupTone();  // Timeout beep
   }
 }
 ```

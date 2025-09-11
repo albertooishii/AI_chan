@@ -11,6 +11,7 @@ export 'voice/domain/services/voice_session_orchestrator.dart';
 // Aplicación
 export 'voice/application/use_cases/manage_voice_session_use_case.dart';
 export 'voice/application/services/voice_application_service.dart';
+export 'voice/application/services/microphone_amplitude_service.dart';
 
 // Infraestructura
 export 'voice/infrastructure/services/dynamic_voice_services.dart';
@@ -18,3 +19,5 @@ export 'voice/infrastructure/services/tone_service.dart';
 
 // Presentación
 export 'voice/presentation/controllers/voice_controller.dart';
+export 'voice/presentation/controllers/voice_call_controller.dart';
+export 'voice/presentation/screens/voice_screen.dart';

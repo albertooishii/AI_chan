@@ -58,10 +58,14 @@ class RealAudioPlayback implements AudioPlayback {
     runZonedGuarded(
       () {
         () async {
-          // audioplayers expects a Source. Allow callers to pass a file path (String), an
-          // existing ap.Source, or any object that can be converted to string (fallback).
+          // audioplayers expects a Source. Allow callers to pass a file path (String),
+          // Uint8List (for generated audio), an existing ap.Source, or any object that
+          // can be converted to string (fallback).
           ap.Source src;
-          if (source is String) {
+          if (source is Uint8List) {
+            // Handle generated audio data directly using BytesSource
+            src = ap.BytesSource(source);
+          } else if (source is String) {
             // Prefer DeviceFileSource for local files. Some devices/Android versions
             // report IO errors when the plugin uses file-descriptors. As a robust
             // fallback, try reading the file bytes and play via BytesSource.
