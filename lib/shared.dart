@@ -25,6 +25,7 @@ export 'shared/domain/enums/message_sender.dart';
 export 'shared/application/services/event_timeline_service.dart';
 export 'shared/application/services/promise_service.dart';
 export 'shared/application/services/audio_subtitle_application_service.dart';
+export 'shared/application/services/cyberpunk_text_processor_service.dart'; // 🎮 CYBERPUNK!
 
 // Additional Application Services
 export 'shared/application/services/calendar_processing_service.dart';
@@ -74,6 +75,7 @@ export 'shared/utils/app_data_utils.dart';
 
 // Widgets
 export 'shared/widgets/app_dialog.dart';
+export 'shared/presentation/widgets/cyberpunk_subtitle.dart'; // 🎮 SUBTÍTULOS ÉPICOS!
 
 // Constants
 export 'shared/constants.dart';
@@ -83,3 +85,9 @@ export 'shared/utils.dart';
 // Services - Active services only
 export 'shared/services/voice_call_controller.dart';
 export 'shared/services/google_backup_service.dart';
+
+// AI Providers System
+export 'shared/ai_providers/core/interfaces/i_ai_provider.dart';
+export 'shared/ai_providers/core/registry/ai_provider_registry.dart';
+export 'shared/ai_providers/core/services/realtime_service.dart';
+export 'shared/ai_providers/core/services/multi_model_router.dart';

@@ -1,46 +1,10 @@
-import 'package:ai_chan/core/di.dart' as di;
-import 'package:ai_chan/call/infrastructure/services/openai_realtime_client.dart';
-import 'package:ai_chan/call/infrastructure/services/gemini_realtime_client.dart';
-import 'package:ai_chan/core/config.dart';
-
-/// Centraliza las registraciones de factories para reproducir el bootstrap
-/// que antes vivía en `main.dart`. Mantiene `main.dart` más pequeño y
-/// facilita testing / reuso.
+/// 🔥 DI Bootstrap: Call system legacy eliminado
+/// Las factories de realtime client fueron parte del Call bounded context
+/// que se eliminó completamente en favor del nuevo Voice bounded context
 void registerDefaultRealtimeClientFactories() {
-  // OpenAI factory
-  di.registerRealtimeClientFactory('openai', ({
-    final model,
-    final onText,
-    final onAudio,
-    final onCompleted,
-    final onError,
-    final onUserTranscription,
-  }) {
-    return OpenAIRealtimeClient(
-      model: model ?? Config.getOpenAIRealtimeModel(),
-      onText: onText,
-      onAudio: onAudio,
-      onCompleted: onCompleted,
-      onError: onError,
-      onUserTranscription: onUserTranscription,
-    );
-  });
+  // 🔥 ELIMINATED: OpenAI y Gemini realtime client factories
+  // Estas eran parte del Call system que fue completamente reemplazado
+  // por el nuevo Voice bounded context con DDD architecture
 
-  // Factory compartido para Gemini/Google
-  GeminiRealtimeClient geminiFactory({
-    final model,
-    final onText,
-    final onAudio,
-    final onCompleted,
-    final onError,
-    final onUserTranscription,
-  }) {
-    return GeminiRealtimeClient();
-  }
-
-  // Gemini factory: uses a minimal GeminiRealtimeClient skeleton for now.
-  di.registerRealtimeClientFactory('gemini', geminiFactory);
-
-  // Alias 'google' to the same Gemini factory for backwards compatibility.
-  di.registerRealtimeClientFactory('google', geminiFactory);
+  // No-op function for backward compatibility during transition
 }

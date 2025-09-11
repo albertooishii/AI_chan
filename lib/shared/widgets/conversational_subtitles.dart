@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ai_chan/shared/constants/app_colors.dart';
-import 'package:ai_chan/call/presentation/widgets/cyberpunk_subtitle.dart';
+import 'package:ai_chan/shared/presentation/widgets/cyberpunk_subtitle.dart'; // Updated to shared location
 import 'package:ai_chan/shared/utils/streaming_subtitle_utils.dart';
 
 /// Controlador global para subtítulos conversacionales en tiempo real

@@ -81,7 +81,7 @@ class AIProviderManager {
       _providers.clear();
       _providers.addAll(providers);
 
-      // Initialize performance and optimization services
+      // Initialize optimization services (cache, monitoring, deduplication)
       _initializeOptimizationServices();
 
       _initialized = true;

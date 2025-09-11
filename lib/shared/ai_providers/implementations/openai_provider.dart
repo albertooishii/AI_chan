@@ -5,7 +5,7 @@ import 'package:ai_chan/shared/ai_providers/core/services/api_key_manager.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/http_connector.dart';
 import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
-import 'package:ai_chan/call/infrastructure/services/openai_realtime_client.dart';
+// 🔥 ELIMINATED: openai_realtime_client.dart (was part of Call legacy system)
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/chat/infrastructure/adapters/prompt_builder_service.dart'
     as pb;
@@ -1064,7 +1064,7 @@ class OpenAIProvider implements IAIProvider {
   }
 
   @override
-  IRealtimeClient? createRealtimeClient({
+  Future<IRealtimeClient?> createRealtimeClient({
     final String? model,
     final void Function(String)? onText,
     final void Function(Uint8List)? onAudio,
@@ -1072,7 +1072,7 @@ class OpenAIProvider implements IAIProvider {
     final void Function(Object)? onError,
     final void Function(String)? onUserTranscription,
     final Map<String, dynamic>? additionalParams,
-  }) {
+  }) async {
     if (!supportsCapability(AICapability.realtimeConversation)) {
       Log.w('[OpenAIProvider] Realtime conversation not supported');
       return null;
@@ -1092,19 +1092,15 @@ class OpenAIProvider implements IAIProvider {
 
     try {
       Log.d(
-        '[OpenAIProvider] Creating realtime client for model: $realtimeModel',
+        '[OpenAIProvider] 🔥 ELIMINATED: Realtime client era parte del Call legacy system',
       );
 
-      return OpenAIRealtimeClient(
-        model: realtimeModel,
-        onText: onText,
-        onAudio: onAudio,
-        onCompleted: onCompleted,
-        onError: onError,
-        onUserTranscription: onUserTranscription,
+      // 🔥 Call system eliminado - usar nuevo Voice bounded context
+      throw UnimplementedError(
+        'Realtime client eliminado con Call system legacy. Usar Voice bounded context.',
       );
     } on Exception catch (e) {
-      Log.e('[OpenAIProvider] Failed to create realtime client: $e');
+      Log.e('[OpenAIProvider] Error creating realtime client: $e');
       return null;
     }
   }
@@ -1128,6 +1124,73 @@ class OpenAIProvider implements IAIProvider {
     }
 
     return availableModels[AICapability.realtimeConversation] ?? [];
+  }
+
+  @override
+  bool get supportsRealtime {
+    return supportsCapability(AICapability.realtimeConversation);
+  }
+
+  @override
+  String? get defaultRealtimeModel {
+    if (!supportsRealtime) {
+      return null;
+    }
+
+    return getDefaultModel(AICapability.realtimeConversation);
+  }
+
+  // ========================================
+  // VOICE MANAGEMENT - 100% AUTOCONTENIDO
+  // ========================================
+
+  /// All available OpenAI voices with gender information
+  static const List<VoiceInfo> _availableVoices = [
+    VoiceInfo(name: 'sage', gender: 'Femenina'),
+    VoiceInfo(name: 'alloy', gender: 'Femenina'),
+    VoiceInfo(name: 'ash', gender: 'Masculina'),
+    VoiceInfo(name: 'ballad', gender: 'Femenina'),
+    VoiceInfo(name: 'coral', gender: 'Femenina'),
+    VoiceInfo(name: 'echo', gender: 'Masculina'),
+    VoiceInfo(name: 'fable', gender: 'Femenina'),
+    VoiceInfo(name: 'onyx', gender: 'Masculina'),
+    VoiceInfo(name: 'nova', gender: 'Femenina'),
+    VoiceInfo(name: 'shimmer', gender: 'Femenina'),
+    VoiceInfo(name: 'verse', gender: 'Masculina'),
+    VoiceInfo(name: 'cedar', gender: 'Masculina', description: 'Premium voice'),
+    VoiceInfo(name: 'marin', gender: 'Femenina', description: 'Premium voice'),
+  ];
+
+  /// Get all available voices for this provider
+  Future<List<VoiceInfo>> getAvailableVoices() async {
+    return _availableVoices;
+  }
+
+  /// Get gender of a specific voice
+  String getVoiceGender(final String voiceName) {
+    for (final voice in _availableVoices) {
+      if (voice.name.toLowerCase() == voiceName.toLowerCase()) {
+        return voice.gender;
+      }
+    }
+    return 'Desconocido';
+  }
+
+  /// Get default voice for this provider
+  String getDefaultVoice() {
+    return 'marin'; // Premium voice as default
+  }
+
+  /// Get list of voice names only (for compatibility)
+  List<String> getVoiceNames() {
+    return _availableVoices.map((final voice) => voice.name).toList();
+  }
+
+  /// Check if a voice is valid for this provider
+  bool isValidVoice(final String voiceName) {
+    return _availableVoices.any(
+      (final voice) => voice.name.toLowerCase() == voiceName.toLowerCase(),
+    );
   }
 
   @override

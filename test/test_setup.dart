@@ -1,48 +1,17 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/core/config.dart';
 import 'test_utils/prefs_test_utils.dart';
-import 'package:ai_chan/core/di.dart' as di;
-import 'package:ai_chan/call/domain/interfaces/i_speech_service.dart'; // Usar nueva interfaz de dominio
 import 'fakes/fake_connectors.dart' as fake_connectors;
 import 'fakes/fake_http_client.dart';
-import 'fakes/fake_audio_playback.dart';
 import 'package:ai_chan/core/http_connector.dart';
-// import 'package:ai_chan/shared/services/ai_service.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
+import 'package:ai_chan/shared/ai_providers/core/registry/provider_registration.dart';
 
-// (No global fake realtime client here — tests opt-in to install fakes
-// using `di.setTestRealtimeClientFactory(...)` when they need to.)
-
-class _FakeTestStt implements ICallSttService {
-  @override
-  Future<String?> transcribeAudio(final String filePath) async {
-    return 'fake transcription for testing';
-  }
-
-  @override
-  Future<String?> transcribeFile({
-    required final String filePath,
-    final Map<String, dynamic>? options,
-  }) async {
-    return await transcribeAudio(filePath);
-  }
-
-  @override
-  Future<String> processAudio(final Uint8List audioData) async {
-    return 'fake audio processing result';
-  }
-
-  @override
-  void configure(final Map<String, dynamic> config) {
-    // Configuración fake para tests
-  }
-
-  @override
-  Future<bool> isAvailable() async {
-    return true; // Siempre disponible en tests
-  }
+/// 🧪 Test Environment Setup
+/// Configuración global para tests con servicios mock
+void setupTestEnvironment() {
+  // Compatibility function for legacy tests
 }
 
 Future<void> initializeTestEnvironment({
@@ -51,16 +20,13 @@ Future<void> initializeTestEnvironment({
 }) async {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  // ⚡ ACELERAR TESTS: Desactivar delays en retries de AIService
-  // TODO: Migrar setup de AIService
-  // AIService.disableDelaysInTests = true;
+  // ⚡ ACELERAR TESTS: Desactivar delays en retries
+  AIProviderConfigLoader.skipEnvironmentValidation = true;
 
-  // 🧪 TESTS: Desactivar validación de environment variables
-  AIProviderConfigLoader.skipEnvironmentValidation =
-      true; // Ensure tests run with minimal noisy logging
   // Create a central temporary base directory for ai_chan tests under systemTemp
   final baseTmp = Directory('${Directory.systemTemp.path}/ai_chan');
   if (!baseTmp.existsSync()) baseTmp.createSync(recursive: true);
+
   // Create temporary directories for image/audio/cache tests inside the central folder
   final suffix = DateTime.now().millisecondsSinceEpoch;
   final tmpImageDir = Directory('${baseTmp.path}/images_$suffix')
@@ -69,6 +35,7 @@ Future<void> initializeTestEnvironment({
     ..createSync(recursive: true);
   final tmpCacheDir = Directory('${baseTmp.path}/cache_$suffix')
     ..createSync(recursive: true);
+
   Config.setOverrides({
     'DEBUG_MODE': 'off',
     'TEST_IMAGE_DIR': tmpImageDir.path,
@@ -82,26 +49,30 @@ Future<void> initializeTestEnvironment({
       '''
 DEFAULT_TEXT_MODEL=gemini-1.5-flash-latest
 DEFAULT_IMAGE_MODEL=gemini-1.5-flash-latest
-GEMINI_API_KEY=test_key
-OPENAI_API_KEY=test_openai_key
+OPENAI_API_KEYS=["test_openai_key_1", "test_openai_key_2"]
+GEMINI_API_KEYS=["test_gemini_key_1", "test_gemini_key_2"]
+GROK_API_KEYS=["test_grok_key_1"]
+GOOGLE_CLOUD_API_KEY=test_google_cloud_key
 ANTHROPIC_API_KEY=test_anthropic_key
 MISTRAL_API_KEY=test_mistral_key
 ''';
 
   await Config.initialize(dotenvContents: testDotenvContents);
+
+  // ✅ PROVIDERS: Inicializar sistema de providers para tests
+  registerAllProviders();
+
   // Initialize SharedPreferences with centralized test helper for consistency
-  // (tests can override by passing prefs)
   PrefsTestUtils.setMockInitialValues(prefs);
-  // Override STT to avoid hitting GoogleSpeechService in tests
-  di.setTestSttOverride(_FakeTestStt());
-  // Override audio playback to avoid native plugin initialization in tests
-  di.setTestAudioPlaybackOverride(FakeAudioPlayback());
+
+  // 🔥 Legacy test compatibility functions (no-op)
+  // Call tests were eliminated, these are just stubs
+
   // Register fake connectors to ensure no tests open real sockets/websockets
   fake_connectors.registerFakeSocketConnector();
   fake_connectors.registerFakeWebSocketConnector();
 
   // Install fake HTTP client to avoid network calls in tests
   final fakeHttp = FakeHttpClient();
-  // Optionally tests may customize fakeHttp.when(...) per-test
   HttpConnector.setClient(fakeHttp);
 }

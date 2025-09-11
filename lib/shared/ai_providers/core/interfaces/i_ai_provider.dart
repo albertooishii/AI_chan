@@ -111,7 +111,7 @@ abstract class IAIProvider {
   /// [onError] - Callback for errors
   /// [onUserTranscription] - Callback for user speech transcription
   /// [additionalParams] - Provider-specific parameters
-  IRealtimeClient? createRealtimeClient({
+  Future<IRealtimeClient?> createRealtimeClient({
     final String? model,
     final void Function(String)? onText,
     final void Function(Uint8List)? onAudio,
@@ -128,6 +128,13 @@ abstract class IAIProvider {
   /// Get available realtime models for this provider
   /// Returns list of model IDs that support realtime conversation
   List<String> getAvailableRealtimeModels();
+
+  /// Check if this provider supports realtime conversation at all
+  bool get supportsRealtime;
+
+  /// Get the default realtime model for this provider
+  /// Returns null if provider doesn't support realtime
+  String? get defaultRealtimeModel;
 
   /// Dispose of any resources used by this provider
   Future<void> dispose();

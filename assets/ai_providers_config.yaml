@@ -32,6 +32,7 @@ ai_providers:
       - audio_generation
       - audio_transcription
       - realtime_conversation
+      - function_calling
     
     api_settings:
       base_url: "https://api.openai.com"
@@ -71,16 +72,99 @@ ai_providers:
       audio_transcription: "gpt-4o-mini-transcribe"
       realtime_conversation: "gpt-realtime"
     
-    # Voice configuration for TTS
+    # Voice configuration for TTS and Realtime
     voices:
+      # All available voices (from kOpenAIVoiceGender - exact match)
       available:
+        - "sage"
         - "alloy"
+        - "ash"
+        - "ballad"
+        - "coral"
         - "echo"
         - "fable"
         - "onyx"
         - "nova"
         - "shimmer"
-      default: "alloy"
+        - "verse"
+        - "cedar"
+        - "marin"
+      
+      default: "marin"          # Default voice for both TTS and Realtime
+      tts_default: "marin"      # TTS default (same as general default)
+    
+    # Realtime Configuration (gpt-realtime specific)
+    realtime:
+      enabled: true
+      models:
+        - "gpt-realtime"
+      default_model: "gpt-realtime"
+      
+      # Advanced gpt-realtime features
+      features:
+        voice_instructions: true
+        async_function_calling: true
+        image_input: true
+        language_switching: true
+        non_verbal_cues: true
+        premium_voices: true
+        multimodal_realtime: true
+      
+      # Supported languages for dynamic switching
+      supported_languages:
+        - "en"  # English
+        - "es"  # Spanish
+        - "fr"  # French
+        - "de"  # German
+        - "it"  # Italian
+        - "pt"  # Portuguese
+        - "zh"  # Chinese
+        - "ja"  # Japanese
+        - "ko"  # Korean
+        - "ru"  # Russian
+        - "ar"  # Arabic
+      
+      default_language: "es"
+      
+      # Voice instruction presets
+      voice_instruction_presets:
+        professional: "speak in a clear, professional tone"
+        casual: "speak in a relaxed, conversational manner"
+        enthusiastic: "speak with energy and enthusiasm"
+        calm: "speak in a calm, soothing voice"
+        confident: "speak with confidence and authority"
+        quick: "speak quickly and efficiently"
+      
+      default_voice_instructions: "speak in a clear, professional tone"
+    
+    # Hybrid System Configuration (TTS + STT + Text fallback)
+    hybrid_fallback:
+      enabled: true
+      prefer_realtime: true  # Try realtime first, fallback if needed
+      
+      # TTS settings for hybrid mode
+      tts_settings:
+        model: "tts-1-hd"
+        voice: "alloy"
+        speed: 1.0
+        quality: "hd"
+      
+      # STT settings for hybrid mode  
+      stt_settings:
+        model: "whisper-1"
+        language: "es"
+        response_format: "json"
+        temperature: 0.0
+      
+      # Text model for hybrid processing
+      text_model: "gpt-4"
+      
+      # Fallback triggers
+      fallback_conditions:
+        - "realtime_unavailable"
+        - "connection_issues"
+        - "model_overloaded"
+        - "user_preference"
       
     rate_limits:
       requests_per_minute: 3500
@@ -148,6 +232,33 @@ ai_providers:
         - "es-US-Standard-C"
       default: "es-ES-Neural2-A"
     
+    # Google Hybrid System (TTS + STT + Text)
+    hybrid_system:
+      enabled: true  # Google doesn't have native realtime, so hybrid is primary
+      
+      # Google TTS configuration
+      tts_provider: "google_cloud_tts"
+      tts_settings:
+        voice_name: "es-ES-Neural2-A"
+        language_code: "es-ES"
+        ssml_gender: "FEMALE"
+        audio_encoding: "MP3"
+        speaking_rate: 1.0
+        pitch: 0.0
+        volume_gain_db: 0.0
+      
+      # Google STT configuration
+      stt_provider: "google_cloud_stt"
+      stt_settings:
+        language_code: "es-ES"
+        model: "latest_long"
+        enable_automatic_punctuation: true
+        enable_word_time_offsets: true
+        use_enhanced: true
+      
+      # Text model for processing
+      text_model: "gemini-2.5-flash"
+    
     rate_limits:
       requests_per_minute: 2000
       tokens_per_minute: 1000000
@@ -191,6 +302,27 @@ ai_providers:
       text_generation: "grok-4"
       image_analysis: "grok-vision-beta"
     
+    # XAI Hybrid System (TTS + STT + Text only - no native voice capabilities)
+    hybrid_system:
+      enabled: true  # XAI requires hybrid for voice functionality
+      
+      # Use external TTS service (fallback to OpenAI TTS)
+      tts_provider: "external_openai"
+      tts_settings:
+        model: "tts-1"
+        voice: "alloy"
+        speed: 1.0
+      
+      # Use external STT service (fallback to OpenAI Whisper)
+      stt_provider: "external_openai" 
+      stt_settings:
+        model: "whisper-1"
+        language: "es"
+        response_format: "json"
+      
+      # XAI text model for processing
+      text_model: "grok-4"
+    
     rate_limits:
       requests_per_minute: 5000
       tokens_per_minute: 200000
@@ -223,15 +355,45 @@ fallback_chains:
   audio_generation:
     primary: "openai"
     fallbacks: []
-    
+  
   audio_transcription:
     primary: "openai"
     fallbacks: []
     
   realtime_conversation:
-    primary: "openai"
+    primary: "openai"  # OpenAI has native gtp-realtime support
     fallbacks:
-      - "google"
+      - "google"       # Google hybrid system
+      - "xai"          # XAI hybrid system
+
+# Realtime Service Global Configuration
+realtime_service:
+  # Service behavior settings
+  auto_fallback: true              # Automatically fallback if realtime fails
+  prefer_native_realtime: true     # Prefer native realtime over hybrid
+  hybrid_as_primary: false        # Use hybrid only as fallback
+  
+  # Performance and reliability
+  connection_timeout: 30           # seconds
+  response_timeout: 10             # seconds
+  max_retries: 3
+  retry_delay: 1                   # seconds
+  
+  # Audio settings
+  audio_format: "pcm16"            # Default audio format
+  sample_rate: 24000               # Default sample rate
+  chunk_size: 1024                 # Audio chunk size
+  
+  # Language and voice defaults
+  default_language: "es"
+  default_voice: "marin"            # Simple: just the voice name
+  
+  # Feature flags
+  enable_voice_instructions: true
+  enable_async_function_calling: true
+  enable_multimodal_input: true
+  enable_language_switching: true
+  enable_non_verbal_cues: true
 
 # Environment-specific overrides
 # TEMPORALMENTE COMENTADO PARA TESTING - PROBLEMAS CON MERGE DE CONFIGURACIONES

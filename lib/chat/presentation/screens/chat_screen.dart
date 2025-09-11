@@ -7,7 +7,7 @@ import 'dart:io';
 import '../widgets/chat_bubble.dart';
 import '../widgets/message_input.dart';
 import '../controllers/chat_input_controller.dart';
-import 'package:ai_chan/call/presentation/screens/voice_call_screen.dart';
+// Removed legacy call import - now using new Voice bounded context
 import '../widgets/typing_animation.dart';
 import '../widgets/expandable_image_dialog.dart';
 import 'package:ai_chan/core/models.dart';
@@ -258,23 +258,21 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(final BuildContext context) {
     final chatController = widget.chatController;
     final aiName = widget.aiName;
-    // Detectar llamada entrante pendiente y abrir pantalla si aún no está abierta
+    // TODO: Implementar nueva pantalla de voz con nueva arquitectura Voice DDD
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final navCtx = context;
-      final navigator = Navigator.of(navCtx);
       if (chatController.isCalling) {
-        // Abrir VoiceCallScreen en modo incoming solo si no hay ya otra ruta de llamada
-        final alreadyOpen =
-            navigator.widget is VoiceCallScreen; // heurístico simple
-        if (!alreadyOpen) {
-          // Clear the calling flag to avoid reopening while the screen is active.
-          chatController.callController.clearPendingIncomingCall();
-          navigator.push(
-            MaterialPageRoute(
-              builder: (_) => const VoiceCallScreen(incoming: true),
-            ),
-          );
-        }
+        // TODO: Integrar con nuevo VoiceController cuando esté listo
+        // Temporal: Clear the calling flag para evitar ciclos infinitos
+        chatController.callController.clearPendingIncomingCall();
+
+        // TODO: Implementar nueva pantalla de voz aquí
+        ScaffoldMessenger.of(navCtx).showSnackBar(
+          const SnackBar(
+            content: Text('🚧 Nueva funcionalidad de voz en desarrollo'),
+            duration: Duration(seconds: 2),
+          ),
+        );
       }
     });
     return Scaffold(
@@ -422,10 +420,12 @@ class _ChatScreenState extends State<ChatScreen> {
             icon: const Icon(Icons.call, color: AppColors.secondary),
             tooltip: 'Llamada de voz',
             onPressed: () {
-              // ignore: unused_local_variable
-              final existingController = widget.chatController;
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const VoiceCallScreen()),
+              // TODO: Implementar navegación a nueva pantalla de voz
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('🚧 Nueva funcionalidad de voz en desarrollo'),
+                  duration: Duration(seconds: 2),
+                ),
               );
             },
           ),

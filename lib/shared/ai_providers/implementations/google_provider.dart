@@ -548,7 +548,7 @@ class GoogleProvider implements IAIProvider {
   }
 
   @override
-  IRealtimeClient? createRealtimeClient({
+  Future<IRealtimeClient?> createRealtimeClient({
     final String? model,
     final void Function(String)? onText,
     final void Function(Uint8List)? onAudio,
@@ -556,7 +556,7 @@ class GoogleProvider implements IAIProvider {
     final void Function(Object)? onError,
     final void Function(String)? onUserTranscription,
     final Map<String, dynamic>? additionalParams,
-  }) {
+  }) async {
     Log.w('[GoogleProvider] Realtime conversation not supported yet');
     // TODO: Implement Google Gemini realtime client when API becomes available
     return null;
@@ -572,6 +572,139 @@ class GoogleProvider implements IAIProvider {
   List<String> getAvailableRealtimeModels() {
     // Google Gemini doesn't support realtime conversation yet
     return [];
+  }
+
+  @override
+  bool get supportsRealtime {
+    // Google Gemini doesn't support realtime conversation yet
+    return false;
+  }
+
+  @override
+  String? get defaultRealtimeModel {
+    // Google Gemini doesn't support realtime conversation yet
+    return null;
+  }
+
+  // ========================================
+  // VOICE MANAGEMENT - 100% AUTOCONTENIDO
+  // ========================================
+
+  /// Get all available voices from Google TTS API
+  Future<List<VoiceInfo>> getAvailableVoices() async {
+    try {
+      final url = 'https://texttospeech.googleapis.com/v1/voices?key=$_apiKey';
+      final response = await HttpConnector.client.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final voices = (data['voices'] as List<dynamic>?) ?? [];
+
+        return voices
+            .map((final voice) => _createVoiceInfoFromGoogleAPI(voice))
+            .where((final voice) => voice.name.isNotEmpty)
+            .toList();
+      } else {
+        Log.w(
+          '[GoogleProvider] Failed to fetch voices: ${response.statusCode}',
+        );
+        return _getFallbackVoices();
+      }
+    } on Exception catch (e) {
+      Log.e('[GoogleProvider] Error fetching voices: $e');
+      return _getFallbackVoices();
+    }
+  }
+
+  /// Convert Google API response to VoiceInfo (Google-specific logic)
+  VoiceInfo _createVoiceInfoFromGoogleAPI(final Map<String, dynamic> data) {
+    return VoiceInfo(
+      name: data['name'] ?? '',
+      gender: _convertGoogleGender(data['ssmlGender'] ?? ''),
+      languageCodes: (data['languageCodes'] as List?)?.cast<String>(),
+      sampleRate: data['naturalSampleRateHertz'] as int?,
+    );
+  }
+
+  /// Convert Google gender format to our standard format (Google-specific logic)
+  String _convertGoogleGender(final String googleGender) {
+    switch (googleGender.toUpperCase()) {
+      case 'FEMALE':
+        return 'Femenina';
+      case 'MALE':
+        return 'Masculina';
+      case 'NEUTRAL':
+        return 'Neutral';
+      default:
+        return 'Desconocido';
+    }
+  }
+
+  /// Fallback voices if API call fails
+  List<VoiceInfo> _getFallbackVoices() {
+    return [
+      const VoiceInfo(
+        name: 'es-ES-Neural2-A',
+        gender: 'Femenina',
+        languageCodes: ['es-ES'],
+      ),
+      const VoiceInfo(
+        name: 'es-ES-Neural2-B',
+        gender: 'Masculina',
+        languageCodes: ['es-ES'],
+      ),
+      const VoiceInfo(
+        name: 'es-ES-Neural2-C',
+        gender: 'Femenina',
+        languageCodes: ['es-ES'],
+      ),
+      const VoiceInfo(
+        name: 'es-ES-Neural2-D',
+        gender: 'Masculina',
+        languageCodes: ['es-ES'],
+      ),
+      const VoiceInfo(
+        name: 'es-ES-Standard-A',
+        gender: 'Femenina',
+        languageCodes: ['es-ES'],
+      ),
+      const VoiceInfo(
+        name: 'es-ES-Standard-B',
+        gender: 'Masculina',
+        languageCodes: ['es-ES'],
+      ),
+    ];
+  }
+
+  /// Get gender of a specific voice (may require API call if not cached)
+  String getVoiceGender(final String voiceName) {
+    // For Google, we'd need to query the API or cache
+    // For now, return based on common patterns
+    if (voiceName.contains('-A') || voiceName.contains('-C')) {
+      return 'Femenina';
+    } else if (voiceName.contains('-B') || voiceName.contains('-D')) {
+      return 'Masculina';
+    }
+    return 'Desconocido';
+  }
+
+  /// Get default voice for this provider
+  String getDefaultVoice() {
+    return 'es-ES-Neural2-A'; // High quality female voice
+  }
+
+  /// Get list of voice names only (for compatibility)
+  Future<List<String>> getVoiceNames() async {
+    final voices = await getAvailableVoices();
+    return voices.map((final voice) => voice.name).toList();
+  }
+
+  /// Check if a voice is valid for this provider
+  Future<bool> isValidVoice(final String voiceName) async {
+    final voices = await getAvailableVoices();
+    return voices.any(
+      (final voice) => voice.name.toLowerCase() == voiceName.toLowerCase(),
+    );
   }
 
   @override

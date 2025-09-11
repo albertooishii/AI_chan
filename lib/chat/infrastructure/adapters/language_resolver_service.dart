@@ -1,9 +1,10 @@
 import 'package:ai_chan/chat/domain/interfaces/i_language_resolver.dart';
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
-import 'package:ai_chan/call/infrastructure/services/google_speech_service.dart';
+// TODO: Replace GoogleSpeechService with new Voice bounded context services
 
 /// Implementation of language resolver that detects language codes for TTS voices
 /// Specializes in Google TTS voice format detection
+/// TODO: Migrate to use new Voice bounded context
 class LanguageResolverService implements ILanguageResolver {
   @override
   Future<String> resolveLanguageCode(final String voiceName) async {
@@ -19,21 +20,9 @@ class LanguageResolverService implements ILanguageResolver {
         if (parts.length >= 2) {
           final languageCode = '${parts[0]}-${parts[1]}';
 
-          // Verificar que existe en las voces disponibles de Google
-          final googleVoices =
-              await GoogleSpeechService.fetchGoogleVoicesStatic();
-          final matchingVoices = googleVoices
-              .where(
-                (final voice) =>
-                    voice['name']?.toString() == voiceName &&
-                    voice['languageCodes']?.toString().contains(languageCode) ==
-                        true,
-              )
-              .toList();
-
-          if (matchingVoices.isNotEmpty) {
-            return languageCode;
-          }
+          // TODO: Replace with new Voice bounded context service
+          // For now, return the detected language code directly
+          return languageCode;
         }
       }
 

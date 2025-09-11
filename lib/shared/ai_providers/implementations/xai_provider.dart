@@ -409,7 +409,7 @@ class XAIProvider implements IAIProvider {
   }
 
   @override
-  IRealtimeClient? createRealtimeClient({
+  Future<IRealtimeClient?> createRealtimeClient({
     final String? model,
     final void Function(String)? onText,
     final void Function(Uint8List)? onAudio,
@@ -417,7 +417,7 @@ class XAIProvider implements IAIProvider {
     final void Function(Object)? onError,
     final void Function(String)? onUserTranscription,
     final Map<String, dynamic>? additionalParams,
-  }) {
+  }) async {
     Log.w('[XAIProvider] Realtime conversation not supported yet');
     // TODO: Implement XAI/Grok realtime client when API becomes available
     return null;
@@ -433,6 +433,18 @@ class XAIProvider implements IAIProvider {
   List<String> getAvailableRealtimeModels() {
     // XAI/Grok doesn't support realtime conversation yet
     return [];
+  }
+
+  @override
+  bool get supportsRealtime {
+    // XAI/Grok doesn't support realtime conversation yet
+    return false;
+  }
+
+  @override
+  String? get defaultRealtimeModel {
+    // XAI/Grok doesn't support realtime conversation yet
+    return null;
   }
 
   @override

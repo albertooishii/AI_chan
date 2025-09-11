@@ -2,12 +2,11 @@ import 'package:ai_chan/core/cache/cache_service.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/di.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:ai_chan/shared/utils/voice_display_utils.dart';
-import 'package:ai_chan/shared/utils/openai_voice_utils.dart';
-import 'package:ai_chan/shared/constants/openai_voices.dart';
 import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 import 'package:ai_chan/shared/domain/interfaces/audio_playback_service.dart';
 import 'package:ai_chan/shared/widgets/app_dialog.dart';
@@ -377,14 +376,36 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
   Future<void> _loadOpenAiVoices({final bool forceRefresh = false}) async {
     setState(() => _isLoading = true);
     try {
-      // Use the static voice list helper (presentation-level) to ensure consistent shape and display
+      // 🚀 SISTEMA DINÁMICO: Usar OpenAI provider directamente
+      final manager = AIProviderManager.instance;
+      await manager.initialize();
+
+      final openaiProvider = manager.providers['openai'];
+      if (openaiProvider != null) {
+        // Cast to concrete provider para acceder a getAvailableVoices()
+        final concreteProvider = openaiProvider as dynamic;
+        final voices = await concreteProvider.getAvailableVoices() as List;
+
+        _openaiVoices.clear();
+        _openaiVoices.addAll(
+          voices
+              .map(
+                (final voice) => {
+                  'name': voice.name ?? '',
+                  'description': voice.name ?? '',
+                  'languageCodes': voice.languageCodes ?? <String>[],
+                  'gender': voice.gender ?? 'Desconocido',
+                },
+              )
+              .toList(),
+        );
+      } else {
+        Log.w('OpenAI provider not available');
+        _openaiVoices.clear();
+      }
+    } on Exception catch (e) {
+      Log.e('Error loading OpenAI voices: $e');
       _openaiVoices.clear();
-      _openaiVoices.addAll(OpenAiVoiceUtils.loadStaticOpenAiVoices());
-    } on Exception {
-      _openaiVoices.clear();
-      _openaiVoices.addAll(
-        kOpenAIVoices.map((final v) => {'name': v}).toList(),
-      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -912,9 +933,16 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
               subtitle = '$originalSubtitle · $quality';
             }
           } else if (_selectedProvider == 'openai') {
-            final disp = OpenAiVoiceUtils.formatVoiceDisplay(voice);
-            displayName = disp['displayName'] ?? displayName;
-            subtitle = disp['subtitle'] ?? '';
+            // 🚀 FORMATO DINÁMICO: Usar datos directamente del provider
+            final gender = voice['gender'] as String? ?? '';
+            final parts = <String>[];
+            if (gender.isNotEmpty) parts.add(gender);
+            parts.add('Multilingüe');
+
+            displayName = voiceName.isNotEmpty
+                ? '${voiceName[0].toUpperCase()}${voiceName.substring(1)}'
+                : voiceName;
+            subtitle = parts.join(' · ');
           }
 
           return ListTile(

@@ -1,15 +1,17 @@
 // lib/core/di.dart
 // Dependency Injection Container for AI Chan
 // Clean imports using barrel exports where possible for better maintainability
+// ignore_for_file: prefer_final_parameters, unnecessary_import
 
 // Dart Imports
 import 'dart:typed_data';
 
 // AI Chan - Barrel Imports (DDD Bounded Contexts)
 import 'package:ai_chan/chat.dart';
-import 'package:ai_chan/call.dart';
+import 'package:ai_chan/voice.dart'; // 🔥 NEW: Voice bounded context
 import 'package:ai_chan/core.dart';
 import 'package:ai_chan/onboarding.dart';
+import 'package:ai_chan/shared.dart';
 
 // Import specific services that need DI
 import 'package:ai_chan/chat/domain/interfaces/i_tts_voice_management_service.dart';
@@ -64,58 +66,11 @@ ILanguageResolver getLanguageResolver() => LanguageResolverService();
 /// Factory for file service - handles file operations
 IFileService getFileService() => FileService();
 
-// Test-time overrides
-ICallSttService? _testSttOverride;
-AudioPlayback? _testAudioPlaybackOverride;
+/// Factory for audio playback (legacy compatibility)
+AudioPlayback getAudioPlayback([dynamic candidate]) =>
+    AudioPlayback.adapt(candidate);
 
-ICallSttService getSttService() =>
-    _testSttOverride ?? const AIProviderSttAdapter();
-ICallTtsService getTtsService() => const AIProviderTtsService();
-
-/// Factory for production code to obtain an AudioPlayback instance
-AudioPlayback getAudioPlayback([final dynamic candidate]) {
-  if (_testAudioPlaybackOverride != null) return _testAudioPlaybackOverride!;
-  return AudioPlayback.adapt(candidate);
-}
-
-void setTestAudioPlaybackOverride(final AudioPlayback? impl) {
-  _testAudioPlaybackOverride = impl;
-}
-
-void setTestSttOverride(final ICallSttService? impl) {
-  _testSttOverride = impl;
-}
-
-/// Provider-specific factories
-ICallSttService getSttServiceForProvider(final String provider) {
-  final p = provider.toLowerCase();
-  if (p == 'google') {
-    return _testSttOverride ?? const AIProviderSttAdapter();
-  }
-  if (p == 'openai') {
-    return _testSttOverride ?? const AIProviderSttAdapter();
-  }
-  if (p == 'native' || p == 'android_native') {
-    return _testSttOverride ?? const AndroidNativeSttAdapter();
-  }
-  return getSttService();
-}
-
-ICallTtsService getTtsServiceForProvider(final String provider) {
-  final p = provider.toLowerCase();
-  if (p == 'google') {
-    return const GoogleTtsAdapter();
-  }
-  if (p == 'openai') {
-    return const AIProviderTtsService();
-  }
-  if (p == 'android_native' || p == 'native') {
-    return const AndroidNativeTtsAdapter();
-  }
-  return getTtsService();
-}
-
-/// Realtime client registry
+/// 🔥 Realtime client registry for enhanced AI providers
 typedef RealtimeClientCreator =
     IRealtimeClient Function({
       String? model,
@@ -152,15 +107,20 @@ void setTestRealtimeClientFactory(final RealtimeClientFactory? factory) {
   _testRealtimeClientFactory = factory;
 }
 
-IRealtimeClient getRealtimeClientForProvider(
+/// ✅ NUEVO: Migración a RealtimeService Unificado
+///
+/// Obtiene cliente realtime usando el sistema unificado de providers
+/// En lugar del registry manual, usa el AIProviderRegistry dinámico
+Future<IRealtimeClient> getRealtimeClientForProvider(
   final String provider, {
   final String? model,
   final void Function(String)? onText,
   final void Function(Uint8List)? onAudio,
   final void Function()? onCompleted,
-  final void Function(Object)? onError,
+  final void Function(String)? onError,
   final void Function(String)? onUserTranscription,
-}) {
+}) async {
+  // Mantener soporte para tests
   if (_testRealtimeClientFactory != null) {
     return _testRealtimeClientFactory!(
       provider,
@@ -168,25 +128,30 @@ IRealtimeClient getRealtimeClientForProvider(
       onText: onText,
       onAudio: onAudio,
       onCompleted: onCompleted,
-      onError: onError,
+      onError: onError != null
+          ? (Object error) => onError(error.toString())
+          : null,
       onUserTranscription: onUserTranscription,
     );
   }
 
-  final p = provider.trim().toLowerCase();
-  final creator = _realtimeClientRegistry[p];
-  if (creator != null) {
-    return creator(
-      model: model,
+  try {
+    // ✨ USA REALTIME SERVICE en lugar de registry manual
+    return await RealtimeService.getBestRealtimeClient(
+      preferredProvider: provider,
       onText: onText,
-      onAudio: onAudio,
+      onAudio: onAudio != null
+          ? (final List<int> audio) => onAudio(Uint8List.fromList(audio))
+          : null,
       onCompleted: onCompleted,
-      onError: onError,
+      onError: onError != null ? (final String error) => onError(error) : null,
       onUserTranscription: onUserTranscription,
+      additionalParams: model != null ? {'model': model} : {},
     );
+  } on Exception catch (e) {
+    Log.w('[DI] Failed to get realtime client for provider $provider: $e');
+    return NotSupportedRealtimeClient(provider);
   }
-
-  return NotSupportedRealtimeClient(provider);
 }
 
 class NotSupportedRealtimeClient implements IRealtimeClient {
@@ -293,40 +258,51 @@ ChatApplicationService getChatApplicationService() => ChatApplicationService(
   chatAIService: const ChatAIServiceAdapter(),
   repository: getChatRepository(),
   promptBuilder: PromptBuilderService(),
-  fileOperations:
-      const BasicFileOperationsService(), // Use the shared file operations service
+  fileOperations: const BasicFileOperationsService(),
   secureStorage: getSecureStorageService(),
 );
 
 ChatController getChatController() =>
     ChatController(chatService: getChatApplicationService());
 
-VoiceCallApplicationService getVoiceCallApplicationService() {
-  final callManager = CallManagerImpl();
-  final audioManager = AudioManagerImpl();
+// 🎯 Voice Services (Legacy functions redirected to new Voice bounded context)
+dynamic getTtsService() => getDynamicTtsService();
+dynamic getTtsServiceForProvider(String provider) => getDynamicTtsService();
+dynamic getSttService() => getDynamicSttService();
+dynamic getSttServiceForProvider(String provider) => getDynamicSttService();
 
-  return VoiceCallApplicationService(
-    startCallUseCase: StartCallUseCase(callManager),
-    endCallUseCase: EndCallUseCase(
-      callManager,
-      getCallToChatCommunicationService(),
-    ),
-    handleIncomingCallUseCase: HandleIncomingCallUseCase(callManager),
-    manageAudioUseCase: ManageAudioUseCase(audioManager),
-  );
+// 🎯 Voice Bounded Context Services
+VoiceController getVoiceController() =>
+    VoiceController(getVoiceApplicationService());
+VoiceApplicationService getVoiceApplicationService() =>
+    VoiceApplicationService(useCase: getManageVoiceSessionUseCase());
+ToneService getToneService() => ToneService.instance;
+ManageVoiceSessionUseCase getManageVoiceSessionUseCase() =>
+    ManageVoiceSessionUseCase(
+      ttsService: getDynamicTtsService(),
+      sttService: getDynamicSttService(),
+    );
+VoiceSessionOrchestrator getVoiceSessionOrchestrator() =>
+    VoiceSessionOrchestrator(
+      ttsService: getDynamicTtsService(),
+      sttService: getDynamicSttService(),
+    );
+DynamicTextToSpeechService getDynamicTtsService() =>
+    DynamicTextToSpeechService.instance;
+DynamicSpeechToTextService getDynamicSttService() =>
+    DynamicSpeechToTextService.instance;
+
+// 🎯 Legacy Audio Services (Legacy functions for TTS compatibility)
+dynamic getAudioPlaybackService() => getDynamicTtsService();
+
+// 🎯 Legacy Test Support Functions (for compatibility)
+void setTestSttOverride(dynamic service) {
+  // No-op: Legacy Call tests are being eliminated
 }
 
-/// Domain Services Factories
-ICallRepository getCallRepository() => InMemoryCallRepository();
-IAudioManager getAudioManager() => FlutterAudioManager();
-ICallManager getCallManager() => DefaultCallManager();
-RealtimeTransportService getRealtimeTransportService() =>
-    WebSocketRealtimeTransportService();
-IRealtimeCallClient getRealtimeCallClient() => OpenAIRealtimeCallClient();
-IProfileRepository getProfileRepository() => InMemoryProfileRepository();
-AudioPlaybackService getAudioPlaybackService([final dynamic candidate]) =>
-    getAudioPlayback(candidate);
-IVadService getVadService() => VadService();
+void setTestAudioPlaybackOverride(dynamic service) {
+  // No-op: Legacy Call tests are being eliminated
+}
 
 /// Infrastructure Services Factories
 ISecureStorageService getSecureStorageService() =>
@@ -335,10 +311,6 @@ IBackupService getBackupService() => BasicBackupService();
 IPreferencesService getPreferencesService() => RealPreferencesService();
 ILoggingService getLoggingService() => BasicLoggingService();
 INetworkService getNetworkService() => BasicNetworkService();
-
-CallSummaryService getCallSummaryService(final Map<String, dynamic> profile) =>
-    CallSummaryService(profile: profile, aiService: getChatAIServiceAdapter());
-
 IUIStateService getUIStateService() => BasicUIStateService();
 
 /// Chat AI Service Factory
@@ -355,14 +327,9 @@ BasicChatPreferencesUtilsService getChatPreferencesUtilsService() =>
 IChatDebouncedPersistenceService getChatDebouncedPersistenceService() =>
     BasicChatDebouncedPersistenceService();
 IChatMessageQueueManager getChatMessageQueueManager() {
-  // Usar la implementación completa que funciona correctamente
   return CompleteChatMessageQueueManager();
 }
 
 /// TTS Voice Management Service Factory
 ITtsVoiceManagementService getTtsVoiceManagementService() =>
     TtsVoiceManagementService();
-
-/// Communication Service Factory
-ICallToChatCommunicationService getCallToChatCommunicationService() =>
-    CallToChatCommunicationAdapter(getChatController());
