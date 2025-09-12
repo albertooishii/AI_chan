@@ -68,6 +68,7 @@ export 'chat/infrastructure/adapters/local_chat_repository.dart';
 export 'chat/infrastructure/adapters/audio_chat_service.dart';
 export 'chat/infrastructure/adapters/language_resolver_service.dart';
 export 'chat/infrastructure/adapters/prompt_builder_service.dart';
+export 'chat/infrastructure/adapters/tts_voice_management_service_adapter.dart';
 
 // Additional Infrastructure Adapters
 export 'chat/infrastructure/adapters/chat_avatar_service_adapter.dart';

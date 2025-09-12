@@ -2,8 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:async';
 import '../../domain/interfaces/i_voice_conversation_service.dart';
 import '../../domain/interfaces/i_tone_service.dart';
-import '../../infrastructure/services/voice_conversation_service.dart';
-import '../../infrastructure/services/tone_service.dart';
+import '../../../core/di.dart' as di;
 import '../../../shared/ai_providers/core/models/audio/voice_settings.dart';
 import '../../../shared/ai_providers/core/services/audio/centralized_microphone_amplitude_service.dart';
 import '../../../shared/services/hybrid_stt_service.dart';
@@ -13,10 +12,13 @@ import '../../../shared/domain/enums/conversation_state.dart' as shared;
 /// 🎯 Controller para llamadas de voz completas con IA
 /// Integra conversaciones reales usando TTS, STT y respuestas de IA
 class VoiceCallController extends ChangeNotifier {
-  VoiceCallController() {
-    _voiceConversation = VoiceConversationService.instance;
+  VoiceCallController({
+    final IVoiceConversationService? voiceConversation,
+    final IToneService? toneService,
+  }) {
+    _voiceConversation = voiceConversation ?? di.getVoiceConversationService();
     _automaticListening = CentralizedListeningService(HybridSttService());
-    _toneService = ToneService.instance;
+    _toneService = toneService ?? di.getToneService();
     _setupConversationListener();
   }
 

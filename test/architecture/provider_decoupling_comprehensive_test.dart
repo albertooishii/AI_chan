@@ -90,6 +90,19 @@ class ProviderDecouplingComprehensiveTest {
         },
       );
 
+      test('🔍 Should not have duck typing with specific provider types', () {
+        final violations = _findDuckTypingViolations();
+
+        if (violations.isNotEmpty) {
+          final report = violations
+              .map((v) => '❌ ${v.file}:${v.line} - ${v.content}')
+              .join('\n');
+          fail(
+            'Found duck typing violations with specific provider types:\n$report',
+          );
+        }
+      });
+
       test(' Generate comprehensive hardcoding report', () {
         final report = _generateComprehensiveReport();
         print('\n📊 COMPREHENSIVE HARDCODING ANALYSIS REPORT:\n$report');
@@ -314,6 +327,114 @@ class ProviderDecouplingComprehensiveTest {
     }
 
     return violations;
+  }
+
+  /// Detecta duck typing con tipos específicos de providers (ej: provider is OpenAIProviderVoices)
+  static List<HardcodingViolation> _findDuckTypingViolations() {
+    final violations = <HardcodingViolation>[];
+
+    final files = _getBusinessLogicFiles();
+    for (final file in files) {
+      if (_isAllowedHardcodingFile(file.path)) continue;
+      if (file.path.contains('test/')) {
+        continue; // Tests pueden referenciar providers
+      }
+
+      final lines = file.readAsLinesSync();
+      for (int i = 0; i < lines.length; i++) {
+        final line = lines[i];
+        // Skip comments
+        if (line.trim().startsWith('//') || line.trim().startsWith('*')) {
+          continue;
+        }
+
+        // Detect generic duck typing patterns that suggest provider-specific coupling
+        final duckTypingPatterns = [
+          // Pattern 1: "provider is SomethingProvider*" - detects provider-specific type checks
+          RegExp(
+            r'provider\s+is\s+[A-Z]\w*Provider(?:Voices?|Audio|Text|Image|Chat|Vision|Embedding|Realtime|API|Client|SDK)\w*',
+            caseSensitive: false,
+          ),
+          // Pattern 2: "(provider as SomethingProvider*)" - detects provider-specific casts
+          RegExp(
+            r'\(provider\s+as\s+[A-Z]\w*Provider(?:Voices?|Audio|Text|Image|Chat|Vision|Embedding|Realtime|API|Client|SDK)\w*\)',
+            caseSensitive: false,
+          ),
+          // Pattern 3: Interface/class names like "CompanyProvider*" with AI capabilities
+          RegExp(
+            r'\b[A-Z]\w*Provider(?:Voices?|Audio|Text|Image|Chat|Vision|Embedding|Realtime|API|Client|SDK)\w*\b',
+          ),
+          // Pattern 4: Class/interface declarations with AI provider pattern
+          RegExp(
+            r'(?:class|interface|abstract)\s+[A-Z]\w*Provider(?:Voices?|Audio|Text|Image|Chat|Vision|Embedding|Realtime|API|Client|SDK)\w*',
+          ),
+        ];
+
+        for (final pattern in duckTypingPatterns) {
+          if (pattern.hasMatch(line)) {
+            // Additional validation: ignore generic provider interfaces that are allowed
+            if (_isGenericProviderInterface(line)) {
+              continue;
+            }
+
+            violations.add(
+              HardcodingViolation(
+                file: file.path,
+                line: i + 1,
+                content: line.trim(),
+                type: 'DUCK_TYPING_VIOLATION',
+              ),
+            );
+          }
+        }
+      }
+    }
+
+    return violations;
+  }
+
+  /// Verifica si una línea contiene una interfaz genérica permitida
+  static bool _isGenericProviderInterface(String line) {
+    // Allow truly generic interfaces that don't mention specific providers
+    final allowedGenericPatterns = [
+      'IAIProvider', // Main provider interface
+      'TTSVoiceProvider', // Generic voice provider interface
+      'RealtimeProvider', // Generic realtime interface
+      'TextProvider', // Generic text interface
+      'AudioProvider', // Generic audio interface (if truly generic)
+      'AIProviderManager', // Manager is allowed to handle providers
+      'AIProviderFactory', // Factory is allowed to create providers
+      'AIProviderService', // Generic service allowed
+      'AIProviderConfigLoader', // Config loader allowed
+      'ProviderAutoRegistry', // Auto registry is infrastructure
+      'NoProviderAvailableException', // Exception class allowed
+      '_ProviderHealthTracker', // Internal health tracking
+      '_ProviderStats', // Internal stats
+    ];
+
+    // Also reject if it contains company/product names (this catches Meta, etc.)
+    final companyNames = [
+      'OpenAI',
+      'Google',
+      'Gemini',
+      'Anthropic',
+      'Claude',
+      'XAI',
+      'Grok',
+      'Cohere',
+      'Meta',
+      'Llama',
+      'Microsoft',
+      'Azure',
+      'AWS',
+      'Bedrock',
+    ];
+    final hasCompanyName = companyNames.any(
+      (company) => line.toLowerCase().contains(company.toLowerCase()),
+    );
+
+    return allowedGenericPatterns.any((pattern) => line.contains(pattern)) &&
+        !hasCompanyName;
   }
 
   /// Genera un reporte comprehensivo de todo el hardcoding encontrado

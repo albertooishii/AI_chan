@@ -10,7 +10,6 @@ import 'package:ai_chan/shared.dart';
 // Import specific services that need DI
 import 'package:ai_chan/chat/domain/interfaces/i_tts_voice_management_service.dart';
 import 'package:ai_chan/shared/infrastructure/adapters/audio_playback_service_adapter.dart';
-import 'package:ai_chan/chat/application/services/tts_voice_management_service.dart';
 import 'package:ai_chan/shared/domain/interfaces/i_ai_service.dart' as shared;
 import 'package:ai_chan/shared/ai_providers/core/services/audio/centralized_tts_service.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/audio/centralized_stt_service.dart';
@@ -279,7 +278,9 @@ VoiceController getVoiceController() =>
     VoiceController(getVoiceApplicationService());
 VoiceApplicationService getVoiceApplicationService() =>
     VoiceApplicationService(useCase: getManageVoiceSessionUseCase());
-ToneService getToneService() => ToneService.instance;
+IToneService getToneService() => ToneService.instance;
+IVoiceConversationService getVoiceConversationService() =>
+    VoiceConversationService.instance;
 
 // Temporary workaround - use dynamic to avoid type conflicts
 ManageVoiceSessionUseCase getManageVoiceSessionUseCase() =>
@@ -335,4 +336,4 @@ IChatMessageQueueManager getChatMessageQueueManager() {
 
 /// TTS Voice Management Service Factory
 ITtsVoiceManagementService getTtsVoiceManagementService() =>
-    TtsVoiceManagementService();
+    TtsVoiceManagementServiceAdapter();

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yaml/yaml.dart';
 
 import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_config.dart';
+import '../test_setup.dart';
 
 /// Helper function to convert YamlMap to Map&lt;String, dynamic&gt; recursively
 dynamic yamlToMap(dynamic yaml) {
@@ -25,6 +26,9 @@ void main() {
     late dynamic parsedYaml;
 
     setUpAll(() async {
+      // Initialize test environment first
+      await initializeTestEnvironment();
+
       // Load YAML content once for all tests
       final file = File('assets/ai_providers_config.yaml');
       expect(

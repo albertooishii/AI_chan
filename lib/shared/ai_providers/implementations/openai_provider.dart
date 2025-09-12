@@ -10,6 +10,8 @@ import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/chat/infrastructure/adapters/prompt_builder_service.dart'
     as pb;
 import 'package:ai_chan/shared/utils/debug_call_logger/debug_call_logger_io.dart';
+import 'package:ai_chan/chat/application/services/tts_voice_management_service.dart'
+    as tts_svc;
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
@@ -19,7 +21,7 @@ import 'package:http/http.dart' as http;
 /// OpenAI provider implementation using the new architecture.
 /// This provider directly implements HTTP calls to OpenAI API without depending on OpenAIService.
 /// Image generation uses text models with tools rather than DALL-E models.
-class OpenAIProvider implements IAIProvider {
+class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
   OpenAIProvider() {
     _metadata = const AIProviderMetadata(
       providerId: 'openai',
@@ -1146,24 +1148,92 @@ class OpenAIProvider implements IAIProvider {
   // ========================================
 
   /// All available OpenAI voices with gender information
-  static const List<VoiceInfo> _availableVoices = [
-    VoiceInfo(name: 'sage', gender: 'Femenina'),
-    VoiceInfo(name: 'alloy', gender: 'Femenina'),
-    VoiceInfo(name: 'ash', gender: 'Masculina'),
-    VoiceInfo(name: 'ballad', gender: 'Femenina'),
-    VoiceInfo(name: 'coral', gender: 'Femenina'),
-    VoiceInfo(name: 'echo', gender: 'Masculina'),
-    VoiceInfo(name: 'fable', gender: 'Femenina'),
-    VoiceInfo(name: 'onyx', gender: 'Masculina'),
-    VoiceInfo(name: 'nova', gender: 'Femenina'),
-    VoiceInfo(name: 'shimmer', gender: 'Femenina'),
-    VoiceInfo(name: 'verse', gender: 'Masculina'),
-    VoiceInfo(name: 'cedar', gender: 'Masculina', description: 'Premium voice'),
-    VoiceInfo(name: 'marin', gender: 'Femenina', description: 'Premium voice'),
+  static final List<tts_svc.VoiceInfo> _availableVoices = [
+    const tts_svc.VoiceInfo(
+      id: 'sage',
+      name: 'sage',
+      language: 'en',
+      gender: 'Femenina',
+    ),
+    const tts_svc.VoiceInfo(
+      id: 'alloy',
+      name: 'alloy',
+      language: 'en',
+      gender: 'Femenina',
+    ),
+    const tts_svc.VoiceInfo(
+      id: 'ash',
+      name: 'ash',
+      language: 'en',
+      gender: 'Masculina',
+    ),
+    const tts_svc.VoiceInfo(
+      id: 'ballad',
+      name: 'ballad',
+      language: 'en',
+      gender: 'Femenina',
+    ),
+    const tts_svc.VoiceInfo(
+      id: 'coral',
+      name: 'coral',
+      language: 'en',
+      gender: 'Femenina',
+    ),
+    const tts_svc.VoiceInfo(
+      id: 'echo',
+      name: 'echo',
+      language: 'en',
+      gender: 'Masculina',
+    ),
+    const tts_svc.VoiceInfo(
+      id: 'fable',
+      name: 'fable',
+      language: 'en',
+      gender: 'Femenina',
+    ),
+    const tts_svc.VoiceInfo(
+      id: 'onyx',
+      name: 'onyx',
+      language: 'en',
+      gender: 'Masculina',
+    ),
+    const tts_svc.VoiceInfo(
+      id: 'nova',
+      name: 'nova',
+      language: 'en',
+      gender: 'Femenina',
+    ),
+    const tts_svc.VoiceInfo(
+      id: 'shimmer',
+      name: 'shimmer',
+      language: 'en',
+      gender: 'Femenina',
+    ),
+    const tts_svc.VoiceInfo(
+      id: 'verse',
+      name: 'verse',
+      language: 'en',
+      gender: 'Masculina',
+    ),
+    const tts_svc.VoiceInfo(
+      id: 'cedar',
+      name: 'cedar',
+      language: 'en',
+      gender: 'Masculina',
+      description: 'Premium voice',
+    ),
+    const tts_svc.VoiceInfo(
+      id: 'marin',
+      name: 'marin',
+      language: 'en',
+      gender: 'Femenina',
+      description: 'Premium voice',
+    ),
   ];
 
   /// Get all available voices for this provider
-  Future<List<VoiceInfo>> getAvailableVoices() async {
+  @override
+  Future<List<tts_svc.VoiceInfo>> getAvailableVoices() async {
     return _availableVoices;
   }
 

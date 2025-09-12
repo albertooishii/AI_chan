@@ -9,13 +9,15 @@ import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/chat/infrastructure/adapters/prompt_builder_service.dart'
     as pb;
 import 'package:ai_chan/shared/utils/debug_call_logger/debug_call_logger_io.dart';
+import 'package:ai_chan/chat/application/services/tts_voice_management_service.dart'
+    as tts_svc;
 import 'dart:convert';
 import 'dart:async';
 import 'dart:typed_data';
 
 /// Google Gemini provider implementation using the new architecture.
 /// This provider directly implements HTTP calls to Google AI API without depending on GeminiService.
-class GoogleProvider implements IAIProvider {
+class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
   GoogleProvider() {
     _metadata = const AIProviderMetadata(
       providerId: 'google',
@@ -591,7 +593,8 @@ class GoogleProvider implements IAIProvider {
   // ========================================
 
   /// Get all available voices from Google TTS API
-  Future<List<VoiceInfo>> getAvailableVoices() async {
+  @override
+  Future<List<tts_svc.VoiceInfo>> getAvailableVoices() async {
     try {
       final url = 'https://texttospeech.googleapis.com/v1/voices?key=$_apiKey';
       final response = await HttpConnector.client.get(Uri.parse(url));
@@ -617,12 +620,22 @@ class GoogleProvider implements IAIProvider {
   }
 
   /// Convert Google API response to VoiceInfo (Google-specific logic)
-  VoiceInfo _createVoiceInfoFromGoogleAPI(final Map<String, dynamic> data) {
-    return VoiceInfo(
-      name: data['name'] ?? '',
+  tts_svc.VoiceInfo _createVoiceInfoFromGoogleAPI(
+    final Map<String, dynamic> data,
+  ) {
+    final name = data['name'] ?? '';
+    final languageCodes =
+        (data['languageCodes'] as List?)?.cast<String>() ?? ['en'];
+    final primaryLanguage = languageCodes.isNotEmpty
+        ? languageCodes.first
+        : 'en';
+
+    return tts_svc.VoiceInfo(
+      id: name,
+      name: name,
+      language: primaryLanguage,
       gender: _convertGoogleGender(data['ssmlGender'] ?? ''),
-      languageCodes: (data['languageCodes'] as List?)?.cast<String>(),
-      sampleRate: data['naturalSampleRateHertz'] as int?,
+      description: 'Natural voice',
     );
   }
 
@@ -641,37 +654,43 @@ class GoogleProvider implements IAIProvider {
   }
 
   /// Fallback voices if API call fails
-  List<VoiceInfo> _getFallbackVoices() {
+  List<tts_svc.VoiceInfo> _getFallbackVoices() {
     return [
-      const VoiceInfo(
+      const tts_svc.VoiceInfo(
+        id: 'es-ES-Neural2-A',
         name: 'es-ES-Neural2-A',
+        language: 'es-ES',
         gender: 'Femenina',
-        languageCodes: ['es-ES'],
       ),
-      const VoiceInfo(
+      const tts_svc.VoiceInfo(
+        id: 'es-ES-Neural2-B',
         name: 'es-ES-Neural2-B',
+        language: 'es-ES',
         gender: 'Masculina',
-        languageCodes: ['es-ES'],
       ),
-      const VoiceInfo(
+      const tts_svc.VoiceInfo(
+        id: 'es-ES-Neural2-C',
         name: 'es-ES-Neural2-C',
+        language: 'es-ES',
         gender: 'Femenina',
-        languageCodes: ['es-ES'],
       ),
-      const VoiceInfo(
+      const tts_svc.VoiceInfo(
+        id: 'es-ES-Neural2-D',
         name: 'es-ES-Neural2-D',
+        language: 'es-ES',
         gender: 'Masculina',
-        languageCodes: ['es-ES'],
       ),
-      const VoiceInfo(
+      const tts_svc.VoiceInfo(
+        id: 'es-ES-Standard-A',
         name: 'es-ES-Standard-A',
+        language: 'es-ES',
         gender: 'Femenina',
-        languageCodes: ['es-ES'],
       ),
-      const VoiceInfo(
+      const tts_svc.VoiceInfo(
+        id: 'es-ES-Standard-B',
         name: 'es-ES-Standard-B',
+        language: 'es-ES',
         gender: 'Masculina',
-        languageCodes: ['es-ES'],
       ),
     ];
   }

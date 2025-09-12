@@ -1,10 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/shared/ai_providers/implementations/openai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/implementations/google_provider.dart';
+import '../test_setup.dart';
 
 /// 🧪 Test para validar la integración de voces desde providers
 /// Verifica que los providers exponen getAvailableVoices() correctamente
 void main() {
+  setUpAll(() async {
+    await initializeTestEnvironment();
+  });
   group('Voice Integration Tests', () {
     test('OpenAI provider should expose getAvailableVoices method', () async {
       final openaiProvider = OpenAIProvider();
@@ -63,9 +67,14 @@ void main() {
           isNotEmpty,
           reason: 'Voice gender should not be empty',
         );
-        // languageCodes puede ser null para voces multi-idioma
-        if (voice.languageCodes != null) {
-          expect(voice.languageCodes, isA<List<String>>());
+        expect(
+          voice.language,
+          isNotEmpty,
+          reason: 'Voice language should not be empty',
+        );
+        // description puede ser null
+        if (voice.description != null) {
+          expect(voice.description, isA<String>());
         }
       }
 

@@ -1,90 +1,205 @@
 import '../../domain/interfaces/i_tts_voice_management_service.dart';
+import '../../../shared/ai_providers/core/services/ai_provider_manager.dart';
+import '../../../shared/ai_providers/core/models/ai_capability.dart';
+
+/// Voice information model for provider-agnostic voice representation
+class VoiceInfo {
+  const VoiceInfo({
+    required this.id,
+    required this.name,
+    required this.language,
+    required this.gender,
+    this.description,
+  });
+
+  final String id;
+  final String name;
+  final String language;
+  final String gender;
+  final String? description;
+}
 
 /// Application service for managing TTS voice operations
 /// Acts as a facade between presentation and infrastructure for voice-related operations
 /// Implements domain interface to maintain Clean Architecture compliance
+/// PROVIDER-AGNOSTIC: Uses dynamic AI provider system
 class TtsVoiceManagementService implements ITtsVoiceManagementService {
-  /// Get available voices for Android Native TTS
-  @override
-  Future<List<Map<String, dynamic>>> getAndroidNativeVoices({
-    final List<String>? userLangCodes,
-    final List<String>? aiLangCodes,
-  }) async {
-    try {
-      // final ttsService = getTtsServiceForProvider('android_native');
-      // For now, return empty list as the interface doesn't provide voice enumeration
-      // This would need to be extended in the domain interface
-      return [];
-    } on Exception {
-      return [];
-    }
-  }
+  /// Constructor with dependency injection
+  const TtsVoiceManagementService({
+    required final AIProviderManager providerManager,
+  }) : _providerManager = providerManager;
+  final AIProviderManager _providerManager;
 
-  /// Get available voices for Google Cloud TTS
+  /// Get available voices for all TTS providers
   @override
-  Future<List<Map<String, dynamic>>> getGoogleVoices({
+  Future<Map<String, List<Map<String, dynamic>>>> getAvailableVoices({
+    final List<String>? languageCodes,
     final bool forceRefresh = false,
   }) async {
     try {
-      // final ttsService = getTtsServiceForProvider('google');
-      // For now, return empty list as the interface doesn't provide voice enumeration
-      // This would need to be extended in the domain interface
-      return [];
+      await _providerManager.initialize();
+      final Map<String, List<Map<String, dynamic>>> allVoices = {};
+
+      // Get all providers that support TTS (audio generation)
+      final ttsProviders = _providerManager.getProvidersByCapability(
+        AICapability.audioGeneration,
+      );
+
+      for (final providerId in ttsProviders) {
+        try {
+          final provider = _providerManager.providers[providerId];
+          if (provider != null) {
+            // Check if provider has getAvailableVoices method (duck typing)
+            if (provider is TTSVoiceProvider) {
+              List<VoiceInfo> voices = [];
+
+              voices = await (provider as TTSVoiceProvider)
+                  .getAvailableVoices();
+
+              // Filter by language codes if specified
+              if (languageCodes != null && languageCodes.isNotEmpty) {
+                voices = voices
+                    .where(
+                      (final voice) => languageCodes.contains(voice.language),
+                    )
+                    .toList();
+              }
+
+              // Convert to Map format
+              allVoices[providerId] = voices
+                  .map(
+                    (final voice) => {
+                      'id': voice.id,
+                      'name': voice.name,
+                      'language': voice.language,
+                      'gender': voice.gender,
+                      'description': voice.description ?? '',
+                    },
+                  )
+                  .toList();
+            } else {
+              // Provider doesn't support voice enumeration
+              allVoices[providerId] = [];
+            }
+          }
+        } on Exception {
+          // Provider failed, add empty list
+          allVoices[providerId] = [];
+        }
+      }
+
+      return allVoices;
+    } on Exception {
+      return {};
+    }
+  }
+
+  /// Get available voices for a specific provider
+  @override
+  Future<List<Map<String, dynamic>>> getVoicesForProvider(
+    final String providerId, {
+    final List<String>? languageCodes,
+    final bool forceRefresh = false,
+  }) async {
+    try {
+      await _providerManager.initialize();
+      final provider = _providerManager.providers[providerId];
+
+      if (provider == null) {
+        return [];
+      }
+
+      // Check if provider supports TTS (audio generation)
+      if (!provider.supportsCapability(AICapability.audioGeneration)) {
+        return [];
+      }
+
+      // Check if provider has getAvailableVoices method (duck typing)
+      List<VoiceInfo> voices = [];
+
+      if (provider is TTSVoiceProvider) {
+        voices = await (provider as TTSVoiceProvider).getAvailableVoices();
+      } else {
+        return [];
+      }
+
+      // Filter by language codes if specified
+      if (languageCodes != null && languageCodes.isNotEmpty) {
+        voices = voices
+            .where((final voice) => languageCodes.contains(voice.language))
+            .toList();
+      }
+
+      // Convert to Map format
+      return voices
+          .map(
+            (final voice) => {
+              'id': voice.id,
+              'name': voice.name,
+              'language': voice.language,
+              'gender': voice.gender,
+              'description': voice.description ?? '',
+            },
+          )
+          .toList();
     } on Exception {
       return [];
     }
   }
 
-  /// Get available voices for OpenAI TTS (dinámico del provider)
+  /// Check if a specific provider is available
   @override
-  Future<List<Map<String, dynamic>>> getOpenAiVoices() async {
-    // TODO: Obtener dinámicamente del provider OpenAI
-    // final openaiProvider = await AIProviderManager.instance.getProvider('openai');
-    // return await openaiProvider.getAvailableVoices();
+  Future<bool> isProviderAvailable(final String providerId) async {
+    try {
+      await _providerManager.initialize();
+      final provider = _providerManager.providers[providerId];
 
-    // Fallback temporal - debería venir del provider
-    return [];
+      return provider != null &&
+          provider.supportsCapability(AICapability.audioGeneration) &&
+          await provider.isHealthy();
+    } on Exception {
+      return false;
+    }
   }
 
-  /// Check if Android Native TTS is available
+  /// Get list of available TTS providers
   @override
-  bool isAndroidNativeTtsAvailable() {
-    // For now, return true if platform is Android
-    // In a real implementation, this would check actual availability through domain interface
-    return true;
+  Future<List<String>> getAvailableProviders() async {
+    try {
+      await _providerManager.initialize();
+      return _providerManager.getProvidersByCapability(
+        AICapability.audioGeneration,
+      );
+    } on Exception {
+      return [];
+    }
   }
 
-  /// Check if Google TTS is configured
-  @override
-  bool isGoogleTtsConfigured() {
-    // For now, return true as this is a simple configuration check
-    // In a real implementation, this would check configuration status through domain interface
-    return true;
-  }
-
-  /// Clear voices cache
+  /// Clear voices cache for all providers - Not supported by current provider system
   @override
   Future<void> clearVoicesCache() async {
-    try {
-      // This would need to be implemented through domain interfaces
-      // For now, do nothing
-    } on Exception {
-      // Ignore errors
-    }
+    // Current provider system doesn't expose cache clearing for voices
+    // This would need to be implemented at the provider level
   }
 
-  /// Get cache size
+  /// Clear voices cache for specific provider - Not supported by current provider system
+  @override
+  Future<void> clearVoicesCacheForProvider(final String providerId) async {
+    // Current provider system doesn't expose cache clearing for voices
+    // This would need to be implemented at the provider level
+  }
+
+  /// Get cache size - Returns 0 as current provider system doesn't expose cache size
   @override
   Future<int> getCacheSize() async {
-    // This would need to be implemented in a cache service through domain interface
-    // For now, return 0
     return 0;
   }
 
-  /// Clear audio cache
+  /// Clear audio cache - Not supported by current provider system
   @override
   Future<void> clearAudioCache() async {
-    // This would need to be implemented in a cache service through domain interface
+    // Current provider system doesn't expose audio cache clearing
+    // This would need to be implemented at the provider level
   }
 
   /// Format cache size for display
@@ -97,4 +212,10 @@ class TtsVoiceManagementService implements ITtsVoiceManagementService {
     }
     return '${(bytes / (1024 * 1024 * 1024)).round()} GB';
   }
+}
+
+/// Generic interface for providers that support voice enumeration
+/// This is provider-agnostic and can be implemented by any provider
+abstract interface class TTSVoiceProvider {
+  Future<List<VoiceInfo>> getAvailableVoices();
 }

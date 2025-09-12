@@ -249,9 +249,14 @@ void main() {
       });
 
       test('Provider realtime support validation', () {
-        final providers = [OpenAIProvider(), GoogleProvider(), XAIProvider()];
+        // Create providers using concrete types but work with interface
+        final List<IAIProvider> providers = [
+          OpenAIProvider(),
+          GoogleProvider(),
+          XAIProvider(),
+        ];
 
-        for (final provider in providers) {
+        for (final IAIProvider provider in providers) {
           final supportsRealtime = provider.supportsRealtime;
           print(
             '📋 Provider ${provider.providerId} supports realtime: $supportsRealtime',
@@ -275,9 +280,13 @@ void main() {
 
     group('🔧 Provider Capability Discovery', () {
       test('All providers should support text generation', () {
-        final providers = [OpenAIProvider(), GoogleProvider(), XAIProvider()];
+        final List<IAIProvider> providers = [
+          OpenAIProvider(),
+          GoogleProvider(),
+          XAIProvider(),
+        ];
 
-        for (final provider in providers) {
+        for (final IAIProvider provider in providers) {
           final supportsText = provider.supportsCapability(
             AICapability.textGeneration,
           );
@@ -311,9 +320,13 @@ void main() {
       });
 
       test('Provider metadata should be valid', () {
-        final providers = [OpenAIProvider(), GoogleProvider(), XAIProvider()];
+        final List<IAIProvider> providers = [
+          OpenAIProvider(),
+          GoogleProvider(),
+          XAIProvider(),
+        ];
 
-        for (final provider in providers) {
+        for (final IAIProvider provider in providers) {
           // Verify provider has valid metadata
           expect(
             provider,
@@ -392,9 +405,13 @@ void main() {
 
     group('🏗️ Architecture Compliance', () {
       test('Provider interface consistency', () {
-        final providers = [OpenAIProvider(), GoogleProvider(), XAIProvider()];
+        final List<IAIProvider> providers = [
+          OpenAIProvider(),
+          GoogleProvider(),
+          XAIProvider(),
+        ];
 
-        for (final provider in providers) {
+        for (final IAIProvider provider in providers) {
           // All providers should implement IAIProvider
           expect(provider, isA<IAIProvider>());
 
@@ -417,9 +434,13 @@ void main() {
       });
 
       test('Model discovery methods exist', () {
-        final providers = [OpenAIProvider(), GoogleProvider(), XAIProvider()];
+        final List<IAIProvider> providers = [
+          OpenAIProvider(),
+          GoogleProvider(),
+          XAIProvider(),
+        ];
 
-        for (final provider in providers) {
+        for (final IAIProvider provider in providers) {
           // Check that required methods exist (won't call them to avoid API issues)
           expect(
             provider.getDefaultModel(AICapability.textGeneration),

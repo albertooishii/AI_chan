@@ -5,8 +5,12 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_config.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
+import '../test_setup.dart';
 
 void main() {
+  setUpAll(() async {
+    await initializeTestEnvironment();
+  });
   group('AI Provider Configuration Models Tests', () {
     group('ConfigMetadata Tests', () {
       test('should create from map correctly', () {

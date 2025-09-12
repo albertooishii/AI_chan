@@ -49,6 +49,9 @@ export 'shared/infrastructure/services/basic_chat_promise_service.dart';
 export 'shared/infrastructure/services/basic_logging_service.dart';
 export 'shared/infrastructure/services/basic_network_service.dart';
 export 'shared/infrastructure/services/basic_preferences_service.dart';
+
+// Infrastructure Adapters
+export 'shared/infrastructure/adapters/cross_context_service_adapters.dart';
 export 'shared/infrastructure/services/basic_recording_service.dart';
 export 'shared/infrastructure/services/basic_secure_storage_service.dart';
 export 'shared/infrastructure/services/basic_ui_state_listener.dart';

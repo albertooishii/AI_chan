@@ -143,22 +143,25 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
   Future<void> _refreshNativeVoices() async {
     setState(() => _isLoading = true);
     try {
-      // Use application service instead of direct infrastructure access
-      final voices = await _voiceService.getAndroidNativeVoices(
-        userLangCodes: widget.userLangCodes,
-        aiLangCodes: widget.aiLangCodes,
+      // Use new provider-agnostic interface to get Android voices
+      final allVoices = await _voiceService.getAvailableVoices(
+        languageCodes: [...?widget.userLangCodes, ...?widget.aiLangCodes],
       );
+
+      // Extract Android native voices if available
+      final androidVoices = allVoices['android_native'] ?? [];
+
       setState(() {
         _androidNativeVoices.clear();
-        _androidNativeVoices.addAll(voices);
+        _androidNativeVoices.addAll(androidVoices);
         _isLoading = false;
       });
       Log.d(
-        'DEBUG TTS: Voces nativas actualizadas: ${voices.length}',
+        'DEBUG TTS: Voces nativas actualizadas: ${androidVoices.length}',
         tag: 'TTS_DIALOG',
       );
       if (mounted) {
-        showAppSnackBar('Voces nativas detectadas: ${voices.length}');
+        showAppSnackBar('Voces nativas detectadas: ${androidVoices.length}');
       }
     } on Exception catch (e) {
       Log.d(
@@ -234,7 +237,10 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
   Future<void> _checkAndroidNative() async {
     // Detectar plataforma y comprobar disponibilidad nativa solo en Android
     if (Platform.isAndroid) {
-      final available = _voiceService.isAndroidNativeTtsAvailable();
+      // Check if Android native provider is available using new interface
+      final available = await _voiceService.isProviderAvailable(
+        'android_native',
+      );
       // Note: Android native availability is now handled by dynamic provider system
 
       // Si está disponible, intentar cargar/filtrar las voces nativas inmediatamente
