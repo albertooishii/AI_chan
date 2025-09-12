@@ -1,5 +1,7 @@
 /// 🎯 DDD: Value Object para configuración de voz
 /// Inmutable, con validación de negocio integrada
+library;
+
 class VoiceSettings {
   /// Factory con validación de negocio
   factory VoiceSettings.create({
@@ -36,12 +38,19 @@ class VoiceSettings {
     );
   }
 
-  /// Factory para configuración por defecto
-  factory VoiceSettings.defaultSettings({final String language = 'es-ES'}) {
-    return VoiceSettings.create(
-      voiceId: '',
-      language: language,
-    ); // Dinámico del provider
+  /// Factory para configuración por defecto - requiere voiceId desde configuración
+  /// Si no hay configuración válida, lanza error explícito
+  factory VoiceSettings.defaultSettings({
+    final String language = 'es-ES',
+    final String? voiceId,
+  }) {
+    if (voiceId == null || voiceId.trim().isEmpty) {
+      throw ArgumentError(
+        'voiceId es requerido. Debe configurarse desde YAML o seleccionarse en el diálogo de configuración TTS',
+      );
+    }
+
+    return VoiceSettings.create(voiceId: voiceId, language: language);
   }
 
   /// Deserialización

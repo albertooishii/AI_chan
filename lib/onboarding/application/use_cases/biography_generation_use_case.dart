@@ -16,13 +16,18 @@ class BiographyGenerationUseCase {
     final IProfileService? profileService,
     final IAAppearanceGenerator? appearanceGenerator,
     final IAAvatarGenerator? avatarGenerator,
-  }) : _profileService =
-           profileService ?? core_di.getProfileServiceForProvider(),
+  }) : _profileService = profileService,
        _appearanceGenerator = appearanceGenerator ?? IAAppearanceGenerator(),
        _avatarGenerator = avatarGenerator ?? IAAvatarGenerator();
-  final IProfileService _profileService;
+
+  final IProfileService? _profileService;
   final IAAppearanceGenerator _appearanceGenerator;
   final IAAvatarGenerator _avatarGenerator;
+
+  /// Gets the profile service, creating one if not provided
+  Future<IProfileService> _getProfileService() async {
+    return _profileService ?? await core_di.getProfileServiceForProvider();
+  }
 
   /// Generates a complete AI biography with appearance and avatar
   /// Returns the generated profile or throws an exception
@@ -49,7 +54,8 @@ class BiographyGenerationUseCase {
       // Step 1: Generate basic biography
       onProgress?.call(BiographyGenerationStep.generatingBiography);
 
-      final biography = await _profileService.generateBiography(
+      final profileService = await _getProfileService();
+      final biography = await profileService.generateBiography(
         userName: userName,
         aiName: aiName,
         userBirthdate: userBirthdate,

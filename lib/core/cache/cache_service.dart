@@ -117,11 +117,14 @@ class CacheService {
       // cuando el usuario especifica una voz diferente o vacía
       final effectiveProvider = provider ?? _getDefaultTtsProvider();
 
-      // 🚀 DINÁMICO: Intentar con voz por defecto para CUALQUIER proveedor
+      // 🚀 DINÁMICO: Intentar con voz por defecto del provider actual
       try {
-        final defaultVoice = AIProviderConfigLoader.getDefaultVoiceForProvider(
-          effectiveProvider,
-        );
+        final defaultVoice =
+            effectiveProvider ==
+                AIProviderConfigLoader.getDefaultAudioProvider()
+            ? AIProviderConfigLoader.getDefaultVoiceFromCurrentProvider()
+            : null; // Solo buscar en provider actual para evitar hardcoding
+
         if (defaultVoice != null &&
             defaultVoice.isNotEmpty &&
             defaultVoice != voice) {

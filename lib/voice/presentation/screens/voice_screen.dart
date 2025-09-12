@@ -339,12 +339,12 @@ class _VoiceScreenState extends State<VoiceScreen>
                           width: 2,
                         ),
                         color: _controller.isListening
-                            ? Colors.green.withOpacity(0.2)
-                            : Colors.black.withOpacity(0.3),
+                            ? Colors.green.withValues(alpha: 0.2)
+                            : Colors.black.withValues(alpha: 0.3),
                         boxShadow: _controller.isListening
                             ? [
                                 BoxShadow(
-                                  color: Colors.green.withOpacity(0.5),
+                                  color: Colors.green.withValues(alpha: 0.5),
                                   blurRadius: 10,
                                   spreadRadius: 2,
                                 ),
@@ -374,7 +374,7 @@ class _VoiceScreenState extends State<VoiceScreen>
                   decoration: BoxDecoration(
                     border: Border.all(color: AppColors.primary),
                     borderRadius: BorderRadius.circular(25),
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withValues(alpha: 0.3),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,

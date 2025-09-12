@@ -1,14 +1,13 @@
 import 'package:ai_chan/chat/domain/models/chat_result.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 
 // Import new services
-import '../services/message_retry_service.dart';
 import '../services/message_image_processing_service.dart';
 import '../services/message_audio_processing_service.dart';
 import '../services/message_sanitization_service.dart';
 import '../../domain/interfaces/i_chat_event_timeline_service.dart';
-import 'package:ai_chan/shared/domain/interfaces/i_ai_service.dart';
 import '../../domain/interfaces/i_chat_image_service.dart';
 import '../../domain/interfaces/i_chat_logger.dart';
 
@@ -16,23 +15,16 @@ import '../../domain/interfaces/i_chat_logger.dart';
 /// Orquesta el proceso completo de envío de mensaje usando servicios especializados
 class SendMessageUseCase {
   SendMessageUseCase({
-    final MessageRetryService? retryService,
     final MessageImageProcessingService? imageService,
     final MessageAudioProcessingService? audioService,
     final MessageSanitizationService? sanitizationService,
     final IChatEventTimelineService? eventTimelineService,
-  }) : _retryService = retryService ?? _createDefaultRetryService(),
-       _imageService = imageService ?? _createDefaultImageService(),
+  }) : _imageService = imageService ?? _createDefaultImageService(),
        _audioService = audioService ?? MessageAudioProcessingService(),
        _sanitizationService =
            sanitizationService ?? MessageSanitizationService(),
        _eventTimelineService =
            eventTimelineService ?? _DefaultEventTimelineService();
-
-  /// Creates default retry service with stub AI service
-  static MessageRetryService _createDefaultRetryService() {
-    return MessageRetryService(_StubChatAIService());
-  }
 
   /// Creates default image service with stub dependencies
   static MessageImageProcessingService _createDefaultImageService() {
@@ -42,7 +34,6 @@ class SendMessageUseCase {
     );
   }
 
-  final MessageRetryService _retryService;
   final MessageImageProcessingService _imageService;
   final MessageAudioProcessingService _audioService;
   final MessageSanitizationService _sanitizationService;
@@ -51,7 +42,6 @@ class SendMessageUseCase {
   Future<SendMessageOutcome> sendChat({
     required final List<Message> recentMessages,
     required final SystemPrompt systemPromptObj,
-    required final String model,
     final String? imageBase64,
     final String? imageMimeType,
     final bool enableImageGeneration = false,
@@ -61,26 +51,23 @@ class SendMessageUseCase {
     // Convert messages to history format
     final history = _buildMessageHistory(recentMessages);
 
-    // Handle image generation model switching
-    final String selectedModel = await _selectOptimalModel(
-      model,
-      enableImageGeneration,
-    );
+    // Determine capability based on enableImageGeneration
+    final capability = enableImageGeneration
+        ? AICapability.imageGeneration
+        : AICapability.textGeneration;
 
-    // Send message with retry logic
-    final response = await _retryService.sendWithRetries(
+    // Send message with automatic model selection via AIProviderManager
+    final response = await AIProviderManager.instance.sendMessage(
       history: history,
       systemPrompt: systemPromptObj,
-      model: selectedModel,
+      capability: capability,
       imageBase64: imageBase64,
       imageMimeType: imageMimeType,
-      enableImageGeneration: enableImageGeneration,
     );
 
     // Handle failed responses
-    if (!_retryService.hasValidText(response) ||
-        !_retryService.hasValidAllowedTagsStructure(response.text)) {
-      return _handleFailedResponse(response, selectedModel);
+    if (response.text.trim().isEmpty) {
+      return _handleFailedResponse(response, 'auto-selected');
     }
 
     // Process image response
@@ -101,7 +88,8 @@ class SendMessageUseCase {
       imagePath: imageResult.imagePath,
       prompt: response.prompt,
       seed: response.seed,
-      finalModelUsed: selectedModel,
+      finalModelUsed:
+          'auto-selected', // Model is automatically selected by AIProviderManager
     );
 
     final assistantMessage = _buildAssistantMessage(chatResult);
@@ -139,25 +127,6 @@ class SendMessageUseCase {
           },
         )
         .toList();
-  }
-
-  Future<String> _selectOptimalModel(
-    final String model,
-    final bool enableImageGeneration,
-  ) async {
-    String selected = model;
-
-    // Check if we need to switch to image-capable model
-    if (enableImageGeneration) {
-      final lower = selected.toLowerCase();
-      final isGpt = lower.startsWith('gpt-');
-      final isGemini = lower.startsWith('gemini-');
-      if (!isGpt && !isGemini) {
-        selected = Config.requireDefaultImageModel();
-      }
-    }
-
-    return selected;
   }
 
   SendMessageOutcome _handleFailedResponse(
@@ -242,24 +211,6 @@ class SendMessageOutcome {
 }
 
 // Stub implementations for default constructor (avoid infrastructure dependencies)
-
-/// Stub implementation that throws - requires proper dependency injection
-class _StubChatAIService implements IAIService {
-  @override
-  Future<AIResponse> sendMessage(
-    final List<Map<String, String>> history,
-    final SystemPrompt systemPrompt, {
-    required final String model,
-    final String? imageBase64,
-    final String? imageMimeType,
-    final bool enableImageGeneration = false,
-  }) {
-    throw UnimplementedError(
-      'Default SendMessageUseCase requires proper AI service injection. '
-      'Use dependency injection or configure proper ChatAIServiceAdapter.',
-    );
-  }
-}
 
 /// Stub implementation that returns null - safe fallback
 class _StubChatImageService implements IChatImageService {

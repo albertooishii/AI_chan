@@ -1,6 +1,4 @@
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
-import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/chat/infrastructure/adapters/prompt_builder_service.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
@@ -62,8 +60,6 @@ class IAMeetStoryGenerator {
         final response = await AIProviderManager.instance.sendMessage(
           history: history,
           systemPrompt: systemPrompt,
-          capability: AICapability.textGeneration,
-          preferredModel: Config.getDefaultTextModel(),
         );
 
         final generatedText = response.text.trim();

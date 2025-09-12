@@ -1,4 +1,3 @@
-import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/onboarding/domain/entities/memory_data.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
@@ -476,11 +475,11 @@ FORMATO ESPECIAL PARA FECHAS:
 
     // Use new AIProviderManager system
     final providerManager = aiProviderManager ?? AIProviderManager.instance;
+
     final response = await providerManager.sendMessage(
       history: history,
       systemPrompt: systemPrompt,
       capability: AICapability.textGeneration,
-      preferredModel: Config.getDefaultTextModel(),
     );
 
     return response;

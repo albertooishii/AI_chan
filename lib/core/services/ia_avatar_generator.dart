@@ -1,5 +1,4 @@
 // ...existing imports
-import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/image_utils.dart';
 import 'package:ai_chan/core/models.dart';
@@ -17,18 +16,11 @@ class IAAvatarGenerator {
     final bool appendAvatar = false,
     final List<TimelineEntry> timeline = const [],
   }) async {
-    final String forcedImageModel = Config.getDefaultImageModel();
-    final String forcedTextModel = Config.getDefaultTextModel();
-    Log.d(
-      '[IAAvatarGenerator] Avatar: generando imagen con modelo $forcedImageModel',
-    );
-
     // Decidir seed y preparar contexto para el prompt
     final seedToUse = _determineSeed(bio, appendAvatar);
     final promptToSend = await _buildPromptForGeneration(
       bio,
       seedToUse,
-      forcedTextModel,
       timeline,
     );
     final profileForPrompt = _buildProfileForPrompt(bio, seedToUse, timeline);
@@ -37,7 +29,6 @@ class IAAvatarGenerator {
     final imageResponse = await _generateImageWithRetries(
       promptToSend,
       profileForPrompt,
-      forcedImageModel,
     );
 
     // Guardar y crear objeto final
@@ -57,7 +48,6 @@ class IAAvatarGenerator {
   Future<dynamic> _buildPromptForGeneration(
     final AiChanProfile bio,
     final String? seedToUse,
-    final String textModel,
     final List<TimelineEntry> timeline,
   ) async {
     final basePrompt = _createBasePrompt();
@@ -77,10 +67,7 @@ class IAAvatarGenerator {
       avatars: bio.avatars,
     );
 
-    final generatedPrompt = await _generateContextualPrompt(
-      contextProfile,
-      textModel,
-    );
+    final generatedPrompt = await _generateContextualPrompt(contextProfile);
     return generatedPrompt.isNotEmpty
         ? _createPromptWithGenerated(generatedPrompt)
         : basePrompt;
@@ -165,10 +152,7 @@ class IAAvatarGenerator {
   }
 
   /// Genera prompt contextual usando modelo de texto
-  Future<String> _generateContextualPrompt(
-    final AiChanProfile profile,
-    final String textModel,
-  ) async {
+  Future<String> _generateContextualPrompt(final AiChanProfile profile) async {
     final basePrompt = _createBasePrompt();
     final instructions = {
       'task': 'generate_image_prompt',
@@ -198,8 +182,6 @@ class IAAvatarGenerator {
       final response = await AIProviderManager.instance.sendMessage(
         history: [],
         systemPrompt: systemPrompt,
-        capability: AICapability.textGeneration,
-        preferredModel: textModel,
       );
       final generated =
           (response.text.isNotEmpty ? response.text : response.prompt).trim();
@@ -248,14 +230,11 @@ class IAAvatarGenerator {
   Future<AIResponse> _generateImageWithRetries(
     final dynamic promptToSend,
     final AiChanProfile profileForPrompt,
-    final String imageModel,
   ) async {
     const int maxAttempts = 3;
 
     for (int attempt = 0; attempt < maxAttempts; attempt++) {
-      Log.d(
-        '[IAAvatarGenerator] Avatar: intento ${attempt + 1}/$maxAttempts con $imageModel',
-      );
+      Log.d('[IAAvatarGenerator] Avatar: intento ${attempt + 1}/$maxAttempts');
 
       try {
         final systemPrompt = SystemPrompt(
@@ -268,7 +247,6 @@ class IAAvatarGenerator {
           history: [],
           systemPrompt: systemPrompt,
           capability: AICapability.imageGeneration,
-          preferredModel: imageModel,
         );
 
         if (response.base64.isNotEmpty) {

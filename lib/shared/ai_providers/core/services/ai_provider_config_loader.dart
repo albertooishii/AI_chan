@@ -598,8 +598,9 @@ class AIProviderConfigLoader {
     return []; // Las voces ahora se obtienen dinámicamente del provider
   }
 
-  /// Get default voice for a provider
-  static String? getDefaultVoiceForProvider(final String providerId) {
+  /// Get default voice for a provider (PRIVATE - use getDefaultVoiceFromCurrentProvider)
+  /// Este método es privado para evitar hardcoding de provider IDs
+  static String? _getDefaultVoiceForProvider(final String providerId) {
     try {
       final config = _ensureConfigLoaded();
       final providers = config['ai_providers'] as Map<String, dynamic>? ?? {};
@@ -610,6 +611,23 @@ class AIProviderConfigLoader {
       return voices['default'] as String?;
     } on Exception catch (e) {
       Log.w('Failed to get default voice for provider $providerId: $e');
+      return null;
+    }
+  }
+
+  /// Get default voice from the currently selected/default audio provider
+  /// Método dinámico que evita hardcoding de providers
+  static String? getDefaultVoiceFromCurrentProvider() {
+    try {
+      final currentProvider = getDefaultAudioProvider();
+      if (currentProvider.isEmpty) {
+        Log.w('No default audio provider configured');
+        return null;
+      }
+
+      return _getDefaultVoiceForProvider(currentProvider);
+    } on Exception catch (e) {
+      Log.w('Failed to get default voice from current provider: $e');
       return null;
     }
   }
@@ -650,11 +668,19 @@ class AIProviderConfigLoader {
           providerConfig['tts_display'] as Map<String, dynamic>? ?? {};
 
       return ttsDisplay['name'] as String? ??
-          '${providerId[0].toUpperCase()}${providerId.substring(1)} TTS';
+          _createFallbackDisplayName(providerId);
     } on Exception catch (e) {
       Log.w('Failed to get TTS display name for provider $providerId: $e');
-      return '${providerId[0].toUpperCase()}${providerId.substring(1)} TTS';
+      return _createFallbackDisplayName(providerId);
     }
+  }
+
+  /// Create a safe fallback display name for TTS providers
+  static String _createFallbackDisplayName(final String providerId) {
+    if (providerId.isEmpty) {
+      return 'TTS Provider';
+    }
+    return '${providerId[0].toUpperCase()}${providerId.substring(1)} TTS';
   }
 
   /// Get TTS provider description from YAML configuration

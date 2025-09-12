@@ -21,6 +21,7 @@ import 'package:ai_chan/shared/ai_providers/core/interfaces/i_alert_service.dart
 import 'package:ai_chan/shared/ai_providers/core/services/provider_alert_service.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared/utils/prefs_utils.dart';
 
 /// Exception thrown when no suitable provider is available
 class NoProviderAvailableException implements Exception {
@@ -162,12 +163,12 @@ class AIProviderManager {
   }
 
   /// Send a message using the best available provider for the capability
+  /// Automatically selects the optimal provider and model based on capability and user preferences
   Future<AIResponse> sendMessage({
     required final List<Map<String, String>> history,
     required final SystemPrompt systemPrompt,
-    required final AICapability capability,
-    final String? preferredProviderId,
-    final String? preferredModel,
+    final AICapability capability =
+        AICapability.textGeneration, // Default to text generation
     final String? imageBase64,
     final String? imageMimeType,
     final Map<String, dynamic>? additionalParams,
@@ -181,11 +182,26 @@ class AIProviderManager {
       throw StateError('AIProviderManager failed to initialize');
     }
 
+    // Ignore deprecated parameters and use automatic selection
+    // preferredProviderId and preferredModel are deprecated - we calculate optimal selection here
+
+    // Calculate the actual provider and model that will be used for fingerprinting
+    final providersToTry = _getProvidersForCapability(capability, null);
+    String actualProviderId = '';
+    String actualModel = '';
+
+    if (providersToTry.isNotEmpty) {
+      actualProviderId =
+          providersToTry.first; // Use the first provider that would be tried
+      actualModel =
+          await _getModelForCapability(capability, actualProviderId) ?? '';
+    }
+
     // Try deduplication service if available
     if (_deduplicationService != null) {
       final fingerprint = _deduplicationService!.createFingerprint(
-        providerId: preferredProviderId ?? '',
-        model: preferredModel ?? '',
+        providerId: actualProviderId, // Use calculated provider
+        model: actualModel, // Use calculated model
         capability: capability.name,
         history: history,
         systemPrompt: systemPrompt,
@@ -193,15 +209,12 @@ class AIProviderManager {
         imageMimeType: imageMimeType,
         additionalParams: additionalParams,
       );
-
       return _deduplicationService!.getOrCreateRequest(
         fingerprint,
         () => _sendMessageWithMonitoring(
           history: history,
           systemPrompt: systemPrompt,
           capability: capability,
-          preferredProviderId: preferredProviderId,
-          preferredModel: preferredModel,
           imageBase64: imageBase64,
           imageMimeType: imageMimeType,
           additionalParams: additionalParams,
@@ -214,8 +227,6 @@ class AIProviderManager {
       history: history,
       systemPrompt: systemPrompt,
       capability: capability,
-      preferredProviderId: preferredProviderId,
-      preferredModel: preferredModel,
       imageBase64: imageBase64,
       imageMimeType: imageMimeType,
       additionalParams: additionalParams,
@@ -223,20 +234,17 @@ class AIProviderManager {
   }
 
   /// Internal method to send message with performance monitoring and caching
+  /// Uses automatic provider and model selection - no manual preferences
   Future<AIResponse> _sendMessageWithMonitoring({
     required final List<Map<String, String>> history,
     required final SystemPrompt systemPrompt,
     required final AICapability capability,
-    final String? preferredProviderId,
-    final String? preferredModel,
     final String? imageBase64,
     final String? imageMimeType,
     final Map<String, dynamic>? additionalParams,
   }) async {
-    final providersToTry = _getProvidersForCapability(
-      capability,
-      preferredProviderId,
-    );
+    // Always use automatic selection - no preferred provider/model
+    final providersToTry = _getProvidersForCapability(capability, null);
 
     if (providersToTry.isEmpty) {
       throw NoProviderAvailableException(
@@ -260,9 +268,12 @@ class AIProviderManager {
       // Check cache first if available
       CacheKey? cacheKey;
       if (_cacheService != null) {
+        // Calculate the model that will actually be used for proper cache key
+        final modelToUse = await _getModelForCapability(capability, providerId);
+
         cacheKey = CacheKey(
           providerId: providerId,
-          model: preferredModel ?? '',
+          model: modelToUse ?? '', // Use actual model that will be selected
           capability: capability.name,
           messageHash: history.toString().hashCode.toString(),
           additionalData: additionalParams ?? {},
@@ -279,11 +290,11 @@ class AIProviderManager {
       final startTime = _performanceService?.startTiming() ?? DateTime.now();
 
       try {
-        // Determine model to use
-        final modelToUse = _selectModel(providerId, capability, preferredModel);
+        // Use intelligent model selection based on capability and user preferences
+        final modelToUse = await _getModelForCapability(capability, providerId);
 
         Log.d(
-          'Attempting request with provider: $providerId, model: $modelToUse',
+          'Attempting request with provider: $providerId, model: $modelToUse (intelligent selection)',
         );
 
         final response = await provider.sendMessage(
@@ -308,7 +319,9 @@ class AIProviderManager {
           await _cacheService!.set(cacheKey, response);
         }
 
-        Log.i('Successfully received response from provider: $providerId');
+        Log.i(
+          'Successfully received response from provider: $providerId (intelligent selection)',
+        );
         return response;
       } on Exception catch (e) {
         Log.w('Provider $providerId failed: $e');
@@ -661,5 +674,101 @@ class AIProviderManager {
     }
 
     return null;
+  }
+
+  /// Get default model for a capability from the best available provider (DYNAMIC)
+  /// Reemplaza Config.getDefaultTextModel() y métodos similares hardcodeados
+  Future<String?> getDefaultModelForCapability(
+    final AICapability capability,
+  ) async {
+    try {
+      final provider = await getProviderForCapability(capability);
+      if (provider == null) {
+        Log.w(
+          '[AIProviderManager] No provider available for capability: ${capability.identifier}',
+        );
+        return null;
+      }
+
+      final model = _selectModel(provider.providerId, capability, null);
+      if (model != null) {
+        Log.d(
+          '[AIProviderManager] ✅ Default model for ${capability.identifier}: $model (provider: ${provider.providerId})',
+        );
+        return model;
+      }
+
+      Log.w(
+        '[AIProviderManager] No default model found for capability: ${capability.identifier}',
+      );
+      return null;
+    } on Exception catch (e) {
+      Log.e(
+        '[AIProviderManager] Error getting default model for ${capability.identifier}: $e',
+      );
+      return null;
+    }
+  }
+
+  /// Get default text generation model (replacement for Config.getDefaultTextModel)
+  Future<String?> getDefaultTextModel() async {
+    return getDefaultModelForCapability(AICapability.textGeneration);
+  }
+
+  /// Get default image generation model (replacement for Config.getDefaultImageModel)
+  Future<String?> getDefaultImageModel() async {
+    return getDefaultModelForCapability(AICapability.imageGeneration);
+  }
+
+  /// Get default image analysis model
+  Future<String?> getDefaultImageAnalysisModel() async {
+    return getDefaultModelForCapability(AICapability.imageAnalysis);
+  }
+
+  /// Get default audio generation model
+  Future<String?> getDefaultAudioModel() async {
+    return getDefaultModelForCapability(AICapability.audioGeneration);
+  }
+
+  /// Get default realtime conversation model
+  Future<String?> getDefaultRealtimeModel() async {
+    return getDefaultModelForCapability(AICapability.realtimeConversation);
+  }
+
+  /// Get the appropriate model based on capability and user preferences
+  /// Handles manual selection for text/audio and auto-selection for other capabilities
+  Future<String?> _getModelForCapability(
+    final AICapability capability,
+    final String providerId,
+  ) async {
+    switch (capability) {
+      case AICapability.textGeneration:
+        // For text: use manual selection from SharedPreferences or fallback to auto
+        try {
+          final savedModel = await PrefsUtils.getSelectedModel();
+          if (savedModel != null && savedModel.trim().isNotEmpty) {
+            // Verify the saved model is available for this provider
+            final providerConfig = _config!.aiProviders[providerId];
+            final availableModels = providerConfig?.models[capability] ?? [];
+            if (availableModels.contains(savedModel)) {
+              return savedModel;
+            }
+          }
+        } on Exception catch (e) {
+          Log.w('Failed to get saved text model: $e');
+        }
+        // Fallback to auto-selection
+        return _selectModel(providerId, capability, null);
+
+      case AICapability.audioGeneration:
+      case AICapability.realtimeConversation:
+        // For audio/voice: could implement voice preference logic here
+        // For now, use auto-selection but this could be extended
+        return _selectModel(providerId, capability, null);
+
+      default:
+        // For images and other capabilities: always auto-selection
+        return _selectModel(providerId, capability, null);
+    }
   }
 }

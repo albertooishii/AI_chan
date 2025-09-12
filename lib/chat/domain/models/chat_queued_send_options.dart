@@ -10,16 +10,12 @@
 class ChatQueuedSendOptions {
   /// Constructor
   const ChatQueuedSendOptions({
-    this.model,
     this.callPrompt,
     this.image,
     this.imageMimeType,
     this.preTranscribedText,
     this.userAudioPath,
   });
-
-  /// The model to use for sending
-  final String? model;
 
   /// Call prompt for the message
   final String? callPrompt;

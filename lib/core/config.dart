@@ -100,26 +100,6 @@ class Config {
 
   // --- Default Models (configured in assets/ai_providers_config.yaml) ---
 
-  /// Devuelve el modelo de texto por defecto
-  static String requireDefaultTextModel() {
-    return 'gemini-2.5-flash'; // Configurado en assets/ai_providers_config.yaml
-  }
-
-  /// Devuelve el modelo de imagen por defecto
-  static String requireDefaultImageModel() {
-    return 'gpt-4.1-mini'; // Configurado en assets/ai_providers_config.yaml
-  }
-
-  /// Get default text model
-  static String getDefaultTextModel() {
-    return requireDefaultTextModel();
-  }
-
-  /// Get default image model
-  static String getDefaultImageModel() {
-    return requireDefaultImageModel();
-  }
-
   /// Modelo STT dinámico - obtenido del primer proveedor con capacidad de transcripción
   static String getSTTModel() {
     final manager = AIProviderManager.instance;

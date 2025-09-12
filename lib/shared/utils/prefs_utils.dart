@@ -1,6 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
 
 /// Centraliza accesos a SharedPreferences usados en múltiples partes del app.
 /// ✅ MIGRADO: Usa configuración YAML para proveedores de audio y voces
@@ -36,9 +36,9 @@ class PrefsUtils {
 
       final savedModel = prefs.getString('selected_model');
       if (savedModel == null || savedModel.isEmpty) {
-        final defModel = Config.getDefaultTextModel();
-        if (defModel.isNotEmpty) {
-          await prefs.setString('selected_model', defModel);
+        final defModel = await AIProviderManager.instance.getDefaultTextModel();
+        if (defModel?.isNotEmpty == true) {
+          await prefs.setString('selected_model', defModel!);
         }
       }
 
@@ -48,10 +48,12 @@ class PrefsUtils {
       final providerKey = 'selected_voice_$provider';
       final providerVoice = prefs.getString(providerKey);
       if (providerVoice == null || providerVoice.isEmpty) {
-        // ✅ YAML: Usar nueva configuración YAML para voces
-        final defaultVoice = AIProviderConfigLoader.getDefaultVoiceForProvider(
-          provider,
-        );
+        // ✅ DINÁMICO: Usar nueva configuración YAML dinámica para voces
+        final defaultVoice =
+            provider == AIProviderConfigLoader.getDefaultAudioProvider()
+            ? AIProviderConfigLoader.getDefaultVoiceFromCurrentProvider()
+            : null; // No buscar voces de providers no actuales para evitar hardcoding
+
         if (defaultVoice != null && defaultVoice.isNotEmpty) {
           await prefs.setString(providerKey, defaultVoice);
         }
@@ -142,10 +144,11 @@ class PrefsUtils {
       final prefs = await SharedPreferences.getInstance();
       final saved = prefs.getString('selected_model');
       if (saved != null && saved.trim().isNotEmpty) return saved;
-      final def = Config.getDefaultTextModel();
-      return def;
+      final def = await AIProviderManager.instance.getDefaultTextModel();
+      return def ?? '';
     } on Exception catch (_) {
-      return Config.getDefaultTextModel();
+      final def = await AIProviderManager.instance.getDefaultTextModel();
+      return def ?? '';
     }
   }
 

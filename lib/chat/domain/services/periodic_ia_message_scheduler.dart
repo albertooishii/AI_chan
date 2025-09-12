@@ -11,7 +11,8 @@ class PeriodicIaMessageScheduler {
   void start({
     required final Map<String, dynamic> Function() profileGetter,
     required final List<Map<String, dynamic>> Function() messagesGetter,
-    required final void Function(String callPrompt, String model) triggerSend,
+    required final void Function(String callPrompt)
+    triggerSend, // Removed model parameter
     final Duration? initialDelay,
   }) {
     stop();
@@ -44,8 +45,7 @@ class PeriodicIaMessageScheduler {
             final prompts = _autoPrompts();
             final idx = nowMs % prompts.length;
             final callPrompt = prompts[idx];
-            final textModel = 'gemini-1.5-flash-latest'; // Default model
-            triggerSend(callPrompt, textModel);
+            triggerSend(callPrompt); // Model selection is now automatic
             _lastAutoIa = now;
             _autoStreak = (_autoStreak + 1).clamp(0, 20);
           }

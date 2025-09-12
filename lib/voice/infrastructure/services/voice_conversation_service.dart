@@ -42,8 +42,71 @@ class VoiceConversationService implements IVoiceConversationService {
 
   ConversationState _currentState = ConversationState.idle;
   final List<ConversationTurn> _conversationHistory = [];
-  VoiceSettings _voiceSettings = VoiceSettings.defaultSettings();
+  VoiceSettings? _voiceSettings; // Nullable para lazy initialization
   bool _isConversationActive = false;
+
+  /// Getter que inicializa configuraciones de voz bajo demanda
+  Future<VoiceSettings> get voiceSettings async {
+    if (_voiceSettings != null) {
+      return _voiceSettings!;
+    }
+
+    await _initializeVoiceSettings();
+    return _voiceSettings!;
+  }
+
+  /// Inicializa las configuraciones de voz o lanza error explicativo
+  Future<void> _initializeVoiceSettings() async {
+    try {
+      // Obtener el primer provider disponible con capacidad de audio dinámicamente
+      final audioProvider = await _aiProviderManager.getProviderForCapability(
+        AICapability.audioGeneration,
+      );
+
+      if (audioProvider == null) {
+        throw StateError(
+          'VoiceConversationService: No hay providers de audio disponibles. '
+          'Configure al menos un provider con capacidad audioGeneration en ai_providers_config.yaml',
+        );
+      }
+
+      // Intentar obtener voz por defecto del provider dinámicamente
+      String? defaultVoice;
+      try {
+        final concreteProvider = audioProvider as dynamic;
+        if (concreteProvider.runtimeType.toString().contains(
+          'getDefaultVoice',
+        )) {
+          defaultVoice = concreteProvider.getDefaultVoice() as String?;
+        }
+      } on Exception catch (e) {
+        Log.w(
+          '[VoiceConversation] Provider ${audioProvider.providerId} no expone getDefaultVoice(): $e',
+        );
+      }
+
+      if (defaultVoice == null || defaultVoice.isEmpty) {
+        throw StateError(
+          'VoiceConversationService: El provider ${audioProvider.providerId} no tiene voz por defecto configurada. '
+          'Configure voces por defecto en ai_providers_config.yaml o seleccione en configuración TTS.',
+        );
+      }
+
+      _voiceSettings = VoiceSettings.create(
+        voiceId: defaultVoice,
+        language: 'es-ES', // Esto también debería venir de configuración
+      );
+
+      Log.d(
+        '[VoiceConversation] ✅ Voz inicializada: $defaultVoice del provider ${audioProvider.providerId}',
+      );
+    } on Exception catch (e) {
+      throw StateError(
+        'VoiceConversationService: No se pudo inicializar configuración de voz. '
+        'Error: $e',
+      );
+    }
+  }
 
   @override
   Stream<ConversationTurn> get conversationStream =>
@@ -128,9 +191,10 @@ class VoiceConversationService implements IVoiceConversationService {
       );
 
       // 1. Transcribir audio con STT
+      final settings = await voiceSettings;
       final recognitionResult = await _sttService.recognizeAudio(
         audioData: audioData,
-        language: _voiceSettings.language,
+        language: settings.language,
         format: format,
       );
 
@@ -261,7 +325,6 @@ class VoiceConversationService implements IVoiceConversationService {
       final aiResponse = await _aiProviderManager.sendMessage(
         history: conversationHistory,
         systemPrompt: systemPrompt,
-        capability: AICapability.textGeneration,
         additionalParams: {'max_tokens': 150, 'temperature': 0.7, 'top_p': 0.9},
       );
 
@@ -304,16 +367,17 @@ class VoiceConversationService implements IVoiceConversationService {
       Log.d('[VoiceConversation] 🤖 AI-Chan: "$message"');
 
       // 1. Sintetizar con TTS
+      final settings = await voiceSettings;
       final synthesisResult = await _ttsService.synthesize(
         text: message,
-        settings: _voiceSettings,
+        settings: settings,
       );
 
       // 2. Reproducir audio
       await _audioPlayer.playAudioBytes(
         audioData: synthesisResult.audioData,
         format: synthesisResult.format,
-        config: AudioPlaybackConfig(volume: _voiceSettings.volume),
+        config: AudioPlaybackConfig(volume: settings.volume),
       );
 
       // 3. Crear turno de IA

@@ -25,14 +25,12 @@ class ChatApplicationService {
     required final IPromptBuilderService promptBuilder,
     required final IFileOperationsService fileOperations,
     required final ISecureStorageService secureStorage,
-    required final IAIService chatAIService,
     final MemoryManager? memoryManagerParam,
     final PeriodicIaMessageScheduler? periodicScheduler,
   }) : _repository = repository,
        _promptBuilder = promptBuilder,
        _fileOperations = fileOperations,
        _secureStorage = secureStorage,
-       _chatAIService = chatAIService,
        memoryManager = memoryManagerParam,
        _periodicScheduler = periodicScheduler ?? PeriodicIaMessageScheduler() {
     // Inicializar audio service con callbacks vacíos por ahora
@@ -82,13 +80,11 @@ class ChatApplicationService {
       onEventsChanged: () {}, // notifyListeners se maneja en el controller
       sendSystemPrompt:
           (final text, {final String? callPrompt, final String? model}) =>
-              sendMessage(text: text, model: model),
+              sendMessage(text: text), // Model selection is now automatic
     );
 
     // Initialize SendMessageUseCase with proper AI service
-    _sendMessageUseCase = SendMessageUseCase(
-      retryService: MessageRetryService(_chatAIService),
-    );
+    _sendMessageUseCase = SendMessageUseCase();
 
     // Initialize DebouncedSave for persistence optimization
     _debouncedPersistence = DebouncedSave(
@@ -103,7 +99,6 @@ class ChatApplicationService {
   factory ChatApplicationService.withDefaults({
     required final IChatRepository repository,
     required final IPromptBuilderService promptBuilder,
-    final IAIService? chatAIService,
     final MemoryManager? memoryManager,
     final PeriodicIaMessageScheduler? periodicScheduler,
   }) {
@@ -113,7 +108,6 @@ class ChatApplicationService {
     final fileOps = di.getBasicFileOperationsService();
 
     return ChatApplicationService(
-      chatAIService: chatAIService ?? di.getChatAIServiceAdapter(),
       repository: repository,
       promptBuilder: promptBuilder,
       fileOperations: fileOps,
@@ -126,7 +120,6 @@ class ChatApplicationService {
   final IPromptBuilderService _promptBuilder;
   final IFileOperationsService _fileOperations;
   final ISecureStorageService _secureStorage;
-  final IAIService _chatAIService;
   late final IAudioChatService _audioService;
   final MemoryManager? memoryManager;
   final PeriodicIaMessageScheduler _periodicScheduler;
@@ -256,7 +249,6 @@ class ChatApplicationService {
       final outcome = await _sendMessageUseCase.sendChat(
         recentMessages: _messages,
         systemPromptObj: systemPrompt,
-        model: options?.model ?? _selectedModel ?? _getDefaultChatModel(),
         imageBase64: options?.image is String ? options!.image : null,
         imageMimeType: options?.imageMimeType,
         onboardingData: _profile,
@@ -442,7 +434,6 @@ class ChatApplicationService {
 
     // Process AI response with simplified method
     final options = QueuedSendOptions(
-      model: model,
       image: imageBase64ForAI, // Use base64 for AI processing
       imageMimeType: imageMimeType,
     );
@@ -502,10 +493,9 @@ class ChatApplicationService {
     if (transcript != null && transcript.trim().isNotEmpty) {
       await sendMessage(
         text: transcript,
-        model: model,
         preTranscribedText: transcript,
         userAudioPath: path,
-      );
+      ); // Model selection is now automatic
     }
 
     isUploadingUserAudio = false;
@@ -671,23 +661,6 @@ class ChatApplicationService {
   }
 
   /// 🚀 DINÁMICO: Obtener modelo de chat por defecto dinámicamente
-  String _getDefaultChatModel() {
-    try {
-      // Obtener el primer proveedor con capacidad de generación de texto
-      final providers = AIProviderManager.instance.getProvidersByCapability(
-        AICapability.textGeneration,
-      );
-      if (providers.isNotEmpty) {
-        // Para simplicidad, devolver un modelo conocido del primer proveedor
-        return 'text-model-default';
-      }
-      return 'unknown-model';
-    } on Exception catch (e) {
-      Log.w('[ChatService] Error obteniendo modelo por defecto: $e');
-      return 'unknown-model';
-    }
-  }
-
   /// Google integration
   void setGoogleLinked(final bool linked) {
     _googleLinked = linked;
@@ -1220,8 +1193,8 @@ class ChatApplicationService {
       await sendMessage(
         text: msg.text,
         image: msg.image,
-        model: model ?? _selectedModel,
-        existingMessageIndex: idx, // Reuse existing message slot
+        existingMessageIndex:
+            idx, // Reuse existing message slot - Model selection is now automatic
       );
       return true;
     } on Exception catch (e) {
@@ -1338,7 +1311,6 @@ class ChatApplicationService {
 
     // Encolar mensaje con opciones completas
     final options = QueuedSendOptions(
-      model: model,
       callPrompt: callPrompt,
       image: image,
       imageMimeType: imageMimeType,
@@ -1474,8 +1446,8 @@ class ChatApplicationService {
     _periodicScheduler.start(
       profileGetter: () => _profile!.toJson(),
       messagesGetter: () => _messages.map((final m) => m.toJson()).toList(),
-      triggerSend: (final prompt, final model) =>
-          sendMessage(text: prompt, model: model),
+      triggerSend: (final prompt) =>
+          sendMessage(text: prompt), // Model selection is now automatic
     );
   }
 

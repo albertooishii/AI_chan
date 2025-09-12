@@ -151,8 +151,6 @@ class MultiModelRouter {
 
     final result = await route(
       capability: AICapability.imageGeneration,
-      preferredModel:
-          preferredModel ?? 'dall-e-3', // Default to DALL-E for images
       preferredProvider: preferredProvider,
       additionalParams: additionalParams,
     );
@@ -176,9 +174,6 @@ class MultiModelRouter {
 
     final result = await route(
       capability: AICapability.imageAnalysis,
-      preferredModel:
-          preferredModel ??
-          'gpt-4-vision-preview', // Default to GPT-4V for analysis
       preferredProvider: preferredProvider,
       additionalParams: additionalParams,
     );
@@ -202,8 +197,6 @@ class MultiModelRouter {
 
     final result = await route(
       capability: AICapability.realtimeConversation,
-      preferredModel:
-          preferredModel ?? 'gpt-4-realtime-preview', // Default realtime model
       preferredProvider: preferredProvider,
       additionalParams: additionalParams,
     );

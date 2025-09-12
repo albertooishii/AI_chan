@@ -23,7 +23,9 @@ class CallToChatCommunicationAdapter
     required final String text,
     final String? model,
   }) async {
-    await _chatController.sendMessage(text: text, model: model);
+    await _chatController.sendMessage(
+      text: text,
+    ); // Model selection is now automatic
   }
 
   @override

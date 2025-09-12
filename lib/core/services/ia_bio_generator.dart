@@ -2,10 +2,8 @@ import 'package:ai_chan/shared/utils/locale_utils.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/date_utils.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/core/ai_runtime_guard.dart';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/utils/json_utils.dart';
 import 'dart:convert';
 
@@ -284,9 +282,10 @@ Identidad: $aiIdentityInstructions
   );
 
   const int maxAttempts = 3;
-  final String defaultModel = Config.getDefaultTextModel();
+  final String? defaultModel = await AIProviderManager.instance
+      .getDefaultTextModel();
   Log.d(
-    '[IABioGenerator] Biografía: intentos JSON (max=$maxAttempts) con $defaultModel',
+    '[IABioGenerator] Biografía: intentos JSON (max=$maxAttempts) con ${defaultModel ?? 'fallback'}',
   );
   Map<String, dynamic>? bioJson;
   for (int attempt = 0; attempt < maxAttempts; attempt++) {
@@ -296,8 +295,6 @@ Identidad: $aiIdentityInstructions
       final responseObj = await AIProviderManager.instance.sendMessage(
         history: [],
         systemPrompt: systemPromptObj,
-        capability: AICapability.textGeneration,
-        preferredModel: defaultModel,
       );
       if ((responseObj.text).trim().isEmpty) {
         Log.w(

@@ -6,6 +6,7 @@ import 'package:ai_chan/voice.dart'; // 🔥 NEW: Voice bounded context
 import 'package:ai_chan/core.dart';
 import 'package:ai_chan/onboarding.dart';
 import 'package:ai_chan/shared.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
 
 // Import specific services that need DI
 import 'package:ai_chan/chat/domain/interfaces/i_tts_voice_management_service.dart';
@@ -216,7 +217,9 @@ class NotSupportedRealtimeClient implements IRealtimeClient {
 
 /// AI service factories - Use AIProviderManager.instance for dynamic provider access
 
-IProfileService getProfileServiceForProvider([final String? provider]) {
+Future<IProfileService> getProfileServiceForProvider([
+  final String? provider,
+]) async {
   if (provider != null && provider.trim().isNotEmpty) {
     final p = provider.toLowerCase();
     if (p == 'google' || p == 'gemini') {
@@ -228,11 +231,16 @@ IProfileService getProfileServiceForProvider([final String? provider]) {
     return const ProfileAdapter();
   }
 
-  final defaultTextModel = Config.getDefaultTextModel();
-  final defaultImageModel = Config.getDefaultImageModel();
+  final defaultTextModel = await AIProviderManager.instance
+      .getDefaultTextModel();
+  final defaultImageModel = await AIProviderManager.instance
+      .getDefaultImageModel();
   String resolved = '';
   final modelToCheck =
-      (defaultTextModel.isNotEmpty ? defaultTextModel : defaultImageModel)
+      ((defaultTextModel?.isNotEmpty == true
+                  ? defaultTextModel!
+                  : defaultImageModel) ??
+              '')
           .toLowerCase();
   if (modelToCheck.isNotEmpty) {
     if (modelToCheck.startsWith('gpt-')) resolved = 'openai';
@@ -255,7 +263,6 @@ IProfileService getProfileServiceForProvider([final String? provider]) {
 
 /// Application Services Factories
 ChatApplicationService getChatApplicationService() => ChatApplicationService(
-  chatAIService: const ChatAIServiceAdapter(),
   repository: getChatRepository(),
   promptBuilder: PromptBuilderService(),
   fileOperations: const BasicFileOperationsService(),

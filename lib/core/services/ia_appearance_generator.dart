@@ -1,10 +1,8 @@
-import 'package:ai_chan/core/config.dart';
 import 'dart:convert';
 import 'package:ai_chan/shared/utils/json_utils.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/core/ai_runtime_guard.dart';
 
 /// Generador de apariencia física detallada para IA
@@ -13,7 +11,7 @@ class IAAppearanceGenerator {
   Future<Map<String, dynamic>> generateAppearanceFromBiography(
     final AiChanProfile bio,
   ) async {
-    final usedModel = Config.getDefaultTextModel();
+    final usedModel = await AIProviderManager.instance.getDefaultTextModel();
 
     // Determinar si es japonesa basado en el país de la biografía
     final isJapanese = bio.aiCountryCode?.toLowerCase() == 'jp';
@@ -279,8 +277,6 @@ class IAAppearanceGenerator {
         final AIResponse resp = await AIProviderManager.instance.sendMessage(
           history: [],
           systemPrompt: systemPromptAppearance,
-          capability: AICapability.textGeneration,
-          preferredModel: usedModel,
         );
         if ((resp.text).trim().isEmpty) {
           Log.w(

@@ -120,7 +120,10 @@ class ChatController extends ChangeNotifier implements IChatController {
     }
     try {
       debugPrint('ChatController: sendMessage called with text: $text');
-      await _chatService.sendMessage(text: text, model: model, image: image);
+      await _chatService.sendMessage(
+        text: text,
+        image: image,
+      ); // Model selection is now automatic
       debugPrint(
         'ChatController: sendMessage completed, messages count: ${_chatService.messages.length}',
       );

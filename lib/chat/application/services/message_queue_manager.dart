@@ -2,14 +2,12 @@ import 'dart:async';
 
 class QueuedSendOptions {
   QueuedSendOptions({
-    this.model,
     this.callPrompt,
     this.image,
     this.imageMimeType,
     this.preTranscribedText,
     this.userAudioPath,
   });
-  final String? model;
   final String? callPrompt;
   final dynamic image;
   final String? imageMimeType;

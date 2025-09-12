@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/core/config.dart';
 
 /// Servicio unificado de promesas IA: detección, duplicados, restauración y scheduling.
 class PromiseService {
@@ -44,8 +43,10 @@ class PromiseService {
     final t = Timer(delay, () async {
       final prompt =
           'Recuerda que prometiste: "$originalText". Ya ha pasado el evento, así que cumple tu promesa ahora mismo, sin excusas. Saluda con naturalidad, menciona el motivo "$motivo" y retoma el contexto.';
-      final model = Config.requireDefaultTextModel();
-      await sendSystemPrompt('', callPrompt: prompt, model: model);
+      await sendSystemPrompt(
+        '',
+        callPrompt: prompt,
+      ); // Model selection is now automatic
     });
     _timers.add(t);
   }

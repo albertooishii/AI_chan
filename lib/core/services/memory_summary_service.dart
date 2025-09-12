@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'dart:async';
 // Replaced legacy barrel import with canonical barrel
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/json_utils.dart';
 
@@ -41,11 +40,10 @@ class MemorySummaryService {
       recentMessages: recentMessages,
       instructions: {'raw': instrucciones},
     );
+
     final response = await AIProviderManager.instance.sendMessage(
       history: [],
       systemPrompt: systemPrompt,
-      capability: AICapability.textGeneration,
-      preferredModel: superblockModel,
     );
     final resumenJson = extractJsonBlock(response.text.trim());
     if (resumenJson.toString().isNotEmpty && resumenJson.toString() != '') {
@@ -226,7 +224,6 @@ class MemorySummaryService {
   // Lock de concurrencia optimizado: Completer estático compartido
   static Completer<void>? _lock;
   Future<void> _summaryQueue = Future.value();
-  static String get superblockModel => Config.getDefaultTextModel();
   final AiChanProfile profile;
   static int? get _maxHistory {
     final value = Config.getSummaryBlockSize();

@@ -58,7 +58,8 @@ class ChatAudioController extends ChangeNotifier {
   /// Stop recording and send as message
   Future<void> stopAndSendRecording({final String? model}) async {
     try {
-      final path = await _chatService.stopAndSendRecording(model: model);
+      final path = await _chatService
+          .stopAndSendRecording(); // Model selection is now automatic
       if (path != null) {
         notifyListeners(); // Notificar que se envió un mensaje de audio
       }

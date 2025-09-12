@@ -30,22 +30,17 @@ class ChatAIServiceAdapter implements IAIService {
         'timestamp': DateTime.now().toIso8601String(),
       });
 
-      // Determine capability based on request
-      final capability = enableImageGeneration
-          ? AICapability.imageGeneration
-          : (imageBase64 != null
-                ? AICapability.imageAnalysis
-                : AICapability.textGeneration);
-
-      // Use AIProviderManager directly
+      // Use AIProviderManager directly with appropriate capability
       final response = await AIProviderManager.instance.sendMessage(
         history: history,
         systemPrompt: systemPrompt,
-        capability: capability,
-        preferredModel: model,
+        capability: enableImageGeneration
+            ? AICapability.imageGeneration
+            : (imageBase64 != null
+                  ? AICapability.imageAnalysis
+                  : AICapability.textGeneration),
         imageBase64: imageBase64,
         imageMimeType: imageMimeType,
-        additionalParams: {'enableImageGeneration': enableImageGeneration},
       );
 
       return response;

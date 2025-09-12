@@ -102,7 +102,8 @@ class ChatMessageController extends ChangeNotifier {
   /// Retry last failed message
   Future<void> retryLastFailedMessage({final String? model}) async {
     try {
-      await _chatService.retryLastFailedMessage(model: model);
+      await _chatService
+          .retryLastFailedMessage(); // Model selection is now automatic
       notifyListeners(); // Notificar cambios en los mensajes
     } on Exception catch (e) {
       debugPrint('Error in retryLastFailedMessage: $e');

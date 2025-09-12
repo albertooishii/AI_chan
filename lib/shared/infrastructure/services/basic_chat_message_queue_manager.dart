@@ -42,7 +42,6 @@ class CompleteChatMessageQueueManager implements IChatMessageQueueManager {
     ChatQueuedSendOptions? chatOptions;
     if (options != null) {
       chatOptions = ChatQueuedSendOptions(
-        model: options.model,
         callPrompt: options.callPrompt,
         image: options.image,
         imageMimeType: options.imageMimeType,
@@ -72,7 +71,6 @@ class CompleteChatMessageQueueManager implements IChatMessageQueueManager {
     QueuedSendOptions? queueOptions;
     if (options != null) {
       queueOptions = QueuedSendOptions(
-        model: options.model,
         callPrompt: options.callPrompt,
         image: options.image,
         imageMimeType: options.imageMimeType,

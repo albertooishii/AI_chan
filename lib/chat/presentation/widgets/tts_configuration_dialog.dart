@@ -1,5 +1,4 @@
 import 'package:ai_chan/core/cache/cache_service.dart';
-import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/di.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
@@ -201,20 +200,24 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
       // getPreferredVoice centraliza la lógica de resolución por provider + fallback
       final providerVoice = await PrefsUtils.getPreferredVoice();
       final selModel = await PrefsUtils.getSelectedModel();
+      final defaultModel = await AIProviderManager.instance
+          .getDefaultTextModel();
       setState(() {
         _selectedProvider = savedProvider;
         _selectedVoice = providerVoice.isEmpty ? null : providerVoice;
-        _selectedModel = selModel ?? Config.getDefaultTextModel();
+        _selectedModel = selModel ?? defaultModel;
       });
     } on Exception catch (_) {
       // ✅ YAML: Usar configuración YAML como fallback
       try {
         final defaultProvider =
             AIProviderConfigLoader.getDefaultAudioProvider();
+        final defaultModel = await AIProviderManager.instance
+            .getDefaultTextModel();
         setState(() {
           _selectedProvider = defaultProvider.toLowerCase();
           _selectedVoice = null;
-          _selectedModel = Config.getDefaultTextModel();
+          _selectedModel = defaultModel;
         });
       } on Exception catch (_) {
         // Obtener el primer provider disponible dinámicamente
@@ -222,13 +225,15 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
         final availableProviders = manager.getProvidersByCapability(
           AICapability.audioGeneration,
         );
+        final defaultModel = await AIProviderManager.instance
+            .getDefaultTextModel();
 
         setState(() {
           _selectedProvider = availableProviders.isNotEmpty
               ? availableProviders.first
               : '';
           _selectedVoice = null;
-          _selectedModel = Config.getDefaultTextModel();
+          _selectedModel = defaultModel;
         });
       }
     }
@@ -570,11 +575,17 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
 
   String _getProviderDisplayName(final String providerId) {
     // 🚀 YAML: Usar configuración del YAML en lugar de hardcodeo
+    if (providerId.isEmpty) {
+      return 'Selecciona un proveedor';
+    }
     return AIProviderConfigLoader.getTtsProviderDisplayName(providerId);
   }
 
   String _getProviderDescription(final String providerId) {
     // 🚀 YAML: Usar configuración del YAML en lugar de hardcodeo
+    if (providerId.isEmpty) {
+      return 'Ningún proveedor seleccionado';
+    }
     return AIProviderConfigLoader.getTtsProviderDescription(providerId);
   }
 
