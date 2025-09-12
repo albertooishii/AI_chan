@@ -38,7 +38,10 @@ class VoiceSettings {
 
   /// Factory para configuración por defecto
   factory VoiceSettings.defaultSettings({final String language = 'es-ES'}) {
-    return VoiceSettings.create(voiceId: 'alloy', language: language);
+    return VoiceSettings.create(
+      voiceId: '',
+      language: language,
+    ); // Dinámico del provider
   }
 
   /// Deserialización

@@ -1,4 +1,4 @@
-import '../value_objects/voice_settings.dart';
+import '../../../shared/ai_providers/core/models/audio/voice_settings.dart';
 
 /// 🎯 DDD: Puerto para síntesis de voz (TTS)
 /// El dominio define QUÉ necesita, la infraestructura CÓMO lo hace

@@ -1,11 +1,11 @@
 import '../../domain/entities/voice_session.dart';
-import '../../domain/value_objects/voice_settings.dart';
+import '../../../shared/ai_providers/core/models/audio/voice_settings.dart';
 import '../../domain/interfaces/voice_services.dart';
 import '../../domain/services/voice_session_orchestrator.dart';
 
 // Re-exportar tipos del dominio para conveniencia
 export '../../domain/entities/voice_session.dart';
-export '../../domain/value_objects/voice_settings.dart';
+export '../../../shared/ai_providers/core/models/audio/voice_settings.dart';
 export '../../domain/interfaces/voice_services.dart';
 export '../../domain/services/voice_session_orchestrator.dart';
 

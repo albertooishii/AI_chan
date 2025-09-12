@@ -6,83 +6,166 @@ import 'package:ai_chan/onboarding/presentation/controllers/onboarding_lifecycle
 import 'package:ai_chan/onboarding/domain/entities/memory_data.dart';
 import 'package:ai_chan/onboarding/services/conversational_onboarding_service.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
-// import 'package:ai_chan/shared/services/openai_tts_service.dart';
 import 'package:ai_chan/shared/services/hybrid_stt_service.dart';
 import 'package:ai_chan/shared/controllers/audio_subtitle_controller.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/audio/centralized_audio_playback_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/interfaces/audio/i_audio_playback_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/audio_mode_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/interfaces/audio/i_tts_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/audio/voice_settings.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/widgets/conversational_subtitles.dart';
 import 'package:ai_chan/shared/widgets/country_autocomplete.dart';
 import 'package:ai_chan/shared/widgets/female_name_autocomplete.dart';
 import 'package:ai_chan/onboarding/presentation/widgets/birth_date_field.dart';
 import 'package:ai_chan/shared/constants/countries_es.dart';
-import 'package:ai_chan/shared/utils/audio_duration_utils.dart';
 import 'dart:async';
 import 'onboarding_screen.dart' show OnboardingFinishCallback, OnboardingScreen;
 import 'onboarding_mode_selector.dart' as mode_selector;
 
-/// Real TTS service implementation using DI
-class OpenAITtsService {
+/// ✅ DESACOPLADO: Servicio TTS contextual para onboarding
+/// Usa automáticamente el modo híbrido y voces recomendadas
+class OnboardingTtsService {
+  static const String _context = 'onboarding';
+  late final ITtsService _ttsService;
+  final IAudioPlaybackService _audioService =
+      CentralizedAudioPlaybackService.instance;
   bool _isPlaying = false;
-  AudioPlayer? _audioPlayer;
+  bool _initialized = false;
 
   bool get isPlaying => _isPlaying;
+
+  /// Inicializar servicio usando configuración desacoplada
+  Future<void> initialize() async {
+    if (_initialized) return;
+
+    try {
+      // Obtener servicio TTS para contexto onboarding (automáticamente híbrido)
+      _ttsService = await AudioModeService.createTtsForContext(_context);
+      _initialized = true;
+
+      final mode = await AudioModeService.getModeForContext(_context);
+      Log.d('[OnboardingTTS] ✅ Inicializado en modo: ${mode.name}');
+    } on Exception catch (e) {
+      Log.e('[OnboardingTTS] ❌ Error inicializando: $e');
+      throw Exception('Error inicializando TTS para onboarding: $e');
+    }
+  }
 
   Future<AudioInfo> synthesizeAndPlay(
     final String text, {
     final Map<String, dynamic>? options,
   }) async {
+    await initialize();
+
     try {
-      // Get TTS service through DI to avoid architecture violation
-      final ttsService = di.getTtsService();
+      Log.d('[OnboardingTTS] 🎯 Sintetizando en modo híbrido...');
 
-      // Synthesize to file
-      final audioPath = await ttsService.synthesizeToFile(
-        text: text,
-        options: options,
-      );
-
-      if (audioPath == null) {
-        throw Exception('Failed to synthesize audio');
+      // Verificar disponibilidad del servicio
+      final isAvailable = await _ttsService.isAvailable();
+      if (!isAvailable) {
+        throw Exception('Servicio TTS no disponible para onboarding');
       }
 
-      // Create audio player and play
-      _audioPlayer = AudioPlayer();
-      await _audioPlayer!.play(DeviceFileSource(audioPath));
+      // Obtener voz dinámicamente del provider activo (no hardcodeada)
+      // Las voces se obtienen del provider configurado en YAML
+
+      // Crear configuración de voz usando configuración dinámica
+      final voiceSettings = _createVoiceSettings(options ?? {}, null);
+
+      // Sintetizar usando el servicio desacoplado
+      final synthResult = await _ttsService.synthesize(
+        text: text,
+        settings: voiceSettings,
+      );
+
+      if (synthResult.audioData.isEmpty) {
+        throw Exception('Audio vacío recibido del servicio TTS');
+      }
+
       _isPlaying = true;
 
-      // Get audio duration
-      final duration = await AudioDurationUtils.getAudioDuration(audioPath);
+      // Reproducir usando servicio centralizado
+      await _audioService.playAudioBytes(
+        audioData: synthResult.audioData,
+        format: synthResult.format,
+      );
 
-      // Listen for completion
-      _audioPlayer!.onPlayerComplete.listen((_) {
+      // Escuchar finalización
+      _audioService.completionStream.listen((_) {
         _isPlaying = false;
       });
 
-      return AudioInfo(duration: duration ?? Duration.zero);
-    } catch (e) {
+      Log.d(
+        '[OnboardingTTS] ✅ Reproducción iniciada - duración: ${synthResult.duration.inMilliseconds}ms',
+      );
+      return AudioInfo(duration: synthResult.duration);
+    } on Exception catch (e) {
+      Log.w('[OnboardingTTS] ⚠️ Error en síntesis, usando fallback: $e');
       _isPlaying = false;
-      rethrow;
+
+      // Fallback: duración calculada para no bloquear el flujo
+      final speed = (options?['speed'] as num?)?.toDouble() ?? 1.0;
+      final duration = _calculateRealisticDuration(text, speed);
+
+      _isPlaying = true;
+      Future.delayed(duration).then((_) {
+        _isPlaying = false;
+      });
+
+      return AudioInfo(duration: duration);
     }
+  }
+
+  /// Crear configuración de voz usando valores dinámicos del provider
+  VoiceSettings _createVoiceSettings(
+    final Map<String, dynamic> options,
+    final String? voiceId,
+  ) {
+    return VoiceSettings.create(
+      voiceId:
+          options['voice'] as String? ??
+          voiceId ??
+          '', // Dinámico del provider configurado
+      language: options['languageCode'] as String? ?? 'es-ES',
+      speed: (options['speed'] as num?)?.toDouble() ?? 1.0,
+      pitch: (options['pitch'] as num?)?.toDouble() ?? 1.0,
+    );
+  }
+
+  /// Calcula una duración realista basada en velocidad de lectura TTS
+  Duration _calculateRealisticDuration(final String text, final double speed) {
+    final words = text
+        .split(RegExp(r'\s+'))
+        .where((final word) => word.isNotEmpty)
+        .length;
+    final baseWpm = 175.0; // Palabras por minuto base para TTS
+    final adjustedWpm = baseWpm * speed; // Ajustar por velocidad configurada
+    final durationMinutes = words / adjustedWpm;
+    return Duration(milliseconds: (durationMinutes * 60 * 1000).round());
   }
 
   Future<void> stop() async {
-    if (_audioPlayer != null) {
-      await _audioPlayer!.stop();
-      _isPlaying = false;
-    }
+    await _audioService.stop();
+    _isPlaying = false;
   }
 
   Future<void> waitForCompletion() async {
-    if (_audioPlayer != null && _isPlaying) {
-      await _audioPlayer!.onPlayerComplete.first;
+    if (_isPlaying) {
+      try {
+        await _audioService.completionStream.first;
+      } on Exception catch (e) {
+        Log.w('[CONV_ONBOARDING] ⚠️ Error esperando finalización de audio: $e');
+        // Si el stream está cerrado, asumir que el audio ya terminó
+        _isPlaying = false;
+      }
     }
   }
 
   Future<void> dispose() async {
     await stop();
-    await _audioPlayer?.dispose();
-    _audioPlayer = null;
+    // ⭐ NO disponer del servicio singleton centralizado
+    // solo detener el audio actual
   }
 }
 
@@ -112,10 +195,10 @@ class ConversationalOnboardingScreen extends StatefulWidget {
 class _ConversationalOnboardingScreenState
     extends State<ConversationalOnboardingScreen>
     with TickerProviderStateMixin {
-  // Servicios necesarios
-  late final OpenAITtsService _openaiTtsService;
+  // Servicios necesarios - ✅ DESACOPLADO
+  late final OnboardingTtsService _ttsService;
   late final HybridSttService _hybridSttService;
-  late final AudioPlayer _audioPlayer;
+  late final IAudioPlaybackService _audioService;
   late final ConversationalSubtitleController _subtitleController;
   late final AudioSubtitleController _progressiveSubtitleController;
 
@@ -202,9 +285,9 @@ class _ConversationalOnboardingScreenState
   }
 
   Future<void> _initializeServices() async {
-    _openaiTtsService = OpenAITtsService();
+    _ttsService = OnboardingTtsService();
     _hybridSttService = HybridSttService();
-    _audioPlayer = AudioPlayer();
+    _audioService = CentralizedAudioPlaybackService.instance;
     _subtitleController = ConversationalSubtitleController();
     _progressiveSubtitleController = AudioSubtitleController();
 
@@ -212,7 +295,7 @@ class _ConversationalOnboardingScreenState
     await _hybridSttService.initialize(
       onStatus: (final status) {
         Log.d(
-          '📢 STT Status: $status (${_hybridSttService.isUsingOpenAI ? "OpenAI" : "Native"})',
+          '📢 STT Status: $status (${_hybridSttService.isUsingOpenAI ? "Provider dinámico" : "Native"})',
           tag: 'CONV_ONBOARDING',
         );
         if (status == 'notListening') {
@@ -249,9 +332,9 @@ class _ConversationalOnboardingScreenState
 
   /// Verifica si el usuario ya ha proporcionado algún dato
   /// para determinar si el botón de corregir debe estar habilitado
-  /// Prompt contextual para STT que ayuda a OpenAI Whisper a entender mejor
+  /// Prompt contextual para STT que ayuda al provider dinámico a entender mejor
   /// los nombres, países y términos comunes durante el onboarding
-  /// TEMPORALMENTE DESHABILITADO: Causa prompt leakage en OpenAI Whisper
+  /// TEMPORALMENTE DESHABILITADO: Causa prompt leakage en algunos providers
   // static const String _onboardingSTTPrompt =
   //     'Esta es una conversación de onboarding en español. El usuario puede mencionar nombres propios como Alberto, Antonio, María, Carmen, José, Ana, etc. '
   //     'También países como España, México, Argentina, Colombia, Perú, Chile, Venezuela, Ecuador, Uruguay, Paraguay, etc. '
@@ -268,9 +351,10 @@ class _ConversationalOnboardingScreenState
         );
 
     return {
-      'voice': 'marin',
+      'voice': '', // Dinámico del provider activo
       'languageCode': 'es-ES',
-      'provider': 'openai',
+      // ✅ DESACOPLADO: No especificar provider, dejar que el sistema elija
+      // 'provider': 'auto', // Usar auto-discovery dinámico
       'speed': 1.0,
       'instructions': instructions,
     };
@@ -488,13 +572,13 @@ class _ConversationalOnboardingScreenState
                                       '🛑 BOTÓN CORREGIR - Deteniendo audio...',
                                       tag: 'CONV_ONBOARDING',
                                     );
-                                    await _openaiTtsService.stop();
+                                    await _ttsService.stop();
 
-                                    // 🚨 DETENCIÓN DE EMERGENCIA - También detener AudioPlayer directamente
+                                    // 🚨 DETENCIÓN DE EMERGENCIA - También detener AudioService directamente
                                     try {
-                                      await _audioPlayer.stop();
+                                      await _audioService.stop();
                                       Log.d(
-                                        '🛑 EMERGENCIA - AudioPlayer también detenido',
+                                        '🛑 EMERGENCIA - AudioService también detenido',
                                         tag: 'CONV_ONBOARDING',
                                       );
                                     } on Exception catch (e) {
@@ -664,9 +748,9 @@ class _ConversationalOnboardingScreenState
     Log.d('🔧 CONFIG TTS: $voiceConfig', tag: 'CONV_ONBOARDING');
 
     try {
-      // Usar OpenAI TTS directo con subtítulos progresivos
+      // Usar TTS desacoplado con subtítulos progresivos
       Log.d(
-        '🚀 Usando OpenAI TTS directo con subtítulos progresivos...',
+        '🚀 Usando TTS desacoplado (modo híbrido) con subtítulos progresivos...',
         tag: 'CONV_ONBOARDING',
       );
 
@@ -679,7 +763,7 @@ class _ConversationalOnboardingScreenState
         return;
       }
 
-      final audioInfo = await _openaiTtsService.synthesizeAndPlay(
+      final audioInfo = await _ttsService.synthesizeAndPlay(
         text,
         options: voiceConfig,
       );
@@ -690,7 +774,7 @@ class _ConversationalOnboardingScreenState
           '🛑 Operación cancelada después de síntesis, deteniendo audio',
           tag: 'CONV_ONBOARDING',
         );
-        await _openaiTtsService.stop();
+        await _ttsService.stop();
         return;
       }
 
@@ -777,7 +861,7 @@ class _ConversationalOnboardingScreenState
       });
 
       // ⏳ ESPERAR A QUE TERMINE LA REPRODUCCIÓN
-      await _openaiTtsService.waitForCompletion();
+      await _ttsService.waitForCompletion();
 
       // 🔒 VERIFICAR CANCELACIÓN DESPUÉS DE REPRODUCCIÓN
       if (currentOperationId != _currentOperationId) {
@@ -799,7 +883,7 @@ class _ConversationalOnboardingScreenState
       _progressiveSub = null;
 
       Log.d(
-        '✅ OpenAI TTS con subtítulos progresivos completado exitosamente',
+        '✅ TTS desacoplado con subtítulos progresivos completado exitosamente',
         tag: 'CONV_ONBOARDING',
       );
 
@@ -808,11 +892,11 @@ class _ConversationalOnboardingScreenState
       Log.d('   - _isTtsPlaying: $_isTtsPlaying', tag: 'CONV_ONBOARDING');
       Log.d('   - _isSpeaking: $_isSpeaking', tag: 'CONV_ONBOARDING');
       Log.d(
-        '   - OpenAI TTS isPlaying: ${_openaiTtsService.isPlaying}',
+        '   - TTS isPlaying: ${_ttsService.isPlaying}',
         tag: 'CONV_ONBOARDING',
       );
     } on Exception catch (e) {
-      Log.e('❌ Error en OpenAI TTS: $e', tag: 'CONV_ONBOARDING');
+      Log.e('❌ Error en TTS: $e', tag: 'CONV_ONBOARDING');
 
       // 🔒 VERIFICAR CANCELACIÓN EN CASO DE ERROR
       if (currentOperationId != _currentOperationId) {
@@ -880,7 +964,7 @@ class _ConversationalOnboardingScreenState
     Log.d('   - _isTtsPlaying: $_isTtsPlaying', tag: 'CONV_ONBOARDING');
     Log.d('   - _isSpeaking: $_isSpeaking', tag: 'CONV_ONBOARDING');
     Log.d(
-      '   - OpenAI TTS isPlaying: ${_openaiTtsService.isPlaying}',
+      '   - TTS isPlaying: ${_ttsService.isPlaying}',
       tag: 'CONV_ONBOARDING',
     );
 
@@ -962,16 +1046,16 @@ class _ConversationalOnboardingScreenState
     Log.d('   - _isTtsPlaying: $_isTtsPlaying', tag: 'CONV_ONBOARDING');
     Log.d('   - _isSpeaking: $_isSpeaking', tag: 'CONV_ONBOARDING');
     Log.d(
-      '   - OpenAI TTS isPlaying: ${_openaiTtsService.isPlaying}',
+      '   - TTS isPlaying: ${_ttsService.isPlaying}',
       tag: 'CONV_ONBOARDING',
     );
     Log.d(
-      '   - AudioPlayer state: ${_audioPlayer.state}',
+      '   - AudioService state: ${_audioService.currentState}',
       tag: 'CONV_ONBOARDING',
     );
 
     // 🚨 VERIFICAR SI EL AUDIO ESTÁ REPRODUCIÉNDOSE
-    if (_isTtsPlaying || _isSpeaking || _openaiTtsService.isPlaying) {
+    if (_isTtsPlaying || _isSpeaking || _ttsService.isPlaying) {
       Log.e(
         '🚨 PROBLEMA DETECTADO: Intentando activar micrófono mientras audio aún reproduce!',
         tag: 'CONV_ONBOARDING',
@@ -1010,7 +1094,7 @@ class _ConversationalOnboardingScreenState
         // Procesar resultado final (el híbrido ya maneja finalizaciones)
         _processUserResponse(text);
       },
-      // TEMPORALMENTE DESHABILITADO: contextPrompt causa prompt leakage en OpenAI Whisper
+      // TEMPORALMENTE DESHABILITADO: contextPrompt causa prompt leakage en algunos providers
       // contextPrompt: _onboardingSTTPrompt, // 🎯 Añadir contexto para onboarding
     );
   }
@@ -1047,7 +1131,7 @@ class _ConversationalOnboardingScreenState
         '🛑 Deteniendo audio en reproducción por nueva entrada del usuario',
         tag: 'CONV_ONBOARDING',
       );
-      await _openaiTtsService.stop();
+      await _ttsService.stop();
     }
 
     // Detener micrófono si está activo
@@ -1505,7 +1589,7 @@ class _ConversationalOnboardingScreenState
     // Pausar cualquier TTS activo
     if (_isTtsPlaying) {
       Log.d('🛑 Pausando TTS antes de mostrar diálogo', tag: 'CONV_ONBOARDING');
-      await _openaiTtsService.stop();
+      await _ttsService.stop();
       _safeSetState(() => _isTtsPlaying = false);
     }
 
@@ -1997,8 +2081,9 @@ class _ConversationalOnboardingScreenState
     _speechTimeoutTimer?.cancel();
     _pulseController.dispose();
     _hybridSttService.dispose();
-    _audioPlayer.dispose();
-    _openaiTtsService.dispose();
+    // ⭐ NO disponer del servicio de audio centralizado (es singleton)
+    // _audioService.dispose();
+    _ttsService.dispose();
     _subtitleController.dispose();
     _progressiveSubtitleController.dispose();
     // Asegurar que no queden timers o subscripciones activas de subtítulos

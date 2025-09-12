@@ -20,6 +20,7 @@ export 'shared/domain/interfaces/i_ui_state_service.dart';
 // Domain Enums
 export 'shared/domain/enums/call_status.dart';
 export 'shared/domain/enums/message_sender.dart';
+export 'shared/domain/enums/conversation_state.dart';
 
 // Application Layer
 export 'shared/application/services/event_timeline_service.dart';
@@ -85,9 +86,11 @@ export 'shared/utils.dart';
 // Services - Active services only
 export 'shared/services/voice_call_controller.dart';
 export 'shared/services/google_backup_service.dart';
+export 'shared/services/hybrid_stt_service.dart';
 
 // AI Providers System
 export 'shared/ai_providers/core/interfaces/i_ai_provider.dart';
 export 'shared/ai_providers/core/registry/ai_provider_registry.dart';
 export 'shared/ai_providers/core/services/realtime_service.dart';
 export 'shared/ai_providers/core/services/multi_model_router.dart';
+export 'shared/ai_providers/audio_services.dart';

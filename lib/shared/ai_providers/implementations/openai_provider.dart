@@ -587,7 +587,7 @@ class OpenAIProvider implements IAIProvider {
     Log.d('🎵 [_sendTTSRequest] ✅ Text validation passed', tag: 'OPENAI_TTS');
 
     final selectedModel = model ?? 'gpt-4o-mini-tts';
-    final voice = additionalParams?['voice'] ?? 'alloy';
+    final voice = additionalParams?['voice'] ?? ''; // Dinámico del provider
 
     Log.d(
       '🎵 [_sendTTSRequest] ✅ Model and voice determined:',
@@ -680,7 +680,8 @@ class OpenAIProvider implements IAIProvider {
     // El modelo debe venir del AIProviderManager, no de variables de environment
     final selectedModel =
         model ?? 'gpt-4o-mini-tts'; // Fallback si no se proporciona modelo
-    final selectedVoice = voice ?? additionalParams?['voice'] ?? 'alloy';
+    final selectedVoice =
+        voice ?? additionalParams?['voice'] ?? ''; // Dinámico del provider
     final speed = additionalParams?['speed'] ?? 1.0;
     final responseFormat = additionalParams?['response_format'] ?? 'mp3';
     final instructions = additionalParams?['instructions'];
@@ -1178,7 +1179,7 @@ class OpenAIProvider implements IAIProvider {
 
   /// Get default voice for this provider
   String getDefaultVoice() {
-    return 'marin'; // Premium voice as default
+    return ''; // Dinámico desde configuración YAML
   }
 
   /// Get list of voice names only (for compatibility)

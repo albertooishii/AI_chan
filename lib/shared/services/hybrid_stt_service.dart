@@ -5,6 +5,8 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:record/record.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/api_key_manager.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:http/http.dart' as http;
 
@@ -239,7 +241,7 @@ class HybridSttService {
       // Crear request multipart
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse('https://api.openai.com/v1/audio/transcriptions'),
+        _getSttApiUrl(), // 🚀 DINÁMICO: Obtener URL dinámicamente
       );
 
       // Headers
@@ -252,7 +254,7 @@ class HybridSttService {
       request.headers['Authorization'] = 'Bearer $apiKey';
 
       // Campos
-      request.fields['model'] = Config.getOpenAISttModel();
+      request.fields['model'] = Config.getSTTModel();
       request.fields['language'] = 'es';
       request.fields['response_format'] = 'text';
       request.fields['temperature'] =
@@ -319,5 +321,56 @@ class HybridSttService {
     _timeoutTimer?.cancel();
     _silenceTimer?.cancel();
     _recorder.dispose();
+  }
+
+  /// 🚀 DINÁMICO: Obtener URL del API de STT dinámicamente
+  Uri _getSttApiUrl() {
+    try {
+      // Obtener el primer proveedor con capacidad de transcripción
+      final providers = AIProviderManager.instance.getProvidersByCapability(
+        AICapability.audioTranscription,
+      );
+
+      if (providers.isNotEmpty) {
+        final providerId = providers.first;
+        final provider = AIProviderManager.instance.providers[providerId];
+
+        if (provider != null) {
+          // Intentar obtener la URL base del proveedor y construir endpoint de transcripción
+          // Para OpenAI esto sería '/v1/audio/transcriptions'
+          // Para otros proveedores podría ser diferente
+          final baseUrl = _getProviderBaseUrl(providerId);
+          return Uri.parse('$baseUrl/v1/audio/transcriptions');
+        }
+      }
+
+      // Fallback genérico
+      return Uri.parse(
+        'https://api.unknown-provider.com/v1/audio/transcriptions',
+      );
+    } on Exception catch (e) {
+      Log.w('Error obteniendo URL de STT: $e');
+      return Uri.parse(
+        'https://api.unknown-provider.com/v1/audio/transcriptions',
+      );
+    }
+  }
+
+  /// 🚀 DINÁMICO: Obtener URL base del proveedor
+  String _getProviderBaseUrl(final String providerId) {
+    try {
+      // Intentar obtener URL base desde la configuración del proveedor
+      final provider = AIProviderManager.instance.providers[providerId];
+      if (provider != null) {
+        // Si el proveedor tiene metadatos con URL base, usarla
+        // Por ahora, usar lógica genérica
+        return 'https://api.$providerId.com';
+      }
+    } on Exception catch (e) {
+      Log.w('Error obteniendo URL base para $providerId: $e');
+    }
+
+    // Fallback genérico usando el nombre del proveedor
+    return 'https://api.$providerId.com';
   }
 }

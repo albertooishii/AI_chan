@@ -41,7 +41,6 @@ abstract class IAudioChatService {
   /// Synthesize text to speech and return audio file path
   Future<String?> synthesizeTts(
     final String text, {
-    final String voice = 'marin',
     final String? languageCode,
     final bool forDialogDemo = false,
   });

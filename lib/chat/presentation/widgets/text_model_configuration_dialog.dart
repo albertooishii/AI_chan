@@ -56,7 +56,7 @@ class TextModelConfigurationDialog extends StatefulWidget {
 
 class _TextModelConfigurationDialogState
     extends State<TextModelConfigurationDialog> {
-  String _selectedProvider = 'google';
+  String _selectedProvider = ''; // Se inicializará dinámicamente
   bool _isLoading = false;
   final Map<String, List<String>> _providerModels = {};
   String? _selectedModel;
@@ -116,8 +116,16 @@ class _TextModelConfigurationDialogState
         _applyDefaultModelForCurrentProvider();
       }
     } on Exception catch (_) {
+      // Obtener el primer provider disponible dinámicamente desde el manager
+      final manager = AIProviderManager.instance;
+      final availableProviders = manager.getProvidersByCapability(
+        AICapability.textGeneration,
+      );
+
       setState(() {
-        _selectedProvider = 'google'; // Default provider
+        _selectedProvider = availableProviders.isNotEmpty
+            ? availableProviders.first
+            : '';
         _selectedModel = null;
       });
     }
@@ -224,23 +232,8 @@ class _TextModelConfigurationDialogState
             return defaultModel;
           }
 
-          // Caso especial para xAI: si el default es "grok-4" pero no existe exactamente,
-          // buscar el primer modelo que empiece con "grok-4-"
-          if (provider == 'xai' && defaultModel == 'grok-4') {
-            final grok4Model = availableModels.firstWhere(
-              (final model) => model.toLowerCase().startsWith('grok-4-'),
-              orElse: () => '',
-            );
-            Log.d(
-              '[TextModelDialog] Debug - Grok-4 prefix search result: $grok4Model',
-            );
-            if (grok4Model.isNotEmpty) {
-              return grok4Model;
-            }
-          }
-
-          // Para otros casos donde el modelo por defecto no existe exactamente,
-          // intentar buscar por prefijo (ej: "gpt-4" debería coincidir con "gpt-4-turbo")
+          // Si el modelo por defecto no existe exactamente, buscar por prefijo
+          // (ej: "gpt-4" debería coincidir con "gpt-4-turbo", "grok-4" con "grok-4-latest")
           final prefixMatch = availableModels.firstWhere(
             (final model) =>
                 model.toLowerCase().startsWith(defaultModel.toLowerCase()),
@@ -325,11 +318,31 @@ class _TextModelConfigurationDialogState
       }
     } on Exception catch (e) {
       Log.w('[TextModelDialog] Error loading models: $e');
-      // Fallback to static models if dynamic loading fails
+      // Fallback dinámico: obtener modelos de los providers disponibles
       _providerModels.clear();
-      _providerModels['google'] = ['gemini-2.5-flash', 'gemini-2.5-pro'];
-      _providerModels['openai'] = ['gpt-4o-mini', 'gpt-4o'];
-      _providerModels['xai'] = ['grok-3']; // Cambiado de 'grok' a 'xai'
+
+      final manager = AIProviderManager.instance;
+      final availableProviders = manager.getProvidersByCapability(
+        AICapability.textGeneration,
+      );
+
+      for (final providerId in availableProviders) {
+        try {
+          final provider = manager.providers[providerId];
+          if (provider != null) {
+            final models = await provider.getAvailableModelsForCapability(
+              AICapability.textGeneration,
+            );
+            if (models.isNotEmpty) {
+              _providerModels[providerId] = models;
+            }
+          }
+        } on Exception catch (providerError) {
+          Log.w(
+            '[TextModelDialog] Error loading models from $providerId: $providerError',
+          );
+        }
+      }
 
       // Aplicar modelo por defecto también en el fallback
       if (_selectedModel == null || _selectedModel!.isEmpty) {
@@ -341,7 +354,10 @@ class _TextModelConfigurationDialogState
   /// Carga modelos desde caché
   Future<bool> _loadModelsFromCache() async {
     try {
-      final providers = ['openai', 'google', 'xai']; // Cambiado 'grok' a 'xai'
+      final manager = AIProviderManager.instance;
+      final providers = manager.getProvidersByCapability(
+        AICapability.textGeneration,
+      );
       bool hasAnyCache = false;
 
       for (final provider in providers) {
@@ -385,7 +401,10 @@ class _TextModelConfigurationDialogState
     try {
       int total = 0;
       int cacheSize = 0;
-      final providers = ['openai', 'google', 'xai']; // Cambiado 'grok' a 'xai'
+      final manager = AIProviderManager.instance;
+      final providers = manager.getProvidersByCapability(
+        AICapability.textGeneration,
+      );
 
       for (final provider in providers) {
         final cachedModels = await CacheService.getCachedModels(
@@ -806,36 +825,24 @@ class _TextModelConfigurationDialogState
   String _getModelDescription(final String model) {
     final modelLower = model.toLowerCase();
 
-    if (modelLower.contains('gpt-4')) {
-      if (modelLower.contains('turbo')) {
-        return 'GPT-4 Turbo • Rápido y eficiente';
-      } else if (modelLower.contains('o')) {
-        return 'GPT-4o • Optimizado multimodal';
-      }
-      return 'GPT-4 • Modelo avanzado';
-    } else if (modelLower.contains('gpt-3.5')) {
-      return 'GPT-3.5 • Equilibrio precio-rendimiento';
-    } else if (modelLower.contains('o1')) {
-      if (modelLower.contains('mini')) {
-        return 'O1 Mini • Razonamiento rápido';
-      } else if (modelLower.contains('preview')) {
-        return 'O1 Preview • Razonamiento avanzado';
-      }
-      return 'O1 • Razonamiento complejo';
-    } else if (modelLower.contains('gemini')) {
-      if (modelLower.contains('pro')) {
-        return 'Gemini Pro • Modelo potente';
-      } else if (modelLower.contains('flash')) {
-        return 'Gemini Flash • Respuestas rápidas';
-      }
-      return 'Gemini • Modelo de Google';
-    } else if (modelLower.contains('grok')) {
-      if (modelLower.contains('mini')) {
-        return 'Grok Mini • Versión optimizada';
-      }
-      return 'Grok • Modelo de xAI';
+    // Descripción genérica basada en patrones comunes
+    if (modelLower.contains('turbo')) {
+      return 'Modelo Turbo • Rápido y eficiente';
+    } else if (modelLower.contains('mini')) {
+      return 'Modelo Mini • Optimizado para velocidad';
+    } else if (modelLower.contains('preview')) {
+      return 'Modelo Preview • Capacidades avanzadas';
+    } else if (modelLower.contains('pro')) {
+      return 'Modelo Pro • Rendimiento superior';
+    } else if (modelLower.contains('flash')) {
+      return 'Modelo Flash • Ultra rápido';
+    } else if (modelLower.contains('vision')) {
+      return 'Modelo Vision • Procesamiento visual';
+    } else if (modelLower.contains('realtime')) {
+      return 'Modelo Realtime • Conversación en tiempo real';
     }
 
-    return 'Modelo de texto • Generación de texto';
+    // Descripción por defecto con el nombre del modelo
+    return '${model.split('-').first.toUpperCase()} • Modelo de IA';
   }
 }

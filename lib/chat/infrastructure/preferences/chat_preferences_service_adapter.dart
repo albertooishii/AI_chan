@@ -8,7 +8,8 @@ import 'package:ai_chan/shared/utils/prefs_utils.dart';
 /// the chat domain interface while delegating to shared infrastructure.
 class ChatPreferencesServiceAdapter implements IChatPreferencesService {
   @override
-  Future<String> getPreferredVoice({final String fallback = 'nova'}) async {
+  Future<String> getPreferredVoice({final String fallback = ''}) async {
+    // Dinámico
     return await PrefsUtils.getPreferredVoice(fallback: fallback);
   }
 }

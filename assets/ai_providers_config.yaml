@@ -41,29 +41,7 @@ ai_providers:
       required_env_keys:
         - "OPENAI_API_KEYS"
     
-    models:
-      text_generation:
-        - "gpt-5"
-        - "gpt-5-mini"
-        - "gpt-4.1"
-        - "gpt-4.1-mini"
-      image_generation:
-        - "gpt-5"
-        - "gpt-5-mini"
-        - "gpt-4.1"
-        - "gpt-4.1-mini"
-      image_analysis:
-        - "gpt-5"
-        - "gpt-5-mini"
-        - "gpt-4.1"
-        - "gpt-4.1-mini"
-      audio_generation:
-        - "gpt-4o-mini-tts"
-      audio_transcription:
-        - "gpt-4o-mini-transcribe"
-      realtime_conversation:
-        - "gpt-realtime"
-    
+    # Default models por capability (los availables se obtienen del provider dinámicamente)
     defaults:
       text_generation: "gpt-4.1-mini"
       image_generation: "gpt-4.1-mini"
@@ -72,33 +50,22 @@ ai_providers:
       audio_transcription: "gpt-4o-mini-transcribe"
       realtime_conversation: "gpt-realtime"
     
-    # Voice configuration for TTS and Realtime
+    # Voice configuration (solo defaults - las available se obtienen del provider)
     voices:
-      # All available voices (from kOpenAIVoiceGender - exact match)
-      available:
-        - "sage"
-        - "alloy"
-        - "ash"
-        - "ballad"
-        - "coral"
-        - "echo"
-        - "fable"
-        - "onyx"
-        - "nova"
-        - "shimmer"
-        - "verse"
-        - "cedar"
-        - "marin"
-      
       default: "marin"          # Default voice for both TTS and Realtime
       tts_default: "marin"      # TTS default (same as general default)
     
-    # Realtime Configuration (gpt-realtime specific)
+    # 🎵 TTS Display Configuration for UI
+    tts_display:
+      name: "OpenAI TTS"
+      description: "Voces sintéticas naturales impulsadas por IA de última generación"
+      subtitle_template: "{voice_count} voces disponibles"
+      availability: "cloud_api"
+    
+        # Realtime Configuration (gpt-realtime specific)
     realtime:
       enabled: true
-      models:
-        - "gpt-realtime"
-      default_model: "gpt-realtime"
+      default_model: "gpt-realtime"  # Solo default, no lista de models
       
       # Advanced gpt-realtime features
       features:
@@ -196,41 +163,24 @@ ai_providers:
       required_env_keys:
         - "GEMINI_API_KEYS"
     
-    models:
-      text_generation:
-        - "gemini-2.5-flash"
-        - "gemini-2.5-pro"
-      image_generation:
-        - "gemini-2.5-flash-image-preview"
-      image_analysis:
-        - "gemini-2.5-flash"
-      realtime_conversation:
-        - "gemini-2.5-flash"
-        - "gemini-2.5-pro"
+    # Default models por capability (los availables se obtienen del provider dinámicamente)
     defaults:
       text_generation: "gemini-2.5-flash"
       image_generation: "gemini-2.5-flash-image-preview"
       image_analysis: "gemini-2.5-flash"
       realtime_conversation: "gemini-2.5-flash"
     
-    # Voice configuration (Google TTS via Cloud Text-to-Speech API)
+    # Voice configuration (solo default - las available se obtienen del provider)
     voices:
-      available:
-        - "es-ES-Neural2-A"
-        - "es-ES-Neural2-B"
-        - "es-ES-Neural2-C"
-        - "es-ES-Neural2-D"
-        - "es-ES-Standard-A"
-        - "es-ES-Standard-B"
-        - "es-ES-Standard-C"
-        - "es-ES-Standard-D"
-        - "es-US-Neural2-A"
-        - "es-US-Neural2-B"
-        - "es-US-Neural2-C"
-        - "es-US-Standard-A"
-        - "es-US-Standard-B"
-        - "es-US-Standard-C"
       default: "es-ES-Neural2-A"
+    
+    # 🎵 TTS Display Configuration for UI
+    tts_display:
+      name: "Google Cloud TTS"
+      description: "Síntesis de voz de alta calidad con múltiples idiomas y voces neurales"
+      subtitle_template: "{voice_count} voces disponibles"
+      subtitle_not_configured: "No configurado"
+      availability: "cloud_api"
     
     # Google Hybrid System (TTS + STT + Text)
     hybrid_system:
@@ -287,17 +237,7 @@ ai_providers:
       required_env_keys:
         - "GROK_API_KEYS"
     
-    models:
-      text_generation:
-        - "grok-4"
-        - "grok-3"
-        - "grok-2"
-        - "grok-beta"
-        - "grok-vision-beta"
-      image_analysis:
-        - "grok-vision-beta"
-        - "grok-4"
-    
+    # Default models por capability (los availables se obtienen del provider dinámicamente)
     defaults:
       text_generation: "grok-4"
       image_analysis: "grok-vision-beta"
@@ -333,6 +273,19 @@ ai_providers:
       supports_streaming: false
       supports_function_calling: false
       supports_tools: false
+
+# 🤖 Android Native TTS Configuration
+# Special configuration for platform-specific TTS
+android_native_tts:
+  enabled: true
+  priority: 0  # Highest priority on Android
+  
+  # 🎵 TTS Display Configuration for UI
+  tts_display:
+    name: "TTS Nativo Android (Gratuito)"
+    description: "Motor de texto a voz integrado del sistema Android"
+    subtitle_template: "{voice_count} voces instaladas" 
+    availability: "android_only"
 
 # Fallback chains define which providers to try in sequence for each capability
 fallback_chains:

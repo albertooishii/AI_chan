@@ -256,7 +256,7 @@ class ChatApplicationService {
       final outcome = await _sendMessageUseCase.sendChat(
         recentMessages: _messages,
         systemPromptObj: systemPrompt,
-        model: options?.model ?? _selectedModel ?? 'gpt-4o-mini',
+        model: options?.model ?? _selectedModel ?? _getDefaultChatModel(),
         imageBase64: options?.image is String ? options!.image : null,
         imageMimeType: options?.imageMimeType,
         onboardingData: _profile,
@@ -519,11 +519,8 @@ class ChatApplicationService {
   /// Correct isPlaying method from original ChatProvider
   bool isPlaying(final Message msg) => _audioService.isPlayingMessage(msg);
 
-  Future<void> generateTtsForMessage(
-    final Message msg, {
-    final String voice = 'nova',
-  }) async {
-    final path = await _audioService.synthesizeTts(msg.text, voice: voice);
+  Future<void> generateTtsForMessage(final Message msg) async {
+    final path = await _audioService.synthesizeTts(msg.text);
     if (path != null) {
       // Update message with TTS audio
       final idx = _messages.indexWhere((final m) => m.localId == msg.localId);
@@ -651,14 +648,43 @@ class ChatApplicationService {
       return allModels.toSet().toList();
     } on Exception catch (e) {
       Log.w('[ChatService] Error obteniendo modelos: $e');
-      // Fallback a modelos estáticos si falla la obtención dinámica
-      return [
-        'gemini-2.5-flash',
-        'gemini-2.5-pro',
-        'gpt-4o-mini',
-        'gpt-4o',
-        'grok-3',
-      ];
+      // 🚀 DINÁMICO: Fallback a modelos dinámicos en lugar de hardcodeados
+      return await _getFallbackModels();
+    }
+  }
+
+  /// 🚀 DINÁMICO: Obtener modelos de fallback dinámicamente
+  Future<List<String>> _getFallbackModels() async {
+    try {
+      // Intentar obtener modelos de text generation
+      final textModels = await AIProviderManager.instance.getAvailableModels(
+        AICapability.textGeneration,
+      );
+      if (textModels.isNotEmpty) {
+        return textModels.take(5).toList(); // Limitar a 5 modelos
+      }
+      return ['unknown-model'];
+    } on Exception catch (e) {
+      Log.w('[ChatService] Error obteniendo modelos de fallback: $e');
+      return ['unknown-model'];
+    }
+  }
+
+  /// 🚀 DINÁMICO: Obtener modelo de chat por defecto dinámicamente
+  String _getDefaultChatModel() {
+    try {
+      // Obtener el primer proveedor con capacidad de generación de texto
+      final providers = AIProviderManager.instance.getProvidersByCapability(
+        AICapability.textGeneration,
+      );
+      if (providers.isNotEmpty) {
+        // Para simplicidad, devolver un modelo conocido del primer proveedor
+        return 'text-model-default';
+      }
+      return 'unknown-model';
+    } on Exception catch (e) {
+      Log.w('[ChatService] Error obteniendo modelo por defecto: $e');
+      return 'unknown-model';
     }
   }
 

@@ -1,12 +1,6 @@
-// lib/core/di.dart
-// Dependency Injection Container for AI Chan
-// Clean imports using barrel exports where possible for better maintainability
-// ignore_for_file: prefer_final_parameters, unnecessary_import
-
-// Dart Imports
 import 'dart:typed_data';
 
-// AI Chan - Barrel Imports (DDD Bounded Contexts)
+// AI Chan - Barrel Imports (Bounded Contexts)
 import 'package:ai_chan/chat.dart';
 import 'package:ai_chan/voice.dart'; // 🔥 NEW: Voice bounded context
 import 'package:ai_chan/core.dart';
@@ -15,8 +9,16 @@ import 'package:ai_chan/shared.dart';
 
 // Import specific services that need DI
 import 'package:ai_chan/chat/domain/interfaces/i_tts_voice_management_service.dart';
+import 'package:ai_chan/shared/infrastructure/adapters/audio_playback_service_adapter.dart';
 import 'package:ai_chan/chat/application/services/tts_voice_management_service.dart';
 import 'package:ai_chan/shared/domain/interfaces/i_ai_service.dart' as shared;
+import 'package:ai_chan/shared/ai_providers/core/services/audio/centralized_tts_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/audio/centralized_stt_service.dart';
+
+CentralizedTtsService getCentralizedTtsService() =>
+    CentralizedTtsService.instance;
+CentralizedSttService getCentralizedSttService() =>
+    CentralizedSttService.instance;
 
 /// Factory functions and small helpers used across the app.
 /// This file provides DI factories for the entire application.
@@ -67,7 +69,7 @@ ILanguageResolver getLanguageResolver() => LanguageResolverService();
 IFileService getFileService() => FileService();
 
 /// Factory for audio playback (legacy compatibility)
-AudioPlayback getAudioPlayback([dynamic candidate]) =>
+AudioPlayback getAudioPlayback([final dynamic candidate]) =>
     AudioPlayback.adapt(candidate);
 
 /// 🔥 Realtime client registry for enhanced AI providers
@@ -129,16 +131,15 @@ Future<IRealtimeClient> getRealtimeClientForProvider(
       onAudio: onAudio,
       onCompleted: onCompleted,
       onError: onError != null
-          ? (Object error) => onError(error.toString())
+          ? (final Object error) => onError(error.toString())
           : null,
       onUserTranscription: onUserTranscription,
     );
   }
 
   try {
-    // ✨ USA REALTIME SERVICE en lugar de registry manual
-    return await RealtimeService.getBestRealtimeClient(
-      preferredProvider: provider,
+    // ✨ USA REALTIME SERVICE configurado dinámicamente
+    return await RealtimeService.getConfiguredRealtimeClient(
       onText: onText,
       onAudio: onAudio != null
           ? (final List<int> audio) => onAudio(Uint8List.fromList(audio))
@@ -173,7 +174,7 @@ class NotSupportedRealtimeClient implements IRealtimeClient {
   @override
   Future<void> connect({
     required final String systemPrompt,
-    final String voice = 'marin',
+    final String voice = '', // Dinámico del provider configurado
     final String? inputAudioFormat,
     final String? outputAudioFormat,
     final String? turnDetectionType,
@@ -267,9 +268,11 @@ ChatController getChatController() =>
 
 // 🎯 Voice Services (Legacy functions redirected to new Voice bounded context)
 dynamic getTtsService() => getDynamicTtsService();
-dynamic getTtsServiceForProvider(String provider) => getDynamicTtsService();
+dynamic getTtsServiceForProvider(final String provider) =>
+    getDynamicTtsService();
 dynamic getSttService() => getDynamicSttService();
-dynamic getSttServiceForProvider(String provider) => getDynamicSttService();
+dynamic getSttServiceForProvider(final String provider) =>
+    getDynamicSttService();
 
 // 🎯 Voice Bounded Context Services
 VoiceController getVoiceController() =>
@@ -277,30 +280,30 @@ VoiceController getVoiceController() =>
 VoiceApplicationService getVoiceApplicationService() =>
     VoiceApplicationService(useCase: getManageVoiceSessionUseCase());
 ToneService getToneService() => ToneService.instance;
+
+// Temporary workaround - use dynamic to avoid type conflicts
 ManageVoiceSessionUseCase getManageVoiceSessionUseCase() =>
     ManageVoiceSessionUseCase(
-      ttsService: getDynamicTtsService(),
-      sttService: getDynamicSttService(),
+      ttsService: getDynamicTtsService() as ITextToSpeechService,
+      sttService: getDynamicSttService() as ISpeechToTextService,
     );
 VoiceSessionOrchestrator getVoiceSessionOrchestrator() =>
     VoiceSessionOrchestrator(
-      ttsService: getDynamicTtsService(),
-      sttService: getDynamicSttService(),
+      ttsService: getDynamicTtsService() as ITextToSpeechService,
+      sttService: getDynamicSttService() as ISpeechToTextService,
     );
-DynamicTextToSpeechService getDynamicTtsService() =>
-    DynamicTextToSpeechService.instance;
-DynamicSpeechToTextService getDynamicSttService() =>
-    DynamicSpeechToTextService.instance;
+dynamic getDynamicTtsService() => getCentralizedTtsService();
+dynamic getDynamicSttService() => getCentralizedSttService();
 
 // 🎯 Legacy Audio Services (Legacy functions for TTS compatibility)
-dynamic getAudioPlaybackService() => getDynamicTtsService();
+AudioPlaybackService getAudioPlaybackService() => AudioPlaybackServiceAdapter();
 
 // 🎯 Legacy Test Support Functions (for compatibility)
-void setTestSttOverride(dynamic service) {
+void setTestSttOverride(final dynamic service) {
   // No-op: Legacy Call tests are being eliminated
 }
 
-void setTestAudioPlaybackOverride(dynamic service) {
+void setTestAudioPlaybackOverride(final dynamic service) {
   // No-op: Legacy Call tests are being eliminated
 }
 

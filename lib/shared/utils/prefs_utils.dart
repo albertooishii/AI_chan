@@ -93,7 +93,7 @@ class PrefsUtils {
   /// Centraliza la lógica repetida usada en varios sitios (ej. mapeos y
   /// comprobaciones de cadena vacía).
   static Future<String> getPreferredVoice({
-    final String fallback = 'nova',
+    final String fallback = '', // Dinámico del provider configurado
   }) async {
     try {
       final provider = await getSelectedAudioProvider();

@@ -25,21 +25,15 @@ class TtsService {
   /// carpeta local de audio configurada. Devuelve la ruta final o null.
   Future<String?> synthesizeAndPersist(
     final String text, {
-    final String voice = 'nova',
+    final String voice = '', // Dinámico del provider configurado
   }) async {
     try {
       // Resolve language code using the injected language resolver
       final lang = await languageResolver.resolveLanguageCode(voice);
 
-      // Resolve preferred voice using the injected preferences service
-      final preferredVoice = await preferencesService.getPreferredVoice(
-        fallback: voice,
-      );
-
       // Synthesize using audio service (returns file path now, not File object)
       final synthesizedPath = await audioService.synthesizeTts(
         text,
-        voice: preferredVoice,
         languageCode: lang,
       );
 

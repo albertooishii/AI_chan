@@ -3,6 +3,7 @@ import 'package:ai_chan/core/config.dart';
 import 'package:ai_chan/core/di.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/dialog_utils.dart';
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
@@ -84,12 +85,16 @@ class TtsConfigurationDialog extends StatefulWidget {
 
 class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
     with WidgetsBindingObserver {
-  String _selectedProvider = 'google';
+  String _selectedProvider = ''; // Se inicializará dinámicamente
   bool _isLoading = false;
-  bool _androidNativeAvailable = false;
-  List<Map<String, dynamic>> _googleVoices = [];
-  final List<Map<String, dynamic>> _openaiVoices = [];
-  final List<Map<String, dynamic>> _androidNativeVoices = [];
+
+  // 🚀 SISTEMA DINÁMICO: Mapas por provider ID en lugar de variables específicas
+  final Map<String, List<Map<String, dynamic>>> _voicesByProvider = {};
+  final List<Map<String, dynamic>> _androidNativeVoices =
+      []; // 🚀 PROVIDERS DINÁMICOS: Lista de providers disponibles
+  List<String> _availableProviders = [];
+  Map<String, String> _providerDisplayNames = {};
+
   String? _selectedVoice;
   String? _selectedModel;
   int _cacheSize = 0;
@@ -105,11 +110,15 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    // 🚀 SISTEMA DINÁMICO: Cargar providers disponibles primero
+    _loadAvailableProviders();
+
     _loadSettings();
     _checkAndroidNative();
-    _loadVoices();
-    // Preload OpenAI voices (will fallback to static list if API not configured)
-    _loadOpenAiVoices();
+
+    // 🚀 CARGAR VOCES: Inicializar providers disponibles
+    _loadInitialVoices();
     _loadCacheSize();
   }
 
@@ -165,12 +174,15 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
   Future<void> refreshVoices({final bool forceRefresh = false}) async {
     setState(() => _isLoading = true);
     try {
-      if (_selectedProvider == 'google') {
-        await _loadVoices(forceRefresh: forceRefresh);
-      } else if (_selectedProvider == 'openai') {
-        await _loadOpenAiVoices(forceRefresh: forceRefresh);
-      } else if (_selectedProvider == 'android_native') {
-        await _refreshNativeVoices();
+      final manager = AIProviderManager.instance;
+      final provider = manager.providers[_selectedProvider];
+
+      if (provider?.supportsCapability(AICapability.audioGeneration) == true) {
+        if (_selectedProvider == 'android_native') {
+          await _refreshNativeVoices();
+        } else {
+          await _loadVoices(forceRefresh: forceRefresh);
+        }
       }
       showAppSnackBar('Voces actualizadas');
     } on Exception catch (e) {
@@ -184,7 +196,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
     try {
       final savedProvider = await PrefsUtils.getSelectedAudioProvider();
       // getPreferredVoice centraliza la lógica de resolución por provider + fallback
-      final providerVoice = await PrefsUtils.getPreferredVoice(fallback: '');
+      final providerVoice = await PrefsUtils.getPreferredVoice();
       final selModel = await PrefsUtils.getSelectedModel();
       setState(() {
         _selectedProvider = savedProvider;
@@ -202,8 +214,16 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
           _selectedModel = Config.getDefaultTextModel();
         });
       } on Exception catch (_) {
+        // Obtener el primer provider disponible dinámicamente
+        final manager = AIProviderManager.instance;
+        final availableProviders = manager.getProvidersByCapability(
+          AICapability.audioGeneration,
+        );
+
         setState(() {
-          _selectedProvider = 'google'; // Ultimate fallback
+          _selectedProvider = availableProviders.isNotEmpty
+              ? availableProviders.first
+              : '';
           _selectedVoice = null;
           _selectedModel = Config.getDefaultTextModel();
         });
@@ -215,9 +235,8 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
     // Detectar plataforma y comprobar disponibilidad nativa solo en Android
     if (Platform.isAndroid) {
       final available = _voiceService.isAndroidNativeTtsAvailable();
-      setState(() {
-        _androidNativeAvailable = available;
-      });
+      // Note: Android native availability is now handled by dynamic provider system
+
       // Si está disponible, intentar cargar/filtrar las voces nativas inmediatamente
       if (available) {
         await _refreshNativeVoices();
@@ -325,9 +344,172 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
     }
   }
 
+  /// 🚀 SISTEMA DINÁMICO: Cargar providers de TTS disponibles
+  Future<void> _loadAvailableProviders() async {
+    try {
+      final manager = AIProviderManager.instance;
+      await manager.initialize();
+
+      // Obtener providers con capacidad de audio generation (TTS)
+      final ttsProviders = manager.getProvidersByCapability(
+        AICapability.audioGeneration,
+      );
+
+      _availableProviders.clear();
+      _providerDisplayNames.clear();
+
+      // Android native siempre primero si está disponible
+      if (Platform.isAndroid) {
+        _availableProviders.add('android_native');
+        _providerDisplayNames['android_native'] =
+            AIProviderConfigLoader.getTtsProviderDisplayName('android_native');
+      }
+
+      // 🚀 YAML: Obtener provider IDs dinámicamente
+      for (final providerId in ttsProviders) {
+        if (!_availableProviders.contains(providerId)) {
+          _availableProviders.add(providerId);
+          // 🚀 YAML: Usar configuración dinámica del YAML
+          _providerDisplayNames[providerId] =
+              AIProviderConfigLoader.getTtsProviderDisplayName(providerId);
+        }
+      }
+    } on Exception catch (e) {
+      Log.e('Error cargando providers: $e', tag: 'TTS_DIALOG');
+      // 🚀 YAML: Fallback dinámico usando configuración
+      final defaultProvider = AIProviderConfigLoader.getDefaultAudioProvider();
+      _availableProviders = Platform.isAndroid
+          ? ['android_native', defaultProvider]
+          : [defaultProvider];
+
+      // 🚀 YAML: Cargar nombres desde configuración en lugar de hardcodear
+      _providerDisplayNames = {};
+      for (final providerId in _availableProviders) {
+        _providerDisplayNames[providerId] =
+            AIProviderConfigLoader.getTtsProviderDisplayName(providerId);
+      }
+    }
+  }
+
+  /// 🚀 CARGAR VOCES: Cargar voces para providers iniciales
+  Future<void> _loadInitialVoices() async {
+    for (final providerId in _availableProviders) {
+      if (providerId == 'android_native') {
+        // android_native se carga por separado en _checkAndroidNative
+        continue;
+      }
+
+      // 🚀 DINÁMICO: Cargar voces usando método específico por provider
+      await _loadVoicesForProvider(providerId);
+    }
+  }
+
+  /// 🚀 DINÁMICO: Cargar voces para un provider específico
+  Future<void> _loadVoicesForProvider(final String providerId) async {
+    try {
+      // 🚀 SISTEMA DINÁMICO: Cargar voces con sistema dinámico para todos los providers
+      await _loadProviderVoicesDynamically(providerId);
+    } on Exception catch (e) {
+      Log.e('Error loading voices for provider $providerId: $e');
+      _voicesByProvider[providerId] = [];
+    }
+  }
+
+  /// 🚀 DINÁMICO: Cargar voces dinámicamente para cualquier provider
+  Future<void> _loadProviderVoicesDynamically(final String providerId) async {
+    setState(() => _isLoading = true);
+    try {
+      final manager = AIProviderManager.instance;
+      await manager.initialize();
+
+      final allProviders = manager.providers;
+      final targetProvider = allProviders[providerId];
+
+      if (targetProvider != null) {
+        // Cast to concrete provider para acceder a getAvailableVoices()
+        final concreteProvider = targetProvider as dynamic;
+        final voices = await concreteProvider.getAvailableVoices() as List;
+
+        _voicesByProvider[providerId] = voices
+            .map(
+              (final voice) => {
+                'name': voice.name ?? '',
+                'description': voice.name ?? '',
+                'languageCodes': voice.languageCodes ?? <String>[],
+                'gender': voice.gender ?? 'Desconocido',
+              },
+            )
+            .toList()
+            .cast<Map<String, dynamic>>();
+      } else {
+        Log.w('Provider $providerId not found');
+        _voicesByProvider[providerId] = [];
+      }
+    } on Exception catch (e) {
+      Log.e('Error loading voices for provider $providerId: $e');
+      _voicesByProvider[providerId] = [];
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// 🚀 YAML: Obtener subtítulo del provider desde configuración
+  String _getProviderSubtitle(final String providerId) {
+    switch (providerId) {
+      case 'android_native':
+        // Usar template del YAML con reemplazo dinámico
+        final template = AIProviderConfigLoader.getTtsProviderSubtitleTemplate(
+          providerId,
+        );
+        return template.replaceAll(
+          '{voice_count}',
+          '${_androidNativeVoices.length}',
+        );
+      default:
+        // 🚀 YAML: Sistema unificado para todos los providers
+        if (_isProviderConfigured(providerId)) {
+          final template =
+              AIProviderConfigLoader.getTtsProviderSubtitleTemplate(providerId);
+          return template.replaceAll(
+            '{voice_count}',
+            '${_voicesByProvider[providerId]?.length ?? 0}',
+          );
+        } else {
+          return AIProviderConfigLoader.getTtsProviderNotConfiguredSubtitle(
+            providerId,
+          );
+        }
+    }
+  }
+
+  /// 🚀 SISTEMA DINÁMICO: Verificar si provider está configurado
+  bool _isProviderConfigured(final String providerId) {
+    switch (providerId) {
+      case 'android_native':
+        return Platform.isAndroid;
+      default:
+        // Para providers dinámicos, asumimos que están disponibles si están en la lista
+        return _availableProviders.contains(providerId);
+    }
+  }
+
+  /// 🚀 SISTEMA DINÁMICO: Verificar si provider está habilitado
+  bool _isProviderEnabled(final String providerId) {
+    switch (providerId) {
+      case 'android_native':
+        return Platform.isAndroid && _androidNativeVoices.isNotEmpty;
+      default:
+        // Para providers dinámicos, usar la función de configuración
+        return _isProviderConfigured(providerId);
+    }
+  }
+
   Future<void> _loadVoices({final bool forceRefresh = false}) async {
+    // 🚀 DINÁMICO: Usar sistema dinámico para cargar voces del proveedor seleccionado
+    if (_selectedProvider.isEmpty) return;
+
     Log.d(
-      'DEBUG TTS: _loadVoices iniciado - forceRefresh: $forceRefresh',
+      'DEBUG TTS: _loadVoices iniciado para $_selectedProvider - forceRefresh: $forceRefresh',
       tag: 'TTS_DIALOG',
     );
     try {
@@ -344,70 +526,19 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
         }
       }
 
-      final voices = await _voiceService.getGoogleVoices(
-        forceRefresh: forceRefresh,
-      );
+      await _loadProviderVoicesDynamically(_selectedProvider);
       Log.d(
-        'DEBUG TTS: Neural/WaveNet voices loaded: ${voices.length}',
+        'DEBUG TTS: Voices loaded for $_selectedProvider',
         tag: 'TTS_DIALOG',
       );
-
-      if (mounted) {
-        setState(() {
-          _googleVoices = voices;
-          _isLoading = false;
-        });
-        Log.d(
-          'DEBUG TTS: setState completado con ${_googleVoices.length} voces',
-          tag: 'TTS_DIALOG',
-        );
-      }
     } on Exception catch (e) {
       Log.d('DEBUG TTS: Error loading voices: $e', tag: 'TTS_DIALOG');
       if (mounted) {
         setState(() {
-          _googleVoices = [];
+          _voicesByProvider[_selectedProvider] = [];
           _isLoading = false;
         });
       }
-    }
-  }
-
-  Future<void> _loadOpenAiVoices({final bool forceRefresh = false}) async {
-    setState(() => _isLoading = true);
-    try {
-      // 🚀 SISTEMA DINÁMICO: Usar OpenAI provider directamente
-      final manager = AIProviderManager.instance;
-      await manager.initialize();
-
-      final openaiProvider = manager.providers['openai'];
-      if (openaiProvider != null) {
-        // Cast to concrete provider para acceder a getAvailableVoices()
-        final concreteProvider = openaiProvider as dynamic;
-        final voices = await concreteProvider.getAvailableVoices() as List;
-
-        _openaiVoices.clear();
-        _openaiVoices.addAll(
-          voices
-              .map(
-                (final voice) => {
-                  'name': voice.name ?? '',
-                  'description': voice.name ?? '',
-                  'languageCodes': voice.languageCodes ?? <String>[],
-                  'gender': voice.gender ?? 'Desconocido',
-                },
-              )
-              .toList(),
-        );
-      } else {
-        Log.w('OpenAI provider not available');
-        _openaiVoices.clear();
-      }
-    } on Exception catch (e) {
-      Log.e('Error loading OpenAI voices: $e');
-      _openaiVoices.clear();
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -431,30 +562,14 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
     } on Exception catch (_) {}
   }
 
-  String _getProviderDisplayName(final String provider) {
-    switch (provider) {
-      case 'google':
-        return 'Google Cloud TTS';
-      case 'openai':
-        return 'OpenAI TTS';
-      case 'android_native':
-        return 'TTS Nativo Android';
-      default:
-        return 'Desconocido';
-    }
+  String _getProviderDisplayName(final String providerId) {
+    // 🚀 YAML: Usar configuración del YAML en lugar de hardcodeo
+    return AIProviderConfigLoader.getTtsProviderDisplayName(providerId);
   }
 
-  String _getProviderDescription(final String provider) {
-    switch (provider) {
-      case 'google':
-        return 'Síntesis de voz de alta calidad con múltiples idiomas';
-      case 'openai':
-        return 'Voces sintéticas naturales impulsadas por IA';
-      case 'android_native':
-        return 'Motor de texto a voz integrado del sistema';
-      default:
-        return 'Proveedor de síntesis de voz';
-    }
+  String _getProviderDescription(final String providerId) {
+    // 🚀 YAML: Usar configuración del YAML en lugar de hardcodeo
+    return AIProviderConfigLoader.getTtsProviderDescription(providerId);
   }
 
   Future<void> _clearCache() async {
@@ -513,56 +628,35 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
             ),
             const SizedBox(height: 8),
 
-            // Selector de proveedor
-            if (_androidNativeAvailable) ...[
-              ListTile(
-                leading: _selectedProvider == 'android_native'
-                    ? const Icon(Icons.radio_button_checked)
-                    : const Icon(Icons.radio_button_unchecked),
-                title: const Text('TTS Nativo Android (Gratuito)'),
-                subtitle: Text(
-                  '${_androidNativeVoices.length} voces instaladas',
-                ),
-                onTap: () async {
-                  setState(() => _selectedProvider = 'android_native');
-                  await _saveSettings();
-                  // Forzar refresco inmediato al seleccionar proveedor nativo
-                  await _refreshNativeVoices();
-                },
-              ),
-              const SizedBox(height: 8),
-            ],
-
-            ListTile(
-              leading: _selectedProvider == 'google'
-                  ? const Icon(Icons.radio_button_checked)
-                  : const Icon(Icons.radio_button_unchecked),
-              title: const Text('Google Cloud TTS'),
-              subtitle: Text(
-                _voiceService.isGoogleTtsConfigured()
-                    ? '${_googleVoices.length} voces disponibles'
-                    : 'No configurado',
-              ),
-              enabled: _voiceService.isGoogleTtsConfigured(),
-              onTap: _voiceService.isGoogleTtsConfigured()
-                  ? () async {
-                      setState(() => _selectedProvider = 'google');
-                      await _saveSettings();
-                    }
-                  : null,
-            ),
-
-            ListTile(
-              leading: _selectedProvider == 'openai'
-                  ? const Icon(Icons.radio_button_checked)
-                  : const Icon(Icons.radio_button_unchecked),
-              title: const Text('OpenAI TTS'),
-              subtitle: Text('${_openaiVoices.length} voces disponibles'),
-              onTap: () async {
-                setState(() => _selectedProvider = 'openai');
-                await _saveSettings();
-              },
-            ),
+            // 🚀 SISTEMA DINÁMICO: Selector de proveedor basado en providers disponibles
+            ..._availableProviders.map((final providerId) {
+              return Column(
+                children: [
+                  ListTile(
+                    leading: _selectedProvider == providerId
+                        ? const Icon(Icons.radio_button_checked)
+                        : const Icon(Icons.radio_button_unchecked),
+                    title: Text(
+                      _providerDisplayNames[providerId] ?? providerId,
+                    ),
+                    subtitle: Text(_getProviderSubtitle(providerId)),
+                    enabled: _isProviderEnabled(providerId),
+                    onTap: _isProviderEnabled(providerId)
+                        ? () async {
+                            setState(() => _selectedProvider = providerId);
+                            await _saveSettings();
+                            // Forzar refresco para providers específicos
+                            if (providerId == 'android_native') {
+                              await _refreshNativeVoices();
+                            }
+                          }
+                        : null,
+                  ),
+                  if (providerId != _availableProviders.last)
+                    const SizedBox(height: 8),
+                ],
+              );
+            }),
 
             const SizedBox(height: 12),
             const Divider(),
@@ -706,40 +800,51 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                 // Refresh according to current provider
                 setState(() => _isLoading = true);
                 try {
-                  if (_selectedProvider == 'google') {
-                    await _loadVoices(forceRefresh: true);
-                  } else if (_selectedProvider == 'openai') {
-                    await _loadOpenAiVoices(forceRefresh: true);
-                  } else if (_selectedProvider == 'android_native') {
-                    // Refresh native voices (fetch list) when native provider is selected
-                    await _refreshNativeVoices();
+                  final manager = AIProviderManager.instance;
+                  final provider = manager.providers[_selectedProvider];
 
-                    // Debug: dump JSON for requested language codes to help inspect raw plugin output
-                    try {
-                      final effectiveUserCodes =
-                          widget.userLangCodes ?? <String>[];
-                      final effectiveAiCodes = widget.aiLangCodes ?? <String>[];
-                      var codes = [...effectiveUserCodes, ...effectiveAiCodes];
-                      if (codes.isEmpty) codes = ['es-ES'];
-                      for (final c in codes) {
-                        try {
-                          // Debug functionality removed - would need to be implemented in application service
-                          Log.d(
-                            'DEBUG TTS: Would dump voices for language $c',
-                            tag: 'TTS_DIALOG',
-                          );
-                        } on Exception catch (e) {
-                          Log.d(
-                            'DEBUG TTS: Debug dump failed for $c: $e',
-                            tag: 'TTS_DIALOG',
-                          );
+                  if (provider?.supportsCapability(
+                        AICapability.audioGeneration,
+                      ) ==
+                      true) {
+                    if (_selectedProvider == 'android_native') {
+                      // Refresh native voices (fetch list) when native provider is selected
+                      await _refreshNativeVoices();
+
+                      // Debug: dump JSON for requested language codes to help inspect raw plugin output
+                      try {
+                        final effectiveUserCodes =
+                            widget.userLangCodes ?? <String>[];
+                        final effectiveAiCodes =
+                            widget.aiLangCodes ?? <String>[];
+                        var codes = [
+                          ...effectiveUserCodes,
+                          ...effectiveAiCodes,
+                        ];
+                        if (codes.isEmpty) codes = ['es-ES'];
+                        for (final c in codes) {
+                          try {
+                            // Debug functionality removed - would need to be implemented in application service
+                            Log.d(
+                              'DEBUG TTS: Would dump voices for language $c',
+                              tag: 'TTS_DIALOG',
+                            );
+                          } on Exception catch (e) {
+                            Log.d(
+                              'DEBUG TTS: Debug dump failed for $c: $e',
+                              tag: 'TTS_DIALOG',
+                            );
+                          }
                         }
+                      } on Exception catch (e) {
+                        Log.d(
+                          'DEBUG TTS: Error in debug dump: $e',
+                          tag: 'TTS_DIALOG',
+                        );
                       }
-                    } on Exception catch (e) {
-                      Log.d(
-                        'DEBUG TTS: Error in debug dump: $e',
-                        tag: 'TTS_DIALOG',
-                      );
+                    } else {
+                      // For other providers, use generic voice loading
+                      await _loadVoices(forceRefresh: true);
                     }
                   }
                   showAppSnackBar('Voces actualizadas');
@@ -763,18 +868,14 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
   Widget _buildVoiceList() {
     List<Map<String, dynamic>> voices = [];
 
-    switch (_selectedProvider) {
-      case 'android_native':
-        // Ya se filtraron las voces nativas en _refreshNativeVoices usando
-        // los códigos proporcionados por widget.userLangCodes y widget.aiLangCodes.
-        voices = List<Map<String, dynamic>>.from(_androidNativeVoices);
-        break;
-      case 'google':
-        voices = _googleVoices;
-        break;
-      case 'openai':
-        voices = _openaiVoices;
-        break;
+    // 🚀 DINÁMICO: Usar approach unificado para todos los providers
+    if (_selectedProvider == 'android_native') {
+      // Ya se filtraron las voces nativas en _refreshNativeVoices usando
+      // los códigos proporcionados por widget.userLangCodes y widget.aiLangCodes.
+      voices = List<Map<String, dynamic>>.from(_androidNativeVoices);
+    } else {
+      // Para todos los otros providers, usar el mapa dinámico
+      voices = _voicesByProvider[_selectedProvider] ?? [];
     }
 
     if (voices.isEmpty) {
@@ -916,33 +1017,40 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
             subtitle = locale.isNotEmpty
                 ? '$locale${quality.isNotEmpty ? ' · $quality' : ''}'
                 : 'Native voice';
-          } else if (_selectedProvider == 'google') {
-            // Usar nombre amigable para voces de Google
-            displayName = VoiceDisplayUtils.getGoogleVoiceFriendlyName(voice);
-            final originalSubtitle = VoiceDisplayUtils.getVoiceSubtitle(voice);
-            final quality = _getVoiceQualityLevel(voice);
-            // Evitar duplicados: si el subtítulo ya contiene la calidad (por ejemplo 'Neural'), no la añadimos de nuevo.
-            if (originalSubtitle.toLowerCase().contains(
-              quality.toLowerCase(),
-            )) {
-              subtitle = originalSubtitle;
-            } else if (originalSubtitle.isEmpty) {
-              subtitle = quality;
+          } else {
+            // 🚀 FORMATO DINÁMICO: Usar lógica específica por provider detectada dinámicamente
+            final hasGoogleFormatting =
+                voice.containsKey('languageCode') && voice.containsKey('name');
+            if (hasGoogleFormatting) {
+              // Usar nombre amigable para voces con formato Google
+              displayName = VoiceDisplayUtils.getGoogleVoiceFriendlyName(voice);
+              final originalSubtitle = VoiceDisplayUtils.getVoiceSubtitle(
+                voice,
+              );
+              final quality = _getVoiceQualityLevel(voice);
+              // Evitar duplicados: si el subtítulo ya contiene la calidad (por ejemplo 'Neural'), no la añadimos de nuevo.
+              if (originalSubtitle.toLowerCase().contains(
+                quality.toLowerCase(),
+              )) {
+                subtitle = originalSubtitle;
+              } else if (originalSubtitle.isEmpty) {
+                subtitle = quality;
+              } else {
+                // Usar ' · ' para mantener consistencia con VoiceDisplayUtils
+                subtitle = '$originalSubtitle · $quality';
+              }
             } else {
-              // Usar ' · ' para mantener consistencia con VoiceDisplayUtils
-              subtitle = '$originalSubtitle · $quality';
-            }
-          } else if (_selectedProvider == 'openai') {
-            // 🚀 FORMATO DINÁMICO: Usar datos directamente del provider
-            final gender = voice['gender'] as String? ?? '';
-            final parts = <String>[];
-            if (gender.isNotEmpty) parts.add(gender);
-            parts.add('Multilingüe');
+              // 🚀 FORMATO DINÁMICO: Para otros providers (OpenAI, XAI, etc)
+              final gender = voice['gender'] as String? ?? '';
+              final parts = <String>[];
+              if (gender.isNotEmpty) parts.add(gender);
+              parts.add('Multilingüe');
 
-            displayName = voiceName.isNotEmpty
-                ? '${voiceName[0].toUpperCase()}${voiceName.substring(1)}'
-                : voiceName;
-            subtitle = parts.join(' · ');
+              displayName = voiceName.isNotEmpty
+                  ? '${voiceName[0].toUpperCase()}${voiceName.substring(1)}'
+                  : voiceName;
+              subtitle = parts.join(' · ');
+            }
           }
 
           return ListTile(
@@ -1002,11 +1110,8 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
                           return;
                         }
 
-                        final providerKey = _selectedProvider == 'openai'
-                            ? 'openai'
-                            : (_selectedProvider == 'android_native'
-                                  ? 'android_native'
-                                  : 'google');
+                        // 🚀 SISTEMA DINÁMICO: Usar selectedProvider directamente
+                        final providerKey = _selectedProvider;
 
                         // Comprobar caché primero
                         // For dialog demos, prefer cache (dialog-scoped). Use a

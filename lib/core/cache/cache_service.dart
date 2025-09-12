@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/app_data_utils.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -49,11 +51,14 @@ class CacheService {
     required final String text,
     required final String voice,
     required final String languageCode,
-    final String provider = 'google',
+    final String? provider,
     final double speakingRate = 1.0,
     final double pitch = 0.0,
   }) {
-    final input = '$provider:$voice:$languageCode:$speakingRate:$pitch:$text';
+    // 🚀 DINÁMICO: Obtener provider por defecto si no se especifica
+    final effectiveProvider = provider ?? _getDefaultTtsProvider();
+    final input =
+        '$effectiveProvider:$voice:$languageCode:$speakingRate:$pitch:$text';
     final bytes = utf8.encode(input);
     final digest = sha256.convert(bytes);
     return digest.toString();
@@ -64,7 +69,7 @@ class CacheService {
     required final String text,
     required final String voice,
     required final String languageCode,
-    final String provider = 'google',
+    final String? provider,
     final double speakingRate = 1.0,
     final double pitch = 0.0,
     final String? extension,
@@ -107,35 +112,39 @@ class CacheService {
           return null;
         }
       }
-      // If not found and provider is Google, try the configured Google default
-      // voice as an alias. This helps reuse previously cached files created
-      // under the Google default voice when callers passed an OpenAI alias
-      // or empty voice string.
-      if (provider.toLowerCase() == 'google') {
-        try {
-          // ✅ YAML: Usar configuración YAML para obtener voz por defecto de Google
-          final googleDefault =
-              AIProviderConfigLoader.getDefaultVoiceForProvider('google');
-          if (googleDefault != null &&
-              googleDefault.isNotEmpty &&
-              googleDefault != voice) {
-            final altHash = generateTtsHash(
-              text: text,
-              voice: googleDefault,
-              languageCode: languageCode,
-              provider: provider,
-              speakingRate: speakingRate,
-              pitch: pitch,
+      // Si no se encuentra, intentar con la voz por defecto del proveedor
+      // Esto permite reutilizar archivos de audio cacheados creados con la voz por defecto
+      // cuando el usuario especifica una voz diferente o vacía
+      final effectiveProvider = provider ?? _getDefaultTtsProvider();
+
+      // 🚀 DINÁMICO: Intentar con voz por defecto para CUALQUIER proveedor
+      try {
+        final defaultVoice = AIProviderConfigLoader.getDefaultVoiceForProvider(
+          effectiveProvider,
+        );
+        if (defaultVoice != null &&
+            defaultVoice.isNotEmpty &&
+            defaultVoice != voice) {
+          final altHash = generateTtsHash(
+            text: text,
+            voice: defaultVoice,
+            languageCode: languageCode,
+            provider: effectiveProvider,
+            speakingRate: speakingRate,
+            pitch: pitch,
+          );
+          final altFile = File('${audioDir.path}/$altHash.$ext');
+          if (altFile.existsSync()) {
+            Log.d(
+              '[Cache] Audio encontrado en caché (voz por defecto de $effectiveProvider): ${altFile.path}',
             );
-            final altFile = File('${audioDir.path}/$altHash.$ext');
-            if (altFile.existsSync()) {
-              Log.d(
-                '[Cache] Audio encontrado en caché (alias Google default): ${altFile.path}',
-              );
-              return altFile;
-            }
+            return altFile;
           }
-        } on Exception catch (_) {}
+        }
+      } on Exception catch (e) {
+        Log.w(
+          '[Cache] Error buscando con voz por defecto de $effectiveProvider: $e',
+        );
       }
     } on Exception catch (e) {
       Log.e('[Cache] Error obteniendo audio cacheado: $e');
@@ -149,7 +158,7 @@ class CacheService {
     required final String text,
     required final String voice,
     required final String languageCode,
-    final String provider = 'google',
+    final String? provider,
     final double speakingRate = 1.0,
     final double pitch = 0.0,
     final String? extension,
@@ -440,5 +449,25 @@ class CacheService {
   /// Formatea el tamaño en bytes a una cadena legible
   static String formatCacheSize(final int bytes) {
     return AppDataUtils.formatBytes(bytes);
+  }
+
+  /// 🚀 DINÁMICO: Obtener el proveedor TTS por defecto dinámicamente
+  static String _getDefaultTtsProvider() {
+    try {
+      // Obtener el primer proveedor con capacidad TTS
+      final providers = AIProviderManager.instance.getProvidersByCapability(
+        AICapability.audioGeneration,
+      );
+      if (providers.isNotEmpty) {
+        return providers.first;
+      }
+      // Fallback a los proveedores disponibles
+      final allProviders = AIProviderManager.instance.providers.keys.toList();
+      return allProviders.isNotEmpty ? allProviders.first : 'unknown';
+    } on Exception catch (e) {
+      Log.w('Error obteniendo proveedor TTS por defecto: $e');
+      // Fallback ultimate
+      return 'unknown';
+    }
   }
 }

@@ -1,15 +1,15 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-/// 🎯 Servicio para simular y manejar la amplitud del micrófono
+/// 🎯 Servicio centralizado para manejo de amplitud del micrófono
 /// En el futuro integrará con STT real para obtener niveles de audio reales
-class MicrophoneAmplitudeService {
-  factory MicrophoneAmplitudeService() => _instance;
-  MicrophoneAmplitudeService._internal();
-  static final MicrophoneAmplitudeService _instance =
-      MicrophoneAmplitudeService._internal();
+class CentralizedMicrophoneAmplitudeService {
+  factory CentralizedMicrophoneAmplitudeService() => _instance;
+  CentralizedMicrophoneAmplitudeService._internal();
+  static final CentralizedMicrophoneAmplitudeService _instance =
+      CentralizedMicrophoneAmplitudeService._internal();
 
-  static MicrophoneAmplitudeService get instance => _instance;
+  static CentralizedMicrophoneAmplitudeService get instance => _instance;
 
   final StreamController<double> _amplitudeController =
       StreamController<double>.broadcast();

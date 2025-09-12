@@ -843,7 +843,6 @@ class _ChatScreenState extends State<ChatScreen> {
                           final file = await widget.chatController.audioService
                               .synthesizeTts(
                                 phrase,
-                                voice: voice,
                                 languageCode: language,
                                 forDialogDemo: forDialogDemo,
                               );
@@ -1211,7 +1210,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<String?> _loadActiveVoice() async {
     try {
       // PrefsUtils.getPreferredVoice centraliza resolución y fallback.
-      final voice = await PrefsUtils.getPreferredVoice(fallback: '');
+      final voice = await PrefsUtils.getPreferredVoice();
       if (voice.trim().isEmpty) return null;
       return voice;
     } on Exception catch (_) {

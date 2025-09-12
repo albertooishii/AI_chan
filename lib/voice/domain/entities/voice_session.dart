@@ -1,4 +1,4 @@
-import '../value_objects/voice_settings.dart';
+import '../../../shared/ai_providers/core/models/audio/voice_settings.dart';
 
 /// 🎯 DDD: Entidad del dominio para una sesión de voz
 /// Agregado raíz con identidad y comportamientos de negocio

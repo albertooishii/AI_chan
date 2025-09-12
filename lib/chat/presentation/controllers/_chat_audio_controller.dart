@@ -82,10 +82,10 @@ class ChatAudioController extends ChangeNotifier {
   /// Generate TTS audio for a message
   Future<void> generateTtsForMessage(
     final Message msg, {
-    final String voice = 'nova',
+    final String voice = '', // Dinámico del provider configurado
   }) async {
     try {
-      await _chatService.generateTtsForMessage(msg, voice: voice);
+      await _chatService.generateTtsForMessage(msg);
       notifyListeners(); // Notificar cambios en el mensaje (se agregó audio)
     } on Exception catch (e) {
       debugPrint('Error in generateTtsForMessage: $e');

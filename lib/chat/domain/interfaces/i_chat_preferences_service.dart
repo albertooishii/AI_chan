@@ -8,5 +8,5 @@ abstract class IChatPreferencesService {
   ///
   /// [fallback] - Default voice to return if no preference is stored
   /// Returns the preferred voice name or the fallback value
-  Future<String> getPreferredVoice({final String fallback = 'nova'});
+  Future<String> getPreferredVoice({final String fallback = ''}); // Dinámico
 }

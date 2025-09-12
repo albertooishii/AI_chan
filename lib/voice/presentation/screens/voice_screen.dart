@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../controllers/voice_call_controller.dart';
-import '../../../core/di.dart' as di;
-import '../../application/services/microphone_amplitude_service.dart';
+import '../../../shared/ai_providers/core/services/audio/centralized_microphone_amplitude_service.dart';
 import 'package:ai_chan/shared/constants/app_colors.dart';
 
 /// 🎯 Widget de animación de ondas cyberpunk alrededor del avatar
@@ -71,7 +70,6 @@ class _VoiceWaveAnimationState extends State<VoiceWaveAnimation>
 }
 
 class VoiceWavePainter extends CustomPainter {
-
   VoiceWavePainter({
     required this.waveProgress,
     required this.pulseProgress,
@@ -131,7 +129,7 @@ class _VoiceScreenState extends State<VoiceScreen>
   @override
   void initState() {
     super.initState();
-    _controller = VoiceCallController(di.getToneService());
+    _controller = VoiceCallController();
     _controller.addListener(_onControllerChange);
 
     _fadeController = AnimationController(
@@ -157,7 +155,7 @@ class _VoiceScreenState extends State<VoiceScreen>
   }
 
   void _setupAmplitudeListener() {
-    final amplitudeService = MicrophoneAmplitudeService();
+    final amplitudeService = CentralizedMicrophoneAmplitudeService.instance;
     _amplitudeSubscription = amplitudeService.amplitudeStream.listen((
       final amplitude,
     ) {
@@ -327,16 +325,112 @@ class _VoiceScreenState extends State<VoiceScreen>
                     size: 80,
                   ),
 
-                  // Botón de prueba de tonos (solo cuando no está en llamada)
-                  if (!_controller.isInCall)
-                    _buildCyberpunkButton(
-                      icon: Icons.volume_up,
-                      onPressed: _controller.testTones,
-                      isActive: true,
-                      color: AppColors.primary,
+                  // Indicador de escucha automática (solo visible durante llamada)
+                  if (_controller.isInCall)
+                    Container(
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: _controller.isListening
+                              ? Colors.green
+                              : AppColors.primary,
+                          width: 2,
+                        ),
+                        color: _controller.isListening
+                            ? Colors.green.withOpacity(0.2)
+                            : Colors.black.withOpacity(0.3),
+                        boxShadow: _controller.isListening
+                            ? [
+                                BoxShadow(
+                                  color: Colors.green.withOpacity(0.5),
+                                  blurRadius: 10,
+                                  spreadRadius: 2,
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Icon(
+                        _controller.isListening ? Icons.mic : Icons.mic_none,
+                        color: _controller.isListening
+                            ? Colors.green
+                            : AppColors.primary,
+                        size: 32,
+                      ),
                     ),
                 ],
               ),
+
+              const SizedBox(height: 20),
+
+              // Toggle de modo de voz
+              if (_controller.isInCall)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppColors.primary),
+                    borderRadius: BorderRadius.circular(25),
+                    color: Colors.black.withOpacity(0.3),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _controller.useHybridMode
+                            ? '🔄 Híbrido (Automático)'
+                            : '⚡ Realtime',
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 14,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      GestureDetector(
+                        onTap: _controller.toggleVoiceMode,
+                        child: Container(
+                          width: 50,
+                          height: 25,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(25),
+                            color: _controller.useHybridMode
+                                ? AppColors.primary
+                                : Colors.orange,
+                          ),
+                          child: AnimatedAlign(
+                            duration: const Duration(milliseconds: 200),
+                            alignment: _controller.useHybridMode
+                                ? Alignment.centerLeft
+                                : Alignment.centerRight,
+                            child: Container(
+                              width: 20,
+                              height: 20,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Botón de prueba de texto (solo cuando no está en llamada)
+              if (!_controller.isInCall)
+                _buildCyberpunkButton(
+                  icon: Icons.chat,
+                  onPressed: () => _controller.processTextInput(
+                    'Hola AI-chan, ¿cómo estás?',
+                  ),
+                  isActive: true,
+                  color: AppColors.primary,
+                ),
 
               const Spacer(),
             ],

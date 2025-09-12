@@ -427,21 +427,9 @@ class AIProviderManager {
 
       // Provider-specific model pattern matching as fallback
       if (await provider.isHealthy()) {
-        if (providerId == 'openai' && modelLower.startsWith('gpt-')) {
-          Log.i('Selected OpenAI provider for GPT model: $modelId');
-          return provider;
-        }
-        if (providerId == 'google' &&
-            (modelLower.startsWith('gemini-') ||
-                modelLower.startsWith('text-'))) {
-          Log.i('Selected Google provider for Gemini model: $modelId');
-          return provider;
-        }
-        if (providerId == 'xai' &&
-            (modelLower.startsWith('grok-') || modelLower.startsWith('xai-'))) {
-          Log.i('Selected XAI provider for Grok model: $modelId');
-          return provider;
-        }
+        // 🚀 DINÁMICO: Solo usar como fallback si ningún proveedor soportó exactamente el modelo
+        // No hardcodear patrones específicos de modelos por proveedor
+        Log.i('Using $providerId as fallback provider for model: $modelId');
       }
     }
 

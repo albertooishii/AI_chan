@@ -3,6 +3,7 @@
 library;
 
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
+import 'package:ai_chan/shared/utils/log_utils.dart';
 
 /// Root configuration model that represents the entire YAML file
 class AIProvidersConfig {
@@ -155,6 +156,12 @@ class GlobalSettings {
 /// Configuration for a specific AI provider
 class ProviderConfig {
   factory ProviderConfig.fromMap(final Map<String, dynamic> map) {
+    // Debug temporal para ver qué está pasando
+    Log.d('[ProviderConfig] fromMap - map keys: ${map.keys.toList()}');
+    Log.d('[ProviderConfig] fromMap - api_settings: ${map['api_settings']}');
+    Log.d('[ProviderConfig] fromMap - models: ${map['models']}');
+    Log.d('[ProviderConfig] fromMap - defaults: ${map['defaults']}');
+
     return ProviderConfig(
       enabled: map['enabled'] as bool,
       priority: map['priority'] as int,
@@ -163,27 +170,31 @@ class ProviderConfig {
       capabilities: (map['capabilities'] as List)
           .map((final cap) => AICapabilityExtension.fromIdentifier(cap)!)
           .toList(),
-      apiSettings: ApiSettings.fromMap(
-        map['api_settings'] as Map<String, dynamic>,
-      ),
-      models: (map['models'] as Map<String, dynamic>).map(
+      apiSettings: map['api_settings'] != null
+          ? ApiSettings.fromMap(map['api_settings'] as Map<String, dynamic>)
+          : ApiSettings.fromMap({}), // Fallback para api_settings null
+      models: (map['models'] as Map<String, dynamic>? ?? {}).map(
         (final key, final value) => MapEntry(
           AICapabilityExtension.fromIdentifier(key)!,
           (value as List).cast<String>(),
         ),
       ),
-      defaults: (map['defaults'] as Map<String, dynamic>).map(
+      defaults: (map['defaults'] as Map<String, dynamic>? ?? {}).map(
         (final key, final value) => MapEntry(
           AICapabilityExtension.fromIdentifier(key)!,
           value as String,
         ),
       ),
-      rateLimits: RateLimits.fromMap(
-        map['rate_limits'] as Map<String, dynamic>,
-      ),
-      configuration: ProviderConfiguration.fromMap(
-        map['configuration'] as Map<String, dynamic>,
-      ),
+      rateLimits: map['rate_limits'] != null
+          ? RateLimits.fromMap(map['rate_limits'] as Map<String, dynamic>)
+          : RateLimits.fromMap({}), // Fallback para rate_limits null
+      configuration: map['configuration'] != null
+          ? ProviderConfiguration.fromMap(
+              map['configuration'] as Map<String, dynamic>,
+            )
+          : ProviderConfiguration.fromMap(
+              {},
+            ), // Fallback para configuration null
     );
   }
   const ProviderConfig({
@@ -234,10 +245,12 @@ class ProviderConfig {
 class ApiSettings {
   factory ApiSettings.fromMap(final Map<String, dynamic> map) {
     return ApiSettings(
-      baseUrl: map['base_url'] as String,
-      version: map['version'] as String,
-      authenticationType: map['authentication_type'] as String,
-      requiredEnvKeys: (map['required_env_keys'] as List).cast<String>(),
+      baseUrl: map['base_url'] as String? ?? '',
+      version: map['version'] as String? ?? 'v1',
+      authenticationType:
+          map['authentication_type'] as String? ?? 'bearer_token',
+      requiredEnvKeys: (map['required_env_keys'] as List<dynamic>? ?? [])
+          .cast<String>(),
     );
   }
   const ApiSettings({
@@ -266,8 +279,8 @@ class ApiSettings {
 class RateLimits {
   factory RateLimits.fromMap(final Map<String, dynamic> map) {
     return RateLimits(
-      requestsPerMinute: map['requests_per_minute'] as int,
-      tokensPerMinute: map['tokens_per_minute'] as int,
+      requestsPerMinute: map['requests_per_minute'] as int? ?? 1000,
+      tokensPerMinute: map['tokens_per_minute'] as int? ?? 100000,
     );
   }
   const RateLimits({
@@ -290,11 +303,12 @@ class RateLimits {
 class ProviderConfiguration {
   factory ProviderConfiguration.fromMap(final Map<String, dynamic> map) {
     return ProviderConfiguration(
-      maxContextTokens: map['max_context_tokens'] as int,
-      maxOutputTokens: map['max_output_tokens'] as int,
-      supportsStreaming: map['supports_streaming'] as bool,
-      supportsFunctionCalling: map['supports_function_calling'] as bool,
-      supportsTools: map['supports_tools'] as bool,
+      maxContextTokens: map['max_context_tokens'] as int? ?? 4096,
+      maxOutputTokens: map['max_output_tokens'] as int? ?? 1024,
+      supportsStreaming: map['supports_streaming'] as bool? ?? false,
+      supportsFunctionCalling:
+          map['supports_function_calling'] as bool? ?? false,
+      supportsTools: map['supports_tools'] as bool? ?? false,
     );
   }
   const ProviderConfiguration({

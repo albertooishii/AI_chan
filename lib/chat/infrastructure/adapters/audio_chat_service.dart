@@ -9,6 +9,8 @@ import 'package:ai_chan/shared/utils/prefs_utils.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:ai_chan/core/cache/cache_service.dart';
 import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import '../../domain/interfaces/i_audio_chat_service.dart';
 
 /// Servicio que encapsula grabación, transcripción parcial, reproducción y TTS.
@@ -300,9 +302,13 @@ class AudioChatService implements IAudioChatService {
       _isPartialTranscribing = true;
       // Respect user-selected audio provider for partial transcription
       final provider = await PrefsUtils.getSelectedAudioProvider();
-      final stt = di.getSttServiceForProvider(
-        provider.isEmpty ? 'google' : provider,
-      );
+      final effectiveProvider = provider.isEmpty
+          ? AIProviderManager.instance
+                    .getProvidersByCapability(AICapability.audioTranscription)
+                    .firstOrNull ??
+                'unknown'
+          : provider;
+      final stt = di.getSttServiceForProvider(effectiveProvider);
       final partial = await stt.transcribeAudio(path);
       if (partial != null && partial.trim().isNotEmpty) {
         if (partial.trim().length > _liveTranscript.trim().length) {
@@ -402,12 +408,11 @@ class AudioChatService implements IAudioChatService {
   /// should use temporary-only output.
   Future<String?> synthesizeTts(
     final String text, {
-    final String voice = 'marin',
     final String? languageCode,
     final bool forDialogDemo = false,
   }) async {
     debugPrint(
-      '[Audio][TTS] synthesizeTts called - voice: $voice, languageCode: $languageCode',
+      '[Audio][TTS] synthesizeTts called - languageCode: $languageCode',
     );
 
     // Prepare the actual text that will be sent to the TTS providers.
@@ -463,26 +468,26 @@ class AudioChatService implements IAudioChatService {
     try {
       // Delegate provider and voice resolution to PrefsUtils
       final provider = await PrefsUtils.getSelectedAudioProvider();
-      final preferredVoice = await PrefsUtils.getPreferredVoice(
-        fallback: voice,
-      );
+      // Obtener voz preferida dinámicamente del provider configurado
+      final preferredVoice = await PrefsUtils.getPreferredVoice();
       debugPrint(
         '[Audio][TTS] Using provider: $provider for voice: $preferredVoice',
       );
 
       // ✅ DDD: Usar servicio TTS a través de interfaz compartida
-      if (provider != 'openai' &&
-          provider != 'google' &&
+      final cloudProviders = AIProviderManager.instance
+          .getProvidersByCapability(AICapability.audioGeneration);
+      if (!cloudProviders.contains(provider) &&
           await _isAndroidNativeTtsAvailable()) {
         debugPrint(
-          '[Audio][TTS] Trying Android native TTS for non-OpenAI/non-Google voice: $voice',
+          '[Audio][TTS] Trying Android native TTS for non-OpenAI/non-Google voice: $preferredVoice',
         );
         final isNativeAvailable = await _checkAndroidNativeTtsAvailable();
         if (isNativeAvailable) {
           // Buscar caché primero
           final cachedFile = await CacheService.getCachedAudioFile(
             text: text,
-            voice: voice,
+            voice: preferredVoice,
             languageCode: languageCode ?? 'es-ES',
             provider: 'android_native',
             extension: 'mp3',
@@ -502,7 +507,7 @@ class AudioChatService implements IAudioChatService {
             final result = await _synthesizeAndroidNativeTtsToFile(
               text: synthText,
               outputPath: outputPath,
-              voiceName: voice,
+              voiceName: preferredVoice,
               languageCode: languageCode ?? 'es-ES',
             );
 
@@ -519,7 +524,7 @@ class AudioChatService implements IAudioChatService {
                   await CacheService.saveAudioToCache(
                     audioData: audioData,
                     text: text,
-                    voice: voice,
+                    voice: preferredVoice,
                     languageCode: languageCode ?? 'es-ES',
                     provider: 'android_native',
                     extension: 'mp3',
@@ -539,17 +544,16 @@ class AudioChatService implements IAudioChatService {
             );
           }
         }
-      } else if (provider == 'openai') {
+      } else if (cloudProviders.contains(provider)) {
         debugPrint(
-          '[Audio][TTS] Skipping Android native TTS for OpenAI voice: $voice',
-        );
-      } else if (provider == 'google') {
-        debugPrint(
-          '[Audio][TTS] Skipping Android native TTS for Google Cloud voice: $voice',
+          '[Audio][TTS] Skipping Android native TTS for cloud provider: $provider voice: $preferredVoice',
         );
       }
 
-      if (provider == 'google') {
+      // Check for specific providers using provider manager
+      final providerInstance = AIProviderManager.instance.providers[provider];
+      if (providerInstance?.supportsCapability(AICapability.audioGeneration) ==
+          true) {
         // voice is resolved via PrefsUtils.getPreferredVoice to prefer a configured voice for the provider
         final voiceToUse = preferredVoice;
 
@@ -632,9 +636,11 @@ class AudioChatService implements IAudioChatService {
             '[Audio][TTS] Google TTS not configured (no API key) — falling back to DI service',
           );
         }
-      } else if (provider == 'openai') {
-        // Para voces de OpenAI, usar directamente el OpenAI adapter
-        debugPrint('[Audio][TTS] Using OpenAI adapter for voice: $voice');
+      } else if (_isKnownTtsProvider(provider)) {
+        // 🚀 DINÁMICO: Para proveedores de TTS conocidos, usar sistema dinámico
+        debugPrint(
+          '[Audio][TTS] Using dynamic provider adapter for voice: $preferredVoice',
+        );
         try {
           // Use new Enhanced AI Provider system for TTS
           // Note: TTS via AIProviderManager is not yet implemented
@@ -644,7 +650,7 @@ class AudioChatService implements IAudioChatService {
           );
 
           // Use dedicated TTS service instead of legacy AI service
-          final ttsService = di.getTtsServiceForProvider('openai');
+          final ttsService = di.getTtsServiceForProvider(provider);
           final filePath = await ttsService.synthesizeToFile(text: synthText);
           if (filePath != null) {
             final file = File(filePath);
@@ -673,7 +679,7 @@ class AudioChatService implements IAudioChatService {
           final path = await tts.synthesizeToFile(
             text: synthText,
             options: {
-              'voice': voice,
+              'voice': preferredVoice,
               'languageCode': languageCode ?? 'es-ES',
               'outputDir': (await audio_utils.getLocalAudioDir()).path,
             },
@@ -686,7 +692,10 @@ class AudioChatService implements IAudioChatService {
           final tts = di.getTtsService();
           final path = await tts.synthesizeToFile(
             text: synthText,
-            options: {'voice': voice, 'languageCode': languageCode ?? 'es-ES'},
+            options: {
+              'voice': preferredVoice,
+              'languageCode': languageCode ?? 'es-ES',
+            },
           );
           if (path == null) return null;
           final f = File(path);
@@ -768,5 +777,14 @@ class AudioChatService implements IAudioChatService {
       _durSub?.cancel();
     } on Exception catch (_) {}
     _audioPlayer.dispose();
+  }
+
+  /// 🚀 DINÁMICO: Verificar si un proveedor es conocido para TTS
+  bool _isKnownTtsProvider(final String provider) {
+    // Obtener proveedores con capacidad TTS dinámicamente
+    final ttsProviders = AIProviderManager.instance.getProvidersByCapability(
+      AICapability.audioGeneration,
+    );
+    return ttsProviders.contains(provider);
   }
 }

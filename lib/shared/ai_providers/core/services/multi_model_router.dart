@@ -259,61 +259,14 @@ class MultiModelRouter {
     final IAIProvider provider,
     final AICapability capability,
   ) {
-    // This would typically come from provider configuration
-    // For now, return a default based on capability and provider
-
-    switch (capability) {
-      case AICapability.textGeneration:
-        if (provider.providerId == 'openai') return 'gpt-4';
-        if (provider.providerId == 'google') return 'gemini-1.5-pro';
-        if (provider.providerId == 'xai') return 'grok-beta';
-        break;
-
-      case AICapability.imageGeneration:
-        if (provider.providerId == 'openai') return 'dall-e-3';
-        if (provider.providerId == 'google') return 'imagen-2';
-        break;
-
-      case AICapability.imageAnalysis:
-        if (provider.providerId == 'openai') return 'gpt-4-vision-preview';
-        if (provider.providerId == 'google') return 'gemini-1.5-pro-vision';
-        break;
-
-      case AICapability.realtimeConversation:
-        if (provider.providerId == 'openai') return 'gpt-4-realtime-preview';
-        break;
-
-      case AICapability.codeGeneration:
-        if (provider.providerId == 'openai') return 'gpt-4';
-        if (provider.providerId == 'google') return 'gemini-1.5-pro';
-        break;
-
-      case AICapability.audioGeneration:
-        if (provider.providerId == 'openai') return 'tts-1';
-        if (provider.providerId == 'google') return 'gemini-tts';
-        break;
-
-      case AICapability.audioTranscription:
-        if (provider.providerId == 'openai') return 'whisper-1';
-        if (provider.providerId == 'google') return 'gemini-stt';
-        break;
-
-      case AICapability.functionCalling:
-        if (provider.providerId == 'openai') return 'gpt-4';
-        if (provider.providerId == 'google') return 'gemini-1.5-pro';
-        break;
-
-      case AICapability.embeddingGeneration:
-        if (provider.providerId == 'openai') return 'text-embedding-3-large';
-        if (provider.providerId == 'google') return 'text-embedding-004';
-        break;
-
-      case AICapability.documentAnalysis:
-        if (provider.providerId == 'openai') return 'gpt-4';
-        if (provider.providerId == 'google') return 'gemini-1.5-pro';
-        break;
+    // Obtener modelos desde metadatos del provider
+    final metadata = provider.metadata;
+    final capabilityModels = metadata.availableModels[capability];
+    if (capabilityModels != null && capabilityModels.isNotEmpty) {
+      return capabilityModels.first;
     }
 
+    // Último fallback: null si no hay modelos disponibles
     return null;
   }
 

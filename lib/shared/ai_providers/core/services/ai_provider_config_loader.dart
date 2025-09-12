@@ -41,42 +41,18 @@ class AIProviderConfigLoader {
       return _cachedConfig!;
     }
 
-    // If not cached, load from hardcoded fallback
-    Log.w('Configuration not cached, using fallback values');
+    // If not cached, load from hardcoded fallback (minimal config)
+    Log.w('Configuration not cached, using minimal fallback values');
     return {
       'ai_providers': {
-        'openai': {
+        'default_provider': {
           'priority': 1,
           'voices': {
-            'available': [
-              'alloy',
-              'ash',
-              'coral',
-              'echo',
-              'sage',
-              'shimmer',
-              'nova',
-              'fable',
-              'onyx',
-              'cedar',
-              'marin',
-            ],
-            'default': 'marin',
-          },
-        },
-        'google': {
-          'priority': 2,
-          'voices': {
-            'available': [
-              'es-ES-Wavenet-F',
-              'es-ES-Standard-A',
-              'en-US-Wavenet-F',
-            ],
-            'default': 'es-ES-Wavenet-F',
+            'default': 'default-voice', // Valor genérico en lugar de hardcodear
           },
         },
       },
-      'audio': {'default_provider': 'google'},
+      'audio': {'default_provider': 'default_provider'}, // Valor genérico
     };
   }
 
@@ -534,19 +510,23 @@ class AIProviderConfigLoader {
       Log.w('Failed to get provider from auto-registry: $e');
     }
 
-    // Fallback to hardcoded mapping for compatibility
-    if (normalized.startsWith('gpt-') ||
-        normalized.startsWith('dall-e') ||
-        normalized.startsWith('gpt-realtime')) {
-      return 'openai';
-    }
-
-    if (normalized.startsWith('gemini-') || normalized.startsWith('imagen-')) {
-      return 'google';
-    }
-
-    if (normalized.startsWith('grok-')) {
-      return 'xai';
+    // 🚀 DINÁMICO: Fallback dinámico sin hardcodear nombres específicos de modelos
+    // Intentar encontrar el proveedor mediante los proveedores disponibles
+    try {
+      final config = _ensureConfigLoaded();
+      final providers = config['ai_providers'] as Map<String, dynamic>?;
+      if (providers != null) {
+        // Buscar en todos los proveedores disponibles
+        for (final entry in providers.entries) {
+          final providerId = entry.key;
+          if (providerId.isNotEmpty &&
+              normalized.contains(providerId.toLowerCase())) {
+            return providerId;
+          }
+        }
+      }
+    } on Exception catch (e) {
+      Log.w('Error en fallback dinámico: $e');
     }
 
     return null;
@@ -602,28 +582,20 @@ class AIProviderConfigLoader {
         return priorityA.compareTo(priorityB);
       });
 
-      return audioProviders.isNotEmpty ? audioProviders.first : 'google';
+      return audioProviders.isNotEmpty ? audioProviders.first : '';
     } on Exception catch (e) {
       Log.w('Failed to get default audio provider: $e');
-      return 'google'; // Fallback
+      return ''; // No fallback hardcodeado - dejar que el caller maneje provider vacío
     }
   }
 
-  /// Get available voices for a provider
+  /// Get available voices for a provider (DEPRECATED - use provider.getAvailableVoices() instead)
+  /// This method now returns empty list - voices should be obtained from provider directly
   static List<String> getVoicesForProvider(final String providerId) {
-    try {
-      final config = _ensureConfigLoaded();
-      final providers = config['ai_providers'] as Map<String, dynamic>? ?? {};
-      final providerConfig =
-          providers[providerId] as Map<String, dynamic>? ?? {};
-      final voices = providerConfig['voices'] as Map<String, dynamic>? ?? {};
-      final available = voices['available'] as List<dynamic>? ?? [];
-
-      return available.cast<String>();
-    } on Exception catch (e) {
-      Log.w('Failed to get voices for provider $providerId: $e');
-      return [];
-    }
+    Log.w(
+      'getVoicesForProvider is deprecated. Use provider.getAvailableVoices() instead.',
+    );
+    return []; // Las voces ahora se obtienen dinámicamente del provider
   }
 
   /// Get default voice for a provider
@@ -651,6 +623,117 @@ class AIProviderConfigLoader {
         return 'openai';
       default:
         return 'google';
+    }
+  }
+
+  // --- TTS Display Configuration Methods ---
+
+  /// Get TTS display name for provider from YAML configuration
+  static String getTtsProviderDisplayName(final String providerId) {
+    try {
+      final config = _ensureConfigLoaded();
+
+      // Special case for android_native
+      if (providerId == 'android_native') {
+        final androidConfig =
+            config['android_native_tts'] as Map<String, dynamic>? ?? {};
+        final ttsDisplay =
+            androidConfig['tts_display'] as Map<String, dynamic>? ?? {};
+        return ttsDisplay['name'] as String? ?? 'TTS Nativo Android (Gratuito)';
+      }
+
+      // Regular providers
+      final providers = config['ai_providers'] as Map<String, dynamic>? ?? {};
+      final providerConfig =
+          providers[providerId] as Map<String, dynamic>? ?? {};
+      final ttsDisplay =
+          providerConfig['tts_display'] as Map<String, dynamic>? ?? {};
+
+      return ttsDisplay['name'] as String? ??
+          '${providerId[0].toUpperCase()}${providerId.substring(1)} TTS';
+    } on Exception catch (e) {
+      Log.w('Failed to get TTS display name for provider $providerId: $e');
+      return '${providerId[0].toUpperCase()}${providerId.substring(1)} TTS';
+    }
+  }
+
+  /// Get TTS provider description from YAML configuration
+  static String getTtsProviderDescription(final String providerId) {
+    try {
+      final config = _ensureConfigLoaded();
+
+      // Special case for android_native
+      if (providerId == 'android_native') {
+        final androidConfig =
+            config['android_native_tts'] as Map<String, dynamic>? ?? {};
+        final ttsDisplay =
+            androidConfig['tts_display'] as Map<String, dynamic>? ?? {};
+        return ttsDisplay['description'] as String? ??
+            'Motor de texto a voz integrado del sistema Android';
+      }
+
+      // Regular providers
+      final providers = config['ai_providers'] as Map<String, dynamic>? ?? {};
+      final providerConfig =
+          providers[providerId] as Map<String, dynamic>? ?? {};
+      final ttsDisplay =
+          providerConfig['tts_display'] as Map<String, dynamic>? ?? {};
+
+      return ttsDisplay['description'] as String? ??
+          'Proveedor de síntesis de voz dinámico';
+    } on Exception catch (e) {
+      Log.w('Failed to get TTS description for provider $providerId: $e');
+      return 'Proveedor de síntesis de voz dinámico';
+    }
+  }
+
+  /// Get TTS subtitle template from YAML configuration
+  static String getTtsProviderSubtitleTemplate(final String providerId) {
+    try {
+      final config = _ensureConfigLoaded();
+
+      // Special case for android_native
+      if (providerId == 'android_native') {
+        final androidConfig =
+            config['android_native_tts'] as Map<String, dynamic>? ?? {};
+        final ttsDisplay =
+            androidConfig['tts_display'] as Map<String, dynamic>? ?? {};
+        return ttsDisplay['subtitle_template'] as String? ??
+            '{voice_count} voces instaladas';
+      }
+
+      // Regular providers
+      final providers = config['ai_providers'] as Map<String, dynamic>? ?? {};
+      final providerConfig =
+          providers[providerId] as Map<String, dynamic>? ?? {};
+      final ttsDisplay =
+          providerConfig['tts_display'] as Map<String, dynamic>? ?? {};
+
+      return ttsDisplay['subtitle_template'] as String? ??
+          '{voice_count} voces disponibles';
+    } on Exception catch (e) {
+      Log.w('Failed to get TTS subtitle template for provider $providerId: $e');
+      return '{voice_count} voces disponibles';
+    }
+  }
+
+  /// Get TTS not configured subtitle from YAML configuration (for Google primarily)
+  static String getTtsProviderNotConfiguredSubtitle(final String providerId) {
+    try {
+      final config = _ensureConfigLoaded();
+      final providers = config['ai_providers'] as Map<String, dynamic>? ?? {};
+      final providerConfig =
+          providers[providerId] as Map<String, dynamic>? ?? {};
+      final ttsDisplay =
+          providerConfig['tts_display'] as Map<String, dynamic>? ?? {};
+
+      return ttsDisplay['subtitle_not_configured'] as String? ??
+          'No configurado';
+    } on Exception catch (e) {
+      Log.w(
+        'Failed to get TTS not configured subtitle for provider $providerId: $e',
+      );
+      return 'No configurado';
     }
   }
 }

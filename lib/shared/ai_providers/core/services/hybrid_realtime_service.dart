@@ -8,6 +8,7 @@ import 'package:ai_chan/core/models/system_prompt.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
 
 /// Servicio híbrido que combina TTS + STT + modelo de texto
 /// para simular capacidades realtime en proveedores que no las tienen nativas
@@ -26,7 +27,7 @@ class HybridRealtimeService implements IRealtimeClient {
   // Estado interno
   bool _isConnected = false;
   bool _isProcessing = false;
-  String _currentVoice = 'alloy';
+  String _currentVoice = ''; // Dinámico del provider configurado
   String _systemPrompt = '';
   final List<int> _pendingAudio = [];
 
@@ -395,8 +396,22 @@ class HybridRealtimeService implements IRealtimeClient {
       }
     }
 
-    // Fallback por defecto
-    return 'whisper-1';
+    // Fallback obtenido dinámicamente del primer provider disponible para transcripción
+    final manager = AIProviderManager.instance;
+    final providers = manager.getProvidersByCapability(
+      AICapability.audioTranscription,
+    );
+    if (providers.isNotEmpty) {
+      final provider = manager.providers[providers.first];
+      if (provider != null) {
+        final models =
+            provider.metadata.availableModels[AICapability.audioTranscription];
+        if (models != null && models.isNotEmpty) {
+          return models.first;
+        }
+      }
+    }
+    return 'unknown-stt-model'; // 🚀 DINÁMICO: Valor genérico en lugar de hardcodear
   }
 
   /// Obtiene modelo de generación de audio apropiado para el proveedor
@@ -410,8 +425,22 @@ class HybridRealtimeService implements IRealtimeClient {
       }
     }
 
-    // Fallback por defecto
-    return 'tts-1';
+    // Fallback obtenido dinámicamente del primer provider disponible para audio generation
+    final manager = AIProviderManager.instance;
+    final providers = manager.getProvidersByCapability(
+      AICapability.audioGeneration,
+    );
+    if (providers.isNotEmpty) {
+      final provider = manager.providers[providers.first];
+      if (provider != null) {
+        final models =
+            provider.metadata.availableModels[AICapability.audioGeneration];
+        if (models != null && models.isNotEmpty) {
+          return models.first;
+        }
+      }
+    }
+    return 'unknown-tts-model'; // 🚀 DINÁMICO: Valor genérico en lugar de hardcodear
   }
 
   /// Obtiene idioma actual de la configuración

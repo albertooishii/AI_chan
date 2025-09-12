@@ -35,18 +35,15 @@ class TtsVoiceManagementService implements ITtsVoiceManagementService {
     }
   }
 
-  /// Get available voices for OpenAI TTS
+  /// Get available voices for OpenAI TTS (dinámico del provider)
   @override
   Future<List<Map<String, dynamic>>> getOpenAiVoices() async {
-    // Return static OpenAI voices
-    return [
-      {'name': 'alloy'},
-      {'name': 'echo'},
-      {'name': 'fable'},
-      {'name': 'onyx'},
-      {'name': 'nova'},
-      {'name': 'shimmer'},
-    ];
+    // TODO: Obtener dinámicamente del provider OpenAI
+    // final openaiProvider = await AIProviderManager.instance.getProvider('openai');
+    // return await openaiProvider.getAvailableVoices();
+
+    // Fallback temporal - debería venir del provider
+    return [];
   }
 
   /// Check if Android Native TTS is available

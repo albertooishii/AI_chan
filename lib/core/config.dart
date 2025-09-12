@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart' show dotenv;
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 
 /// Helper centralizado para acceder a configuración derivada de .env.
 /// Permite inyectar overrides en tests mediante `Config.setOverrides`.
@@ -118,14 +120,67 @@ class Config {
     return requireDefaultImageModel();
   }
 
-  /// Modelo STT para OpenAI - configurado en assets/ai_providers_config.yaml
-  static String getOpenAISttModel() {
-    return 'gpt-4o-mini-transcribe';
+  /// Modelo STT dinámico - obtenido del primer proveedor con capacidad de transcripción
+  static String getSTTModel() {
+    final manager = AIProviderManager.instance;
+
+    // 🚀 DINÁMICO: Buscar el primer proveedor que soporte transcripción
+    final providers = manager.getProvidersByCapability(
+      AICapability.audioTranscription,
+    );
+
+    for (final providerId in providers) {
+      final provider = manager.providers[providerId];
+      if (provider != null &&
+          provider.supportsCapability(AICapability.audioTranscription)) {
+        final models =
+            provider.metadata.availableModels[AICapability.audioTranscription];
+        if (models != null && models.isNotEmpty) {
+          // Buscar modelo transcribe específico o usar el primero disponible
+          final transcribeModel = models.firstWhere(
+            (final model) =>
+                model.toLowerCase().contains('transcribe') ||
+                model.toLowerCase().contains('whisper'),
+            orElse: () => models.first,
+          );
+          return transcribeModel;
+        }
+      }
+    }
+
+    // Fallback dinámico
+    return 'unknown-stt-model';
   }
 
-  /// Modelo STT para OpenAI Realtime - configurado en assets/ai_providers_config.yaml
+  /// Modelo Realtime dinámico - obtenido del primer proveedor con capacidad realtime
   static String getOpenAIRealtimeModel() {
-    return 'gpt-4o-mini-realtime-preview-2024-12-17';
+    final manager = AIProviderManager.instance;
+
+    // 🚀 DINÁMICO: Buscar el primer proveedor que soporte conversación en tiempo real
+    final providers = manager.getProvidersByCapability(
+      AICapability.realtimeConversation,
+    );
+
+    for (final providerId in providers) {
+      final provider = manager.providers[providerId];
+      if (provider != null &&
+          provider.supportsCapability(AICapability.realtimeConversation)) {
+        final models = provider
+            .metadata
+            .availableModels[AICapability.realtimeConversation];
+        if (models != null && models.isNotEmpty) {
+          // Buscar modelo realtime específico o usar el primero disponible
+          final realtimeModel = models.firstWhere(
+            (final model) => model.toLowerCase().contains('realtime'),
+            orElse: () => models.first,
+          );
+          return realtimeModel;
+        }
+      }
+    }
+
+    // Fallback dinámico
+    return 'unknown-realtime-model';
   }
 
   /// Inicializa la configuración cargando `.env`.

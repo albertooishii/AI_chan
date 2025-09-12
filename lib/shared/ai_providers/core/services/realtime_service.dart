@@ -7,7 +7,7 @@ import 'package:ai_chan/shared/ai_providers/core/registry/ai_provider_registry.d
 /// Servicio unificado para OpenAI Realtime API (gpt-realtime)
 ///
 /// Soporta las capacidades completas del nuevo modelo gpt-realtime:
-/// - Audio de alta calidad con voces Marin y Cedar
+/// - Audio de alta calidad con voces dinámicas del provider
 /// - Comprensión inteligente con señales no verbales
 /// - Function calling asíncrono avanzado
 /// - Entrada de imágenes para conversación multimodal
@@ -16,55 +16,48 @@ import 'package:ai_chan/shared/ai_providers/core/registry/ai_provider_registry.d
 ///
 /// Ejemplos de uso:
 /// ```dart
-/// // Cliente básico realtime
-/// final client = await RealtimeService.getBestRealtimeClient();
+/// // Cliente básico realtime (usa configuración del YAML)
+/// final client = await RealtimeService.getConfiguredRealtimeClient();
 ///
-/// // Con voz específica e instrucciones
-/// final client = await RealtimeService.getBestRealtimeClient(
-///   preferredProvider: 'openai',
+/// // Con instrucciones de voz dinámicas
+/// final client = await RealtimeService.getConfiguredRealtimeClient(
 ///   voiceInstructions: 'speak quickly and professionally',
-///   voice: 'marin'
 /// );
 ///
-/// // Con soporte de imágenes
+/// // Con soporte de imágenes (TODO: Implementar para videollamadas)
 /// final client = await RealtimeService.createMultimodalClient(
 ///   onImageRequest: (question) => handleImageQuestion(question)
 /// );
+///
+/// // Con function calling avanzado (TODO: Implementar)
+/// final client = await RealtimeService.createFunctionCallingClient(
+///   tools: myTools,
+///   onFunctionCall: (name, args) => handleFunction(name, args)
+/// );
 /// ```
 class RealtimeService {
-  /// Configuración de voz para gpt-realtime
-  static const List<String> availableVoices = [
-    'marin', // Nueva voz premium
-    'cedar', // Nueva voz premium
-    'alloy',
-    'echo',
-    'fable',
-    'onyx',
-    'nova',
-    'shimmer', // Voces existentes mejoradas
-  ];
+  /// Voces dinámicas obtenidas del provider configurado
+  /// NOTA: Las voces deben venir del YAML, no hardcodeadas
+  static Future<List<String>> getAvailableVoices() async {
+    // TODO: Obtener dinámicamente del provider activo
+    // final voices = await AIProviderConfigLoader.getVoicesForProvider('openai');
+    // return voices;
 
-  /// Idiomas soportados para cambio dinámico
-  static const List<String> supportedLanguages = [
-    'en',
-    'es',
-    'fr',
-    'de',
-    'it',
-    'pt',
-    'zh',
-    'ja',
-    'ko',
-    'ru',
-    'ar',
-  ];
+    // Fallback temporal mientras se implementa la obtención dinámica
+    return [];
+  }
 
-  /// Obtiene el mejor cliente realtime con capacidades avanzadas
+  /// Obtiene idiomas soportados dinámicamente de los providers disponibles
+  static Future<List<String>> getSupportedLanguages() async {
+    // For now, return common realtime languages
+    // TODO: Integrate with provider-specific language capabilities
+    return ['en', 'es', 'fr', 'de', 'it', 'pt', 'zh', 'ja', 'ko', 'ru', 'ar'];
+  }
+
+  /// Obtiene el cliente realtime configurado
   ///
-  /// [preferredProvider]: Provider preferido (recomendado: 'openai' para gpt-realtime)
-  /// [model]: Modelo específico (por defecto: 'gpt-realtime' o fallback)
-  /// [voice]: Voz a usar ('marin', 'cedar', etc.)
-  /// [voiceInstructions]: Instrucciones específicas de voz
+  /// Usa el provider y configuración definidos en assets/ai_providers_config.yaml
+  /// [voiceInstructions]: Instrucciones específicas de voz (opcional)
   /// [onText]: Callback para texto generado
   /// [onAudio]: Callback para audio generado (Uint8List para compatibilidad)
   /// [onCompleted]: Callback cuando termina la generación
@@ -74,10 +67,7 @@ class RealtimeService {
   /// [onImageRequest]: Callback para solicitudes de análisis de imagen
   /// [enableAsyncFunctions]: Habilitar function calling asíncrono (por defecto: true)
   /// [additionalParams]: Parámetros adicionales
-  static Future<IRealtimeClient> getBestRealtimeClient({
-    String? preferredProvider,
-    String? model,
-    String? voice,
+  static Future<IRealtimeClient> getConfiguredRealtimeClient({
     String? voiceInstructions,
     Function(String)? onText,
     Function(Uint8List)? onAudio,
@@ -92,144 +82,45 @@ class RealtimeService {
   }) async {
     final registry = AIProviderRegistry();
 
-    // Si se especifica OpenAI o no hay preferencia, intentar primero OpenAI
-    if (preferredProvider == null ||
-        preferredProvider.toLowerCase() == 'openai') {
-      final openaiProvider = registry.getProvider('openai');
-      if (openaiProvider?.supportsRealtime == true) {
-        try {
-          final client = await openaiProvider!.createRealtimeClient();
-          if (client != null) {
-            // Configurar callbacks específicos para gpt-realtime
-            _configureRealtimeCallbacks(
-              client,
-              onText: onText,
-              onAudio: onAudio,
-              onCompleted: onCompleted,
-              onError: onError,
-              onUserTranscription: onUserTranscription,
-              onFunctionCall: onFunctionCall,
-              onImageRequest: onImageRequest,
-            );
-            return client;
-          }
-        } on Exception {
-          // Continuar con otros providers si falla
-        }
-      }
-    }
-
-    // Buscar otros providers con realtime como fallback
-    final allProviders = registry.getAllProviders();
-    final realtimeProviders = allProviders
+    // Obtener providers que soporten realtime conversation
+    final realtimeProviders = registry
+        .getAllProviders()
         .where((p) => p.supportsRealtime)
         .toList();
 
     if (realtimeProviders.isEmpty) {
       throw Exception(
         'No realtime providers available. '
-        'Configure OpenAI provider for gpt-realtime support.',
+        'Configure a provider with realtime support in assets/ai_providers_config.yaml.',
       );
     }
 
-    // Intentar crear cliente con providers alternativos
-    for (final provider in realtimeProviders) {
-      if (provider.providerId.toLowerCase() ==
-          preferredProvider?.toLowerCase()) {
-        continue; // Ya intentamos este
-      }
+    // Usar el primer provider disponible (ordenados por prioridad en config)
+    final provider = realtimeProviders.first;
 
-      try {
-        final client = await provider.createRealtimeClient();
-        if (client != null) {
-          _configureRealtimeCallbacks(
-            client,
-            onText: onText,
-            onAudio: onAudio,
-            onCompleted: onCompleted,
-            onError: onError,
-            onUserTranscription: onUserTranscription,
-            onFunctionCall: onFunctionCall,
-            onImageRequest: onImageRequest,
-          );
-          return client;
-        }
-      } on Exception {
-        continue;
+    try {
+      final client = await provider.createRealtimeClient();
+      if (client != null) {
+        // Configurar callbacks
+        _configureRealtimeCallbacks(
+          client,
+          onText: onText,
+          onAudio: onAudio,
+          onCompleted: onCompleted,
+          onError: onError,
+          onUserTranscription: onUserTranscription,
+          onFunctionCall: onFunctionCall,
+          onImageRequest: onImageRequest,
+        );
+        return client;
       }
+    } catch (e) {
+      throw Exception('Failed to create realtime client: $e');
     }
 
     throw Exception(
       'Failed to create realtime client. '
-      'Check API keys and ensure OpenAI provider is configured for gpt-realtime.',
-    );
-  }
-
-  /// Crea cliente multimodal con soporte de imágenes
-  ///
-  /// Especializado para el análisis de imágenes con gpt-realtime
-  static Future<IRealtimeClient> createMultimodalClient({
-    String? voice,
-    String? voiceInstructions,
-    Function(String)? onText,
-    Function(Uint8List)? onAudio,
-    Function()? onCompleted,
-    Function(String)? onError,
-    Function(String)? onUserTranscription,
-    required Function(String imageDescription) onImageRequest,
-    Map<String, dynamic>? additionalParams,
-  }) async {
-    return getBestRealtimeClient(
-      preferredProvider: 'openai', // Solo OpenAI soporta imágenes
-      voice: voice ?? 'marin',
-      voiceInstructions:
-          voiceInstructions ?? 'Describe images clearly and helpfully',
-      onText: onText,
-      onAudio: onAudio,
-      onCompleted: onCompleted,
-      onError: onError,
-      onUserTranscription: onUserTranscription,
-      onImageRequest: onImageRequest,
-      additionalParams: {
-        'support_image_input': true,
-        'image_analysis_mode': 'detailed',
-        ...?additionalParams,
-      },
-    );
-  }
-
-  /// Crea cliente con function calling avanzado
-  ///
-  /// Optimizado para el function calling asíncrono de gpt-realtime
-  static Future<IRealtimeClient> createFunctionCallingClient({
-    String? voice,
-    String? voiceInstructions,
-    required List<Map<String, dynamic>> tools,
-    required Function(String functionName, Map<String, dynamic> arguments)
-    onFunctionCall,
-    Function(String)? onText,
-    Function(Uint8List)? onAudio,
-    Function()? onCompleted,
-    Function(String)? onError,
-    Function(String)? onUserTranscription,
-    Map<String, dynamic>? additionalParams,
-  }) async {
-    return getBestRealtimeClient(
-      preferredProvider: 'openai',
-      voice: voice ?? 'cedar',
-      voiceInstructions: voiceInstructions,
-      onText: onText,
-      onAudio: onAudio,
-      onCompleted: onCompleted,
-      onError: onError,
-      onUserTranscription: onUserTranscription,
-      onFunctionCall: onFunctionCall,
-      additionalParams: {
-        'tools': tools,
-        'async_function_calling': true,
-        'function_calling_mode': 'advanced',
-        ...?additionalParams,
-      },
+      'Check API keys and provider configuration.',
     );
   }
 
@@ -258,6 +149,72 @@ class RealtimeService {
     }
 
     return models;
+  }
+
+  /// Crea cliente multimodal con soporte de imágenes
+  ///
+  /// TODO: Implementar para videollamadas con IA enviando fotos
+  /// Especializado para el análisis de imágenes con gpt-realtime
+  /// El voice y provider se obtienen de la configuración
+  static Future<IRealtimeClient> createMultimodalClient({
+    String? voiceInstructions,
+    Function(String)? onText,
+    Function(Uint8List)? onAudio,
+    Function()? onCompleted,
+    Function(String)? onError,
+    Function(String)? onUserTranscription,
+    required Function(String imageDescription) onImageRequest,
+    Map<String, dynamic>? additionalParams,
+  }) async {
+    return getConfiguredRealtimeClient(
+      voiceInstructions:
+          voiceInstructions ?? 'Describe images clearly and helpfully',
+      onText: onText,
+      onAudio: onAudio,
+      onCompleted: onCompleted,
+      onError: onError,
+      onUserTranscription: onUserTranscription,
+      onImageRequest: onImageRequest,
+      additionalParams: {
+        'support_image_input': true,
+        'image_analysis_mode': 'detailed',
+        ...?additionalParams,
+      },
+    );
+  }
+
+  /// Crea cliente con function calling avanzado
+  ///
+  /// TODO: Implementar function calling asíncrono avanzado
+  /// Optimizado para el function calling asíncrono de gpt-realtime
+  /// El voice y provider se obtienen de la configuración
+  static Future<IRealtimeClient> createFunctionCallingClient({
+    String? voiceInstructions,
+    required List<Map<String, dynamic>> tools,
+    required Function(String functionName, Map<String, dynamic> arguments)
+    onFunctionCall,
+    Function(String)? onText,
+    Function(Uint8List)? onAudio,
+    Function()? onCompleted,
+    Function(String)? onError,
+    Function(String)? onUserTranscription,
+    Map<String, dynamic>? additionalParams,
+  }) async {
+    return getConfiguredRealtimeClient(
+      voiceInstructions: voiceInstructions,
+      onText: onText,
+      onAudio: onAudio,
+      onCompleted: onCompleted,
+      onError: onError,
+      onUserTranscription: onUserTranscription,
+      onFunctionCall: onFunctionCall,
+      additionalParams: {
+        'tools': tools,
+        'async_function_calling': true,
+        'function_calling_mode': 'advanced',
+        ...?additionalParams,
+      },
+    );
   }
 
   /// Verifica si un modelo soporta capacidades específicas
