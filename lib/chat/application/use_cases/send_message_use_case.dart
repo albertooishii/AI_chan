@@ -1,14 +1,15 @@
 import 'package:ai_chan/chat/domain/models/chat_result.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
+import 'package:ai_chan/chat/application/services/chat_message_service.dart';
+import 'package:ai_chan/chat/application/mappers/message_factory.dart';
+// ai_capability handled internally by provider manager
 
 // Import new services
 import '../services/message_image_processing_service.dart';
 import '../services/message_audio_processing_service.dart';
 import '../services/message_sanitization_service.dart';
 import '../../domain/interfaces/i_chat_event_timeline_service.dart';
-import '../../domain/interfaces/i_chat_image_service.dart';
 import '../../domain/interfaces/i_chat_logger.dart';
 
 /// Send Message Use Case - Chat Application Layer
@@ -26,12 +27,15 @@ class SendMessageUseCase {
        _eventTimelineService =
            eventTimelineService ?? _DefaultEventTimelineService();
 
+  // Use ChatMessageService to obtain domain Message objects
+  late final ChatMessageService _chatMessageService = ChatMessageService(
+    AIProviderManager.instance,
+    MessageFactory(),
+  );
+
   /// Creates default image service with stub dependencies
   static MessageImageProcessingService _createDefaultImageService() {
-    return MessageImageProcessingService(
-      _StubChatImageService(),
-      _StubChatLogger(),
-    );
+    return MessageImageProcessingService(_StubChatLogger());
   }
 
   final MessageImageProcessingService _imageService;
@@ -51,27 +55,26 @@ class SendMessageUseCase {
     // Convert messages to history format
     final history = _buildMessageHistory(recentMessages);
 
-    // Determine capability based on enableImageGeneration
-    final capability = enableImageGeneration
-        ? AICapability.imageGeneration
-        : AICapability.textGeneration;
+    // Capability is handled inside ChatMessageService/AIProviderManager
 
-    // Send message with automatic model selection via AIProviderManager
-    final response = await AIProviderManager.instance.sendMessage(
+    // Use ChatMessageService to obtain a domain Message
+    final message = await _chatMessageService.sendAndBuildMessage(
       history: history,
       systemPrompt: systemPromptObj,
-      capability: capability,
+      enableImageGeneration: enableImageGeneration,
       imageBase64: imageBase64,
       imageMimeType: imageMimeType,
     );
 
-    // Handle failed responses
-    if (response.text.trim().isEmpty) {
-      return _handleFailedResponse(response, 'auto-selected');
+    // If message text is empty, treat as failure
+    if (message.text.trim().isEmpty) {
+      // Build a synthetic AIResponse-like object for sanitization path
+      final fakeResponse = AIResponse(text: '');
+      return _handleFailedResponse(fakeResponse, 'auto-selected');
     }
 
-    // Process image response
-    final imageResult = await _imageService.processImageResponse(response);
+    // Process image using the image service which now accepts domain Message
+    final imageResult = await _imageService.processImageResponse(message);
 
     // Sanitize text content
     final String processedText = _imageService.sanitizeImageUrls(
@@ -86,13 +89,11 @@ class SendMessageUseCase {
       text: audioResult.cleanedText,
       isImage: imageResult.isImage,
       imagePath: imageResult.imagePath,
-      prompt: response.prompt,
-      seed: response.seed,
-      finalModelUsed:
-          'auto-selected', // Model is automatically selected by AIProviderManager
+      prompt: message.image?.prompt ?? '',
+      seed: message.image?.seed ?? '',
     );
 
-    final assistantMessage = _buildAssistantMessage(chatResult);
+    final assistantMessage = message;
 
     // Handle event processing if onboarding data provided
     AiChanProfile? updatedProfile;
@@ -145,7 +146,6 @@ class SendMessageUseCase {
       imagePath: null,
       prompt: response.prompt,
       seed: response.seed,
-      finalModelUsed: model,
     );
 
     final assistantMessage = _buildAssistantMessage(chatResult);
@@ -212,11 +212,7 @@ class SendMessageOutcome {
 
 // Stub implementations for default constructor (avoid infrastructure dependencies)
 
-/// Stub implementation that returns null - safe fallback
-class _StubChatImageService implements IChatImageService {
-  @override
-  Future<String?> saveBase64ImageToFile(final String base64) async => null;
-}
+// No-op image service stub removed; MessageImageProcessingService no longer needs it
 
 /// Stub implementation that does nothing - safe fallback
 class _StubChatLogger implements IChatLogger {

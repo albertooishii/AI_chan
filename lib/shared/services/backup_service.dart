@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:path_provider/path_provider.dart';
 // No direct dependency on ChatProvider anymore.
-import 'package:ai_chan/shared/utils/image_utils.dart' as image_utils;
+import 'package:ai_chan/shared/utils/image/image_utils.dart' as image_utils;
 import 'package:ai_chan/shared/utils/audio_utils.dart' as audio_utils;
 import 'package:archive/archive_io.dart';
 // test-only overrides are exposed via Config in helpers; no direct import needed here

@@ -3,14 +3,17 @@ import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/utils/debug_call_logger/debug_call_logger.dart';
+import 'package:ai_chan/chat/application/services/chat_message_service.dart';
+import 'package:ai_chan/chat/application/mappers/message_factory.dart';
 
 /// Infrastructure adapter implementing chat AI service using the new AI Provider system.
 /// Directly uses AIProviderManager without legacy compatibility layers.
 class ChatAIServiceAdapter implements IAIService {
-  const ChatAIServiceAdapter();
+  const ChatAIServiceAdapter([this._service]);
+  final ChatMessageService? _service;
 
   @override
-  Future<AIResponse> sendMessage(
+  Future<Message> sendMessage(
     final List<Map<String, String>> history,
     final SystemPrompt systemPrompt, {
     required final String model,
@@ -30,7 +33,18 @@ class ChatAIServiceAdapter implements IAIService {
         'timestamp': DateTime.now().toIso8601String(),
       });
 
-      // Use AIProviderManager directly with appropriate capability
+      // Delegate to ChatMessageService (preferred) or fallback to direct manager
+      if (_service != null) {
+        return await _service.sendAndBuildMessage(
+          history: history,
+          systemPrompt: systemPrompt,
+          imageBase64: imageBase64,
+          imageMimeType: imageMimeType,
+          enableImageGeneration: enableImageGeneration,
+        );
+      }
+
+      // Fallback: call manager and map to Message via implicit factory
       final response = await AIProviderManager.instance.sendMessage(
         history: history,
         systemPrompt: systemPrompt,
@@ -43,7 +57,12 @@ class ChatAIServiceAdapter implements IAIService {
         imageMimeType: imageMimeType,
       );
 
-      return response;
+      // Use the MessageFactory directly to convert (create a temporary one)
+      final factory = MessageFactory();
+      return factory.fromAIResponse(
+        response: response,
+        sender: MessageSender.assistant,
+      );
     } on Exception catch (e) {
       // Log errors
       await debugLogCallPrompt('chat_ai_service_direct_error', {
@@ -52,8 +71,12 @@ class ChatAIServiceAdapter implements IAIService {
         'timestamp': DateTime.now().toIso8601String(),
       });
 
-      // Return error response
-      return AIResponse(text: 'Error in direct AI service: $e');
+      // Return error Message
+      return Message(
+        text: 'Error in direct AI service: $e',
+        sender: MessageSender.assistant,
+        dateTime: DateTime.now(),
+      );
     }
   }
 }

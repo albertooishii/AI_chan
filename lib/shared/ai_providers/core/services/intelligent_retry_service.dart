@@ -244,10 +244,8 @@ class IntelligentRetryService implements IRetryService {
           _globalStats.totalRetryAttempts++;
         }
 
-        // Execute the operation with timeout
-        final result = await operation().timeout(
-          Duration(milliseconds: retryConfig.attemptTimeoutMs),
-        );
+        // Execute the operation without timeout
+        final result = await operation();
 
         // Success - record metrics and return
         circuitBreaker.recordSuccess();

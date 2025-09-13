@@ -24,7 +24,7 @@ class BasicChatPromiseService implements IChatPromiseService {
     final Future<T> Function() operation,
     final Duration timeout,
   ) async {
-    return await operation().timeout(timeout);
+    return await operation();
   }
 
   @override

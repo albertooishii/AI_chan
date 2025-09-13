@@ -1,5 +1,5 @@
 import 'package:ai_chan/shared/domain/interfaces/i_file_operations_service.dart';
-import 'package:ai_chan/shared/utils/image_utils.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/image_persistence_service.dart';
 
 /// Servicio de aplicación para operaciones de archivo desde la UI.
 /// Proporciona una interfaz limpia para que los widgets accedan a archivos
@@ -88,7 +88,10 @@ class FileUIService {
     final String prefix = 'img',
   }) async {
     // Delegar al servicio de imagen que maneja correctamente el directorio de la aplicación
-    return await saveBase64ImageToFile(base64, prefix: prefix);
+    return await ImagePersistenceService.instance.saveBase64Image(
+      base64,
+      prefix: prefix,
+    );
   }
 
   /// Crea un archivo temporal desde bytes y devuelve su path

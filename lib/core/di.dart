@@ -7,6 +7,8 @@ import 'package:ai_chan/core.dart';
 import 'package:ai_chan/onboarding.dart';
 import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/chat/application/services/chat_message_service.dart';
+import 'package:ai_chan/chat/application/mappers/message_factory.dart';
 
 // Import specific services that need DI
 import 'package:ai_chan/chat/domain/interfaces/i_tts_voice_management_service.dart';
@@ -325,7 +327,13 @@ INetworkService getNetworkService() => BasicNetworkService();
 IUIStateService getUIStateService() => BasicUIStateService();
 
 /// Chat AI Service Factory
-shared.IAIService getChatAIServiceAdapter() => const ChatAIServiceAdapter();
+shared.IAIService getChatAIServiceAdapter() {
+  final service = ChatMessageService(
+    AIProviderManager.instance,
+    MessageFactory(),
+  );
+  return ChatAIServiceAdapter(service);
+}
 
 /// Chat Domain Services Factories
 IChatPromiseService getChatPromiseService() => BasicChatPromiseService();

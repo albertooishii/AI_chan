@@ -4,6 +4,7 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
 import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_config.dart';
@@ -22,6 +23,7 @@ import 'package:ai_chan/shared/ai_providers/core/services/provider_alert_service
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/shared/utils/log_utils.dart';
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/image_persistence_service.dart';
 
 /// Exception thrown when no suitable provider is available
 class NoProviderAvailableException implements Exception {
@@ -185,8 +187,38 @@ class AIProviderManager {
     // Ignore deprecated parameters and use automatic selection
     // preferredProviderId and preferredModel are deprecated - we calculate optimal selection here
 
+    // If the user has selected a specific model in preferences, prefer the
+    // provider that supports that model for this capability. This ensures
+    // explicit user selection (e.g. "gpt-4.1-mini") is respected instead
+    // of always using the fallback chain primary provider (e.g. Google).
+    String? preferredProviderId;
+    try {
+      final selectedModel = await _getSavedModelForCapability(capability);
+      if (selectedModel != null) {
+        final modelProvider = await getProviderForModel(
+          selectedModel,
+          capability,
+        );
+        if (modelProvider != null) {
+          preferredProviderId = modelProvider.providerId;
+          Log.d(
+            '[AIProviderManager] Preferring provider $preferredProviderId for user-selected model: $selectedModel',
+          );
+        } else {
+          Log.d(
+            '[AIProviderManager] User-selected model not supported by any provider for capability ${capability.name}: $selectedModel',
+          );
+        }
+      }
+    } on Exception catch (e) {
+      Log.w('[AIProviderManager] Failed to read selected model from prefs: $e');
+    }
+
     // Calculate the actual provider and model that will be used for fingerprinting
-    final providersToTry = _getProvidersForCapability(capability, null);
+    final providersToTry = _getProvidersForCapability(
+      capability,
+      preferredProviderId,
+    );
     String actualProviderId = '';
     String actualModel = '';
 
@@ -243,8 +275,35 @@ class AIProviderManager {
     final String? imageMimeType,
     final Map<String, dynamic>? additionalParams,
   }) async {
-    // Always use automatic selection - no preferred provider/model
-    final providersToTry = _getProvidersForCapability(capability, null);
+    // Attempt to respect user-selected model/provider where possible.
+    String? preferredProviderId;
+    String? savedModel;
+    try {
+      savedModel = await _getSavedModelForCapability(capability);
+      if (savedModel != null) {
+        final modelProvider = await getProviderForModel(savedModel, capability);
+        if (modelProvider != null) {
+          preferredProviderId = modelProvider.providerId;
+          Log.d(
+            '[AIProviderManager] _sendMessage: user-selected model "$savedModel" maps to provider $preferredProviderId',
+          );
+        } else {
+          Log.d(
+            '[AIProviderManager] _sendMessage: user-selected model "$savedModel" not supported by any provider for capability ${capability.name}',
+          );
+        }
+      }
+    } on Exception catch (e) {
+      Log.w(
+        '[AIProviderManager] _sendMessage: failed reading selected model from prefs: $e',
+      );
+    }
+
+    // Use the preferred provider id (if found) so the provider order respects user selection
+    final providersToTry = _getProvidersForCapability(
+      capability,
+      preferredProviderId,
+    );
 
     if (providersToTry.isEmpty) {
       throw NoProviderAvailableException(
@@ -269,11 +328,20 @@ class AIProviderManager {
       CacheKey? cacheKey;
       if (_cacheService != null) {
         // Calculate the model that will actually be used for proper cache key
-        final modelToUse = await _getModelForCapability(capability, providerId);
+        String? modelToUseForCache = await _getSavedModelForProviderIfSupported(
+          capability,
+          providerId,
+        );
+        modelToUseForCache ??= await _getModelForCapability(
+          capability,
+          providerId,
+        );
 
         cacheKey = CacheKey(
           providerId: providerId,
-          model: modelToUse ?? '', // Use actual model that will be selected
+          model:
+              modelToUseForCache ??
+              '', // Use actual model that will be selected
           capability: capability.name,
           messageHash: history.toString().hashCode.toString(),
           additionalData: additionalParams ?? {},
@@ -291,21 +359,83 @@ class AIProviderManager {
 
       try {
         // Use intelligent model selection based on capability and user preferences
-        final modelToUse = await _getModelForCapability(capability, providerId);
+        String? modelToUse;
+        try {
+          modelToUse = await _getSavedModelForProviderIfSupported(
+            capability,
+            providerId,
+          );
+        } on Exception catch (_) {
+          // ignore and fallback to auto selection below
+        }
+
+        modelToUse ??= await _getModelForCapability(capability, providerId);
 
         Log.d(
           'Attempting request with provider: $providerId, model: $modelToUse (intelligent selection)',
         );
 
-        final response = await provider.sendMessage(
-          history: history,
-          systemPrompt: systemPrompt,
-          capability: capability,
-          model: modelToUse,
-          imageBase64: imageBase64,
-          imageMimeType: imageMimeType,
-          additionalParams: additionalParams,
-        );
+        // Build a guarded operation so retries will re-execute both the provider
+        // call and the image-presence check. This ensures the centralized retry
+        // service can detect and retry an empty-image result.
+        final requestedImage =
+            additionalParams?['enableImageGeneration'] == true ||
+            capability == AICapability.imageGeneration;
+
+        Future<AIResponse> guardedCallOperation() async {
+          final resp = await provider.sendMessage(
+            history: history,
+            systemPrompt: systemPrompt,
+            capability: capability,
+            model: modelToUse,
+            imageBase64: imageBase64,
+            imageMimeType: imageMimeType,
+            additionalParams: additionalParams,
+          );
+
+          if (requestedImage && resp.base64.isEmpty) {
+            Log.w(
+              '[AIProviderManager] Provider $providerId returned no image despite imageGeneration requested. Forcing retry fallback.',
+            );
+            throw HttpException('520 Empty image result from $providerId');
+          }
+
+          return resp;
+        }
+
+        AIResponse response = _retryService != null
+            ? await _retryService!.executeWithRetry<AIResponse>(
+                guardedCallOperation,
+                providerId,
+              )
+            : await guardedCallOperation();
+
+        // If provider returned an image as base64, persist it centrally and
+        // replace base64 in the returned AIResponse with an empty string while
+        // populating `imageFileName` so callers can use that name.
+        try {
+          if (response.base64.isNotEmpty) {
+            final saved = await ImagePersistenceService.instance
+                .saveBase64Image(response.base64);
+            if (saved != null && saved.isNotEmpty) {
+              // Create a new AIResponse with cleared base64 and imageFileName set
+              response = AIResponse(
+                text: response.text,
+                seed: response.seed,
+                prompt: response.prompt,
+                imageFileName: saved,
+              );
+            } else {
+              Log.w(
+                '[AIProviderManager] Failed to persist returned base64 image for provider $providerId',
+              );
+            }
+          }
+        } on Exception catch (e) {
+          Log.w(
+            '[AIProviderManager] Error persisting returned base64 image: $e',
+          );
+        }
 
         // Record successful performance metrics
         _performanceService?.recordRequest(
@@ -643,6 +773,42 @@ class AIProviderManager {
     }
 
     return providers;
+  }
+
+  /// Read the saved selected model from preferences (single place)
+  Future<String?> _getSavedModelForCapability(
+    final AICapability capability,
+  ) async {
+    try {
+      final savedModel = await PrefsUtils.getSelectedModel();
+      if (savedModel != null && savedModel.trim().isNotEmpty) {
+        return savedModel.trim();
+      }
+      return null;
+    } on Exception catch (e) {
+      Log.w(
+        '[AIProviderManager] _getSavedModelForCapability: failed to read prefs: $e',
+      );
+      return null;
+    }
+  }
+
+  /// If user has a saved model and the given provider supports it for the capability,
+  /// return that saved model, otherwise null.
+  Future<String?> _getSavedModelForProviderIfSupported(
+    final AICapability capability,
+    final String providerId,
+  ) async {
+    final savedModel = await _getSavedModelForCapability(capability);
+    if (savedModel == null) return null;
+
+    final providerConfig = _config!.aiProviders[providerId];
+    final availableModels = providerConfig?.models[capability] ?? [];
+    if (availableModels.contains(savedModel)) {
+      return savedModel;
+    }
+
+    return null;
   }
 
   /// Select the best model for a provider and capability

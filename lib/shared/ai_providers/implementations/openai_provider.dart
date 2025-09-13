@@ -238,7 +238,6 @@ class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
       };
 
       final List<Map<String, dynamic>> input = [];
-      final StringBuffer allText = StringBuffer();
       final systemPromptMap = systemPrompt.toJson();
 
       // Detectar si la petición es explícitamente para generar un AVATAR.
@@ -273,40 +272,68 @@ class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
         }
       } on Exception catch (_) {}
 
-      final systemPromptStr = jsonEncode(systemPromptMap);
+      // Evitar enviar recentMessages dentro del system prompt ya que el historial
+      // quitamos el recentMessages completo de systemPromptMap
+      try {
+        // Remove any 'recentMessages' or 'recent_messages' keys recursively
+        void removeRecentMessagesRecursive(final Map<String, dynamic> m) {
+          try {
+            final keys = List<String>.from(m.keys);
+            for (final k in keys) {
+              if (k == 'recentMessages' || k == 'recent_messages') {
+                m.remove(k);
+                continue;
+              }
+              final v = m[k];
+              if (v is Map<String, dynamic>) {
+                removeRecentMessagesRecursive(v);
+              } else if (v is List) {
+                for (final item in v) {
+                  if (item is Map<String, dynamic>) {
+                    removeRecentMessagesRecursive(item);
+                  }
+                }
+              }
+            }
+          } on Exception catch (_) {}
+        }
+
+        removeRecentMessagesRecursive(systemPromptMap);
+      } on Exception catch (_) {}
+
+      final systemPromptStr = const JsonEncoder.withIndent(
+        '  ',
+      ).convert(systemPromptMap);
 
       // El contenido del sistema proviene de PromptBuilder
-      input.add({
-        'role': 'system',
-        'content': [
-          {'type': 'input_text', 'text': systemPromptStr},
-        ],
-      });
+      // Usamos `content` como string simple para seguir el ejemplo de la API
+      input.add({'role': 'system', 'content': systemPromptStr});
 
+      // Añadir cada mensaje histórico como un item independiente en `input`.
+      // Si hay una imagen adjunta (`imageBase64`), la añadimos como un bloque
+      // `input_image` junto al último mensaje del historial (comportamiento previo).
       for (int i = 0; i < history.length; i++) {
         final role = history[i]['role'] ?? 'user';
         final contentStr = history[i]['content'] ?? '';
-        if (allText.isNotEmpty) allText.write('\n\n');
-        allText.write('[$role]: $contentStr');
-      }
 
-      final List<dynamic> userContent = [
-        {'type': 'input_text', 'text': allText.toString()},
-      ];
+        // Añadir el texto como string en `content` (formato simple requerido)
+        input.add({'role': role, 'content': contentStr});
 
-      if (imageBase64 != null && imageBase64.isNotEmpty) {
-        userContent.add({
-          'type': 'input_image',
-          'image_url':
-              "data:${imageMimeType ?? 'image/png'};base64,$imageBase64",
-        });
+        // Si hay una imagen adjunta y es el último mensaje del historial,
+        // añadimos una entrada adicional con el data URI como contenido string.
+        if (imageBase64 != null &&
+            imageBase64.isNotEmpty &&
+            i == history.length - 1) {
+          input.add({
+            'role': role,
+            'content':
+                "data:${imageMimeType ?? 'image/png'};base64,$imageBase64",
+          });
+        }
       }
 
       // Prefer explicit getter firstAvatar for clarity (primer avatar histórico)
       final avatar = systemPrompt.profile.firstAvatar;
-
-      // El bloque 'role: user' siempre primero
-      input.add({'role': 'user', 'content': userContent});
 
       // Declarar tools vacío
       List<Map<String, dynamic>> tools = [];
@@ -444,7 +471,8 @@ class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
             final type = item['type'];
             if (type == 'image_generation_call') {
               if (item['result'] != null && imageBase64Output.isEmpty) {
-                imageBase64Output = item['result'];
+                final raw = item['result'] as String;
+                imageBase64Output = raw;
               }
               if (item['id'] != null && imageId.isEmpty) imageId = item['id'];
               if (item['revised_prompt'] != null && revisedPrompt.isEmpty) {
@@ -481,22 +509,29 @@ class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
           }
         }
 
-        // Elegir seed de forma centralizada: si el modelo soporta multi-turn (gpt-5*),
-        // preferir el id de la respuesta; en caso contrario usar el item.id existente.
+        // Elegir seed de forma centralizada: solo si se devolvió una imagen (imageBase64Output)
+        // evitamos redeclarar la variable `imageId` (usar la externa) y preferimos
+        // response.id para modelos GPT-5.
         try {
-          final respId = data['id']?.toString();
-          final effectiveModel = selectedModel.toLowerCase();
-          if (respId != null &&
-              respId.isNotEmpty &&
-              effectiveModel.startsWith('gpt-5')) {
-            imageId = respId;
-            Log.d(
-              '[OpenAIProvider] Modelo $effectiveModel -> usando response.id como seed: $imageId',
-            );
-          } else {
-            Log.d(
-              '[OpenAIProvider] Modelo $effectiveModel -> usando item.id como seed: $imageId',
-            );
+          if (imageBase64Output.isNotEmpty) {
+            final respId = data['id']?.toString();
+            final firstItemId =
+                (data['output'] as List).first['id']?.toString() ?? '';
+            final effectiveModel = selectedModel.toLowerCase();
+
+            if (respId != null &&
+                respId.isNotEmpty &&
+                effectiveModel.startsWith('gpt-5')) {
+              imageId = respId; // assign to outer-scoped variable
+              Log.d(
+                '[OpenAIProvider] Modelo $effectiveModel -> usando response.id como seed: $imageId',
+              );
+            } else if (firstItemId.isNotEmpty) {
+              imageId = firstItemId; // assign to outer-scoped variable
+              Log.d(
+                '[OpenAIProvider] Modelo $effectiveModel -> usando item.id como seed: $imageId',
+              );
+            }
           }
         } on Exception catch (_) {}
 
@@ -514,14 +549,25 @@ class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
         // Handle API error and rotate keys if necessary
         _handleApiError(response, 'text_generation');
 
-        return AIResponse(
-          text:
-              'Error al conectar con la IA: Status ${response.statusCode} ${response.body}',
-        );
+        // Throw an HttpException that begins with the numeric status code so
+        // the centralized retry service can parse it and decide whether to retry.
+        final status = response.statusCode;
+        final body = response.body;
+        throw HttpException('$status ${response.reasonPhrase ?? ''}: $body');
       }
+    } on HttpException {
+      // Re-throw HttpException to be handled by the centralized retry service.
+      rethrow;
+    } on SocketException {
+      // Network errors should propagate so the retry service can catch them.
+      rethrow;
+    } on TimeoutException {
+      // Timeouts should also propagate.
+      rethrow;
     } on Exception catch (e) {
+      // For any other exception, log and rethrow so the retry service can decide.
       Log.e('[OpenAIProvider] Text request failed: $e');
-      return AIResponse(text: 'Error connecting to OpenAI: $e');
+      rethrow;
     }
   }
 
@@ -816,13 +862,7 @@ class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
           await http.MultipartFile.fromPath('file', tempFile.path),
         );
 
-        final streamedResponse = await request.send().timeout(
-          const Duration(seconds: 30),
-          onTimeout: () => throw TimeoutException(
-            'Timeout en transcripción de audio',
-            const Duration(seconds: 30),
-          ),
-        );
+        final streamedResponse = await request.send();
 
         final response = await http.Response.fromStream(streamedResponse);
 

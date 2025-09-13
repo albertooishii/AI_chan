@@ -245,12 +245,23 @@ class ChatApplicationService {
         instructions: {},
       );
 
+      // Detectar si debemos activar la ruta de generación de imágenes.
+      // Consideramos petición explícita de imagen en el texto o que se haya
+      // proporcionado una imagen/base64 en options.
+      final bool enableImageGeneration =
+          ImageRequestService.isImageRequested(
+            text: message.text,
+            history: _messages,
+          ) ||
+          (options?.image != null);
+
       // Llamar al UseCase
       final outcome = await _sendMessageUseCase.sendChat(
         recentMessages: _messages,
         systemPromptObj: systemPrompt,
         imageBase64: options?.image is String ? options!.image : null,
         imageMimeType: options?.imageMimeType,
+        enableImageGeneration: enableImageGeneration,
         onboardingData: _profile,
         saveAll: () => _persistStateImmediate(),
       );

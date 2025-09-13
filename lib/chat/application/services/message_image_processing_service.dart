@@ -1,74 +1,36 @@
 import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_image_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_logger.dart';
 
 /// Service responsible for processing AI-generated images
 /// Uses domain interfaces to maintain bounded context isolation.
+
 class MessageImageProcessingService {
-  MessageImageProcessingService(this._imageService, this._logger);
-  final IChatImageService _imageService;
+  MessageImageProcessingService(this._logger);
   final IChatLogger _logger;
 
-  /// Process image response from AI and save it locally
-  Future<MessageImageResult> processImageResponse(
-    final AIResponse response,
-  ) async {
-    if (response.base64.isEmpty) {
-      return MessageImageResult(
-        isImage: false,
-        imagePath: null,
-        processedText: response.text,
-      );
-    }
+  /// Process image data from domain Message. The AIProviderManager is
+  /// responsible for persisting any base64 images and setting a filename on
+  /// the returned Message.image.url. This service only maps that into a
+  /// MessageImageResult and performs text sanitation.
+  Future<MessageImageResult> processImageResponse(final Message message) async {
+    final String text = message.text;
 
-    // Check if AI sent URL/path instead of base64
-    final urlPattern = RegExp(r'^(https?:\/\/|file:|\/|[A-Za-z]:\\)');
-    if (urlPattern.hasMatch(response.base64)) {
-      _logger.error(
-        'La IA envió una URL/ruta en vez de imagen base64',
-        tag: 'AI_CHAT_RESPONSE',
-      );
-      return MessageImageResult(
-        isImage: false,
-        imagePath: null,
-        processedText:
-            '${response.text}\n[ERROR: La IA envió una URL/ruta en vez de imagen. Pide la foto de nuevo.]',
-      );
-    }
-
-    try {
-      final imagePath = await _imageService.saveBase64ImageToFile(
-        response.base64,
-      );
-      if (imagePath == null) {
-        _logger.error(
-          'No se pudo guardar la imagen localmente',
-          tag: 'AI_CHAT_RESPONSE',
-        );
-        return MessageImageResult(
-          isImage: false,
-          imagePath: null,
-          processedText: response.text,
-        );
-      }
-
+    // If manager already persisted the image, use the provided filename
+    final imageUrl = message.image?.url ?? '';
+    if (imageUrl.isNotEmpty) {
       return MessageImageResult(
         isImage: true,
-        imagePath: imagePath,
-        processedText: response.text,
-      );
-    } on Exception catch (e) {
-      _logger.error(
-        'Fallo guardando imagen',
-        tag: 'AI_CHAT_RESPONSE',
-        error: e,
-      );
-      return MessageImageResult(
-        isImage: false,
-        imagePath: null,
-        processedText: response.text,
+        imagePath: imageUrl,
+        processedText: text,
       );
     }
+
+    // No image available
+    return MessageImageResult(
+      isImage: false,
+      imagePath: null,
+      processedText: text,
+    );
   }
 
   /// Sanitize text that contains markdown images or URLs

@@ -1,4 +1,4 @@
-import 'package:ai_chan/shared/utils/image_utils.dart' as image_utils;
+import 'package:ai_chan/shared/utils/image/image_utils.dart' as image_utils;
 import 'package:flutter/material.dart';
 import 'package:ai_chan/core/models.dart';
 import 'package:ai_chan/core/di.dart' as di;

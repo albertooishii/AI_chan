@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:ai_chan/core/config.dart';
 import 'package:image/image.dart' as img;
+import 'package:ai_chan/chat/domain/interfaces/i_chat_controller.dart';
+import 'package:ai_chan/core/models.dart';
 
 /// Guarda una imagen en base64 en el directorio de documentos de la app
 /// bajo la carpeta `images`. Comprime la imagen usando JPEG con 90% de calidad
@@ -12,9 +14,42 @@ import 'package:image/image.dart' as img;
 Future<String?> saveBase64ImageToFile(
   final String base64, {
   final String prefix = 'img',
+  final String? fileName,
 }) async {
   try {
-    final bytes = base64Decode(base64);
+    // Normalize possible data URIs: if the input is like `data:image/png;base64,AAA...`
+    // strip the prefix so we decode only the raw base64 payload. If the input
+    // is already raw base64, this is a no-op.
+    String normalized = base64.trim();
+    bool normalizedApplied = false;
+    if (normalized.startsWith('data:')) {
+      final idx = normalized.indexOf('base64,');
+      if (idx != -1 && idx + 7 < normalized.length) {
+        normalized = normalized.substring(idx + 7);
+        normalizedApplied = true;
+      } else {
+        final comma = normalized.indexOf(',');
+        if (comma != -1 && comma + 1 < normalized.length) {
+          normalized = normalized.substring(comma + 1);
+          normalizedApplied = true;
+        }
+      }
+    }
+
+    if (normalizedApplied) {
+      Log.d('[Image] Normalized data URI to raw base64', tag: 'IMAGE_UTILS');
+    }
+
+    late final Uint8List bytes;
+    try {
+      bytes = Uint8List.fromList(base64Decode(normalized));
+    } on FormatException catch (e) {
+      Log.w(
+        '[Image] Provided string is not valid base64: $e',
+        tag: 'IMAGE_UTILS',
+      );
+      return null;
+    }
 
     Log.d(
       '[Image] Procesando imagen para compresión JPEG...',
@@ -31,16 +66,17 @@ Future<String?> saveBase64ImageToFile(
         tag: 'IMAGE_UTILS',
       );
       // Si falla la decodificación, guardar la imagen tal como está (fallback para tests o imágenes corruptas)
-      final fileName = '${prefix}_${DateTime.now().millisecondsSinceEpoch}.png';
+      final finalFileName =
+          fileName ?? '${prefix}_${DateTime.now().millisecondsSinceEpoch}.png';
       final absDir = await getLocalImageDir();
-      final absFilePath = '${absDir.path}/$fileName';
+      final absFilePath = '${absDir.path}/$finalFileName';
       final file = await File(absFilePath).writeAsBytes(bytes);
       if (file.existsSync()) {
         Log.i(
           '[Image] Imagen guardada sin compresión en: $absFilePath',
           tag: 'IMAGE_UTILS',
         );
-        return fileName;
+        return finalFileName;
       }
       return null;
     }
@@ -55,9 +91,10 @@ Future<String?> saveBase64ImageToFile(
 
     // Convertir a JPEG con 90% de calidad para reducir tamaño
     final jpegBytes = img.encodeJpg(originalImage, quality: 90);
-    final fileName = '${prefix}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final finalFileName =
+        fileName ?? '${prefix}_${DateTime.now().millisecondsSinceEpoch}.jpg';
     final absDir = await getLocalImageDir();
-    final absFilePath = '${absDir.path}/$fileName';
+    final absFilePath = '${absDir.path}/$finalFileName';
 
     Log.d(
       '[Image] Guardando imagen comprimida en: $absFilePath',
@@ -77,7 +114,7 @@ Future<String?> saveBase64ImageToFile(
         '[Image] Imagen guardada correctamente en: $absFilePath (reducción: $reduction%)',
         tag: 'IMAGE_UTILS',
       );
-      return fileName;
+      return finalFileName;
     } else {
       Log.w(
         '[Image] Error: El archivo no existe tras guardar.',
@@ -131,4 +168,54 @@ Future<Directory> getLocalImageDir() async {
 /// Ruta relativa usada internamente para presentar/serializar paths (simple nombre)
 Future<String> getRelativeImageDir() async {
   return 'AI_chan/images';
+}
+
+// -------------------------
+// Profile / avatar helpers
+// -------------------------
+/// Adds or replaces an avatar in the controller's profile and persists it.
+Future<void> addAvatarAndPersist(
+  final IChatController chatController,
+  final AiImage avatar, {
+  final bool replace = false,
+}) async {
+  try {
+    final currentProfile = chatController.profile;
+    if (currentProfile == null) return;
+
+    AiChanProfile updatedProfile;
+    if (replace) {
+      updatedProfile = currentProfile.copyWith(avatars: [avatar]);
+    } else {
+      updatedProfile = currentProfile.copyWith(
+        avatars: [...(currentProfile.avatars ?? []), avatar],
+      );
+    }
+
+    chatController.dataController.updateProfile(updatedProfile);
+  } on Exception catch (_) {
+    // Silent as before
+  }
+}
+
+/// Removes an AiImage (if non-null) from the controller's profile and persists it.
+Future<void> removeImageFromProfileAndPersist(
+  final IChatController chatController,
+  final AiImage? deleted,
+) async {
+  if (deleted == null) return;
+  try {
+    final currentProfile = chatController.profile;
+    if (currentProfile == null) return;
+
+    final avatars = List<AiImage>.from(currentProfile.avatars ?? []);
+    avatars.removeWhere(
+      (final a) => a.seed == deleted.seed || a.url == deleted.url,
+    );
+    final updated = currentProfile.copyWith(avatars: avatars);
+
+    chatController.dataController.updateProfile(updated);
+  } on Exception catch (_) {
+    // Silent
+  }
 }

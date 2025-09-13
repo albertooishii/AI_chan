@@ -7,7 +7,7 @@ export 'utils/chat_json_utils.dart';
 export 'utils/dialog_utils.dart';
 export 'utils/download_image.dart';
 export 'utils/event_parser_utils.dart';
-export 'utils/image_utils.dart';
+export 'utils/image/image_utils.dart';
 export 'utils/json_utils.dart';
 export 'utils/locale_utils.dart';
 export 'utils/log_utils.dart';

@@ -1,7 +1,7 @@
 // ...existing imports
 import 'package:ai_chan/shared/utils/log_utils.dart';
-import 'package:ai_chan/shared/utils/image_utils.dart';
 import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/core/mappers/ai_image_factory.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/core/ai_runtime_guard.dart';
@@ -280,35 +280,24 @@ class IAAvatarGenerator {
     final AIResponse imageResponse,
     final String? seedToUse,
   ) async {
-    // Guardar imagen
-    String? imageUrl;
-    try {
-      imageUrl = await saveBase64ImageToFile(
-        imageResponse.base64,
-        prefix: 'ai_avatar',
-      );
-    } on Exception {
-      imageUrl = null;
-    }
+    // El guardado de base64 a archivo debe hacerlo exclusivamente AIProviderManager.
+    // Aquí sólo construimos el AiImage si el manager ya guardó la imagen y dejó el fileName.
+    final String? imageUrl = imageResponse.imageFileName.isNotEmpty
+        ? imageResponse.imageFileName
+        : null;
 
     if (imageUrl == null || imageUrl.isEmpty) {
+      // No intentamos guardar nada aquí: si el manager no guardó la imagen, consideramos esto un error.
       throw Exception(
-        'Se generó el avatar pero no se pudo guardar la imagen en el dispositivo.',
+        'Se generó el avatar pero no se encontró fileName generado por el manager.',
       );
     }
 
-    final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final usedSeed = (imageResponse.seed.isNotEmpty)
-        ? imageResponse.seed
-        : (seedToUse ?? '');
+    // Map to AiImage via factory (throws if fileName missing)
+    final factory = AiImageFactory();
+    final aiImage = factory.fromAIResponse(response: imageResponse);
 
-    Log.d('[IAAvatarGenerator] Avatar: usada seed final: $usedSeed');
-
-    return AiImage(
-      seed: usedSeed,
-      prompt: imageResponse.prompt,
-      url: imageUrl,
-      createdAtMs: nowMs,
-    );
+    Log.d('[IAAvatarGenerator] Avatar: usada seed final: ${aiImage.seed}');
+    return aiImage;
   }
 }

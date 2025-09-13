@@ -6,16 +6,13 @@ class ChatResult {
     required this.imagePath,
     required this.prompt,
     required this.seed,
-    required this.finalModelUsed,
   });
   final String text;
   final bool isImage;
   final String? imagePath;
   final String? prompt;
   final String? seed;
-  final String finalModelUsed;
 
   @override
-  String toString() =>
-      'ChatResult(text: $text, isImage: $isImage, model: $finalModelUsed)';
+  String toString() => 'ChatResult(text: $text, isImage: $isImage)';
 }

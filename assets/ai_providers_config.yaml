@@ -111,8 +111,8 @@ ai_providers:
       
       # TTS settings for hybrid mode
       tts_settings:
-        model: "tts-1-hd"
-        voice: "alloy"
+        model: "gpt-4o-mini-tts"
+        voice: "marin"
         speed: 1.0
         quality: "hd"
       
@@ -249,8 +249,8 @@ ai_providers:
       # Use external TTS service (fallback to OpenAI TTS)
       tts_provider: "external_openai"
       tts_settings:
-        model: "tts-1"
-        voice: "alloy"
+        model: "gpt-4o-mini-tts"
+        voice: "marin"
         speed: 1.0
       
       # Use external STT service (fallback to OpenAI Whisper)

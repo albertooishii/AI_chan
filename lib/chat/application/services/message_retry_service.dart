@@ -9,7 +9,7 @@ class MessageRetryService {
   final IAIService _aiService;
 
   /// Retry sending message with validation and exponential backoff
-  Future<AIResponse> sendWithRetries({
+  Future<Message> sendWithRetries({
     required final List<Map<String, String>> history,
     required final SystemPrompt systemPrompt,
     required final String model,
@@ -24,7 +24,7 @@ class MessageRetryService {
       throw Exception('No internet connection available');
     }
 
-    AIResponse response = await _aiService.sendMessage(
+    Message response = await _aiService.sendMessage(
       history,
       systemPrompt,
       model: model,
@@ -69,9 +69,9 @@ class MessageRetryService {
     return 8;
   }
 
-  bool hasValidText(final AIResponse r) {
+  bool hasValidText(final Message r) {
     final t = r.text.trim();
-    if (t.isEmpty) return r.base64.isNotEmpty; // allow only image
+    if (t.isEmpty) return r.image != null; // allow only image
     final lower = t.toLowerCase();
     if (lower.contains('error al conectar con la ia')) return false;
     if (lower.contains('"error"')) return false;

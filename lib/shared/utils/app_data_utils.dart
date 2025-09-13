@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:math';
 import 'package:path_provider/path_provider.dart';
 import 'package:ai_chan/shared/utils/prefs_utils.dart';
-import 'package:ai_chan/shared/utils/image_utils.dart' as image_utils;
+import 'package:ai_chan/shared/utils/image/image_utils.dart' as image_utils;
 import 'package:ai_chan/shared/utils/audio_utils.dart' as audio_utils;
 import 'package:ai_chan/shared/utils/log_utils.dart';
 

@@ -1,4 +1,3 @@
-import 'package:ai_chan/chat/application/utils/avatar_persist_utils.dart';
 import 'package:ai_chan/chat/presentation/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro completado
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
 import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;

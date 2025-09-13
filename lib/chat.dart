@@ -60,7 +60,7 @@ export 'chat/application/use_cases/import_chat_use_case.dart';
 export 'chat/application/adapters/call_to_chat_communication_adapter.dart';
 
 // Application Utils
-export 'chat/application/utils/avatar_persist_utils.dart';
+// NOTE: avatar persistence utilities moved to shared/image/image_profile_utils.dart
 
 // Infrastructure Layer
 export 'chat/infrastructure/ai/chat_ai_service_adapter.dart';

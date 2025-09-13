@@ -266,15 +266,15 @@ class _MessageInputState extends State<MessageInput> {
     AiImage? imageToSend;
     final String? imageMimeType = _attachedImageMime;
     if (hasImage) {
-      // Save image file for display purposes and create AiImage object for AI processing
+      // Save image file for display purposes and create AiImage object for message storage.
+      // NOTE: the raw base64 is persisted centrally (via ImagePersistenceService); the domain model
+      // `AiImage` stores only a reference (url/file name) and metadata — it does NOT contain base64.
       final savedPath = await widget.fileService.saveBase64Image(
         _attachedImageBase64!,
         prefix: 'img_user',
       );
-      // Create AiImage object with the saved file path and original base64
       imageToSend = AiImage(
         url: savedPath,
-        base64: _attachedImageBase64,
         createdAtMs: DateTime.now().millisecondsSinceEpoch,
       );
     }
