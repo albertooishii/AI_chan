@@ -1,6 +1,4 @@
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'dart:io' show Platform;

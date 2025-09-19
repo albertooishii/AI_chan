@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/shared/ai_providers/implementations/openai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/implementations/google_provider.dart';
 import '../test_setup.dart';
@@ -64,8 +65,8 @@ void main() {
         );
         expect(
           voice.gender,
-          isNotEmpty,
-          reason: 'Voice gender should not be empty',
+          isA<VoiceGender>(),
+          reason: 'Voice gender should be a VoiceGender enum',
         );
         expect(
           voice.language,

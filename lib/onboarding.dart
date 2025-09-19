@@ -57,3 +57,6 @@ export 'onboarding/presentation/screens/onboarding_screen.dart'
 
 // Widgets
 export 'onboarding/presentation/widgets/birth_date_field.dart';
+
+// Onboarding Utils
+export 'onboarding/infrastructure/utils/onboarding_prompt_utils.dart';

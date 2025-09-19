@@ -2,7 +2,6 @@
 /// This file replaces hardcoded imports and switch statements.
 library;
 
-import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_config.dart';
 import 'package:ai_chan/shared/ai_providers/core/registry/provider_auto_registry.dart';
 import 'package:ai_chan/shared/ai_providers/implementations/google_provider.dart';
 import 'package:ai_chan/shared/ai_providers/implementations/openai_provider.dart';

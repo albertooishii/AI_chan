@@ -49,7 +49,7 @@
 - [ ] **Verificar exports**: Asegurar que `shared.dart` exporta todo lo necesario
 - [ ] **Tests de validación**: Confirmar que no se rompe funcionalidad
 
-#### 1.3 Resolver Violaciones Arquitectónicas Temporales (3)
+#### 1.5 Resolver Violaciones Arquitectónicas Temporales (3)
 - [ ] `lib/onboarding/presentation/controllers/onboarding_lifecycle_controller.dart`
 - [ ] `lib/shared/presentation/screens/calendar_screen.dart`
 - [ ] `lib/shared/presentation/widgets/country_autocomplete.dart`
@@ -79,9 +79,12 @@
 - [ ] **Privatización**: Marcar como privadas (`_`) las funciones realmente no usadas
 - [ ] **Documentación**: Marcar funciones que son parte de APIs públicas intencionalmente
 
-#### 2.3 Consolidación de Interfaces
+#### 2.3 Consolidación de Interfaces y Separación por Contextos
 - [ ] **Eliminar duplicados**: Resolver interfaces duplicadas entre contextos
 - [ ] **Centralizar en shared**: Mover interfaces comunes a `shared/domain/interfaces/`
+- [ ] **🎯 Reubicación por bounded context**: Mover archivos específicos de dominio (ej: prompt_builder) de shared/ a su contexto correspondiente
+- [ ] **🚫 Eliminar abstracciones innecesarias**: Remover interfaces que solo tienen una implementación y no necesitan abstracción
+- [ ] **💡 Validación pragmática**: Verificar que cada abstracción en shared/ sea realmente utilizada por múltiples contextos
 
 ---
 
@@ -110,14 +113,14 @@
 ### **Semana 1: Arquitectura Crítica**
 - **Lunes**: Cross-context dependencies (onboarding → chat)
 - **Martes**: Cross-context dependencies (chat → voice) + SharedNavigationService
-- **Miércoles**: Imports directos refactoring (batch 1-50)
-- **Jueves**: Imports directos refactoring (batch 51-100)
-- **Viernes**: Imports directos refactoring (batch 101-186) + validación
+- **Miércoles**: Separación por bounded context (PromptBuilder, etc.)
+- **Jueves**: Imports directos refactoring (batch 1-100)
+- **Viernes**: Imports directos refactoring (batch 101-186) + violaciones arquitectónicas + validación
 
-### **Semana 2: Optimización**
-- **Lunes**: Análisis y limpieza de archivos no utilizados
-- **Martes**: Limpieza de funciones públicas no utilizadas
-- **Miércoles**: Consolidación de interfaces duplicadas
+### **Semana 2: Optimización y Simplificación**
+- **Lunes**: Análisis y limpieza de archivos no utilizados + auditoría de abstracciones
+- **Martes**: Limpieza de funciones públicas + eliminación de sobre-ingeniería  
+- **Miércoles**: Consolidación de interfaces + separación por contextos + principio YAGNI
 - **Jueves**: Optimización de shared.dart y barrel files
 - **Viernes**: Linting, automatización y documentación final
 
@@ -132,6 +135,8 @@
 - [ ] **<10 archivos** realmente no utilizados
 - [ ] **<50 funciones públicas** sin uso justificado
 - [ ] **100% tests pasando** durante todo el proceso
+- [ ] **🎯 Separación clara por contextos** (sin servicios específicos en shared/)
+- [ ] **🚫 Cero abstracciones innecesarias** (solo interfaces que realmente se necesitan)
 
 ### **Metas Cualitativas**
 - [ ] **Arquitectura DDD pura** sin compromisos
@@ -139,6 +144,8 @@
 - [ ] **Base sólida** para desarrollo de nuevas features
 - [ ] **Documentación completa** de patrones adoptados
 - [ ] **Automatización** de validaciones arquitectónicas
+- [ ] **💡 Pragmatismo sobre purismo**: Simplicidad antes que complejidad innecesaria
+- [ ] **🎯 Bounded contexts bien definidos**: Cada contexto es autónomo en su dominio específico
 
 ---
 
@@ -177,6 +184,9 @@ dart format --set-exit-if-changed .
 2. **Incrementalidad**: Cambios pequeños y verificables
 3. **Validación continua**: Ejecutar tests después de cada grupo de cambios
 4. **Documentación**: Mantener registro de cambios importantes
+5. **🎯 Separación por Bounded Context**: Archivos específicos de un dominio (ej: prompt_builder) deben moverse a su contexto correspondiente, no quedarse en shared
+6. **🚫 Evitar Sobre-ingeniería**: No crear abstracciones innecesarias o patrones complejos donde no se necesitan
+7. **💡 Pragmatismo**: Solo implementar lo que realmente se necesita, no especular sobre futuros requisitos
 
 ### **Riesgos y Mitigaciones**
 - **Riesgo**: Breaking changes en imports masivos

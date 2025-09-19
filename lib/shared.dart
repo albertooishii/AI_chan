@@ -32,7 +32,6 @@ export 'shared/domain/interfaces/audio_recorder_service.dart';
 
 // AI Providers - Audio models
 export 'shared/ai_providers/core/models/audio/synthesis_result.dart';
-export 'shared/ai_providers/core/models/audio/voice_info.dart';
 export 'shared/ai_providers/core/models/audio/voice_settings.dart';
 
 // Domain Enums
@@ -129,6 +128,8 @@ export 'shared/infrastructure/utils/backup_auto_uploader.dart';
 export 'shared/infrastructure/utils/backup_utils.dart';
 export 'shared/infrastructure/utils/dialog_utils.dart';
 export 'shared/infrastructure/utils/app_data_utils.dart';
+export 'shared/infrastructure/utils/debug_call_logger/debug_call_logger_io.dart';
+export 'shared/infrastructure/utils/shared_prompt_utils.dart';
 
 // Presentation Layer
 export 'shared/presentation/widgets/app_dialog.dart';
@@ -147,8 +148,29 @@ export 'shared/ai_providers/core/services/audio/hybrid_stt_service.dart';
 
 // AI Providers System
 export 'shared/ai_providers/core/interfaces/i_ai_provider.dart';
+export 'shared/ai_providers/core/interfaces/i_tts_voice_provider.dart';
+export 'shared/ai_providers/core/interfaces/i_cache_service.dart';
+export 'shared/ai_providers/core/interfaces/i_http_connection_pool.dart';
+export 'shared/ai_providers/core/interfaces/i_retry_service.dart';
+export 'shared/ai_providers/core/interfaces/i_alert_service.dart';
+export 'shared/ai_providers/core/models/ai_capability.dart';
+export 'shared/ai_providers/core/models/ai_provider_config.dart';
+export 'shared/ai_providers/core/models/ai_provider_metadata.dart';
+export 'shared/ai_providers/core/models/provider_response.dart';
+export 'shared/ai_providers/core/models/audio/voice_info.dart';
 export 'shared/ai_providers/core/registry/ai_provider_registry.dart';
 export 'shared/ai_providers/core/services/realtime_service.dart';
 export 'shared/ai_providers/core/services/multi_model_router.dart';
 export 'shared/ai_providers/core/services/ai_provider_manager.dart';
+export 'shared/ai_providers/core/services/ai_provider_config_loader.dart';
+export 'shared/ai_providers/core/services/ai_provider_factory.dart';
+export 'shared/ai_providers/core/services/api_key_manager.dart';
+export 'shared/ai_providers/core/services/in_memory_cache_service.dart';
+export 'shared/ai_providers/core/services/performance_monitoring_service.dart';
+export 'shared/ai_providers/core/services/request_deduplication_service.dart';
+export 'shared/ai_providers/core/services/http_connection_pool.dart';
+export 'shared/ai_providers/core/services/intelligent_retry_service.dart';
+export 'shared/ai_providers/core/services/provider_alert_service.dart';
+export 'shared/ai_providers/core/services/image/image_persistence_service.dart';
+export 'shared/ai_providers/core/services/audio/audio_persistence_service.dart';
 export 'shared/ai_providers/core/audio_services.dart';

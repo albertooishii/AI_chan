@@ -6,23 +6,6 @@ library;
 import 'dart:async';
 import 'dart:io';
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_config.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_factory.dart';
-import 'package:ai_chan/shared/ai_providers/core/interfaces/i_cache_service.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/in_memory_cache_service.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/performance_monitoring_service.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/request_deduplication_service.dart';
-import 'package:ai_chan/shared/ai_providers/core/interfaces/i_http_connection_pool.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/http_connection_pool.dart';
-import 'package:ai_chan/shared/ai_providers/core/interfaces/i_retry_service.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/intelligent_retry_service.dart';
-import 'package:ai_chan/shared/ai_providers/core/interfaces/i_alert_service.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/provider_alert_service.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/image/image_persistence_service.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/provider_response.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/audio/audio_persistence_service.dart';
 // Under Option B2 the manager persists any audio/image binary returned by providers.
 
 /// Exception thrown when no suitable provider is available

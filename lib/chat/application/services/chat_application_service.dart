@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:ai_chan/chat.dart'; // Para PeriodicIaMessageScheduler y domain interfaces
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 
 /// Callback para notificar cambios de estado a la UI
 typedef StateChangeCallback = void Function();

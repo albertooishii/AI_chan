@@ -1,7 +1,7 @@
 import 'package:ai_chan/chat/domain/interfaces/i_chat_controller.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_profile_persistence_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_logger.dart';
-import 'package:ai_chan/shared/domain/models/index.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Infrastructure adapter implementing chat profile persistence using ChatController.
 /// Bridges domain interface with application layer chat controller functionality.

@@ -1,6 +1,5 @@
 // ...existing imports
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 
 class IAAvatarGenerator {
   /// Genera avatar basado en la apariencia del perfil.

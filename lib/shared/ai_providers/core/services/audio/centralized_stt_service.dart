@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared.dart';
 
 /// 🎯 Servicio centralizado de STT (Speech-to-Text)

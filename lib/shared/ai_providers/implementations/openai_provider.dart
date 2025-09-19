@@ -1,30 +1,14 @@
-import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_metadata.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/api_key_manager.dart';
-import 'package:ai_chan/shared/domain/models/index.dart';
-import 'package:ai_chan/shared/infrastructure/network/http_connector.dart';
-import 'package:ai_chan/shared/ai_providers/core/interfaces/i_realtime_client.dart';
-// 🔥 ELIMINATED: openai_realtime_client.dart (was part of Call legacy system)
-import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
-import 'package:ai_chan/chat/infrastructure/adapters/prompt_builder_service.dart'
-    as pb;
-import 'package:ai_chan/shared/infrastructure/utils/debug_call_logger/debug_call_logger_io.dart';
-import 'package:ai_chan/chat/application/services/tts_voice_management_service.dart'
-    as tts_svc;
+import 'package:ai_chan/shared.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
-import 'package:ai_chan/shared/ai_providers/core/services/image/image_persistence_service.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/audio/audio_persistence_service.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/provider_response.dart';
 
 /// OpenAI provider implementation using the new architecture.
 /// This provider directly implements HTTP calls to OpenAI API without depending on OpenAIService.
 /// Image generation uses text models with tools rather than DALL-E models.
-class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
+class OpenAIProvider implements IAIProvider, TTSVoiceProvider {
   OpenAIProvider() {
     _metadata = const AIProviderMetadata(
       providerId: 'openai',
@@ -286,13 +270,16 @@ class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
           if (!looksLikeAvatar) {
             // Inyectar instrucciones sobre foto y metadatos cuando corresponda
             if (enableImageGeneration) {
-              instrRoot['photo_instructions'] = pb.imageInstructions(
-                systemPrompt.profile.userName,
-              );
+              instrRoot['photo_instructions'] =
+                  SharedPromptUtils.getImageInstructions(
+                    systemPrompt.profile.userName,
+                  );
             }
             if (imageBase64 != null && imageBase64.isNotEmpty) {
-              instrRoot['attached_image_metadata_instructions'] = pb
-                  .imageMetadata(systemPrompt.profile.userName);
+              instrRoot['attached_image_metadata_instructions'] =
+                  SharedPromptUtils.getImageMetadata(
+                    systemPrompt.profile.userName,
+                  );
             }
           }
         }
@@ -1241,103 +1228,103 @@ class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
   // ========================================
 
   /// All available OpenAI voices with gender information
-  static final List<tts_svc.VoiceInfo> _availableVoices = [
-    const tts_svc.VoiceInfo(
+  static final List<VoiceInfo> _availableVoices = [
+    const VoiceInfo(
       id: 'sage',
       name: 'sage',
       language: 'en',
-      gender: 'Femenina',
+      gender: VoiceGender.female,
     ),
-    const tts_svc.VoiceInfo(
+    const VoiceInfo(
       id: 'alloy',
       name: 'alloy',
       language: 'en',
-      gender: 'Femenina',
+      gender: VoiceGender.female,
     ),
-    const tts_svc.VoiceInfo(
+    const VoiceInfo(
       id: 'ash',
       name: 'ash',
       language: 'en',
-      gender: 'Masculina',
+      gender: VoiceGender.male,
     ),
-    const tts_svc.VoiceInfo(
+    const VoiceInfo(
       id: 'ballad',
       name: 'ballad',
       language: 'en',
-      gender: 'Femenina',
+      gender: VoiceGender.female,
     ),
-    const tts_svc.VoiceInfo(
+    const VoiceInfo(
       id: 'coral',
       name: 'coral',
       language: 'en',
-      gender: 'Femenina',
+      gender: VoiceGender.female,
     ),
-    const tts_svc.VoiceInfo(
+    const VoiceInfo(
       id: 'echo',
       name: 'echo',
       language: 'en',
-      gender: 'Masculina',
+      gender: VoiceGender.male,
     ),
-    const tts_svc.VoiceInfo(
+    const VoiceInfo(
       id: 'fable',
       name: 'fable',
       language: 'en',
-      gender: 'Femenina',
+      gender: VoiceGender.female,
     ),
-    const tts_svc.VoiceInfo(
+    const VoiceInfo(
       id: 'onyx',
       name: 'onyx',
       language: 'en',
-      gender: 'Masculina',
+      gender: VoiceGender.male,
     ),
-    const tts_svc.VoiceInfo(
+    const VoiceInfo(
       id: 'nova',
       name: 'nova',
       language: 'en',
-      gender: 'Femenina',
+      gender: VoiceGender.female,
     ),
-    const tts_svc.VoiceInfo(
+    const VoiceInfo(
       id: 'shimmer',
       name: 'shimmer',
       language: 'en',
-      gender: 'Femenina',
+      gender: VoiceGender.female,
     ),
-    const tts_svc.VoiceInfo(
+    const VoiceInfo(
       id: 'verse',
       name: 'verse',
       language: 'en',
-      gender: 'Masculina',
+      gender: VoiceGender.male,
     ),
-    const tts_svc.VoiceInfo(
+    const VoiceInfo(
       id: 'cedar',
       name: 'cedar',
       language: 'en',
-      gender: 'Masculina',
+      gender: VoiceGender.male,
       description: 'Premium voice',
     ),
-    const tts_svc.VoiceInfo(
+    const VoiceInfo(
       id: 'marin',
       name: 'marin',
       language: 'en',
-      gender: 'Femenina',
+      gender: VoiceGender.female,
       description: 'Premium voice',
     ),
   ];
 
   /// Get all available voices for this provider
   @override
-  Future<List<tts_svc.VoiceInfo>> getAvailableVoices() async {
+  Future<List<VoiceInfo>> getAvailableVoices() async {
     return _availableVoices;
   }
 
   /// Get gender of a specific voice
-  String getVoiceGender(final String voiceName) {
+  VoiceGender getVoiceGender(final String voiceName) {
     for (final voice in _availableVoices) {
       if (voice.name.toLowerCase() == voiceName.toLowerCase()) {
         return voice.gender;
       }
     }
-    return 'Desconocido';
+    return VoiceGender.unknown;
   }
 
   /// Get default voice for this provider

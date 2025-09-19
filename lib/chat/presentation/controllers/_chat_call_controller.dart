@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ai_chan/shared/domain/models/index.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/chat/application/services/chat_application_service.dart';
 
 /// 📞 **Chat Call Controller** - DDD Specialized Controller

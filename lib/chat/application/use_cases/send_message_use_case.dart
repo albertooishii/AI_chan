@@ -1,6 +1,5 @@
 import 'package:ai_chan/chat/domain/models/chat_result.dart';
-import 'package:ai_chan/shared/domain/models/index.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/chat/application/services/chat_message_service.dart';
 import 'package:ai_chan/chat/application/mappers/message_factory.dart';
 // ai_capability handled internally by provider manager

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:ai_chan/voice/domain/interfaces/i_voice_conversation_service.dart';
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/audio/centralized_audio_recorder_service.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/audio/centralized_tts_service.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/audio/centralized_stt_service.dart';

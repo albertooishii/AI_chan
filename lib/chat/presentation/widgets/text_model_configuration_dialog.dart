@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:ai_chan/shared.dart'; // All infrastructure utilities available here
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 
 typedef SynthesizeTextFn = Future<void> Function(String text, String model);
 

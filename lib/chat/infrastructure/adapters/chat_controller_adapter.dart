@@ -1,5 +1,5 @@
 import 'package:ai_chan/chat/domain/interfaces/i_chat_controller.dart';
-import 'package:ai_chan/shared/domain/models/index.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Implementación básica de IChatController para infraestructura
 /// Esta es principalmente un stub para cumplir con el patrón Port-Adapter

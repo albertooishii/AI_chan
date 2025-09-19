@@ -3,7 +3,7 @@
 library;
 
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart'; // Consolidated import
+// Consolidated import
 
 /// Result of a routing decision
 class RoutingResult {

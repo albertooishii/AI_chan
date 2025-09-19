@@ -1,10 +1,8 @@
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/audio/audio_persistence_service.dart';
 
 /// 🎯 Servicio centralizado de TTS (Text-to-Speech)
 /// Usa AIProviderManager para resolver providers automáticamente
