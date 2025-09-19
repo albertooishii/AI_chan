@@ -1,6 +1,5 @@
 import 'package:ai_chan/chat/domain/interfaces/i_tts_voice_management_service.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Voice information model for provider-agnostic voice representation
 class VoiceInfo {

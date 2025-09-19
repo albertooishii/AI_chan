@@ -1,4 +1,4 @@
-import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Helper para detectar errores de inicialización del runtime (dotenv, keys faltantes)
 /// Devuelve true si el error corresponde a un problema de configuración/local (no inicializado o falta de API key).

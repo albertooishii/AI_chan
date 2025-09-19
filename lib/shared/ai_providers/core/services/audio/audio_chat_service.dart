@@ -3,15 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:ai_chan/shared/infrastructure/di/di.dart' as di;
-import 'package:ai_chan/shared/infrastructure/adapters/audio_playback.dart';
 import 'package:ai_chan/shared/infrastructure/utils/audio_utils.dart'
     as audio_utils;
-import 'package:ai_chan/shared/infrastructure/utils/prefs_utils.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:ai_chan/shared/infrastructure/cache/cache_service.dart';
-import 'package:ai_chan/shared/domain/models/index.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
 
 /// Servicio que encapsula grabación, transcripción parcial, reproducción y TTS.

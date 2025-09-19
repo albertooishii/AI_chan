@@ -1,8 +1,4 @@
-import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
-import 'package:ai_chan/shared/ai_providers/core/registry/ai_provider_registry.dart';
-import 'package:ai_chan/shared/domain/models/index.dart';
-import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
+import 'package:ai_chan/shared.dart';
 
 /// High-level service that provides centralized access to AI providers.
 ///

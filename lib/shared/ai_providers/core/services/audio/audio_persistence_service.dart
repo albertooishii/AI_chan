@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:ai_chan/shared/infrastructure/utils/image/image_utils.dart'
     as image_utils;
-import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Servicio simple para persistir audio (base64 -> fichero) y cargarlo.
 class AudioPersistenceService {

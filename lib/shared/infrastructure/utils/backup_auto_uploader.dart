@@ -1,12 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:ai_chan/shared/domain/models/index.dart';
-import 'package:ai_chan/shared/infrastructure/services/backup_service.dart';
-import 'package:ai_chan/shared/infrastructure/services/google_backup_service.dart';
-import 'package:ai_chan/shared/infrastructure/utils/backup_utils.dart';
-import 'package:ai_chan/shared/infrastructure/utils/prefs_utils.dart';
-import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
+import 'package:ai_chan/shared.dart';
 
 // ------------------ Test hooks types (top-level) ------------------
 typedef LocalBackupCreator =

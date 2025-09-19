@@ -1,22 +1,12 @@
-import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_metadata.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/api_key_manager.dart';
-import 'package:ai_chan/shared/domain/models/index.dart';
-import 'package:ai_chan/shared/infrastructure/network/http_connector.dart';
-import 'package:ai_chan/shared/ai_providers/core/interfaces/i_realtime_client.dart';
-import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/chat/infrastructure/adapters/prompt_builder_service.dart'
     as pb;
-import 'package:ai_chan/shared/infrastructure/utils/debug_call_logger/debug_call_logger_io.dart';
 import 'package:ai_chan/chat/application/services/tts_voice_management_service.dart'
     as tts_svc;
 import 'dart:convert';
 import 'dart:async';
 import 'dart:typed_data';
 import 'dart:io';
-import 'package:ai_chan/shared/ai_providers/core/models/provider_response.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/image/image_persistence_service.dart';
 
 /// Google Gemini provider implementation using the new architecture.
 /// This provider directly implements HTTP calls to Google AI API without depending on GeminiService.

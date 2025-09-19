@@ -1,16 +1,7 @@
-import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_metadata.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/api_key_manager.dart';
-import 'package:ai_chan/shared/domain/models/index.dart';
-import 'package:ai_chan/shared/infrastructure/network/http_connector.dart';
-import 'package:ai_chan/shared/ai_providers/core/interfaces/i_realtime_client.dart';
-import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
+import 'package:ai_chan/shared.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:typed_data';
-import 'package:ai_chan/shared/ai_providers/core/models/provider_response.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/image/image_persistence_service.dart';
 
 /// X.AI Grok provider implementation using the new architecture.
 /// This provider directly implements HTTP calls to X.AI API without depending on GrokService.

@@ -1,11 +1,7 @@
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_metadata.dart';
+import 'package:ai_chan/shared.dart';
 // Note: Providers now return `ProviderResponse`. AIResponse is referenced
 // indirectly via ProviderResponse; avoid importing AIResponse here to
 // prevent unused import lints.
-import 'package:ai_chan/shared/ai_providers/core/models/provider_response.dart';
-import 'package:ai_chan/shared/domain/models/system_prompt.dart';
-import 'i_realtime_client.dart';
 import 'dart:typed_data';
 
 /// Core interface for all AI providers in the dynamic provider system.

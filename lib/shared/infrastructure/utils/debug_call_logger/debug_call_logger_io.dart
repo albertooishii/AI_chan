@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:ai_chan/shared/infrastructure/config/config.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Registra el prompt de llamada en debug_json_logs/ con timestamp.
 Future<void> debugLogCallPrompt(

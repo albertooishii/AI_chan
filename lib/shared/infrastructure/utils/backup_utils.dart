@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:ai_chan/shared/domain/models/index.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_repository.dart';
 
 /// Utilities for serializing/parsing chat exports independent of ChatProvider.

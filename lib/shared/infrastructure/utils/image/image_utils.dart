@@ -1,12 +1,10 @@
 import 'dart:io';
-import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
+import 'package:ai_chan/shared.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:ai_chan/shared/infrastructure/config/config.dart';
 import 'package:image/image.dart' as img;
 import 'package:ai_chan/chat/domain/interfaces/i_chat_controller.dart';
-import 'package:ai_chan/shared/domain/models/index.dart';
 
 /// Guarda una imagen en base64 en el directorio de documentos de la app
 /// bajo la carpeta `images`. Comprime la imagen usando JPEG con 90% de calidad

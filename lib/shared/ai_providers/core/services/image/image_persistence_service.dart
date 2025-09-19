@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:ai_chan/shared/infrastructure/utils/image/image_utils.dart'
     as image_utils;
-import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Central service to persist images produced by AI providers.
 ///

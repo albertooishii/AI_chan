@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:ai_chan/shared/infrastructure/config/config.dart';
+import 'package:ai_chan/shared.dart';
 import 'dart:developer' as dev;
 
 /// Niveles de log soportados (cuanto mayor el número, más detallado)

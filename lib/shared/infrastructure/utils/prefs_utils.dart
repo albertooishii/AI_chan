@@ -1,6 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Centraliza accesos a SharedPreferences usados en múltiples partes del app.
 /// ✅ MIGRADO: Usa configuración YAML para proveedores de audio y voces

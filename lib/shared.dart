@@ -38,9 +38,17 @@ export 'shared/ai_providers/core/models/audio/voice_settings.dart';
 export 'shared/domain/enums/call_status.dart';
 export 'shared/domain/enums/message_sender.dart';
 
-// Voice domain enums (ConversationState moved here)
+// Voice domain enums and types
 export 'voice/domain/interfaces/i_voice_conversation_service.dart'
-    show ConversationState, ConversationStateExtension;
+    show
+        ConversationState,
+        ConversationStateExtension,
+        ConversationTurn,
+        ConversationSpeaker,
+        ConversationSpeakerExtension,
+        ConversationConfig,
+        VoiceConversationException,
+        IVoiceConversationService;
 
 // Core Domain Communication (migrated from core)
 export 'shared/domain/core_domain/interfaces/i_call_to_chat_communication_service.dart';
@@ -145,6 +153,7 @@ export 'shared/utils.dart';
 export 'shared/infrastructure/services/voice_call_controller.dart';
 export 'shared/infrastructure/services/google_backup_service.dart';
 export 'shared/ai_providers/core/services/audio/hybrid_stt_service.dart';
+export 'shared/ai_providers/core/services/audio/audio_mode_service.dart';
 
 // AI Providers System
 export 'shared/ai_providers/core/interfaces/i_ai_provider.dart';

@@ -1,4 +1,4 @@
-import 'package:ai_chan/shared/domain/models/index.dart';
+import 'package:ai_chan/shared.dart';
 
 /// 🎯 **Chat Controller Interface** - Domain Contract
 ///

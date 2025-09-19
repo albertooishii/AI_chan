@@ -1,8 +1,4 @@
-import 'package:ai_chan/shared/domain/interfaces/i_ai_service.dart';
-import 'package:ai_chan/shared/domain/models/index.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
-import 'package:ai_chan/shared/infrastructure/utils/debug_call_logger/debug_call_logger.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/chat/application/services/chat_message_service.dart';
 import 'package:ai_chan/chat/application/mappers/message_factory.dart';
 

@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
-import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Guarda una imagen en la carpeta Descargas en Android. Devuelve (success, error) y deja el feedback al widget.
 Future<(bool success, String? error)> downloadImage(

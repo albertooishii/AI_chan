@@ -1,10 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
-import 'package:ai_chan/shared/infrastructure/utils/app_data_utils.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';

@@ -3,14 +3,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
-import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
-import 'package:ai_chan/shared/infrastructure/services/google_appauth_adapter.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/shared/infrastructure/services/google_signin_adapter_mobile.dart';
-import 'package:ai_chan/shared/infrastructure/config/config.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
-import 'package:ai_chan/shared/infrastructure/services/backup_service.dart';
 
 /// Status of Google OAuth consent for Drive API access
 enum ConsentStatus {

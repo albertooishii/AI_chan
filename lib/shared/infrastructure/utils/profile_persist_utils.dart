@@ -1,8 +1,6 @@
-import 'package:ai_chan/shared/domain/models/index.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/shared/domain/interfaces/i_profile_persistence_service.dart';
 import 'package:ai_chan/shared/domain/interfaces/i_shared_logger.dart';
-import 'package:ai_chan/shared/infrastructure/adapters/shared_profile_persistence_service_adapter.dart';
-import 'package:ai_chan/shared/infrastructure/adapters/shared_logger_adapter.dart';
 
 /// Helpers to update and persist profile data across bounded contexts.
 /// Uses shared domain interfaces to maintain clean architecture.

@@ -6,9 +6,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 
-import 'package:ai_chan/shared/domain/models/index.dart';
-import 'package:ai_chan/shared/ai_providers/core/interfaces/i_cache_service.dart';
-import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
+import 'package:ai_chan/shared.dart';
 
 /// In-memory cache service with LRU eviction and TTL support
 class InMemoryCacheService implements ICacheService {

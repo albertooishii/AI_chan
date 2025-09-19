@@ -2,8 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
-import 'package:ai_chan/shared/infrastructure/config/config.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:http/http.dart' as http;
 
 /// Native Google Sign-In adapter for Android/iOS with proper token handling

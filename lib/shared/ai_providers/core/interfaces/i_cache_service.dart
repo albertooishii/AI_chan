@@ -3,7 +3,7 @@
 library;
 
 import 'dart:async';
-import 'package:ai_chan/shared/domain/models/index.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Cache entry with TTL and metadata
 class CacheEntry<T> {

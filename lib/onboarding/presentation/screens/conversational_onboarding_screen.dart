@@ -4,7 +4,6 @@ import 'package:ai_chan/onboarding/presentation/controllers/onboarding_lifecycle
 import 'package:ai_chan/onboarding/domain/entities/memory_data.dart';
 import 'package:ai_chan/onboarding/application/services/conversational_onboarding_service.dart';
 import 'package:ai_chan/shared/presentation/controllers/audio_subtitle_controller.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/audio/audio_mode_service.dart';
 import 'package:ai_chan/shared/presentation/widgets/conversational_subtitles.dart';
 import 'package:ai_chan/shared/presentation/widgets/country_autocomplete.dart';
 import 'package:ai_chan/shared/presentation/widgets/female_name_autocomplete.dart';

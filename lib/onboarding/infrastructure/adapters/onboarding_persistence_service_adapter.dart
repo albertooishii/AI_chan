@@ -1,5 +1,5 @@
 import 'package:ai_chan/onboarding/domain/interfaces/i_onboarding_persistence_service.dart';
-import 'package:ai_chan/shared/infrastructure/utils/prefs_utils.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Infrastructure implementation for onboarding persistence operations.
 /// Adapts PrefsUtils to domain interface contract.

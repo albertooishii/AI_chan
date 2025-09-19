@@ -1,5 +1,5 @@
 import 'package:ai_chan/chat/domain/interfaces/i_chat_image_service.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/image/image_persistence_service.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Infrastructure adapter implementing chat image service using shared image utilities.
 /// Bridges domain interface with shared image processing functionality.

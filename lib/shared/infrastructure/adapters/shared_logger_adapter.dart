@@ -1,5 +1,5 @@
 import 'package:ai_chan/shared/domain/interfaces/i_shared_logger.dart';
-import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Infrastructure adapter that implements shared logger interface
 /// by delegating to existing Log utility.

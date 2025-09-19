@@ -1,6 +1,5 @@
 import 'dart:convert';
-import 'package:ai_chan/shared/domain/models/index.dart';
-import 'package:ai_chan/shared/infrastructure/utils/prefs_utils.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Utilidades para persistencia robusta en SharedPreferences
 class StorageUtils {

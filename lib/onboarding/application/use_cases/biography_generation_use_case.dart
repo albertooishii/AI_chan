@@ -1,9 +1,4 @@
-import 'package:ai_chan/shared/domain/models/ai_chan_profile.dart';
-import 'package:ai_chan/shared/domain/models/chat_export.dart';
-import 'package:ai_chan/shared/domain/models/timeline_entry.dart';
-import 'package:ai_chan/shared/domain/interfaces/i_profile_service.dart';
-import 'package:ai_chan/shared/application/services/ai_generators/ia_appearance_generator.dart';
-import 'package:ai_chan/shared/application/services/ai_generators/ia_avatar_generator.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/onboarding/domain/interfaces/i_chat_export_service.dart';
 import 'package:ai_chan/onboarding/domain/interfaces/i_onboarding_persistence_service.dart';
 import 'package:ai_chan/shared/domain/interfaces/i_shared_logger.dart';

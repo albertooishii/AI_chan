@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ai_chan/shared.dart'; // Using shared exports for infrastructure
 // REMOVED: Direct infrastructure imports - using shared.dart instead
-// import 'package:ai_chan/shared/infrastructure/utils/locale_utils.dart';
+// import 'package:ai_chan/shared.dart';
 // import 'package:ai_chan/shared/infrastructure/utils/string_utils.dart';
 
 /// Widget reutilizable para autocompletar países

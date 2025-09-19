@@ -6,8 +6,7 @@ library;
 
 import 'dart:async';
 import 'dart:math';
-import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
-import 'package:ai_chan/shared/ai_providers/core/interfaces/i_alert_service.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Provider health tracker for alert calculations
 class _ProviderHealthTracker {

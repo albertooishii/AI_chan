@@ -1,5 +1,5 @@
 import 'package:ai_chan/chat/domain/interfaces/i_chat_event_timeline_service.dart';
-import 'package:ai_chan/shared/application/services/event_timeline_service.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Infrastructure adapter implementing IChatEventTimelineService
 /// Bridges the chat domain with shared event timeline services.

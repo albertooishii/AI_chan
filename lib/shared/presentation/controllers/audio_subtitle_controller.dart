@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:ai_chan/shared/application/services/audio_subtitle_application_service.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Controlador para subtítulos sincronizados con reproducción de audio.
 /// Recibe timeline opcional de palabras (startMs/endMs). Si no hay timeline

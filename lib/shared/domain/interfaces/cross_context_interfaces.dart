@@ -3,9 +3,7 @@
 // This file contains interfaces that allow bounded contexts to communicate
 // without creating direct dependencies between them.
 
-import 'package:ai_chan/shared/ai_providers/core/models/audio/voice_settings.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/audio/voice_info.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/audio/synthesis_result.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Interface for chat integration services
 /// Allows call context to communicate with chat without direct dependency

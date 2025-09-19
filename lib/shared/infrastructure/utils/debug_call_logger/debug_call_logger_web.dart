@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
+import 'package:ai_chan/shared.dart';
 
 /// No-op en web para evitar errores de IO.
 Future<void> debugLogCallPrompt(

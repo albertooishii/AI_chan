@@ -1,6 +1,4 @@
-import 'package:ai_chan/shared/ai_providers/core/models/audio/synthesis_result.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/audio/voice_info.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/audio/voice_settings.dart';
+import 'package:ai_chan/shared.dart';
 
 // Re-export types so interface users can access them
 export 'package:ai_chan/shared/ai_providers/core/models/audio/synthesis_result.dart';

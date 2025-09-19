@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:ai_chan/shared/infrastructure/config/config.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Devuelve el directorio local de audios forzando el uso del directorio
 /// de documentos de la aplicación bajo la carpeta `audio`.
