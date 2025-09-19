@@ -8,7 +8,6 @@ import 'package:ai_chan/chat/application/mappers/message_factory.dart';
 import 'package:ai_chan/chat/application/services/message_image_processing_service.dart';
 import 'package:ai_chan/chat/application/services/message_audio_processing_service.dart';
 import 'package:ai_chan/chat/application/services/message_sanitization_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_event_timeline_service.dart';
 
 /// Send Message Use Case - Chat Application Layer
 /// Orquesta el proceso completo de envío de mensaje usando servicios especializados
@@ -17,13 +16,10 @@ class SendMessageUseCase {
     final MessageImageProcessingService? imageService,
     final MessageAudioProcessingService? audioService,
     final MessageSanitizationService? sanitizationService,
-    final IChatEventTimelineService? eventTimelineService,
   }) : _imageService = imageService ?? _createDefaultImageService(),
        _audioService = audioService ?? MessageAudioProcessingService(),
        _sanitizationService =
-           sanitizationService ?? MessageSanitizationService(),
-       _eventTimelineService =
-           eventTimelineService ?? _DefaultEventTimelineService();
+           sanitizationService ?? MessageSanitizationService();
 
   // Use ChatMessageService to obtain domain Message objects
   late final ChatMessageService _chatMessageService = ChatMessageService(
@@ -39,7 +35,6 @@ class SendMessageUseCase {
   final MessageImageProcessingService _imageService;
   final MessageAudioProcessingService _audioService;
   final MessageSanitizationService _sanitizationService;
-  final IChatEventTimelineService _eventTimelineService;
 
   Future<SendMessageOutcome> sendChat({
     required final List<Message> recentMessages,
@@ -177,7 +172,7 @@ class SendMessageUseCase {
     final Future<void> Function()? saveAll,
   ) async {
     try {
-      return await _eventTimelineService.detectAndSaveEventAndSchedule(
+      return await EventTimelineService.detectAndSaveEventAndSchedule(
         text: recentMessages.isNotEmpty ? recentMessages.last.text : '',
         textResponse: chatResult.text,
         onboardingData: onboardingData,
@@ -209,14 +204,3 @@ class SendMessageOutcome {
 // Stub implementations for default constructor (avoid infrastructure dependencies)
 
 // No-op image service stub removed; MessageImageProcessingService no longer needs it
-
-/// Stub implementation that returns null - safe fallback
-class _DefaultEventTimelineService implements IChatEventTimelineService {
-  @override
-  Future<dynamic> detectAndSaveEventAndSchedule({
-    required final String text,
-    required final String textResponse,
-    required final dynamic onboardingData,
-    required final Future<void> Function() saveAll,
-  }) async => null;
-}

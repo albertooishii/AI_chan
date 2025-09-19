@@ -11,7 +11,7 @@ export 'chat/domain/interfaces/i_audio_chat_service.dart';
 export 'chat/domain/interfaces/i_chat_avatar_service.dart';
 export 'chat/domain/interfaces/i_chat_controller.dart';
 export 'chat/domain/interfaces/i_chat_debounced_persistence_service.dart';
-export 'chat/domain/interfaces/i_chat_event_timeline_service.dart';
+// Removed: i_chat_event_timeline_service.dart (no implementations)
 export 'chat/domain/interfaces/i_chat_file_operations_service.dart';
 export 'chat/domain/interfaces/i_chat_image_service.dart';
 export 'chat/domain/interfaces/i_chat_logging_utils_service.dart';
@@ -42,7 +42,6 @@ export 'chat/application/services/tts_voice_service.dart';
 
 // Application Use Cases
 export 'chat/application/use_cases/send_message_use_case.dart';
-export 'chat/application/use_cases/load_chat_history_use_case.dart';
 export 'chat/application/use_cases/export_chat_use_case.dart';
 export 'chat/application/use_cases/import_chat_use_case.dart';
 
@@ -58,11 +57,11 @@ export 'chat/infrastructure/adapters/local_chat_repository.dart';
 export 'shared/ai_providers/core/services/audio/audio_chat_service.dart';
 export 'chat/infrastructure/adapters/language_resolver_service.dart';
 export 'chat/infrastructure/adapters/prompt_builder_service.dart';
-export 'chat/infrastructure/adapters/tts_voice_management_service_adapter.dart';
+// Eliminado: tts_voice_management_service_adapter.dart - wrapper innecesario
 
 // Additional Infrastructure Adapters
 export 'chat/infrastructure/adapters/chat_avatar_service_adapter.dart';
-export 'chat/infrastructure/adapters/chat_controller_adapter.dart';
+// Eliminado: chat_controller_adapter.dart - código muerto sin usar
 
 // Infrastructure Services
 export 'chat/infrastructure/services/basic_chat_file_operations_service.dart';
@@ -76,7 +75,7 @@ export 'chat/infrastructure/preferences/chat_preferences_service_adapter.dart';
 // Infrastructure Logging
 
 // Infrastructure Events
-export 'chat/infrastructure/events/chat_event_timeline_service_adapter.dart';
+// Removed: chat_event_timeline_service_adapter.dart (unused wrapper)
 
 // Infrastructure Image
 export 'chat/infrastructure/image/chat_image_service_adapter.dart';

@@ -1,7 +1,6 @@
 import 'package:ai_chan/onboarding/domain/interfaces/i_onboarding_persistence_service.dart';
 import 'package:ai_chan/onboarding/infrastructure/adapters/onboarding_persistence_service_adapter.dart';
-import 'package:ai_chan/onboarding/domain/interfaces/i_chat_export_service.dart';
-import 'package:ai_chan/onboarding/infrastructure/adapters/chat_export_service_adapter.dart';
+// Removed: i_chat_export_service.dart and chat_export_service_adapter.dart - using ISharedChatRepository directly
 import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/shared.dart' as shared_di;
 import 'package:ai_chan/onboarding/application/use_cases/biography_generation_use_case.dart';
@@ -12,9 +11,9 @@ class OnboardingDI {
   static IOnboardingPersistenceService getOnboardingPersistenceService() =>
       OnboardingPersistenceServiceAdapter();
 
-  /// Chat Export Service Factory - using shared repository
-  static IChatExportService getChatExportService() =>
-      ChatExportServiceAdapter(shared_di.getSharedChatRepository());
+  /// Shared Chat Repository Service Factory - for chat export functionality
+  static ISharedChatRepository getChatExportService() =>
+      shared_di.getSharedChatRepository();
 
   /// Profile Service Factory (from shared context)
   static Future<IProfileService> getProfileService() async =>

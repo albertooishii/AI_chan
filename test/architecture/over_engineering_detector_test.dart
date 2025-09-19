@@ -442,8 +442,97 @@ bool _isBasicWrapper(String content) {
       _isOnlyDelegating(content);
 }
 
+/// Detecta servicios de coordinación legítimos que NO deben marcarse como wrappers
+bool _isLegitimateCoordinationService(String content) {
+  // 1. Debe tener lógica condicional (if, ternary operators, switch)
+  final conditionalLogic = _countConditionalLogic(content);
+
+  // 2. Debe tener transformación/procesamiento de datos
+  final dataTransformation = _hasDataTransformation(content);
+
+  // 3. Debe coordinar entre múltiples servicios con valor agregado
+  final coordinatesServices = _coordinatesMultipleServices(content);
+
+  // Un servicio de coordinación legítimo debe tener al menos 2 de estas características
+  final legitimacyScore =
+      (conditionalLogic > 0 ? 1 : 0) +
+      (dataTransformation ? 1 : 0) +
+      (coordinatesServices ? 1 : 0);
+
+  return legitimacyScore >= 2;
+}
+
+/// Cuenta lógica condicional (if, ternary, switch)
+int _countConditionalLogic(String content) {
+  final conditionalPatterns = [
+    RegExp(r'if\s*\('), // if statements
+    RegExp(r'\?\s*\w+\s*:'), // ternary operators
+    RegExp(r'switch\s*\('), // switch statements
+    RegExp(r'&&\s*\w+'), // logical AND
+    RegExp(r'\|\|\s*\w+'), // logical OR
+  ];
+
+  int count = 0;
+  for (final pattern in conditionalPatterns) {
+    count += pattern.allMatches(content).length;
+  }
+  return count;
+}
+
+/// Detecta transformación/procesamiento de datos (no solo pass-through)
+bool _hasDataTransformation(String content) {
+  final transformationPatterns = [
+    RegExp(r'await\s+\w+\.'), // async calls
+    RegExp(r'final\s+\w+\s*=.*\?'), // null-safe operations
+    RegExp(r'enableImageGeneration\s*\?'), // capability decisions
+    RegExp(r'\?\s*AICapability\.'), // enum decisions
+    RegExp(r'imageBase64\s*\?\?'), // null coalescing
+    RegExp(r'resolvedImageBase64'), // data resolution
+  ];
+
+  for (final pattern in transformationPatterns) {
+    if (pattern.hasMatch(content)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// Detecta coordinación entre múltiples servicios con valor agregado
+bool _coordinatesMultipleServices(String content) {
+  // Buscar patrones de coordinación real, no solo delegación
+  final coordinationPatterns = [
+    RegExp(
+      r'_\w+\s*\.\s*\w+.*await.*_\w+\s*\.\s*\w+',
+    ), // múltiples servicios en secuencia
+    RegExp(
+      r'ImagePersistenceService.*AIProviderManager',
+    ), // servicios específicos coordinados
+    RegExp(
+      r'_factory\.fromAIResponse.*response.*sender',
+    ), // transformación de respuesta
+  ];
+
+  for (final pattern in coordinationPatterns) {
+    if (pattern.hasMatch(content)) {
+      return true;
+    }
+  }
+
+  // También verificar si usa múltiples servicios inyectados
+  final serviceFields = RegExp(
+    r'final\s+\w+\s+_\w+;',
+  ).allMatches(content).length;
+  return serviceFields >= 2;
+}
+
 /// Detecta alta delegación con poca lógica
 bool _isHighDelegationLowLogic(String content) {
+  // NUEVO: Excluir servicios de coordinación legítimos
+  if (_isLegitimateCoordinationService(content)) {
+    return false;
+  }
+
   final totalMethods = _countMethods(content);
   final delegationCount = _countDelegationMethods(content);
   final logicLines = _countLogicLines(content);
@@ -457,6 +546,11 @@ bool _isHighDelegationLowLogic(String content) {
 
 /// Detecta servicios que solo hacen llamadas a otros servicios
 bool _isOnlyServiceCalls(String content) {
+  // NUEVO: Excluir servicios de coordinación legítimos
+  if (_isLegitimateCoordinationService(content)) {
+    return false;
+  }
+
   final serviceCallPattern = RegExp(r'_\w+\.\w+\(');
   final serviceCallCount = serviceCallPattern.allMatches(content).length;
   final totalMethods = _countMethods(content);

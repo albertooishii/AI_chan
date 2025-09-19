@@ -1,11 +1,12 @@
 import 'package:ai_chan/shared.dart';
+import 'package:ai_chan/chat.dart';
 
 /// Servicio de aplicación para operaciones de archivo desde la UI.
 /// Proporciona una interfaz limpia para que los widgets accedan a archivos
 /// sin violar la arquitectura DDD.
 class FileUIService {
   const FileUIService(this._fileOperations);
-  final IFileOperationsService _fileOperations;
+  final IChatFileOperationsService _fileOperations;
 
   /// Verifica si un archivo existe
   Future<bool> fileExists(final String path) async {

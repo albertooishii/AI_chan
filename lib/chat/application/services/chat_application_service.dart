@@ -13,7 +13,7 @@ class ChatApplicationService {
   ChatApplicationService({
     required final IChatRepository repository,
     required final IPromptBuilderService promptBuilder,
-    required final IFileOperationsService fileOperations,
+    required final IChatFileOperationsService fileOperations,
     required final ISecureStorageService secureStorage,
     required final IAudioChatService audioService,
     final MemoryManager? memoryManagerParam,
@@ -80,7 +80,7 @@ class ChatApplicationService {
   }
   final IChatRepository _repository;
   final IPromptBuilderService _promptBuilder;
-  final IFileOperationsService _fileOperations;
+  final IChatFileOperationsService _fileOperations;
   final ISecureStorageService _secureStorage;
   late final IAudioChatService _audioService;
   final MemoryManager? memoryManager;

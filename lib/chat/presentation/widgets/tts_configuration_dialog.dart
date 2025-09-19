@@ -4,7 +4,7 @@ import 'package:audioplayers/audioplayers.dart' as ap;
 import 'dart:io' show Platform;
 import 'package:android_intent_plus/android_intent.dart' show AndroidIntent;
 
-import 'package:ai_chan/chat/domain/interfaces/i_tts_voice_management_service.dart';
+import 'package:ai_chan/chat/application/services/tts_voice_management_service.dart';
 
 typedef SynthesizeTtsFn =
     Future<String?> Function(
@@ -90,7 +90,7 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
   final AudioPlaybackService _audioPlayer = getAudioPlaybackService();
 
   // Application service for voice management - using DI factory
-  final ITtsVoiceManagementService _voiceService =
+  final TtsVoiceManagementService _voiceService =
       getTtsVoiceManagementService();
 
   @override

@@ -1,5 +1,5 @@
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/onboarding/domain/interfaces/i_chat_export_service.dart';
+// Removed: i_chat_export_service.dart - using ISharedChatRepository directly
 import 'package:ai_chan/onboarding/domain/interfaces/i_onboarding_persistence_service.dart';
 import 'dart:convert';
 
@@ -17,7 +17,7 @@ class BiographyGenerationUseCase {
        _avatarGenerator = avatarGenerator ?? IAAvatarGenerator();
 
   final IProfileService profileService;
-  final IChatExportService chatExportService;
+  final ISharedChatRepository chatExportService;
   final IOnboardingPersistenceService onboardingPersistenceService;
   final IAAppearanceGenerator _appearanceGenerator;
   final IAAvatarGenerator _avatarGenerator;
@@ -93,7 +93,7 @@ class BiographyGenerationUseCase {
         );
 
         // Save the complete chat export (includes biography and timeline)
-        await chatExportService.saveExport(chatExport.toJson());
+        await chatExportService.saveAll(chatExport.toJson());
       } on Exception catch (e) {
         // Log persistence failures to help debugging on devices
         try {

@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 // AI Chan - Barrel Imports (Bounded Contexts)
 import 'package:ai_chan/chat.dart';
@@ -9,7 +10,7 @@ import 'package:ai_chan/chat/application/mappers/message_factory.dart';
 import 'package:ai_chan/main.dart' show navigatorKey;
 
 // Import specific services that need DI
-import 'package:ai_chan/chat/domain/interfaces/i_tts_voice_management_service.dart';
+import 'package:ai_chan/chat/application/services/tts_voice_management_service.dart';
 import 'package:ai_chan/shared/infrastructure/adapters/audio_playback_service_adapter.dart';
 import 'package:ai_chan/shared/domain/interfaces/i_ai_service.dart' as shared;
 
@@ -53,16 +54,12 @@ ISharedChatRepository getSharedChatRepository() => SharedChatRepositoryImpl();
 IChatFileOperationsService getFileOperationsService() =>
     const BasicChatFileOperationsService();
 
-/// Factory for basic file operations service - DDD compliance
-IFileOperationsService getBasicFileOperationsService() =>
-    const BasicFileOperationsService();
-
 /// Factory for navigation service - handles cross-context navigation
 NavigationService getNavigationService() => NavigationService(navigatorKey);
 
 /// Factory for File UI Service - DDD compliance for presentation layer
 FileUIService getFileUIService() =>
-    const FileUIService(BasicFileOperationsService());
+    const FileUIService(BasicChatFileOperationsService());
 
 /// Factory for audio chat service with required callbacks
 IAudioChatService getAudioChatService({
@@ -273,7 +270,7 @@ Future<IProfileService> getProfileServiceForProvider([
 ChatApplicationService getChatApplicationService() => ChatApplicationService(
   repository: getChatRepository(),
   promptBuilder: PromptBuilderService(),
-  fileOperations: const BasicFileOperationsService(),
+  fileOperations: const BasicChatFileOperationsService(),
   secureStorage: getSecureStorageService(),
   audioService: BasicAudioChatService(),
 );
@@ -325,8 +322,55 @@ void setTestAudioPlaybackOverride(final dynamic service) {
 }
 
 /// Infrastructure Services Factories
-ISecureStorageService getSecureStorageService() =>
-    const FlutterSecureStorageService();
+
+ISecureStorageService getSecureStorageService() {
+  // Use FlutterSecureStorage directly instead of wrapper
+  const storage = FlutterSecureStorage();
+  return const _FlutterSecureStorageAdapter(storage);
+}
+
+/// Direct adapter for FlutterSecureStorage without unnecessary abstraction
+class _FlutterSecureStorageAdapter implements ISecureStorageService {
+  const _FlutterSecureStorageAdapter(this._storage);
+  final FlutterSecureStorage _storage;
+
+  @override
+  Future<String?> read(final String key) async {
+    try {
+      return await _storage.read(key: key);
+    } on Exception {
+      return null;
+    }
+  }
+
+  @override
+  Future<void> write(final String key, final String value) async {
+    try {
+      await _storage.write(key: key, value: value);
+    } on Exception {
+      // Silently fail for non-critical operations
+    }
+  }
+
+  @override
+  Future<void> delete(final String key) async {
+    try {
+      await _storage.delete(key: key);
+    } on Exception {
+      // Silently fail for non-critical operations
+    }
+  }
+
+  @override
+  Future<bool> containsKey(final String key) async {
+    try {
+      return await _storage.containsKey(key: key);
+    } on Exception {
+      return false;
+    }
+  }
+}
+
 BasicUIStateService getUIStateService() => BasicUIStateService();
 
 /// Chat AI Service Factory
@@ -350,8 +394,8 @@ IChatMessageQueueManager getChatMessageQueueManager() {
 }
 
 /// TTS Voice Management Service Factory
-ITtsVoiceManagementService getTtsVoiceManagementService() =>
-    TtsVoiceManagementServiceAdapter();
+TtsVoiceManagementService getTtsVoiceManagementService() =>
+    TtsVoiceManagementService(providerManager: AIProviderManager.instance);
 
 /// Shared Backup Service Factory
 ISharedBackupService getSharedBackupService() => SharedBackupServiceImpl();
@@ -361,7 +405,7 @@ Future<BiographyGenerationUseCase> getBiographyGenerationUseCase() async {
   // Import onboarding dependencies locally to avoid circular imports
   return BiographyGenerationUseCase(
     profileService: await getProfileServiceForProvider(),
-    chatExportService: ChatExportServiceAdapter(getSharedChatRepository()),
+    chatExportService: getSharedChatRepository(),
     onboardingPersistenceService: OnboardingPersistenceServiceAdapter(),
   );
 }

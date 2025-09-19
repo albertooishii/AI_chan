@@ -1,4 +1,3 @@
-import 'package:ai_chan/chat/domain/interfaces/i_tts_voice_management_service.dart';
 import 'package:ai_chan/shared.dart';
 
 /// Voice information model for provider-agnostic voice representation
@@ -20,9 +19,8 @@ class VoiceInfo {
 
 /// Application service for managing TTS voice operations
 /// Acts as a facade between presentation and infrastructure for voice-related operations
-/// Implements domain interface to maintain Clean Architecture compliance
 /// PROVIDER-AGNOSTIC: Uses dynamic AI provider system
-class TtsVoiceManagementService implements ITtsVoiceManagementService {
+class TtsVoiceManagementService {
   /// Constructor with dependency injection
   const TtsVoiceManagementService({
     required final AIProviderManager providerManager,
@@ -30,7 +28,7 @@ class TtsVoiceManagementService implements ITtsVoiceManagementService {
   final AIProviderManager _providerManager;
 
   /// Get available voices for all TTS providers
-  @override
+
   Future<Map<String, List<Map<String, dynamic>>>> getAvailableVoices({
     final List<String>? languageCodes,
     final bool forceRefresh = false,
@@ -94,7 +92,7 @@ class TtsVoiceManagementService implements ITtsVoiceManagementService {
   }
 
   /// Get available voices for a specific provider
-  @override
+
   Future<List<Map<String, dynamic>>> getVoicesForProvider(
     final String providerId, {
     final List<String>? languageCodes,
@@ -147,7 +145,7 @@ class TtsVoiceManagementService implements ITtsVoiceManagementService {
   }
 
   /// Check if a specific provider is available
-  @override
+
   Future<bool> isProviderAvailable(final String providerId) async {
     try {
       await _providerManager.initialize();
@@ -162,7 +160,7 @@ class TtsVoiceManagementService implements ITtsVoiceManagementService {
   }
 
   /// Get list of available TTS providers
-  @override
+
   Future<List<String>> getAvailableProviders() async {
     try {
       await _providerManager.initialize();
@@ -175,34 +173,34 @@ class TtsVoiceManagementService implements ITtsVoiceManagementService {
   }
 
   /// Clear voices cache for all providers - Not supported by current provider system
-  @override
+
   Future<void> clearVoicesCache() async {
     // Current provider system doesn't expose cache clearing for voices
     // This would need to be implemented at the provider level
   }
 
   /// Clear voices cache for specific provider - Not supported by current provider system
-  @override
+
   Future<void> clearVoicesCacheForProvider(final String providerId) async {
     // Current provider system doesn't expose cache clearing for voices
     // This would need to be implemented at the provider level
   }
 
   /// Get cache size - Returns 0 as current provider system doesn't expose cache size
-  @override
+
   Future<int> getCacheSize() async {
     return 0;
   }
 
   /// Clear audio cache - Not supported by current provider system
-  @override
+
   Future<void> clearAudioCache() async {
     // Current provider system doesn't expose audio cache clearing
     // This would need to be implemented at the provider level
   }
 
   /// Format cache size for display
-  @override
+
   String formatCacheSize(final int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).round()} KB';

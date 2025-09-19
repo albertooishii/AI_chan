@@ -43,6 +43,7 @@ void main() {
           'ITtsService', // Replaced by CentralizedTtsService
           'ISttService', // Replaced by CentralizedSttService
           'INativeTtsService', // Legacy interface, using centralized approach
+          'IChatController', // Implemented in presentation layer (ChatController), not infrastructure
         ];
 
         for (final iface in domainInterfaces.keys) {

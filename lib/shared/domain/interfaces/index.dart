@@ -10,7 +10,6 @@ export 'tts_service.dart';
 
 // Interfaces existentes en shared
 export 'audio_playback_service.dart';
-export 'i_file_operations_service.dart';
 export 'i_file_service.dart';
 
 // Re-export AI service from ai_providers

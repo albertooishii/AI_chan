@@ -84,9 +84,7 @@ export 'shared/application/services/file_ui_service.dart';
 export 'onboarding/application/services/onboarding_utils.dart';
 
 // Infrastructure Layer
-export 'shared/infrastructure/services/flutter_secure_storage_service.dart';
 export 'shared/infrastructure/services/basic_ui_state_service.dart';
-export 'shared/infrastructure/services/basic_file_operations_service.dart';
 
 // Additional Infrastructure Services
 export 'shared/infrastructure/services/backup_service.dart';
@@ -102,14 +100,11 @@ export 'shared/infrastructure/services/shared_backup_service_impl.dart';
 
 // Infrastructure Adapters
 export 'shared/infrastructure/adapters/cross_context_service_adapters.dart';
-export 'shared/infrastructure/services/basic_secure_storage_service.dart';
-export 'shared/infrastructure/services/file_operations_service.dart';
 export 'shared/infrastructure/services/file_service.dart';
 export 'shared/infrastructure/services/navigation_service.dart';
 
 // Infrastructure Adapters
 export 'shared/infrastructure/adapters/audio_playback.dart';
-export 'shared/infrastructure/adapters/file_operations_adapter.dart';
 export 'shared/infrastructure/adapters/file_service_adapter.dart';
 export 'shared/infrastructure/adapters/shared_profile_persistence_service_adapter.dart';
 
