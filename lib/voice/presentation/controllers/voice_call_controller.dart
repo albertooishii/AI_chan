@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/voice/domain/interfaces/i_tone_service.dart';
 // REMOVED: Direct infrastructure imports - using shared.dart instead
-import 'package:ai_chan/shared/ai_providers/core/services/audio/centralized_microphone_amplitude_service.dart';
 
 /// 🎯 Controller para llamadas de voz completas con IA
 /// Integra conversaciones reales usando TTS, STT y respuestas de IA

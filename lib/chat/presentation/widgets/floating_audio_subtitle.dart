@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ai_chan/shared.dart'; // Updated to shared location
-import 'package:ai_chan/shared/presentation/controllers/audio_subtitle_controller.dart';
 
 /// Widget de subtítulo flotante con efecto cyberpunk para reproducción de audio
 class FloatingAudioSubtitle extends StatefulWidget {

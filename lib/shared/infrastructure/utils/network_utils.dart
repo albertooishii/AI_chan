@@ -1,4 +1,4 @@
-import 'package:ai_chan/shared/infrastructure/network/network_connectors.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Utilidades de red compartidas.
 /// hasInternetConnection intenta una conexión TCP corta a un DNS público

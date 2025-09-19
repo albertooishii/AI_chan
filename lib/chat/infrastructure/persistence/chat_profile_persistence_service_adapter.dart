@@ -1,18 +1,13 @@
 import 'package:ai_chan/chat/domain/interfaces/i_chat_controller.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_profile_persistence_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_logger.dart';
 import 'package:ai_chan/shared.dart';
 
 /// Infrastructure adapter implementing chat profile persistence using ChatController.
 /// Bridges domain interface with application layer chat controller functionality.
 class ChatProfilePersistenceServiceAdapter
     implements IChatProfilePersistenceService {
-  const ChatProfilePersistenceServiceAdapter(
-    this._chatController,
-    this._logger,
-  );
+  const ChatProfilePersistenceServiceAdapter(this._chatController);
   final IChatController _chatController;
-  final IChatLogger _logger;
 
   @override
   Future<void> setOnboardingDataAndPersist(final AiChanProfile profile) async {
@@ -23,25 +18,25 @@ class ChatProfilePersistenceServiceAdapter
       // Ensure the controller persists the new profile to storage immediately
       try {
         await _chatController.saveState();
-        _logger.debug(
+        Log.d(
           'profile_persist_service: persisted onboarding data for aiName=${profile.aiName}',
         );
       } on Exception catch (e, st) {
-        _logger.error(
+        Log.e(
           'profile_persist_service: failed to persist onboarding data for aiName=${profile.aiName} error=$e',
           tag: 'PERSIST',
           error: e,
         );
-        _logger.error(st.toString(), tag: 'PERSIST');
+        Log.e(st.toString(), tag: 'PERSIST');
         rethrow;
       }
     } on Exception catch (e, st) {
-      _logger.error(
+      Log.e(
         'profile_persist_service: unexpected error setting onboarding data: $e',
         tag: 'PERSIST',
         error: e,
       );
-      _logger.error(st.toString(), tag: 'PERSIST');
+      Log.e(st.toString(), tag: 'PERSIST');
       rethrow;
     }
   }

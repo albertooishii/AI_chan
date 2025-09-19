@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ai_chan/shared.dart'; // Using shared exports for infrastructure
 // REMOVED: Direct infrastructure imports - using shared.dart instead
 // import 'package:ai_chan/shared.dart';
-// import 'package:ai_chan/shared/infrastructure/utils/string_utils.dart';
+// import 'package:ai_chan/shared.dart';
 
 /// Widget reutilizable para autocompletar países
 class CountryAutocomplete extends StatelessWidget {

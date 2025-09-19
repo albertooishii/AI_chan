@@ -1,12 +1,10 @@
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_logger.dart';
 
 /// Service responsible for processing AI-generated images
 /// Uses domain interfaces to maintain bounded context isolation.
 
 class MessageImageProcessingService {
-  MessageImageProcessingService(this._logger);
-  final IChatLogger _logger;
+  MessageImageProcessingService();
 
   /// Process image data from domain Message. The AIProviderManager is
   /// responsible for persisting any base64 images and setting a filename on
@@ -40,7 +38,7 @@ class MessageImageProcessingService {
 
     if (markdownImagePattern.hasMatch(text) ||
         urlInTextPattern.hasMatch(text)) {
-      _logger.error(
+      Log.e(
         'La IA envió una imagen Markdown o URL en el texto',
         tag: 'AI_CHAT_RESPONSE',
       );

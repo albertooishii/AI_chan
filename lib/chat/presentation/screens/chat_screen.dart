@@ -8,7 +8,6 @@ import 'package:ai_chan/chat/presentation/controllers/chat_input_controller.dart
 import 'package:ai_chan/chat/presentation/widgets/typing_animation.dart';
 import 'package:ai_chan/chat/presentation/widgets/expandable_image_dialog.dart';
 import 'gallery_screen.dart';
-import 'package:ai_chan/shared/presentation/widgets/animated_indicators.dart';
 import 'package:ai_chan/chat/presentation/widgets/tts_configuration_dialog.dart';
 import 'package:ai_chan/chat/presentation/widgets/text_model_configuration_dialog.dart';
 import 'package:ai_chan/main.dart';

@@ -1,6 +1,5 @@
 import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/shared/domain/interfaces/i_profile_persistence_service.dart';
-import 'package:ai_chan/shared/domain/interfaces/i_shared_logger.dart';
 
 /// Helpers to update and persist profile data across bounded contexts.
 /// Uses shared domain interfaces to maintain clean architecture.
@@ -9,25 +8,23 @@ import 'package:ai_chan/shared/domain/interfaces/i_shared_logger.dart';
 
 Future<void> setOnboardingDataAndPersist(
   final AiChanProfile updated, {
-  final ISharedLogger? logger,
   final IProfilePersistenceService? persistenceService,
 }) async {
-  final sharedLogger = logger ?? SharedLoggerAdapter();
   final persistService =
       persistenceService ?? SharedProfilePersistenceServiceAdapter();
 
   try {
     await persistService.setOnboardingDataAndPersist(updated);
-    sharedLogger.debug(
+    Log.d(
       'profile_persist_utils: persisted onboarding data for aiName=${updated.aiName}',
     );
   } on Exception catch (e, st) {
-    sharedLogger.error(
+    Log.e(
       'profile_persist_utils: failed to persist onboarding data for aiName=${updated.aiName} error=$e',
       tag: 'PERSIST',
       error: e,
     );
-    sharedLogger.error(st.toString(), tag: 'PERSIST');
+    Log.e(st.toString(), tag: 'PERSIST');
     rethrow;
   }
 }
@@ -37,7 +34,6 @@ Future<void> setOnboardingDataAndPersist(
 /// ✅ DDD COMPLIANT: Shared utilities accessible across bounded contexts
 Future<void> setEventsAndPersist(
   final List<ChatEvent> events, {
-  final ISharedLogger? logger,
   final IProfilePersistenceService? persistenceService,
 }) async {
   final persistService =

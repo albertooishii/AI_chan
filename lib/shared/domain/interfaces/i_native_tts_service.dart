@@ -1,4 +1,4 @@
-import 'package:ai_chan/shared/domain/interfaces/tts_service.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Interfaz para servicios de TTS nativo específica del dominio core
 abstract interface class INativeTtsService implements ITtsService {

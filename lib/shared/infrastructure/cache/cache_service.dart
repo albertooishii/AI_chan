@@ -4,8 +4,7 @@ import 'package:ai_chan/shared.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:ai_chan/shared/infrastructure/utils/cache_utils.dart'
-    as cache_utils;
+import 'package:ai_chan/shared.dart' as cache_utils;
 
 class CacheService {
   static const String _audioSubDir = 'audio';

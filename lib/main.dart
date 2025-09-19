@@ -1,8 +1,7 @@
 import 'package:ai_chan/onboarding.dart';
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/shared/infrastructure/di/di.dart' as di;
-import 'package:ai_chan/shared/infrastructure/di/di_bootstrap.dart'
-    as di_bootstrap;
+import 'package:ai_chan/shared.dart' as di;
+import 'package:ai_chan/shared.dart' as di_bootstrap;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';

@@ -1,26 +1,28 @@
-import 'package:ai_chan/shared/domain/interfaces/i_ui_state_service.dart';
+/// Basic listener for UI state changes
+abstract class BasicUIStateListener {
+  void onLoadingChanged(final bool isLoading);
+  void onErrorChanged(final String? errorMessage);
+  void onOperationSuccess(final String? message);
+}
 
 /// 🎯 **Basic UI State Service** - Infrastructure Implementation
 ///
-/// Basic implementation of IUIStateService for Clean Architecture compliance.
+/// Basic implementation of UI state management for Clean Architecture compliance.
 /// This implementation doesn't depend on Flutter and can be used in application layer.
 ///
 /// **Clean Architecture Compliance:**
 /// ✅ Infrastructure implements domain interfaces
 /// ✅ No Flutter dependencies in application layer
 /// ✅ Platform-agnostic state management
-class BasicUIStateService implements IUIStateService {
+class BasicUIStateService {
   bool _isLoading = false;
   String? _errorMessage;
-  final List<IUIStateListener> _listeners = [];
+  final List<BasicUIStateListener> _listeners = [];
 
-  @override
   bool get isLoading => _isLoading;
 
-  @override
   String? get errorMessage => _errorMessage;
 
-  @override
   Future<T?> executeWithState<T>({
     required final Future<T> Function() operation,
     required final String errorMessage,
@@ -40,7 +42,6 @@ class BasicUIStateService implements IUIStateService {
     }
   }
 
-  @override
   void setLoading(final bool loading) {
     if (_isLoading != loading) {
       _isLoading = loading;
@@ -48,7 +49,6 @@ class BasicUIStateService implements IUIStateService {
     }
   }
 
-  @override
   void setError(final String? message) {
     if (_errorMessage != message) {
       _errorMessage = message;
@@ -56,7 +56,6 @@ class BasicUIStateService implements IUIStateService {
     }
   }
 
-  @override
   void clearError() {
     if (_errorMessage != null) {
       _errorMessage = null;
@@ -64,17 +63,16 @@ class BasicUIStateService implements IUIStateService {
     }
   }
 
-  @override
   void notifyListeners() {
     // This is a no-op in the basic implementation
     // In a real implementation, this would notify registered listeners
   }
 
-  void addListener(final IUIStateListener listener) {
+  void addListener(final BasicUIStateListener listener) {
     _listeners.add(listener);
   }
 
-  void removeListener(final IUIStateListener listener) {
+  void removeListener(final BasicUIStateListener listener) {
     _listeners.remove(listener);
   }
 

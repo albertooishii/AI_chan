@@ -1,8 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as p;
-import 'package:ai_chan/shared/infrastructure/utils/image/image_utils.dart'
-    as image_utils;
+import 'package:ai_chan/shared.dart' as image_utils;
 import 'package:ai_chan/shared.dart';
 
 /// Servicio simple para persistir audio (base64 -> fichero) y cargarlo.

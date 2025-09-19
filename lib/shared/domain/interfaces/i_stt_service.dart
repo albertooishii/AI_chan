@@ -1,4 +1,4 @@
-import 'package:ai_chan/shared/domain/interfaces/cross_context_interfaces.dart';
+import 'package:ai_chan/shared.dart';
 
 // Re-export types so interface users can access them
 export 'package:ai_chan/shared/domain/interfaces/cross_context_interfaces.dart'

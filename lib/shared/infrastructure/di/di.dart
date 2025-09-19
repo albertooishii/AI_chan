@@ -12,8 +12,6 @@ import 'package:ai_chan/main.dart' show navigatorKey;
 import 'package:ai_chan/chat/domain/interfaces/i_tts_voice_management_service.dart';
 import 'package:ai_chan/shared/infrastructure/adapters/audio_playback_service_adapter.dart';
 import 'package:ai_chan/shared/domain/interfaces/i_ai_service.dart' as shared;
-import 'package:ai_chan/shared/ai_providers/core/services/audio/centralized_tts_service.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/audio/centralized_stt_service.dart';
 
 // Onboarding imports for getBiographyGenerationUseCase
 import 'package:ai_chan/onboarding/infrastructure/adapters/onboarding_persistence_service_adapter.dart';
@@ -60,7 +58,7 @@ IFileOperationsService getBasicFileOperationsService() =>
     const BasicFileOperationsService();
 
 /// Factory for navigation service - handles cross-context navigation
-INavigationService getNavigationService() => NavigationService(navigatorKey);
+NavigationService getNavigationService() => NavigationService(navigatorKey);
 
 /// Factory for File UI Service - DDD compliance for presentation layer
 FileUIService getFileUIService() =>
@@ -329,11 +327,7 @@ void setTestAudioPlaybackOverride(final dynamic service) {
 /// Infrastructure Services Factories
 ISecureStorageService getSecureStorageService() =>
     const FlutterSecureStorageService();
-IBackupService getBackupService() => BasicBackupService();
-IPreferencesService getPreferencesService() => RealPreferencesService();
-ILoggingService getLoggingService() => BasicLoggingService();
-INetworkService getNetworkService() => BasicNetworkService();
-IUIStateService getUIStateService() => BasicUIStateService();
+BasicUIStateService getUIStateService() => BasicUIStateService();
 
 /// Chat AI Service Factory
 shared.IAIService getChatAIServiceAdapter() {
@@ -345,9 +339,6 @@ shared.IAIService getChatAIServiceAdapter() {
 }
 
 /// Chat Domain Services Factories
-IChatPromiseService getChatPromiseService() => BasicChatPromiseService();
-IChatAudioUtilsService getChatAudioUtilsService() =>
-    BasicChatAudioUtilsService();
 IChatLoggingUtilsService getChatLoggingUtilsService() =>
     BasicChatLoggingUtilsService();
 BasicChatPreferencesUtilsService getChatPreferencesUtilsService() =>
@@ -372,6 +363,5 @@ Future<BiographyGenerationUseCase> getBiographyGenerationUseCase() async {
     profileService: await getProfileServiceForProvider(),
     chatExportService: ChatExportServiceAdapter(getSharedChatRepository()),
     onboardingPersistenceService: OnboardingPersistenceServiceAdapter(),
-    logger: SharedLoggerAdapter(),
   );
 }

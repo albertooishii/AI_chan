@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ai_chan/shared/presentation/constants/app_colors.dart';
-import 'package:ai_chan/shared/domain/constants/female_names.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Widget reutilizable para autocompletar nombres femeninos
 class FemaleNameAutocomplete extends StatelessWidget {

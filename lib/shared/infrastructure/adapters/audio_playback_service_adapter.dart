@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart' as ap;
 
-import 'package:ai_chan/shared/domain/interfaces/audio_playback_service.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/audio/centralized_audio_playback_service.dart';
+import 'package:ai_chan/shared.dart';
 
 /// 🎵 Adapter que conecta AudioPlaybackService con CentralizedAudioPlaybackService
 /// Usado en TTS configuration dialog para compatibilidad

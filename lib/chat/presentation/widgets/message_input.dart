@@ -7,9 +7,8 @@ import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform, kIsWeb, debugPrint;
 import 'dart:convert';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
-import 'package:ai_chan/shared/presentation/widgets/animated_indicators.dart';
-import 'package:ai_chan/chat/presentation/controllers/chat_input_controller.dart';
 import 'package:ai_chan/shared.dart' hide Config;
+import 'package:ai_chan/chat/presentation/controllers/chat_input_controller.dart';
 
 // Intents para atajos de teclado en escritorio
 class SendMessageIntent extends Intent {

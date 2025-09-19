@@ -1,4 +1,4 @@
-import 'package:ai_chan/shared/domain/constants/countries_es.dart';
+import 'package:ai_chan/shared.dart';
 
 class LocaleUtils {
   // Nombre del país en español (simplificado)

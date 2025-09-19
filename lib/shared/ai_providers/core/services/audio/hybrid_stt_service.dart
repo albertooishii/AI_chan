@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:record/record.dart';
-import 'package:ai_chan/shared.dart' hide AudioEncoder;
+import 'package:ai_chan/shared.dart';
 import 'package:http/http.dart' as http;
 
 /// Servicio híbrido de STT que usa:

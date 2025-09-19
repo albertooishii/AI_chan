@@ -1,4 +1,4 @@
-import 'package:ai_chan/shared/application/services/ai_generators/ia_meetstory_generator.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Utilidades específicas para el proceso de onboarding
 class OnboardingUtils {

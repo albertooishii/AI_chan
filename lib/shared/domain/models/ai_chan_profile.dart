@@ -1,4 +1,4 @@
-import 'package:ai_chan/shared/domain/models/image.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Perfil limpio del usuario/AI sin información de timeline, eventos o mensajes.
 /// Contiene únicamente la información básica del perfil y biografía.

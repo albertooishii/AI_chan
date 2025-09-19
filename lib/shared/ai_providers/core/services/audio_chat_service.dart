@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:ai_chan/shared/infrastructure/utils/audio_utils.dart'
-    as audio_utils;
+import 'package:ai_chan/shared.dart' as audio_utils;
 import 'package:ai_chan/shared.dart';
 import 'package:flutter/material.dart';
 import 'package:record/record.dart';
-import 'package:ai_chan/shared/infrastructure/di/di.dart' as di;
+import 'package:ai_chan/shared.dart' as di;
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
 

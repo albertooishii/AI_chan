@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:ai_chan/shared.dart'; // Using shared exports for infrastructure
 import 'package:ai_chan/onboarding/presentation/widgets/birth_date_field.dart';
 import 'package:ai_chan/onboarding/presentation/controllers/onboarding_lifecycle_controller.dart';
-import 'package:ai_chan/shared/presentation/widgets/country_autocomplete.dart';
-import 'package:ai_chan/shared/presentation/widgets/female_name_autocomplete.dart';
 import 'package:ai_chan/onboarding/presentation/controllers/form_onboarding_controller.dart';
 import 'conversational_onboarding_screen.dart';
 import 'onboarding_mode_selector.dart';

@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:ai_chan/shared.dart'; // Using shared exports for infrastructure
 // REMOVED: Direct infrastructure imports - using shared.dart instead
-// import 'package:ai_chan/shared/infrastructure/utils/profile_persist_utils.dart' as profile_persist_utils;
 import 'package:ai_chan/chat/presentation/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro completado
 
 class CalendarScreen extends StatefulWidget {

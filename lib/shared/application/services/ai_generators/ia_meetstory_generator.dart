@@ -1,4 +1,3 @@
-import 'package:ai_chan/shared/application/services/shared_prompt_builder_service.dart';
 import 'package:ai_chan/shared.dart';
 
 /// Generador de historias de encuentro personalizado para AI-chan

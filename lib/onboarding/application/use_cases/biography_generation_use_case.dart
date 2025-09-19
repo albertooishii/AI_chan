@@ -1,7 +1,6 @@
 import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/onboarding/domain/interfaces/i_chat_export_service.dart';
 import 'package:ai_chan/onboarding/domain/interfaces/i_onboarding_persistence_service.dart';
-import 'package:ai_chan/shared/domain/interfaces/i_shared_logger.dart';
 import 'dart:convert';
 
 /// Use Case for Biography Generation
@@ -12,7 +11,6 @@ class BiographyGenerationUseCase {
     required this.profileService,
     required this.chatExportService,
     required this.onboardingPersistenceService,
-    required this.logger,
     final IAAppearanceGenerator? appearanceGenerator,
     final IAAvatarGenerator? avatarGenerator,
   }) : _appearanceGenerator = appearanceGenerator ?? IAAppearanceGenerator(),
@@ -21,7 +19,6 @@ class BiographyGenerationUseCase {
   final IProfileService profileService;
   final IChatExportService chatExportService;
   final IOnboardingPersistenceService onboardingPersistenceService;
-  final ISharedLogger logger;
   final IAAppearanceGenerator _appearanceGenerator;
   final IAAvatarGenerator _avatarGenerator;
 
@@ -100,7 +97,7 @@ class BiographyGenerationUseCase {
       } on Exception catch (e) {
         // Log persistence failures to help debugging on devices
         try {
-          logger.error(
+          Log.e(
             'BiographyGenerationUseCase: failed to save biography: $e',
             tag: 'BIO_GEN',
           );

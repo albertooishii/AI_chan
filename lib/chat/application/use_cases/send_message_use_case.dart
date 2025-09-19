@@ -9,7 +9,6 @@ import 'package:ai_chan/chat/application/services/message_image_processing_servi
 import 'package:ai_chan/chat/application/services/message_audio_processing_service.dart';
 import 'package:ai_chan/chat/application/services/message_sanitization_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_event_timeline_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_logger.dart';
 
 /// Send Message Use Case - Chat Application Layer
 /// Orquesta el proceso completo de envío de mensaje usando servicios especializados
@@ -34,7 +33,7 @@ class SendMessageUseCase {
 
   /// Creates default image service with stub dependencies
   static MessageImageProcessingService _createDefaultImageService() {
-    return MessageImageProcessingService(_StubChatLogger());
+    return MessageImageProcessingService();
   }
 
   final MessageImageProcessingService _imageService;
@@ -210,15 +209,6 @@ class SendMessageOutcome {
 // Stub implementations for default constructor (avoid infrastructure dependencies)
 
 // No-op image service stub removed; MessageImageProcessingService no longer needs it
-
-/// Stub implementation that does nothing - safe fallback
-class _StubChatLogger implements IChatLogger {
-  @override
-  void debug(final String message, {final String? tag}) {}
-
-  @override
-  void error(final String message, {final String? tag, final Object? error}) {}
-}
 
 /// Stub implementation that returns null - safe fallback
 class _DefaultEventTimelineService implements IChatEventTimelineService {

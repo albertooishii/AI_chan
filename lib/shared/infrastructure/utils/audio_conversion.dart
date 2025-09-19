@@ -1,6 +1,5 @@
 import 'dart:io';
-import 'package:ai_chan/shared/infrastructure/utils/audio_utils.dart'
-    as audio_utils;
+import 'package:ai_chan/shared.dart' as audio_utils;
 import 'package:flutter/foundation.dart';
 
 /// Utility helpers to convert audio using ffmpeg when available.

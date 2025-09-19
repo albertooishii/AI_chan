@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:ai_chan/shared/ai_providers/core/models/audio_mode.dart';
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/audio/centralized_tts_service.dart';
 
 /// Servicio para gestionar modos de audio de forma desacoplada
 /// Permite elegir entre híbrido y realtime según el contexto

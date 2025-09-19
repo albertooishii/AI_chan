@@ -1,8 +1,7 @@
 import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_language_resolver.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_preferences_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_logger.dart';
-import 'package:ai_chan/shared/domain/interfaces/i_file_service.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Servicio dedicado para sintetizar TTS y persistir el archivo en el
 /// directorio local de audio configurado. Devuelve la ruta final del archivo
@@ -13,13 +12,11 @@ class TtsService {
     this.languageResolver,
     this.fileService,
     this.preferencesService,
-    this.logger,
   );
   final IAudioChatService audioService;
   final ILanguageResolver languageResolver;
   final IFileService fileService;
   final IChatPreferencesService preferencesService;
-  final IChatLogger logger;
 
   /// Sintetiza `text` usando el audioService y persiste el fichero en la
   /// carpeta local de audio configurada. Devuelve la ruta final o null.
@@ -71,7 +68,7 @@ class TtsService {
 
       return synthesizedPath; // Fallback to original path
     } on Exception catch (e) {
-      logger.error(
+      Log.e(
         '[Audio][TTS] Error in synthesizeAndPersist: $e',
         tag: 'TTS',
         error: e,

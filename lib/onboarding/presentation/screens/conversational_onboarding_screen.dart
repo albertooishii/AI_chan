@@ -3,10 +3,6 @@ import 'package:ai_chan/shared.dart'; // Using shared exports for infrastructure
 import 'package:ai_chan/onboarding/presentation/controllers/onboarding_lifecycle_controller.dart';
 import 'package:ai_chan/onboarding/domain/entities/memory_data.dart';
 import 'package:ai_chan/onboarding/application/services/conversational_onboarding_service.dart';
-import 'package:ai_chan/shared/presentation/controllers/audio_subtitle_controller.dart';
-import 'package:ai_chan/shared/presentation/widgets/conversational_subtitles.dart';
-import 'package:ai_chan/shared/presentation/widgets/country_autocomplete.dart';
-import 'package:ai_chan/shared/presentation/widgets/female_name_autocomplete.dart';
 import 'package:ai_chan/onboarding/presentation/widgets/birth_date_field.dart';
 import 'dart:async';
 import 'onboarding_screen.dart' show OnboardingFinishCallback, OnboardingScreen;

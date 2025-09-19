@@ -2,10 +2,8 @@ import 'dart:io';
 import 'dart:math';
 import 'package:path_provider/path_provider.dart';
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/shared/infrastructure/utils/image/image_utils.dart'
-    as image_utils;
-import 'package:ai_chan/shared/infrastructure/utils/audio_utils.dart'
-    as audio_utils;
+import 'package:ai_chan/shared.dart' as image_utils;
+import 'package:ai_chan/shared.dart' as audio_utils;
 
 /// Utilidades para la gestión de datos de la aplicación (limpieza, backup, etc.)
 class AppDataUtils {

@@ -1,5 +1,5 @@
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/shared/domain/models/index.dart' as infra;
+import 'package:ai_chan/shared.dart' as infra;
 
 abstract class IAIImageFactory {
   AiImage fromAIResponse({required final infra.AIResponse response});

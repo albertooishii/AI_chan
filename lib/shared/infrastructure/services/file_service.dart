@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:ai_chan/shared/domain/interfaces/i_file_service.dart';
-import 'package:ai_chan/shared/infrastructure/utils/audio_utils.dart'
-    as audio_utils;
+import 'package:ai_chan/shared.dart' as audio_utils;
 
 /// Implementación de infraestructura para operaciones de archivo.
 /// Contiene todas las dependencias de dart:io.
