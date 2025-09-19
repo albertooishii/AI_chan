@@ -43,17 +43,18 @@
 - [x] **Cross-context violations**: Reducidas de 71 a 59 críticas
 - [x] **Architecture compliance**: 0 violaciones directas P→I
 
-**Estrategia Aplicada**: 
-- ✅ Eliminación pragmática de abstracciones innecesarias
-- ✅ Uso directo de utilities compartidas
-- ✅ Mantenimiento de interfaces solo cuando tienen múltiples implementaciones
-
 #### 1.2 Limpiar Imports Directos (186 violaciones) ✅
 - [x] **Refactoring masivo**: ✅ 0 imports directos - todos usan `shared.dart`
 - [x] **Verificar exports**: ✅ 135 exports validados en `shared.dart`
 - [x] **Tests de validación**: ✅ Arquitectura 100% validada
 
-#### 1.5 Resolver Violaciones Arquitectónicas Temporales (3) ✅
+#### 1.3 Detector Automático de Sobre-ingeniería ✅
+- [x] **Test genérico**: Detector automático sin listas hardcodeadas
+- [x] **Patrones detectados**: Interfaces utilitarias, wrappers triviales, abstracciones prematuras
+- [x] **Resultados actuales**: 16 abstracciones potenciales, 8 wrappers identificados
+- [x] **Modo informativo**: No bloquea builds, permite revisión manual
+
+#### 1.4 Resolver Violaciones Arquitectónicas Temporales (3) ✅
 - [x] `lib/shared/presentation/screens/calendar_screen.dart` → resuelto
 - [x] `lib/shared/presentation/widgets/country_autocomplete.dart` → resuelto
 - [x] Solo queda: `lib/onboarding/presentation/controllers/onboarding_lifecycle_controller.dart` (67% progreso)
@@ -63,16 +64,41 @@
 - **✅ 0 violaciones presentation → infrastructure** (antes: 3)
 - **✅ 135 exports funcionando en shared.dart**
 - **✅ 7 interfaces de sobre-ingeniería eliminadas**
+- **✅ Detector automático de sobre-ingeniería implementado**
 - **✅ Arquitectura DDD 100% validada**
 - **✅ Cross-context violations reducidas 17%** (71→59)
 
 ---
 
-### **FASE 2: OPTIMIZACIÓN DE CÓDIGO** 🧹
+### **FASE 2: ELIMINACIÓN DE SOBRE-INGENIERÍA RESTANTE** 🔧
+> **Prioridad**: ALTA | **Tiempo**: 1 día | **Impacto**: Simplicidad/Mantenibilidad  
+> **Estado**: **PENDIENTE**
+
+#### 2.1 Revisar y Eliminar Abstracciones Innecesarias Detectadas
+- [ ] **Analizar 16 interfaces detectadas** por el detector automático:
+  - `IChatPreferencesService`, `IChatPreferencesUtilsService` → candidatos a `PrefsUtils`
+  - `ISharedBackupService` → posible eliminación si es wrapper trivial
+  - `IAudioRecorderService`, `IAudioPlaybackService` → evaluar si wrappean APIs nativas
+  - Revisar caso por caso para mantener abstracciones válidas de DDD
+
+#### 3.2 Optimización de Funciones Públicas (126 no utilizadas)  
+- [ ] **Analizar 8 wrapper services** identificados:
+  - `BasicFileOperationsService` → posible eliminación
+  - `LoadChatHistoryUseCase` → evaluar si agrega valor sobre repositorio directo
+  - Adapters simples → mantener solo los que transforman datos realmente
+
+#### 2.3 Validación Post-Eliminación
+- [ ] **Tests de arquitectura**: Ejecutar detector para verificar mejoras
+- [ ] **Builds y tests**: Asegurar que todo funciona tras simplificaciones
+- [ ] **Documentar decisiones**: Registrar qué se mantuvo y por qué
+
+---
+
+### **FASE 3: OPTIMIZACIÓN DE CÓDIGO** 🧹
 > **Prioridad**: MEDIA | **Tiempo**: 1-2 días | **Impacto**: Performance/Mantenibilidad
 
-#### 2.1 Limpieza de Archivos No Utilizados (12 archivos)
-- [ ] **Validar uso real** de archivos marcados como no utilizados:
+#### 3.1 Limpieza de Archivos No Utilizados (12 archivos)
+- [ ] **Validar uso real** de archivos marcados como no utilizados (revisar si hay nuevos):
   - `lib/chat/domain/models/chat_export.dart`
   - `lib/chat/domain/models/message.dart`
   - `lib/shared/ai_providers/core/adapters/index.dart`
@@ -86,12 +112,12 @@
   - `lib/voice/application/application.dart`
   - `lib/voice/presentation/presentation.dart`
 
-#### 2.2 Limpieza de Funciones Públicas (132 funciones)
+#### 3.2 Limpieza de Funciones Públicas (126 no utilizadas)
 - [ ] **Análisis de uso**: Verificar si las funciones marcadas son realmente API públicas
 - [ ] **Privatización**: Marcar como privadas (`_`) las funciones realmente no usadas
 - [ ] **Documentación**: Marcar funciones que son parte de APIs públicas intencionalmente
 
-#### 2.3 Consolidación de Interfaces y Separación por Contextos
+#### 3.3 Consolidación de Interfaces y Separación por Contextos
 - [ ] **Eliminar duplicados**: Resolver interfaces duplicadas entre contextos
 - [ ] **Centralizar en shared**: Mover interfaces comunes a `shared/domain/interfaces/`
 - [ ] **🎯 Reubicación por bounded context**: Mover archivos específicos de dominio (ej: prompt_builder) de shared/ a su contexto correspondiente
@@ -100,20 +126,20 @@
 
 ---
 
-### **FASE 3: OPTIMIZACIÓN AVANZADA** ⚡
+### **FASE 4: OPTIMIZACIÓN AVANZADA** ⚡
 > **Prioridad**: BAJA | **Tiempo**: 1 día | **Impacto**: Calidad de código
 
-#### 3.1 Optimización de Shared.dart
+#### 4.1 Optimización de Shared.dart
 - [ ] **Análisis de exports**: Revisar y optimizar exports en `shared.dart`
 - [ ] **Barrel files**: Crear barrel files específicos por dominio si es necesario
 - [ ] **Tree shaking**: Verificar que el bundling no incluya código innecesario
 
-#### 3.2 Linting y Automatización
+#### 4.2 Linting y Automatización
 - [ ] **Reglas de arquitectura**: Configurar linter rules para prevenir regresiones
 - [ ] **Pre-commit hooks**: Asegurar que nuevos commits respetan arquitectura
 - [ ] **CI/CD checks**: Integrar tests de arquitectura en pipeline
 
-#### 3.3 Documentación Final
+#### 4.3 Documentación Final
 - [ ] **Architecture Guidelines**: Documentar patrones arquitectónicos adoptados
 - [ ] **Developer Guide**: Guía para nuevos desarrolladores
 - [ ] **Migration Summary**: Resumen de cambios realizados
