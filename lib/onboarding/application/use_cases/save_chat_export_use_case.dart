@@ -1,5 +1,5 @@
-import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/shared/utils/provider_persist_utils.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
+import 'package:ai_chan/shared/ai_providers/core/utils/provider_persist_utils.dart';
 
 /// Application-level wrapper to persist an exported chat.
 /// Keeps persistence details out of UI layers (providers/controllers).

@@ -1,9 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import '../../interfaces/audio/i_audio_playback_service.dart';
-import '../audio/centralized_audio_playback_service.dart';
-import '../../../../services/hybrid_stt_service.dart';
-import '../../../../domain/enums/conversation_state.dart';
+import 'package:ai_chan/shared.dart';
 
 /// 🎯 Servicio centralizado para escucha automática inteligente
 /// Coordina TTS, STT y timing para conversaciones naturales

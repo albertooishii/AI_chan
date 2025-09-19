@@ -1,0 +1,204 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:ai_chan/shared/domain/models/index.dart';
+import 'package:ai_chan/shared/infrastructure/services/backup_service.dart';
+import 'package:ai_chan/shared/infrastructure/services/google_backup_service.dart';
+import 'package:ai_chan/shared/infrastructure/utils/backup_utils.dart';
+import 'package:ai_chan/shared/infrastructure/utils/prefs_utils.dart';
+import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
+
+// ------------------ Test hooks types (top-level) ------------------
+typedef LocalBackupCreator =
+    Future<File> Function({
+      required String jsonStr,
+      String? destinationDirPath,
+    });
+typedef GoogleBackupServiceFactory = GoogleBackupService Function();
+typedef GoogleTokenLoaderFactory = GoogleBackupService Function();
+
+/// Helper minimal para subir backups automáticamente cuando se complete
+/// un resumen de bloque. Esta implementación es "fire and forget": intenta
+/// crear el ZIP local y subirlo si la cuenta Google está vinculada.
+class BackupAutoUploader {
+  /// Attempt to upload a backup if `googleLinked` is true. This method
+  /// performs non-blocking work and returns when the attempt has been
+  /// scheduled/completed. Errors are caught and logged but not rethrown.
+  static Future<void> maybeUploadAfterSummary({
+    required final AiChanProfile profile,
+    required final List<Message> messages,
+    required final List<TimelineEntry> timeline,
+    required final bool googleLinked,
+    final dynamic repository,
+  }) async {
+    if (!googleLinked) return;
+    // Simple in-memory coalescing to avoid repeated uploads in quick bursts.
+    // This is process-local and resets on app restart.
+    const coalesceSeconds = 60;
+    _lastAttempt ??= 0;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (_lastSuccess != null &&
+        (nowMs - _lastSuccess!) < (coalesceSeconds * 1000)) {
+      return;
+    }
+    if ((nowMs - (_lastAttempt ?? 0)) < 1000) {
+      return; // avoid multiple immediate calls
+    }
+    _lastAttempt = nowMs;
+    try {
+      Log.i(
+        'Automatic backup: triggered; preparing export JSON...',
+        tag: 'BACKUP_AUTO',
+      );
+      // Build export JSON from profile/messages/events (null events here)
+      final jsonStr = await BackupUtils.exportChatPartsToJson(
+        profile: profile,
+        messages: messages,
+        events: [],
+        timeline: timeline,
+        repository: repository,
+      );
+      // Create the tmp dir where the ZIP would be placed. We will try to
+      // ensure we have a usable access token before creating the potentially
+      // costly ZIP and attempting the upload. Tests that inject a
+      // `testGoogleBackupServiceFactory` are trusted to provide a working
+      // service and therefore skip the stored-token check.
+      final tmpDir = Directory.systemTemp.createTempSync('ai_chan_backup_');
+
+      final bool skipTokenCheck = testGoogleBackupServiceFactory != null;
+      String? storedToken;
+
+      if (!skipTokenCheck) {
+        // Use a lightweight service instance to read stored access token or
+        // credentials. Allow tests to inject a token-loader for deterministic
+        // behavior.
+        final tokenLoader = testTokenLoaderFactory != null
+            ? testTokenLoaderFactory!()
+            : GoogleBackupService();
+
+        storedToken = await tokenLoader.loadStoredAccessToken();
+        if (storedToken == null || storedToken.isEmpty) {
+          Log.w(
+            'Automatic backup: no stored access token available; skipping upload',
+            tag: 'BACKUP_AUTO',
+          );
+          // Clean up the temp dir we created and exit early.
+          try {
+            if (tmpDir.existsSync()) tmpDir.deleteSync(recursive: true);
+          } on Exception catch (e) {
+            Log.w(
+              'Automatic backup: failed deleting temp dir during early abort: $e',
+              tag: 'BACKUP_AUTO',
+            );
+          }
+          return;
+        }
+      }
+
+      // Create the zip in the system temp dir to avoid polluting app documents
+      final file = await (testLocalBackupCreator != null
+          ? testLocalBackupCreator!(
+              jsonStr: jsonStr,
+              destinationDirPath: tmpDir.path,
+            )
+          : BackupService.createLocalBackup(
+              jsonStr: jsonStr,
+              destinationDirPath: tmpDir.path,
+            ));
+
+      // Notify any test harness that an upload attempt is about to happen.
+      try {
+        testUploadCompleter?.complete();
+      } on Exception catch (_) {}
+
+      // Use robust upload with automatic retry
+      if (!skipTokenCheck && storedToken != null) {
+        // Use the robust static method with automatic refresh capability
+        await GoogleBackupService.uploadBackupWithAutoRefresh(
+          file,
+          accessToken: storedToken,
+        );
+      } else {
+        // Test path - use injected service directly
+        final svc = testGoogleBackupServiceFactory!();
+        await svc.uploadBackup(file);
+      }
+      Log.i(
+        'Automatic backup: upload completed successfully to Drive. file=${file.path}',
+        tag: 'BACKUP_AUTO',
+      );
+      // Optionally delete local file after successful upload
+      try {
+        if (file.existsSync()) {
+          file.deleteSync();
+          Log.d(
+            'Automatic backup: deleted temp zip ${file.path}',
+            tag: 'BACKUP_AUTO',
+          );
+        }
+        // Remove the temp directory as well
+        try {
+          if (tmpDir.existsSync()) {
+            tmpDir.deleteSync(recursive: true);
+            Log.d(
+              'Automatic backup: deleted temp dir ${tmpDir.path}',
+              tag: 'BACKUP_AUTO',
+            );
+          }
+        } on Exception catch (e) {
+          Log.w(
+            'Automatic backup: failed deleting temp dir ${tmpDir.path}: $e',
+            tag: 'BACKUP_AUTO',
+          );
+        }
+        // Persist last-success timestamp
+        try {
+          await PrefsUtils.setLastAutoBackupMs(nowMs);
+          _lastSuccess = nowMs;
+          Log.i(
+            'Automatic backup: recorded last-success ts=$nowMs',
+            tag: 'BACKUP_AUTO',
+          );
+        } on Exception catch (e) {
+          Log.w(
+            'Automatic backup: failed persisting last-success ts: $e',
+            tag: 'BACKUP_AUTO',
+          );
+        }
+      } on Exception catch (e) {
+        Log.w(
+          'Automatic backup: failed deleting temp files: $e',
+          tag: 'BACKUP_AUTO',
+        );
+      }
+    } on Exception catch (e, st) {
+      // Don't throw: only log. Apps may query logs to detect failures.
+      try {
+        Log.e(
+          'Automatic backup failed',
+          tag: 'BACKUP_AUTO',
+          error: e,
+          stack: st,
+        );
+      } on Exception catch (_) {}
+    }
+  }
+
+  // In-memory timestamps to coalesce attempts during a single process run.
+  static int? _lastAttempt;
+  static int? _lastSuccess;
+
+  // ------------------ Test hooks ------------------
+  // Tests may set these to inject fakes and to reset internal state.
+  static LocalBackupCreator? testLocalBackupCreator;
+  static GoogleBackupServiceFactory? testGoogleBackupServiceFactory;
+  // Allows tests to inject a token-loader (used to read stored creds and
+  // attempt refresh). If set, it is used instead of creating a default
+  // `GoogleBackupService(accessToken: null)` for token checks.
+  static GoogleTokenLoaderFactory? testTokenLoaderFactory;
+
+  // Optional test completer that will be completed when an upload is about to
+  // happen. Tests can await this to deterministically observe the upload
+  // attempt regardless of the actual Google service used.
+  static Completer<void>? testUploadCompleter;
+}

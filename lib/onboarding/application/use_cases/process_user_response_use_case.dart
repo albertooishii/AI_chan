@@ -1,11 +1,7 @@
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/onboarding/domain/entities/memory_data.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
-import 'package:ai_chan/shared/constants/female_names.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
-import 'package:ai_chan/onboarding/utils/onboarding_utils.dart';
-import 'package:ai_chan/shared/utils/json_utils.dart';
+import 'package:ai_chan/onboarding/application/services/onboarding_utils.dart';
 
 /// Caso de uso para procesar la respuesta del usuario durante el onboarding conversacional
 class ProcessUserResponseUseCase {

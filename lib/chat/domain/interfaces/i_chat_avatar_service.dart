@@ -1,4 +1,4 @@
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
 
 /// Interfaz de aplicación para operaciones de avatar en chat
 /// Permite al layer de aplicación interactuar con el controlador sin depender de presentation

@@ -1,8 +1,11 @@
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_metadata.dart';
-import 'package:ai_chan/core/models/ai_response.dart';
-import 'package:ai_chan/core/models/system_prompt.dart';
-import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
+// Note: Providers now return `ProviderResponse`. AIResponse is referenced
+// indirectly via ProviderResponse; avoid importing AIResponse here to
+// prevent unused import lints.
+import 'package:ai_chan/shared/ai_providers/core/models/provider_response.dart';
+import 'package:ai_chan/shared/domain/models/system_prompt.dart';
+import 'i_realtime_client.dart';
 import 'dart:typed_data';
 
 /// Core interface for all AI providers in the dynamic provider system.
@@ -54,7 +57,7 @@ abstract class IAIProvider {
   /// [imageBase64] - Optional base64 encoded image for vision tasks
   /// [imageMimeType] - MIME type of the image
   /// [additionalParams] - Provider-specific parameters
-  Future<AIResponse> sendMessage({
+  Future<ProviderResponse> sendMessage({
     required final List<Map<String, String>> history,
     required final SystemPrompt systemPrompt,
     required final AICapability capability,
@@ -79,7 +82,7 @@ abstract class IAIProvider {
   /// [model] - TTS model to use
   /// [additionalParams] - Provider-specific parameters (speed, format, etc.)
   /// Returns AIResponse with base64 encoded audio data
-  Future<AIResponse> generateAudio({
+  Future<ProviderResponse> generateAudio({
     required final String text,
     final String? voice,
     final String? model,
@@ -93,7 +96,7 @@ abstract class IAIProvider {
   /// [language] - Language code for transcription
   /// [additionalParams] - Provider-specific parameters
   /// Returns AIResponse with transcribed text
-  Future<AIResponse> transcribeAudio({
+  Future<ProviderResponse> transcribeAudio({
     required final String audioBase64,
     final String? audioFormat,
     final String? model,

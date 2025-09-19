@@ -1,20 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:ai_chan/shared/constants/app_colors.dart';
-import 'package:ai_chan/core/config.dart';
-import 'package:ai_chan/shared/utils/dialog_utils.dart';
-import 'package:ai_chan/shared/widgets/backup_dialog_factory.dart';
-import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
-import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
-import 'package:ai_chan/shared/services/backup_service.dart';
+import 'package:ai_chan/shared.dart'; // Using shared exports for infrastructure
+import 'package:ai_chan/shared/presentation/widgets/google_drive_backup_dialog.dart';
 import 'package:ai_chan/onboarding/presentation/controllers/onboarding_lifecycle_controller.dart';
-import 'package:ai_chan/core/models.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:ai_chan/core/di.dart' as di;
-import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 import 'dart:math';
 import 'conversational_onboarding_screen.dart';
 import 'onboarding_screen.dart';
-import 'package:ai_chan/chat/application/services/chat_application_service.dart'; // ✅ DDD: ETAPA 3 - ChatApplicationService directo
 
 typedef OnboardingFinishCallback =
     Future<void> Function({
@@ -43,7 +34,8 @@ class OnboardingModeSelector extends StatefulWidget {
   final void Function()? onClearAllDebug;
   final Future<void> Function(ChatExport chatExport)? onImportJson;
   final OnboardingLifecycleController? onboardingLifecycle;
-  final ChatApplicationService? chatProvider;
+  // TODO: Replace with ISharedBackupService
+  final Object? chatProvider;
 
   @override
   State<OnboardingModeSelector> createState() => _OnboardingModeSelectorState();
@@ -55,7 +47,7 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
   @override
   void initState() {
     super.initState();
-    _fileUIService = di.getFileUIService();
+    _fileUIService = getFileUIService();
   }
 
   /// Construye un widget de texto con estilo consistente
@@ -419,9 +411,7 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
       final jsonStr = await BackupService.restoreAndExtractJson(tempPath);
 
       // Importar el JSON extraído
-      final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
-        jsonStr,
-      );
+      final imported = await ChatJsonUtils.importAllFromJson(jsonStr);
 
       if (imported != null) {
         if (widget.onImportJson != null) {
@@ -506,10 +496,12 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
 
   /// Maneja el backup con Google Drive
   Future<void> _handleGoogleDriveBackup(final BuildContext context) async {
-    final ChatApplicationService? cp = widget.chatProvider;
+    // TODO: Implement using ISharedBackupService to avoid cross-context dependency
+    // final ChatApplicationService? cp = widget.chatProvider;
     final OnboardingLifecycleController? op = widget.onboardingLifecycle;
 
-    final res = await showAppDialog<dynamic>(
+    // Use Google Drive backup dialog instead of the commented out ChatApplicationService approach
+    final backupResult = await showAppDialog<dynamic>(
       builder: (final ctx) => AlertDialog(
         backgroundColor: Colors.black,
         content: Builder(
@@ -520,20 +512,19 @@ class _OnboardingModeSelectorState extends State<OnboardingModeSelector> {
             final dialogWidth = min(screenWidth - margin, maxWidth).toDouble();
             return SizedBox(
               width: dialogWidth,
-              child: cp != null
-                  ? BackupDialogFactory.fromChatApplicationService(cp)
-                  : const GoogleDriveBackupDialog(),
+              child:
+                  const GoogleDriveBackupDialog(), // Using Google Drive backup since cp is commented out
             );
           },
         ),
       ),
     );
 
-    // Si el diálogo devolvió JSON restaurado (cuando no se pasó ChatProvider), importarlo
-    if (res is Map && res['restoredJson'] is String && cp == null) {
-      final jsonStr = res['restoredJson'] as String;
+    // Si el diálogo devolvió JSON restaurado, importarlo
+    if (backupResult is Map && backupResult['restoredJson'] is String) {
+      final jsonStr = backupResult['restoredJson'] as String;
       try {
-        final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
+        final imported = await ChatJsonUtils.importAllFromJson(
           jsonStr,
           onError: (final err) => op?.setImportError(err),
         );

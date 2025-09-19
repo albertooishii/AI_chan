@@ -1,4 +1,4 @@
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_logger.dart';
 
 /// Service responsible for processing AI-generated images

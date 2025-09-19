@@ -4,12 +4,12 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../../interfaces/audio/i_audio_playback_service.dart';
-import '../../models/audio/audio_playback_state.dart';
-import '../../models/audio/audio_playback_config.dart';
-import '../../models/audio/audio_playback_result.dart';
-import '../../models/audio/audio_exceptions.dart';
-import '../../../../utils/log_utils.dart';
+import 'package:ai_chan/shared/ai_providers/core/interfaces/audio/i_audio_playback_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/audio/audio_playback_state.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/audio/audio_playback_config.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/audio/audio_playback_result.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/audio/audio_exceptions.dart';
+import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
 
 /// 🎵 Servicio centralizado para reproducción de audio
 /// Usado por TTS, onboarding conversacional y sistema de llamadas

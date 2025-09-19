@@ -1,4 +1,4 @@
-import '../models/onboarding_form_result.dart';
+import 'package:ai_chan/onboarding/domain/models/onboarding_form_result.dart';
 
 /// Puerto (Port) para el repositorio de perfil de usuario
 /// Define el contrato para persistir y gestionar perfiles durante onboarding

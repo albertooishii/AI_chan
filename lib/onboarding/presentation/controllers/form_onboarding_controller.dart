@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
 import 'package:ai_chan/onboarding.dart';
-import 'package:ai_chan/onboarding/utils/onboarding_utils.dart';
+import 'package:ai_chan/onboarding/application/services/onboarding_utils.dart';
 import 'package:ai_chan/onboarding/presentation/interfaces/i_form_onboarding_controller.dart';
 
 /// Form Onboarding Controller - Compact form management

@@ -39,6 +39,10 @@ void main() {
         final missing = <String>[];
         final knownMissingInterfaces = [
           // ✅ RESOLVED: IChatFileOperationsService implemented in BasicChatFileOperationsService
+          // ✅ CENTRALIZED: These interfaces now have centralized implementations
+          'ITtsService', // Replaced by CentralizedTtsService
+          'ISttService', // Replaced by CentralizedSttService
+          'INativeTtsService', // Legacy interface, using centralized approach
         ];
 
         for (final iface in domainInterfaces.keys) {

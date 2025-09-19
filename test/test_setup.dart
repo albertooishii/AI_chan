@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/shared/infrastructure/config/config.dart';
 import 'test_utils/prefs_test_utils.dart';
 import 'fakes/fake_connectors.dart' as fake_connectors;
 import 'fakes/fake_http_client.dart';
-import 'package:ai_chan/core/http_connector.dart';
+import 'package:ai_chan/shared/infrastructure/network/http_connector.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
 import 'package:ai_chan/shared/ai_providers/core/registry/provider_registration.dart';
 
@@ -65,8 +65,7 @@ MISTRAL_API_KEY=test_mistral_key
   // Initialize SharedPreferences with centralized test helper for consistency
   PrefsTestUtils.setMockInitialValues(prefs);
 
-  // 🔥 Legacy test compatibility functions (no-op)
-  // Call tests were eliminated, these are just stubs
+  // Backwards-compatibility shims for older tests (no-op in current test harness)
 
   // Register fake connectors to ensure no tests open real sockets/websockets
   fake_connectors.registerFakeSocketConnector();

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import '../controllers/voice_call_controller.dart';
-import '../../../shared/ai_providers/core/services/audio/centralized_microphone_amplitude_service.dart';
-import 'package:ai_chan/shared/constants/app_colors.dart';
+import 'package:ai_chan/voice/presentation/controllers/voice_call_controller.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/audio/centralized_microphone_amplitude_service.dart';
+import 'package:ai_chan/shared/presentation/constants/app_colors.dart';
 
 /// 🎯 Widget de animación de ondas cyberpunk alrededor del avatar
 class VoiceWaveAnimation extends StatefulWidget {

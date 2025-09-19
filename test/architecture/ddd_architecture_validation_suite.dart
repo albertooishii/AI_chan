@@ -534,11 +534,11 @@ ${violations.join('\n')}
 
 SHARED UTILITIES GUIDELINES:
 ✅ Use existing shared utilities instead of reimplementing
-✅ Extract common utility functions to shared/utils/
+✅ Extract common utility functions to shared/infrastructure/utils/
 ✅ Avoid duplicating helper functions across contexts
 ✅ Centralize common transformations and validations
 
-Check shared/utils/ before implementing common functionality.
+Check shared/infrastructure/utils/ before implementing common functionality.
           ''',
         );
       });
@@ -715,7 +715,7 @@ Future<List<DomainInterface>> _findDomainInterfaces(
 
 Future<List<DomainInterface>> _findCoreInterfaces() async {
   final interfaces = <DomainInterface>[];
-  final coreInterfacesDir = Directory('lib/core/interfaces');
+  final coreInterfacesDir = Directory('lib/shared/domain/interfaces');
 
   if (!coreInterfacesDir.existsSync()) return interfaces;
 

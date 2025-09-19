@@ -1,7 +1,7 @@
 import 'dart:async';
-import '../../models/audio/audio_playback_state.dart';
-import '../../models/audio/audio_playback_config.dart';
-import '../../models/audio/audio_playback_result.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/audio/audio_playback_state.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/audio/audio_playback_config.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/audio/audio_playback_result.dart';
 
 /// 🎵 Interfaz principal para reproducción de audio centralizada
 /// Utilizada por TTS, onboarding conversacional y sistema de llamadas

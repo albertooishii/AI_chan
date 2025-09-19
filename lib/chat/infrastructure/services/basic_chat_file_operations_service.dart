@@ -1,5 +1,5 @@
 import 'dart:io';
-import '../../domain/interfaces/i_chat_file_operations_service.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_chat_file_operations_service.dart';
 
 /// 🎯 **Basic Chat File Operations Service** - Infrastructure Implementation
 ///

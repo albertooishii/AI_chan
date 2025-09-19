@@ -1,5 +1,5 @@
 import 'package:ai_chan/chat/domain/interfaces/i_language_resolver.dart';
-import 'package:ai_chan/shared/utils/prefs_utils.dart';
+import 'package:ai_chan/shared.dart';
 // TODO: Replace GoogleSpeechService with new Voice bounded context services
 
 /// Implementation of language resolver that detects language codes for TTS voices

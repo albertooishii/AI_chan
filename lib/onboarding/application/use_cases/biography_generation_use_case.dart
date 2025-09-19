@@ -1,33 +1,34 @@
-import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/onboarding/domain/interfaces/i_profile_service.dart';
-import 'package:ai_chan/core/di.dart' as core_di;
-import 'package:ai_chan/core/services/ia_appearance_generator.dart';
-import 'package:ai_chan/core/services/ia_avatar_generator.dart';
-import 'package:ai_chan/shared/utils/prefs_utils.dart';
-import 'package:ai_chan/shared/utils/storage_utils.dart';
+import 'package:ai_chan/shared/domain/models/ai_chan_profile.dart';
+import 'package:ai_chan/shared/domain/models/chat_export.dart';
+import 'package:ai_chan/shared/domain/models/timeline_entry.dart';
+import 'package:ai_chan/shared/domain/interfaces/i_profile_service.dart';
+import 'package:ai_chan/shared/application/services/ai_generators/ia_appearance_generator.dart';
+import 'package:ai_chan/shared/application/services/ai_generators/ia_avatar_generator.dart';
+import 'package:ai_chan/onboarding/domain/interfaces/i_chat_export_service.dart';
+import 'package:ai_chan/onboarding/domain/interfaces/i_onboarding_persistence_service.dart';
+import 'package:ai_chan/shared/domain/interfaces/i_shared_logger.dart';
 import 'dart:convert';
-import 'package:ai_chan/shared/utils/log_utils.dart';
 
 /// Use Case for Biography Generation
 /// Encapsulates the business logic for creating AI character biographies
 /// Following Clean Architecture principles - no UI dependencies
 class BiographyGenerationUseCase {
   BiographyGenerationUseCase({
-    final IProfileService? profileService,
+    required this.profileService,
+    required this.chatExportService,
+    required this.onboardingPersistenceService,
+    required this.logger,
     final IAAppearanceGenerator? appearanceGenerator,
     final IAAvatarGenerator? avatarGenerator,
-  }) : _profileService = profileService,
-       _appearanceGenerator = appearanceGenerator ?? IAAppearanceGenerator(),
+  }) : _appearanceGenerator = appearanceGenerator ?? IAAppearanceGenerator(),
        _avatarGenerator = avatarGenerator ?? IAAvatarGenerator();
 
-  final IProfileService? _profileService;
+  final IProfileService profileService;
+  final IChatExportService chatExportService;
+  final IOnboardingPersistenceService onboardingPersistenceService;
+  final ISharedLogger logger;
   final IAAppearanceGenerator _appearanceGenerator;
   final IAAvatarGenerator _avatarGenerator;
-
-  /// Gets the profile service, creating one if not provided
-  Future<IProfileService> _getProfileService() async {
-    return _profileService ?? await core_di.getProfileServiceForProvider();
-  }
 
   /// Generates a complete AI biography with appearance and avatar
   /// Returns the generated profile or throws an exception
@@ -54,7 +55,6 @@ class BiographyGenerationUseCase {
       // Step 1: Generate basic biography
       onProgress?.call(BiographyGenerationStep.generatingBiography);
 
-      final profileService = await _getProfileService();
       final biography = await profileService.generateBiography(
         userName: userName,
         aiName: aiName,
@@ -101,11 +101,11 @@ class BiographyGenerationUseCase {
         );
 
         // Save the complete chat export (includes biography and timeline)
-        await StorageUtils.saveChatExportToPrefs(chatExport);
+        await chatExportService.saveExport(chatExport.toJson());
       } on Exception catch (e) {
         // Log persistence failures to help debugging on devices
         try {
-          Log.w(
+          logger.error(
             'BiographyGenerationUseCase: failed to save biography: $e',
             tag: 'BIO_GEN',
           );
@@ -125,10 +125,10 @@ class BiographyGenerationUseCase {
   /// Loads existing biography from storage
   Future<AiChanProfile?> loadExistingBiography() async {
     try {
-      final jsonStr = await PrefsUtils.getOnboardingData();
+      final jsonStr = await onboardingPersistenceService.getOnboardingData();
       if (jsonStr != null && jsonStr.trim().isNotEmpty) {
         final Map<String, dynamic> json = jsonDecode(jsonStr);
-        return await AiChanProfile.tryFromJson(json);
+        return AiChanProfile.tryFromJson(json);
       }
       return null;
     } on Exception catch (e) {
@@ -162,8 +162,8 @@ class BiographyGenerationUseCase {
 
   /// Clears saved biography from storage
   Future<void> clearSavedBiography() async {
-    await PrefsUtils.removeOnboardingData();
-    await PrefsUtils.removeChatHistory();
+    await onboardingPersistenceService.removeOnboardingData();
+    await onboardingPersistenceService.removeChatHistory();
   }
 }
 

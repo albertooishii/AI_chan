@@ -1,5 +1,5 @@
-import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/core/models.dart' as infra;
+import 'package:ai_chan/shared/domain/models/index.dart';
+import 'package:ai_chan/shared/domain/models/index.dart' as infra;
 
 abstract class IMessageFactory {
   Message fromAIResponse({

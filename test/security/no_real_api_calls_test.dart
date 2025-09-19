@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-// 🔥 ELIMINATED: package:ai_chan/core/di.dart (era parte del Call system legacy)
-import 'package:ai_chan/core/config.dart' as config;
+// Note: old Call system module was removed; tests keep compatibility shims instead of depending on it.
+import 'package:ai_chan/shared/infrastructure/config/config.dart' as config;
 import '../test_setup.dart' as test_setup;
 
 /// HttpOverrides that prevents any HTTP(S) client from being created during
@@ -23,10 +23,15 @@ void main() {
     HttpOverrides.global = _NoNetworkHttpOverrides();
   });
 
-  test('🔥 LEGACY TEST ELIMINATED - STT service was part of Call system', () {
-    // 🔥 Call system eliminado: getSttService era parte del Call bounded context legacy
-    // Este test se mantiene como no-op para no romper otros tests que dependían de él
-    expect(true, isTrue, reason: 'Call system legacy eliminado');
+  test('Compatibility placeholder: STT service (call system removed)', () {
+    // The legacy Call bounded context (which provided STT) was removed.
+    // This placeholder test exists to preserve suite stability for code
+    // paths that used to rely on that component.
+    expect(
+      true,
+      isTrue,
+      reason: 'Compatibility placeholder for removed call system',
+    );
   });
 
   test('API keys are test or empty in the test environment', () {

@@ -7,8 +7,8 @@ library;
 import 'dart:io';
 import 'dart:async';
 import 'dart:collection';
-import '../interfaces/i_http_connection_pool.dart';
-import '../../../utils/log_utils.dart';
+import 'package:ai_chan/shared/ai_providers/core/interfaces/i_http_connection_pool.dart';
+import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
 
 /// Pooled HTTP Client wrapper with usage tracking
 class _PooledHttpClient {

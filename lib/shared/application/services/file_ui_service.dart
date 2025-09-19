@@ -1,5 +1,5 @@
 import 'package:ai_chan/shared/domain/interfaces/i_file_operations_service.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/image_persistence_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/image/image_persistence_service.dart';
 
 /// Servicio de aplicación para operaciones de archivo desde la UI.
 /// Proporciona una interfaz limpia para que los widgets accedan a archivos

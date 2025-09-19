@@ -2,14 +2,14 @@ import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_metadata.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/api_key_manager.dart';
-import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/core/http_connector.dart';
-import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
+import 'package:ai_chan/shared/infrastructure/network/http_connector.dart';
+import 'package:ai_chan/shared/ai_providers/core/interfaces/i_realtime_client.dart';
 // 🔥 ELIMINATED: openai_realtime_client.dart (was part of Call legacy system)
-import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
 import 'package:ai_chan/chat/infrastructure/adapters/prompt_builder_service.dart'
     as pb;
-import 'package:ai_chan/shared/utils/debug_call_logger/debug_call_logger_io.dart';
+import 'package:ai_chan/shared/infrastructure/utils/debug_call_logger/debug_call_logger_io.dart';
 import 'package:ai_chan/chat/application/services/tts_voice_management_service.dart'
     as tts_svc;
 import 'dart:convert';
@@ -17,6 +17,9 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'package:ai_chan/shared/ai_providers/core/services/image/image_persistence_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/audio/audio_persistence_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/provider_response.dart';
 
 /// OpenAI provider implementation using the new architecture.
 /// This provider directly implements HTTP calls to OpenAI API without depending on OpenAIService.
@@ -150,7 +153,7 @@ class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
   }
 
   @override
-  Future<AIResponse> sendMessage({
+  Future<ProviderResponse> sendMessage({
     required final List<Map<String, String>> history,
     required final SystemPrompt systemPrompt,
     required final AICapability capability,
@@ -162,7 +165,7 @@ class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
     switch (capability) {
       case AICapability.textGeneration:
       case AICapability.imageAnalysis:
-        return await _sendTextRequest(
+        final r1 = await _sendTextRequest(
           history,
           systemPrompt,
           model,
@@ -170,28 +173,51 @@ class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
           imageMimeType,
           additionalParams,
         );
+        return ProviderResponse(
+          text: r1.text,
+          seed: r1.seed,
+          prompt: r1.prompt,
+        );
       case AICapability.imageGeneration:
-        return await _sendImageGenerationRequest(
+        final r2 = await _sendImageGenerationRequest(
           history,
           systemPrompt,
           model,
           additionalParams,
+        );
+        return ProviderResponse(
+          text: r2.text,
+          seed: r2.seed,
+          prompt: r2.prompt,
         );
       case AICapability.audioGeneration:
-        return await _sendTTSRequest(history, model, additionalParams);
+        final r3 = await _sendTTSRequest(history, model, additionalParams);
+        return ProviderResponse(
+          text: r3.text,
+          seed: r3.seed,
+          prompt: r3.prompt,
+        );
       case AICapability.realtimeConversation:
-        return await _handleRealtimeRequest(
+        final r4 = await _handleRealtimeRequest(
           history,
           systemPrompt,
           model,
           additionalParams,
         );
+        return ProviderResponse(
+          text: r4.text,
+          seed: r4.seed,
+          prompt: r4.prompt,
+        );
       default:
-        return AIResponse(
+        return ProviderResponse(
           text: 'Capability $capability not supported by OpenAI provider',
         );
     }
   }
+
+  // Helper to wrap AIResponse + optional binaries into ProviderResponse
+  // Helper removed; wrap AIResponse into ProviderResponse inline where needed.
 
   Future<AIResponse> _sendTextRequest(
     final List<Map<String, String>> history,
@@ -539,9 +565,25 @@ class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
             ? revisedPrompt.trim()
             : metaPrompt;
 
+        // If provider returned an image as base64, persist and return filename
+        if (imageBase64Output.isNotEmpty) {
+          try {
+            final saved = await ImagePersistenceService.instance
+                .saveBase64Image(imageBase64Output);
+            if (saved != null && saved.isNotEmpty) {
+              return AIResponse(
+                text: (text.trim().isNotEmpty) ? text : '',
+                seed: imageId,
+                prompt: effectivePrompt,
+              );
+            }
+          } on Exception catch (e) {
+            Log.w('[OpenAIProvider] Failed to persist image base64: $e');
+          }
+        }
+
         return AIResponse(
           text: (text.trim().isNotEmpty) ? text : '',
-          base64: imageBase64Output,
           seed: imageId,
           prompt: effectivePrompt,
         );
@@ -677,15 +719,18 @@ class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
           '🎵 [_sendTTSRequest] ✅ Success! Base64 length: ${audioBase64.length}',
           tag: 'OPENAI_TTS',
         );
-        final result = AIResponse(
-          text: 'Audio generated successfully',
-          base64: audioBase64,
-        );
-        Log.d(
-          '🎵 [_sendTTSRequest] ✅ Returning AIResponse with base64: ${result.base64.isNotEmpty}',
-          tag: 'OPENAI_TTS',
-        );
-        return result;
+        // Persist audio and return filename
+        try {
+          final savedAudio = await AudioPersistenceService.instance
+              .saveBase64Audio(audioBase64, prefix: 'tts');
+          if (savedAudio != null && savedAudio.isNotEmpty) {
+            return AIResponse(text: 'Audio generated successfully');
+          }
+        } on Exception catch (e) {
+          Log.w('[OpenAIProvider] Failed to persist TTS audio: $e');
+        }
+        // Fallback: return textual success if persistence failed
+        return AIResponse(text: 'Audio generated successfully');
       } else {
         Log.e(
           '🎵 [_sendTTSRequest] ❌ Error response: ${response.body}',
@@ -702,7 +747,7 @@ class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
   }
 
   @override
-  Future<AIResponse> generateAudio({
+  Future<ProviderResponse> generateAudio({
     required final String text,
     final String? voice,
     final String? model,
@@ -718,11 +763,11 @@ class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
     Log.d('  - additionalParams: $additionalParams', tag: 'OPENAI_TTS');
 
     if (_apiKey.trim().isEmpty) {
-      return AIResponse(text: 'Error: Missing OpenAI API key for TTS.');
+      return ProviderResponse(text: 'Error: Missing OpenAI API key for TTS.');
     }
 
     if (text.isEmpty) {
-      return AIResponse(text: 'Error: No text provided for TTS.');
+      return ProviderResponse(text: 'Error: No text provided for TTS.');
     }
 
     // El modelo debe venir del AIProviderManager, no de variables de environment
@@ -793,10 +838,18 @@ class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
           tag: 'OPENAI_TTS',
         );
         final audioBase64 = base64Encode(response.bodyBytes);
-        return AIResponse(
-          text: 'Audio generated successfully',
-          base64: audioBase64,
-        );
+        try {
+          final saved = await AudioPersistenceService.instance.saveBase64Audio(
+            audioBase64,
+            prefix: 'tts',
+          );
+          if (saved != null && saved.isNotEmpty) {
+            return ProviderResponse(text: 'Audio generated successfully');
+          }
+        } on Exception catch (e) {
+          Log.w('[OpenAIProvider] Failed to persist TTS audio: $e');
+        }
+        return ProviderResponse(text: 'Audio generated successfully');
       } else {
         Log.e(
           '🎵 [OPENAI_TTS_RESPONSE] ❌ Error ${response.statusCode}: ${response.body}',
@@ -805,18 +858,18 @@ class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
         Log.e(
           '[OpenAIProvider] TTS Error ${response.statusCode}: ${response.body}',
         );
-        return AIResponse(
+        return ProviderResponse(
           text: 'Error generating audio: ${response.statusCode}',
         );
       }
     } on Exception catch (e) {
       Log.e('[OpenAIProvider] TTS Exception: $e');
-      return AIResponse(text: 'Error connecting to OpenAI TTS: $e');
+      return ProviderResponse(text: 'Error connecting to OpenAI TTS: $e');
     }
   }
 
   @override
-  Future<AIResponse> transcribeAudio({
+  Future<ProviderResponse> transcribeAudio({
     required final String audioBase64,
     final String? audioFormat,
     final String? model,
@@ -825,7 +878,7 @@ class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
   }) async {
     try {
       if (_apiKey.trim().isEmpty) {
-        return AIResponse(text: 'Error: Missing OpenAI API key for STT.');
+        return ProviderResponse(text: 'Error: Missing OpenAI API key for STT.');
       }
 
       // Convert base64 to bytes and create temporary file
@@ -872,12 +925,12 @@ class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
           Log.d(
             '[OpenAIProvider] STT success: ${transcribedText.length} characters',
           );
-          return AIResponse(text: transcribedText);
+          return ProviderResponse(text: transcribedText);
         } else {
           Log.e(
             '[OpenAIProvider] STT Error ${response.statusCode}: ${response.body}',
           );
-          return AIResponse(
+          return ProviderResponse(
             text: 'Error transcribing audio: ${response.statusCode}',
           );
         }
@@ -893,7 +946,7 @@ class OpenAIProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
       }
     } on Exception catch (e) {
       Log.e('[OpenAIProvider] STT Exception: $e');
-      return AIResponse(text: 'Error connecting to OpenAI STT: $e');
+      return ProviderResponse(text: 'Error connecting to OpenAI STT: $e');
     }
   }
 

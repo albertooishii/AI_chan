@@ -1,13 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'dart:async';
-import '../../domain/interfaces/i_voice_conversation_service.dart';
-import '../../domain/interfaces/i_tone_service.dart';
-import '../../../core/di.dart' as di;
-import '../../../shared/ai_providers/core/models/audio/voice_settings.dart';
-import '../../../shared/ai_providers/core/services/audio/centralized_microphone_amplitude_service.dart';
-import '../../../shared/services/hybrid_stt_service.dart';
-import '../../../shared/ai_providers/core/services/audio/centralized_listening_service.dart';
-import '../../../shared/domain/enums/conversation_state.dart' as shared;
+import 'package:ai_chan/shared.dart'
+    hide
+        ConversationState; // Using shared exports for infrastructure, hiding ConversationState
+import 'package:ai_chan/voice/domain/interfaces/i_voice_conversation_service.dart';
+import 'package:ai_chan/voice/domain/interfaces/i_tone_service.dart';
+// REMOVED: Direct infrastructure imports - using shared.dart instead
+import 'package:ai_chan/shared/ai_providers/core/services/audio/centralized_microphone_amplitude_service.dart';
 
 /// 🎯 Controller para llamadas de voz completas con IA
 /// Integra conversaciones reales usando TTS, STT y respuestas de IA
@@ -16,9 +15,9 @@ class VoiceCallController extends ChangeNotifier {
     final IVoiceConversationService? voiceConversation,
     final IToneService? toneService,
   }) {
-    _voiceConversation = voiceConversation ?? di.getVoiceConversationService();
+    _voiceConversation = voiceConversation ?? getVoiceConversationService();
     _automaticListening = CentralizedListeningService(HybridSttService());
-    _toneService = toneService ?? di.getToneService();
+    _toneService = toneService ?? getToneService();
     _setupConversationListener();
   }
 
@@ -78,22 +77,22 @@ class VoiceCallController extends ChangeNotifier {
         _conversationState = state;
 
         // 🎯 Mapear estados de voice a shared y actualizar servicio automático
-        shared.ConversationState sharedState;
+        ConversationState sharedState;
         switch (state) {
           case ConversationState.idle:
-            sharedState = shared.ConversationState.idle;
+            sharedState = ConversationState.idle;
             break;
           case ConversationState.listening:
-            sharedState = shared.ConversationState.listening;
+            sharedState = ConversationState.listening;
             break;
           case ConversationState.processing:
-            sharedState = shared.ConversationState.processing;
+            sharedState = ConversationState.processing;
             break;
           case ConversationState.speaking:
-            sharedState = shared.ConversationState.speaking;
+            sharedState = ConversationState.speaking;
             break;
           case ConversationState.error:
-            sharedState = shared.ConversationState.error;
+            sharedState = ConversationState.error;
             break;
         }
 
@@ -105,9 +104,7 @@ class VoiceCallController extends ChangeNotifier {
       onError: (final error) {
         _errorMessage = error.toString();
         _conversationState = ConversationState.error;
-        _automaticListening.updateConversationState(
-          shared.ConversationState.error,
-        );
+        _automaticListening.updateConversationState(ConversationState.error);
         notifyListeners();
       },
     );

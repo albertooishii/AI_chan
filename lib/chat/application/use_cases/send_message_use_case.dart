@@ -1,16 +1,16 @@
 import 'package:ai_chan/chat/domain/models/chat_result.dart';
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
 import 'package:ai_chan/chat/application/services/chat_message_service.dart';
 import 'package:ai_chan/chat/application/mappers/message_factory.dart';
 // ai_capability handled internally by provider manager
 
 // Import new services
-import '../services/message_image_processing_service.dart';
-import '../services/message_audio_processing_service.dart';
-import '../services/message_sanitization_service.dart';
-import '../../domain/interfaces/i_chat_event_timeline_service.dart';
-import '../../domain/interfaces/i_chat_logger.dart';
+import 'package:ai_chan/chat/application/services/message_image_processing_service.dart';
+import 'package:ai_chan/chat/application/services/message_audio_processing_service.dart';
+import 'package:ai_chan/chat/application/services/message_sanitization_service.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_chat_event_timeline_service.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_chat_logger.dart';
 
 /// Send Message Use Case - Chat Application Layer
 /// Orquesta el proceso completo de envío de mensaje usando servicios especializados
@@ -46,8 +46,7 @@ class SendMessageUseCase {
   Future<SendMessageOutcome> sendChat({
     required final List<Message> recentMessages,
     required final SystemPrompt systemPromptObj,
-    final String? imageBase64,
-    final String? imageMimeType,
+    final AiImage? image,
     final bool enableImageGeneration = false,
     final AiChanProfile? onboardingData,
     final Future<void> Function()? saveAll,
@@ -62,8 +61,7 @@ class SendMessageUseCase {
       history: history,
       systemPrompt: systemPromptObj,
       enableImageGeneration: enableImageGeneration,
-      imageBase64: imageBase64,
-      imageMimeType: imageMimeType,
+      imageRef: image,
     );
 
     // If message text is empty, treat as failure

@@ -5,9 +5,9 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:ai_chan/core/models/ai_response.dart';
-import 'package:ai_chan/core/models/system_prompt.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
+// system_prompt is re-exported via package:ai_chan/shared/domain/models/index.dart
+import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
 
 /// Request fingerprint for deduplication
 class RequestFingerprint {

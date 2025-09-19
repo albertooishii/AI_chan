@@ -1,8 +1,8 @@
-import 'package:ai_chan/onboarding/domain/interfaces/i_profile_service.dart';
-import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/core/services/ia_bio_generator.dart';
-import 'package:ai_chan/core/services/ia_appearance_generator.dart';
-import 'package:ai_chan/core/services/ia_avatar_generator.dart';
+import 'package:ai_chan/shared/domain/interfaces/i_profile_service.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
+import 'package:ai_chan/shared/application/services/ai_generators/ia_bio_generator.dart';
+import 'package:ai_chan/shared/application/services/ai_generators/ia_appearance_generator.dart';
+import 'package:ai_chan/shared/application/services/ai_generators/ia_avatar_generator.dart';
 
 /// Adaptador canónico de perfil: delega la generación de biografía y apariencia
 /// a los generadores existentes usando el nuevo sistema AIProviderManager.

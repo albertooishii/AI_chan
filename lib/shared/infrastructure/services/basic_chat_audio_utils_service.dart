@@ -1,5 +1,5 @@
 import 'package:ai_chan/chat/domain/interfaces/i_chat_audio_utils_service.dart';
-import 'package:ai_chan/shared/utils/audio_duration_utils.dart';
+import 'package:ai_chan/shared/infrastructure/utils/audio_duration_utils.dart';
 
 /// Basic implementation of IChatAudioUtilsService for dependency injection
 class BasicChatAudioUtilsService implements IChatAudioUtilsService {

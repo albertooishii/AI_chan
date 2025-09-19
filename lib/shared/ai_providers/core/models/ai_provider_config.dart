@@ -3,7 +3,7 @@
 library;
 
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
 
 /// Root configuration model that represents the entire YAML file
 class AIProvidersConfig {

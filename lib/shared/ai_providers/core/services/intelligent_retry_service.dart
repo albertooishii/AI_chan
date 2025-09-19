@@ -5,8 +5,8 @@ library;
 import 'dart:async';
 import 'dart:math';
 import 'dart:io';
-import '../../../utils/log_utils.dart';
-import '../interfaces/i_retry_service.dart';
+import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
+import 'package:ai_chan/shared/ai_providers/core/interfaces/i_retry_service.dart';
 
 /// Provider-specific circuit breaker
 class _CircuitBreaker {

@@ -1,6 +1,4 @@
-import 'package:ai_chan/core/models.dart';
-import '../../utils/event_parser_utils.dart';
-import '../../utils/log_utils.dart';
+import 'package:ai_chan/shared.dart';
 
 class EventTimelineService {
   // Añade un evento al timeline si se detecta fecha y palabras clave

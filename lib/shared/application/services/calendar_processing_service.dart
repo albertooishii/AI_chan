@@ -1,4 +1,4 @@
-import 'package:ai_chan/shared/utils/schedule_utils.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Servicio para manejar la lógica de procesamiento de calendario
 /// Separa el parsing y validación de horarios de la capa de presentación

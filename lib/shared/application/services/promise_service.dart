@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
 
 /// Servicio unificado de promesas IA: detección, duplicados, restauración y scheduling.
 class PromiseService {

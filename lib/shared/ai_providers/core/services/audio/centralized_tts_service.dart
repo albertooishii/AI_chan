@@ -1,14 +1,10 @@
+import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
+import 'package:ai_chan/shared.dart';
 import 'dart:convert';
-import '../ai_provider_manager.dart';
-import '../../models/ai_capability.dart';
-import '../../../../utils/log_utils.dart';
-import '../../../../utils/audio_duration_utils.dart';
-import '../../interfaces/audio/i_tts_service.dart';
-import '../../models/audio/synthesis_result.dart';
-import '../../models/audio/voice_info.dart';
-import '../../models/audio/voice_settings.dart';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/audio/audio_persistence_service.dart';
 
 /// 🎯 Servicio centralizado de TTS (Text-to-Speech)
 /// Usa AIProviderManager para resolver providers automáticamente
@@ -42,7 +38,7 @@ class CentralizedTtsService implements ITtsService {
       '[CentralizedTTS] ✅ Provider encontrado: ${audioCapabilityProvider.providerId}',
     );
 
-    final aiResponse = await audioCapabilityProvider.generateAudio(
+    final providerResp = await audioCapabilityProvider.generateAudio(
       text: text,
       voice: settings.voiceId,
       additionalParams: {
@@ -53,25 +49,57 @@ class CentralizedTtsService implements ITtsService {
       },
     );
 
-    // Check if we have valid audio data
-    if (aiResponse.base64.isEmpty) {
+    // ProviderResponse exposes semantic fields directly. Providers may return
+    // either `audioBase64` (preferred) or legacy pre-persisted filenames.
+    String? audioFileName;
+    Uint8List? audioBytes;
+
+    if (providerResp.audioBase64 != null &&
+        providerResp.audioBase64!.isNotEmpty) {
+      // Persist base64 audio centrally and load bytes
+      try {
+        final saved = await AudioPersistenceService.instance.saveBase64Audio(
+          providerResp.audioBase64!,
+          prefix: 'tts',
+        );
+        if (saved != null && saved.isNotEmpty) {
+          audioFileName = saved;
+        }
+      } on Exception catch (e) {
+        Log.w('[CentralizedTTS] Failed to persist provider audio: $e');
+      }
+    }
+
+    // If the provider returned a filename (legacy), prefer it
+    if (audioFileName == null && providerResp.audioBase64 == null) {
+      // No base64 provided; there is no filename concept anymore from providers
+      // so fail fast with a helpful message
       throw VoiceSynthesisException(
-        'No se recibió audio válido del provider: ${aiResponse.text}',
+        'No se recibió audio válido del provider: ${providerResp.text}',
       );
     }
 
-    Log.d(
-      '[CentralizedTTS] ✅ Audio generado exitosamente: ${aiResponse.base64.length} chars base64',
-    );
-
-    final audioData = base64Decode(aiResponse.base64);
+    if (audioFileName != null) {
+      Log.d(
+        '[CentralizedTTS] Loading persisted audio from file: $audioFileName',
+      );
+      final loaded = await AudioPersistenceService.instance.loadAudioAsBytes(
+        audioFileName,
+      );
+      audioBytes = loaded == null ? null : Uint8List.fromList(loaded);
+    }
+    if (audioBytes == null || audioBytes.isEmpty) {
+      throw VoiceSynthesisException(
+        'No se pudo cargar el audio persistido: $audioFileName',
+      );
+    }
 
     // 🎯 Crear un archivo temporal para obtener la duración real
     final tempDir = await getTemporaryDirectory();
     final tempFile = File(
       '${tempDir.path}/tts_duration_check_${DateTime.now().millisecondsSinceEpoch}.mp3',
     );
-    await tempFile.writeAsBytes(audioData);
+    await tempFile.writeAsBytes(audioBytes);
 
     // Obtener duración real del archivo
     Duration realDuration;
@@ -106,7 +134,7 @@ class CentralizedTtsService implements ITtsService {
     }
 
     return SynthesisResult(
-      audioData: audioData,
+      audioData: audioBytes,
       format: 'mp3',
       duration: realDuration,
       settings: settings,
@@ -177,6 +205,53 @@ class CentralizedTtsService implements ITtsService {
   Future<List<String>> getSupportedLanguages() async {
     // TODO: Obtener de AIProviderManager dinámicamente
     return ['es-ES', 'en-US', 'fr-FR', 'de-DE', 'it-IT', 'pt-BR'];
+  }
+
+  @override
+  Future<String?> synthesizeToFile({
+    required final String text,
+    final Map<String, dynamic>? options,
+  }) async {
+    try {
+      Log.d('[CentralizedTTS] Sintetizando texto a archivo: $text');
+
+      // Crear configuración de voz con opciones o defaults
+      final voiceId = options?['voiceId'] as String? ?? 'es-ES-Standard-A';
+      final language = options?['language'] as String? ?? 'es-ES';
+
+      final settings = VoiceSettings.create(
+        voiceId: voiceId,
+        language: language,
+      );
+
+      // Sintetizar audio
+      final result = await synthesize(text: text, settings: settings);
+
+      if (result.audioData.isEmpty) {
+        Log.w('[CentralizedTTS] No se generó audio para: $text');
+        return null;
+      }
+
+      // Convertir bytes a base64 y guardar
+      final audioBase64 = base64Encode(result.audioData);
+      final savedFileName = await AudioPersistenceService.instance
+          .saveBase64Audio(audioBase64, prefix: 'tts');
+
+      if (savedFileName != null) {
+        // Construir ruta completa
+        final dir =
+            await getTemporaryDirectory(); // Usar temp directory como fallback
+        final filePath = '${dir.path}/$savedFileName';
+        Log.d('[CentralizedTTS] ✅ Audio guardado en: $filePath');
+        return filePath;
+      } else {
+        Log.w('[CentralizedTTS] Error guardando archivo de audio');
+        return null;
+      }
+    } on Exception catch (e) {
+      Log.e('[CentralizedTTS] Error sintetizando a archivo: $e');
+      return null;
+    }
   }
 
   @override

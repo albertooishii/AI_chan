@@ -1,22 +1,12 @@
-import 'package:ai_chan/core/cache/cache_service.dart';
-import 'package:ai_chan/core/di.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
-import 'package:ai_chan/shared/utils/dialog_utils.dart';
-import 'package:ai_chan/shared/utils/prefs_utils.dart';
-import 'package:ai_chan/shared/utils/voice_display_utils.dart';
-import 'package:ai_chan/shared/application/services/file_ui_service.dart';
-import 'package:ai_chan/shared/domain/interfaces/audio_playback_service.dart';
-import 'package:ai_chan/shared/widgets/app_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'dart:io' show Platform;
 import 'package:android_intent_plus/android_intent.dart' show AndroidIntent;
 
-import '../../domain/interfaces/i_tts_voice_management_service.dart';
-import 'package:ai_chan/shared/constants/app_colors.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_tts_voice_management_service.dart';
 
 typedef SynthesizeTtsFn =
     Future<String?> Function(

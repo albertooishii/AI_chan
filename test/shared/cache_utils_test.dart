@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ai_chan/shared/utils/cache_utils.dart';
+import 'package:ai_chan/shared/infrastructure/utils/cache_utils.dart';
 import '../test_setup.dart' as ts;
-import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/shared/infrastructure/config/config.dart';
 
 void main() {
   setUpAll(() async {

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:ai_chan/shared/utils/string_utils.dart';
-import 'package:ai_chan/shared/application/services/cyberpunk_text_processor_service.dart';
+import 'package:ai_chan/shared.dart'; // Using shared exports for infrastructure
 
 /// Efecto inspirado en "traducción" de Cyberpunk 2077:
 /// Cada vez que llega texto nuevo, los caracteres nuevos pasan por

@@ -22,9 +22,8 @@ class ProviderDecouplingComprehensiveTest {
     'lib/chat/',
     'lib/onboarding/',
     'lib/voice/',
-    'lib/core/',
     'lib/shared/services/',
-    'lib/shared/utils/',
+    'lib/shared/infrastructure/utils/',
     'lib/shared/ai_providers/core/services/', // Services deben usar providers dinámicamente
   ];
 

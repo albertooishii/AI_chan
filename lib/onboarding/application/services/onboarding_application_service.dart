@@ -1,6 +1,6 @@
-import '../use_cases/generate_next_question_use_case.dart';
-import '../use_cases/process_user_response_use_case.dart';
-import '../../domain/entities/memory_data.dart';
+import 'package:ai_chan/onboarding/application/use_cases/generate_next_question_use_case.dart';
+import 'package:ai_chan/onboarding/application/use_cases/process_user_response_use_case.dart';
+import 'package:ai_chan/onboarding/domain/entities/memory_data.dart';
 
 /// 🎯 **Application Service** coordinador para el módulo de Onboarding
 ///

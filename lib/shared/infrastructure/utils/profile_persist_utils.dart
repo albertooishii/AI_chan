@@ -1,4 +1,4 @@
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
 import 'package:ai_chan/shared/domain/interfaces/i_profile_persistence_service.dart';
 import 'package:ai_chan/shared/domain/interfaces/i_shared_logger.dart';
 import 'package:ai_chan/shared/infrastructure/adapters/shared_profile_persistence_service_adapter.dart';

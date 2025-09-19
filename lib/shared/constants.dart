@@ -1,5 +1,5 @@
 // Shared Constants Barrel Export
 
-export 'constants/app_colors.dart';
-export 'constants/countries_es.dart';
-export 'constants/female_names.dart';
+export 'presentation/constants/app_colors.dart';
+export 'domain/constants/countries_es.dart';
+export 'domain/constants/female_names.dart';

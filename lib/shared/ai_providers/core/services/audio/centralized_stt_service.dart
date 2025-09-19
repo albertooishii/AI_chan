@@ -1,8 +1,7 @@
 import 'dart:convert';
-import '../ai_provider_manager.dart';
-import '../../models/ai_capability.dart';
-import '../../../../utils/log_utils.dart';
-import '../../interfaces/audio/i_stt_service.dart';
+import 'dart:io';
+import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
+import 'package:ai_chan/shared.dart';
 
 /// 🎯 Servicio centralizado de STT (Speech-to-Text)
 /// Usa AIProviderManager para resolver providers automáticamente
@@ -75,24 +74,24 @@ class CentralizedSttService implements ISttService {
       // Convert audio data to base64
       final audioBase64 = base64Encode(audioData);
 
-      final aiResponse = await transcriptionProvider.transcribeAudio(
+      final providerResp = await transcriptionProvider.transcribeAudio(
         audioBase64: audioBase64,
         audioFormat: format,
         language: language,
         additionalParams: {'response_format': 'text'},
       );
 
-      if (aiResponse.text.isEmpty) {
+      if (providerResp.text.isEmpty) {
         Log.w('[CentralizedSTT] No se recibió transcripción válida');
         return _simulateRecognition(audioData, language);
       }
 
       Log.d(
-        '[CentralizedSTT] ✅ Audio transcrito exitosamente: "${aiResponse.text}"',
+        '[CentralizedSTT] ✅ Audio transcrito exitosamente: "${providerResp.text}"',
       );
 
       return RecognitionResult(
-        text: aiResponse.text,
+        text: providerResp.text,
         confidence:
             0.95, // OpenAI Whisper no devuelve confidence, asumimos alto
         isFinal: true,
@@ -143,6 +142,63 @@ class CentralizedSttService implements ISttService {
 
   @override
   bool get isListening => _isListening;
+
+  @override
+  Future<String?> transcribeAudio(final String filePath) async {
+    try {
+      Log.d('[CentralizedSTT] Transcribiendo archivo: $filePath');
+
+      // Leer el archivo de audio
+      final file = File(filePath);
+      if (!file.existsSync()) {
+        Log.w('[CentralizedSTT] Archivo no encontrado: $filePath');
+        return null;
+      }
+
+      final audioBytes = await file.readAsBytes();
+      final result = await recognizeAudio(
+        audioData: audioBytes,
+        language: 'es-ES', // Default language
+        format: filePath.split('.').last, // Extract format from extension
+      );
+
+      return result.text;
+    } on Exception catch (e) {
+      Log.e('[CentralizedSTT] Error transcribiendo archivo $filePath: $e');
+      return null;
+    }
+  }
+
+  @override
+  Future<String?> transcribeFile({
+    required final String filePath,
+    final Map<String, dynamic>? options,
+  }) async {
+    try {
+      Log.d('[CentralizedSTT] Transcribiendo archivo con opciones: $filePath');
+
+      final file = File(filePath);
+      if (!file.existsSync()) {
+        Log.w('[CentralizedSTT] Archivo no encontrado: $filePath');
+        return null;
+      }
+
+      final audioBytes = await file.readAsBytes();
+      final language = options?['language'] as String? ?? 'es-ES';
+      final format = options?['format'] as String? ?? filePath.split('.').last;
+
+      final result = await recognizeAudio(
+        audioData: audioBytes,
+        language: language,
+        format: format,
+      );
+
+      return result.text;
+    } on Exception catch (e) {
+      Log.e('[CentralizedSTT] Error transcribiendo archivo $filePath: $e');
+      return null;
+    }
+  }
 }
 
 /// 🎯 DDD: Excepción específica para STT

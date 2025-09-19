@@ -7,7 +7,7 @@ import 'package:ai_chan/shared/ai_providers/core/registry/provider_auto_registry
 import 'package:ai_chan/shared/ai_providers/implementations/google_provider.dart';
 import 'package:ai_chan/shared/ai_providers/implementations/openai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/implementations/xai_provider.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared.dart'; // Consolidated import
 
 /// Register all available AI Providers with the auto-registry system.
 /// This is the ONLY place where providers need to be explicitly listed.

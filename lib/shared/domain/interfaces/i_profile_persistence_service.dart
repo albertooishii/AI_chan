@@ -1,4 +1,4 @@
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
 
 /// Shared domain interface for profile persistence operations.
 /// Can be used across bounded contexts for profile management.

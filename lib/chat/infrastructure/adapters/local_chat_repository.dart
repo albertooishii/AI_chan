@@ -1,10 +1,7 @@
 import 'dart:convert';
 
 import 'package:ai_chan/chat/domain/interfaces/i_chat_repository.dart';
-import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/shared/utils/storage_utils.dart';
-import 'package:ai_chan/shared/utils/prefs_utils.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared.dart';
 // shared_preferences usage centralized via PrefsUtils
 
 /// Implementación única y consolidada de IChatRepository.

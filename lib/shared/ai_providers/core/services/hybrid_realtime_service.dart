@@ -2,13 +2,13 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
+import 'package:ai_chan/shared/ai_providers/core/interfaces/i_realtime_client.dart';
 import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
-import 'package:ai_chan/core/models/system_prompt.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
-import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
+import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/provider_response.dart';
 
 /// Servicio híbrido que combina TTS + STT + modelo de texto
 /// para simular capacidades realtime en proveedores que no las tienen nativas
@@ -293,16 +293,24 @@ class HybridRealtimeService implements IRealtimeClient {
       final audioBase64 = base64Encode(audioData);
 
       // Usar capacidades STT del proveedor
-      final response = await _provider.transcribeAudio(
+      final dynamic rawResp = await _provider.transcribeAudio(
         audioBase64: audioBase64,
         model: _getTranscriptionModel(),
         language: _getCurrentLanguage(),
         additionalParams: _config,
       );
 
-      // Extraer texto de la respuesta
-      if (response.text.isNotEmpty) {
-        return response.text;
+      final providerResp = rawResp is ProviderResponse
+          ? rawResp
+          : ProviderResponse(
+              text: (rawResp as AIResponse).text,
+              seed: (rawResp).seed,
+              prompt: (rawResp).prompt,
+            );
+
+      final text = providerResp.text;
+      if (text.isNotEmpty) {
+        return text;
       } else {
         return 'Sin transcripción disponible';
       }
@@ -334,7 +342,7 @@ class HybridRealtimeService implements IRealtimeClient {
       });
 
       // Generar respuesta de texto
-      final response = await _provider.sendMessage(
+      final dynamic rawResp = await _provider.sendMessage(
         history: history,
         systemPrompt: systemPrompt,
         capability: AICapability.textGeneration,
@@ -342,7 +350,15 @@ class HybridRealtimeService implements IRealtimeClient {
         additionalParams: _config,
       );
 
-      final responseText = response.text;
+      final providerResp = rawResp is ProviderResponse
+          ? rawResp
+          : ProviderResponse(
+              text: (rawResp as AIResponse).text,
+              seed: (rawResp).seed,
+              prompt: (rawResp).prompt,
+            );
+
+      final responseText = providerResp.text;
 
       if (responseText.isNotEmpty) {
         // Notificar respuesta de texto
@@ -362,21 +378,35 @@ class HybridRealtimeService implements IRealtimeClient {
   Future<void> _generateAudioResponse(final String text) async {
     try {
       // Usar capacidades TTS del proveedor
-      final response = await _provider.generateAudio(
+      final dynamic rawResp = await _provider.generateAudio(
         text: text,
         model: _getAudioModel(),
         voice: _currentVoice,
         additionalParams: _config,
       );
+      final providerResp = rawResp is ProviderResponse
+          ? rawResp
+          : ProviderResponse(
+              text: (rawResp as AIResponse).text,
+              seed: (rawResp).seed,
+              prompt: (rawResp).prompt,
+            );
 
-      // Extraer datos de audio de la respuesta
-      if (response.base64.isNotEmpty) {
-        // Convertir de base64
-        final audioBytes = base64Decode(response.base64);
-        _audioResponseController.add(audioBytes);
-      } else if (response.text.isNotEmpty) {
+      // Extraer datos de audio de la respuesta: prefer audioBase64
+      if (providerResp.audioBase64 != null &&
+          providerResp.audioBase64!.isNotEmpty) {
+        try {
+          final bytes = base64Decode(providerResp.audioBase64!);
+          _audioResponseController.add(Uint8List.fromList(bytes));
+          return;
+        } on Exception catch (e) {
+          _debugLog('Error decoding provider audio base64: $e');
+        }
+      }
+
+      if (providerResp.text.isNotEmpty) {
         // Intentar convertir texto como fallback
-        final audioBytes = Uint8List.fromList(response.text.codeUnits);
+        final audioBytes = Uint8List.fromList(providerResp.text.codeUnits);
         _audioResponseController.add(audioBytes);
       }
     } on Exception catch (e) {

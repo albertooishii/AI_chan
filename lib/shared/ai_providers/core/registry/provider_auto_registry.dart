@@ -4,7 +4,7 @@ library;
 
 import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_config.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
 
 /// Signature for provider constructor functions
 typedef ProviderConstructor = IAIProvider Function(ProviderConfig config);

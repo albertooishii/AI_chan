@@ -6,7 +6,7 @@ library;
 import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_config.dart';
 import 'package:ai_chan/shared/ai_providers/core/registry/provider_auto_registry.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart' show Log;
+import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart' show Log;
 
 /// Exception thrown when provider creation fails
 class ProviderCreationException implements Exception {

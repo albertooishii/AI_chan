@@ -1,6 +1,6 @@
-import '../../domain/interfaces/i_tts_voice_management_service.dart';
-import '../../application/services/tts_voice_management_service.dart';
-import '../../../shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/chat/domain/interfaces/i_tts_voice_management_service.dart';
+import 'package:ai_chan/chat/application/services/tts_voice_management_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
 
 /// Infrastructure adapter for TTS voice management service
 /// Implements the domain interface and delegates to application service

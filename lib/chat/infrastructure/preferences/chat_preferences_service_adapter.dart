@@ -1,5 +1,5 @@
 import 'package:ai_chan/chat/domain/interfaces/i_chat_preferences_service.dart';
-import 'package:ai_chan/shared/utils/prefs_utils.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Infrastructure adapter that implements IChatPreferencesService
 /// using the shared preferences utilities.

@@ -2,13 +2,15 @@ import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_metadata.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/api_key_manager.dart';
-import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/core/http_connector.dart';
-import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
+import 'package:ai_chan/shared/infrastructure/network/http_connector.dart';
+import 'package:ai_chan/shared/ai_providers/core/interfaces/i_realtime_client.dart';
+import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:typed_data';
+import 'package:ai_chan/shared/ai_providers/core/models/provider_response.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/image/image_persistence_service.dart';
 
 /// X.AI Grok provider implementation using the new architecture.
 /// This provider directly implements HTTP calls to X.AI API without depending on GrokService.
@@ -133,7 +135,7 @@ class XAIProvider implements IAIProvider {
   }
 
   @override
-  Future<AIResponse> sendMessage({
+  Future<ProviderResponse> sendMessage({
     required final List<Map<String, String>> history,
     required final SystemPrompt systemPrompt,
     required final AICapability capability,
@@ -150,7 +152,7 @@ class XAIProvider implements IAIProvider {
 
     switch (capability) {
       case AICapability.textGeneration:
-        return await _sendTextRequest(
+        final r = await _sendTextRequest(
           history,
           systemPrompt,
           modelToUse,
@@ -158,6 +160,7 @@ class XAIProvider implements IAIProvider {
           imageMimeType,
           additionalParams,
         );
+        return ProviderResponse(text: r.text, seed: r.seed, prompt: r.prompt);
       default:
         throw UnsupportedError(
           'Capability $capability not supported by XAIProvider',
@@ -296,7 +299,18 @@ class XAIProvider implements IAIProvider {
             }
           }
         } on Exception catch (_) {}
-        return AIResponse(text: text, base64: outBase64, seed: seed);
+        if (outBase64.isNotEmpty) {
+          try {
+            final saved = await ImagePersistenceService.instance
+                .saveBase64Image(outBase64);
+            if (saved != null && saved.isNotEmpty) {
+              return AIResponse(text: text, seed: seed);
+            }
+          } on Exception catch (e) {
+            Log.w('[XAIProvider] Failed to persist image base64: $e');
+          }
+        }
+        return AIResponse(text: text, seed: seed);
       } else {
         Log.e('Error en Grok: ${resp.statusCode} - ${resp.body}');
         return AIResponse(
@@ -384,7 +398,7 @@ class XAIProvider implements IAIProvider {
   }
 
   @override
-  Future<AIResponse> generateAudio({
+  Future<ProviderResponse> generateAudio({
     required final String text,
     final String? voice,
     final String? model,
@@ -392,11 +406,13 @@ class XAIProvider implements IAIProvider {
   }) async {
     // XAI doesn't support TTS
     Log.w('[XAIProvider] TTS not supported by XAI/Grok');
-    return AIResponse(text: 'XAI/Grok does not support TTS functionality');
+    return ProviderResponse(
+      text: 'XAI/Grok does not support TTS functionality',
+    );
   }
 
   @override
-  Future<AIResponse> transcribeAudio({
+  Future<ProviderResponse> transcribeAudio({
     required final String audioBase64,
     final String? audioFormat,
     final String? model,
@@ -405,7 +421,9 @@ class XAIProvider implements IAIProvider {
   }) async {
     // XAI doesn't support STT
     Log.w('[XAIProvider] STT not supported by XAI/Grok');
-    return AIResponse(text: 'XAI/Grok does not support STT functionality');
+    return ProviderResponse(
+      text: 'XAI/Grok does not support STT functionality',
+    );
   }
 
   @override

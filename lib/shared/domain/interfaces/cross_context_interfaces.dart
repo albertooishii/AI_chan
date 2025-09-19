@@ -3,6 +3,10 @@
 // This file contains interfaces that allow bounded contexts to communicate
 // without creating direct dependencies between them.
 
+import 'package:ai_chan/shared/ai_providers/core/models/audio/voice_settings.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/audio/voice_info.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/audio/synthesis_result.dart';
+
 /// Interface for chat integration services
 /// Allows call context to communicate with chat without direct dependency
 abstract class IChatIntegrationService {
@@ -38,8 +42,32 @@ abstract class ICallIntegrationService {
   Future<void> sendMessageToCall(final String message);
 }
 
-/// Interface for TTS services that can be used across contexts
-abstract class ITextToSpeechService {
+/// 🎯 DDD: Puerto para síntesis de voz (TTS)
+/// El dominio define QUÉ necesita, la infraestructura CÓMO lo hace
+abstract interface class ITextToSpeechService {
+  /// Sintetizar texto a audio
+  Future<SynthesisResult> synthesize({
+    required final String text,
+    required final VoiceSettings settings,
+  });
+
+  /// Obtener voces disponibles para un idioma
+  Future<List<VoiceInfo>> getAvailableVoices({required final String language});
+
+  /// Verificar si el servicio está disponible
+  Future<bool> isAvailable();
+
+  /// Obtener idiomas soportados
+  Future<List<String>> getSupportedLanguages();
+
+  /// Previsualizar voz (para configuración)
+  Future<SynthesisResult> previewVoice({
+    required final String voiceId,
+    required final String language,
+    final String sampleText = 'Hola, esta es una prueba de voz.',
+  });
+
+  /// Legacy interface methods for backward compatibility
   Future<void> speak(
     final String text, {
     final String? language,
@@ -50,12 +78,56 @@ abstract class ITextToSpeechService {
   Future<bool> isSpeaking();
 }
 
-/// Interface for STT services that can be used across contexts
-abstract class ISpeechToTextService {
-  Future<void> startListening({final String? language});
+/// 🎯 DDD: Puerto para reconocimiento de voz (STT)
+abstract interface class ISpeechToTextService {
+  /// Iniciar escucha en tiempo real
+  Stream<RecognitionResult> startListening({
+    required final String language,
+    final bool enablePartialResults = true,
+  });
+
+  /// Detener escucha
   Future<void> stopListening();
-  Stream<String> get onTextReceived;
+
+  /// Reconocer audio desde datos
+  Future<RecognitionResult> recognizeAudio({
+    required final List<int> audioData,
+    required final String language,
+    final String format = 'wav',
+  });
+
+  /// Verificar disponibilidad
   Future<bool> isAvailable();
+
+  /// Idiomas soportados
+  Future<List<String>> getSupportedLanguages();
+
+  /// ¿Está escuchando actualmente?
+  bool get isListening;
+
+  /// Legacy interface methods for backward compatibility
+  Future<void> startListeningLegacy({final String? language});
+  Future<void> stopListeningLegacy();
+  Stream<String> get onTextReceived;
+}
+
+/// 🎯 DDD: Resultado de reconocimiento
+class RecognitionResult {
+  const RecognitionResult({
+    required this.text,
+    required this.confidence,
+    required this.isFinal,
+    required this.duration,
+  });
+
+  final String text;
+  final double confidence;
+  final bool isFinal;
+  final Duration duration;
+
+  @override
+  String toString() =>
+      'RecognitionResult("$text", confidence: $confidence, final: $isFinal)';
 }
 
 /// Shared DTOs for cross-context communication

@@ -1,4 +1,4 @@
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
 
 /// 🎯 **Form Onboarding Controller Interface** - Domain Contract
 ///

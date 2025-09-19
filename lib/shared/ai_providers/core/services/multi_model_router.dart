@@ -2,11 +2,8 @@
 /// Handles intelligent routing of requests to the best provider for each specific capability.
 library;
 
-import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
-import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
-import 'package:ai_chan/shared/ai_providers/core/registry/ai_provider_registry.dart';
-import 'package:ai_chan/shared/ai_providers/core/registry/provider_registration.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart'; // Consolidated import
 
 /// Result of a routing decision
 class RoutingResult {

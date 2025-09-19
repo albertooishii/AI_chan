@@ -1,10 +1,10 @@
-import 'package:ai_chan/shared/constants/app_colors.dart';
+import 'package:ai_chan/shared/presentation/constants/app_colors.dart';
 import 'audio_message_player_with_subs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 import 'dart:io';
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
 import 'package:ai_chan/chat/application/services/message_text_processor_service.dart';
 import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 

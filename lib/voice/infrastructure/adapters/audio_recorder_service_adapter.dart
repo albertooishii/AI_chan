@@ -1,4 +1,4 @@
-import '../../domain/interfaces/i_audio_recorder_service.dart';
+import 'package:ai_chan/voice/domain/interfaces/i_audio_recorder_service.dart';
 import 'dart:async';
 
 /// 🏗️ Infrastructure Adapter for Audio Recorder Service

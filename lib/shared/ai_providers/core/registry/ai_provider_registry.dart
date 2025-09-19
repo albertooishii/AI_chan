@@ -1,8 +1,7 @@
-import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_factory.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared.dart'; // Consolidated import
 
 /// Central registry for all AI providers in the dynamic provider system.
 ///

@@ -1,34 +1,22 @@
-import 'package:ai_chan/chat/presentation/controllers/chat_controller.dart'; // ✅ DDD: ETAPA 3 - DDD puro completado
-import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
-import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
+import 'package:ai_chan/chat/presentation/controllers/chat_controller.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
-import '../widgets/chat_bubble.dart';
-import '../widgets/message_input.dart';
-import '../controllers/chat_input_controller.dart';
-// Removed legacy call import - now using new Voice bounded context
-import '../widgets/typing_animation.dart';
-import '../widgets/expandable_image_dialog.dart';
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/chat/presentation/widgets/chat_bubble.dart';
+import 'package:ai_chan/chat/presentation/widgets/message_input.dart';
+import 'package:ai_chan/chat/presentation/controllers/chat_input_controller.dart';
+import 'package:ai_chan/chat/presentation/widgets/typing_animation.dart';
+import 'package:ai_chan/chat/presentation/widgets/expandable_image_dialog.dart';
 import 'gallery_screen.dart';
-import 'package:ai_chan/shared.dart'; // Using centralized shared exports
-import 'package:ai_chan/shared/widgets/animated_indicators.dart';
-import '../widgets/tts_configuration_dialog.dart';
-import '../widgets/text_model_configuration_dialog.dart';
+import 'package:ai_chan/shared/presentation/widgets/animated_indicators.dart';
+import 'package:ai_chan/chat/presentation/widgets/tts_configuration_dialog.dart';
+import 'package:ai_chan/chat/presentation/widgets/text_model_configuration_dialog.dart';
 import 'package:ai_chan/main.dart';
-import 'package:ai_chan/shared/widgets/backup_dialog_factory.dart';
-import 'package:ai_chan/shared/widgets/google_drive_backup_dialog.dart';
-import 'package:ai_chan/voice/presentation/screens/voice_screen.dart';
-// google_backup_service not used directly in this file; ChatProvider exposes necessary state
-import 'package:ai_chan/shared/widgets/local_backup_dialog.dart';
-import 'package:ai_chan/shared/widgets/backup_diagnostics_dialog.dart';
-import 'package:ai_chan/shared/utils/backup_utils.dart' show BackupUtils;
-import 'package:ai_chan/core/di.dart' as di;
+import 'package:ai_chan/shared/presentation/widgets/backup_dialog_factory.dart';
+import 'package:ai_chan/shared/presentation/widgets/google_drive_backup_dialog.dart';
+import 'package:ai_chan/shared/presentation/widgets/local_backup_dialog.dart';
+import 'package:ai_chan/shared/presentation/widgets/backup_diagnostics_dialog.dart';
 import 'dart:typed_data';
-// ignore: unused_import
-import 'package:ai_chan/core/domain/interfaces/i_call_to_chat_communication_service.dart'; // ✅ Bounded Context Abstraction
-// Import nueva pantalla de voz
-import 'package:ai_chan/voice.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({
@@ -70,7 +58,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    _fileUIService = di.getFileUIService();
+    _fileUIService = getFileUIService();
     getLocalImageDir().then((final dir) {
       if (mounted) setState(() => _imageDir = dir);
     });
@@ -189,8 +177,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _showImportDialog(final ChatController chatController) async {
     // ✅ DDD: ETAPA 3
     // ✅ DDD: Type safety en ETAPA 2
-    final (jsonStr, error) =
-        await chat_json_utils.ChatJsonUtils.importJsonFile();
+    final (jsonStr, error) = await ChatJsonUtils.importJsonFile();
     if (error != null) {
       showErrorDialog(error);
       return;
@@ -198,9 +185,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (jsonStr != null && jsonStr.trim().isNotEmpty) {
       try {
-        final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
-          jsonStr,
-        );
+        final imported = await ChatJsonUtils.importAllFromJson(jsonStr);
         if (widget.onImportJson != null && imported != null) {
           await widget.onImportJson!.call(imported);
         } else {
@@ -236,10 +221,7 @@ class _ChatScreenState extends State<ChatScreen> {
       timeline: chatController.timeline,
     );
     // Delegate to shared util which shows preview and offers copy/save
-    chat_json_utils.ChatJsonUtils.showExportedJsonDialog(
-      jsonStr,
-      chat: chatExport,
-    );
+    ChatJsonUtils.showExportedJsonDialog(jsonStr, chat: chatExport);
   }
 
   // Central handler para eliminaciones de imagenes desde los viewers/galería.
@@ -422,12 +404,9 @@ class _ChatScreenState extends State<ChatScreen> {
             icon: const Icon(Icons.call, color: AppColors.secondary),
             tooltip: 'Llamada de voz',
             onPressed: () {
-              // Navegar a la nueva pantalla de voz con estilo cyberpunk
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (final context) => const VoiceScreen(),
-                ),
-              );
+              // Use NavigationService instead of direct navigation
+              final navigationService = getNavigationService();
+              navigationService.navigateToVoice();
             },
           ),
           PopupMenuButton<String>(

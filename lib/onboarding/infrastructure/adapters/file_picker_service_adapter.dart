@@ -10,7 +10,7 @@
 library;
 
 import 'package:file_picker/file_picker.dart' as fp;
-import '../../domain/interfaces/i_file_picker_service.dart';
+import 'package:ai_chan/onboarding/domain/interfaces/i_file_picker_service.dart';
 
 class FilePickerServiceAdapter implements IFilePickerService {
   @override

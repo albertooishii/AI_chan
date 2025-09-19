@@ -1,6 +1,5 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:ai_chan/core/models.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:ai_chan/main.dart';

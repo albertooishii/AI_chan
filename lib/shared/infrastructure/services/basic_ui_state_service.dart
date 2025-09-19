@@ -1,4 +1,4 @@
-import '../../domain/interfaces/i_ui_state_service.dart';
+import 'package:ai_chan/shared/domain/interfaces/i_ui_state_service.dart';
 
 /// 🎯 **Basic UI State Service** - Infrastructure Implementation
 ///

@@ -2,18 +2,21 @@ import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_metadata.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/api_key_manager.dart';
-import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/core/http_connector.dart';
-import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
+import 'package:ai_chan/shared/infrastructure/network/http_connector.dart';
+import 'package:ai_chan/shared/ai_providers/core/interfaces/i_realtime_client.dart';
+import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
 import 'package:ai_chan/chat/infrastructure/adapters/prompt_builder_service.dart'
     as pb;
-import 'package:ai_chan/shared/utils/debug_call_logger/debug_call_logger_io.dart';
+import 'package:ai_chan/shared/infrastructure/utils/debug_call_logger/debug_call_logger_io.dart';
 import 'package:ai_chan/chat/application/services/tts_voice_management_service.dart'
     as tts_svc;
 import 'dart:convert';
 import 'dart:async';
 import 'dart:typed_data';
+import 'dart:io';
+import 'package:ai_chan/shared/ai_providers/core/models/provider_response.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/image/image_persistence_service.dart';
 
 /// Google Gemini provider implementation using the new architecture.
 /// This provider directly implements HTTP calls to Google AI API without depending on GeminiService.
@@ -138,7 +141,7 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
   }
 
   @override
-  Future<AIResponse> sendMessage({
+  Future<ProviderResponse> sendMessage({
     required final List<Map<String, String>> history,
     required final SystemPrompt systemPrompt,
     required final AICapability capability,
@@ -147,7 +150,9 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
     final String? imageMimeType,
     final Map<String, dynamic>? additionalParams,
   }) async {
-    if (!_initialized || _apiKey.trim().isEmpty) {
+    // Read API key once per request to avoid multiple calls (and duplicated logs)
+    final apiKey = _apiKey;
+    if (!_initialized || apiKey.trim().isEmpty) {
       throw Exception('GoogleProvider not initialized or missing API key');
     }
 
@@ -158,24 +163,32 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
       case AICapability.textGeneration:
       case AICapability.imageAnalysis:
       case AICapability.realtimeConversation:
-        return await _sendTextRequest(
+        final r = await _sendTextRequest(
           history,
           systemPrompt,
           modelToUse,
           imageBase64,
           imageMimeType,
           additionalParams,
+          apiKey,
         );
+        return ProviderResponse(text: r.text, seed: r.seed, prompt: r.prompt);
       case AICapability.imageGeneration:
-        return await _sendImageGenerationRequest(
+        final r2 = await _sendImageGenerationRequest(
           history,
           systemPrompt,
           modelToUse,
           additionalParams,
+          apiKey,
+        );
+        return ProviderResponse(
+          text: r2.text,
+          seed: r2.seed,
+          prompt: r2.prompt,
         );
       default:
-        throw UnsupportedError(
-          'Capability $capability not supported by GoogleProvider',
+        return ProviderResponse(
+          text: 'Capability $capability not supported by GoogleProvider',
         );
     }
   }
@@ -187,6 +200,7 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
     final String? imageBase64,
     final String? imageMimeType,
     final Map<String, dynamic>? additionalParams,
+    final String apiKey,
   ) async {
     try {
       // 🔍 DEBUG: Log image handling
@@ -198,8 +212,6 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
 
       // Usar la misma lógica que el GeminiService que funciona
       final Map<String, dynamic> systemPromptMap = systemPrompt.toJson();
-
-      // Inyectar instrucciones según el contexto, igual que en GeminiService
       try {
         final instrRoot = systemPromptMap['instructions'];
         if (instrRoot is Map) {
@@ -209,6 +221,7 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
             instrRoot['attached_image_metadata_instructions'] = pb
                 .imageMetadata(systemPrompt.profile.userName);
           }
+
           // Si se solicita generación de imagen explícita, inyectar también la instrucción de 'foto'.
           final enableImageGeneration =
               additionalParams?['enableImageGeneration'] == true;
@@ -282,7 +295,7 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
       } on Exception catch (_) {}
 
       final baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
-      final url = '$baseUrl/$model:generateContent?key=$_apiKey';
+      final url = '$baseUrl/$model:generateContent?key=$apiKey';
 
       final response = await HttpConnector.client.post(
         Uri.parse(url),
@@ -306,8 +319,12 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
       } on Exception catch (_) {}
 
       if (response.statusCode != 200) {
-        Log.e('Error en Gemini: ${response.statusCode} - ${response.body}');
-        throw Exception('Error de la API de Gemini: ${response.statusCode}');
+        // Log.e('Error en Gemini: ${response.statusCode} - ${response.body}');
+        // Throw an HttpException so the centralized retry service can
+        // recognise HTTP status codes (5xx, 429, etc.) and decide to retry.
+        throw HttpException(
+          '${response.statusCode} Error de la API de Gemini: ${response.body}',
+        );
       }
 
       // Usar la misma lógica de parsing que GeminiService
@@ -336,9 +353,24 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
         }
       }
 
+      if (outBase64 != null && outBase64.isNotEmpty) {
+        try {
+          final saved = await ImagePersistenceService.instance.saveBase64Image(
+            outBase64,
+          );
+          if (saved != null && saved.isNotEmpty) {
+            return AIResponse(
+              text: (text != null && text.trim().isNotEmpty) ? text : '',
+              prompt: imagePrompt ?? '',
+            );
+          }
+        } on Exception catch (e) {
+          Log.w('[GoogleProvider] Failed to persist image base64: $e');
+        }
+      }
+
       return AIResponse(
         text: (text != null && text.trim().isNotEmpty) ? text : '',
-        base64: outBase64 ?? '',
         prompt: imagePrompt ?? '',
       );
     } catch (e) {
@@ -352,6 +384,7 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
     final SystemPrompt systemPrompt,
     final String model,
     final Map<String, dynamic>? additionalParams,
+    final String apiKey,
   ) async {
     // Para generación de imágenes con Gemini, seguir el patrón del GeminiService original
     final prompt = history.isNotEmpty
@@ -390,6 +423,7 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
       null,
       null,
       additionalParams,
+      apiKey,
     );
   }
 
@@ -521,7 +555,7 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
   }
 
   @override
-  Future<AIResponse> generateAudio({
+  Future<ProviderResponse> generateAudio({
     required final String text,
     final String? voice,
     final String? model,
@@ -529,13 +563,13 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
   }) async {
     // Google TTS not implemented in Enhanced AI yet
     Log.w('[GoogleProvider] TTS not implemented yet - use Google TTS service');
-    return AIResponse(
+    return ProviderResponse(
       text: 'Google TTS not implemented in Enhanced AI - use legacy service',
     );
   }
 
   @override
-  Future<AIResponse> transcribeAudio({
+  Future<ProviderResponse> transcribeAudio({
     required final String audioBase64,
     final String? audioFormat,
     final String? model,
@@ -544,7 +578,7 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
   }) async {
     // Google STT not implemented in Enhanced AI yet
     Log.w('[GoogleProvider] STT not implemented yet - use Google STT service');
-    return AIResponse(
+    return ProviderResponse(
       text: 'Google STT not implemented in Enhanced AI - use legacy service',
     );
   }

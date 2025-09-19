@@ -1,4 +1,4 @@
-import '../use_cases/manage_voice_session_use_case.dart';
+import 'package:ai_chan/voice/application/use_cases/manage_voice_session_use_case.dart';
 
 /// 🎯 DDD: Servicio de aplicación para gestión completa de voz
 /// Coordina múltiples casos de uso y maneja flujos complejos

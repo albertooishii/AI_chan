@@ -1,4 +1,4 @@
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
 
 /// Interface del dominio para la construcción de prompts del sistema.
 /// Define las reglas de negocio para cómo debe comportarse la IA.

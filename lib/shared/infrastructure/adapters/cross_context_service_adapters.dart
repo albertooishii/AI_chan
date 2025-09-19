@@ -1,7 +1,6 @@
-import '../../domain/interfaces/cross_context_interfaces.dart';
-import '../../ai_providers/core/services/audio/centralized_tts_service.dart';
-import '../../ai_providers/core/services/audio/centralized_stt_service.dart';
-import '../../ai_providers/core/models/audio/voice_settings.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/audio/centralized_tts_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/audio/centralized_stt_service.dart';
+import 'package:ai_chan/shared.dart';
 import 'dart:async';
 
 /// 🏗️ Infrastructure Adapter for Text-to-Speech Service
@@ -44,6 +43,45 @@ class TextToSpeechServiceAdapter implements ITextToSpeechService {
     // Could be enhanced when speaking status is added to the service
     return false;
   }
+
+  // Core interface methods that were missing:
+  @override
+  Future<SynthesisResult> synthesize({
+    required final String text,
+    required final VoiceSettings settings,
+  }) async {
+    return await _service.synthesize(text: text, settings: settings);
+  }
+
+  @override
+  Future<List<VoiceInfo>> getAvailableVoices({
+    required final String language,
+  }) async {
+    return await _service.getAvailableVoices(language: language);
+  }
+
+  @override
+  Future<bool> isAvailable() async {
+    return await _service.isAvailable();
+  }
+
+  @override
+  Future<List<String>> getSupportedLanguages() async {
+    return await _service.getSupportedLanguages();
+  }
+
+  @override
+  Future<SynthesisResult> previewVoice({
+    required final String voiceId,
+    required final String language,
+    final String sampleText = 'Hola, esta es una prueba de voz.',
+  }) async {
+    return await _service.previewVoice(
+      voiceId: voiceId,
+      language: language,
+      sampleText: sampleText,
+    );
+  }
 }
 
 /// 🏗️ Infrastructure Adapter for Speech-to-Text Service
@@ -56,11 +94,57 @@ class SpeechToTextServiceAdapter implements ISpeechToTextService {
   StreamController<String>? _textController;
 
   @override
-  Future<void> startListening({final String? language}) async {
+  Stream<RecognitionResult> startListening({
+    required final String language,
+    final bool enablePartialResults = true,
+  }) {
+    // Delegate to the centralized service
+    return _service.startListening(
+      language: language,
+      enablePartialResults: enablePartialResults,
+    );
+  }
+
+  @override
+  Future<void> stopListening() async {
+    await _service.stopListening();
+    _textController?.close();
+    _textController = null;
+  }
+
+  @override
+  Future<RecognitionResult> recognizeAudio({
+    required final List<int> audioData,
+    required final String language,
+    final String format = 'wav',
+  }) async {
+    return await _service.recognizeAudio(
+      audioData: audioData,
+      language: language,
+      format: format,
+    );
+  }
+
+  @override
+  Future<bool> isAvailable() async {
+    return await _service.isAvailable();
+  }
+
+  @override
+  Future<List<String>> getSupportedLanguages() async {
+    return await _service.getSupportedLanguages();
+  }
+
+  @override
+  bool get isListening => _service.isListening;
+
+  // Legacy interface methods for backward compatibility
+  @override
+  Future<void> startListeningLegacy({final String? language}) async {
     _textController?.close();
     _textController = StreamController<String>();
 
-    // Adapt CentralizedSttService streaming to our interface
+    // Adapt CentralizedSttService streaming to legacy interface
     final recognitionStream = _service.startListening(
       language: language ?? 'en-US',
     );
@@ -73,20 +157,13 @@ class SpeechToTextServiceAdapter implements ISpeechToTextService {
   }
 
   @override
-  Future<void> stopListening() async {
-    await _service.stopListening();
-    _textController?.close();
-    _textController = null;
+  Future<void> stopListeningLegacy() async {
+    await stopListening();
   }
 
   @override
   Stream<String> get onTextReceived =>
       _textController?.stream ?? const Stream.empty();
-
-  @override
-  Future<bool> isAvailable() async {
-    return _service.isAvailable();
-  }
 }
 
 /// 🏗️ Infrastructure Adapter for Chat Integration Service

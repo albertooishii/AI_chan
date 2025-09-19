@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:ai_chan/core/network_connectors.dart';
+import 'package:ai_chan/shared/infrastructure/network/network_connectors.dart';
 
 /// Utilities for tests to register fake connector implementations.
 

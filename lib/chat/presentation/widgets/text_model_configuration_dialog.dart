@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:ai_chan/shared/constants/app_colors.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
-import 'package:ai_chan/shared/utils/dialog_utils.dart';
-import 'package:ai_chan/shared/utils/prefs_utils.dart';
-import 'package:ai_chan/shared/widgets/app_dialog.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/shared.dart'; // All infrastructure utilities available here
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
-import 'package:ai_chan/core/cache/cache_service.dart';
 
 typedef SynthesizeTextFn = Future<void> Function(String text, String model);
 

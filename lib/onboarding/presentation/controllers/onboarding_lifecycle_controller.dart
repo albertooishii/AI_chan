@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared.dart'; // Using shared exports
 import 'package:ai_chan/onboarding/application/use_cases/biography_generation_use_case.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_repository.dart';
 import 'package:ai_chan/onboarding/presentation/interfaces/i_onboarding_lifecycle_controller.dart';
+// REMOVED: Direct infrastructure imports - using shared.dart instead
+// import 'package:ai_chan/onboarding/infrastructure/di/onboarding_di.dart';
 
 /// Lifecycle controller that owns onboarding lifecycle state (biography loading,
 /// saved/generated biography, import errors). This intentionally does NOT own
@@ -11,14 +11,27 @@ import 'package:ai_chan/onboarding/presentation/interfaces/i_onboarding_lifecycl
 class OnboardingLifecycleController extends ChangeNotifier
     implements IOnboardingLifecycleController {
   OnboardingLifecycleController({
-    final BiographyGenerationUseCase? biographyUseCase,
-    required final IChatRepository chatRepository,
-  }) : _biographyUseCase = biographyUseCase ?? BiographyGenerationUseCase(),
+    required final BiographyGenerationUseCase biographyUseCase,
+    required final ISharedChatRepository chatRepository,
+  }) : _biographyUseCase = biographyUseCase,
        _chatRepository = chatRepository {
-    _loadExistingBiography();
+    _initializeBiographyUseCase();
   }
+
   final BiographyGenerationUseCase _biographyUseCase;
-  final IChatRepository _chatRepository;
+  final ISharedChatRepository _chatRepository;
+
+  /// Initialize biography use case asynchronously
+  Future<void> _initializeBiographyUseCase() async {
+    try {
+      await _loadExistingBiography();
+    } on Exception catch (e) {
+      Log.e(
+        'OnboardingLifecycleController: Failed to initialize biography use case: $e',
+      );
+      // Set error state if needed
+    }
+  }
 
   @override
   bool loading = true;

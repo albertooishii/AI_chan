@@ -1,6 +1,5 @@
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/onboarding.dart';
-import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
 
 /// Result objects for DDD pattern compliance
 class FormValidationResult {
@@ -168,7 +167,7 @@ class FormOnboardingApplicationService {
       }
 
       // Business rule: Import through proper service
-      final chatExport = await chat_json_utils.ChatJsonUtils.importAllFromJson(
+      final chatExport = await ChatJsonUtils.importAllFromJson(
         jsonData,
         onError: (final error) => throw Exception(error),
       );

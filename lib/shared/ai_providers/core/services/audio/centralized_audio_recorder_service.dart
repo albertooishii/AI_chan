@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:record/record.dart';
+import 'package:record/record.dart' as record_pkg;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../../interfaces/audio/i_audio_recorder_service.dart';
-import '../../../../utils/log_utils.dart';
+import 'package:ai_chan/shared.dart';
 
 /// 🎯 Servicio centralizado de grabación de audio
 /// Utiliza record package para capturar audio del micrófono
@@ -15,7 +14,7 @@ class CentralizedAudioRecorderService implements IAudioRecorderService {
       CentralizedAudioRecorderService._();
   static CentralizedAudioRecorderService get instance => _instance;
 
-  final AudioRecorder _recorder = AudioRecorder();
+  final record_pkg.AudioRecorder _recorder = record_pkg.AudioRecorder();
   final StreamController<List<int>> _audioDataController =
       StreamController<List<int>>.broadcast();
   final StreamController<double> _amplitudeController =
@@ -65,7 +64,9 @@ class CentralizedAudioRecorderService implements IAudioRecorderService {
   Future<bool> isAvailable() async {
     try {
       final hasPermission = await hasPermissions();
-      final isSupported = await _recorder.isEncoderSupported(AudioEncoder.wav);
+      final isSupported = await _recorder.isEncoderSupported(
+        record_pkg.AudioEncoder.wav,
+      );
 
       Log.d(
         '[CentralizedAudioRecorder] Disponibilidad - Permisos: $hasPermission, Soporte WAV: $isSupported',
@@ -151,7 +152,7 @@ class CentralizedAudioRecorderService implements IAudioRecorderService {
       _currentRecordingPath = '${tempDir.path}/$fileName';
 
       // Configurar grabación
-      final config = RecordConfig(
+      final config = record_pkg.RecordConfig(
         encoder: _getAudioEncoder(format),
         sampleRate: sampleRate,
         numChannels: 1, // Mono para STT
@@ -259,18 +260,20 @@ class CentralizedAudioRecorderService implements IAudioRecorderService {
   }
 
   /// Obtener encoder según formato
-  AudioEncoder _getAudioEncoder(final String format) {
+  record_pkg.AudioEncoder _getAudioEncoder(final String format) {
     switch (format.toLowerCase()) {
       case 'wav':
-        return AudioEncoder.wav;
+        return record_pkg.AudioEncoder.wav;
       case 'aac':
-        return AudioEncoder.aacLc;
+        return record_pkg.AudioEncoder.aacLc;
       case 'm4a':
-        return AudioEncoder.aacLc;
+        return record_pkg.AudioEncoder.aacLc;
       case 'mp3':
-        return AudioEncoder.wav; // Fallback a WAV si no hay soporte directo
+        return record_pkg
+            .AudioEncoder
+            .wav; // Fallback a WAV si no hay soporte directo
       default:
-        return AudioEncoder.wav;
+        return record_pkg.AudioEncoder.wav;
     }
   }
 

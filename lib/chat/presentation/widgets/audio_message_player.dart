@@ -1,7 +1,7 @@
 import 'dart:math';
-import 'package:ai_chan/shared/constants/app_colors.dart';
+import 'package:ai_chan/shared/presentation/constants/app_colors.dart';
 import 'package:flutter/material.dart';
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
 import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 
 /// Reproductor compacto de mensajes de sonido.

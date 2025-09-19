@@ -1,5 +1,6 @@
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/image/image_persistence_service.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/chat/application/mappers/message_factory.dart';
 
@@ -14,8 +15,17 @@ class ChatMessageService {
     final MessageSender sender = MessageSender.assistant,
     final String? imageBase64,
     final String? imageMimeType,
+    final AiImage? imageRef,
     final bool enableImageGeneration = false,
   }) async {
+    // If the caller provided an AiImage reference (`imageRef.url`), load the
+    // persisted base64 centrally and forward it to the manager as `imageBase64`.
+    String? resolvedImageBase64;
+    if (imageRef != null && imageRef.url != null && imageRef.url!.isNotEmpty) {
+      resolvedImageBase64 = await ImagePersistenceService.instance
+          .loadImageAsBase64(imageRef.url!);
+    }
+
     final response = await _manager.sendMessage(
       history: history,
       systemPrompt: systemPrompt,
@@ -24,7 +34,7 @@ class ChatMessageService {
           : (imageBase64 != null
                 ? AICapability.imageAnalysis
                 : AICapability.textGeneration),
-      imageBase64: imageBase64,
+      imageBase64: imageBase64 ?? resolvedImageBase64,
       imageMimeType: imageMimeType,
     );
 

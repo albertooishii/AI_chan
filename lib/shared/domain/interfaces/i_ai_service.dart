@@ -1,4 +1,4 @@
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
 
 /// Shared domain interface for AI service operations.
 /// Provides abstraction for AI message sending and response handling across bounded contexts.

@@ -1,10 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:ai_chan/shared/utils/dialog_utils.dart';
-import 'package:ai_chan/shared/constants.dart';
-import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/core/config.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared.dart';
 
 class InitializingScreen extends StatefulWidget {
   const InitializingScreen({super.key, required this.bioFutureFactory});

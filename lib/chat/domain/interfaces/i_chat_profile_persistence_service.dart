@@ -1,4 +1,4 @@
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
 
 /// Domain interface for profile persistence within chat bounded context.
 /// Provides abstraction for profile updates and persistence operations.

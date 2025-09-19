@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
-import 'package:ai_chan/core/config.dart';
+import 'package:ai_chan/shared/infrastructure/config/config.dart';
 
 void main() {
   group('AIProviderManager dynamic model methods', () {

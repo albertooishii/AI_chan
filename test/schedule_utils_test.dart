@@ -1,4 +1,4 @@
-import 'package:ai_chan/shared/utils/schedule_utils.dart';
+import 'package:ai_chan/shared/domain/utils/schedule_utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

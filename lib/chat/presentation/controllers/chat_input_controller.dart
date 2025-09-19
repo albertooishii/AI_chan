@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:ai_chan/core/models/image.dart';
+import 'package:ai_chan/shared/domain/models/image.dart';
 
 typedef ScheduleSendFn =
     Future<void> Function(String text, {AiImage? image, String? imageMimeType});

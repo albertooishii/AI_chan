@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:record/record.dart' as record;
-import '../../domain/interfaces/i_recording_service.dart';
+import 'package:ai_chan/shared/domain/interfaces/i_recording_service.dart';
 
 /// 🎯 **Basic Recording Service** - Infrastructure Implementation
 ///

@@ -1,4 +1,4 @@
-import 'package:ai_chan/core/domain/interfaces/i_call_to_chat_communication_service.dart';
+import 'package:ai_chan/shared/domain/core_domain/interfaces/i_call_to_chat_communication_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_controller.dart';
 
 /// 🎯 **Call to Chat Communication Adapter** - Bounded Context Bridge

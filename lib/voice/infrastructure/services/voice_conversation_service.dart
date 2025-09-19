@@ -1,20 +1,10 @@
 import 'dart:async';
-import '../../domain/interfaces/i_voice_conversation_service.dart';
-import '../../../shared/ai_providers/core/interfaces/audio/i_audio_recorder_service.dart';
-import '../../../shared/ai_providers/core/interfaces/audio/i_tts_service.dart';
-import '../../../shared/ai_providers/core/interfaces/audio/i_stt_service.dart';
-import '../../../shared/ai_providers/core/models/audio/voice_settings.dart';
-import '../../../shared/ai_providers/core/services/audio/centralized_audio_playback_service.dart';
-import '../../../shared/ai_providers/core/interfaces/audio/i_audio_playback_service.dart';
-import '../../../shared/ai_providers/core/models/audio/audio_playback_config.dart';
-import '../../../shared/ai_providers/core/services/ai_provider_manager.dart';
-import '../../../shared/ai_providers/core/models/ai_capability.dart';
-import '../../../core/models/system_prompt.dart';
-import '../../../core/models/ai_chan_profile.dart';
-import '../../../shared/utils/log_utils.dart';
-import '../../../shared/ai_providers/core/services/audio/centralized_audio_recorder_service.dart';
-import '../../../shared/ai_providers/core/services/audio/centralized_tts_service.dart';
-import '../../../shared/ai_providers/core/services/audio/centralized_stt_service.dart';
+import 'package:ai_chan/voice/domain/interfaces/i_voice_conversation_service.dart';
+import 'package:ai_chan/shared.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/audio/centralized_audio_recorder_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/audio/centralized_tts_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/audio/centralized_stt_service.dart';
 
 /// 🎯 DDD: Orquestador de conversaciones de voz completas
 /// Integra TTS, STT, audio player/recorder y respuestas de IA

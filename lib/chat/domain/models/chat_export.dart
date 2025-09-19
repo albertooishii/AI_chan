@@ -1,7 +1,4 @@
-import 'package:ai_chan/core/models/ai_chan_profile.dart';
-import 'message.dart';
-import 'chat_event.dart';
-import 'package:ai_chan/core/models/timeline_entry.dart';
+import 'package:ai_chan/shared.dart';
 
 class ChatExport {
   ChatExport({

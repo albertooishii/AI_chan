@@ -1,6 +1,6 @@
 import 'package:ai_chan/chat/domain/interfaces/i_chat_avatar_service.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_chat_controller.dart';
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
 
 /// Implementación del servicio de avatar que actúa como adapter
 /// para el controlador de chat

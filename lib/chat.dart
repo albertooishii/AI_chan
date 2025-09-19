@@ -2,11 +2,8 @@
 
 // Domain Layer
 export 'chat/domain/models/chat_conversation.dart';
-export 'chat/domain/models/chat_event.dart';
-export 'chat/domain/models/chat_export.dart';
 export 'chat/domain/models/chat_queued_send_options.dart';
 export 'chat/domain/models/chat_result.dart';
-export 'chat/domain/models/message.dart';
 export 'chat/domain/services/periodic_ia_message_scheduler.dart';
 
 // Domain Interfaces
@@ -44,7 +41,7 @@ export 'chat/application/services/message_queue_manager.dart';
 export 'chat/application/services/message_retry_service.dart';
 export 'chat/application/services/message_sanitization_service.dart';
 export 'chat/application/services/message_text_processor_service.dart';
-export 'chat/application/services/tts_service.dart';
+export 'shared/ai_providers/core/services/audio/tts_service.dart';
 export 'chat/application/services/tts_voice_service.dart';
 
 // Application Main File
@@ -63,9 +60,9 @@ export 'chat/application/adapters/call_to_chat_communication_adapter.dart';
 // NOTE: avatar persistence utilities moved to shared/image/image_profile_utils.dart
 
 // Infrastructure Layer
-export 'chat/infrastructure/ai/chat_ai_service_adapter.dart';
+export 'shared/ai_providers/core/adapters/chat_ai_service_adapter.dart';
 export 'chat/infrastructure/adapters/local_chat_repository.dart';
-export 'chat/infrastructure/adapters/audio_chat_service.dart';
+export 'shared/ai_providers/core/services/audio/audio_chat_service.dart';
 export 'chat/infrastructure/adapters/language_resolver_service.dart';
 export 'chat/infrastructure/adapters/prompt_builder_service.dart';
 export 'chat/infrastructure/adapters/tts_voice_management_service_adapter.dart';

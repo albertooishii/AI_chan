@@ -1,7 +1,7 @@
 // ignore_for_file: prefer_final_parameters
 
 import 'dart:typed_data';
-import 'package:ai_chan/core/interfaces/i_realtime_client.dart';
+import 'package:ai_chan/shared/ai_providers/core/interfaces/i_realtime_client.dart';
 import 'package:ai_chan/shared/ai_providers/core/registry/ai_provider_registry.dart';
 
 /// Servicio unificado para OpenAI Realtime API (gpt-realtime)

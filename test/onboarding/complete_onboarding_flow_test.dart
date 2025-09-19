@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:ai_chan/core.dart';
 import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/onboarding.dart';
 import 'package:ai_chan/chat.dart';
@@ -12,6 +11,15 @@ void main() {
   group('Complete Onboarding Flow Tests', () {
     setUpAll(() async {
       await initializeTestEnvironment();
+    });
+
+    tearDownAll(() async {
+      // Cleanup AIProviderManager timers to avoid test framework warnings
+      try {
+        await AIProviderManager.instance.dispose();
+      } on Exception catch (_) {
+        // Ignore disposal errors in tests
+      }
     });
 
     setUp(() async {
@@ -28,7 +36,9 @@ void main() {
 
         // Crear controladores
         final formController = FormOnboardingController();
+        final biographyUseCase = await getBiographyGenerationUseCase();
         final lifecycleController = OnboardingLifecycleController(
+          biographyUseCase: biographyUseCase,
           chatRepository: LocalChatRepository(),
         );
 
@@ -121,7 +131,9 @@ void main() {
 
         // Crear nuevos controladores para simular reinicio
         final newFormController = FormOnboardingController();
+        final newBiographyUseCase = await getBiographyGenerationUseCase();
         final newLifecycleController = OnboardingLifecycleController(
+          biographyUseCase: newBiographyUseCase,
           chatRepository: LocalChatRepository(),
         );
         final newChatRepo = LocalChatRepository();
@@ -184,6 +196,13 @@ void main() {
         // Cleanup
         newFormController.dispose();
         newLifecycleController.dispose();
+
+        // Cleanup AIProviderManager to avoid timer warnings
+        try {
+          await AIProviderManager.instance.dispose();
+        } on Exception catch (_) {
+          // Ignore disposal errors in tests
+        }
       },
       timeout: const Timeout(Duration(minutes: 5)),
     );

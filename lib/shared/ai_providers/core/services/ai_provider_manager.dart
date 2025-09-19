@@ -5,7 +5,7 @@ library;
 
 import 'dart:async';
 import 'dart:io';
-import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_provider_config.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_config_loader.dart';
@@ -20,10 +20,10 @@ import 'package:ai_chan/shared/ai_providers/core/interfaces/i_retry_service.dart
 import 'package:ai_chan/shared/ai_providers/core/services/intelligent_retry_service.dart';
 import 'package:ai_chan/shared/ai_providers/core/interfaces/i_alert_service.dart';
 import 'package:ai_chan/shared/ai_providers/core/services/provider_alert_service.dart';
-import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
-import 'package:ai_chan/shared/utils/prefs_utils.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/image_persistence_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/image/image_persistence_service.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/provider_response.dart';
+import 'package:ai_chan/shared/ai_providers/core/services/audio/audio_persistence_service.dart';
+// Under Option B2 the manager persists any audio/image binary returned by providers.
 
 /// Exception thrown when no suitable provider is available
 class NoProviderAvailableException implements Exception {
@@ -277,9 +277,8 @@ class AIProviderManager {
   }) async {
     // Attempt to respect user-selected model/provider where possible.
     String? preferredProviderId;
-    String? savedModel;
     try {
-      savedModel = await _getSavedModelForCapability(capability);
+      final savedModel = await _getSavedModelForCapability(capability);
       if (savedModel != null) {
         final modelProvider = await getProviderForModel(savedModel, capability);
         if (modelProvider != null) {
@@ -383,59 +382,88 @@ class AIProviderManager {
             capability == AICapability.imageGeneration;
 
         Future<AIResponse> guardedCallOperation() async {
-          final resp = await provider.sendMessage(
+          // Manager expects callers/providers to provide base64 via `imageBase64`.
+          // Legacy callers that passed `additionalParams['imageFileName']` must
+          // now convert that file to base64 before calling; manager will not
+          // load files from disk here anymore.
+          final String? effectiveImageBase64 = imageBase64;
+
+          // Call provider using the typed contract: providers MUST return ProviderResponse.
+          // If a provider returns a different type (legacy AIResponse or other), fail fast
+          // so the provider implementation can be updated during migration.
+          final ProviderResponse providerResp = await provider.sendMessage(
             history: history,
             systemPrompt: systemPrompt,
             capability: capability,
             model: modelToUse,
-            imageBase64: imageBase64,
+            imageBase64: effectiveImageBase64,
             imageMimeType: imageMimeType,
             additionalParams: additionalParams,
           );
 
-          if (requestedImage && resp.base64.isEmpty) {
+          // If the capability requested an image, ensure the provider returned something
+          if (requestedImage &&
+              (providerResp.seed.isEmpty) &&
+              (providerResp.imageBase64 == null ||
+                  providerResp.imageBase64!.isEmpty)) {
             Log.w(
               '[AIProviderManager] Provider $providerId returned no image despite imageGeneration requested. Forcing retry fallback.',
             );
             throw HttpException('520 Empty image result from $providerId');
           }
+          // Persist any binary payloads returned by the provider and construct final AIResponse
+          String? imageFileName;
+          String? audioFileName;
 
-          return resp;
+          if (providerResp.imageBase64 != null &&
+              providerResp.imageBase64!.isNotEmpty) {
+            try {
+              final saved = await ImagePersistenceService.instance
+                  .saveBase64Image(providerResp.imageBase64!);
+              if (saved != null && saved.isNotEmpty) {
+                imageFileName = saved;
+              }
+            } on Exception catch (e) {
+              Log.w('[AIProviderManager] Failed to persist provider image: $e');
+            }
+          }
+
+          if (providerResp.audioBase64 != null &&
+              providerResp.audioBase64!.isNotEmpty) {
+            try {
+              final saved = await AudioPersistenceService.instance
+                  .saveBase64Audio(providerResp.audioBase64!, prefix: 'tts');
+              if (saved != null && saved.isNotEmpty) {
+                audioFileName = saved;
+              }
+            } on Exception catch (e) {
+              Log.w('[AIProviderManager] Failed to persist provider audio: $e');
+            }
+          }
+
+          // Build final AIResponse combining provider metadata and persisted filenames
+          final finalResp = AIResponse(
+            text: providerResp.text,
+            seed: providerResp.seed,
+            prompt: providerResp.prompt,
+            imageFileName: imageFileName ?? '',
+            audioFileName: audioFileName ?? '',
+          );
+
+          return finalResp;
         }
 
-        AIResponse response = _retryService != null
+        final AIResponse response = _retryService != null
             ? await _retryService!.executeWithRetry<AIResponse>(
                 guardedCallOperation,
                 providerId,
               )
             : await guardedCallOperation();
 
-        // If provider returned an image as base64, persist it centrally and
-        // replace base64 in the returned AIResponse with an empty string while
-        // populating `imageFileName` so callers can use that name.
-        try {
-          if (response.base64.isNotEmpty) {
-            final saved = await ImagePersistenceService.instance
-                .saveBase64Image(response.base64);
-            if (saved != null && saved.isNotEmpty) {
-              // Create a new AIResponse with cleared base64 and imageFileName set
-              response = AIResponse(
-                text: response.text,
-                seed: response.seed,
-                prompt: response.prompt,
-                imageFileName: saved,
-              );
-            } else {
-              Log.w(
-                '[AIProviderManager] Failed to persist returned base64 image for provider $providerId',
-              );
-            }
-          }
-        } on Exception catch (e) {
-          Log.w(
-            '[AIProviderManager] Error persisting returned base64 image: $e',
-          );
-        }
+        // Invariant: providers return semantic fields and MAY return raw binary
+        // payloads as base64 (`imageBase64`/`audioBase64`). The AIProviderManager
+        // is responsible for persisting any returned base64 payloads and will
+        // expose final filenames in the returned `AIResponse`.
 
         // Record successful performance metrics
         _performanceService?.recordRequest(
@@ -649,6 +677,11 @@ class AIProviderManager {
     }
 
     _deduplicationService?.dispose();
+
+    // Shutdown HTTP connection pool to cancel timers
+    if (_connectionPool is HttpConnectionPool) {
+      await (_connectionPool as HttpConnectionPool).shutdown();
+    }
 
     _providers.clear();
     _config = null;

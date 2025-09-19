@@ -1,10 +1,5 @@
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/onboarding/domain/entities/memory_data.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
-import 'package:ai_chan/shared/constants/female_names.dart';
-import 'package:ai_chan/shared/utils/locale_utils.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
-import 'package:ai_chan/shared/utils/onboarding_fallback_utils.dart';
 
 /// Caso de uso para generar la siguiente pregunta durante el onboarding conversacional
 class GenerateNextQuestionUseCase {

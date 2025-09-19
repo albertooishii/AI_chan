@@ -1,10 +1,7 @@
-import 'package:ai_chan/shared/utils/image/image_utils.dart' as image_utils;
+import 'package:ai_chan/shared.dart'; // Using shared exports for infrastructure
 import 'package:flutter/material.dart';
-import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/core/di.dart' as di;
-import 'package:ai_chan/shared/application/services/file_ui_service.dart';
 import 'dart:typed_data';
-import '../widgets/expandable_image_dialog.dart';
+import 'package:ai_chan/chat/presentation/widgets/expandable_image_dialog.dart';
 
 class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key, required this.images, this.onImageDeleted});
@@ -21,7 +18,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
   @override
   void initState() {
     super.initState();
-    _fileUIService = di.getFileUIService();
+    _fileUIService = getFileUIService(); // From shared.dart export
   }
 
   @override
@@ -77,7 +74,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   Future<String> _getImageDirPath() async {
-    final dir = await image_utils.getLocalImageDir();
+    final dir = await getLocalImageDir(); // From shared.dart export
     return dir.path;
   }
 

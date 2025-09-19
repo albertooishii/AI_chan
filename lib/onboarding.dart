@@ -7,7 +7,7 @@ export 'onboarding/domain/models/onboarding_form_result.dart';
 export 'onboarding/domain/interfaces/i_chat_export_service.dart';
 export 'onboarding/domain/interfaces/i_file_picker_service.dart';
 export 'onboarding/domain/interfaces/i_profile_repository.dart';
-export 'onboarding/domain/interfaces/i_profile_service.dart';
+export 'package:ai_chan/shared/domain/interfaces/i_profile_service.dart';
 
 // Domain Entities
 export 'onboarding/domain/entities/memory_data.dart';

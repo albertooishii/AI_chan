@@ -1,7 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ai_chan/shared/utils/backup_utils.dart';
-import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/infrastructure/utils/backup_utils.dart';
+import 'package:ai_chan/shared/infrastructure/utils/chat_json_utils.dart'
+    as chat_json_utils;
+import 'package:ai_chan/shared/domain/models/index.dart';
 
 void main() {
   test('BackupUtils export and parse roundtrip', () async {

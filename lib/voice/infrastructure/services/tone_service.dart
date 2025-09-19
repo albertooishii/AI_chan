@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
-import 'package:ai_chan/core/di.dart' as di;
-import '../../domain/interfaces/i_tone_service.dart';
+import 'package:ai_chan/shared/infrastructure/di/di.dart' as di;
+import 'package:ai_chan/voice/domain/interfaces/i_tone_service.dart';
 
 /// Servicio de efectos sonoros compartidos (tono único para colgado y error de conexión)
 class ToneService implements IToneService {

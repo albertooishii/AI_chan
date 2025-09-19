@@ -1,8 +1,8 @@
 import 'package:ai_chan/shared/ai_providers/core/interfaces/i_ai_provider.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
 import 'package:ai_chan/shared/ai_providers/core/registry/ai_provider_registry.dart';
-import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
+import 'package:ai_chan/shared/infrastructure/utils/log_utils.dart';
 
 /// High-level service that provides centralized access to AI providers.
 ///
@@ -58,7 +58,7 @@ class AIProviderService {
         Log.d(
           '[AIProviderService] Using new provider system: ${provider.providerId}',
         );
-        return await provider.sendMessage(
+        final providerResp = await provider.sendMessage(
           history: history,
           systemPrompt: systemPrompt,
           capability: capability,
@@ -66,6 +66,15 @@ class AIProviderService {
           imageBase64: imageBase64,
           imageMimeType: imageMimeType,
           additionalParams: additionalParams,
+        );
+
+        // Providers now return ProviderResponse; expose AIResponse to callers.
+        // Build an AIResponse-like object from ProviderResponse fields so the
+        // rest of the app (which still expects AIResponse) continues to work.
+        return AIResponse(
+          text: providerResp.text,
+          seed: providerResp.seed,
+          prompt: providerResp.prompt,
         );
       } on Exception catch (e) {
         Log.w('[AIProviderService] Provider failed: $e');

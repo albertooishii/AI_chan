@@ -1,4 +1,4 @@
-import '../../../shared/ai_providers/core/models/audio/voice_settings.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/audio/voice_settings.dart';
 
 /// 🎯 DDD: Puerto para conversaciones de voz completas
 /// Orquesta TTS, STT y respuestas de IA para crear un flujo conversacional

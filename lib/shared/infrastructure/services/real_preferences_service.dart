@@ -1,5 +1,5 @@
 import 'package:ai_chan/chat/domain/interfaces/i_preferences_service.dart';
-import 'package:ai_chan/shared/utils/prefs_utils.dart';
+import 'package:ai_chan/shared/infrastructure/utils/prefs_utils.dart';
 
 /// Implementación real de IPreferencesService que usa SharedPreferences a través de PrefsUtils
 class RealPreferencesService implements IPreferencesService {

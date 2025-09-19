@@ -1,17 +1,8 @@
 import 'dart:convert';
 
-import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/core/services/ia_appearance_generator.dart'; // Para regenerateAppearance
-import 'package:ai_chan/core/services/ia_avatar_generator.dart'; // Para generateAvatarFromAppearance
-import 'package:ai_chan/core/services/image_request_service.dart';
-import 'package:ai_chan/core/services/memory_summary_service.dart';
-import 'package:ai_chan/core/di.dart' as di;
-
 import 'package:ai_chan/chat.dart'; // Para PeriodicIaMessageScheduler y domain interfaces
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/shared/ai_providers/core/services/ai_provider_manager.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
-import 'package:ai_chan/shared/utils/network_utils.dart';
 
 /// Callback para notificar cambios de estado a la UI
 typedef StateChangeCallback = void Function();
@@ -25,20 +16,16 @@ class ChatApplicationService {
     required final IPromptBuilderService promptBuilder,
     required final IFileOperationsService fileOperations,
     required final ISecureStorageService secureStorage,
+    required final IAudioChatService audioService,
     final MemoryManager? memoryManagerParam,
     final PeriodicIaMessageScheduler? periodicScheduler,
   }) : _repository = repository,
        _promptBuilder = promptBuilder,
        _fileOperations = fileOperations,
        _secureStorage = secureStorage,
+       _audioService = audioService,
        memoryManager = memoryManagerParam,
        _periodicScheduler = periodicScheduler ?? PeriodicIaMessageScheduler() {
-    // Inicializar audio service con callbacks vacíos por ahora
-    _audioService = di.getAudioChatService(
-      onStateChanged: () {},
-      onWaveform: (final waveform) {},
-    );
-
     // Initialize MessageQueueManager
     _queueManager = MessageQueueManager(
       onFlush: (final ids, final lastLocalId, final options) {
@@ -90,30 +77,6 @@ class ChatApplicationService {
     _debouncedPersistence = DebouncedSave(
       const Duration(seconds: 1),
       () => _persistStateImmediate(),
-    );
-  }
-
-  /// Factory method enhancement
-  /// Simplified factory method that creates ChatApplicationService.
-  /// Useful for testing.
-  factory ChatApplicationService.withDefaults({
-    required final IChatRepository repository,
-    required final IPromptBuilderService promptBuilder,
-    final MemoryManager? memoryManager,
-    final PeriodicIaMessageScheduler? periodicScheduler,
-  }) {
-    // Factory method simplificado para casos de testing
-    // En producción usar el constructor principal con DI
-    // Use dependency injection to get the file operations service
-    final fileOps = di.getBasicFileOperationsService();
-
-    return ChatApplicationService(
-      repository: repository,
-      promptBuilder: promptBuilder,
-      fileOperations: fileOps,
-      secureStorage: di.getSecureStorageService(),
-      memoryManagerParam: memoryManager,
-      periodicScheduler: periodicScheduler,
     );
   }
   final IChatRepository _repository;
@@ -259,8 +222,7 @@ class ChatApplicationService {
       final outcome = await _sendMessageUseCase.sendChat(
         recentMessages: _messages,
         systemPromptObj: systemPrompt,
-        imageBase64: options?.image is String ? options!.image : null,
-        imageMimeType: options?.imageMimeType,
+        image: options?.image is AiImage ? options!.image as AiImage : null,
         enableImageGeneration: enableImageGeneration,
         onboardingData: _profile,
         saveAll: () => _persistStateImmediate(),
@@ -481,7 +443,8 @@ class ChatApplicationService {
       int attempt = 0;
       while (attempt <= maxRetries) {
         try {
-          final stt = di.getSttServiceForProvider(provider);
+          // TODO: Refactor to inject STT service factory instead of direct DI access
+          final stt = getSttServiceForProvider(provider);
           final result = await stt.transcribeAudio(path);
           if (result != null && result.trim().isNotEmpty) {
             transcript = result.trim();

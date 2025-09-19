@@ -1,19 +1,12 @@
-import 'package:ai_chan/core/presentation/widgets/cyberpunk_button.dart';
 import 'package:flutter/material.dart';
-import 'package:ai_chan/shared/constants/app_colors.dart';
-import 'package:ai_chan/core/config.dart';
-import '../widgets/birth_date_field.dart';
+import 'package:ai_chan/shared.dart'; // Using shared exports for infrastructure
+import 'package:ai_chan/onboarding/presentation/widgets/birth_date_field.dart';
 import 'package:ai_chan/onboarding/presentation/controllers/onboarding_lifecycle_controller.dart';
-import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/shared/utils/locale_utils.dart';
-import 'package:ai_chan/shared/utils/dialog_utils.dart';
-import 'package:ai_chan/shared/widgets/country_autocomplete.dart';
-import 'package:ai_chan/shared/widgets/female_name_autocomplete.dart';
+import 'package:ai_chan/shared/presentation/widgets/country_autocomplete.dart';
+import 'package:ai_chan/shared/presentation/widgets/female_name_autocomplete.dart';
 import 'package:ai_chan/onboarding/presentation/controllers/form_onboarding_controller.dart';
 import 'conversational_onboarding_screen.dart';
 import 'onboarding_mode_selector.dart';
-import 'package:ai_chan/chat/application/services/chat_application_service.dart'; // ✅ DDD: ETAPA 3 - ChatApplicationService directo
-import 'package:ai_chan/core/di.dart' as di;
 
 /// Callback typedef para finalizar el onboarding
 typedef OnboardingFinishCallback =
@@ -43,9 +36,10 @@ class OnboardingScreen extends StatefulWidget {
   final Future<void> Function(ChatExport importedChat)? onImportJson;
   // Optional external provider instance (presentation widgets should avoid creating providers internally when possible)
   final OnboardingLifecycleController? onboardingLifecycle;
+  // TODO: Replace with ISharedBackupService to avoid cross-context dependency
   // Optional ChatProvider instance so presentation widgets receive it via constructor
   // instead of depending on provider package APIs internally.
-  final ChatApplicationService? chatProvider;
+  final Object? chatProvider;
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -59,10 +53,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.initState();
     // If no external provider was supplied, create one and retain it across rebuilds.
     if (widget.onboardingLifecycle == null) {
-      _createdLifecycle = OnboardingLifecycleController(
-        chatRepository: di.getChatRepository(),
-      );
+      _initializeLifecycleController();
     }
+  }
+
+  Future<void> _initializeLifecycleController() async {
+    final biographyUseCase = await getBiographyGenerationUseCase();
+    _createdLifecycle = OnboardingLifecycleController(
+      biographyUseCase: biographyUseCase,
+      chatRepository: getChatRepository(),
+    );
   }
 
   @override
@@ -99,8 +99,9 @@ class _OnboardingScreenContent extends StatefulWidget {
   });
   // does not call provider package APIs internally.
   final OnboardingLifecycleController onboardingLifecycle;
+  // TODO: Replace with ISharedBackupService to avoid cross-context dependency
   // Optional chat provider instance passed from the parent to avoid Provider.of inside presentation.
-  final ChatApplicationService?
+  final Object?
   chatProvider; // ✅ DDD: ETAPA 3 - Migrado a ChatApplicationService
   final OnboardingFinishCallback onFinish;
   final void Function()? onClearAllDebug;

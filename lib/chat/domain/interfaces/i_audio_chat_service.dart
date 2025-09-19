@@ -1,4 +1,4 @@
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
 
 typedef OnStateChanged = void Function();
 typedef OnWaveformUpdate = void Function(List<int> waveform);

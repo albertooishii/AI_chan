@@ -1,6 +1,5 @@
-import '../entities/voice_session.dart';
-import '../../../shared/ai_providers/core/models/audio/voice_settings.dart';
-import '../interfaces/voice_services.dart';
+import 'package:ai_chan/voice/domain/entities/voice_session.dart';
+import 'package:ai_chan/shared.dart';
 
 /// 🎯 DDD: Servicio de dominio para orquestación de sesiones de voz
 /// Contiene lógica de negocio que no pertenece a una entidad específica

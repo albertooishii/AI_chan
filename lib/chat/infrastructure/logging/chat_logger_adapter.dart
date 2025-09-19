@@ -1,5 +1,5 @@
 import 'package:ai_chan/chat/domain/interfaces/i_chat_logger.dart';
-import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared.dart';
 
 /// Implementation of IChatLogger that delegates to shared logging utility
 /// This adapter allows chat context to use logging while maintaining isolation

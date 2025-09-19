@@ -1,8 +1,4 @@
-import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/shared/utils/chat_json_utils.dart' as chat_json_utils;
-import 'package:ai_chan/shared/domain/interfaces/i_file_service.dart';
-import 'package:ai_chan/core/di.dart' as di;
-import 'package:ai_chan/shared/utils/log_utils.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/onboarding/domain/interfaces/i_file_picker_service.dart';
 
 /// Use Case que maneja la lógica de import/export de datos de onboarding
@@ -11,7 +7,7 @@ class ImportExportOnboardingUseCase {
   ImportExportOnboardingUseCase({
     final IFileService? fileService,
     required final IFilePickerService filePickerService,
-  }) : fileService = fileService ?? di.getFileService(),
+  }) : fileService = fileService ?? getFileService(),
        _filePickerService = filePickerService;
 
   final IFileService fileService;
@@ -22,7 +18,7 @@ class ImportExportOnboardingUseCase {
     Log.d('📥 Iniciando importación desde JSON', tag: 'IMPORT_EXPORT_UC');
 
     try {
-      final result = await chat_json_utils.ChatJsonUtils.importJsonFile();
+      final result = await ChatJsonUtils.importJsonFile();
       final String? jsonStr = result.$1;
       final String? error = result.$2;
 
@@ -37,7 +33,7 @@ class ImportExportOnboardingUseCase {
       }
 
       String? importError;
-      final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
+      final imported = await ChatJsonUtils.importAllFromJson(
         jsonStr,
         onError: (final err) => importError = err,
       );
@@ -99,7 +95,7 @@ class ImportExportOnboardingUseCase {
       }
 
       String? importError;
-      final imported = await chat_json_utils.ChatJsonUtils.importAllFromJson(
+      final imported = await ChatJsonUtils.importAllFromJson(
         jsonStr,
         onError: (final err) => importError = err,
       );

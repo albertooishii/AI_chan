@@ -1,5 +1,6 @@
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
 import 'package:ai_chan/shared/ai_providers/core/models/ai_capability.dart';
+import 'package:ai_chan/shared/ai_providers/core/models/provider_response.dart';
 
 /// Fake implementation of AIProviderManager for testing onboarding flows
 class FakeAIProviderManager {
@@ -23,7 +24,7 @@ class FakeAIProviderManager {
     _shouldFail = false;
   }
 
-  Future<AIResponse> sendMessage({
+  Future<ProviderResponse> sendMessage({
     required List<Map<String, String>> history,
     required SystemPrompt systemPrompt,
     required AICapability capability,
@@ -38,15 +39,15 @@ class FakeAIProviderManager {
     }
 
     if (_customResponse != null) {
-      // Return fake response with JSON content
-      return AIResponse(
+      // If test provided an explicit file name, include it in the simulated response
+      return ProviderResponse(
         text:
             '{"dataType":"${_customResponse!['dataType']}","extractedValue":"${_customResponse!['extractedValue']}","aiResponse":"${_customResponse!['aiResponse']}","confidence":${_customResponse!['confidence'] ?? 0.9}}',
       );
     }
 
     // Default fake response
-    return AIResponse(
+    return ProviderResponse(
       text:
           '{"dataType":"userName","extractedValue":"Test User","aiResponse":"Hello Test User","confidence":0.9}',
     );

@@ -1,11 +1,11 @@
 import 'package:ai_chan/onboarding/domain/interfaces/i_chat_export_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_repository.dart';
+import 'package:ai_chan/shared.dart'; // Using shared repository interface
 
 /// Implementación del servicio de exportación de chat
-/// Actúa como adapter entre el contexto de onboarding y chat
+/// Actúa como adapter entre el contexto de onboarding y chat usando interfaz compartida
 class ChatExportServiceAdapter implements IChatExportService {
   const ChatExportServiceAdapter(this._chatRepository);
-  final IChatRepository _chatRepository;
+  final ISharedChatRepository _chatRepository;
 
   @override
   Future<void> saveExport(final Map<String, dynamic> exportData) async {

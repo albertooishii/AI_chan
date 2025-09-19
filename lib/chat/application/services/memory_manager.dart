@@ -1,5 +1,5 @@
-import 'package:ai_chan/core/services/memory_summary_service.dart';
-import 'package:ai_chan/core/models.dart';
+import 'package:ai_chan/shared/application/services/ai_generators/memory_summary_service.dart';
+import 'package:ai_chan/shared/domain/models/index.dart';
 
 class MemoryProcessingResult {
   MemoryProcessingResult({required this.timeline, this.superbloqueEntry});

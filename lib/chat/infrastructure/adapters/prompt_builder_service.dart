@@ -1,6 +1,5 @@
 import 'dart:convert';
-import 'package:ai_chan/core/models.dart';
-import 'package:ai_chan/shared/utils/locale_utils.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/chat/domain/interfaces/i_prompt_builder_service.dart';
 
 // Contenido relacionado con imágenes separado para reusarlo desde OpenAIService.
