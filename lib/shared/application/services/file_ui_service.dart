@@ -70,13 +70,6 @@ class FileUIService {
     return filePath.split('/').last;
   }
 
-  /// Obtiene el directorio padre de un archivo
-  String getDirectoryPath(final String filePath) {
-    final lastSlash = filePath.lastIndexOf('/');
-    if (lastSlash == -1) return '';
-    return filePath.substring(0, lastSlash);
-  }
-
   /// Combina rutas de directorio
   String joinPath(final String dir, final String fileName) {
     return dir.endsWith('/') ? '$dir$fileName' : '$dir/$fileName';

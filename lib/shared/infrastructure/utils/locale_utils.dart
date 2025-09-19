@@ -257,22 +257,6 @@ class LocaleUtils {
     return String.fromCharCode(first) + String.fromCharCode(second);
   }
 
-  // Devuelve una lista de países que hablan español
-  static List<String> speakSpanish() {
-    final List<String> spanishSpeakingCountries = [];
-
-    // Recorremos todos los países disponibles en CountriesEs
-    for (final country in CountriesEs.items) {
-      final language = languageNameEsForCountry(country.iso2);
-      // Verificamos si el idioma contiene "Español"
-      if (language.toLowerCase().contains('español')) {
-        spanishSpeakingCountries.add(country.iso2);
-      }
-    }
-
-    return spanishSpeakingCountries;
-  }
-
   // Devuelve una lista de códigos de idioma oficiales/uso común para un país ISO2.
   // Los códigos intentan usar la forma 'll-CC' (por ejemplo 'es-ES', 'ja-JP') cuando es posible.
   // Si no se conoce una correspondencia específica, devuelve una lista vacía.

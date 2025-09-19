@@ -61,21 +61,8 @@ class Config {
     return parseApiKeysFromJson('GOOGLE_CLOUD_API_KEYS');
   }
 
-  // --- OAuth Configuration ---
-  static String getGoogleClientIdDesktop() =>
-      _get('GOOGLE_CLIENT_ID_DESKTOP', '');
-  static String getGoogleClientIdAndroid() =>
-      _get('GOOGLE_CLIENT_ID_ANDROID', '');
-  static String getGoogleClientIdWeb() => _get('GOOGLE_CLIENT_ID_WEB', '');
-
-  // --- Audio Configuration ---
-  static String getAudioTtsMode() => _get('AUDIO_TTS_MODE', 'google');
-  static String getPreferredAudioFormat() =>
-      _get('PREFERRED_AUDIO_FORMAT', 'mp3');
-
   // --- Application Configuration ---
   static String getAppName() => _get('APP_NAME', 'AI-チャン');
-  static String getDebugMode() => _get('DEBUG_MODE', 'basic');
 
   static int getSummaryBlockSize() {
     final v = _get('SUMMARY_BLOCK_SIZE', '32');

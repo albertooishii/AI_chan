@@ -42,12 +42,6 @@ class DateUtils {
     return "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
   }
 
-  /// Obtiene la fecha actual en formato YYYY-MM-DD
-  static String getCurrentDateString({final DateTime? referenceDate}) {
-    final now = referenceDate ?? DateTime.now();
-    return dateToIsoString(now);
-  }
-
   /// Calcula la fecha de hace un mes de forma segura
   static DateTime getDateOneMonthAgo({final DateTime? referenceDate}) {
     final now = referenceDate ?? DateTime.now();

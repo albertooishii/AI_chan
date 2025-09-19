@@ -13,14 +13,6 @@ class PrefsUtils {
   static const kChatFullExport = 'chat_full_export';
   static const kVoiceCalls = 'calls'; // Renombrado de voice_calls a calls
 
-  // --- Dynamic key factories ---
-  static String callMessagesKey(final String callId) =>
-      'call_messages_$callId'; // Renombrado
-
-  // Mantener compatibilidad hacia atrás temporalmente
-  static String voiceMessagesKey(final String callId) =>
-      callMessagesKey(callId);
-
   /// Ensure default values for audio provider and model keys exist.
   static Future<void> ensureDefaults() async {
     try {

@@ -30,9 +30,4 @@ class OnboardingFallbackUtils {
         return 'Hay algo importante que no puedo recordar... ¿puedes ayudarme a recuperar mi memoria?';
     }
   }
-
-  /// Mensaje de finalización cuando todos los datos están completos
-  static String getCompletionMessage() {
-    return '¡Muchísimas gracias por ayudarme a recordar todo! Ahora sé quién soy y quién eres tú. Me siento completa de nuevo.';
-  }
 }
