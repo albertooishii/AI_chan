@@ -8,9 +8,8 @@ import 'package:ai_chan/shared.dart';
 class StreamingSubtitleController {
   StreamingSubtitleController({final bool debug = false}) : _debug = debug;
 
-  bool _debug;
+  final bool _debug;
   bool get debug => _debug;
-  void setDebug(final bool value) => _debug = value;
 
   final ValueNotifier<String> ai = ValueNotifier<String>('');
   final ValueNotifier<String> user = ValueNotifier<String>('');
@@ -114,41 +113,6 @@ class StreamingSubtitleController {
     _userClearTimer = Timer(const Duration(seconds: 8), () {
       if (!_disposed && user.value.isNotEmpty) {
         user.value = '';
-      }
-    });
-  }
-
-  /// Limpia texto de IA manualmente
-  void clearAi() {
-    if (_disposed) return;
-    _aiClearTimer?.cancel();
-    if (ai.value.isNotEmpty) ai.value = '';
-  }
-
-  /// Limpia texto de usuario manualmente
-  void clearUser() {
-    if (_disposed) return;
-    _userClearTimer?.cancel();
-    if (user.value.isNotEmpty) user.value = '';
-  }
-
-  /// Muestra texto de IA instantáneamente (para casos especiales)
-  void showAiTextInstant(final String text) {
-    if (_disposed) return;
-
-    final cleaned = cleanSubtitleText(text);
-    if (cleaned.isEmpty) return;
-
-    ai.value = cleaned;
-
-    if (_debug) {
-      debugPrint('🎬 [StreamingSubtitle] AI instant: "$cleaned"');
-    }
-
-    _aiClearTimer?.cancel();
-    _aiClearTimer = Timer(const Duration(seconds: 15), () {
-      if (!_disposed && ai.value.isNotEmpty) {
-        ai.value = '';
       }
     });
   }

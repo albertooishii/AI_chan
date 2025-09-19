@@ -5,6 +5,7 @@ import 'dart:io' show Platform;
 import 'package:android_intent_plus/android_intent.dart' show AndroidIntent;
 
 import 'package:ai_chan/chat/application/services/tts_voice_management_service.dart';
+import 'package:ai_chan/chat/application/services/tts_voice_service.dart';
 
 typedef SynthesizeTtsFn =
     Future<String?> Function(
@@ -317,30 +318,8 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
 
   /// Obtiene el nivel de calidad legible de una voz Neural/WaveNet
   String _getVoiceQualityLevel(final Map<String, dynamic> voice) {
-    // Extract quality from voice name or properties
-    final voiceName = voice['name'] as String? ?? '';
-    final naturalSampleRateHertz = voice['naturalSampleRateHertz'] as int? ?? 0;
-
-    // Determine quality based on voice name patterns
-    if (voiceName.contains('WaveNet')) {
-      return 'WaveNet';
-    } else if (voiceName.contains('Neural2')) {
-      return 'Neural2';
-    } else if (voiceName.contains('Polyglot')) {
-      return 'Polyglot';
-    } else if (voiceName.contains('Journey')) {
-      return 'Journey';
-    } else if (voiceName.contains('Studio')) {
-      return 'Studio';
-    } else if (voiceName.contains('Neural')) {
-      return 'Neural';
-    } else if (voiceName.contains('Standard')) {
-      return 'Standard';
-    } else if (naturalSampleRateHertz >= 24000) {
-      return 'High Quality';
-    } else {
-      return 'Standard';
-    }
+    // Use centralized service for voice quality logic
+    return TtsVoiceService.getVoiceQualityLevel(voice);
   }
 
   /// 🚀 SISTEMA DINÁMICO: Cargar providers de TTS disponibles

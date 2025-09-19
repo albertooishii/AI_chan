@@ -90,11 +90,6 @@ class VoiceDisplayUtils {
 
   // ...existing code...
 
-  /// Obtiene el nombre técnico original de la voz (para usar en la API)
-  static String getVoiceTechnicalName(final Map<String, dynamic> voice) {
-    return voice['name'] as String? ?? '';
-  }
-
   /// Genera información de subtítulo para mostrar en la UI
   static String getVoiceSubtitle(final Map<String, dynamic> voice) {
     final gender = voice['ssmlGender'] as String? ?? '';
@@ -139,31 +134,5 @@ class VoiceDisplayUtils {
     if (voiceType.isNotEmpty) parts.add(voiceType);
 
     return parts.join(' · ');
-  }
-
-  /// Devuelve únicamente la etiqueta de idioma/país para una voz, por ejemplo
-  /// 'Español (España)'. Se basa en la misma tabla usada por
-  /// `getVoiceSubtitle` y aplica las mismas reglas de fallback.
-  static String getLanguageLabelFromVoice(final Map<String, dynamic> voice) {
-    final languageCodes =
-        (voice['languageCodes'] as List<dynamic>?)?.cast<String>() ?? [];
-    final name = voice['name'] as String? ?? '';
-
-    String languageName = '';
-    if (languageCodes.isNotEmpty) {
-      final cand = _normalizeLangCode(languageCodes.first);
-      languageName =
-          _languageNames[cand] ??
-          _languageNames[languageCodes.first] ??
-          languageCodes.first;
-    } else {
-      final parts = name.split('-');
-      if (parts.length >= 2) {
-        final code = _normalizeLangCode('${parts[0]}-${parts[1]}');
-        languageName = _languageNames[code] ?? code;
-      }
-    }
-
-    return languageName;
   }
 }

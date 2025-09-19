@@ -32,8 +32,8 @@ class MessageRetryService {
     );
 
     int retry = 0;
-    while ((!hasValidText(response) ||
-            !hasValidAllowedTagsStructure(response.text)) &&
+    while ((!_hasValidText(response) ||
+            !_hasValidAllowedTagsStructure(response.text)) &&
         retry < maxRetries) {
       final waitSeconds = _extractWaitSeconds(response.text);
       await Future.delayed(Duration(seconds: waitSeconds));
@@ -67,7 +67,7 @@ class MessageRetryService {
     return 8;
   }
 
-  bool hasValidText(final Message r) {
+  bool _hasValidText(final Message r) {
     final t = r.text.trim();
     if (t.isEmpty) return r.image != null; // allow only image
     final lower = t.toLowerCase();
@@ -76,7 +76,7 @@ class MessageRetryService {
     return true;
   }
 
-  bool hasValidAllowedTagsStructure(final String text) {
+  bool _hasValidAllowedTagsStructure(final String text) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return true;
     final tagToken = RegExp(r'\[/?([a-zA-Z0-9_]+)\]');
