@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:convert';
-
 import 'dart:math';
 import 'package:ai_chan/shared.dart' as image_utils;
 import 'package:ai_chan/shared.dart';
@@ -41,22 +40,6 @@ class ImagePersistenceService {
     } on Exception catch (e) {
       Log.e('[ImagePersistence] Error saving image', error: e);
       return null;
-    }
-  }
-
-  /// Delete an image file by name (relative filename created by saveBase64ImageToFile).
-  /// Returns true if deletion succeeded or file did not exist.
-  Future<bool> deleteImage(final String fileName) async {
-    try {
-      final dir = await image_utils.getLocalImageDir();
-      final absPath = '${dir.path}/$fileName';
-      final file = File(absPath);
-      if (!file.existsSync()) return true;
-      await file.delete();
-      return true;
-    } on Exception catch (e) {
-      Log.w('[ImagePersistence] Error deleting image $fileName: $e');
-      return false;
     }
   }
 

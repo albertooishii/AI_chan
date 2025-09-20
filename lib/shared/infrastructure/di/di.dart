@@ -7,12 +7,12 @@ import 'package:ai_chan/voice.dart'; // 🔥 NEW: Voice bounded context
 import 'package:ai_chan/onboarding.dart';
 import 'package:ai_chan/chat/application/services/chat_message_service.dart';
 import 'package:ai_chan/chat/application/mappers/message_factory.dart';
-import 'package:ai_chan/main.dart' show navigatorKey;
 
 // Import specific services that need DI
 import 'package:ai_chan/chat/application/services/tts_voice_management_service.dart';
 import 'package:ai_chan/shared/infrastructure/adapters/audio_playback_service_adapter.dart';
 import 'package:ai_chan/shared/domain/interfaces/i_ai_service.dart' as shared;
+import 'package:ai_chan/main.dart' show navigatorKey;
 
 // Onboarding imports for getBiographyGenerationUseCase
 import 'package:ai_chan/onboarding/infrastructure/adapters/onboarding_persistence_service_adapter.dart';
@@ -27,51 +27,25 @@ CentralizedSttService getCentralizedSttService() =>
 /// This file provides DI factories for the entire application.
 
 /// Global initialization flag for Enhanced AI Runtime Provider
-bool _enhancedSystemInitialized = false;
-
-/// Initialize the Enhanced AI Provider System
-/// Call this during app startup to enable the new provider system
-Future<void> initializeEnhancedAISystem() async {
-  if (_enhancedSystemInitialized) return;
-
-  try {
-    // The new AIProviderManager initializes automatically on first access
-    _enhancedSystemInitialized = true;
-    Log.i('Enhanced AI Provider System initialized successfully');
-  } on Exception catch (e) {
-    Log.w('Enhanced AI Provider System initialization failed: $e');
-    Log.i('Continuing with runtime provider system');
-    // Continue with runtime system
-  }
-}
 
 IChatRepository getChatRepository() => LocalChatRepository();
 
 /// Factory for shared chat repository - allows cross-context usage
 ISharedChatRepository getSharedChatRepository() => SharedChatRepositoryImpl();
 
-/// Factory for file operations service - DDD compliance
-IChatFileOperationsService getFileOperationsService() =>
-    const BasicChatFileOperationsService();
-
-/// Factory for navigation service - handles cross-context navigation
-NavigationService getNavigationService() => NavigationService(navigatorKey);
+/// Factory for file service - handles file operations
+IFileService getFileService() => FileService();
 
 /// Factory for File UI Service - DDD compliance for presentation layer
 FileUIService getFileUIService() =>
     const FileUIService(BasicChatFileOperationsService());
 
-/// Factory for audio chat service with required callbacks
-IAudioChatService getAudioChatService({
-  required final void Function() onStateChanged,
-  required final void Function(List<int>) onWaveform,
-}) => AudioChatService(onStateChanged: onStateChanged, onWaveform: onWaveform);
+/// Factory for navigation service - handles cross-context navigation
+NavigationService getNavigationService() => NavigationService(navigatorKey);
 
-/// Factory for language resolver - resolves language codes from TTS voice names
-ILanguageResolver getLanguageResolver() => LanguageResolverService();
-
-/// Factory for file service - handles file operations
-IFileService getFileService() => FileService();
+/// TTS Voice Management Service Factory
+TtsVoiceManagementService getTtsVoiceManagementService() =>
+    TtsVoiceManagementService(providerManager: AIProviderManager.instance);
 
 /// Factory for audio playback (legacy compatibility)
 AudioPlayback getAudioPlayback([final dynamic candidate]) =>
@@ -108,57 +82,10 @@ void registerRealtimeClientFactory(
   _realtimeClientRegistry[provider.trim().toLowerCase()] = creator;
 }
 
-RealtimeClientFactory? _testRealtimeClientFactory;
-
-void setTestRealtimeClientFactory(final RealtimeClientFactory? factory) {
-  _testRealtimeClientFactory = factory;
-}
-
 /// ✅ NUEVO: Migración a RealtimeService Unificado
 ///
 /// Obtiene cliente realtime usando el sistema unificado de providers
 /// En lugar del registry manual, usa el AIProviderRegistry dinámico
-Future<IRealtimeClient> getRealtimeClientForProvider(
-  final String provider, {
-  final String? model,
-  final void Function(String)? onText,
-  final void Function(Uint8List)? onAudio,
-  final void Function()? onCompleted,
-  final void Function(String)? onError,
-  final void Function(String)? onUserTranscription,
-}) async {
-  // Mantener soporte para tests
-  if (_testRealtimeClientFactory != null) {
-    return _testRealtimeClientFactory!(
-      provider,
-      model: model,
-      onText: onText,
-      onAudio: onAudio,
-      onCompleted: onCompleted,
-      onError: onError != null
-          ? (final Object error) => onError(error.toString())
-          : null,
-      onUserTranscription: onUserTranscription,
-    );
-  }
-
-  try {
-    // ✨ USA REALTIME SERVICE configurado dinámicamente
-    return await RealtimeService.getConfiguredRealtimeClient(
-      onText: onText,
-      onAudio: onAudio != null
-          ? (final List<int> audio) => onAudio(Uint8List.fromList(audio))
-          : null,
-      onCompleted: onCompleted,
-      onError: onError != null ? (final String error) => onError(error) : null,
-      onUserTranscription: onUserTranscription,
-      additionalParams: model != null ? {'model': model} : {},
-    );
-  } on Exception catch (e) {
-    Log.w('[DI] Failed to get realtime client for provider $provider: $e');
-    return NotSupportedRealtimeClient(provider);
-  }
-}
 
 class NotSupportedRealtimeClient implements IRealtimeClient {
   NotSupportedRealtimeClient(this.provider);
@@ -282,13 +209,12 @@ ChatController getChatController() =>
 dynamic getTtsService() => getDynamicTtsService();
 dynamic getTtsServiceForProvider(final String provider) =>
     getDynamicTtsService();
-dynamic getSttService() => getDynamicSttService();
+
 dynamic getSttServiceForProvider(final String provider) =>
     getDynamicSttService();
 
 // 🎯 Voice Bounded Context Services
-VoiceController getVoiceController() =>
-    VoiceController(getVoiceApplicationService());
+
 VoiceApplicationService getVoiceApplicationService() =>
     VoiceApplicationService(useCase: getManageVoiceSessionUseCase());
 IToneService getToneService() => ToneService.instance;
@@ -301,11 +227,7 @@ ManageVoiceSessionUseCase getManageVoiceSessionUseCase() =>
       ttsService: getDynamicTtsService() as ITextToSpeechService,
       sttService: getDynamicSttService() as ISpeechToTextService,
     );
-VoiceSessionOrchestrator getVoiceSessionOrchestrator() =>
-    VoiceSessionOrchestrator(
-      ttsService: getDynamicTtsService() as ITextToSpeechService,
-      sttService: getDynamicSttService() as ISpeechToTextService,
-    );
+
 dynamic getDynamicTtsService() => getCentralizedTtsService();
 dynamic getDynamicSttService() => getCentralizedSttService();
 
@@ -313,9 +235,6 @@ dynamic getDynamicSttService() => getCentralizedSttService();
 AudioPlaybackService getAudioPlaybackService() => AudioPlaybackServiceAdapter();
 
 // 🎯 Legacy Test Support Functions (for compatibility)
-void setTestSttOverride(final dynamic service) {
-  // No-op: Legacy Call tests are being eliminated
-}
 
 void setTestAudioPlaybackOverride(final dynamic service) {
   // No-op: Legacy Call tests are being eliminated
@@ -381,24 +300,6 @@ shared.IAIService getChatAIServiceAdapter() {
   );
   return ChatAIServiceAdapter(service);
 }
-
-/// Chat Domain Services Factories
-IChatLoggingUtilsService getChatLoggingUtilsService() =>
-    BasicChatLoggingUtilsService();
-BasicChatPreferencesUtilsService getChatPreferencesUtilsService() =>
-    BasicChatPreferencesUtilsService();
-IChatDebouncedPersistenceService getChatDebouncedPersistenceService() =>
-    BasicChatDebouncedPersistenceService();
-IChatMessageQueueManager getChatMessageQueueManager() {
-  return CompleteChatMessageQueueManager();
-}
-
-/// TTS Voice Management Service Factory
-TtsVoiceManagementService getTtsVoiceManagementService() =>
-    TtsVoiceManagementService(providerManager: AIProviderManager.instance);
-
-/// Shared Backup Service Factory
-ISharedBackupService getSharedBackupService() => SharedBackupServiceImpl();
 
 /// Onboarding Biography Generation Use Case Factory - moved from OnboardingDI to eliminate presentation→infrastructure violations
 Future<BiographyGenerationUseCase> getBiographyGenerationUseCase() async {

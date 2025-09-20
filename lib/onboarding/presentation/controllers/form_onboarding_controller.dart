@@ -38,21 +38,6 @@ class FormOnboardingController extends ChangeNotifier
   bool get hasImportedData => _importedData != null;
   bool get isFormValid => formKey.currentState?.validate() ?? false;
 
-  /// Initialize form with default values
-  void initializeForm() {
-    _setLoading(false);
-    _clearError();
-    meetStoryController.text = 'AUTO_GENERATE_STORY';
-    notifyListeners();
-  }
-
-  /// Validate current form state
-  bool validateForm() {
-    final isValid = formKey.currentState?.validate() ?? false;
-    if (!isValid) _setError('Please check the form for errors');
-    return isValid;
-  }
-
   /// Save form data to profile - delegated to Application Service
   Future<OnboardingFormResult> saveFormData() async {
     return _executeOperation(() async {
@@ -111,60 +96,11 @@ class FormOnboardingController extends ChangeNotifier
     });
   }
 
-  /// Clear imported data
-  void clearImportedData() {
-    _importedData = null;
-    notifyListeners();
-  }
-
   /// Update user birthdate
   void updateUserBirthdate(final DateTime? date) {
     userBirthdate = date;
     _updateBirthDateController();
     notifyListeners();
-  }
-
-  /// Update country codes - consolidated
-  void updateUserCountry(final String? countryCode) =>
-      _updateAndNotify(() => userCountryCode = countryCode);
-  void updateAICountry(final String? countryCode) =>
-      _updateAndNotify(() => aiCountryCode = countryCode);
-
-  /// Reset form to defaults
-  void resetForm() => _updateAndNotify(() {
-    userNameController.clear();
-    aiNameController.clear();
-    meetStoryController.text = 'AUTO_GENERATE_STORY';
-    birthDateController.clear();
-    userBirthdate = null;
-    userCountryCode = null;
-    aiCountryCode = null;
-    _importedData = null;
-    _clearError();
-  });
-
-  /// Get form summary - delegated to Application Service
-  Map<String, dynamic> getFormSummary() {
-    final summary = _formService.generateFormSummary(
-      userName: userNameController.text,
-      aiName: aiNameController.text,
-      meetStory: meetStoryController.text,
-      userBirthdate: userBirthdate,
-      userCountryCode: userCountryCode,
-      aiCountryCode: aiCountryCode,
-    );
-
-    return {
-      'summary': summary,
-      'userName': userNameController.text.trim(),
-      'aiName': aiNameController.text.trim(),
-      'meetStory': meetStoryController.text.trim(),
-      'userBirthdate': userBirthdate?.toIso8601String(),
-      'userCountryCode': userCountryCode,
-      'aiCountryCode': aiCountryCode,
-      'hasImportedData': hasImportedData,
-      'isValid': isFormValid,
-    };
   }
 
   /// Check if story suggestion is available (needs at least user name and AI name)

@@ -133,13 +133,6 @@ class OnboardingApplicationService {
     }
   }
 
-  /// 🧠 **Obtener Estado de Memoria**
-  /// Coordina la obtención del estado actual de la memoria
-  MemoryData getMemoryState() {
-    // Por ahora retornamos memoria vacía, en el futuro esto vendrá del repositorio
-    return const MemoryData();
-  }
-
   /// ✅ **Verificar Completitud del Onboarding**
   /// Coordina la verificación de si el onboarding está completo
   bool isOnboardingComplete(final MemoryData memory) {

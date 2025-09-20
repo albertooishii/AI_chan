@@ -168,11 +168,6 @@ class PerformanceMonitoringService {
     return _providerMetrics[providerId];
   }
 
-  /// Get metrics for all providers
-  Map<String, ProviderMetrics> getAllMetrics() {
-    return Map.unmodifiable(_providerMetrics);
-  }
-
   /// Get provider health scores (sorted by health)
   List<MapEntry<String, double>> getProviderHealthScores() {
     final scores = <MapEntry<String, double>>[];
@@ -255,11 +250,6 @@ class PerformanceMonitoringService {
         (final id, final metrics) => MapEntry(id, metrics.toMap()),
       ),
     };
-  }
-
-  /// Clear all metrics
-  void clearMetrics() {
-    _providerMetrics.clear();
   }
 
   /// Calculate speed score (1.0 = best, 0.0 = worst)

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/shared/infrastructure/services/google_signin_adapter_mobile.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -164,18 +164,6 @@ class GoogleBackupService {
       );
       return {'error': e.toString()};
     }
-  }
-
-  /// Testing helper methods - only for tests
-  @visibleForTesting
-  static void resetCircuitBreakerForTesting() {
-    _consecutiveRefreshFailures = 0;
-    _lastRefreshFailure = null;
-  }
-
-  @visibleForTesting
-  static void recordOAuthFailure(final String reason) {
-    _recordRefreshFailure(reason);
   }
 
   /// Helper method for HTTP requests with exponential backoff
@@ -1525,12 +1513,6 @@ class GoogleBackupService {
     } on Exception catch (e) {
       Log.w('Cleanup failed: $e', tag: 'GoogleBackup');
     }
-  }
-
-  // Test helpers
-  static void resetCircuitBreakerForTest() {
-    _consecutiveRefreshFailures = 0;
-    _lastRefreshFailure = null;
   }
 
   static Future<void> forceUnlinkForTest() async {

@@ -1,8 +1,6 @@
 import 'package:ai_chan/shared.dart';
 
-/// High-level service that provides centralized access to AI providers.
-///
-/// This service is the main entry point for accessing AI providers with
+/// High-level service that provides centralized access to AI providers  /// Get random best model for capabilityis service is the main entry point for accessing AI providers with
 /// dynamic configuration and capability-based selection.
 class AIProviderService {
   factory AIProviderService() => _instance;
@@ -106,17 +104,6 @@ class AIProviderService {
     }
 
     return allModels.toSet().toList(); // Remove duplicates
-  }
-
-  /// Check if model is supported for capability
-  bool supportsModelForCapability(
-    final String modelId,
-    final AICapability capability,
-  ) {
-    _ensureInitialized();
-
-    final provider = getProviderForModel(modelId);
-    return provider?.supportsModel(capability, modelId) == true;
   }
 
   /// Get best provider for capability

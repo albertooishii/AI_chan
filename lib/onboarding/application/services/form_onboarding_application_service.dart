@@ -348,12 +348,6 @@ class FormOnboardingApplicationService {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
-  /// Check if country code is valid (simple validation)
-  bool isValidCountryCode(final String? countryCode) {
-    if (countryCode == null || countryCode.isEmpty) return false;
-    return countryCode.length == 2 && countryCode.toUpperCase() == countryCode;
-  }
-
   /// Calculate user age
   int calculateAge(final DateTime birthdate) {
     final now = DateTime.now();
@@ -363,40 +357,6 @@ class FormOnboardingApplicationService {
       age--;
     }
     return age;
-  }
-
-  /// Generate form summary for display
-  String generateFormSummary({
-    required final String userName,
-    required final String aiName,
-    required final String meetStory,
-    required final DateTime? userBirthdate,
-    final String? userCountryCode,
-    final String? aiCountryCode,
-  }) {
-    final summary = StringBuffer();
-
-    summary.writeln('👤 User: $userName');
-    summary.writeln('🤖 AI: $aiName');
-
-    if (userBirthdate != null) {
-      final age = calculateAge(userBirthdate);
-      summary.writeln('🎂 Age: $age years old');
-    }
-
-    if (userCountryCode != null) {
-      summary.writeln('🌍 User from: $userCountryCode');
-    }
-
-    if (aiCountryCode != null) {
-      summary.writeln('🌐 AI from: $aiCountryCode');
-    }
-
-    if (meetStory.isNotEmpty && meetStory != 'AUTO_GENERATE_STORY') {
-      summary.writeln('❤️ How we met: $meetStory');
-    }
-
-    return summary.toString().trim();
   }
 
   /// Validate individual field

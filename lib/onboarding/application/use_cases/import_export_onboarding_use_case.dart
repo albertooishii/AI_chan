@@ -7,11 +7,9 @@ class ImportExportOnboardingUseCase {
   ImportExportOnboardingUseCase({
     final IFileService? fileService,
     required final IFilePickerService filePickerService,
-  }) : fileService = fileService ?? getFileService(),
-       _filePickerService = filePickerService;
+  }) : fileService = fileService ?? getFileService();
 
   final IFileService fileService;
-  final IFilePickerService _filePickerService;
 
   /// Importa datos desde un archivo JSON
   Future<ImportExportResult> importFromJson() async {
@@ -51,89 +49,6 @@ class ImportExportOnboardingUseCase {
       return ImportExportResult.error(
         'Error inesperado durante la importación: $e',
       );
-    }
-  }
-
-  /// Restaura datos desde un backup local (archivo ZIP)
-  Future<ImportExportResult> restoreFromLocalBackup() async {
-    Log.d(
-      '📥 Iniciando restauración desde backup local',
-      tag: 'IMPORT_EXPORT_UC',
-    );
-
-    try {
-      final result = await _filePickerService.pickFiles();
-      if (result == null || result.files.isEmpty) {
-        return ImportExportResult.cancelled();
-      }
-
-      final path = result.files.first.path;
-      if (path == null) {
-        return ImportExportResult.error(
-          'No se pudo acceder al archivo seleccionado',
-        );
-      }
-
-      if (!await fileService.fileExists(path)) {
-        return ImportExportResult.error('El archivo seleccionado no existe');
-      }
-
-      // TODO: Refactorizar BackupService para usar IFileService
-      // Por ahora usamos la implementación existente
-      final fileData = await fileService.loadFile(path);
-      if (fileData == null || fileData.isEmpty) {
-        return ImportExportResult.error('El archivo de backup está vacío');
-      }
-
-      // Convertir bytes a string para procesar como JSON
-      final jsonStr = String.fromCharCodes(fileData);
-
-      if (jsonStr.trim().isEmpty) {
-        return ImportExportResult.error(
-          'El archivo de backup está vacío o no contiene JSON válido',
-        );
-      }
-
-      String? importError;
-      final imported = await ChatJsonUtils.importAllFromJson(
-        jsonStr,
-        onError: (final err) => importError = err,
-      );
-
-      if (importError != null || imported == null) {
-        return ImportExportResult.error(
-          'Error al procesar el backup: ${importError ?? 'Formato inválido'}',
-        );
-      }
-
-      Log.d('✅ Restauración de backup exitosa', tag: 'IMPORT_EXPORT_UC');
-      return ImportExportResult.success(data: imported);
-    } on Exception catch (e) {
-      Log.e(
-        'Error durante restauración de backup: $e',
-        tag: 'IMPORT_EXPORT_UC',
-      );
-      return ImportExportResult.error(
-        'Error inesperado durante la restauración: $e',
-      );
-    }
-  }
-
-  /// Valida si un archivo de backup es válido por su path
-  Future<bool> isValidBackupFile(final String filePath) async {
-    try {
-      if (!await fileService.fileExists(filePath)) return false;
-
-      // Intentar leer el archivo para validar
-      final fileData = await fileService.loadFile(filePath);
-      if (fileData == null || fileData.isEmpty) return false;
-
-      // Por ahora solo validamos que el archivo existe y tiene contenido
-      // TODO: Implementar validación más robusta cuando BackupService use IFileService
-      return true;
-    } on Exception catch (e) {
-      Log.w('Error validando archivo de backup: $e');
-      return false;
     }
   }
 }

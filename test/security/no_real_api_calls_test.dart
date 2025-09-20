@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 // Note: old Call system module was removed; tests keep compatibility shims instead of depending on it.
-import 'package:ai_chan/shared/infrastructure/config/config.dart' as config;
+import 'package:ai_chan/shared/ai_providers/core/services/api_key_manager.dart';
 import '../test_setup.dart' as test_setup;
 
 /// HttpOverrides that prevents any HTTP(S) client from being created during
@@ -35,8 +35,13 @@ void main() {
   });
 
   test('API keys are test or empty in the test environment', () {
-    final openaiKeys = config.Config.getOpenAIKeys();
-    final geminiKeys = config.Config.getGeminiKeys();
+    // NOTE: Testing direct API key manager access instead of Config wrapper
+    final openaiKeyInfos = ApiKeyManager.loadKeysForProvider('openai');
+    final geminiKeyInfos = ApiKeyManager.loadKeysForProvider('gemini');
+
+    // Extract key strings from ApiKeyInfo objects
+    final openaiKeys = openaiKeyInfos.map((info) => info.key).toList();
+    final geminiKeys = geminiKeyInfos.map((info) => info.key).toList();
 
     // Keys should either be empty or all contain the substring 'test' to be
     // considered non-production in CI/local tests.

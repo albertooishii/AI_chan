@@ -140,11 +140,6 @@ class AIProviderRegistry {
     return null;
   }
 
-  /// Check if a provider is healthy
-  bool isProviderHealthy(final String providerId) {
-    return _initialized[providerId] == true;
-  }
-
   /// Refresh health status for all providers
   Future<void> refreshHealth() async {
     for (final entry in _providers.entries) {

@@ -66,11 +66,6 @@ void registerAllProviders() {
   }
 }
 
-/// Get list of all registered provider IDs
-List<String> getRegisteredProviderIds() {
-  return ProviderAutoRegistry.getRegisteredProviders();
-}
-
 /// Check if a specific provider is registered
 bool isProviderRegistered(final String providerId) {
   return ProviderAutoRegistry.isProviderRegistered(providerId);

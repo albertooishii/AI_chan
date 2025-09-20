@@ -27,21 +27,4 @@ class TtsVoiceService {
       return 'Standard';
     }
   }
-
-  /// Verifica si una voz es de alta calidad
-  static bool isHighQualityVoice(final Map<String, dynamic> voice) {
-    final quality = getVoiceQualityLevel(voice);
-    return quality == 'WaveNet' ||
-        quality == 'Neural2' ||
-        quality == 'Polyglot' ||
-        quality == 'Journey' ||
-        quality == 'Studio' ||
-        quality == 'Neural' ||
-        quality == 'High Quality';
-  }
-
-  /// Obtiene el tipo de voz basado en el nombre
-  static String getVoiceType(final String voiceName) {
-    return getVoiceQualityLevel({'name': voiceName});
-  }
 }

@@ -63,73 +63,9 @@ class AudioModeService {
     return CentralizedTtsService.instance;
   }
 
-  /// Cambiar modo para un contexto (runtime)
-  static Future<void> setModeForContext(
-    final String context,
-    final AudioMode mode,
-  ) async {
-    await initialize();
-    _contextModes[context] = mode;
-    Log.d('[AudioModeService] Modo cambiado para $context: ${mode.identifier}');
-  }
-
   /// Obtener todos los contextos disponibles
   static Future<Map<String, AudioMode>> getAllContextModes() async {
     await initialize();
     return Map.unmodifiable(_contextModes);
-  }
-
-  /// Verificar si un modo está disponible
-  static Future<bool> isModeAvailable(final AudioMode mode) async {
-    switch (mode) {
-      case AudioMode.hybrid:
-        // Híbrido siempre disponible (usa TTS + STT + texto)
-        return true;
-
-      case AudioMode.realtime:
-        // Realtime disponible si hay providers que lo soporten
-        try {
-          final models = await RealtimeService.getAvailableRealtimeModels();
-          return models.isNotEmpty;
-        } on Exception catch (e) {
-          Log.w('[AudioModeService] Error verificando realtime: $e');
-          return false;
-        }
-    }
-  }
-
-  /// Obtener descripción del modo actual para un contexto
-  static Future<String> getModeDescriptionForContext(
-    final String context,
-  ) async {
-    final mode = await getModeForContext(context);
-    return '${mode.displayName}: ${mode.description}';
-  }
-
-  /// Verificar si se puede cambiar a realtime para un contexto
-  static Future<bool> canSwitchToRealtime(final String context) async {
-    return await isModeAvailable(AudioMode.realtime);
-  }
-
-  /// Cambiar a modo alternativo para un contexto
-  static Future<AudioMode> toggleModeForContext(final String context) async {
-    final currentMode = await getModeForContext(context);
-    final newMode = currentMode == AudioMode.hybrid
-        ? AudioMode.realtime
-        : AudioMode.hybrid;
-
-    // Verificar si el nuevo modo está disponible
-    if (await isModeAvailable(newMode)) {
-      await setModeForContext(context, newMode);
-      Log.d(
-        '[AudioModeService] Modo cambiado de ${currentMode.identifier} a ${newMode.identifier} para $context',
-      );
-      return newMode;
-    } else {
-      Log.w(
-        '[AudioModeService] No se puede cambiar a ${newMode.identifier}, no está disponible',
-      );
-      return currentMode;
-    }
   }
 }

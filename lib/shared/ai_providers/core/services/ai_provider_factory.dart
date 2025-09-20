@@ -112,14 +112,4 @@ class AIProviderFactory {
   static IAIProvider? getCachedProvider(final String providerId) {
     return _providerCache[providerId];
   }
-
-  /// Get available provider types that can be created (now dynamic)
-  static List<String> getAvailableProviderTypes() {
-    return ProviderAutoRegistry.getRegisteredProviders();
-  }
-
-  /// Check if a provider type is supported (now dynamic)
-  static bool isProviderTypeSupported(final String providerId) {
-    return ProviderAutoRegistry.isProviderRegistered(providerId);
-  }
 }

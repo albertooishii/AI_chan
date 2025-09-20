@@ -42,38 +42,6 @@ class AudioSubtitleApplicationService {
     return buffer.toString().trimRight();
   }
 
-  /// Validates timeline data integrity
-  bool validateTimeline(final List<WordTimelineItem> timeline) {
-    if (timeline.isEmpty) return true;
-
-    for (int i = 0; i < timeline.length; i++) {
-      final word = timeline[i];
-
-      // Basic validation
-      if (word.startMs < 0 || word.endMs < 0 || word.startMs > word.endMs) {
-        return false;
-      }
-
-      // Sequential validation
-      if (i > 0 && word.startMs < timeline[i - 1].startMs) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  /// Calculates completion percentage based on position
-  double calculateCompletionPercentage({
-    required final Duration audioPosition,
-    required final Duration totalDuration,
-  }) {
-    if (totalDuration.inMilliseconds <= 0) return 0.0;
-
-    final ratio = audioPosition.inMilliseconds / totalDuration.inMilliseconds;
-    return (ratio * 100).clamp(0.0, 100.0);
-  }
-
   /// Finds the current word being spoken at given position
   WordTimelineItem? findCurrentWord({
     required final Duration audioPosition,

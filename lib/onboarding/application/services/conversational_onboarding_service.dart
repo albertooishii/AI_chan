@@ -11,7 +11,7 @@ import 'package:ai_chan/onboarding/application/use_cases/generate_next_question_
 /// Este servicio actúa como compatibilidad con la API existente.
 class ConversationalOnboardingService {
   /// 🎯 **Application Service** siguiendo DDD
-  static OnboardingApplicationService _applicationService =
+  static final OnboardingApplicationService _applicationService =
       OnboardingApplicationService();
 
   /// Texto inicial del flujo de "despertar".
@@ -113,58 +113,6 @@ class ConversationalOnboardingService {
     }
   }
 
-  /// Valida y actualiza un dato específico en la memoria
-  static Future<MemoryData> validateAndUpdateMemory({
-    required final MemoryData currentMemory,
-    required final String dataType,
-    required final String value,
-  }) async {
-    Log.d(
-      '🔍 [ONB_SERVICE] Validando y actualizando memoria: $dataType=$value',
-      tag: 'ONB_SERVICE',
-    );
-
-    try {
-      // Usar el servicio de dominio para validación
-      final validationResult =
-          ConversationalMemoryDomainService.validateAndSaveData(
-            dataType,
-            value,
-          );
-
-      if (validationResult['isValid'] == true) {
-        final validatedValue = validationResult['validatedValue'] as String?;
-
-        // Actualizar la memoria con el valor validado
-        switch (dataType) {
-          case 'userName':
-            return currentMemory.copyWith(userName: validatedValue);
-          case 'userCountry':
-            return currentMemory.copyWith(userCountry: validatedValue);
-          case 'userBirthdate':
-            return currentMemory.copyWith(userBirthdate: validatedValue);
-          case 'aiCountry':
-            return currentMemory.copyWith(aiCountry: validatedValue);
-          case 'aiName':
-            return currentMemory.copyWith(aiName: validatedValue);
-          case 'meetStory':
-            return currentMemory.copyWith(meetStory: validatedValue);
-          default:
-            return currentMemory;
-        }
-      } else {
-        Log.e(
-          '❌ [ONB_SERVICE] Validación falló: ${validationResult['message']}',
-          tag: 'ONB_SERVICE',
-        );
-        return currentMemory; // Retornar memoria sin cambios si la validación falla
-      }
-    } on Exception catch (e) {
-      Log.e('❌ [ONB_SERVICE] Error validando memoria: $e', tag: 'ONB_SERVICE');
-      return currentMemory; // Retornar memoria sin cambios en caso de error
-    }
-  }
-
   /// Obtiene las instrucciones de voz para el TTS según el estado del onboarding
   static Map<String, String> getVoiceInstructions({
     final String? userCountry,
@@ -185,11 +133,6 @@ class ConversationalOnboardingService {
     );
   }
 
-  /// Verifica si la memoria está completa
-  static bool isMemoryComplete(final MemoryData memory) {
-    return memory.isComplete();
-  }
-
   /// Obtiene el porcentaje de completitud de la memoria
   static double getMemoryCompletionPercentage(final MemoryData memory) {
     return memory.getCompletionPercentage();
@@ -208,11 +151,6 @@ class ConversationalOnboardingService {
       '🗣️ [ONB_SERVICE] Historial de conversación limpiado',
       tag: 'ONB_SERVICE',
     );
-  }
-
-  /// Crea una memoria vacía para iniciar el onboarding
-  static MemoryData createEmptyMemory() {
-    return const MemoryData();
   }
 
   // Métodos de compatibilidad con la API anterior
@@ -274,17 +212,5 @@ class ConversationalOnboardingService {
       'error': true,
       'exception': exception,
     };
-  }
-
-  /// Método para testing: permite inyectar un Application Service personalizado
-  static void setApplicationServiceForTesting(
-    final OnboardingApplicationService service,
-  ) {
-    _applicationService = service;
-  }
-
-  /// Método para testing: restaura el Application Service original
-  static void resetApplicationServiceForTesting() {
-    _applicationService = OnboardingApplicationService();
   }
 }

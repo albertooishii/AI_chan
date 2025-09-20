@@ -57,45 +57,6 @@ class ChatConversation {
     );
   }
 
-  /// Añade un evento a la conversación
-  ChatConversation addEvent(final ChatEvent event) {
-    final updatedEvents = List<ChatEvent>.from(events)..add(event);
-    return ChatConversation(
-      messages: messages,
-      events: updatedEvents,
-      createdAt: createdAt,
-      lastUpdatedAt: DateTime.now(),
-    );
-  }
-
-  /// Actualiza el estado de un mensaje específico
-  ChatConversation updateMessageStatus(
-    final int messageIndex,
-    final MessageStatus newStatus,
-  ) {
-    if (messageIndex < 0 || messageIndex >= messages.length) {
-      return this; // No cambios si el índice es inválido
-    }
-
-    final updatedMessages = List<Message>.from(messages);
-    updatedMessages[messageIndex] = updatedMessages[messageIndex].copyWith(
-      status: newStatus,
-    );
-
-    return ChatConversation(
-      messages: updatedMessages,
-      events: events,
-      createdAt: createdAt,
-      lastUpdatedAt: DateTime.now(),
-    );
-  }
-
-  /// Obtiene los mensajes más recientes limitados por cantidad
-  List<Message> getRecentMessages(final int limit) {
-    if (messages.length <= limit) return List.unmodifiable(messages);
-    return List.unmodifiable(messages.sublist(messages.length - limit));
-  }
-
   /// Obtiene solo los mensajes que no son del sistema
   List<Message> get userAndAssistantMessages {
     return messages

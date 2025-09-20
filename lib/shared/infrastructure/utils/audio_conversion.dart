@@ -103,33 +103,4 @@ class AudioConversion {
       ],
     );
   }
-
-  /// Convert bytes to a preferred compressed container (mp3 or m4a).
-  static Future<Uint8List?> convertBytesToPreferredCompressed(
-    final Uint8List inputBytes,
-    final String preferredFormat,
-  ) async {
-    final pref = preferredFormat.trim().toLowerCase();
-    if (pref == 'm4a') {
-      return await convertBytesToFormat(
-        inputBytes,
-        'm4a',
-        extraArgs: ['-c:a', 'aac', '-b:a', '96k'],
-      );
-    }
-    return await convertBytesToFormat(
-      inputBytes,
-      'mp3',
-      extraArgs: [
-        '-ac',
-        '1',
-        '-ar',
-        '16000',
-        '-b:a',
-        '64k',
-        '-codec:a',
-        'libmp3lame',
-      ],
-    );
-  }
 }

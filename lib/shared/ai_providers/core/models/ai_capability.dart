@@ -101,11 +101,6 @@ extension AICapabilityExtension on AICapability {
 
 /// Utility class for working with AI capabilities
 class AICapabilityUtils {
-  /// Get all capabilities as string identifiers
-  static List<String> getAllIdentifiers() {
-    return AICapability.values.map((final c) => c.identifier).toList();
-  }
-
   /// Parse list of capability identifiers from strings
   static List<AICapability> parseCapabilities(final List<String> identifiers) {
     final capabilities = <AICapability>[];
@@ -123,23 +118,5 @@ class AICapabilityUtils {
     final List<AICapability> capabilities,
   ) {
     return capabilities.map((final c) => c.identifier).toList();
-  }
-
-  /// Check if a capability requires specific model types
-  static bool requiresSpecializedModel(final AICapability capability) {
-    switch (capability) {
-      case AICapability.imageGeneration:
-      case AICapability.imageAnalysis:
-      case AICapability.audioGeneration:
-      case AICapability.audioTranscription:
-      case AICapability.embeddingGeneration:
-        return true;
-      case AICapability.textGeneration:
-      case AICapability.codeGeneration:
-      case AICapability.functionCalling:
-      case AICapability.realtimeConversation:
-      case AICapability.documentAnalysis:
-        return false;
-    }
   }
 }

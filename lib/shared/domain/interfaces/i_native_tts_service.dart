@@ -2,9 +2,6 @@ import 'package:ai_chan/shared.dart';
 
 /// Interfaz para servicios de TTS nativo específica del dominio core
 abstract interface class INativeTtsService implements ITtsService {
-  /// Verifica si el TTS nativo está disponible en la plataforma
-  Future<bool> isNativeTtsAvailable();
-
   /// Obtiene voces filtradas por idioma
   Future<List<Map<String, dynamic>>> getVoicesForLanguage(
     final String languageCode,
@@ -22,10 +19,4 @@ abstract interface class INativeTtsService implements ITtsService {
 
   /// Obtiene idiomas disponibles para descargar
   Future<List<Map<String, dynamic>>> getDownloadableLanguages();
-
-  /// Verifica el estado de descarga de un idioma
-  Future<String> getLanguageDownloadStatus(final String languageCode);
-
-  /// Formatea información de voz para mostrar
-  String formatVoiceInfo(final Map<String, dynamic> voice);
 }

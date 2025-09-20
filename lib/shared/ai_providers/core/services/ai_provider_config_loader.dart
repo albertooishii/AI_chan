@@ -81,45 +81,6 @@ class AIProviderConfigLoader {
     }
   }
 
-  /// Load configuration from file system
-  static Future<AIProvidersConfig> loadFromFile(final String filePath) async {
-    try {
-      Log.i('Loading AI providers configuration from file: $filePath');
-
-      final file = File(filePath);
-      if (!file.existsSync()) {
-        throw ConfigurationLoadException(
-          'Configuration file not found: $filePath',
-        );
-      }
-
-      final String yamlString = await file.readAsString();
-      return _parseConfiguration(yamlString);
-    } on Exception catch (e) {
-      Log.e('Failed to load configuration from file', error: e);
-      if (e is ConfigurationLoadException) rethrow;
-      throw ConfigurationLoadException(
-        'Failed to load configuration from file: $filePath',
-        e,
-      );
-    }
-  }
-
-  /// Load configuration from YAML string
-  static AIProvidersConfig loadFromString(final String yamlString) {
-    try {
-      Log.i('Loading AI providers configuration from string');
-      return _parseConfiguration(yamlString);
-    } on Exception catch (e) {
-      Log.e('Failed to parse configuration string', error: e);
-      if (e is ConfigurationLoadException) rethrow;
-      throw ConfigurationLoadException(
-        'Failed to parse configuration string',
-        e,
-      );
-    }
-  }
-
   /// Parse YAML string into configuration model
   static AIProvidersConfig _parseConfiguration(final String yamlString) {
     try {
@@ -242,17 +203,6 @@ class AIProviderConfigLoader {
     }
   }
 
-  /// Apply environment overrides to configuration
-  static AIProvidersConfig applyEnvironmentOverrides(
-    final AIProvidersConfig config,
-    final String environment,
-  ) {
-    // Convert config to map, apply overrides, and convert back
-    final configMap = config.toMap();
-    final processedMap = _applyEnvironmentOverridesMap(configMap, environment);
-    return AIProvidersConfig.fromMap(processedMap);
-  }
-
   /// Apply environment-specific overrides
   static Map<String, dynamic> _applyEnvironmentOverrides(
     final Map<String, dynamic> configMap,
@@ -344,31 +294,6 @@ class AIProviderConfigLoader {
   }
 
   /// Validate environment variables and return missing ones
-  static List<String> validateEnvironmentVariables(
-    final AIProvidersConfig config,
-  ) {
-    final missing = <String>[];
-
-    for (final entry in config.aiProviders.entries) {
-      final providerKey = entry.key;
-      final provider = entry.value;
-
-      // Skip disabled providers
-      if (!provider.enabled) continue;
-
-      // Check required environment variables
-      for (final envKey in provider.apiSettings.requiredEnvKeys) {
-        // ✅ CORREGIDO: Usar Config en lugar de Platform.environment
-        final envValue = Config.get(envKey, '');
-        if (envValue.isEmpty) {
-          missing.add('$providerKey: $envKey');
-        }
-      }
-    }
-
-    return missing;
-  }
-
   /// Validate that required environment variables are available
   static void _validateEnvironmentVariables(
     final Map<String, dynamic> configMap,
@@ -413,46 +338,6 @@ class AIProviderConfigLoader {
         'Please ensure all required environment variables are set.',
       );
     }
-  }
-
-  /// Get configuration summary for debugging
-  static Map<String, dynamic> getConfigSummary(final AIProvidersConfig config) {
-    final summary = <String, dynamic>{
-      'version': config.version,
-      'total_providers': config.aiProviders.length,
-      'enabled_providers': config.aiProviders.values
-          .where((final p) => p.enabled)
-          .length,
-      'global_settings': {
-        'default_timeout': config.globalSettings.defaultTimeoutSeconds,
-        'max_retries': config.globalSettings.maxRetries,
-        'fallback_enabled': config.globalSettings.enableFallback,
-        'debug_mode': config.globalSettings.debugMode,
-      },
-      'providers': {},
-      'fallback_chains': config.fallbackChains.map(
-        (final k, final v) => MapEntry(k.name, {
-          'primary': v.primary,
-          'fallback_count': v.fallbacks.length,
-        }),
-      ),
-    };
-
-    // Add provider summary
-    for (final entry in config.aiProviders.entries) {
-      final provider = entry.value;
-      summary['providers'][entry.key] = {
-        'enabled': provider.enabled,
-        'priority': provider.priority,
-        'capabilities': provider.capabilities.map((final c) => c.name).toList(),
-        'models_count': provider.models.values.fold(
-          0,
-          (final sum, final models) => sum + models.length,
-        ),
-      };
-    }
-
-    return summary;
   }
 
   /// Validate provider health (basic checks)
@@ -628,18 +513,6 @@ class AIProviderConfigLoader {
     } on Exception catch (e) {
       Log.w('Failed to get default voice from current provider: $e');
       return null;
-    }
-  }
-
-  /// Get audio provider mapping (for backward compatibility with 'gemini' -> 'google')
-  static String normalizeAudioProvider(final String provider) {
-    switch (provider.toLowerCase()) {
-      case 'gemini':
-        return 'google';
-      case 'openai':
-        return 'openai';
-      default:
-        return 'google';
     }
   }
 

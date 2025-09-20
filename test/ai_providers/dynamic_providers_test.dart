@@ -111,29 +111,18 @@ void main() {
       service.getDefaultModelForCapability(AICapability.textGeneration);
       // In test environment, this may be null without API keys, so we don't enforce it
 
-      // Test that the service doesn't crash when checking model support
+      // Test that the service doesn't crash when checking model provider
       expect(
-        () => service.supportsModelForCapability(
-          'gpt-4.1-mini',
-          AICapability.textGeneration,
-        ),
+        () => service.getProviderForModel('gpt-4.1-mini'),
         returnsNormally,
       );
 
       expect(
-        () => service.supportsModelForCapability(
-          'gemini-2.5-flash',
-          AICapability.textGeneration,
-        ),
+        () => service.getProviderForModel('claude-3.5-sonnet'),
         returnsNormally,
       );
-      expect(
-        () => service.supportsModelForCapability(
-          'grok-4',
-          AICapability.textGeneration,
-        ),
-        returnsNormally,
-      );
+
+      expect(() => service.getProviderForModel('grok-4'), returnsNormally);
     });
   });
 }

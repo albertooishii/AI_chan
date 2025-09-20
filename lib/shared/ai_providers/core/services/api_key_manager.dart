@@ -49,14 +49,6 @@ class ApiKeyInfo {
     Log.w('[ApiKeyManager] Key #$index marked as exhausted (rate limited)');
   }
 
-  /// Mark key as invalid
-  void markInvalid() {
-    status = ApiKeyStatus.invalid;
-    lastError = 'API key invalid or revoked';
-    failureCount++;
-    Log.e('[ApiKeyManager] Key #$index marked as invalid');
-  }
-
   /// Reset key to active status (session restart)
   void reset() {
     status = ApiKeyStatus.active;
@@ -226,27 +218,6 @@ class ApiKeyManager {
     }
   }
 
-  /// Reset all keys for a provider (session restart)
-  static void resetKeysForProvider(final String providerId) {
-    final keys = loadKeysForProvider(providerId);
-    for (final key in keys) {
-      key.reset();
-    }
-
-    final cacheKey = providerId.toLowerCase();
-    _currentKeyIndex[cacheKey] = 0;
-
-    Log.i('[ApiKeyManager] Reset all keys for $providerId');
-  }
-
-  /// Reset all keys for all providers (app restart)
-  static void resetAllKeys() {
-    for (final providerId in _providerKeys.keys) {
-      resetKeysForProvider(providerId);
-    }
-    Log.i('[ApiKeyManager] Reset all keys for all providers');
-  }
-
   /// Get statistics for a provider
   static Map<String, dynamic> getProviderStats(final String providerId) {
     final keys = loadKeysForProvider(providerId);
@@ -268,23 +239,6 @@ class ApiKeyManager {
     };
 
     return stats;
-  }
-
-  /// Get all provider statistics
-  static Map<String, dynamic> getAllStats() {
-    final allStats = <String, dynamic>{};
-
-    for (final providerId in _providerKeys.keys) {
-      allStats[providerId] = getProviderStats(providerId);
-    }
-
-    return allStats;
-  }
-
-  /// Check if provider has any available keys
-  static bool hasAvailableKeys(final String providerId) {
-    final keys = loadKeysForProvider(providerId);
-    return keys.any((final key) => key.isAvailable);
   }
 
   /// Get current key info for debugging

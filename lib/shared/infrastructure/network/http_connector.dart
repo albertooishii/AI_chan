@@ -7,11 +7,6 @@ import 'package:http/http.dart' as http;
 class HttpConnector {
   static http.Client client = http.Client();
 
-  /// Tests can replace the client with a fake implementation
-  static void setClient(final http.Client c) {
-    client = c;
-  }
-
   /// Reset to default client
   static void reset() {
     client = http.Client();

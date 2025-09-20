@@ -42,27 +42,6 @@ class OnboardingScreenController extends ChangeNotifier
     });
   }
 
-  /// Navigate to next step
-  Future<void> goToNextStep() async {
-    if (!canProceedToNext) return;
-    _currentStepIndex++;
-    _updateProgress();
-  }
-
-  /// Navigate to previous step
-  Future<void> goToPreviousStep() async {
-    if (!canGoBack) return;
-    _currentStepIndex--;
-    _updateProgress();
-  }
-
-  /// Jump to specific step
-  Future<void> goToStep(final int stepIndex) async {
-    if (stepIndex < 0 || stepIndex >= _steps.length || _isLoading) return;
-    _currentStepIndex = stepIndex;
-    _updateProgress();
-  }
-
   /// Process user input for current step
   Future<void> processUserInput(final String input) async {
     await _executeOperation(() async {
@@ -82,14 +61,6 @@ class OnboardingScreenController extends ChangeNotifier
     });
   }
 
-  /// Complete onboarding
-  Future<void> completeOnboarding() async {
-    await _executeOperation(() async {
-      _completionProgress = 1.0;
-      _applicationService.addConversationEntry('completed', 'true');
-    });
-  }
-
   /// Reset onboarding
   Future<void> resetOnboarding() async {
     await _executeOperation(() async {
@@ -104,18 +75,6 @@ class OnboardingScreenController extends ChangeNotifier
     _errorMessage = null;
     notifyListeners();
   }
-
-  /// Get step progress information
-  Map<String, dynamic> getStepProgress() => {
-    'currentStep': currentStep,
-    'currentStepIndex': _currentStepIndex,
-    'totalSteps': _steps.length,
-    'completionProgress': _completionProgress,
-    'canProceed': canProceedToNext,
-    'canGoBack': canGoBack,
-    'isCompleted': isCompleted,
-    'allSteps': _steps,
-  };
 
   /// Get conversation history from application service
   List<Map<String, String>> getConversationHistory() =>

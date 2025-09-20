@@ -40,11 +40,6 @@ class ConversationalSubtitleController {
     _streamingController.handleUserTranscription(text);
   }
 
-  /// Muestra texto del usuario instantáneamente (compatibility)
-  void showUserText(final String text) {
-    handleUserTranscription(text);
-  }
-
   /// Limpia todos los subtítulos
   void clearAll() {
     _streamingController.clearAll();

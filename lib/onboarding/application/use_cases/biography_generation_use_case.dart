@@ -142,16 +142,6 @@ class BiographyGenerationUseCase {
         userBirthdate.isBefore(DateTime.now());
   }
 
-  /// Checks if a complete biography exists in storage
-  Future<bool> hasCompleteBiography() async {
-    try {
-      final biography = await loadExistingBiography();
-      return biography != null && biography.avatars?.isNotEmpty == true;
-    } on Exception {
-      return false;
-    }
-  }
-
   /// Clears saved biography from storage
   Future<void> clearSavedBiography() async {
     await onboardingPersistenceService.removeOnboardingData();

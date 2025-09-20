@@ -135,78 +135,6 @@ class MultiModelRouter {
     }
   }
 
-  /// Special routing for image generation requests
-  static Future<RoutingResult?> routeImageGeneration({
-    final String? preferredModel,
-    final String? preferredProvider,
-    final Map<String, dynamic>? additionalParams,
-  }) async {
-    Log.d('[MultiModelRouter] 🎨 Routing image generation request');
-
-    // Image generation typically requires specific providers
-    // Check if current provider supports it, otherwise auto-switch to one that does
-
-    final result = await route(
-      capability: AICapability.imageGeneration,
-      preferredProvider: preferredProvider,
-      additionalParams: additionalParams,
-    );
-
-    if (result != null && result.wasAutoSwitched) {
-      Log.i(
-        '[MultiModelRouter] 🎨 AUTO-SWITCH for image generation: ${result.originalProvider} → ${result.provider.providerId}',
-      );
-    }
-
-    return result;
-  }
-
-  /// Special routing for image analysis requests
-  static Future<RoutingResult?> routeImageAnalysis({
-    final String? preferredModel,
-    final String? preferredProvider,
-    final Map<String, dynamic>? additionalParams,
-  }) async {
-    Log.d('[MultiModelRouter] 👁️ Routing image analysis request');
-
-    final result = await route(
-      capability: AICapability.imageAnalysis,
-      preferredProvider: preferredProvider,
-      additionalParams: additionalParams,
-    );
-
-    if (result != null && result.wasAutoSwitched) {
-      Log.i(
-        '[MultiModelRouter] 👁️ AUTO-SWITCH for image analysis: ${result.originalProvider} → ${result.provider.providerId}',
-      );
-    }
-
-    return result;
-  }
-
-  /// Special routing for realtime conversation
-  static Future<RoutingResult?> routeRealtimeConversation({
-    final String? preferredModel,
-    final String? preferredProvider,
-    final Map<String, dynamic>? additionalParams,
-  }) async {
-    Log.d('[MultiModelRouter] 🎙️ Routing realtime conversation request');
-
-    final result = await route(
-      capability: AICapability.realtimeConversation,
-      preferredProvider: preferredProvider,
-      additionalParams: additionalParams,
-    );
-
-    if (result != null && result.wasAutoSwitched) {
-      Log.i(
-        '[MultiModelRouter] 🎙️ AUTO-SWITCH for realtime: ${result.originalProvider} → ${result.provider.providerId}',
-      );
-    }
-
-    return result;
-  }
-
   /// Get provider for a specific model using registered prefixes
   static IAIProvider? _getProviderForModel(final String modelId) {
     final providerId = getProviderIdForModel(modelId);
@@ -258,33 +186,5 @@ class MultiModelRouter {
 
     // Último fallback: null si no hay modelos disponibles
     return null;
-  }
-
-  /// Get routing statistics
-  static Map<String, dynamic> getRoutingStats() {
-    final providers = _registry.getAllProviders();
-    final stats = <String, dynamic>{
-      'total_providers': providers.length,
-      'healthy_providers': _registry.getHealthyProviders().length,
-    };
-
-    // Add capability coverage stats
-    for (final capability in AICapability.values) {
-      final supportingProviders = _registry.getProvidersForCapability(
-        capability,
-      );
-      stats['${capability.name}_providers'] = supportingProviders.length;
-      stats['${capability.name}_provider_ids'] = supportingProviders
-          .map((final p) => p.providerId)
-          .toList();
-    }
-
-    return stats;
-  }
-
-  /// Force refresh of provider registry
-  static Future<void> refreshProviders() async {
-    await _registry.refreshHealth();
-    Log.i('[MultiModelRouter] Provider registry refreshed');
   }
 }

@@ -1,6 +1,5 @@
 import 'package:ai_chan/shared.dart'; // Using shared exports for infrastructure
 import 'package:ai_chan/chat/presentation/controllers/chat_controller.dart';
-import 'package:ai_chan/chat/application/services/chat_application_service.dart';
 import 'package:ai_chan/shared/presentation/widgets/google_drive_backup_dialog.dart';
 
 /// 🏭 **Backup Dialog Factory** - Type-safe factory for creating backup dialogs
@@ -54,48 +53,6 @@ class BackupDialogFactory {
           },
       onClearAccountInfo: () =>
           chatController.googleController.clearGoogleAccountInfo(),
-    );
-  }
-
-  /// Creates a GoogleDriveBackupDialog from a ChatApplicationService
-  ///
-  /// This method ensures type safety for onboarding contexts where
-  /// ChatApplicationService is used directly.
-  static GoogleDriveBackupDialog fromChatApplicationService(
-    final ChatApplicationService chatService,
-  ) {
-    return GoogleDriveBackupDialog(
-      requestBackupJson: () async {
-        return await BackupUtils.exportChatPartsToJson(
-          profile: chatService.profile!,
-          messages: chatService.messages,
-          events: chatService.events,
-          timeline: chatService.timeline,
-        );
-      },
-      onImportedJson: (final jsonStr) async {
-        final imported = await ChatJsonUtils.importAllFromJson(jsonStr);
-        if (imported != null) {
-          await chatService.applyChatExport(imported.toJson());
-        }
-      },
-      onAccountInfoUpdated:
-          ({
-            final String? email,
-            final String? avatarUrl,
-            final String? name,
-            final bool linked = false,
-            final bool triggerAutoBackup = false,
-          }) async {
-            await chatService.updateGoogleAccountInfo(
-              email: email,
-              avatarUrl: avatarUrl,
-              name: name,
-              linked: linked,
-              triggerAutoBackup: triggerAutoBackup,
-            );
-          },
-      onClearAccountInfo: () => chatService.clearGoogleAccountInfo(),
     );
   }
 }

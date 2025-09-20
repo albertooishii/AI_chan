@@ -118,16 +118,6 @@ class _TtsConfigurationDialogState extends State<TtsConfigurationDialog>
     super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(final AppLifecycleState state) {
-    // Al volver (resumed) intentamos refrescar las voces nativas automáticamente
-    if (state == AppLifecycleState.resumed &&
-        Platform.isAndroid &&
-        _selectedProvider == 'android_native') {
-      _refreshNativeVoices();
-    }
-  }
-
   Future<void> _refreshNativeVoices() async {
     setState(() => _isLoading = true);
     try {

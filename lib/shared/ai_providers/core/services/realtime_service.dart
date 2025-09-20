@@ -231,26 +231,6 @@ class RealtimeService {
     };
   }
 
-  /// Sistema alternativo TTS + STT + Texto para providers sin realtime
-  static Future<IRealtimeClient> createHybridClient({
-    String? textProvider,
-    String? ttsProvider,
-    String? sttProvider,
-    Function(String)? onText,
-    Function(Uint8List)? onAudio,
-    Function()? onCompleted,
-    Function(String)? onError,
-    Function(String)? onUserTranscription,
-    Map<String, dynamic>? additionalParams,
-  }) async {
-    // TODO: Implementar cliente híbrido que combine TTS + STT + modelo de texto
-    // Esto será el fallback cuando no haya providers realtime disponibles
-    throw UnimplementedError(
-      'Hybrid TTS+STT+Text client not yet implemented. '
-      'Configure OpenAI provider for native realtime support.',
-    );
-  }
-
   /// Configura callbacks específicos para el cliente realtime
   static void _configureRealtimeCallbacks(
     IRealtimeClient client, {

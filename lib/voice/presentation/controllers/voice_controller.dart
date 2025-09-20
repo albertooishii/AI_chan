@@ -233,19 +233,6 @@ class VoiceController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 🔄 Refrescar capacidades
-  Future<void> refreshCapabilities() async {
-    await _setLoading(true);
-    try {
-      _capabilities = await _appService.getVoiceCapabilities();
-      _error = null;
-    } on Exception catch (e) {
-      _error = 'Error refrescando capacidades: $e';
-    } finally {
-      await _setLoading(false);
-    }
-  }
-
   // Helpers privados
   Future<void> _setLoading(final bool loading) async {
     _isLoading = loading;

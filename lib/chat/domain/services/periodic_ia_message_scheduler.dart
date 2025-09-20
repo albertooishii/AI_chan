@@ -203,34 +203,4 @@ class PeriodicIaMessageScheduler {
   }
 
   /// Determina si se debe enviar un mensaje automático (para compatibilidad)
-  bool shouldSendAutomaticMessage(
-    final List<Map<String, dynamic>> messages,
-    final Map<String, dynamic> profile,
-  ) {
-    final now = DateTime.now();
-    final tipo = _getCurrentScheduleType(now, profile);
-    if (tipo == 'sleep' || tipo == 'work' || tipo == 'busy') {
-      return false;
-    }
-
-    final lastMsg = messages.isNotEmpty ? messages.last : null;
-    final lastMsgTime = lastMsg?['dateTime'] as DateTime?;
-    final diffMinutes = lastMsgTime != null
-        ? now.difference(lastMsgTime).inMinutes
-        : 9999;
-
-    final minWait = (60 + (_autoStreak > 0 ? (_autoStreak * 60) : 0)).clamp(
-      60,
-      480,
-    );
-    final cooldownOk =
-        _lastAutoIa == null || now.difference(_lastAutoIa!).inMinutes >= 30;
-
-    return diffMinutes >= minWait && cooldownOk;
-  }
-
-  /// Analiza el horario y determina si debe enviar un mensaje (para compatibilidad)
-  bool shouldSendScheduledMessage(final Map<String, dynamic> profile) {
-    return false; // La lógica principal ahora está en start()
-  }
 }

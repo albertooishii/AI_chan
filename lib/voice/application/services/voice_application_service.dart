@@ -189,21 +189,7 @@ class VoiceApplicationService {
     }
   }
 
-  /// 📊 Obtener estado de todas las sesiones
-  Map<String, VoiceSessionState> getAllSessionStates() {
-    return _activeSessions.map(
-      (final id, final session) => MapEntry(
-        id,
-        VoiceSessionState(
-          session: session,
-          isActive: true,
-          stats: useCase.getStats(session),
-        ),
-      ),
-    );
-  }
-
-  /// 🔍 Buscar sesión activa
+  ///  Buscar sesión activa
   VoiceSession? getActiveSession(final String sessionId) {
     return _activeSessions[sessionId];
   }

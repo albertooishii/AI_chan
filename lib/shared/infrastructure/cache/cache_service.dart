@@ -205,30 +205,6 @@ class CacheService {
     }
   }
 
-  /// Guarda lista de voces en caché
-  static Future<void> saveVoicesToCache({
-    required final List<Map<String, dynamic>> voices,
-    required final String provider,
-  }) async {
-    try {
-      final voicesDir = await getVoicesCacheDirectory();
-      final cacheFile = File('${voicesDir.path}/${provider}_voices_cache.json');
-
-      final cacheData = {
-        'provider': provider,
-        'timestamp': DateTime.now().millisecondsSinceEpoch,
-        'voices': voices,
-      };
-
-      await cacheFile.writeAsString(jsonEncode(cacheData));
-      Log.d(
-        '[Cache] Voces $provider guardadas en caché: ${voices.length} voces',
-      );
-    } on Exception catch (e) {
-      Log.e('[Cache] Error guardando voces en caché: $e');
-    }
-  }
-
   /// Obtiene lista de voces desde caché
   static Future<List<Map<String, dynamic>>?> getCachedVoices({
     required final String provider,
@@ -356,20 +332,6 @@ class CacheService {
   }
 
   /// Elimina caché de modelos de un proveedor específico
-  static Future<void> clearModelsCache({required final String provider}) async {
-    try {
-      final cacheDir = await getCacheDirectory();
-      final modelsDir = Directory('${cacheDir.path}/$_modelsSubDir');
-      final cacheFile = File('${modelsDir.path}/${provider}_models_cache.json');
-
-      if (cacheFile.existsSync()) {
-        await cacheFile.delete();
-        debugPrint('[Cache] Caché de modelos $provider eliminado');
-      }
-    } on Exception catch (e) {
-      debugPrint('[Cache] Error eliminando caché de modelos $provider: $e');
-    }
-  }
 
   /// Elimina todos los archivos de caché de voces (usado para forzar refresh completo)
   static Future<void> clearAllVoicesCache() async {

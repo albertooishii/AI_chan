@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:ai_chan/shared.dart' as image_utils;
@@ -47,12 +46,5 @@ class AudioPersistenceService {
       Log.w('[AudioPersistence] Error loading audio $fileName: $e');
       return null;
     }
-  }
-
-  /// Carga un fichero de audio y devuelve su base64 (sin data URI) o null.
-  Future<String?> loadAudioAsBase64(final String fileName) async {
-    final bytes = await loadAudioAsBytes(fileName);
-    if (bytes == null) return null;
-    return base64Encode(bytes);
   }
 }

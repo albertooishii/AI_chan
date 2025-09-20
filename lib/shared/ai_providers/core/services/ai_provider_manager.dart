@@ -627,21 +627,6 @@ class AIProviderManager {
     return results;
   }
 
-  /// Reload configuration and reinitialize
-  Future<bool> reload({
-    final String? configPath,
-    final String? environment,
-  }) async {
-    Log.i('Reloading AI Provider Manager');
-
-    // Dispose current providers
-    await dispose();
-
-    // Reinitialize
-    await initialize();
-    return true;
-  }
-
   /// Dispose resources
   Future<void> dispose() async {
     Log.i('Disposing AI Provider Manager');
@@ -724,15 +709,6 @@ class AIProviderManager {
   /// Get provider health rankings based on performance
   List<MapEntry<String, double>> getProviderHealthRankings() {
     return _performanceService?.getProviderHealthScores() ?? [];
-  }
-
-  /// Clear all caches and reset performance metrics
-  Future<void> clearOptimizationData() async {
-    await _cacheService?.clear();
-    _performanceService?.clearMetrics();
-    _deduplicationService?.clearInFlightRequests();
-    _deduplicationService?.resetStats();
-    Log.i('Cleared all optimization data');
   }
 
   /// Get ordered list of providers to try for a capability
@@ -900,21 +876,6 @@ class AIProviderManager {
   /// Get default image generation model (replacement for Config.getDefaultImageModel)
   Future<String?> getDefaultImageModel() async {
     return getDefaultModelForCapability(AICapability.imageGeneration);
-  }
-
-  /// Get default image analysis model
-  Future<String?> getDefaultImageAnalysisModel() async {
-    return getDefaultModelForCapability(AICapability.imageAnalysis);
-  }
-
-  /// Get default audio generation model
-  Future<String?> getDefaultAudioModel() async {
-    return getDefaultModelForCapability(AICapability.audioGeneration);
-  }
-
-  /// Get default realtime conversation model
-  Future<String?> getDefaultRealtimeModel() async {
-    return getDefaultModelForCapability(AICapability.realtimeConversation);
   }
 
   /// Get the appropriate model based on capability and user preferences

@@ -41,26 +41,6 @@ class Config {
     return [];
   }
 
-  /// Get all API keys for OpenAI as a list
-  static List<String> getOpenAIKeys() {
-    return parseApiKeysFromJson('OPENAI_API_KEYS');
-  }
-
-  /// Get all API keys for Gemini as a list
-  static List<String> getGeminiKeys() {
-    return parseApiKeysFromJson('GEMINI_API_KEYS');
-  }
-
-  /// Get all API keys for Grok as a list
-  static List<String> getGrokKeys() {
-    return parseApiKeysFromJson('GROK_API_KEYS');
-  }
-
-  /// Get all API keys for Google Cloud as a list
-  static List<String> getGoogleCloudKeys() {
-    return parseApiKeysFromJson('GOOGLE_CLOUD_API_KEYS');
-  }
-
   // --- Application Configuration ---
   static String getAppName() => _get('APP_NAME', 'AI-チャン');
 
@@ -116,37 +96,6 @@ class Config {
 
     // Fallback dinámico
     return 'unknown-stt-model';
-  }
-
-  /// Modelo Realtime dinámico - obtenido del primer proveedor con capacidad realtime
-  static String getOpenAIRealtimeModel() {
-    final manager = AIProviderManager.instance;
-
-    // 🚀 DINÁMICO: Buscar el primer proveedor que soporte conversación en tiempo real
-    final providers = manager.getProvidersByCapability(
-      AICapability.realtimeConversation,
-    );
-
-    for (final providerId in providers) {
-      final provider = manager.providers[providerId];
-      if (provider != null &&
-          provider.supportsCapability(AICapability.realtimeConversation)) {
-        final models = provider
-            .metadata
-            .availableModels[AICapability.realtimeConversation];
-        if (models != null && models.isNotEmpty) {
-          // Buscar modelo realtime específico o usar el primero disponible
-          final realtimeModel = models.firstWhere(
-            (final model) => model.toLowerCase().contains('realtime'),
-            orElse: () => models.first,
-          );
-          return realtimeModel;
-        }
-      }
-    }
-
-    // Fallback dinámico
-    return 'unknown-realtime-model';
   }
 
   /// Inicializa la configuración cargando `.env`.

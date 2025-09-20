@@ -163,38 +163,9 @@ Future<Directory> getLocalImageDir() async {
   return imagesDir;
 }
 
-/// Ruta relativa usada internamente para presentar/serializar paths (simple nombre)
-Future<String> getRelativeImageDir() async {
-  return 'AI_chan/images';
-}
-
 // -------------------------
 // Profile / avatar helpers
 // -------------------------
-/// Adds or replaces an avatar in the controller's profile and persists it.
-Future<void> addAvatarAndPersist(
-  final IChatController chatController,
-  final AiImage avatar, {
-  final bool replace = false,
-}) async {
-  try {
-    final currentProfile = chatController.profile;
-    if (currentProfile == null) return;
-
-    AiChanProfile updatedProfile;
-    if (replace) {
-      updatedProfile = currentProfile.copyWith(avatars: [avatar]);
-    } else {
-      updatedProfile = currentProfile.copyWith(
-        avatars: [...(currentProfile.avatars ?? []), avatar],
-      );
-    }
-
-    chatController.dataController.updateProfile(updatedProfile);
-  } on Exception catch (_) {
-    // Silent as before
-  }
-}
 
 /// Removes an AiImage (if non-null) from the controller's profile and persists it.
 Future<void> removeImageFromProfileAndPersist(

@@ -185,13 +185,6 @@ class RequestDeduplicationService {
     };
   }
 
-  /// Clear all in-flight requests
-  void clearInFlightRequests() {
-    final count = _inFlightRequests.length;
-    _inFlightRequests.clear();
-    Log.i('[Dedup] Cleared $count in-flight requests');
-  }
-
   /// Reset statistics
   void resetStats() {
     _totalRequests = 0;

@@ -73,5 +73,5 @@ MISTRAL_API_KEY=test_mistral_key
 
   // Install fake HTTP client to avoid network calls in tests
   final fakeHttp = FakeHttpClient();
-  HttpConnector.setClient(fakeHttp);
+  HttpConnector.client = fakeHttp;
 }
