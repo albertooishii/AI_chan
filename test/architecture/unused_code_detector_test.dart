@@ -328,8 +328,26 @@ String _extractSignature(String content, RegExpMatch match) {
   final lines = content.split('\n');
   final startLine = content.substring(0, match.start).split('\n').length - 1;
 
+  // Buscar anotaciones (como @override) en las líneas anteriores
+  String annotations = '';
+  for (int i = startLine - 1; i >= 0 && i >= startLine - 5; i--) {
+    final line = lines[i].trim();
+    if (line.isEmpty) continue;
+    if (line.startsWith('@')) {
+      annotations = '$line $annotations';
+    } else if (line.startsWith('//') ||
+        line.startsWith('/*') ||
+        line.startsWith('*')) {
+      // Skip comments
+      continue;
+    } else {
+      // Found non-annotation, non-comment line, stop looking
+      break;
+    }
+  }
+
   // Buscar hasta el '{' o ';'
-  String signature = '';
+  String signature = annotations;
   for (int i = startLine; i < lines.length; i++) {
     final line = lines[i].trim();
     signature += line;
@@ -382,6 +400,17 @@ bool _isCallbackOrOverride(_FunctionInfo func) {
 
   // Overrides y anotaciones
   if (signature.contains('@override') || signature.contains('override')) {
+    return true;
+  }
+
+  // Métodos requeridos por interfaces/clases base conocidas
+  if ((name == 'shouldrepaint' && signature.contains('painter')) ||
+      (name == 'shouldrebuild' && signature.contains('widget')) ||
+      (name == 'build' && signature.contains('widget')) ||
+      (name == 'createstate' && signature.contains('widget')) ||
+      (name == 'paint' && signature.contains('painter')) ||
+      (name == 'getsize' && signature.contains('painter')) ||
+      (name == 'hittest' && signature.contains('painter'))) {
     return true;
   }
 
@@ -486,6 +515,8 @@ bool _isSpecialPublicFunction(_FunctionInfo func) {
     'onSubmitted',
     'onSaved',
     'validator',
+    'shouldRepaint', // CustomPainter required override
+    'shouldRebuild', // Similar para otros painters/builders
   ];
 
   if (flutterOverrides.contains(name)) {

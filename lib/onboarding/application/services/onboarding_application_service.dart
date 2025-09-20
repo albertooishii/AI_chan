@@ -138,22 +138,6 @@ class OnboardingApplicationService {
   bool isOnboardingComplete(final MemoryData memory) {
     return memory.getMissingData().isEmpty;
   }
-
-  /// � **Obtener Progreso del Onboarding**
-  /// Coordina el cálculo del progreso del onboarding
-  OnboardingProgress getProgress(final MemoryData memory) {
-    final missingData = memory.getMissingData();
-    final totalFields =
-        6; // userName, userCountry, userBirthdate, aiCountry, aiName, meetStory
-    final completedFields = totalFields - missingData.length;
-
-    return OnboardingProgress(
-      completedFields: completedFields,
-      totalFields: totalFields,
-      progressPercentage: (completedFields / totalFields) * 100,
-      nextRequiredField: missingData.isNotEmpty ? missingData.first : null,
-    );
-  }
 }
 
 /// 📊 **Resultado del Flujo Conversacional**

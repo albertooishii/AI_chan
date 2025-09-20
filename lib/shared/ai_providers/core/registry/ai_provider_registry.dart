@@ -140,18 +140,6 @@ class AIProviderRegistry {
     return null;
   }
 
-  /// Refresh health status for all providers
-  Future<void> refreshHealth() async {
-    for (final entry in _providers.entries) {
-      try {
-        _initialized[entry.key] = await entry.value.isHealthy();
-      } on Exception catch (e) {
-        Log.w('[AIProviderRegistry] Health check failed for ${entry.key}: $e');
-        _initialized[entry.key] = false;
-      }
-    }
-  }
-
   /// Dispose all providers
   Future<void> dispose() async {
     for (final provider in _providers.values) {
