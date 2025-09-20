@@ -1,8 +1,8 @@
 import 'package:ai_chan/shared.dart';
 
-/// Servicio compartido para construcción de prompts de historias
-/// Extraído de chat para uso en generadores compartidos
-class SharedPromptBuilderService {
+/// Servicio de construcción de prompts para el contexto de onboarding
+/// Anteriormente SharedPromptBuilderService, relocado a su contexto específico
+class OnboardingPromptBuilder {
   /// Genera sugerencia para "cómo nos conocimos" basada en los datos recopilados
   static String buildMeetStoryPrompt({
     required final String userName,

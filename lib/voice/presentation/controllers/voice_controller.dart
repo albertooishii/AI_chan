@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:ai_chan/voice/application/services/voice_application_service.dart';
-import 'package:ai_chan/voice/domain/entities/voice_session.dart';
-import 'package:ai_chan/shared.dart';
+import 'package:ai_chan/voice.dart';
 
 /// 🎯 DDD: Controlador de voz para Flutter
 /// Maneja la presentación y el estado de la UI

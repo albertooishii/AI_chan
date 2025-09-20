@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/shared/domain/interfaces/i_profile_persistence_service.dart';
 
 /// Infrastructure adapter that implements shared profile persistence interface
 /// by delegating to PrefsUtils for direct SharedPreferences access.

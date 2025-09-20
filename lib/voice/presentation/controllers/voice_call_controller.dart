@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'dart:async';
-import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/voice/domain/interfaces/i_tone_service.dart';
+import 'package:ai_chan/voice.dart';
 // REMOVED: Direct infrastructure imports - using shared.dart instead
 
 /// 🎯 Controller para llamadas de voz completas con IA

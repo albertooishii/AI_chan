@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:ai_chan/shared.dart'; // Using shared exports
-import 'package:ai_chan/onboarding/application/use_cases/biography_generation_use_case.dart';
-import 'package:ai_chan/onboarding/presentation/interfaces/i_onboarding_lifecycle_controller.dart';
-// REMOVED: Direct infrastructure imports - using shared.dart instead
-// import 'package:ai_chan/onboarding/infrastructure/di/onboarding_di.dart';
+
+// Use shared.dart for better architectural consistency
+import 'package:ai_chan/shared.dart';
 
 /// Lifecycle controller that owns onboarding lifecycle state (biography loading,
 /// saved/generated biography, import errors). This intentionally does NOT own
 /// form controllers — those live in `FormOnboardingController`.
-class OnboardingLifecycleController extends ChangeNotifier
-    implements IOnboardingLifecycleController {
+class OnboardingLifecycleController extends ChangeNotifier {
   OnboardingLifecycleController({
     required final BiographyGenerationUseCase biographyUseCase,
     required final ISharedChatRepository chatRepository,
@@ -33,16 +30,14 @@ class OnboardingLifecycleController extends ChangeNotifier
     }
   }
 
-  @override
   bool loading = true;
   AiChanProfile? _generatedBiography;
   bool _biographySaved = false;
-  @override
+
   String? importError;
 
-  @override
   AiChanProfile? get generatedBiography => _generatedBiography;
-  @override
+
   bool get biographySaved => _biographySaved;
 
   Future<void> _loadExistingBiography() async {
@@ -146,7 +141,6 @@ class OnboardingLifecycleController extends ChangeNotifier
     }
   }
 
-  @override
   Future<void> applyChatExport(final ChatExport exported) async {
     await _chatRepository.saveAll(exported.toJson());
     _generatedBiography = exported.profile;
@@ -154,14 +148,13 @@ class OnboardingLifecycleController extends ChangeNotifier
     notifyListeners();
   }
 
-  @override
   void setImportError(final String? e) {
     importError = e;
     notifyListeners();
   }
 
   /// Reset lifecycle state and clear persisted biography via use case
-  @override
+
   Future<void> reset() async {
     _generatedBiography = null;
     _biographySaved = false;

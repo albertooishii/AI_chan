@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:ai_chan/shared/domain/interfaces/i_file_service.dart';
+import 'package:ai_chan/shared.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 

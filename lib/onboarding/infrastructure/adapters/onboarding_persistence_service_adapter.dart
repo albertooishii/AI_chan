@@ -1,4 +1,4 @@
-import 'package:ai_chan/onboarding/domain/interfaces/i_onboarding_persistence_service.dart';
+import 'package:ai_chan/onboarding.dart';
 import 'package:ai_chan/shared.dart';
 
 /// Infrastructure implementation for onboarding persistence operations.

@@ -1,4 +1,4 @@
-import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
+import 'package:ai_chan/chat.dart';
 import 'package:ai_chan/shared.dart';
 
 /// Basic implementation of IAudioChatService for dependency injection

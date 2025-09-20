@@ -1,4 +1,4 @@
-import 'package:ai_chan/chat/domain/interfaces/i_chat_logging_utils_service.dart';
+import 'package:ai_chan/chat.dart';
 import 'package:ai_chan/shared.dart';
 
 /// Basic implementation of IChatLoggingUtilsService for dependency injection

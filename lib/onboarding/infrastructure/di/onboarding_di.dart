@@ -1,9 +1,7 @@
-import 'package:ai_chan/onboarding/domain/interfaces/i_onboarding_persistence_service.dart';
-import 'package:ai_chan/onboarding/infrastructure/adapters/onboarding_persistence_service_adapter.dart';
+import 'package:ai_chan/onboarding.dart';
 // Removed: i_chat_export_service.dart and chat_export_service_adapter.dart - using ISharedChatRepository directly
 import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/shared.dart' as shared_di;
-import 'package:ai_chan/onboarding/application/use_cases/biography_generation_use_case.dart';
 
 /// Dependency injection container for onboarding bounded context
 class OnboardingDI {

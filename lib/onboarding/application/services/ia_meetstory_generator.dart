@@ -24,7 +24,7 @@ class IAMeetStoryGenerator {
 
     for (int attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        final prompt = SharedPromptBuilderService.buildMeetStoryPrompt(
+        final prompt = OnboardingPromptBuilder.buildMeetStoryPrompt(
           userName: userName,
           aiName: aiName,
           userCountry: userCountry,
@@ -43,7 +43,7 @@ class IAMeetStoryGenerator {
         final systemPrompt = SystemPrompt(
           profile: profile,
           dateTime: DateTime.now(),
-          instructions: SharedPromptBuilderService.buildStorySystemPrompt(),
+          instructions: OnboardingPromptBuilder.buildStorySystemPrompt(),
         );
 
         final history = [

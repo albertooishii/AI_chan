@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 import 'dart:io';
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/chat/application/services/message_text_processor_service.dart';
+import 'package:ai_chan/chat.dart';
 
 class ChatBubble extends StatelessWidget {
   const ChatBubble({

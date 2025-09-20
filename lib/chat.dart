@@ -8,16 +8,12 @@ export 'chat/domain/services/periodic_ia_message_scheduler.dart';
 
 // Domain Interfaces
 export 'chat/domain/interfaces/i_audio_chat_service.dart';
-export 'chat/domain/interfaces/i_chat_avatar_service.dart';
 export 'chat/domain/interfaces/i_chat_controller.dart';
-export 'chat/domain/interfaces/i_chat_debounced_persistence_service.dart';
 // Removed: i_chat_event_timeline_service.dart (no implementations)
 export 'chat/domain/interfaces/i_chat_file_operations_service.dart';
 export 'chat/domain/interfaces/i_chat_image_service.dart';
 export 'chat/domain/interfaces/i_chat_logging_utils_service.dart';
 export 'chat/domain/interfaces/i_chat_message_queue_manager.dart';
-export 'chat/domain/interfaces/i_chat_preferences_service.dart';
-export 'chat/domain/interfaces/i_chat_preferences_utils_service.dart';
 export 'chat/domain/interfaces/i_chat_profile_persistence_service.dart';
 export 'chat/domain/interfaces/i_chat_repository.dart';
 export 'chat/domain/interfaces/i_language_resolver.dart';
@@ -26,6 +22,7 @@ export 'chat/domain/interfaces/i_secure_storage_service.dart';
 
 // Application Layer
 export 'chat/application/services/chat_application_service.dart';
+export 'chat/application/services/chat_message_service.dart';
 export 'chat/application/services/debounced_save.dart';
 export 'chat/application/services/memory_manager.dart';
 export 'chat/application/services/message_audio_processing_service.dart';
@@ -34,6 +31,7 @@ export 'chat/application/services/message_queue_manager.dart';
 export 'chat/application/services/message_retry_service.dart';
 export 'chat/application/services/message_sanitization_service.dart';
 export 'chat/application/services/message_text_processor_service.dart';
+export 'chat/application/services/tts_voice_management_service.dart';
 export 'shared/ai_providers/core/services/audio/tts_service.dart';
 export 'chat/application/services/tts_voice_service.dart';
 
@@ -44,6 +42,9 @@ export 'chat/application/services/tts_voice_service.dart';
 export 'chat/application/use_cases/send_message_use_case.dart';
 export 'chat/application/use_cases/export_chat_use_case.dart';
 export 'chat/application/use_cases/import_chat_use_case.dart';
+
+// Application Mappers
+export 'chat/application/mappers/message_factory.dart';
 
 // Application Adapters
 export 'chat/application/adapters/call_to_chat_communication_adapter.dart';
@@ -59,18 +60,11 @@ export 'chat/infrastructure/adapters/language_resolver_service.dart';
 export 'chat/infrastructure/adapters/prompt_builder_service.dart';
 // Eliminado: tts_voice_management_service_adapter.dart - wrapper innecesario
 
-// Additional Infrastructure Adapters
-export 'chat/infrastructure/adapters/chat_avatar_service_adapter.dart';
-// Eliminado: chat_controller_adapter.dart - código muerto sin usar
-
 // Infrastructure Services
 export 'chat/infrastructure/services/basic_chat_file_operations_service.dart';
 
 // Infrastructure Persistence
 export 'chat/infrastructure/persistence/chat_profile_persistence_service_adapter.dart';
-
-// Infrastructure Preferences
-export 'chat/infrastructure/preferences/chat_preferences_service_adapter.dart';
 
 // Infrastructure Logging
 

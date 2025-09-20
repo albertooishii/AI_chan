@@ -1,5 +1,5 @@
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/onboarding/domain/interfaces/i_file_picker_service.dart';
+import 'package:ai_chan/onboarding.dart';
 
 /// Use Case que maneja la lógica de import/export de datos de onboarding
 /// Extrae toda la lógica de archivos y backup de la UI

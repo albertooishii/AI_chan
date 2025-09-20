@@ -1,22 +1,14 @@
-import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_language_resolver.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_preferences_service.dart';
+import 'package:ai_chan/chat.dart';
 import 'package:ai_chan/shared.dart';
 
 /// Servicio dedicado para sintetizar TTS y persistir el archivo en el
 /// directorio local de audio configurado. Devuelve la ruta final del archivo
 /// sintetizado o null si falló.
 class TtsService {
-  TtsService(
-    this.audioService,
-    this.languageResolver,
-    this.fileService,
-    this.preferencesService,
-  );
+  TtsService(this.audioService, this.languageResolver, this.fileService);
   final IAudioChatService audioService;
   final ILanguageResolver languageResolver;
   final IFileService fileService;
-  final IChatPreferencesService preferencesService;
 
   /// Sintetiza `text` usando el audioService y persiste el fichero en la
   /// carpeta local de audio configurada. Devuelve la ruta final o null.

@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ai_chan/shared.dart'; // Using shared exports for infrastructure
-import 'package:ai_chan/onboarding/presentation/controllers/onboarding_lifecycle_controller.dart';
-import 'package:ai_chan/onboarding/domain/entities/memory_data.dart';
-import 'package:ai_chan/onboarding/application/services/conversational_onboarding_service.dart';
-import 'package:ai_chan/onboarding/presentation/widgets/birth_date_field.dart';
+import 'package:ai_chan/onboarding.dart';
 import 'dart:async';
 import 'onboarding_screen.dart' show OnboardingFinishCallback, OnboardingScreen;
 import 'onboarding_mode_selector.dart' as mode_selector;

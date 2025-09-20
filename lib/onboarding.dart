@@ -6,6 +6,7 @@ export 'onboarding/domain/models/onboarding_form_result.dart';
 // Domain Interfaces
 // Removed: i_chat_export_service.dart - using ISharedChatRepository directly
 export 'onboarding/domain/interfaces/i_file_picker_service.dart';
+export 'onboarding/domain/interfaces/i_onboarding_persistence_service.dart';
 export 'onboarding/domain/interfaces/i_profile_repository.dart';
 export 'package:ai_chan/shared/domain/interfaces/i_profile_service.dart';
 
@@ -16,6 +17,7 @@ export 'onboarding/domain/entities/memory_data.dart';
 export 'onboarding/domain/services/conversational_memory_domain_service.dart';
 
 // Application Layer
+export 'onboarding/application/services/conversational_onboarding_service.dart';
 export 'onboarding/application/services/form_onboarding_application_service.dart';
 export 'onboarding/application/services/onboarding_application_service.dart';
 
@@ -30,6 +32,7 @@ export 'onboarding/application/use_cases/save_chat_export_use_case.dart';
 // Removed: chat_export_service_adapter.dart - using ISharedChatRepository directly
 export 'onboarding/infrastructure/adapters/file_picker_service_adapter.dart';
 export 'onboarding/infrastructure/adapters/in_memory_profile_repository.dart';
+export 'onboarding/infrastructure/adapters/onboarding_persistence_service_adapter.dart';
 export 'onboarding/infrastructure/adapters/profile_adapter.dart';
 
 // Presentation Layer

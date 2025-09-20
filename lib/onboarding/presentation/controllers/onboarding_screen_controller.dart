@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:ai_chan/onboarding/application/services/onboarding_application_service.dart';
-import 'package:ai_chan/onboarding/presentation/interfaces/i_onboarding_screen_controller.dart';
+import 'package:ai_chan/onboarding.dart';
 
 /// Onboarding Screen Controller - Compact using Application Service pattern
-class OnboardingScreenController extends ChangeNotifier
-    implements IOnboardingScreenController {
+class OnboardingScreenController extends ChangeNotifier {
   OnboardingScreenController({
     final OnboardingApplicationService? applicationService,
   }) : _applicationService =
@@ -22,7 +20,7 @@ class OnboardingScreenController extends ChangeNotifier
   final List<String> _steps = ['biography', 'appearance', 'voice', 'summary'];
 
   // Getters
-  @override
+
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   int get currentStepIndex => _currentStepIndex;

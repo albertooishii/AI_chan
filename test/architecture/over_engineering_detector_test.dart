@@ -231,23 +231,21 @@ bool _isUnnecessaryInterface(
   List<String> implementations,
   String content,
 ) {
-  // Patrones de sobre-ingeniería conocidos
-  final overEngineeredPatterns = [
-    'ISharedLogger',
-    'IChatLogger',
-    'ILoggingService',
-    'IBackupService',
-    'IPreferencesService',
-    'INetworkService',
-    'IChatPromiseService',
-    'IChatAudioUtilsService',
-    'INavigationService',
-    'IRecordingService',
-    'IUIStateService',
-  ];
+  // Detectar interfaces legítimas por patrones de uso y propósito
+  if (_isLegitimateInterfaceByPattern(
+    interfaceName,
+    implementations,
+    content,
+  )) {
+    return false;
+  }
 
-  // Si está en la lista de patrones conocidos de sobre-ingeniería
-  if (overEngineeredPatterns.contains(interfaceName)) {
+  // Detectar patrones de sobre-ingeniería por características
+  if (_isOverEngineeredInterfaceByPattern(
+    interfaceName,
+    implementations,
+    content,
+  )) {
     return true;
   }
 
@@ -666,4 +664,213 @@ class OverEngineeringViolation {
   final List<String> implementations;
   final String description;
   final String recommendation;
+}
+
+/// Detecta interfaces legítimas por patrones DDD y Clean Architecture
+bool _isLegitimateInterfaceByPattern(
+  String interfaceName,
+  List<String> implementations,
+  String content,
+) {
+  // 1. Interfaces de servicios de dominio complejos (Audio, Chat, Voice)
+  if (_isDomainServiceInterface(interfaceName)) {
+    return true;
+  }
+
+  // 2. Patrones Strategy críticos (Provider, Service con múltiples implementaciones)
+  if (_isStrategyPatternInterface(interfaceName, implementations)) {
+    return true;
+  }
+
+  // 3. Interfaces de repositorio (patrón Repository)
+  if (_isRepositoryInterface(interfaceName)) {
+    return true;
+  }
+
+  // 4. Controladores con lógica compleja
+  if (_isComplexControllerInterface(interfaceName, content)) {
+    return true;
+  }
+
+  // 5. Servicios de infraestructura críticos
+  if (_isCriticalInfrastructureInterface(interfaceName)) {
+    return true;
+  }
+
+  return false;
+}
+
+/// Detecta interfaces de sobre-ingeniería por patrones
+bool _isOverEngineeredInterfaceByPattern(
+  String interfaceName,
+  List<String> implementations,
+  String content,
+) {
+  // 1. Interfaces de logging/utilities simples
+  if (_isSimpleUtilityInterface(interfaceName)) {
+    return true;
+  }
+
+  // 2. Interfaces de controladores simples (Form, Screen, Lifecycle sin lógica)
+  if (_isSimpleControllerInterface(interfaceName, content)) {
+    return true;
+  }
+
+  // 3. Interfaces de servicios triviales (Avatar, Preferences básicos)
+  if (_isTrivialServiceInterface(interfaceName, content)) {
+    return true;
+  }
+
+  // 4. Wrappers sin valor agregado
+  if (_isWrapperInterface(interfaceName, content)) {
+    return true;
+  }
+
+  return false;
+}
+
+/// Detecta servicios de dominio complejos por patrón de nombre
+bool _isDomainServiceInterface(String interfaceName) {
+  final domainServicePatterns = [
+    r'Audio.*Service', // IAudioChatService, IAudioRecorderService, etc.
+    r'.*Chat.*Service', // IChatController, servicios de chat
+    r'Voice.*Service', // IVoiceConversationService
+    r'.*Conversation.*', // Servicios de conversación
+    r'.*Playback.*', // Servicios de reproducción
+  ];
+
+  return domainServicePatterns.any(
+    (pattern) => RegExp(pattern).hasMatch(interfaceName),
+  );
+}
+
+/// Detecta patrones Strategy (múltiples implementaciones o nombre Provider)
+bool _isStrategyPatternInterface(
+  String interfaceName,
+  List<String> implementations,
+) {
+  // Provider en el nombre sugiere Strategy pattern
+  if (interfaceName.contains('Provider')) {
+    return true;
+  }
+
+  // Múltiples implementaciones sugieren abstracción legítima
+  if (implementations.length > 1) {
+    return true;
+  }
+
+  return false;
+}
+
+/// Detecta interfaces de repositorio por patrón de nombre
+bool _isRepositoryInterface(String interfaceName) {
+  return interfaceName.contains('Repository');
+}
+
+/// Detecta controladores complejos por contenido y patrón
+bool _isComplexControllerInterface(String interfaceName, String content) {
+  if (!interfaceName.contains('Controller')) {
+    return false;
+  }
+
+  // Controladores con muchos métodos o lógica compleja son legítimos
+  final methodCount = _countAbstractMethods(content);
+  final hasComplexMethods =
+      content.contains('generate') ||
+      content.contains('process') ||
+      content.contains('manage');
+
+  return methodCount > 3 || hasComplexMethods;
+}
+
+/// Detecta servicios de infraestructura críticos
+bool _isCriticalInfrastructureInterface(String interfaceName) {
+  final criticalPatterns = [
+    r'.*Storage.*', // ISecureStorageService
+    r'.*Security.*', // Servicios de seguridad
+    r'.*Network.*', // Servicios de red críticos (no simples)
+    r'.*Encryption.*', // Servicios de encriptación
+  ];
+
+  return criticalPatterns.any(
+    (pattern) => RegExp(pattern).hasMatch(interfaceName),
+  );
+}
+
+/// Detecta interfaces de utilidades simples
+bool _isSimpleUtilityInterface(String interfaceName) {
+  final utilityPatterns = [
+    r'.*Logger.*', // ILogger, ILoggingService
+    r'.*Log.*', // IChatLogger, etc.
+    r'.*Utils.*', // Cualquier utilidad
+    r'.*Helper.*', // Helpers simples
+    r'.*Navigation.*', // Navegación simple
+  ];
+
+  return utilityPatterns.any(
+    (pattern) => RegExp(pattern).hasMatch(interfaceName),
+  );
+}
+
+/// Detecta controladores simples sin lógica compleja
+bool _isSimpleControllerInterface(String interfaceName, String content) {
+  if (!interfaceName.contains('Controller')) {
+    return false;
+  }
+
+  // Controladores de formularios, pantallas, lifecycle simples
+  final simpleControllerPatterns = [
+    r'.*Form.*Controller',
+    r'.*Screen.*Controller',
+    r'.*Lifecycle.*Controller',
+  ];
+
+  final isSimpleType = simpleControllerPatterns.any(
+    (pattern) => RegExp(pattern).hasMatch(interfaceName),
+  );
+
+  if (!isSimpleType) return false;
+
+  // Verificar si tiene pocos métodos simples
+  final methodCount = _countAbstractMethods(content);
+  return methodCount <= 3;
+}
+
+/// Detecta servicios triviales
+bool _isTrivialServiceInterface(String interfaceName, String content) {
+  final trivialPatterns = [
+    r'.*Avatar.*', // IChatAvatarService - trivial
+    r'.*Preferences.*', // IPreferencesService básicos
+    r'.*Debounced.*', // IChatDebouncedPersistenceService
+    r'.*Cache.*', // Servicios de cache simples
+  ];
+
+  final isTrivialType = trivialPatterns.any(
+    (pattern) => RegExp(pattern).hasMatch(interfaceName),
+  );
+
+  if (!isTrivialType) return false;
+
+  // Verificar si solo tiene métodos triviales
+  return _hasOnlyTrivialMethods(content);
+}
+
+/// Detecta interfaces wrapper sin valor
+bool _isWrapperInterface(String interfaceName, String content) {
+  // Buscar patrones de wrapper
+  final wrapperPatterns = [
+    r'.*Adapter.*', // Adapters sin lógica
+    r'.*Wrapper.*', // Wrappers explícitos
+    r'.*Delegate.*', // Delegates simples
+  ];
+
+  final isWrapperType = wrapperPatterns.any(
+    (pattern) => RegExp(pattern).hasMatch(interfaceName),
+  );
+
+  if (!isWrapperType) return false;
+
+  // Verificar si solo delega sin agregar valor
+  final methodCount = _countAbstractMethods(content);
+  return methodCount <= 2;
 }

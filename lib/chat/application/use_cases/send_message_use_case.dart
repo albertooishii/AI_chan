@@ -1,13 +1,6 @@
-import 'package:ai_chan/chat/domain/models/chat_result.dart';
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/chat/application/services/chat_message_service.dart';
-import 'package:ai_chan/chat/application/mappers/message_factory.dart';
+import 'package:ai_chan/chat.dart';
 // ai_capability handled internally by provider manager
-
-// Import new services
-import 'package:ai_chan/chat/application/services/message_image_processing_service.dart';
-import 'package:ai_chan/chat/application/services/message_audio_processing_service.dart';
-import 'package:ai_chan/chat/application/services/message_sanitization_service.dart';
 
 /// Send Message Use Case - Chat Application Layer
 /// Orquesta el proceso completo de envío de mensaje usando servicios especializados

@@ -1,22 +1,14 @@
 import 'dart:typed_data';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-// AI Chan - Barrel Imports (Bounded Contexts)
+// AI Chan - Barrel Imports (Bounded Contexts) - preferred for all imports
 import 'package:ai_chan/chat.dart';
-import 'package:ai_chan/voice.dart'; // 🔥 NEW: Voice bounded context
+import 'package:ai_chan/voice.dart';
 import 'package:ai_chan/onboarding.dart';
-import 'package:ai_chan/chat/application/services/chat_message_service.dart';
-import 'package:ai_chan/chat/application/mappers/message_factory.dart';
+import 'package:ai_chan/shared.dart' as shared;
 
-// Import specific services that need DI
-import 'package:ai_chan/chat/application/services/tts_voice_management_service.dart';
-import 'package:ai_chan/shared/infrastructure/adapters/audio_playback_service_adapter.dart';
-import 'package:ai_chan/shared/domain/interfaces/i_ai_service.dart' as shared;
+// Main app imports
 import 'package:ai_chan/main.dart' show navigatorKey;
-
-// Onboarding imports for getBiographyGenerationUseCase
-import 'package:ai_chan/onboarding/infrastructure/adapters/onboarding_persistence_service_adapter.dart';
-import 'package:ai_chan/shared/infrastructure/services/basic_audio_chat_service.dart';
 
 CentralizedTtsService getCentralizedTtsService() =>
     CentralizedTtsService.instance;
@@ -224,8 +216,8 @@ IVoiceConversationService getVoiceConversationService() =>
 // Temporary workaround - use dynamic to avoid type conflicts
 ManageVoiceSessionUseCase getManageVoiceSessionUseCase() =>
     ManageVoiceSessionUseCase(
-      ttsService: getDynamicTtsService() as ITextToSpeechService,
-      sttService: getDynamicSttService() as ISpeechToTextService,
+      ttsService: getCentralizedTtsService(),
+      sttService: getCentralizedSttService(),
     );
 
 dynamic getDynamicTtsService() => getCentralizedTtsService();

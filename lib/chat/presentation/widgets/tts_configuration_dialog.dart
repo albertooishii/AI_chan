@@ -3,9 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'dart:io' show Platform;
 import 'package:android_intent_plus/android_intent.dart' show AndroidIntent;
-
-import 'package:ai_chan/chat/application/services/tts_voice_management_service.dart';
-import 'package:ai_chan/chat/application/services/tts_voice_service.dart';
+import 'package:ai_chan/chat.dart';
 
 typedef SynthesizeTtsFn =
     Future<String?> Function(

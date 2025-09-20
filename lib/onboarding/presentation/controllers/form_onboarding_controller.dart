@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:ai_chan/shared.dart';
 import 'package:ai_chan/onboarding.dart';
-import 'package:ai_chan/onboarding/presentation/interfaces/i_form_onboarding_controller.dart';
 
 /// Form Onboarding Controller - Compact form management
-class FormOnboardingController extends ChangeNotifier
-    implements IFormOnboardingController {
+class FormOnboardingController extends ChangeNotifier {
   FormOnboardingController();
 
   // DDD Application Service for business logic delegation
@@ -22,18 +20,17 @@ class FormOnboardingController extends ChangeNotifier
   final aiNameController = TextEditingController();
   final meetStoryController = TextEditingController();
   final birthDateController = TextEditingController();
-  @override
+
   DateTime? userBirthdate;
-  @override
-  @override
+
   String? userCountryCode, aiCountryCode;
 
   // Getters
-  @override
+
   bool get isLoading => _isLoading;
-  @override
+
   String? get errorMessage => _errorMessage;
-  @override
+
   ChatExport? get importedData => _importedData;
   bool get hasImportedData => _importedData != null;
   bool get isFormValid => formKey.currentState?.validate() ?? false;
@@ -251,20 +248,20 @@ class FormOnboardingController extends ChangeNotifier
   }
 
   /// Generate biography - interface implementation
-  @override
+
   Future<void> generateBiography() async {
     // Delegate to existing form processing logic
     await saveFormData();
   }
 
   /// Import chat export data - interface implementation
-  @override
+
   Future<void> importChatExport(final String jsonData) async {
     await importFromJson(jsonData);
   }
 
   /// Reset error state - interface implementation
-  @override
+
   void resetError() {
     _clearError();
     notifyListeners();

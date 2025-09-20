@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/chat/application/services/chat_application_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
+import 'package:ai_chan/chat.dart';
 
 /// 🔊 **Chat Audio Controller** - DDD Specialized Controller
 ///

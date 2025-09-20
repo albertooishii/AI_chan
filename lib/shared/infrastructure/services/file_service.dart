@@ -1,6 +1,5 @@
 import 'dart:io';
-import 'package:ai_chan/shared/domain/interfaces/i_file_service.dart';
-import 'package:ai_chan/shared.dart' as audio_utils;
+import 'package:ai_chan/shared.dart';
 
 /// Implementación de infraestructura para operaciones de archivo.
 /// Contiene todas las dependencias de dart:io.
@@ -51,7 +50,7 @@ class FileService implements IFileService {
 
   @override
   Future<String> getLocalAudioDirectory() async {
-    final dir = await audio_utils.getLocalAudioDir();
+    final dir = await getLocalAudioDir();
     return dir.path;
   }
 

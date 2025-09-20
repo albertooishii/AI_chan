@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/chat/application/services/chat_application_service.dart';
+import 'package:ai_chan/chat.dart';
 
 /// 💾 **Chat Data Controller** - DDD Specialized Controller
 ///

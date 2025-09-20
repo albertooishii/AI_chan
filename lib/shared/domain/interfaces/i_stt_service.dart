@@ -1,9 +1,3 @@
-import 'package:ai_chan/shared.dart';
-
-// Re-export types so interface users can access them
-export 'package:ai_chan/shared/domain/interfaces/cross_context_interfaces.dart'
-    show RecognitionResult;
-
 /// 🎯 DDD: Puerto para reconocimiento de voz (STT) - Versión avanzada
 abstract interface class ISttService {
   /// Iniciar escucha en tiempo real
@@ -43,4 +37,23 @@ abstract interface class ISttService {
   }) async {
     return await transcribeAudio(filePath);
   }
+}
+
+/// 🎯 DDD: Resultado de reconocimiento de voz
+class RecognitionResult {
+  const RecognitionResult({
+    required this.text,
+    required this.confidence,
+    required this.isFinal,
+    required this.duration,
+  });
+
+  final String text;
+  final double confidence;
+  final bool isFinal;
+  final Duration duration;
+
+  @override
+  String toString() =>
+      'RecognitionResult("$text", confidence: $confidence, final: $isFinal)';
 }

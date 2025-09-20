@@ -9,7 +9,6 @@ export 'shared/infrastructure/utils/locale_utils.dart';
 export 'shared/infrastructure/utils/json_utils.dart';
 export 'shared/infrastructure/utils/network_utils.dart';
 export 'shared/infrastructure/utils/chat_json_utils.dart';
-export 'shared/infrastructure/utils/onboarding_fallback_utils.dart';
 export 'shared/infrastructure/services/ai_runtime_guard.dart';
 
 // Domain utilities - Pure functions
@@ -23,11 +22,14 @@ export 'shared/domain/models/voice_call_message.dart';
 // Domain Interfaces (consolidated from core + existing)
 export 'shared/domain/interfaces/index.dart';
 export 'shared/domain/interfaces/i_shared_chat_repository.dart';
-export 'shared/domain/interfaces/i_shared_backup_service.dart';
 export 'shared/domain/interfaces/cross_context_interfaces.dart';
 export 'shared/domain/interfaces/tts_service.dart';
 export 'shared/domain/interfaces/i_stt_service.dart';
 export 'shared/domain/interfaces/audio_recorder_service.dart';
+export 'shared/domain/interfaces/i_file_service.dart';
+export 'shared/domain/interfaces/i_profile_persistence_service.dart';
+export 'shared/domain/interfaces/audio_playback_service.dart';
+export 'shared/domain/interfaces/i_ai_service.dart';
 
 // AI Providers - Audio models
 export 'shared/ai_providers/core/models/audio/synthesis_result.dart';
@@ -75,8 +77,10 @@ export 'shared/application/services/ai_generators/ia_avatar_generator.dart';
 export 'shared/application/services/ai_generators/ia_bio_generator.dart';
 export 'shared/application/services/ai_generators/image_request_service.dart';
 export 'shared/application/services/ai_generators/memory_summary_service.dart';
-export 'shared/application/services/ai_generators/ia_meetstory_generator.dart';
-export 'shared/application/services/shared_prompt_builder_service.dart';
+export 'onboarding/application/services/ia_meetstory_generator.dart';
+export 'onboarding/application/services/prompt_builder_service.dart';
+export 'onboarding/application/use_cases/biography_generation_use_case.dart';
+export 'onboarding/infrastructure/utils/onboarding_fallback_utils.dart';
 
 // Additional Application Services
 export 'shared/application/services/calendar_processing_service.dart';
@@ -85,21 +89,20 @@ export 'onboarding/application/services/onboarding_utils.dart';
 
 // Infrastructure Layer
 export 'shared/infrastructure/services/basic_ui_state_service.dart';
+export 'shared/infrastructure/services/basic_audio_chat_service.dart';
 
 // Additional Infrastructure Services
 export 'shared/infrastructure/services/backup_service.dart';
 export 'shared/infrastructure/services/google_appauth_adapter_desktop.dart';
-export 'shared/infrastructure/services/basic_chat_debounced_persistence_service.dart';
 export 'shared/infrastructure/services/basic_chat_logging_utils_service.dart';
 export 'shared/infrastructure/services/basic_chat_message_queue_manager.dart';
-export 'shared/infrastructure/services/basic_chat_preferences_utils_service.dart';
 
 // Infrastructure Repositories and Services - NEW IMPLEMENTATIONS
 export 'shared/infrastructure/repositories/shared_chat_repository_impl.dart';
-export 'shared/infrastructure/services/shared_backup_service_impl.dart';
 
 // Infrastructure Adapters
 export 'shared/infrastructure/adapters/cross_context_service_adapters.dart';
+export 'shared/infrastructure/adapters/audio_playback_service_adapter.dart';
 export 'shared/infrastructure/services/file_service.dart';
 export 'shared/infrastructure/services/navigation_service.dart';
 

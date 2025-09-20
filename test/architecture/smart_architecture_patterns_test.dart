@@ -108,7 +108,7 @@ This ensures clean dependency inversion and testability.
       final knownViolations = <String>[
         // 🚧 TEMPORARY: These violations exist due to shared.dart exporting infrastructure
         // These will be resolved when we refactor shared.dart into separate barrel files
-        'lib/onboarding/presentation/controllers/onboarding_lifecycle_controller.dart: presentation layer cannot depend on infrastructure',
+        // EXCEPTION: Utils from shared/infrastructure/utils are allowed for cross-cutting concerns
         'lib/shared/presentation/widgets/country_autocomplete.dart: presentation layer cannot depend on infrastructure',
         'lib/shared/presentation/screens/calendar_screen.dart: presentation layer cannot depend on infrastructure',
       ];
@@ -463,6 +463,14 @@ List<String> _analyzeDependencyDirection(
     }
 
     final importLayer = _determineLayerFromImport(import);
+
+    // EXCEPTION: Allow presentation to import shared infrastructure utils for cross-cutting concerns
+    if (layer == 'presentation' &&
+        importLayer == 'infrastructure' &&
+        _isAllowedCrossCuttingConcern(import)) {
+      continue;
+    }
+
     if (!_isValidDependency(layer, importLayer)) {
       violations.add(
         '❌ ${_getRelativePath(filePath)}: $layer layer cannot depend on $importLayer',
@@ -597,6 +605,23 @@ Map<String, List<String>> _groupViolationsByType(
   }
 
   return grouped;
+}
+
+/// Determines if an import is an allowed cross-cutting concern
+/// that presentation layer can import from infrastructure
+bool _isAllowedCrossCuttingConcern(String import) {
+  // Allow shared utilities that are cross-cutting concerns
+  final allowedPatterns = [
+    'shared/infrastructure/utils/log_utils.dart', // Logging
+    'shared/infrastructure/utils/date_utils.dart', // Date utilities
+    'shared/infrastructure/utils/locale_utils.dart', // Locale utilities
+    'shared/infrastructure/utils/json_utils.dart', // JSON utilities
+    'shared/infrastructure/utils/network_utils.dart', // Network utilities
+    'shared/infrastructure/utils/chat_json_utils.dart', // Chat JSON utilities
+  ];
+
+  // Check if the import matches any allowed pattern
+  return allowedPatterns.any((pattern) => import.contains(pattern));
 }
 
 // ===================================================================

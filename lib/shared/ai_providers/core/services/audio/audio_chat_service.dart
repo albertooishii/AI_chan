@@ -6,7 +6,7 @@ import 'package:ai_chan/shared.dart' as di;
 import 'package:ai_chan/shared.dart' as audio_utils;
 import 'package:ai_chan/shared.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
+import 'package:ai_chan/chat.dart';
 
 /// Servicio que encapsula grabación, transcripción parcial, reproducción y TTS.
 class AudioChatService implements IAudioChatService {

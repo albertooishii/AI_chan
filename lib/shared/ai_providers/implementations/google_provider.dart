@@ -1,8 +1,6 @@
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/chat/infrastructure/adapters/prompt_builder_service.dart'
-    as pb;
-import 'package:ai_chan/chat/application/services/tts_voice_management_service.dart'
-    as tts_svc;
+import 'package:ai_chan/chat.dart'
+    as chat; // Use barrel import for chat services
 import 'dart:convert';
 import 'dart:async';
 import 'dart:typed_data';
@@ -10,7 +8,7 @@ import 'dart:io';
 
 /// Google Gemini provider implementation using the new architecture.
 /// This provider directly implements HTTP calls to Google AI API without depending on GeminiService.
-class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
+class GoogleProvider implements IAIProvider, chat.TTSVoiceProvider {
   GoogleProvider() {
     _metadata = const AIProviderMetadata(
       providerId: 'google',
@@ -208,7 +206,7 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
           // Inyectar la instrucción para metadatos de imagen cuando el usuario
           // adjunta una imagen (imageBase64 presente).
           if (imageBase64 != null && imageBase64.isNotEmpty) {
-            instrRoot['attached_image_metadata_instructions'] = pb
+            instrRoot['attached_image_metadata_instructions'] = chat
                 .imageMetadata(systemPrompt.profile.userName);
           }
 
@@ -216,7 +214,7 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
           final enableImageGeneration =
               additionalParams?['enableImageGeneration'] == true;
           if (enableImageGeneration) {
-            instrRoot['photo_instructions'] = pb.imageInstructions(
+            instrRoot['photo_instructions'] = chat.imageInstructions(
               systemPrompt.profile.userName,
             );
           }
@@ -387,7 +385,7 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
       final instrRoot = systemPromptMap['instructions'];
       if (instrRoot is Map) {
         // Inyectar photo_instructions para generación de imagen
-        instrRoot['photo_instructions'] = pb.imageInstructions(
+        instrRoot['photo_instructions'] = chat.imageInstructions(
           systemPrompt.profile.userName,
         );
       }
@@ -618,7 +616,7 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
 
   /// Get all available voices from Google TTS API
   @override
-  Future<List<tts_svc.VoiceInfo>> getAvailableVoices() async {
+  Future<List<chat.VoiceInfo>> getAvailableVoices() async {
     try {
       final url = 'https://texttospeech.googleapis.com/v1/voices?key=$_apiKey';
       final response = await HttpConnector.client.get(Uri.parse(url));
@@ -644,7 +642,7 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
   }
 
   /// Convert Google API response to VoiceInfo (Google-specific logic)
-  tts_svc.VoiceInfo _createVoiceInfoFromGoogleAPI(
+  chat.VoiceInfo _createVoiceInfoFromGoogleAPI(
     final Map<String, dynamic> data,
   ) {
     final name = data['name'] ?? '';
@@ -654,7 +652,7 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
         ? languageCodes.first
         : 'en';
 
-    return tts_svc.VoiceInfo(
+    return chat.VoiceInfo(
       id: name,
       name: name,
       language: primaryLanguage,
@@ -678,39 +676,39 @@ class GoogleProvider implements IAIProvider, tts_svc.TTSVoiceProvider {
   }
 
   /// Fallback voices if API call fails
-  List<tts_svc.VoiceInfo> _getFallbackVoices() {
+  List<chat.VoiceInfo> _getFallbackVoices() {
     return [
-      const tts_svc.VoiceInfo(
+      const chat.VoiceInfo(
         id: 'es-ES-Neural2-A',
         name: 'es-ES-Neural2-A',
         language: 'es-ES',
         gender: 'Femenina',
       ),
-      const tts_svc.VoiceInfo(
+      const chat.VoiceInfo(
         id: 'es-ES-Neural2-B',
         name: 'es-ES-Neural2-B',
         language: 'es-ES',
         gender: 'Masculina',
       ),
-      const tts_svc.VoiceInfo(
+      const chat.VoiceInfo(
         id: 'es-ES-Neural2-C',
         name: 'es-ES-Neural2-C',
         language: 'es-ES',
         gender: 'Femenina',
       ),
-      const tts_svc.VoiceInfo(
+      const chat.VoiceInfo(
         id: 'es-ES-Neural2-D',
         name: 'es-ES-Neural2-D',
         language: 'es-ES',
         gender: 'Masculina',
       ),
-      const tts_svc.VoiceInfo(
+      const chat.VoiceInfo(
         id: 'es-ES-Standard-A',
         name: 'es-ES-Standard-A',
         language: 'es-ES',
         gender: 'Femenina',
       ),
-      const tts_svc.VoiceInfo(
+      const chat.VoiceInfo(
         id: 'es-ES-Standard-B',
         name: 'es-ES-Standard-B',
         language: 'es-ES',

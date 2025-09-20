@@ -1,6 +1,5 @@
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/chat/application/services/chat_message_service.dart';
-import 'package:ai_chan/chat/application/mappers/message_factory.dart';
+import 'package:ai_chan/chat.dart';
 
 /// Infrastructure adapter implementing chat AI service using the new AI Provider system.
 /// Directly uses AIProviderManager without legacy compatibility layers.

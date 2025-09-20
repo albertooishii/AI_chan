@@ -9,8 +9,8 @@ class VoiceSessionOrchestrator {
     required this.sttService,
   });
 
-  final ITextToSpeechService ttsService;
-  final ISpeechToTextService sttService;
+  final CentralizedTtsService ttsService;
+  final CentralizedSttService sttService;
 
   /// Crear nueva sesión de voz
   Future<VoiceSession> createSession({

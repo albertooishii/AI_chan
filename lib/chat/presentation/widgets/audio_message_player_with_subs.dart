@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/chat/application/services/message_text_processor_service.dart';
+import 'package:ai_chan/chat.dart';
 import 'audio_message_player.dart';
 import 'floating_audio_subtitle.dart';
 

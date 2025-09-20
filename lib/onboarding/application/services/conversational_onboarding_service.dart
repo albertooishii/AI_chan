@@ -1,8 +1,5 @@
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/onboarding/domain/entities/memory_data.dart';
-import 'package:ai_chan/onboarding/domain/services/conversational_memory_domain_service.dart';
-import 'package:ai_chan/onboarding/application/services/onboarding_application_service.dart';
-import 'package:ai_chan/onboarding/application/use_cases/generate_next_question_use_case.dart';
+import 'package:ai_chan/onboarding.dart';
 
 /// Servicio refactorizado que implementa DDD/Hexagonal Architecture
 /// para el onboarding conversacional.

@@ -1,6 +1,6 @@
 import 'package:ai_chan/shared.dart';
 // Removed: i_chat_export_service.dart - using ISharedChatRepository directly
-import 'package:ai_chan/onboarding/domain/interfaces/i_onboarding_persistence_service.dart';
+import 'package:ai_chan/onboarding.dart';
 import 'dart:convert';
 
 /// Use Case for Biography Generation

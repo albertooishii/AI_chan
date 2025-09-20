@@ -5,6 +5,7 @@
 export 'voice/domain/entities/voice_session.dart';
 export 'voice/voice.dart';
 export 'voice/domain/interfaces/voice_services.dart';
+export 'voice/domain/interfaces/i_audio_recorder_service.dart';
 export 'voice/domain/interfaces/i_tone_service.dart';
 export 'voice/domain/interfaces/i_voice_conversation_service.dart';
 export 'voice/domain/services/voice_session_orchestrator.dart';

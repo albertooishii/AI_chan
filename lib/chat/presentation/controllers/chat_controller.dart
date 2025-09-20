@@ -1,13 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ai_chan/shared.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_audio_chat_service.dart';
-import 'package:ai_chan/chat/domain/interfaces/i_chat_controller.dart';
-import 'package:ai_chan/chat/application/services/chat_application_service.dart';
-import 'package:ai_chan/chat/presentation/controllers/_chat_audio_controller.dart';
-import 'package:ai_chan/chat/presentation/controllers/_chat_google_controller.dart';
-import 'package:ai_chan/chat/presentation/controllers/_chat_call_controller.dart';
-import 'package:ai_chan/chat/presentation/controllers/_chat_message_controller.dart';
-import 'package:ai_chan/chat/presentation/controllers/_chat_data_controller.dart';
+import 'package:ai_chan/chat.dart';
 
 // Barrel exports for sub-controllers - Clean single import access
 export '_chat_audio_controller.dart';
