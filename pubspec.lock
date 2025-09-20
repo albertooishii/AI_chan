@@ -57,14 +57,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.13.0"
-  audio_session:
-    dependency: "direct main"
-    description:
-      name: audio_session
-      sha256: "8f96a7fecbb718cb093070f868b4cdcb8a9b1053dce342ff8ab2fde10eb9afb7"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.2.2"
   audioplayers:
     dependency: "direct main"
     description:
@@ -313,14 +305,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.3.0"
-  external_path:
-    dependency: "direct main"
-    description:
-      name: external_path
-      sha256: "68a18a2aa51ec012d7013ea2a80305dc5372f3577a2bbcc7dcc5550b25a5a73b"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.2.0"
   fake_async:
     dependency: transitive
     description:
@@ -446,22 +430,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_appauth:
-    dependency: "direct main"
-    description:
-      name: flutter_appauth
-      sha256: b09fa8e3eaba12ec341c69ec45063e06eb565304e24cc35caaf105bbae2e955c
-      url: "https://pub.dev"
-    source: hosted
-    version: "9.0.1"
-  flutter_appauth_platform_interface:
-    dependency: transitive
-    description:
-      name: flutter_appauth_platform_interface
-      sha256: fd2920b853d09741aff2e1178e044ea2ade0c87799cd8e63f094ab35b00fdf70
-      url: "https://pub.dev"
-    source: hosted
-    version: "9.0.0"
   flutter_dotenv:
     dependency: "direct main"
     description:
@@ -560,14 +528,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_tts:
-    dependency: "direct main"
-    description:
-      name: flutter_tts
-      sha256: bdf2fc4483e74450dc9fc6fe6a9b6a5663e108d4d0dad3324a22c8e26bf48af4
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.2.3"
   flutter_web_plugins:
     dependency: transitive
     description: flutter
@@ -1077,22 +1037,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.5.0"
-  qr:
-    dependency: transitive
-    description:
-      name: qr
-      sha256: "5a1d2586170e172b8a8c8470bbbffd5eb0cd38a66c0d77155ea138d3af3a4445"
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.0.2"
-  qr_flutter:
-    dependency: "direct main"
-    description:
-      name: qr_flutter
-      sha256: "5095f0fc6e3f71d08adef8feccc8cea4f12eec18a2e31c2e8d82cb6019f4b097"
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.1.0"
   record:
     dependency: "direct main"
     description:
@@ -1157,14 +1101,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.7"
-  rxdart:
-    dependency: transitive
-    description:
-      name: rxdart
-      sha256: "5c3004a4a8dbb94bd4bf5412a4def4acdaa12e12f269737a5751369e12d1a962"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.28.0"
   scroll_to_index:
     dependency: transitive
     description:
